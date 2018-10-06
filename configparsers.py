@@ -339,12 +339,22 @@ class LocalConfig(UnicodeConfigParser):
 
     @property
     def project_scenes_folder(self):
-        """The saved list order mode."""
+        """The name of the ``scenes`` folder inside the project folder."""
         return self._get_option('activejob', 'project_scenes_folder', 'scenes')
 
     @project_scenes_folder.setter
     def project_scenes_folder(self, val):
         self.set('activejob', 'project_scenes_folder', '{}'.format(val))
+        self.write_ini()
+
+    @property
+    def project_renders_folder(self):
+        """The name of the ``renders`` folder inside the project folder."""
+        return self._get_option('activejob', 'project_renders_folder', 'renders')
+
+    @project_renders_folder.setter
+    def project_renders_folder(self, val):
+        self.set('activejob', 'project_renders_folder', '{}'.format(val))
         self.write_ini()
 
 

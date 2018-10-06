@@ -377,7 +377,10 @@ class ProjectWidget(BaseListWidget):
 
         """
         item = self.currentItem()
-        path = '{}/renders'.format(item.data(QtCore.Qt.StatusTipRole))
+        path = '{}/{}'.format(
+            item.data(QtCore.Qt.StatusTipRole),
+            local_config.project_renders_folder
+        )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
