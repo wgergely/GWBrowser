@@ -21,7 +21,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
-import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_config
 from mayabrowser.configparsers import ProjectConfig
@@ -340,29 +339,17 @@ class ProjectWidget(BaseListWidget):
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_project_textures(self):
-        """Opens the textures folder
-
-        TODO:
-            This is a GLASSWORKS specific output path.
-            The values from this will need to be privded by the pipe itself.
-
-        """
+        """Opens the ``textures`` folder."""
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_confing.project_textures_folder
+            local_config.project_textures_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_project_scenes(self):
-        """Opens the textures folder
-
-        TODO:
-            This is a GLASSWORKS specific output path.
-            The values from this will need to be privded by the pipe itself.
-
-        """
+        """Opens the ``scenes`` folder."""
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
@@ -372,13 +359,7 @@ class ProjectWidget(BaseListWidget):
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_project_renders(self):
-        """Opens the textures folder
-
-        TODO:
-            This is a GLASSWORKS specific output path.
-            The values from this will need to be privded by the pipe itself.
-
-        """
+        """Opens the ``renders`` folder."""
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
@@ -388,20 +369,22 @@ class ProjectWidget(BaseListWidget):
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_project_exports(self):
-        """Opens the textures folder
-
-        TODO:
-            This is a GLASSWORKS specific output path.
-            The values from this will need to be privded by the pipe itself.
-
-        """
+        """Opens the ``exports`` folder."""
         item = self.currentItem()
-        path = '{}/exports'.format(item.data(QtCore.Qt.StatusTipRole))
+        path = '{}/{}'.format(
+            item.data(QtCore.Qt.StatusTipRole),
+            local_config.project_exports_folder
+        )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
     def eventFilter(self, widget, event):
-        """ProjectWidget's custom paint is triggered here."""
+        """ProjectWidget's custom paint is triggered here.
+
+        I'm using the custom paint event to display a user message when no
+        project or files can be found.
+
+        """
         if event.type() == QtCore.QEvent.Paint:
             self._paint_widget_background()
 

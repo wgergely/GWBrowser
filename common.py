@@ -6,7 +6,6 @@ from PySide2 import QtGui
 
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
 
-MAYA_EXPORTS_DIR = 'exports'
 
 MARGIN = 6
 ROW_HEIGHT = 54

@@ -367,6 +367,16 @@ class LocalConfig(UnicodeConfigParser):
         self.set('activejob', 'project_textures_folder', '{}'.format(val))
         self.write_ini()
 
+    @property
+    def project_exports_folder(self):
+        """The name of the ``exports`` folder inside the project folder."""
+        return self._get_option('activejob', 'project_exports_folder', 'exports')
+
+    @project_exports_folder.setter
+    def project_exports_folder(self, val):
+        self.set('activejob', 'project_exports_folder', '{}'.format(val))
+        self.write_ini()
+
 
 class CustomConfig(UnicodeConfigParser):
     """Baseclass for the Project- and FileConfigs."""
