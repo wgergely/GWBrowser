@@ -232,7 +232,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         self.paint_active_indicator(*args)
         self.paint_custom(*args)
 
-    def paint_custom(*args):
+    def paint_custom(self, *args):
         """To define any custom paint action, override this method in the subclass."""
         return
 
