@@ -348,7 +348,10 @@ class ProjectWidget(BaseListWidget):
 
         """
         item = self.currentItem()
-        path = '{}/textures'.format(item.data(QtCore.Qt.StatusTipRole))
+        path = '{}/{}'.format(
+            item.data(QtCore.Qt.StatusTipRole),
+            local_confing.project_textures_folder
+        )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
