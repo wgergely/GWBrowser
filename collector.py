@@ -35,7 +35,7 @@ Example:
 
 import re
 from PySide2 import QtCore
-import mayabrowser.common as common
+from mayabrowser.configparsers import local_config
 
 class ProjectCollector(object):
     """Object to collect folders and files from a specified file location.
@@ -219,7 +219,7 @@ class FileCollector(object):
         it = QtCore.QDirIterator(
             '{}/{}'.format(
                 self.root_info.filePath(),
-                common.MAYA_SCENES_DIR
+                local_config.project_scenes_folder
             ),
             self.FILE_EXTENSION_MASK,
             flags=QtCore.QDir.Dirs | QtCore.QDir.NoSymLinks |

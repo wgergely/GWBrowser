@@ -28,7 +28,7 @@ MarkedAsFavourite = 2
 
 
 class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style class!
-    """Unicode-code capable ConfigParser."""
+    """Unicode capable ConfigParser."""
     SECTIONS = []
 
     def __init__(self, path):
@@ -288,7 +288,7 @@ class LocalConfig(UnicodeConfigParser):
         self.write_ini()
 
     def clear_history(self):
-        """Clears the history."""
+        """Clears the history from the local configuration file."""
         self._get_option('activejob', 'history', '')
         self.set('activejob', 'history', '')
         self.write_ini()
@@ -335,6 +335,16 @@ class LocalConfig(UnicodeConfigParser):
         string = string.rstrip(';').lstrip(';')
 
         self.set('activejob', 'history', '{}'.format(string))
+        self.write_ini()
+
+    @property
+    def project_scenes_folder(self):
+        """The saved list order mode."""
+        return self._get_option('activejob', 'project_scenes_folder', 'scenes')
+
+    @project_scenes_folder.setter
+    def project_scenes_folder(self, val):
+        self.set('activejob', 'project_scenes_folder', '{}'.format(val))
         self.write_ini()
 
 
@@ -416,3 +426,4 @@ class FileConfig(CustomConfig):
 
 
 local_config = LocalConfig()
+"""An instance of the local configuration created when loading this module."""

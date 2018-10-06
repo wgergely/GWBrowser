@@ -450,7 +450,7 @@ class MayaFilesWidget(BaseListWidget):
             basedirs = basedirs.replace(
                 self.collector.root_info.filePath(), ''
             ).replace(
-                common.MAYA_SCENES_DIR, ''
+                local_config.project_scenes_folder, ''
             ).lstrip('/').rstrip('/')
 
             item = QtWidgets.QListWidgetItem()

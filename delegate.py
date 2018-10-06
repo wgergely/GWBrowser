@@ -10,6 +10,7 @@ from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import ProjectConfig
 from mayabrowser.configparsers import FileConfig
+from mayabrowser.configparsers import local_config
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -534,7 +535,7 @@ class FilesWidgetDelegate(BaseDelegate):
         basedirs = basedirs.replace(
             self.parent().collector.root_info.filePath(), ''
         ).replace(
-            common.MAYA_SCENES_DIR, ''
+            local_config.project_scenes_folder, ''
         ).lstrip('/').rstrip('/')
 
         painter.setBrush(QtCore.Qt.NoBrush)

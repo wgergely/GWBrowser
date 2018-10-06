@@ -363,7 +363,7 @@ class ProjectWidget(BaseListWidget):
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            common.MAYA_SCENES_DIR
+            local_config.project_scenes_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)

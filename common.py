@@ -6,7 +6,6 @@ from PySide2 import QtGui
 
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
 
-MAYA_SCENES_DIR = 'scenes'
 MAYA_RENDERS_DIR = 'renders'
 MAYA_TEXTURES_DIR = 'textures'
 MAYA_EXPORTS_DIR = 'exports'

@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
-"""This is a widget to set the queried path of the collector.
+"""This is a widget to set the path used the Collector to look for projects.
 
 Attributes:
     server (str):   The path to the server. None if invalid.
     job (str):      The name of the job folder. None if invalid.
     root (str):     The name of the projects root folder. None if invalid.
 
-The final path is a composit of [path]/[job]/[root].
+The final set path is a composit of [path]/[job]/[root].
 
 """
 from PySide2 import QtWidgets, QtCore
 # pylint: disable=E1101, C0103, R0913, I1101
 
+
+class SettingsWidget(QtWidgets.QWidget):
+    """This widget contains all the appropiate settings for Maya Browser."""
+
+    def __init__(self, parent=None):
+        super(SettingsWidget, self).__init__(parent=parent)
 
 class UpdateConfigWidget(QtWidgets.QDialog):
     """Interface to update the path querried."""
@@ -40,9 +46,16 @@ class UpdateConfigWidget(QtWidgets.QDialog):
 
     def _createUI(self):
         """Creates the ui layout."""
-        QtWidgets.QVBoxLayout(self)
+        QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(18, 18, 18, 18)
-        self.setFixedWidth(360)
+        # self.setFixedWidth(360)
+
+        self.pathsettings = QtWidgets.QWidget()
+        QtWidgets.QVBoxLayout(self.pathsettings)
+        self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
+        self.pathsettings.layout().setSpacing(0)
+
+        self.layout().addWidget(self.pathsettings)
 
         # row1
         self.pick_server_line = QtWidgets.QLineEdit('//gordo/jobs')
@@ -63,38 +76,38 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.ok_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
 
-        self.layout().addWidget(QtWidgets.QLabel('Server'), 1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 1)
 
         label = QtWidgets.QLabel(
             'Local network path pointing to where the studio\'s jobs are located (press enter to set).')
         label.setWordWrap(True)
         label.setDisabled(True)
-        self.layout().addWidget(label, 0)
+        self.pathsettings.layout().addWidget(label, 0)
 
-        self.layout().addWidget(self.pick_server_line, 1)
-        self.layout().addWidget(self.pick_server_feedback, 1)
-        self.layout().addWidget(QtWidgets.QLabel('Job'), 1)
+        self.pathsettings.layout().addWidget(self.pick_server_line, 1)
+        self.pathsettings.layout().addWidget(self.pick_server_feedback, 1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 1)
 
         label = QtWidgets.QLabel(
             'The name of the current job.')
         label.setWordWrap(True)
         label.setDisabled(True)
-        self.layout().addWidget(label, 0)
+        self.pathsettings.layout().addWidget(label, 0)
 
-        self.layout().addWidget(self.pick_job_menu, 1)
-        self.layout().addWidget(QtWidgets.QLabel('\n'), 1)
-        self.layout().addWidget(QtWidgets.QLabel('Projects'), 1)
+        self.pathsettings.layout().addWidget(self.pick_job_menu, 1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('\n'), 1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Projects'), 1)
 
         label = QtWidgets.QLabel(
             'A relative path of where the maya projects located inside the current job (press enter to set).')
         label.setWordWrap(True)
         label.setDisabled(True)
-        self.layout().addWidget(label, 0)
+        self.pathsettings.layout().addWidget(label, 0)
 
-        self.layout().addWidget(self.pick_root_line, 1)
-        self.layout().addWidget(self.pick_root_feedback, 1)
-        self.layout().addStretch(6)
-        self.layout().addWidget(row, 1)
+        self.pathsettings.layout().addWidget(self.pick_root_line, 1)
+        self.pathsettings.layout().addWidget(self.pick_root_feedback, 1)
+        self.pathsettings.layout().addStretch(6)
+        self.pathsettings.layout().addWidget(row, 1)
 
     def _connectSignals(self):
         self.pick_server_line.returnPressed.connect(self.serverEdited)
@@ -123,9 +136,11 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             self.rootEdited()
 
     def okClicked(self):
+        """Action when the Ok button is clicked."""
         self.done(1)
 
     def cancelClicked(self):
+        """Action when the Cancel button is clicked."""
         self.done(0)
 
     def serverEdited(self):
@@ -213,3 +228,9 @@ class UpdateConfigWidget(QtWidgets.QDialog):
                 '{}\nPath does not exist.'.format(file_info.filePath())
             )
             self.pick_root_feedback.setStyleSheet('color: red;')
+
+if __name__ == '__main__':
+    a = QtWidgets.QApplication([])
+    a.w = UpdateConfigWidget()
+    a.w.exec_()
+    a.exec_()
