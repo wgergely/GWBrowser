@@ -9,6 +9,8 @@ Attributes:
 The final set path is a composit of [path]/[job]/[root].
 
 """
+
+
 from PySide2 import QtWidgets, QtCore
 # pylint: disable=E1101, C0103, R0913, I1101
 
@@ -18,6 +20,71 @@ class SettingsWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(SettingsWidget, self).__init__(parent=parent)
+        self._createUI()
+
+    def _createUI(self):
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(1)
+
+        # Scenes
+        label = QtWidgets.QLabel('Scenes')
+        self.layout().addWidget(label)
+        label = QtWidgets.QLabel('Folder for Maya or other scene files:')
+        label.setWordWrap(True)
+        label.setDisabled(True)
+        self.scenes_folder = QtWidgets.QLineEdit()
+        self.scenes_folder.setText('scenes')
+        self.scenes_folder.setPlaceholderText('scenes folder name')
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.scenes_folder)
+        self.layout().addSpacing(12)
+
+        # Textures
+        label = QtWidgets.QLabel('Textures')
+        self.layout().addWidget(label)
+        label = QtWidgets.QLabel('Folder for textures files:')
+        label.setWordWrap(True)
+        label.setDisabled(True)
+        self.textures_folder = QtWidgets.QLineEdit()
+        self.textures_folder.setText('textures')
+        self.textures_folder.setPlaceholderText('textures folder name')
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.textures_folder)
+        self.layout().addSpacing(12)
+
+        # Textures
+        label = QtWidgets.QLabel('Renders')
+        self.layout().addWidget(label)
+        label = QtWidgets.QLabel('Folder for render-files:')
+        label.setWordWrap(True)
+        label.setDisabled(True)
+        self.renders_folder = QtWidgets.QLineEdit()
+        self.renders_folder.setText('renders')
+        self.renders_folder.setPlaceholderText('folder name')
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.renders_folder)
+        self.layout().addSpacing(12)
+
+        # Exports
+        label = QtWidgets.QLabel('Exports')
+        self.layout().addWidget(label)
+        label = QtWidgets.QLabel('Folder for data exported from scene files:')
+        label.setWordWrap(True)
+        label.setDisabled(True)
+        self.exports_folder = QtWidgets.QLineEdit()
+        self.exports_folder.setText('exports')
+        self.exports_folder.setPlaceholderText('folder name')
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.exports_folder)
+
+        self.layout().addStretch()
+
+
 
 class UpdateConfigWidget(QtWidgets.QDialog):
     """Interface to update the path querried."""
@@ -53,7 +120,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
-        self.pathsettings.layout().setSpacing(0)
+        self.pathsettings.layout().setSpacing(1)
 
         self.layout().addWidget(self.pathsettings)
 
@@ -108,6 +175,12 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(self.pick_root_feedback, 1)
         self.pathsettings.layout().addStretch(6)
         self.pathsettings.layout().addWidget(row, 1)
+
+        self.settings = SettingsWidget()
+        self.layout().addSpacing(12)
+        self.layout().addWidget(self.settings)
+
+        self.pathsettings.setMinimumWidth(300)
 
     def _connectSignals(self):
         self.pick_server_line.returnPressed.connect(self.serverEdited)
