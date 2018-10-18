@@ -16,6 +16,7 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import os
 from collections import OrderedDict
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from mayabrowser.listbase import BaseContextMenu
@@ -42,11 +43,47 @@ class ProjectWidgetContextMenu(BaseContextMenu):
 
     """
 
+    def history_changed(self, action):
+        """Action triggered when the history has changed.
+
+        Args:
+            action (QAction):       Instance of the triggered action.
+
+        """
+        local_config.server = action.data()[0]
+        local_config.job = action.data()[1]
+        local_config.root = action.data()[2]
+        self.parent().hide()
+        self.parent().parent_.sync_config()
+        self.parent().parent_.projectsButton.clicked.emit()
+
+    def add_history(self):
+        """Populates the menu with history of project locations."""
+        submenu = self.addMenu('History')
+        if not local_config.history:
+            return
+
+        for item in local_config.history:
+            if item[0] == '':
+                continue
+            action = submenu.addAction('{}/{}/{}'.format(*item))
+            action.setData(item)
+            action.triggered.connect(
+                functools.partial(self.history_changed, action))
+            action.setCheckable(True)
+            if (
+                (item[0] == local_config.server) and
+                (item[1] == local_config.job) and
+                (item[2] == local_config.root)
+            ):
+                action.setChecked(True)
+
     def add_actions(self):
-        self.add_action_set(self.ActionSet)
+        self.add_history()
+        self.add_action_set(self.ACTION_SET)
 
     @property
-    def ActionSet(self):
+    def ACTION_SET(self):
         """A custom set of actions to display."""
         items = OrderedDict()
         if self.index.isValid():
@@ -54,6 +91,7 @@ class ProjectWidgetContextMenu(BaseContextMenu):
             data = self.index.data(QtCore.Qt.StatusTipRole)
             name = QtCore.QFileInfo(data).fileName()
 
+            items['<separator>0'] = {}
             items['Set as active project'] = {}
             items['Mark as favourite'] = {
                 'checkable': True,
