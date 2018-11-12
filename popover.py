@@ -1,8 +1,6 @@
 from math import cos, sin, pi
 from PySide2 import QtCore, QtGui, QtWidgets
 
-from mayabrowser.toolbar import MayaBrowserWidget
-
 
 class PopupButton(QtWidgets.QPushButton):
 
@@ -11,16 +9,45 @@ class PopupButton(QtWidgets.QPushButton):
         self._createUI()
 
     def _createUI(self):
-        self.setStyleSheet(MayaBrowserWidget.buttonStyle())
-        self.setWindowFlags(
-            QtCore.Qt.Widget |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
+        self.setStyleSheet(self.button_style())
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        # self.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.setFixedHeight(24)
         self.setFixedWidth(120)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
+    @staticmethod
+    def button_style():
+        """Returns a style-string defining our custom button."""
+        return (
+            """
+            QPushButton {
+                text-align: left;
+                border-left: 1px solid rgba(0, 0, 0, 50);
+                padding-left: 10px;
+                padding-right: 10px;
+                border-style: solid;
+                color: rgb(210, 210, 210);
+                background-color: rgb(68, 68, 68);
+            }
+            """
+        )
+
+    @staticmethod
+    def active_button_style():
+        return (
+        """
+        QPushButton {
+            text-align: left;
+            border: 1px solid rgba(0, 100, 255, 255);
+            padding-left: 10px;
+            padding-right: 10px;
+            border-style: solid;
+            color: rgb(230, 230, 230);
+            background-color: rgb(100, 100, 100);
+        }
+        """
+        )
 
 
 class PopupCanvas(QtWidgets.QWidget):
@@ -34,11 +61,12 @@ class PopupCanvas(QtWidgets.QWidget):
         self.setWindowOpacity(0.01)
         self.animation = None
 
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(20)
-        self.timer.setSingleShot(False)
+        # self.timer = QtCore.QTimer()
+        # self.timer.setInterval(20)
+        # self.timer.setSingleShot(False)
 
         self._connectSignals()
+
 
     def rotate(self, point, angle):
         angle = angle * (pi / 180.0)
@@ -87,13 +115,13 @@ class PopupCanvas(QtWidgets.QWidget):
     def show(self):
         """Method connected to the clicked() signal."""
         self.set_full_screen()
-        self.timer.start()
-        self.setFocus()
-        self.activateWindow()
-        self.raise_()
         self.move_buttons()
+        # self.timer.start()
+
+        self.animate_opacity()
         super(PopupCanvas, self).show()
-        widget.animate_opacity()
+        self.raise_()
+        self.activateWindow()
 
     def animate_opacity(self):
         self.animation = QtCore.QPropertyAnimation(
@@ -107,12 +135,14 @@ class PopupCanvas(QtWidgets.QWidget):
     def _createUI(self):
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint
+            # QtCore.Qt.WindowTransparentForInput
         )
 
+        self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        # self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
+        # self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
@@ -120,52 +150,46 @@ class PopupCanvas(QtWidgets.QWidget):
         self.button2 = PopupButton('Textures...', parent=self)
         self.button3 = PopupButton('Exports...', parent=self)
         self.button4 = PopupButton('Renders...', parent=self)
-        self.installEventFilter(self)
 
-    def active_button_style(self):
-        return """
-        QPushButton {
-            text-align: left;
-            border: 1px solid rgba(0, 100, 255, 255);
-            padding-left: 10px;
-            padding-right: 10px;
-            border-style: solid;
-            color: rgb(230, 230, 230);
-            background-color: rgb(100, 100, 100);
-        }
-        """
+        self.installEventFilter(self)
 
     def eventFilter(self, widget, event):
         cursor = QtGui.QCursor()
         pos = cursor.pos()
+
         if event.type() == QtCore.QEvent.MouseMove:
+            self.update()
             if self.button1.geometry().contains(pos):
-                self.button1.setStyleSheet(self.active_button_style())
+                self.button1.setStyleSheet(PopupButton.active_button_style())
             elif self.button2.geometry().contains(pos):
-                self.button2.setStyleSheet(self.active_button_style())
+                self.button2.setStyleSheet(PopupButton.active_button_style())
             elif self.button3.geometry().contains(pos):
-                self.button3.setStyleSheet(self.active_button_style())
+                self.button3.setStyleSheet(PopupButton.active_button_style())
             elif self.button4.geometry().contains(pos):
-                self.button4.setStyleSheet(self.active_button_style())
+                self.button4.setStyleSheet(PopupButton.active_button_style())
             else:
-                self.button1.setStyleSheet(MayaBrowserWidget.buttonStyle())
-                self.button2.setStyleSheet(MayaBrowserWidget.buttonStyle())
-                self.button3.setStyleSheet(MayaBrowserWidget.buttonStyle())
-                self.button4.setStyleSheet(MayaBrowserWidget.buttonStyle())
-                return True
+                self.button1.setStyleSheet(PopupButton.button_style())
+                self.button2.setStyleSheet(PopupButton.button_style())
+                self.button3.setStyleSheet(PopupButton.button_style())
+                self.button4.setStyleSheet(PopupButton.button_style())
+                # return True
 
         if event.type() == QtCore.QEvent.MouseButtonRelease:
             if self.button1.geometry().contains(pos):
                 self.button1.clicked.emit()
+                self.close()
             elif self.button2.geometry().contains(pos):
                 self.button2.clicked.emit()
+                self.close()
             elif self.button3.geometry().contains(pos):
                 self.button3.clicked.emit()
+                self.close()
             elif self.button4.geometry().contains(pos):
                 self.button4.clicked.emit()
+                self.close()
 
-            self.close()
-            return True
+            # self.close()
+            # return True
 
         return False
 
@@ -189,13 +213,11 @@ class PopupCanvas(QtWidgets.QWidget):
             angle += increment
 
     def _connectSignals(self):
+        pass
         # self.button1.clicked.connect(self.close)
         # self.button2.clicked.connect(self.close)
         # self.button3.clicked.connect(self.close)
-        self.timer.timeout.connect(self.update)
-
-    def button1Clicked(self):
-        self.close()
+        # self.timer.timeout.connect(self.update)
 
     def keyPressEvent(self, event):
         if event.modifiers() == QtCore.Qt.NoModifier:

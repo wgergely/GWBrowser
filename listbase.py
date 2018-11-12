@@ -100,6 +100,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setItemDelegate(self.Delegate(parent=self))
         self.setSortingEnabled(False)
         self.installEventFilter(self)
+        self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
         # Keyboard search timer and placeholder string.

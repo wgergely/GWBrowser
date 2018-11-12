@@ -26,6 +26,7 @@ from mayabrowser.configparsers import local_config
 from mayabrowser.configparsers import ProjectConfig
 from mayabrowser.collector import ProjectCollector
 from mayabrowser.delegate import ProjectWidgetDelegate
+from mayabrowser.popover import PopupCanvas
 
 
 class ProjectWidgetContextMenu(BaseContextMenu):
@@ -116,8 +117,13 @@ class ProjectWidgetContextMenu(BaseContextMenu):
 
 
 class ProjectWidget(BaseListWidget):
-    """Custom QListWidget containing all the collected maya projects."""
+    """Custom QListWidget containing all the collected maya projects.
 
+    Projects are folders with an identifier file, by default
+    the project collector will look for a file in the root of the project folder
+    called ``workspace.mel``. If this file is not found the folder is ignored.
+
+    """
     Config = ProjectConfig
     Delegate = ProjectWidgetDelegate
     ContextMenu = ProjectWidgetContextMenu
@@ -130,6 +136,26 @@ class ProjectWidget(BaseListWidget):
         )
         super(ProjectWidget, self).__init__(parent=parent)
         self.setWindowTitle('Projects')
+
+        self.long_presstimer = QtCore.QTimer()
+        self.long_presstimer.setInterval(300)
+        self.long_presstimer.setSingleShot(True)
+        self.long_presstimer.timeout.connect(self.show_popover)
+
+    def show_popover(self):
+        """Popup widget show on long-mouse-press."""
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
+        cursor = QtGui.QCursor()
+        self.popover = PopupCanvas(cursor.pos())
+        self.popover.show()
+
+        click = QtGui.QMouseEvent(
+            QtCore.QEvent.MouseButtonRelease, cursor.pos(),
+            QtCore.Qt.LeftButton, 0,
+            QtCore.Qt.NoModifier
+        )
+        QtCore.QCoreApplication.instance().sendEvent(self.popover, click)
+        QtCore.QCoreApplication.instance().postEvent(self.popover, click)
 
     @property
     def collector(self):
@@ -385,6 +411,18 @@ class ProjectWidget(BaseListWidget):
         project or files can be found.
 
         """
+        if event.type() == QtCore.QEvent.MouseButtonPress:
+            self.long_presstimer.start()
+            super(ProjectWidget, self).mousePressEvent(event)
+            return True
+        elif event.type() == QtCore.QEvent.MouseButtonRelease:
+            self.long_presstimer.stop()
+            super(ProjectWidget, self).mouseReleaseEvent(event)
+            return True
+        elif event.type() == QtCore.QEvent.MouseMove:
+            super(ProjectWidget, self).mouseMoveEvent(event)
+            return True
+
         if event.type() == QtCore.QEvent.Paint:
             self._paint_widget_background()
 
