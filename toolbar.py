@@ -54,7 +54,12 @@ class MayaBrowserContextMenu(Actions):
         super(MayaBrowserContextMenu, self).__init__(parent=parent)
 
     def history_changed(self, action):
-        """Action triggered when the history has changed."""
+        """Action triggered when the history has changed.
+
+        Args:
+            action (QAction):       Instance of the triggered action.
+
+        """
         local_config.server = action.data()[0]
         local_config.job = action.data()[1]
         local_config.root = action.data()[2]

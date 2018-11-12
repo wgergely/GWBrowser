@@ -411,6 +411,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 class ProjectWidgetDelegate(BaseDelegate):
     """Delegate used by the ``ProjectWidget`` to display the collecteds projects."""
 
+    def sizeHint(self, option, index):
+        """Custom size hint."""
+        return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT * 1.33)
+
     def get_thumbnail_path(self, index):
         """The path to the thumbnail of the project."""
         return ProjectConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
