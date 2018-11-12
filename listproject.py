@@ -44,8 +44,8 @@ class ProjectWidgetContextMenu(BaseContextMenu):
 
     """
 
-    def history_changed(self, action):
-        """Action triggered when the history has changed.
+    def location_changed(self, action):
+        """Action triggered when the location has changed.
 
         Args:
             action (QAction):       Instance of the triggered action.
@@ -58,19 +58,19 @@ class ProjectWidgetContextMenu(BaseContextMenu):
         self.parent().parent_.sync_config()
         self.parent().parent_.projectsButton.clicked.emit()
 
-    def add_history(self):
-        """Populates the menu with history of project locations."""
-        submenu = self.addMenu('History')
-        if not local_config.history:
+    def add_location(self):
+        """Populates the menu with location of project locations."""
+        submenu = self.addMenu('Locations')
+        if not local_config.location:
             return
 
-        for item in local_config.history:
+        for item in local_config.location:
             if item[0] == '':
                 continue
             action = submenu.addAction('{}/{}/{}'.format(*item))
             action.setData(item)
             action.triggered.connect(
-                functools.partial(self.history_changed, action))
+                functools.partial(self.location_changed, action))
             action.setCheckable(True)
             if (
                 (item[0] == local_config.server) and
@@ -80,7 +80,7 @@ class ProjectWidgetContextMenu(BaseContextMenu):
                 action.setChecked(True)
 
     def add_actions(self):
-        self.add_history()
+        self.add_location()
         self.add_action_set(self.ACTION_SET)
 
     @property

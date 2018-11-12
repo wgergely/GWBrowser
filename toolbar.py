@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+'Edit locations'# -*- coding: utf-8 -*-
 """``MayaBrowserWidget`` is the plug-in's main widget.
 When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
 otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.
@@ -53,8 +53,8 @@ class MayaBrowserContextMenu(Actions):
     def __init__(self, parent=None):
         super(MayaBrowserContextMenu, self).__init__(parent=parent)
 
-    def history_changed(self, action):
-        """Action triggered when the history has changed.
+    def location_changed(self, action):
+        """Action triggered when the location has changed.
 
         Args:
             action (QAction):       Instance of the triggered action.
@@ -65,19 +65,19 @@ class MayaBrowserContextMenu(Actions):
         local_config.root = action.data()[2]
         self.parent().sync_config()
 
-    def add_history(self):
-        """Populates the menu with history of project locations."""
-        submenu = self.addMenu('History')
-        if not local_config.history:
+    def add_location(self):
+        """Populates the menu with location of project locations."""
+        submenu = self.addMenu('Locations')
+        if not local_config.location:
             return
 
-        for item in local_config.history:
+        for item in local_config.location:
             if item[0] == '':
                 continue
             action = submenu.addAction('{}/{}/{}'.format(*item))
             action.setData(item)
             action.triggered.connect(
-                functools.partial(self.history_changed, action))
+                functools.partial(self.location_changed, action))
             action.setCheckable(True)
             if (
                 (item[0] == local_config.server) and
@@ -87,14 +87,14 @@ class MayaBrowserContextMenu(Actions):
                 action.setChecked(True)
 
     def add_actions(self):
-        self.add_history()
+        self.add_location()
         self.add_action_set(self.ACTION_SET)
 
     @property
     def ACTION_SET(self):
         """Custom contextmenu action-list."""
         items = OrderedDict()
-        items['Configure'] = {}
+        items['Configure locations'] = {}
         items['<separator>'] = {}
         items['Reveal projects'] = {}
         items['Reveal job'] = {}
@@ -132,7 +132,7 @@ class MayaBrowserContextMenu(Actions):
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
-    def configure(self):
+    def configure_locations(self):
         """Opens a dialog to set the active project folder and writes
         the pick into a local config file.
 
@@ -155,7 +155,7 @@ class MayaBrowserContextMenu(Actions):
             local_config.root = w.root
         self.parent().sync_config()
 
-        local_config.append_to_history(w.server, w.job, w.root)
+        local_config.append_to_location(w.server, w.job, w.root)
 
 
 SingletonType = type(QtWidgets.QWidget)

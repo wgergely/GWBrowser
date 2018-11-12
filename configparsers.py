@@ -287,34 +287,34 @@ class LocalConfig(UnicodeConfigParser):
         self.set('mayawidget', 'current_filter', '{}'.format(val))
         self.write_ini()
 
-    def clear_history(self):
-        """Clears the history from the local configuration file."""
+    def clear_location(self):
+        """Clears all saved locations from the local configuration file."""
         self._get_option('activejob', 'history', '')
         self.set('activejob', 'history', '')
         self.write_ini()
 
     @property
-    def history(self):
-        """Returns the history of configuration values set.
+    def location(self):
+        """Returns the location of configuration values set.
 
         The string is stored the following format:
             'server1,job1,root1; server2,job2,root2;'
 
         """
-        history = self._get_option('activejob', 'history', '')
-        history = history.split(';')
+        location = self._get_option('activejob', 'history', '')
+        location = location.split(';')
 
-        if not history:
+        if not location:
             return []
 
         array = []
-        for setting in history:
+        for setting in location:
             array.append(setting.split(','))
 
         return array
 
-    def append_to_history(self, server, job, root):
-        """Adds an item to the history.
+    def append_to_location(self, server, job, root):
+        """Adds an item to the location.
 
         Args:
             server (str):       The path to the server.
