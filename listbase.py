@@ -277,7 +277,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         """
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
-        print no_modifier
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Escape:
                 self.hide()
