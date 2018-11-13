@@ -5,6 +5,7 @@ found by the collector classes.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
+import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from mayabrowser.common import cmds
@@ -228,7 +229,7 @@ class BaseListWidget(QtWidgets.QListWidget):
     def key_down(self):
         if self.currentRow() == -1:
             for n in xrange(self.count()):
-                if not self.item(n).isHidden():
+                if self.item(n).isHidden():
                     self.setCurrentRow(n)
                     break
         else:
@@ -268,55 +269,84 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setUpdatesEnabled(True)
 
     def keyPressEvent(self, event):
-        """Custom key actions."""
-        if event.modifiers() == QtCore.Qt.NoModifier:
+        """Customized key actions.
+
+        We're defining the default behaviour of the list-items here, including
+        defining the actions needed to navigate the list using keyboard presses.
+
+        """
+        numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
+        no_modifier = event.modifiers() == QtCore.Qt.NoModifier
+        print no_modifier
+        if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Escape:
                 self.hide()
-
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
-
             elif event.key() == QtCore.Qt.Key_Up:
                 self.key_up()
-
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
                 self.hide()
-
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.key_down()
                 self.key_tab()
-
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
-
             else:  # keyboard search and select
                 if not self.timer.isActive():
                     self.timed_search_string = ''
                     self.timer.start()
+
                 self.timed_search_string += event.text()
                 self.timer.start()
-                flags = QtCore.Qt.MatchStartsWith
-                item = next((f for f in self.findItems(
-                    self.timed_search_string, flags)), None)
-                if item:
-                    self.setCurrentItem(item)
+
+                for n in xrange(self.count()):
+                    if self.item(n).isHidden():
+                        continue #skipping hidden items
+
+                    # When only one key is pressed we want to cycle through
+                    # only items starting with that letter:
+                    if len(self.timed_search_string) == 1:
+                        if self.currentRow() >= n:
+                            continue
+                        if self.item(n).data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
+                            self.setCurrentItem(
+                                self.item(n),
+                                QtCore.QItemSelectionModel.ClearAndSelect
+                            )
+                            break
+                    else:
+                        match = re.search(
+                            '{}'.format(self.timed_search_string),
+                            self.item(n).data(QtCore.Qt.DisplayRole),
+                            flags=re.IGNORECASE
+                        )
+                        if match:
+                            self.setCurrentItem(
+                                self.item(n),
+                                QtCore.QItemSelectionModel.ClearAndSelect
+                            )
+                            break
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
             self.action_on_custom_keys(event)
-
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
                 self.key_up()
                 self.key_tab()
-
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
 
     def count_visible(self):
-        """Counts only the visible items."""
+        """Counts the visible list-items.
+
+        Returns:
+            int: The number of visible of items.
+
+        """
         c = 0
         for n in xrange(self.count()):
             if not self.item(n).isHidden():

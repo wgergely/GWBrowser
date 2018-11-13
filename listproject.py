@@ -175,10 +175,10 @@ class ProjectWidget(BaseListWidget):
         super(ProjectWidget, self).__init__(parent=parent)
         self.setWindowTitle('Projects')
 
-        self.long_presstimer = QtCore.QTimer()
-        self.long_presstimer.setInterval(300)
-        self.long_presstimer.setSingleShot(True)
-        self.long_presstimer.timeout.connect(self.show_popover)
+        # self.long_presstimer = QtCore.QTimer()
+        # self.long_presstimer.setInterval(300)
+        # self.long_presstimer.setSingleShot(True)
+        # self.long_presstimer.timeout.connect(self.show_popover)
 
     def show_popover(self):
         """Popup widget show on long-mouse-press."""
@@ -449,18 +449,6 @@ class ProjectWidget(BaseListWidget):
         project or files can be found.
 
         """
-        if event.type() == QtCore.QEvent.MouseButtonPress:
-            self.long_presstimer.start()
-            super(ProjectWidget, self).mousePressEvent(event)
-            return True
-        elif event.type() == QtCore.QEvent.MouseButtonRelease:
-            self.long_presstimer.stop()
-            super(ProjectWidget, self).mouseReleaseEvent(event)
-            return True
-        elif event.type() == QtCore.QEvent.MouseMove:
-            super(ProjectWidget, self).mouseMoveEvent(event)
-            return True
-
         if event.type() == QtCore.QEvent.Paint:
             self._paint_widget_background()
 
