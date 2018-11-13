@@ -227,32 +227,61 @@ class BaseListWidget(QtWidgets.QListWidget):
         raise NotImplementedError('Method is abstract.')
 
     def key_down(self):
-        if self.currentRow() == -1:
-            for n in xrange(self.count()):
-                if self.item(n).isHidden():
-                    self.setCurrentRow(n)
-                    break
-        else:
-            for n in xrange(self.count()):
-                if n > self.currentRow():
-                    if not self.item(n).isHidden():
-                        self.setCurrentRow(n)
-                        break
+        """Custom action tpo perform when the `down` arrow is pressed
+        on the keyboard.
+
+        """
+        visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
+        if visible_items: # jumping to the beginning of the list after the last item
+            if self.currentItem() is visible_items[-1]:
+                self.setCurrentItem(
+                    visible_items[0],
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                return
+        for n in xrange(self.count()):
+            if self.item(n).isHidden():
+                continue
+            if self.currentRow() >= n:
+                continue
+
+            self.setCurrentItem(
+                self.item(n),
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            break
 
     def key_up(self):
+        """Custom action to perform when the `up` arrow is pressed
+        on the keyboard.
+
+        """
+
+        visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
+        if visible_items: # jumping to the end of the list after the first item
+            if self.currentItem() is visible_items[0]:
+                self.setCurrentItem(
+                    visible_items[-1],
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                return
         if self.currentRow() == -1:
-            for n in xrange(self.count()):
-                n = self.count() - n - 1
-                if not self.item(n).isHidden():
-                    self.setCurrentRow(n)
-                    break
-        else:
-            for n in xrange(self.count()):
-                n = self.count() - n - 1
-                if self.currentRow() > n:
-                    if not self.item(n).isHidden():
-                        self.setCurrentRow(n)
-                        break
+            self.setCurrentItem(
+                visible_items[0],
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            return
+        for n in reversed(xrange(self.count())):
+            if self.item(n).isHidden():
+                continue
+            if self.currentRow() <= n:
+                continue
+
+            self.setCurrentItem(
+                self.item(n),
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            break
 
     def key_tab(self):
         self.setUpdatesEnabled(False)

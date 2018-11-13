@@ -856,14 +856,3 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.filesWidget.hide()
 
         self.config_watch_timer.stop()
-
-
-if __name__ == '__main__':
-    a = QtWidgets.QApplication([])
-    a.w = MayaBrowserWidget()
-    a.w.show()
-    # a.w.filesButton.clicked.emit()
-    # a.w.projectsButton.clicked.emit()
-    # a.w.hide()
-    # a.w.show()
-    a.exec_()
