@@ -550,6 +550,7 @@ class FilesWidgetDelegate(BaseDelegate):
         basedir_rect = QtCore.QRect(rect)
         available_width = rect.width() - metrics.width(filename) - common.MARGIN
         basedir_total_width = 0
+        
         for idx, basedir in enumerate(basedirs.split('/')):
             if idx == 0:
                 basedir = basedir.upper()
