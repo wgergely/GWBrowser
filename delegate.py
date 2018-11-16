@@ -22,7 +22,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def sizeHint(self, option, index):
         """Custom size hint."""
+        if type(self.parent()).__name__ == 'ProjectWidget':
+            return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT * 1.5)
         return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+
 
     def get_thumbnail_path(self, index):
         """Abstract method to be overriden in the subclass.
@@ -76,22 +79,44 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not selected:
             THICKNESS = 0.5
         else:
-            THICKNESS = 2
+            THICKNESS = 1.5
 
-        rect = QtCore.QRectF(
-            option.rect.left(),
-            option.rect.top() + option.rect.height() - THICKNESS,
-            option.rect.width(),
-            THICKNESS
-        )
-        painter.drawRect(rect)
-        rect = QtCore.QRectF(
-            option.rect.left(),
-            option.rect.top(),
-            option.rect.width(),
-            THICKNESS
-        )
-        painter.drawRect(rect)
+
+        last_visible = 0
+        for last_visible in reversed(xrange(self.parent().count())):
+            item = self.parent().item(last_visible)
+            if not item.isHidden():
+                break
+
+        #Bottom
+        if index.row() != last_visible:
+            rect = QtCore.QRectF(
+                option.rect.left(),
+                option.rect.top() + option.rect.height() - THICKNESS,
+                option.rect.width(),
+                THICKNESS
+            )
+            painter.drawRect(rect)
+
+
+
+
+
+        first_visible = 0
+        for first_visible in xrange(self.parent().count()):
+            item = self.parent().item(first_visible)
+            if not item.isHidden():
+                break
+
+        if index.row() != first_visible:
+            # Top
+            rect = QtCore.QRectF(
+                option.rect.left(),
+                option.rect.top(),
+                option.rect.width(),
+                THICKNESS
+            )
+            painter.drawRect(rect)
 
     def paint_selection_indicator(self, *args):
         """Paints the blue leading rectangle to indicate the current selection."""
@@ -306,7 +331,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         painter = QtGui.QPainter()
-        font = QtGui.QFont(painter.font())
+        font = QtGui.QFont('Roboto Black')
         font.setBold(True)
         font.setItalic(False)
         font.setPointSize(8.0)
@@ -337,7 +362,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         painter = QtGui.QPainter()
-        font = QtGui.QFont(painter.font())
+        font = QtGui.QFont('Roboto Black')
         font.setBold(True)
         font.setItalic(False)
         font.setPointSize(7.0)
@@ -366,8 +391,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """
         painter = QtGui.QPainter()
         font = QtGui.QFont(painter.font())
+        font = QtGui.QFont('Roboto Medium')
         font.setBold(False)
-        font.setItalic(True)
         font.setPointSize(8.0)
         painter.setFont(font)
         metrics = QtGui.QFontMetrics(painter.font())
@@ -449,22 +474,29 @@ class ProjectWidgetDelegate(BaseDelegate):
         elif not selected:
             color = common.TEXT
 
+        # Name
         rect, font, metrics = self.get_name_rect(option.rect)
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub('[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub('[_]{1,}', ' ', text)
+        text = text.lstrip().rstrip()
         text = metrics.elidedText(
-            index.data(QtCore.Qt.DisplayRole),
-            QtCore.Qt.ElideRight,
+            text,
+            QtCore.Qt.ElideMiddle,
             rect.width() - common.MARGIN
         )
+        font.setPointSize(9.0)
         painter.setFont(font)
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(QtGui.QPen(color))
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight | QtCore.Qt.TextWordWrap,
             text
         )
 
+        # Description
         config_info = QtCore.QFileInfo(self.get_config_path(index))
         if not config_info.exists():
             return
@@ -476,17 +508,23 @@ class ProjectWidgetDelegate(BaseDelegate):
         if not text:
             return
 
-        rect, font, metrics = self.get_note_rect(option.rect)
         text = metrics.elidedText(
             text.replace('description = ', '').lstrip().rstrip(),
             QtCore.Qt.ElideRight,
             rect.width()
         )
-        painter.setPen(QtGui.QPen(common.TEXT_NOTE))
+        rect, font, metrics = self.get_note_rect(option.rect)
         painter.setFont(font)
+        if not selected:
+            painter.setPen(common.TEXT_NOTE)
+        else:
+            color = QtGui.QColor(common.TEXT_NOTE)
+            color.setRed(color.red() + 50)
+            color.setGreen(color.green() + 50)
+            color.setBlue(color.blue() + 50)
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight | QtCore.Qt.TextWordWrap,
             text
         )
 
@@ -533,11 +571,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.DisplayRole))
         rect, font, _ = self.get_filename_rect(option.rect)
-        font = QtGui.QFont('Roboto Black')
-        font.setBold(True)
-        font.setItalic(False)
-        font.setPointSize(7.0)
-        painter.setFont(font)
         painter.setFont(font)
         rect.setTop(rect.top() - 3)
 
@@ -712,8 +745,6 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         rect, font, metrics = self.get_note_rect(option.rect)
-        font = QtGui.QFont('Roboto Medium')
-        font.setPointSize(8.0)
         painter.setFont(font)
 
 

@@ -100,6 +100,8 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         self.setItemDelegate(self.Delegate(parent=self))
         self.setSortingEnabled(False)
+        self.setResizeMode(QtWidgets.QListView.Adjust)
+        self.setMouseTracking(True)
         self.installEventFilter(self)
         self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -402,6 +404,7 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
+        self.fileSystemWatcher.fileChanged.connect(self.refresh)
 
     def set_custom_size(self):
         """Sets the size of the widget."""

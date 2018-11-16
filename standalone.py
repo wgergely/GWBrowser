@@ -20,5 +20,5 @@ if __name__ == '__main__':
     widget = MayaBrowserWidget()
     widget.move(50, 50)
     widget.show()
-    widget.filesButton.clicked.emit()
+    widget.projectsButton.clicked.emit()
     app.exec_()
