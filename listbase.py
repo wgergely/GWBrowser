@@ -103,6 +103,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.installEventFilter(self)
         self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.setUniformItemSizes(False)
 
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
@@ -124,6 +125,8 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setWindowOpacity(0.01)
         self.animation = None
 
+        self.addCustomFonts()
+        self.setFont('Roboto Black')
         self.setStyleSheet(
             """
             QListWidget {\
@@ -476,3 +479,28 @@ class BaseListWidget(QtWidgets.QListWidget):
         )
 
         painter.end()
+
+    def addCustomFonts(self):
+        """Adds our custom fonts to the application.
+
+        Returns:
+            type: Description of returned object.
+
+        """
+
+        d = QtCore.QDir(
+                '{}/rsc/fonts'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        )
+        d.setNameFilters(['*.ttf',])
+
+        font_families = []
+        for f in d.entryInfoList(
+            QtCore.QDir.Files |
+            QtCore.QDir.NoDotAndDotDot
+        ):
+            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
+            font_families.append(QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+        # self.setFont(list(set(font_families))[3])
+        print list(set(font_families))

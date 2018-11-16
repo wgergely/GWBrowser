@@ -3,14 +3,15 @@
 """
 # pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
 
+import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
+from mayabrowser.configparsers import local_config
 from mayabrowser.configparsers import ProjectConfig
 from mayabrowser.configparsers import FileConfig
-from mayabrowser.configparsers import local_config
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -68,17 +69,27 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_separators(self, *args):
         """Paints horizontal separators."""
-        painter, option, index, _, _, _ = args
-        if index.row() == 0:
-            return
-
+        painter, option, index, selected, _, _ = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+
+        if not selected:
+            THICKNESS = 0.5
+        else:
+            THICKNESS = 2
+
         rect = QtCore.QRectF(
-            option.rect.left() + 4 + option.rect.height(),
+            option.rect.left(),
+            option.rect.top() + option.rect.height() - THICKNESS,
+            option.rect.width(),
+            THICKNESS
+        )
+        painter.drawRect(rect)
+        rect = QtCore.QRectF(
+            option.rect.left(),
             option.rect.top(),
-            option.rect.width() - 4 - option.rect.height(),
-            0.5
+            option.rect.width(),
+            THICKNESS
         )
         painter.drawRect(rect)
 
@@ -139,7 +150,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-
         # Checking if the image has already been stored in the cache.
         if common.MAYA_THUMBNAIL in common.IMAGE_CACHE:
             placeholder = common.IMAGE_CACHE[common.MAYA_THUMBNAIL]
@@ -151,7 +161,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 option.rect.height()
             )
             common.IMAGE_CACHE[common.MAYA_THUMBNAIL] = placeholder
-
 
         path = self.get_thumbnail_path(index)
         image = placeholder
@@ -172,7 +181,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                     common.IMAGE_CACHE[path] = image
         else:
             image = placeholder
-
 
         # Factoring aspect ratio in
         longer = float(max(image.rect().width(), image.rect().height()))
@@ -232,7 +240,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         self.paint_active_indicator(*args)
         self.paint_custom(*args)
 
-    def paint_custom(self, *args):
+    def paint_custom(*args):
         """To define any custom paint action, override this method in the subclass."""
         return
 
@@ -411,10 +419,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 class ProjectWidgetDelegate(BaseDelegate):
     """Delegate used by the ``ProjectWidget`` to display the collecteds projects."""
 
-    def sizeHint(self, option, index):
-        """Custom size hint."""
-        return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT * 1.33)
-
     def get_thumbnail_path(self, index):
         """The path to the thumbnail of the project."""
         return ProjectConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
@@ -435,6 +439,7 @@ class ProjectWidgetDelegate(BaseDelegate):
 
     def paint_custom(self, *args):
         """Custom paint action to draw the buttons to trigger."""
+
     def paint_data(self, *args):
         """Paints the ``ProjectWidget``'s `QListWidgetItems`' names and notes."""
         painter, option, index, selected, _, _ = args
@@ -527,9 +532,23 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.DisplayRole))
-        rect, font, metrics = self.get_filename_rect(option.rect)
+        rect, font, _ = self.get_filename_rect(option.rect)
+        font = QtGui.QFont('Roboto Black')
+        font.setBold(True)
+        font.setItalic(False)
+        font.setPointSize(7.0)
+        painter.setFont(font)
+        painter.setFont(font)
+        rect.setTop(rect.top() - 3)
+
+        metrics = QtGui.QFontMetrics(painter.font())
+
+        filename = file_info.baseName().upper()
+        filename = re.sub('[^0-9a-zA-Z]+', '_', filename)
+        filename = re.sub('[_]{1,}', '_', filename)
+        filename = filename.strip('_')
         filename = metrics.elidedText(
-            file_info.fileName().upper(),
+            filename,
             QtCore.Qt.ElideMiddle,
             rect.width()
         )
@@ -543,21 +562,26 @@ class FilesWidgetDelegate(BaseDelegate):
         ).lstrip('/').rstrip('/')
 
         painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setFont(font)
         painter.setPen(QtGui.QPen(color))
 
         # Iterating the base directories
         basedir_rect = QtCore.QRect(rect)
         available_width = rect.width() - metrics.width(filename) - common.MARGIN
         basedir_total_width = 0
-        
+
         for idx, basedir in enumerate(basedirs.split('/')):
+            if not len(basedir):
+                continue
+
             if idx == 0:
                 basedir = basedir.upper()
             else:
-                basedir = basedir.lower()
+                basedir = basedir.upper()
+
             basedir_rect.setWidth(metrics.width(basedir))
-            basedir_total_width += metrics.width(basedir) + common.MARGIN * 1
+            basedir_rect.setLeft(basedir_rect.left() - 2)
+            basedir_rect.setWidth(basedir_rect.width() + 4)
+            basedir_total_width += metrics.width(basedir) + 6
 
             # Skip folders that are too long to draw
             if available_width < basedir_total_width:
@@ -569,8 +593,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 break
 
             path = QtGui.QPainterPath()
-            path.addRoundedRect(QtCore.QRectF(basedir_rect), 0.5, 0.5)
-            if idx == 0:  # first subdir
+            path.addRoundedRect(QtCore.QRectF(basedir_rect), 1.5, 1.5)
+
+            # First subdir
+            if idx == 0:
                 bgcolor = common.get_label(basedir)
                 if selected:
                     bgcolor = QtGui.QColor(bgcolor)
@@ -578,24 +604,23 @@ class FilesWidgetDelegate(BaseDelegate):
                     bgcolor.setGreen(bgcolor.green() + 20)
                     bgcolor.setBlue(bgcolor.blue() + 20)
                 painter.fillPath(path, bgcolor)
-                pen = QtGui.QPen(bgcolor, 2)
-                painter.setPen(pen)
-                painter.setBrush(QtGui.QBrush(bgcolor))
-            else:  # secondary subdirs
+            # Secondary subdirs
+            else:
                 bgcolor = common.SECONDARY_BACKGROUND
                 if selected:
                     bgcolor = common.BACKGROUND_SELECTED
                 painter.fillPath(path, bgcolor)
-                pen = QtGui.QPen(bgcolor, 2)
-                painter.setPen(pen)
-                painter.setBrush(QtGui.QBrush(bgcolor))
-            painter.drawPath(path)
+
+            # painter.drawPath(path)
 
             # Draw name
             if idx == 0:  # first subdir
-                data_color = common.TEXT
+                data_color = QtGui.QColor(common.get_label(basedir))
+                data_color.setRed(data_color.red() + 80)
+                data_color.setGreen(data_color.green() + 80)
+                data_color.setBlue(data_color.blue() + 80)
             elif idx > 0:  # secondary subdirs
-                data_color = common.SECONDARY_TEXT
+                data_color = QtGui.QColor(common.SECONDARY_TEXT)
 
             painter.setPen(QtGui.QPen(data_color))
             painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
@@ -609,9 +634,10 @@ class FilesWidgetDelegate(BaseDelegate):
             basedir_rect.moveLeft(
                 basedir_rect.left() +
                 basedir_rect.width() +
-                common.MARGIN * 1
+                6 * 1
             )
 
+        # Filename
         font = QtGui.QFont(painter.font())
         font.setBold(True)
         font.setItalic(False)
@@ -636,7 +662,6 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         # File information
-
         font = QtGui.QFont(painter.font())
         font.setBold(False)
         font.setItalic(True)
@@ -646,7 +671,7 @@ class FilesWidgetDelegate(BaseDelegate):
         metrics = QtGui.QFontMetrics(painter.font())
 
         info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        info_string = '{hour}:{minute}  -  {day}/{month}/{year}  -  {size}'.format(
+        info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
             day=info.lastModified().toString('dd'),
             month=info.lastModified().toString('MM'),
             year=info.lastModified().toString('yyyy'),
@@ -671,6 +696,8 @@ class FilesWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
             info_string
         )
+        info_width = metrics.width(info_string)
+
 
         # Description
         config_info = QtCore.QFileInfo(self.get_config_path(index))
@@ -683,14 +710,28 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if not text:
             return
+
         rect, font, metrics = self.get_note_rect(option.rect)
+        font = QtGui.QFont('Roboto Medium')
+        font.setPointSize(8.0)
+        painter.setFont(font)
+
+
+        metrics = QtGui.QFontMetrics(painter.font())
         text = metrics.elidedText(
             text.replace('description = ', '').lstrip().rstrip(),
             QtCore.Qt.ElideRight,
-            rect.width() - common.MARGIN - metrics.width(info_string)
+            rect.width() - common.MARGIN - info_width
         )
-        painter.setPen(QtGui.QPen(common.TEXT_NOTE))
-        painter.setFont(font)
+
+        rect.setWidth(rect.width() - info_width - common.MARGIN)
+        if not selected:
+            painter.setPen(common.TEXT_NOTE)
+        else:
+            color = QtGui.QColor(common.TEXT_NOTE)
+            color.setRed(color.red() + 50)
+            color.setGreen(color.green() + 50)
+            color.setBlue(color.blue() + 50)
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -748,7 +789,6 @@ class ThumbnailEditor(QtWidgets.QWidget):
         image = QtGui.QImage()
         image.load(self.dialog.selectedFiles()[0])
         image = self.smooth_copy(image, 512)
-
 
         path = self.get_thumbnail_path(index)
 

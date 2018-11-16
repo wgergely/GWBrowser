@@ -2,12 +2,13 @@
 """Common classes, settings and methods."""
 
 import os
+import random
 from PySide2 import QtGui
 
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
 
 
-MARGIN = 6
+MARGIN = 18
 ROW_HEIGHT = 54
 WIDTH = 360
 
@@ -55,18 +56,26 @@ def label_generator():
     Yields:         QtCore.QColor
 
     """
-    colors = (
-        [115, 163, 131],
-        [151, 112, 160],
-        [160, 112, 136],
-        [120, 112, 160],
-        [113, 134, 161],
-        [160, 112, 112],
-        [114, 162, 160],
-        [145, 160, 112],
-        [112, 160, 112],
-        [160, 141, 112],
-    )
+    colors = []
+    for n in xrange(50):
+        a = [104, 101, 170]
+        v = 20
+        colors.append([
+            random.randint(a[0] - v, a[0] + v),
+            random.randint(a[1] - v, a[1] + v),
+            random.randint(a[2] - v, a[2] + v)
+        ])
+    # colors = (59, 153, 107
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    #     [130, 102, 126],
+    # )
     for color in colors:
         yield QtGui.QColor(*color)
 
