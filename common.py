@@ -10,7 +10,8 @@ from PySide2 import QtGui
 
 MARGIN = 18
 ROW_HEIGHT = 54
-WIDTH = 360
+WIDTH = 640
+HEIGHT = 800
 
 FAVORUITE_SELECTED = QtGui.QColor(250, 250, 100)
 FAVORUITE = QtGui.QColor(235, 235, 68)
@@ -65,17 +66,6 @@ def label_generator():
             random.randint(a[1] - v, a[1] + v),
             random.randint(a[2] - v, a[2] + v)
         ])
-    # colors = (59, 153, 107
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    #     [130, 102, 126],
-    # )
     for color in colors:
         yield QtGui.QColor(*color)
 
@@ -93,9 +83,9 @@ def get_label(k):
     Returns:        QColor.
 
     """
-    if k not in ASSIGNED_LABELS:
-        ASSIGNED_LABELS[k] = next(colors)
-    return ASSIGNED_LABELS[k]
+    if k.lower() not in ASSIGNED_LABELS:
+        ASSIGNED_LABELS[k.lower()] = next(colors)
+    return ASSIGNED_LABELS[k.lower()]
 
 
 def revert_labels():

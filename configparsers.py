@@ -218,7 +218,7 @@ class LocalConfig(UnicodeConfigParser):
 
     @property
     def show_archived_project_mode(self):
-        """The saved show archived projects mode."""
+        """The saved Show archived projects mode."""
         opt = self._get_option(
             'mayawidget', 'show_archived_project_mode', False)
         return False if opt.lower() == 'false' else True
@@ -242,7 +242,7 @@ class LocalConfig(UnicodeConfigParser):
 
     @property
     def show_archived_file_mode(self):
-        """The saved show archived files mode."""
+        """The saved Show archived files mode."""
         opt = self._get_option('mayawidget', 'show_archived_file_mode', False)
         return False if opt.lower() == 'false' else True
 

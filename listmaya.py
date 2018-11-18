@@ -93,11 +93,11 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
             config = self.parent().Config(
                 self.index.data(QtCore.Qt.StatusTipRole))
 
-            items['Mark as favourite'] = {
+            items['Favourite'] = {
                 'checkable': True,
                 'checked': local_config.is_favourite(name)
             }
-            items['Show favourites only'] = {
+            items['Isolate favourites'] = {
                 'checkable': True,
                 'checked': self.parent().show_favourites_mode
             }
@@ -134,15 +134,15 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
             items['<separator> 4'] = {}
             items['Reveal scene in explorer'] = {}
             items['<separator> 5'] = {}
-            items['Mark as archived'] = {
+            items['Archived'] = {
                 'checkable': True,
                 'checked': config.archived
             }
-        items['Show archived items'] = {
+        items['Show archived'] = {
             'checkable': True,
             'checked': self.parent().show_archived_mode
         }
-        items['Show favourites only'] = {
+        items['Isolate favourites'] = {
             'checkable': True,
             'checked': self.parent().show_favourites_mode
         }
@@ -264,6 +264,7 @@ class MayaFilesWidget(BaseListWidget):
         self.sort_mode = sort_mode
         self.reverse_mode = reverse_mode
         self.add_collector_items()
+        self.get_scene_modes()
         self.set_row_visibility()
         self.set_custom_size()
 
@@ -358,9 +359,9 @@ class MayaFilesWidget(BaseListWidget):
             Ctrl + I:           Imports the item locally.
             Ctrl + R:           Imports the item as a reference.
             Ctrl + F:           Toggles favourite.
-            Ctrl + Shift + F:   Toggles show favourites only.
+            Ctrl + Shift + F:   Toggles Isolate favourites.
             Ctrl + A:           Toggles archived.
-            Ctrl + Shift + A:   Toggles show archived.
+            Ctrl + Shift + A:   Toggles Show archived.
 
         """
         item = self.currentItem()
@@ -381,20 +382,20 @@ class MayaFilesWidget(BaseListWidget):
             elif event.key() == QtCore.Qt.Key_F:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.mark_as_favourite()
+                self._contextMenu.favourite()
             elif event.key() == QtCore.Qt.Key_A:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.mark_as_archived()
+                self._contextMenu.archived()
         elif event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_F:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.show_favourites_only()
+                self._contextMenu.isolate_favourites()
             elif event.key() == QtCore.Qt.Key_A:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.show_archived_items()
+                self._contextMenu.show_archived()
             elif event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
                 url = url.fromLocalFile(data)
@@ -416,11 +417,48 @@ class MayaFilesWidget(BaseListWidget):
 
         idx = self.currentIndex()
         self.add_collector_items()
+        self.get_scene_modes()
         self.setCurrentIndex(idx)
         self.set_row_visibility()
         self.set_custom_size()
 
         self.sceneChanged.emit()
+
+    def get_scene_modes(self):
+        """`Modes` are subfolders inside the `scene` folder.
+
+        For example:
+            . / [project_root] / [scene_root] / `animation` /
+            . / [project_root] / [project_scenes_root] / `layout` /
+            . / [project_root] / [project_scenes_root] / `render` /
+
+        We're using these modes to comparmetalize different elements of the
+        project and as filters for our list.  Each mode gets it's own color-label
+        assigned and are stored in the `common` module.
+
+        """
+        common.revert_labels()
+
+        # Let's querry all the subfolders from the scenes_root dir
+        if not self.collector.root_info:
+            return
+
+        if not self.collector.root_info.exists():
+            return
+
+        modes = QtCore.QDir(
+            '{}/{}'.format(
+                self.collector.root_info.filePath(),
+                local_config.project_scenes_folder
+            )
+        )
+        modes = modes.entryInfoList(
+            sort=QtCore.QDir.Name,
+            filters=QtCore.QDir.AllDirs | QtCore.QDir.NoDotAndDotDot
+        )
+
+        for mode in modes:
+            common.get_label(mode.baseName())
 
     def add_collector_items(self):
         """Retrieves the files found by the ``FilesCollector`` and adds them as
@@ -433,8 +471,6 @@ class MayaFilesWidget(BaseListWidget):
 
         """
         self.clear()
-        common.revert_labels()
-
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
@@ -482,11 +518,6 @@ class MayaFilesWidget(BaseListWidget):
                 flags
             )
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-
-            basedirs = basedirs.split('/')
-            if basedirs:
-                common.get_label(basedirs[0].upper())
-
             self.addItem(item)
 
     def eventFilter(self, widget, event):

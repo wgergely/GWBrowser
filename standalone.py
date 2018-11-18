@@ -14,7 +14,7 @@ class StandaloneApp(QtWidgets.QApplication):
 
 if __name__ == '__main__':
     app = StandaloneApp(sys.argv)
-    appID = u'glassworks.browser' # arbitrary string
+    appID = u'Browser.Application' # arbitrary string
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appID)
 
     widget = MayaBrowserWidget()

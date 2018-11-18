@@ -26,7 +26,7 @@ class BaseContextMenu(Actions):
     def add_actions(self):
         self.add_action_set(self.ActionSet)
 
-    def mark_as_favourite(self):
+    def favourite(self):
         """Toggles the state of the item."""
         data = self.index.data(QtCore.Qt.StatusTipRole)
         file_info = QtCore.QFileInfo(data)
@@ -51,10 +51,11 @@ class BaseContextMenu(Actions):
         self.parent().set_row_visibility()
         self.parent().set_custom_size()
 
-    def show_favourites_only(self):
+    def isolate_favourites(self):
+        """Hides all items except the items marked as favouire."""
         self.parent().show_favourites()
 
-    def mark_as_archived(self):
+    def archived(self):
         """Marks the curent item as 'archived'."""
         data = self.index.data(QtCore.Qt.StatusTipRole)
         file_info = QtCore.QFileInfo(data)
@@ -80,7 +81,7 @@ class BaseContextMenu(Actions):
         self.parent().set_row_visibility()
         self.parent().set_custom_size()
 
-    def show_archived_items(self):
+    def show_archived(self):
         self.parent().show_archived()
 
 
@@ -124,11 +125,10 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # Animate on show
-        self.setWindowOpacity(0.01)
+        self.setWindowOpacity(0)
         self.animation = None
 
         self.addCustomFonts()
-        self.setFont('Roboto Black')
         self.setStyleSheet(
             """
             QListWidget {\
@@ -137,6 +137,8 @@ class BaseListWidget(QtWidgets.QListWidget):
                 margin: 0px;\
                 padding: 0px;\
                 background: rgb(50, 50, 50);
+                font-family: "Roboto Black";\
+                font-size: 8pt;\
             }\
             QScrollBar {\
             	width:6px;\
@@ -405,27 +407,26 @@ class BaseListWidget(QtWidgets.QListWidget):
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
         self.fileSystemWatcher.fileChanged.connect(self.refresh)
+        # self.currentItemChanged.connect(self.resize_selected_item)
+
+    # def resize_selected_item(self, currentItem, previousItem):
+    #     if previousItem:
+    #         previousItem.setSizeHint(QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
+    #     if currentItem:
+    #         currentItem.setSizeHint(self.itemDelegate().sizeHint(self.style(), self.currentIndex()))
 
     def set_custom_size(self):
-        """Sets the size of the widget."""
-        MAX_ROWS = 12
-        ROW_HEIGHT = self.sizeHintForRow(0)
-        WIDTH = 680
+        """Sets the size of the widget.
 
-        if self.count() == 0:
-            self.resize(WIDTH, common.ROW_HEIGHT)
+        # TODO: All items should have their sizeHint set.
+            sizeHintForRow(0) won't work with varying heights.
+
+        """
+        if not self.count_visible():
+            self.resize(common.WIDTH, common.ROW_HEIGHT)
             return
 
-        elif self.count_visible() == 0:
-            self.resize(WIDTH, common.ROW_HEIGHT)
-            return
-
-        height = 0
-        for n in xrange(self.count_visible()):
-            if n >= MAX_ROWS:
-                break
-            height += ROW_HEIGHT
-        self.resize(WIDTH, height)
+        self.resize(common.WIDTH, common.HEIGHT)
 
     def set_row_visibility(self):
         """Sets the visibility of the list-items based on modes and options."""
@@ -505,5 +506,3 @@ class BaseListWidget(QtWidgets.QListWidget):
         ):
             idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
             font_families.append(QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
-        # self.setFont(list(set(font_families))[3])
-        print list(set(font_families))

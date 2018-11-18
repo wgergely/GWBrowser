@@ -19,6 +19,7 @@ from collections import OrderedDict
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import mayabrowser.common as common
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
@@ -94,14 +95,14 @@ class ProjectWidgetContextMenu(BaseContextMenu):
 
             items['<separator>0'] = {}
             items['Set as active project'] = {}
-            items['Mark as favourite'] = {
-                'checkable': True,
-                'checked': local_config.is_favourite(name)
-            }
             items['<separator>.'] = {}
             items['Capture thumbnail'] = {}
             items['<separator>..'] = {}
-            items['Show favourites only'] = {
+            items['Favourite'] = {
+            'checkable': True,
+            'checked': local_config.is_favourite(name)
+            }
+            items['Isolate favourites'] = {
                 'checkable': True,
                 'checked': self.parent().show_favourites_mode
             }
@@ -112,15 +113,15 @@ class ProjectWidgetContextMenu(BaseContextMenu):
             items['Show renders'] = {}
             items['Show textures'] = {}
             items['<separator>....'] = {}
-            items['Mark as archived'] = {
+            items['Archived'] = {
                 'checkable': True,
                 'checked': config.archived
             }
-        items['Show archived items'] = {
+        items['Show archived'] = {
             'checkable': True,
             'checked': self.parent().show_archived_mode
         }
-        items['Show favourites only'] = {
+        items['Isolate favourites'] = {
             'checkable': True,
             'checked': self.parent().show_favourites_mode
         }
@@ -244,7 +245,7 @@ class ProjectWidget(BaseListWidget):
 
     @property
     def show_archived_mode(self):
-        """The current show archived state as saved in the local configuration file."""
+        """The current Show archived state as saved in the local configuration file."""
         return local_config.show_archived_project_mode
 
     @show_archived_mode.setter
@@ -318,7 +319,7 @@ class ProjectWidget(BaseListWidget):
                 QtCore.Qt.UserRole,
                 flags
             )
-
+            item.setSizeHint(QtCore.QSize(common.WIDTH, common.ROW_HEIGHT * 1.33334))
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.addItem(item)
 
@@ -342,9 +343,9 @@ class ProjectWidget(BaseListWidget):
             Ctrl + R:           Reveals the project's renders folder.
             Ctrl + E:           Reveals the project's exports folder.
             Ctrl + F:           Toggles favourite.
-            Ctrl + Shift + F:   Toggles show favourites only.
+            Ctrl + Shift + F:   Toggles Isolate favourites.
             Ctrl + A:           Toggles archived.
-            Ctrl + Shift + A:   Toggles show archived.
+            Ctrl + Shift + A:   Toggles Show archived.
 
         """
         item = self.currentItem()
@@ -377,20 +378,20 @@ class ProjectWidget(BaseListWidget):
             elif event.key() == QtCore.Qt.Key_F:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.mark_as_favourite()
+                self._contextMenu.favourite()
             elif event.key() == QtCore.Qt.Key_A:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.mark_as_archived()
+                self._contextMenu.archived()
         elif event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_F:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.show_favourites_only()
+                self._contextMenu.isolate_favourites()
             elif event.key() == QtCore.Qt.Key_A:
                 self._contextMenu = self.ContextMenu(
                     self.currentIndex(), parent=self)
-                self._contextMenu.show_archived_items()
+                self._contextMenu.show_archived()
             elif event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
                 url = url.fromLocalFile(data)

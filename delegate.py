@@ -21,11 +21,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         super(BaseDelegate, self).__init__(parent=parent)
 
     def sizeHint(self, option, index):
-        """Custom size hint."""
-        if type(self.parent()).__name__ == 'ProjectWidget':
-            return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT * 1.5)
-        return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        """Custom size-hint. Sets the size of the files and project widget items."""
+        selected = index.row() == self.parent().currentIndex().row()
+        size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
 
+        if type(self.parent()).__name__ == 'ProjectWidget':
+            size.setHeight(common.ROW_HEIGHT * 1.2)
+            # if selected:
+            #     size.setHeight(common.ROW_HEIGHT * 1.5)
+        return size
 
     def get_thumbnail_path(self, index):
         """Abstract method to be overriden in the subclass.
@@ -79,8 +83,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not selected:
             THICKNESS = 0.5
         else:
-            THICKNESS = 1.5
-
+            THICKNESS = 2
 
         last_visible = 0
         for last_visible in reversed(xrange(self.parent().count())):
@@ -88,7 +91,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             if not item.isHidden():
                 break
 
-        #Bottom
+        # Bottom
         if index.row() != last_visible:
             rect = QtCore.QRectF(
                 option.rect.left(),
@@ -97,10 +100,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 THICKNESS
             )
             painter.drawRect(rect)
-
-
-
-
 
         first_visible = 0
         for first_visible in xrange(self.parent().count()):
@@ -157,10 +156,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(rect)
 
     def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the item.
-        TODO: This method is slow. Needs to be optimized.
-
-        """
+        """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _ = args
         if selected:
             color = common.THUMBNAIL_BACKGROUND_SELECTED
@@ -168,14 +164,17 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.THUMBNAIL_BACKGROUND
 
         rect = QtCore.QRect(option.rect)
+        # Making the aspect ratio of the image 16/9
         rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + 4)
+        # rect.setWidth(rect.height() * 1.778) # Making the aspect ratio of the image 16/9
+        rect.moveLeft(rect.left() + 4)  # Accounting for the leading indicator
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        # Checking if the image has already been stored in the cache.
+        # Checking if the images are in the cache already:
+        # Placeholder image
         if common.MAYA_THUMBNAIL in common.IMAGE_CACHE:
             placeholder = common.IMAGE_CACHE[common.MAYA_THUMBNAIL]
         else:
@@ -190,6 +189,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         path = self.get_thumbnail_path(index)
         image = placeholder
 
+        # Thumbnail image
         if QtCore.QFileInfo(path).exists():
             if path in common.IMAGE_CACHE:
                 image = common.IMAGE_CACHE[path]
@@ -216,17 +216,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             rect.setHeight(float(image.rect().height()) * factor)
 
         rect.moveLeft(
-            rect.left() + ((option.rect.height() - rect.width()) * 0.5))
+            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+        )
         rect.moveTop(
-            rect.top() + ((option.rect.height() - rect.height()) * 0.5))
+            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+        )
 
-        painter.setOpacity(0.85)
+        # painter.setOpacity(0.85)
         painter.drawImage(
             rect,
             image,
             image.rect()
         )
-        painter.setOpacity(1)
+        # painter.setOpacity(1)
 
     def paint_data(self, *args):
         """Abstract method to be overriden in the subclass.
@@ -272,15 +274,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_filter_indicator(self, *args):
         """Paints the leading color-bar if a filter is active."""
         painter, option, _, _, _, _ = args
-        _filter = self.parent().current_filter.upper()
+        _filter = self.parent().current_filter
         if _filter == '/':
             return
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(4)
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(
-            QtGui.QColor(common.ASSIGNED_LABELS[_filter])))
+        painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
         painter.drawRect(rect)
 
     def paint_archived(self, *args):
@@ -386,7 +387,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def get_note_rect(self, rect):
         """Returns the rectangle, font and the font metrics used to draw the note text.
 
-        Returns:            (QtCore.QRect(), QtGui.QFont(), QtGui.QFontMetrics())
+        Returns:        tuple [QtCore.QRect, QtGui.QFont, QtGui.QFontMetrics]
 
         """
         painter = QtGui.QPainter()
@@ -409,7 +410,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             (rect.height() * 0.5) -
             (editor_rect.height() * 0.5)
         )
-        editor_rect.moveTop(editor_rect.top() + metrics.height() + 2)
+        editor_rect.moveTop(editor_rect.top() + metrics.height())
         return editor_rect, font, metrics
 
     def get_thumbnail_editor_rect(self, rect):
@@ -697,7 +698,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # File information
         font = QtGui.QFont(painter.font())
         font.setBold(False)
-        font.setItalic(True)
+        # font.setItalic(True)
         font.setPointSize(7.0)
         painter.setFont(font)
 
@@ -731,7 +732,6 @@ class FilesWidgetDelegate(BaseDelegate):
         )
         info_width = metrics.width(info_string)
 
-
         # Description
         config_info = QtCore.QFileInfo(self.get_config_path(index))
         if not config_info.exists():
@@ -746,7 +746,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
         rect, font, metrics = self.get_note_rect(option.rect)
         painter.setFont(font)
-
 
         metrics = QtGui.QFontMetrics(painter.font())
         text = metrics.elidedText(
@@ -884,6 +883,7 @@ class NoteEditor(QtWidgets.QWidget):
 
         self.editor = None
         self._createUI()
+        self.editor.setTextMargins(0, 0, 0, 0)
         self.editor.installEventFilter(self)
         self._connectSignals()
 
@@ -965,6 +965,7 @@ class NoteEditor(QtWidgets.QWidget):
             border-radius: 3px;
             padding: 3 3 3 3;
             margin: 0;
+            font: 8pt "Roboto Medium";
         }
         """
         )
@@ -1012,6 +1013,10 @@ class NoteEditor(QtWidgets.QWidget):
 
 class ProjectNoteEditor(NoteEditor):
     """Edits the notes of projects."""
+
+    def __init__(self, *args, **kwargs):
+        super(ProjectNoteEditor, self).__init__(*args, **kwargs)
+        self.editor.setAlignment(QtCore.Qt.AlignRight)
 
     @staticmethod
     def get_config_instance(*args, **kwargs):
