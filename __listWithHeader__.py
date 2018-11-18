@@ -15,16 +15,13 @@ class ListHeaderWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ListHeaderWidget, self).__init__(parent=parent)
         self.sortingorder = None
-        self.modefilter = None
+        self.modewidget = None
 
         self._createUI()
         self._connectSignals()
         self.sortingorder.addItem('Name')
         self.sortingorder.addItem('Date modified')
         self.sortingorder.addItem('Size')
-        self.modefilter.addItem('Layout')
-        self.modefilter.addItem('Animation')
-        self.modefilter.addItem('Render')
 
 
     def _createUI(self):
@@ -33,16 +30,57 @@ class ListHeaderWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
 
         self.sortingorder = QtWidgets.QComboBox()
-        self.modefilter = QtWidgets.QComboBox()
+        self.modewidget = ModeWidget()
+        self.modewidget.add_modes(['mode1', 'mode2'])
 
         self.layout().addWidget(self.sortingorder)
         self.layout().addStretch()
-        self.layout().addWidget(QtWidgets.QLabel('Filter:'))
-        self.layout().addWidget(self.modefilter)
+        self.layout().addWidget(self.modewidget)
 
     def _connectSignals(self):
         pass
 
+class ModeWidget(QtWidgets.QComboBox):
+    def __init__(self, parent=None):
+        super(ModeWidget,self).__init__(parent=parent)
+        self.setSizeAdjustPolicy(QtWidgets.QFontComboBox.AdjustToContents)
+        self.setStyleSheet(
+            """\
+            QComboBox {\
+                font-family: "Roboto Black";\
+                color: rgb(184, 181, 230);\
+                background-color: rgb(104, 101, 170);\
+                margin: 3;\
+                padding: 3 6;\
+                border-width: 1px;\
+                border-style: none;\
+                border-radius: 4px;\
+            }\
+            QComboBox:on, QComboBox:hover {\
+                color: rgb(230, 230, 230);\
+                background-color: rgb(104, 101, 170);\
+            }\
+            QComboBox::drop-down {\
+                background-color: transparent;\
+                width: 0px;\
+                height: 0px;\
+                padding:0px;\
+                margin:0px;\
+                border-width: 0px;\
+                border-style: none;\
+                border-radius: 0px;\
+            }\
+            """
+
+        )
+        self._connectSignals()
+
+    def add_modes(self, modes):
+        for mode in modes:
+            self.addItem(mode)
+
+    def _connectSignals(self):
+        pass
 
 class ListWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
@@ -63,9 +101,6 @@ class ListWidget(QtWidgets.QWidget):
         self.list_widget = QtWidgets.QListWidget()
         self.layout().addWidget(self.header_widget)
         self.layout().addWidget(self.list_widget)
-        for item in self.children():
-            print item
-            break
 
     def _addItems(self):
         for n in xrange(10):
@@ -78,6 +113,4 @@ class ListWidget(QtWidgets.QWidget):
 app = QtWidgets.QApplication([])
 widget = ListWidget()
 widget.show()
-
-
 app.exec_()
