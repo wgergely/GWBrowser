@@ -97,10 +97,12 @@ class ListWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(0, 0, 0, 0)
 
-        self.header_widget = ListHeaderWidget()
         self.list_widget = QtWidgets.QListWidget()
-        self.layout().addWidget(self.header_widget)
+        self.header_widget = ListHeaderWidget(parent=self.list_widget.viewport())
+        # self.layout().addWidget(self.header_widget)
         self.layout().addWidget(self.list_widget)
+        # self.header_widget()
+        self.header_widget.show()
 
     def _addItems(self):
         for n in xrange(10):
