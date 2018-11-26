@@ -83,7 +83,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not selected:
             THICKNESS = 0.5
         else:
-            THICKNESS = 2
+            THICKNESS = 0.5
 
         last_visible = 0
         for last_visible in reversed(xrange(self.parent().count())):
@@ -158,6 +158,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _ = args
+
+        painter.save()
+
         if selected:
             color = common.THUMBNAIL_BACKGROUND_SELECTED
         else:
@@ -172,6 +175,22 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
+
+        # Shadow next to the thumbnail
+        shd_rect = QtCore.QRect(option.rect)
+        shd_rect.setLeft(rect.left() + rect.width())
+
+        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
+        gradient.setColorAt(0.2, QtGui.QColor(68,68,68,0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
+        gradient.setColorAt(0.02, QtGui.QColor(68,68,68,0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
 
         # Checking if the images are in the cache already:
         # Placeholder image
@@ -222,13 +241,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             rect.top() + ((option.rect.height() - rect.height()) * 0.5)
         )
 
-        # painter.setOpacity(0.85)
         painter.drawImage(
             rect,
             image,
             image.rect()
         )
-        # painter.setOpacity(1)
+
+
+        painter.restore()
 
     def paint_data(self, *args):
         """Abstract method to be overriden in the subclass.
@@ -257,19 +277,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         args = (painter, option, index, selected, archived, favourite)
 
         self.paint_background(*args)
-        self.paint_thumbnail(*args)
         self.paint_data(*args)
         self.paint_favourite(*args)
-        self.paint_archived(*args)
         self.paint_separators(*args)
         self.paint_filter_indicator(*args)
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
+        self.paint_thumbnail(*args)
+        self.paint_archived(*args)
         self.paint_custom(*args)
 
     def paint_custom(*args):
         """To define any custom paint action, override this method in the subclass."""
-        return
+        pass
 
     def paint_filter_indicator(self, *args):
         """Paints the leading color-bar if a filter is active."""
@@ -289,15 +309,29 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, _, _, archived, _ = args
         if not archived:
             return
+
+        painter.save()
         painter.setPen(QtCore.Qt.NoPen)
         brush = QtGui.QBrush(common.ARCHIVED_OVERLAY)
         painter.setBrush(brush)
         painter.drawRect(option.rect)
 
-        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 50))
+
+        grad_rect = QtCore.QRect(
+            0, 0, option.rect.width(), option.rect.height()
+        )
+        gradient = QtGui.QLinearGradient(option.rect.topLeft(), option.rect.topRight())
+        gradient.setColorAt(1, QtGui.QColor(0,0,0,0))
+        gradient.setColorAt(0.5, QtGui.QColor(50,50,50,200))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(option.rect)
+
+        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 40))
         brush.setStyle(QtCore.Qt.BDiagPattern)
         painter.setBrush(brush)
         painter.drawRect(option.rect)
+
+        painter.restore()
 
     @staticmethod
     def get_thumbnaileditor_cls(*args, **kwargs):

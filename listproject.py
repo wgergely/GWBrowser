@@ -176,11 +176,6 @@ class ProjectWidget(BaseListWidget):
         super(ProjectWidget, self).__init__(parent=parent)
         self.setWindowTitle('Projects')
 
-        # self.long_presstimer = QtCore.QTimer()
-        # self.long_presstimer.setInterval(300)
-        # self.long_presstimer.setSingleShot(True)
-        # self.long_presstimer.timeout.connect(self.show_popover)
-
     def show_popover(self):
         """Popup widget show on long-mouse-press."""
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
@@ -203,7 +198,7 @@ class ProjectWidget(BaseListWidget):
 
     @property
     def current_filter(self):
-        """The current filter - this is notcurrently  implemented for ``ProjectWidget``."""
+        """The current filter - this is not currently  implemented for ``ProjectWidget``."""
         return '/'
 
     @property
@@ -302,10 +297,7 @@ class ProjectWidget(BaseListWidget):
             )
             item.setData(
                 QtCore.Qt.ToolTipRole,
-                'Maya project at \n{}\n{}'.format(
-                    f.filePath(),
-                    'Ctrl+P to reveal'
-                )
+                f.filePath()
             )
 
             config = self.Config(f.filePath())
@@ -462,14 +454,14 @@ class ProjectWidget(BaseListWidget):
                 ).strip('/')
 
                 # Message to show when no configuration has been set.
-                not_set_text = 'Browser not yet configured.\n'
+                not_set_text = 'No location has been set.\n'
                 not_set_text += 'Right-click on the Browser Toolbar and select \'Configure\' to set the location of your projects.'
                 text = set_text if self.parent_._kwargs['server'] else not_set_text
 
                 self.paint_message(text)
             elif self.count() > self.count_visible():
                 self.paint_message(
-                    '{} items are hidden.'.format(self.count())
+                    '{} items are hidden by filters'.format(self.count() - self.count_visible())
                 )
 
         return False

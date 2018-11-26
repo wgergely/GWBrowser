@@ -254,7 +254,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         return self._workspacecontrol
 
     @staticmethod
-    def get_thumbnail_pixmap(path, opacity=1, size=(common.ROW_HEIGHT / 2.0)):
+    def get_thumbnail_pixmap(path, opacity=1, size=(common.ROW_HEIGHT * 0.66)):
         """Returns a pixmap of the input path."""
         image = QtGui.QImage()
         image.load(path)
@@ -273,7 +273,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         pixmap.convertFromImage(image)
         return pixmap
 
-    def setThumbnail(self, path, opacity=1, size=(common.ROW_HEIGHT / 2.0)):
+    def setThumbnail(self, path, opacity=1, size=(common.ROW_HEIGHT * 0.66)):
         """Sets the given path as the thumbnail of the project."""
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
         self.projectThumbnail.setPixmap(pixmap)
@@ -287,37 +287,47 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.projectThumbnail = ProjectThumbnail(parent=self)
         self.projectThumbnail.setAlignment(
             QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.projectThumbnail.setFixedWidth(common.ROW_HEIGHT / 2.0)
+        self.projectThumbnail.setFixedWidth(common.ROW_HEIGHT * 0.66)
         self.projectThumbnail.setStyleSheet(
             """
-            QLabel {
-                background-color: rgb(60, 60, 60);
+            QLabel {\
+                background-color: rgb(60, 60, 60);\
+                margin: 0px;\
+                padding: 0px;\
+            }\
+            """
+        )
+        self.setThumbnail(common.CUSTOM_THUMBNAIL, opacity=1)
+
+        self.setStyleSheet(
+            """
+            QWidget {\
+                background-color: rgb(80, 80, 80);\
             }
             """
         )
-        self.setThumbnail(common.CUSTOM_THUMBNAIL, opacity=0.5)
 
         self.projectsButton = QtWidgets.QPushButton('Projects')
         self.projectsButton.setStyleSheet(self.buttonStyle())
         self.projectsButton.setToolTip('Browse, activate Maya projects...')
         self.projectsButton.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.projectsButton.setMinimumHeight(common.ROW_HEIGHT / 2.0)
-        self.projectsButton.setMaximumHeight(common.ROW_HEIGHT / 2.0)
+        self.projectsButton.setMinimumHeight(common.ROW_HEIGHT * 0.66)
+        self.projectsButton.setMaximumHeight(common.ROW_HEIGHT * 0.66)
 
         self.filesButton = QtWidgets.QPushButton('Files')
         self.filesButton.setStyleSheet(self.buttonStyle())
         self.filesButton.setToolTip(
             'Browse, open, import or reference scene files...')
         self.filesButton.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.filesButton.setMinimumHeight(common.ROW_HEIGHT / 2.0)
-        self.filesButton.setMaximumHeight(common.ROW_HEIGHT / 2.0)
+        self.filesButton.setMinimumHeight(common.ROW_HEIGHT * 0.66)
+        self.filesButton.setMaximumHeight(common.ROW_HEIGHT * 0.66)
 
-        self.layout().addWidget(self.projectThumbnail, 0)
-        self.layout().addWidget(self.projectsButton, 0.2)
+        self.layout().addWidget(self.projectsButton, 1)
         self.layout().addWidget(self.filesButton, 1)
+        self.layout().addWidget(self.projectThumbnail, 0)
 
-        self.setMinimumHeight(common.ROW_HEIGHT / 2.0)
-        self.setMaximumHeight(common.ROW_HEIGHT / 2.0)
+        self.setMinimumHeight(common.ROW_HEIGHT * 0.66)
+        self.setMaximumHeight(common.ROW_HEIGHT * 0.66)
         self.setMinimumWidth(common.WIDTH)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred,
@@ -331,34 +341,36 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def buttonStyle():
         """Returns a style-string defining our custom button."""
         return (
-            """
-            QPushButton {
-                text-align: left;
-                border-left: 1px solid rgba(0, 0, 0, 50);
-                padding-left: 10px;
-                padding-right: 10px;
-                border-style: solid;
-                color: rgb(210, 210, 210);
-                background-color: rgb(68, 68, 68);
+            """\
+            QPushButton {\
+                text-align: left;\
+                border-left: 1px solid rgba(0, 0, 0, 50);\
+                padding-left: 10px;\
+                padding-right: 10px;\
+                border-style: solid;\
+                color: rgb(230, 230, 230);\
+                background-color: rgb(50, 50, 50);\
+                font-family: "Roboto Black";\
+                font-size: 8pt;\
             }
-            QPushButton:hover {
-                border-left: 1px solid rgb(87, 163, 202);
-                color: rgb(230, 230, 230);
-                background-color: rgb(100, 100, 100);
-            }
-            QPushButton:pressed {
-                border-left: 4px solid rgb(87, 163, 202);
-                padding-left: 7px;
-                color: rgb(255, 255, 255);
-                background-color: rgb(130, 130, 130);
-            }
-            QToolTip {
-                color: rgba(230, 230, 230, 150);
-                border: none;
-                outline-radius: 4px;
-                background-color: rgb(50, 50, 50);
-                opacity: 200;
-            }
+            QPushButton:hover {\
+                border-left: 3px solid rgb(87, 163, 202);\
+                color: rgb(230, 230, 230);\
+                background-color: rgb(100, 100, 100);\
+            }\
+            QPushButton:pressed {\
+                border-left: 4px solid rgb(87, 163, 202);\
+                padding-left: 7px;\
+                color: rgb(255, 255, 255);\
+                background-color: rgb(130, 130, 130);\
+            }\
+            QToolTip {\
+                color: rgba(230, 230, 230, 150);\
+                border: none;\
+                outline-radius: 4px;\
+                background-color: rgb(50, 50, 50);\
+                opacity: 200;\
+            }\
             """
         )
 
@@ -498,9 +510,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             'maxWidth': common.WIDTH * 1.5,
             'width': common.WIDTH,
             'widthSizingProperty': None,
-            'height':   common.ROW_HEIGHT / 2.0,
-            'minHeight': common.ROW_HEIGHT / 2.0,
-            'maxHeight': common.ROW_HEIGHT / 2.0,
+            'height':   common.ROW_HEIGHT * 0.66,
+            'minHeight': common.ROW_HEIGHT * 0.66,
+            'maxHeight': common.ROW_HEIGHT * 0.66,
             'heightSizingProperty': None,
             'retain': True,
             'plugins': None,
@@ -783,8 +795,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             widget.move(qr.topLeft())
             return
 
-        pos = self.projectThumbnail.mapToGlobal(
-            self.projectThumbnail.rect().bottomLeft())
+        pos = self.mapToGlobal(
+            self.rect().bottomLeft())
         widget.move(pos.x(), pos.y())
 
     def activate_widget(self, widget):
@@ -830,10 +842,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             return
 
         self.get_parent_window().setFixedWidth(common.WIDTH)
-        self.get_parent_window().setFixedHeight(common.ROW_HEIGHT / 2.0)
+        self.get_parent_window().setFixedHeight(common.ROW_HEIGHT * 0.66)
 
         pixmap = self.get_thumbnail_pixmap(
-            common.CUSTOM_THUMBNAIL, opacity=1, size=(common.ROW_HEIGHT / 2)
+            common.CUSTOM_THUMBNAIL, opacity=1, size=(common.ROW_HEIGHT * 0.66)
         )
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self.get_parent_window().setWindowIcon(QtGui.QIcon(pixmap))

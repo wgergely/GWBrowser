@@ -108,6 +108,10 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(False)
 
+        # Scrollbar visibility
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        # self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
         app = QtCore.QCoreApplication.instance()
@@ -145,18 +149,18 @@ class BaseListWidget(QtWidgets.QListWidget):
             	height:6px;\
             }\
             QScrollBar:vertical, QScrollBar:horizontal {\
-            	background: rgb(50, 50, 50);\
+            	background: rgb(40, 40, 40);\
             	border: none;\
             }\
             QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {\
-            	background: rgb(110, 110, 110);\
+            	background: rgb(75, 75, 75);\
             	border: 0px solid;\
             	border-radius: 2px;\
             	max-height: 250px;\
             	min-height: 50px;\
             }\
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {\
-            	background: rgb(50, 50, 50);\
+            	background: rgb(40, 40, 40);\
             }\
             """
         )
@@ -263,7 +267,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         on the keyboard.
 
         """
-
         visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
         if visible_items: # jumping to the end of the list after the first item
             if self.currentItem() is visible_items[0]:
@@ -335,32 +338,30 @@ class BaseListWidget(QtWidgets.QListWidget):
                     self.timer.start()
 
                 self.timed_search_string += event.text()
-                self.timer.start()
+                self.timer.start() # restarting timer on input
 
-                for n in xrange(self.count()):
-                    if self.item(n).isHidden():
-                        continue #skipping hidden items
-
+                visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
+                for item in visible_items:
                     # When only one key is pressed we want to cycle through
                     # only items starting with that letter:
                     if len(self.timed_search_string) == 1:
-                        if self.currentRow() >= n:
+                        if self.row(item) <= self.row(self.currentItem()):
                             continue
-                        if self.item(n).data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
+                        if item.data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
                             self.setCurrentItem(
-                                self.item(n),
+                                item,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
                             break
                     else:
                         match = re.search(
                             '{}'.format(self.timed_search_string),
-                            self.item(n).data(QtCore.Qt.DisplayRole),
+                            item.data(QtCore.Qt.DisplayRole),
                             flags=re.IGNORECASE
                         )
                         if match:
                             self.setCurrentItem(
-                                self.item(n),
+                                item,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
                             break
@@ -406,14 +407,7 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
-        self.fileSystemWatcher.fileChanged.connect(self.refresh)
-        # self.currentItemChanged.connect(self.resize_selected_item)
-
-    # def resize_selected_item(self, currentItem, previousItem):
-    #     if previousItem:
-    #         previousItem.setSizeHint(QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
-    #     if currentItem:
-    #         currentItem.setSizeHint(self.itemDelegate().sizeHint(self.style(), self.currentIndex()))
+        # self.fileSystemWatcher.fileChanged.connect(self.refresh)
 
     def set_custom_size(self):
         """Sets the size of the widget.
@@ -425,8 +419,12 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not self.count_visible():
             self.resize(common.WIDTH, common.ROW_HEIGHT)
             return
-
-        self.resize(common.WIDTH, common.HEIGHT)
+        height = 0
+        for n in xrange(self.count_visible()):
+            height += self.sizeHintForRow(0)
+            if height > common.HEIGHT:
+                break
+        self.resize(common.WIDTH, height)
 
     def set_row_visibility(self):
         """Sets the visibility of the list-items based on modes and options."""
