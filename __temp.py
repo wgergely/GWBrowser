@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Standalone runner."""
 # pylint: disable=E1101, C0103, R0913, I1101
-
-import sys
-from PySide2 import QtWidgets, QtGui, QtCore
-
-from mayabrowser.toolbar import MayaBrowserWidget
 
 import logging
 from multiprocessing import Process
@@ -19,11 +13,31 @@ class SingleInstanceException(BaseException):
 
 
 class SingleInstance(object):
-    """Class that can be instantiated only once per machine."""
+    """Class that can be instantiated only once per machine.
 
-    def __init__(self, lockfile):
+    If you want to prevent your script from running in parallel just instantiate
+    SingleInstance() class.
+    If is there another instance already running it will throw a `SingleInstanceException`.
+
+    Example:
+        import tendo
+        me = SingleInstance()
+
+    This option is very useful if you have scripts executed by crontab at small amounts of time.
+    Remember that this works by creating a lock file with a filename based on the full path to the script file.
+    Providing a flavor_id will augment the filename with the provided flavor_id, allowing you to create multiple singleton instances from the same file. This is particularly useful if you want specific functions to have their own singleton instances.
+    """
+
+    def __init__(self, flavor_id="", lockfile=""):
+        import sys
         self.initialized = False
-        self.lockfile = lockfile
+        if lockfile:
+            self.lockfile = lockfile
+        else:
+            basename = os.path.splitext(os.path.abspath(sys.argv[0]))[0].replace(
+                "/", "-").replace(":", "").replace("\\", "-") + '-%s' % flavor_id + '.lock'
+            self.lockfile = os.path.normpath(
+                tempfile.gettempdir() + '/' + basename)
 
         logger.debug("SingleInstance lockfile: " + self.lockfile)
         if sys.platform == 'win32':
@@ -31,7 +45,6 @@ class SingleInstance(object):
                 # file already exists, we try to remove (in case previous
                 # execution was interrupted)
                 if os.path.exists(self.lockfile):
-                    print os.path.exists(self.lockfile)
                     os.unlink(self.lockfile)
                 self.fd = os.open(
                     self.lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
@@ -56,6 +69,8 @@ class SingleInstance(object):
         self.initialized = True
 
     def __del__(self):
+        import os
+        import sys
         if not self.initialized:
             return
         try:
@@ -77,50 +92,22 @@ class SingleInstance(object):
             sys.exit(-1)
 
 
+def f(name):
+    tmp = logger.level
+    logger.setLevel(logging.CRITICAL)  # we do not want to see the warning
+    try:
+        me2 = SingleInstance(flavor_id=name)  # noqa
+    except SingleInstanceException:
+        sys.exit(-1)
+    logger.setLevel(tmp)
+    pass
+
+
+
+
 logger = logging.getLogger("tendo.singleton")
 logger.addHandler(logging.StreamHandler())
 
-
-class StandaloneApp(QtWidgets.QApplication):
-    MODEL_ID = u'browser_standalone'
-
-    def __init__(self, args):
-        super(StandaloneApp, self).__init__(args)
-        self.setApplicationName('Browser')
-        self.set_model_id()
-
-        path = u'{}/{}.loc'
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        path = path.format(tempdir, StandaloneApp.MODEL_ID)
-
-        try:
-            SingleInstance(lockfile=path)
-            self.exec_()
-        except SingleInstanceException:
-            sys.exit(-1)
-
-
-    def __exec_(self):
-        widget = MayaBrowserWidget()
-        widget.move(50, 50)
-        widget.show()
-        widget.projectsButton.clicked.emit()
-        super(StandaloneApp, self).exec_()
-
-    def set_model_id(self):
-        """https://github.com/cztomczak/cefpython/issues/395"""
-        if "win32" in sys.platform:
-            import ctypes
-            from ctypes.wintypes import HRESULT
-            PCWSTR = ctypes.c_wchar_p
-            AppUserModelID = ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID
-            AppUserModelID.argtypes = [PCWSTR]
-            AppUserModelID.restype = HRESULT
-            # An identifier that is globally unique for all apps running on Windows
-            hresult = AppUserModelID(self.MODEL_ID)
-            assert hresult == 0, "SetCurrentProcessExplicitAppUserModelID failed"
-
-
-if __name__ == '__main__':
-    StandaloneApp(sys.argv)
+if __name__ == "__main__":
+    logger.setLevel(logging.DEBUG)
+    unittest.main()

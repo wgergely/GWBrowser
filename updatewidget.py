@@ -146,7 +146,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 1)
 
         label = QtWidgets.QLabel(
-            'Local network path pointing to where the studio\'s jobs are located (press enter to set).')
+            'Path pointing to the studio\'s jobs are located (press enter to set)')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
@@ -156,7 +156,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 1)
 
         label = QtWidgets.QLabel(
-            'The name of the current job.')
+            'The name of the current job')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
@@ -166,7 +166,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Projects'), 1)
 
         label = QtWidgets.QLabel(
-            'A relative path of where the maya projects located inside the current job (press enter to set).')
+            'A relative path of the projects located inside the current job (press enter to set)')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
