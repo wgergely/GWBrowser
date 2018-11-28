@@ -101,7 +101,7 @@ class StandaloneApp(QtWidgets.QApplication):
             sys.exit(-1)
 
 
-    def __exec_(self):
+    def exec_(self):
         widget = MayaBrowserWidget()
         widget.move(50, 50)
         widget.show()
