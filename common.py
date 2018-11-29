@@ -13,6 +13,23 @@ ROW_HEIGHT = 54
 WIDTH = 640
 HEIGHT = 640
 
+# Sizes
+# +-----------------+
+# |   row_buttons   |     A row of buttons to toggle filters and views.
+# +-----------------+
+# |                 |
+# |                 |
+# | stacked_widget  |     This a the widget containing the lists widgets of `projects`, `assets` and `files`.
+# |                 |
+# |                 |
+# +-----------------+
+# |    row_footer   |     Infobar
+# +-----------------+
+
+ROW_BUTTONS_HEIGHT = 36
+STACKED_WIDGET_HEIGHT = 640
+ROW_FOOTER_HEIGHT = 18
+
 FAVORUITE_SELECTED = QtGui.QColor(250, 250, 100)
 FAVORUITE = QtGui.QColor(235, 235, 68)
 

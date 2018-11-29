@@ -198,7 +198,7 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
 
     def refresh(self):
         self.parent().refresh()
-        self.parent().parent_.filesButton.clicked.emit()
+        self.parent().parent_.files_button.clicked.emit()
 
 
 class MayaFilesWidget(BaseListWidget):

@@ -471,3 +471,9 @@ class ProjectWidget(BaseListWidget):
         self.set_custom_size()
         self.move(self.x(), self.y())
         self.parent_.sync_active_maya_project(setActive=False)
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    ProjectWidget().show()
+    app.exec_()

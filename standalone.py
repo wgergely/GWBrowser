@@ -105,7 +105,7 @@ class StandaloneApp(QtWidgets.QApplication):
         widget = MayaBrowserWidget()
         widget.move(50, 50)
         widget.show()
-        widget.projectsButton.clicked.emit()
+        widget.assets_button.clicked.emit()
         super(StandaloneApp, self).exec_()
 
     def set_model_id(self):

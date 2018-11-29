@@ -110,7 +110,6 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         # Scrollbar visibility
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
 
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
@@ -132,7 +131,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setWindowOpacity(0)
         self.animation = None
 
-        self.addCustomFonts()
         self.setStyleSheet(
             """
             QListWidget {\
@@ -228,11 +226,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.animation.setStartValue(0.01)
         self.animation.setEndValue(1)
         self.animation.start(QtCore.QPropertyAnimation.KeepWhenStopped)
-
-    def focusOutEvent(self, event):
-        pos = QtGui.QCursor().pos()
-        if not self.geometry().contains(pos):
-            self.hide()
 
     def action_on_enter_key(self):
         raise NotImplementedError('Method is abstract.')
@@ -481,26 +474,3 @@ class BaseListWidget(QtWidgets.QListWidget):
         )
 
         painter.end()
-
-    def addCustomFonts(self):
-        """Adds our custom fonts to the application.
-
-        Returns:
-            type: Description of returned object.
-
-        """
-
-        d = QtCore.QDir(
-                '{}/rsc/fonts'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-        )
-        d.setNameFilters(['*.ttf',])
-
-        font_families = []
-        for f in d.entryInfoList(
-            QtCore.QDir.Files |
-            QtCore.QDir.NoDotAndDotDot
-        ):
-            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
-            font_families.append(QtGui.QFontDatabase().applicationFontFamilies(idx)[0])

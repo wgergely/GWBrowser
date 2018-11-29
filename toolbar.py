@@ -225,19 +225,26 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             'job': None,
             'root': None
         }
-        self._createUI()
-
-        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
 
         self._contextMenu = None
 
-        self.projectsWidget = ProjectWidget()
-        self.projectsWidget.parent_ = self
-        self.projectsWidget.setWindowIcon(QtGui.QIcon(pixmap))
+        # Create layout
+        self._createUI()
 
+        self.projectsWidget = ProjectWidget()
         self.filesWidget = MayaFilesWidget()
+        self.stacked_widget.addWidget(self.projectsWidget)
+        self.stacked_widget.addWidget(self.filesWidget)
+
+
+        self.projectsWidget.parent_ = self
         self.filesWidget.parent_ = self
+
+
+        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
+        self.projectsWidget.setWindowIcon(QtGui.QIcon(pixmap))
         self.filesWidget.setWindowIcon(QtGui.QIcon(pixmap))
+
 
         self.config_string = ''
         self.config_watch_timer = QtCore.QTimer()
@@ -276,19 +283,100 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def setThumbnail(self, path, opacity=1, size=(common.ROW_HEIGHT * 0.66)):
         """Sets the given path as the thumbnail of the project."""
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
-        self.projectThumbnail.setPixmap(pixmap)
+        self.project_thumbnail.setPixmap(pixmap)
+
+
+    def addCustomFonts(self):
+        """Adds our custom fonts to the application.
+
+        Returns:
+            type: Description of returned object.
+
+        """
+
+        d = QtCore.QDir(
+                '{}/rsc/fonts'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        )
+        d.setNameFilters(['*.ttf',])
+
+        font_families = []
+        for f in d.entryInfoList(
+            QtCore.QDir.Files |
+            QtCore.QDir.NoDotAndDotDot
+        ):
+            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
+            font_families.append(QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+
 
     def _createUI(self):
-        """Creates the layout."""
-        QtWidgets.QHBoxLayout(self)
+        """Creates the layout.
+
+        +-----------------+
+        |   row_buttons   |     A row of buttons to toggle filters and views.
+        +-----------------+
+        |                 |
+        |                 |
+        | stacked_widget  |     This a the widget containing the lists widgets of `projects`, `assets` and `files`.
+        |                 |
+        |                 |
+        +-----------------+
+        |    row_footer   |     Infobar
+        +-----------------+
+
+        """
+
+        self.addCustomFonts()
+
+        # Main layout
+        QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.setFixedWidth(common.WIDTH)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred,
+            QtWidgets.QSizePolicy.Preferred
+        )
+        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
+        self.setWindowIcon(QtGui.QIcon(pixmap))
 
-        self.projectThumbnail = ProjectThumbnail(parent=self)
-        self.projectThumbnail.setAlignment(
+        self.row_buttons = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(self.row_buttons)
+        self.row_buttons.layout().setContentsMargins(0, 0, 0, 0)
+        self.row_buttons.layout().setSpacing(0)
+        self.row_buttons.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+
+        self.stacked_widget = QtWidgets.QStackedWidget()
+        self.stacked_widget.layout().setContentsMargins(0, 0, 0, 0)
+        self.stacked_widget.layout().setSpacing(0)
+        self.stacked_widget.setFixedHeight(common.STACKED_WIDGET_HEIGHT)
+        self.stacked_widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+
+        self.row_footer = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(self.row_footer)
+        self.row_footer.layout().setContentsMargins(0, 0, 0, 0)
+        self.row_footer.layout().setSpacing(0)
+        self.row_footer.setFixedHeight(common.ROW_FOOTER_HEIGHT)
+        self.row_footer.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+
+        self.layout().addWidget(self.row_buttons)
+        self.layout().addWidget(self.stacked_widget)
+        self.layout().addWidget(self.row_footer)
+
+        self.project_thumbnail = ProjectThumbnail(parent=self)
+        self.project_thumbnail.setAlignment(
             QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.projectThumbnail.setFixedWidth(common.ROW_HEIGHT * 0.66)
-        self.projectThumbnail.setStyleSheet(
+        self.project_thumbnail.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.project_thumbnail.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
+        self.project_thumbnail.setStyleSheet(
             """
             QLabel {\
                 background-color: rgb(60, 60, 60);\
@@ -298,7 +386,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             """
         )
         self.setThumbnail(common.CUSTOM_THUMBNAIL, opacity=1)
-
         self.setStyleSheet(
             """
             QWidget {\
@@ -307,35 +394,38 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             """
         )
 
-        self.projectsButton = QtWidgets.QPushButton('Projects')
-        self.projectsButton.setStyleSheet(self.buttonStyle())
-        self.projectsButton.setToolTip('Browse, activate Maya projects...')
-        self.projectsButton.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.projectsButton.setMinimumHeight(common.ROW_HEIGHT * 0.66)
-        self.projectsButton.setMaximumHeight(common.ROW_HEIGHT * 0.66)
-
-        self.filesButton = QtWidgets.QPushButton('Files')
-        self.filesButton.setStyleSheet(self.buttonStyle())
-        self.filesButton.setToolTip(
-            'Browse, open, import or reference scene files...')
-        self.filesButton.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.filesButton.setMinimumHeight(common.ROW_HEIGHT * 0.66)
-        self.filesButton.setMaximumHeight(common.ROW_HEIGHT * 0.66)
-
-        self.layout().addWidget(self.projectsButton, 1)
-        self.layout().addWidget(self.filesButton, 1)
-        self.layout().addWidget(self.projectThumbnail, 0)
-
-        self.setMinimumHeight(common.ROW_HEIGHT * 0.66)
-        self.setMaximumHeight(common.ROW_HEIGHT * 0.66)
-        self.setMinimumWidth(common.WIDTH)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Preferred
+        self.projects_button = QtWidgets.QPushButton('Projects')
+        self.projects_button.setStyleSheet(self.buttonStyle())
+        self.projects_button.setToolTip('Browse, activate Maya projects...')
+        self.projects_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.projects_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
         )
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-        self.setWindowIcon(QtGui.QIcon(pixmap))
+
+        self.assets_button = QtWidgets.QPushButton('Assets')
+        self.assets_button.setStyleSheet(self.buttonStyle())
+        self.assets_button.setToolTip('Browse, activate Maya projects...')
+        self.assets_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.assets_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+
+        self.files_button = QtWidgets.QPushButton('Files')
+        self.files_button.setStyleSheet(self.buttonStyle())
+        self.files_button.setToolTip(
+            'Browse, open, import or reference scene files...')
+        self.files_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.files_button.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+
+        self.row_buttons.layout().addWidget(self.projects_button, 1)
+        self.row_buttons.layout().addWidget(self.assets_button, 1)
+        self.row_buttons.layout().addWidget(self.files_button, 1)
+        self.row_buttons.layout().addWidget(self.project_thumbnail, 0)
 
     @staticmethod
     def buttonStyle():
@@ -451,14 +541,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.filesWidget.scrollTo(index)
 
         #
-        font = self.filesButton.font()
+        font = self.files_button.font()
         metrics = QtGui.QFontMetrics(font)
         filename = metrics.elidedText(
             file_info.baseName(),
             QtCore.Qt.ElideMiddle,
-            self.filesButton.width() - common.MARGIN * 3
+            self.files_button.width() - common.MARGIN * 3
         )
-        self.filesButton.setText(filename)
+        self.files_button.setText(filename)
 
     def get_workspace_control(self):
         """Returns the Maya WorkspaceControl associated with the widget.
@@ -559,17 +649,17 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         widget.move(x, y)
 
     def _connectSignals(self):
-        self.projectsButton.clicked.connect(
+        self.assets_button.clicked.connect(
             functools.partial(self.activate_widget, self.projectsWidget)
         )
-        self.projectThumbnail.clicked.connect(
+        self.project_thumbnail.clicked.connect(
             functools.partial(self.activate_widget, self.projectsWidget)
         )
-        self.projectThumbnail.doubleClicked.connect(
+        self.project_thumbnail.doubleClicked.connect(
             MayaBrowserContextMenu.reveal_projects
         )
 
-        self.filesButton.clicked.connect(
+        self.files_button.clicked.connect(
             functools.partial(self.activate_widget, self.filesWidget)
         )
 
@@ -764,7 +854,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             thumb_info = QtCore.QFileInfo(path)
 
             # Set the button name
-            self.projectsButton.setText(
+            self.assets_button.setText(
                 file_info.fileName().replace('_', ' ').title())
 
             # Setting the project's thumbnail as the label thumbnail
@@ -800,14 +890,16 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         widget.move(pos.x(), pos.y())
 
     def activate_widget(self, widget):
-        """Method connected to the clicked() signal."""
-        self.move_widget(widget)
-        widget.setFocus()
-        widget.activateWindow()
-        widget.raise_()
-        widget.show()
-        widget.animate_opacity()
-        self.move_widget_to_available_geo(widget)
+        """Method connected to the top button's clicked() signal."""
+        # self.move_widget(widget)
+        self.stacked_widget.setCurrentWidget(widget)
+        self.stacked_widget.currentWidget().setWindowOpacity(0)
+        self.stacked_widget.currentWidget().animate_opacity()
+        # self.stacked_widget.setFocus()
+        # self.stacked_widget.activateWindow()
+        # self.stacked_widget.raise_()
+        # widget.show()
+        # self.move_widget_to_available_geo(widget)
 
     def showEvent(self, event):
         """Customized show event.
@@ -854,9 +946,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """Custom key actions."""
         if event.modifiers() == QtCore.Qt.NoModifier:
             if event.key() == QtCore.Qt.Key_P:
-                self.projectsButton.clicked.emit()
+                self.assets_button.clicked.emit()
             elif event.key() == QtCore.Qt.Key_F:
-                self.filesButton.clicked.emit()
+                self.files_button.clicked.emit()
             elif event.key() == QtCore.Qt.Key_Escape:
                 self.hide()
 
@@ -868,3 +960,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.filesWidget.hide()
 
         self.config_watch_timer.stop()
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    widget = MayaBrowserWidget()
+    # widget.move(50, 50)
+    widget.show()
+    widget.assets_button.clicked.emit()
+    app.exec_()

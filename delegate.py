@@ -566,7 +566,7 @@ class ProjectWidgetDelegate(BaseDelegate):
     def custom_doubleclick_event(self, parent, option, index):
         self.parent().active_item = index
         self.parent().hide()
-        self.parent().parent_.filesButton.clicked.emit()
+        self.parent().parent_.files_button.clicked.emit()
 
 
 class FilesWidgetDelegate(BaseDelegate):
