@@ -30,6 +30,7 @@ from mayabrowser.common import OpenMayaUI
 from mayabrowser.common import MayaQWidgetDockableMixin
 from mayabrowser.common import shiboken2
 
+from mayabrowser.listlocation import LocationWidget
 from mayabrowser.listproject import ProjectWidget
 from mayabrowser.listmaya import MayaFilesWidget
 from mayabrowser.configparsers import local_config
@@ -74,6 +75,7 @@ class MayaBrowserContextMenu(Actions):
         for item in local_config.location:
             if item[0] == '':
                 continue
+
             action = submenu.addAction('{}/{}/{}'.format(*item))
             action.setData(item)
             action.triggered.connect(
@@ -193,6 +195,39 @@ class ProjectThumbnail(QtWidgets.QLabel):
         self.doubleClicked.emit()
 
 
+
+
+class FaderWidget(QtWidgets.QWidget):
+    """Overlaywidget responsible for list cross-fade effect."""
+    def __init__(self, old_widget, new_widget):
+        super(FaderWidget, self).__init__(parent=new_widget)
+
+        self.old_pixmap = QtGui.QPixmap(new_widget.size())
+        self.old_pixmap.fill(QtGui.QColor(50, 50, 50))
+        # old_widget.render(self.old_pixmap)
+        self.pixmap_opacity = 1.0
+
+        self.timeline = QtCore.QTimeLine()
+        self.timeline.valueChanged.connect(self.animate)
+        self.timeline.finished.connect(self.close)
+        self.timeline.setDuration(200)
+        self.timeline.start()
+
+        self.resize(new_widget.size())
+        self.show()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setOpacity(self.pixmap_opacity)
+        painter.drawPixmap(0, 0, self.old_pixmap)
+        painter.end()
+
+    def animate(self, value):
+        self.pixmap_opacity = 1.0 - value
+        self.repaint()
+
+
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
     """Singleton MayaQWidgetDockable widget containing the ``projectWidgetButton``
     and the ``filesWidgetButton`` buttons.
@@ -219,6 +254,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.maya_callbacks = []  # Maya api callbacks
         self.maya_actions = []  # Maya ui
 
+
         # Saving the initial config settings.
         self._kwargs = {
             'server': None,
@@ -227,14 +263,19 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         }
 
         self._contextMenu = None
+        self.fader_widget = None
 
         # Create layout
         self._createUI()
 
+        self.locationsWidget = LocationWidget()
         self.projectsWidget = ProjectWidget()
         self.filesWidget = MayaFilesWidget()
-        self.stacked_widget.addWidget(self.projectsWidget)
-        self.stacked_widget.addWidget(self.filesWidget)
+
+        self.stacked_widget.addWidget(self.locationsWidget)
+        # self.stacked_widget.addWidget(self.projectsWidget)
+        # self.stacked_widget.addWidget(self.filesWidget)
+        # self.stacked_widget.setCurrentIndex(0)
 
 
         self.projectsWidget.parent_ = self
@@ -261,7 +302,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         return self._workspacecontrol
 
     @staticmethod
-    def get_thumbnail_pixmap(path, opacity=1, size=(common.ROW_HEIGHT * 0.66)):
+    def get_thumbnail_pixmap(path, opacity=1, size=(common.ROW_BUTTONS_HEIGHT)):
         """Returns a pixmap of the input path."""
         image = QtGui.QImage()
         image.load(path)
@@ -280,7 +321,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         pixmap.convertFromImage(image)
         return pixmap
 
-    def setThumbnail(self, path, opacity=1, size=(common.ROW_HEIGHT * 0.66)):
+    def setThumbnail(self, path, opacity=1, size=common.ROW_BUTTONS_HEIGHT):
         """Sets the given path as the thumbnail of the project."""
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
         self.project_thumbnail.setPixmap(pixmap)
@@ -326,7 +367,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         +-----------------+
 
         """
-
         self.addCustomFonts()
 
         # Main layout
@@ -422,6 +462,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             QtWidgets.QSizePolicy.Expanding
         )
 
+        self.mode_pick = DropdownWidget()
+        self.mode_pick.addItem('Projects')
+        self.mode_pick.addItem('Assets')
+        self.mode_pick.addItem('Files')
+
+        self.row_buttons.layout().addWidget(self.mode_pick, 1)
         self.row_buttons.layout().addWidget(self.projects_button, 1)
         self.row_buttons.layout().addWidget(self.assets_button, 1)
         self.row_buttons.layout().addWidget(self.files_button, 1)
@@ -439,7 +485,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 padding-right: 10px;\
                 border-style: solid;\
                 color: rgb(230, 230, 230);\
-                background-color: rgb(50, 50, 50);\
+                background-color: rgb(110, 110, 110);\
                 font-family: "Roboto Black";\
                 font-size: 8pt;\
             }
@@ -453,13 +499,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 padding-left: 7px;\
                 color: rgb(255, 255, 255);\
                 background-color: rgb(130, 130, 130);\
-            }\
-            QToolTip {\
-                color: rgba(230, 230, 230, 150);\
-                border: none;\
-                outline-radius: 4px;\
-                background-color: rgb(50, 50, 50);\
-                opacity: 200;\
             }\
             """
         )
@@ -704,19 +743,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         )
         return app.maya_window
 
-    # def add_shortcuts(self):
-    #     """Installs application-wide shortcuts for the widget.
-    #
-    #     When launched from Maya, the global shortcut to show the `MayaBrowserWidget
-    #     is ``'Ctrl+Shift+O'``.
-    #
-    #     """
-    #     self.shortcut = QtWidgets.QShortcut(self.get_mayawindow())
-    #     self.shortcut.setAutoRepeat(False)
-    #     self.shortcut.setContext(QtCore.Qt.ApplicationShortcut)
-    #     self.shortcut.setKey(QtGui.QKeySequence('Ctrl+Shift+O'))
-    #     self.shortcut.activated.connect(self.shortcutActived)
-
     @staticmethod
     def get_global_file_menu():
         """Initilizes and returns the Maya application\'s ``File`` menu."""
@@ -892,9 +918,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def activate_widget(self, widget):
         """Method connected to the top button's clicked() signal."""
         # self.move_widget(widget)
-        self.stacked_widget.setCurrentWidget(widget)
+
         self.stacked_widget.currentWidget().setWindowOpacity(0)
         self.stacked_widget.currentWidget().animate_opacity()
+        self.fader_widget = FaderWidget(
+            self.stacked_widget.currentWidget(), widget)
+        self.stacked_widget.setCurrentWidget(widget)
+
         # self.stacked_widget.setFocus()
         # self.stacked_widget.activateWindow()
         # self.stacked_widget.raise_()
@@ -960,6 +990,227 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.filesWidget.hide()
 
         self.config_watch_timer.stop()
+
+
+
+class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(DropdownWidgetDelegate, self).__init__(parent=parent)
+
+    def sizeHint(self, option, index):
+        return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+
+    def paint(self, painter, option, index):
+        """The main paint method."""
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+        selected = option.state & QtWidgets.QStyle.State_Selected
+        args = (painter, option, index, selected)
+
+        self.paint_background(*args)
+        self.paint_selection_indicator(*args)
+        self.paint_thumbnail(*args)
+        self.paint_name(*args)
+
+    def paint_selection_indicator(self, *args):
+        """Paints the blue leading rectangle to indicate the current selection."""
+        painter, option, _, selected = args
+
+        if not selected:
+            return
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(common.SELECTION))
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(4)
+        painter.drawRect(rect)
+
+    def paint_name(self, *args):
+        painter, option, index, _ = args
+
+        painter.save()
+
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSize(9.0)
+        font.setBold(True)
+        painter.setFont(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.moveLeft(rect.left() + 4 + rect.height() + common.MARGIN)
+        rect.setRight(rect.width() - (common.MARGIN * 2))
+        painter.setPen(QtGui.QPen(common.TEXT))
+        painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            index.data(QtCore.Qt.DisplayRole).upper()
+        )
+
+        painter.restore()
+
+    def paint_background(self, *args):
+        """Paints the background."""
+        painter, option, _, selected = args
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+
+        if selected:
+            color = common.BACKGROUND_SELECTED
+        else:
+            color = common.BACKGROUND
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(option.rect)
+
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnail of the item."""
+        painter, option, index, selected = args
+
+        painter.save()
+
+        if selected:
+            color = common.THUMBNAIL_BACKGROUND_SELECTED
+        else:
+            color = common.THUMBNAIL_BACKGROUND
+
+        rect = QtCore.QRect(option.rect)
+        # Making the aspect ratio of the image 16/9
+        rect.setWidth(rect.height())
+        rect.moveLeft(rect.left() + 4)  # Accounting for the leading indicator
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
+        # Shadow next to the thumbnail
+        shd_rect = QtCore.QRect(option.rect)
+        shd_rect.setLeft(rect.left() + rect.width())
+
+        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
+        gradient.setColorAt(0.2, QtGui.QColor(68,68,68,0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
+        gradient.setColorAt(0.02, QtGui.QColor(68,68,68,0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        if index.row() == 0:
+            path = '{}/rsc/bookmark.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        if index.row() == 1:
+            path = '{}/rsc/package.png'.format(
+            QtCore.QFileInfo(__file__).dir().path()
+            )
+        if index.row() == 2:
+            path = '{}/rsc/file.png'.format(
+    QtCore.QFileInfo(__file__).dir().path()
+)
+
+
+        # Thumbnail image
+        if path in common.IMAGE_CACHE:
+            image = common.IMAGE_CACHE[path]
+        else:
+            image = QtGui.QImage()
+            image.load(path)
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                option.rect.height()
+            )
+            common.IMAGE_CACHE[path] = image
+
+        # Factoring aspect ratio in
+        longer = float(max(image.rect().width(), image.rect().height()))
+        factor = float(rect.width() / longer)
+        if image.rect().width() < image.rect().height():
+            rect.setWidth(float(image.rect().width()) * factor)
+        else:
+            rect.setHeight(float(image.rect().height()) * factor)
+
+        rect.moveLeft(
+            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+        )
+        rect.moveTop(
+            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+        )
+
+        painter.drawImage(
+            rect,
+            image,
+            image.rect()
+        )
+        painter.restore()
+
+
+class DropdownWidget(QtWidgets.QComboBox):
+    """Custom dropdown widget."""
+    def __init__(self, parent=None):
+        super(DropdownWidget, self).__init__(parent=parent)
+        self.setItemDelegate(DropdownWidgetDelegate())
+        self.view().setStyleSheet(
+            """\
+            QWidget {\
+                margin: 0;
+                padding: 0;\
+            }\
+            """
+        )
+        self.view().setFixedWidth(common.WIDTH)
+        # self.setSizeAdjustPolicy(QtWidgets.QFontComboBox.AdjustToContents)
+
+        self.setStyleSheet(
+            """\
+            QComboBox {\
+                text-align: left;\
+                border-left: 4px solid rgb(110, 110, 110);\
+                padding-left: 10px;\
+                padding-right: 10px;\
+                border-style: solid;\
+                color: rgb(230, 230, 230);\
+                background-color: rgb(110, 110, 110);\
+                font-family: "Roboto Black";\
+                font-size: 8pt;\
+            }\
+            QComboBox:hover {\
+                border-left: 4px solid rgb(87, 163, 202);\
+                color: rgb(230, 230, 230);\
+                background-color: rgb(130, 130, 130);\
+            }\
+            QComboBox::drop-down {\
+                background-color: transparent;\
+                width: 0px;\
+                height: 0px;\
+                padding:0px;\
+                margin:0px;\
+                border-width: 0px;\
+                border-style: none;\
+                border-radius: 0px;\
+            }\
+            """
+        )
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+        self._connectSignals()
+
+    def add_modes(self, modes):
+        self.clear()
+        for mode in modes:
+            self.addItem(mode)
+
+    def _connectSignals(self):
+        pass
+
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
