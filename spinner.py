@@ -131,7 +131,6 @@ class Spinner(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
     def animate_opacity(self):

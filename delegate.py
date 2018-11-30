@@ -24,11 +24,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Custom size-hint. Sets the size of the files and project widget items."""
         selected = index.row() == self.parent().currentIndex().row()
         size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-
-        if type(self.parent()).__name__ == 'ProjectWidget':
-            size.setHeight(common.ROW_HEIGHT * 1.2)
-            # if selected:
-            #     size.setHeight(common.ROW_HEIGHT * 1.5)
         return size
 
     def get_thumbnail_path(self, index):
@@ -475,6 +470,45 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # A bit hack-ish to include hide() in this function but why not! :/
         self.custom_doubleclick_event(parent, option, index)
 
+class LocationWidgetDelegate(BaseDelegate):
+
+    def paint(self, painter, option, index):
+        """The main paint method."""
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        selected = option.state & QtWidgets.QStyle.State_Selected
+        args = (painter, option, index, selected, None, None)
+
+        self.paint_background(*args)
+        self.paint_data(*args)
+        self.paint_separators(*args)
+        self.paint_selection_indicator(*args)
+
+    def paint_data(self, *args):
+        painter, option, index, selected, _, _ = args
+
+        painter.save()
+        font = QtGui.QFont('Roboto Black')
+        font.setBold(True)
+        font.setPointSize(8)
+        painter.setFont(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(4 + option.rect.height() + common.MARGIN)
+        rect.setWidth(rect.width() - (common.MARGIN * 2))
+        painter.setPen(QtGui.QPen(common.TEXT))
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            index.data(QtCore.Qt.DisplayRole).upper()
+        )
+        painter.restore()
 
 class ProjectWidgetDelegate(BaseDelegate):
     """Delegate used by the ``ProjectWidget`` to display the collecteds projects."""
@@ -499,6 +533,7 @@ class ProjectWidgetDelegate(BaseDelegate):
 
     def paint_custom(self, *args):
         """Custom paint action to draw the buttons to trigger."""
+        pass
 
     def paint_data(self, *args):
         """Paints the ``ProjectWidget``'s `QListWidgetItems`' names and notes."""

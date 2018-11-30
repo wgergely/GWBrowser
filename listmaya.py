@@ -266,7 +266,6 @@ class MayaFilesWidget(BaseListWidget):
         self.add_collector_items()
         self.get_scene_modes()
         self.set_row_visibility()
-        self.set_custom_size()
 
     def open_scene(self, path):
         """Opens the given scene."""
@@ -420,7 +419,6 @@ class MayaFilesWidget(BaseListWidget):
         self.get_scene_modes()
         self.setCurrentIndex(idx)
         self.set_row_visibility()
-        self.set_custom_size()
 
         self.sceneChanged.emit()
 
@@ -537,6 +535,4 @@ class MayaFilesWidget(BaseListWidget):
 
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-        self.set_custom_size()
-        self.move(self.x(), self.y())
         self.sceneChanged.emit()

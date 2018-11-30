@@ -161,7 +161,7 @@ class ListWidget(QtWidgets.QWidget):
         self.list_widget.addItem(*args, **kwargs)
 
 
-app = QtWidgets.QApplication([])
-widget = ListWidget()
-widget.show()
-app.exec_()
+# app = QtWidgets.QApplication([])
+# widget = ListWidget()
+# widget.show()
+# app.exec_()

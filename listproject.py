@@ -259,7 +259,6 @@ class ProjectWidget(BaseListWidget):
 
         self.parent_.sync_active_maya_project()
         self.set_row_visibility()
-        self.set_custom_size()
         self.setCurrentIndex(idx)
 
     def add_collector_items(self):
@@ -468,6 +467,4 @@ class ProjectWidget(BaseListWidget):
 
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-        self.set_custom_size()
-        self.move(self.x(), self.y())
         self.parent_.sync_active_maya_project(setActive=False)

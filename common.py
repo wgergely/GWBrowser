@@ -26,7 +26,7 @@ HEIGHT = 640
 # |    row_footer   |     Infobar
 # +-----------------+
 
-ROW_BUTTONS_HEIGHT = 36
+ROW_BUTTONS_HEIGHT = 24
 STACKED_WIDGET_HEIGHT = 640
 ROW_FOOTER_HEIGHT = 18
 

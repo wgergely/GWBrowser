@@ -49,7 +49,6 @@ class BaseContextMenu(Actions):
             flags
         )
         self.parent().set_row_visibility()
-        self.parent().set_custom_size()
 
     def isolate_favourites(self):
         """Hides all items except the items marked as favouire."""
@@ -79,10 +78,10 @@ class BaseContextMenu(Actions):
             flags
         )
         self.parent().set_row_visibility()
-        self.parent().set_custom_size()
 
     def show_archived(self):
         self.parent().show_archived()
+
 
 
 class BaseListWidget(QtWidgets.QListWidget):
@@ -122,13 +121,15 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.set_row_visibility()
         self._connectSignals()
 
-        self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint
-        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # Animate on show
-        self.setWindowOpacity(0)
+        self.setWindowOpacity(50)
         self.animation = None
 
         self.setStyleSheet(
@@ -402,23 +403,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
         # self.fileSystemWatcher.fileChanged.connect(self.refresh)
 
-    def set_custom_size(self):
-        """Sets the size of the widget.
-
-        # TODO: All items should have their sizeHint set.
-            sizeHintForRow(0) won't work with varying heights.
-
-        """
-        if not self.count_visible():
-            self.resize(common.WIDTH, common.ROW_HEIGHT)
-            return
-        height = 0
-        for n in xrange(self.count_visible()):
-            height += self.sizeHintForRow(0)
-            if height > common.HEIGHT:
-                break
-        self.resize(common.WIDTH, height)
-
     def set_row_visibility(self):
         """Sets the visibility of the list-items based on modes and options."""
         for n in xrange(self.count()):
@@ -450,12 +434,10 @@ class BaseListWidget(QtWidgets.QListWidget):
     def show_archived(self):
         self.show_archived_mode = not self.show_archived_mode
         self.set_row_visibility()
-        self.set_custom_size()
 
     def show_favourites(self):
         self.show_favourites_mode = not self.show_favourites_mode
         self.set_row_visibility()
-        self.set_custom_size()
 
     def paint_message(self, text):
         """Paints a custom message onto the list widget."""
