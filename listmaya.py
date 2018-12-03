@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Module defines the QListWidget items used to browse the projects and the files
+"""Module defines the QListWidget items used to browse the assets and the files
 found by the collector classes.
 
 """
@@ -198,7 +198,6 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
 
     def refresh(self):
         self.parent().refresh()
-        self.parent().parent_.files_button.clicked.emit()
 
 
 class MayaFilesWidget(BaseListWidget):
@@ -263,7 +262,7 @@ class MayaFilesWidget(BaseListWidget):
         """
         self.sort_mode = sort_mode
         self.reverse_mode = reverse_mode
-        self.add_collector_items()
+        self.add_items()
         self.get_scene_modes()
         self.set_row_visibility()
 
@@ -346,8 +345,12 @@ class MayaFilesWidget(BaseListWidget):
         self.open_scene(self.currentItem().data(QtCore.Qt.StatusTipRole))
         self.sceneChanged.emit()
 
+    def custom_doubleclick_event(self, index):
+        """Opens the scene on double-click."""
+        self.action_on_enter_key()
+
     def action_on_custom_keys(self, event):
-        """Custom keyboard shortcuts for the ProjectsWidget are defined here.
+        """Custom keyboard shortcuts for the AssetsWidget are defined here.
 
         **Implemented shortcuts**:
         ::
@@ -415,7 +418,7 @@ class MayaFilesWidget(BaseListWidget):
             self.fileSystemWatcher.removePath(path)
 
         idx = self.currentIndex()
-        self.add_collector_items()
+        self.add_items()
         self.get_scene_modes()
         self.setCurrentIndex(idx)
         self.set_row_visibility()
@@ -426,12 +429,12 @@ class MayaFilesWidget(BaseListWidget):
         """`Modes` are subfolders inside the `scene` folder.
 
         For example:
-            . / [project_root] / [scene_root] / `animation` /
-            . / [project_root] / [project_scenes_root] / `layout` /
-            . / [project_root] / [project_scenes_root] / `render` /
+            . / [asset_root] / [scene_root] / `animation` /
+            . / [asset_root] / [asset_scenes_root] / `layout` /
+            . / [asset_root] / [asset_scenes_root] / `render` /
 
-        We're using these modes to comparmetalize different elements of the
-        project and as filters for our list.  Each mode gets it's own color-label
+        We're using these modes to compartmentalize different elements of the
+        asset and as filters for our list.  Each mode gets it's own color-label
         assigned and are stored in the `common` module.
 
         """
@@ -447,7 +450,7 @@ class MayaFilesWidget(BaseListWidget):
         modes = QtCore.QDir(
             '{}/{}'.format(
                 self.collector.root_info.filePath(),
-                local_config.project_scenes_folder
+                local_config.asset_scenes_folder
             )
         )
         modes = modes.entryInfoList(
@@ -458,7 +461,7 @@ class MayaFilesWidget(BaseListWidget):
         for mode in modes:
             common.get_label(mode.baseName())
 
-    def add_collector_items(self):
+    def add_items(self):
         """Retrieves the files found by the ``FilesCollector`` and adds them as
         QListWidgetItems.
 
@@ -484,7 +487,7 @@ class MayaFilesWidget(BaseListWidget):
             basedirs = basedirs.replace(
                 self.collector.root_info.filePath(), ''
             ).replace(
-                local_config.project_scenes_folder, ''
+                local_config.asset_scenes_folder, ''
             ).lstrip('/').rstrip('/')
 
             item = QtWidgets.QListWidgetItem()

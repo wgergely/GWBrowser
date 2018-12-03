@@ -83,11 +83,10 @@ class BaseContextMenu(Actions):
         self.parent().show_archived()
 
 
-
 class BaseListWidget(QtWidgets.QListWidget):
     """Base class for the custom list widgets."""
 
-    projectChanged = QtCore.Signal()
+    assetChanged = QtCore.Signal()
     sceneChanged = QtCore.Signal()
     Delegate = NotImplementedError
     ContextMenu = NotImplementedError
@@ -105,7 +104,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.installEventFilter(self)
         self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
-        self.setUniformItemSizes(False)
+        self.setUniformItemSizes(True)
 
         # Scrollbar visibility
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -117,7 +116,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.timer.setSingleShot(True)
         self.timed_search_string = ''
 
-        self.add_collector_items()
+        self.add_items()
         self.set_row_visibility()
         self._connectSignals()
 
@@ -127,10 +126,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        # Animate on show
-        self.setWindowOpacity(50)
-        self.animation = None
 
         self.setStyleSheet(
             """
@@ -190,8 +185,6 @@ class BaseListWidget(QtWidgets.QListWidget):
             if result != QtWidgets.QMessageBox.Save:
                 return
 
-        # Hide
-        self.hide()
 
         path = self.Config.getThumbnailPath(file_info.filePath())
         # Deleting the thumbnail from our image cache
@@ -202,7 +195,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.Config.set_hidden(path)
 
         # Show
-        self.parent_.activate_widget(self)
+        self.parent().activate_widget(self)
 
     def _paint_widget_background(self):
         """Our list widgets arer see-through, because of their drop-shadow.
@@ -218,15 +211,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50)))
         painter.drawRect(rect)
         painter.end()
-
-    def animate_opacity(self):
-        self.animation = QtCore.QPropertyAnimation(
-            self, 'windowOpacity', parent=self)
-        self.animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
-        self.animation.setDuration(150)
-        self.animation.setStartValue(0.01)
-        self.animation.setEndValue(1)
-        self.animation.start(QtCore.QPropertyAnimation.KeepWhenStopped)
 
     def action_on_enter_key(self):
         raise NotImplementedError('Method is abstract.')
@@ -312,14 +296,13 @@ class BaseListWidget(QtWidgets.QListWidget):
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Escape:
-                self.hide()
+                pass
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
             elif event.key() == QtCore.Qt.Key_Up:
                 self.key_up()
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
-                self.hide()
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.key_down()
                 self.key_tab()
@@ -383,6 +366,45 @@ class BaseListWidget(QtWidgets.QListWidget):
                 c += 1
         return c
 
+    def custom_doubleclick_event(self, index):
+        """Action to perform on double-click. Abstract method needs to be overriden in the subclass.
+        """
+        raise NotImplementedError('custom_doubleclick_event() is abstract.')
+
+    def mouseDoubleClickEvent(self, event):
+        """Custom double-click event.
+
+        A double click can `open` an item, or it can trigger an edit event.
+        As each item is associated with multiple editors, we have to filter
+        the double-click event before calling the item delegate's `createEditor`
+        method.
+
+        Finally `custom_doubleclick_event` is called - this method has to be implemented
+        in the subclass.
+
+        """
+        super(BaseListWidget, self).mouseDoubleClickEvent(event)
+        index = self.indexAt(event.pos())
+        item = self.itemAt(event.pos())
+        rect = self.visualRect(index)
+
+        parent = self.viewport()
+        option = self.viewOptions()
+
+        note_rect, _, _ = self.itemDelegate().get_note_rect(rect)
+        thumbnail_rect = self.itemDelegate().get_thumbnail_rect(rect)
+        location_rect = self.itemDelegate().get_location_editor_rect(rect)
+
+        if note_rect.contains(event.pos()):
+            self.itemDelegate().createEditor(parent, option, index, editor=0)
+        elif thumbnail_rect.contains(event.pos()):
+            self.itemDelegate().createEditor(parent, option, index, editor=1)
+        elif location_rect.contains(event.pos()):
+            self.itemDelegate().createEditor(parent, option, index, editor=2)
+        else:
+            self.custom_doubleclick_event(index)
+
+
     def contextMenuEvent(self, event):
         index = self.indexAt(event.pos())
         self._contextMenu = self.ContextMenu(index, parent=self)
@@ -397,7 +419,7 @@ class BaseListWidget(QtWidgets.QListWidget):
             self._contextMenu.move(self.mapToGlobal(self.rect().topLeft()))
         self._contextMenu.move(self._contextMenu.x(), self._contextMenu.y())
 
-        self.parent_.move_widget_to_available_geo(self._contextMenu)
+        self.parent().parent().move_widget_to_available_geo(self._contextMenu)
 
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)

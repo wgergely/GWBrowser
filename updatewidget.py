@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""This is a widget to set the path used the Collector to look for projects.
+"""This is a widget to set the path used the Collector to look for assets.
 
 Attributes:
     server (str):   The path to the server. None if invalid.
     job (str):      The name of the job folder. None if invalid.
-    root (str):     The name of the projects root folder. None if invalid.
+    root (str):     The name of the assets root folder. None if invalid.
 
 The final set path is a composit of [path]/[job]/[root].
 
@@ -130,9 +130,9 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pick_server_feedback = QtWidgets.QLabel('Server not selected.')
         self.pick_server_feedback.setAlignment(QtCore.Qt.AlignRight)
         self.pick_job_menu = QtWidgets.QComboBox()
-        self.pick_root_line = QtWidgets.QLineEdit('/projects')
+        self.pick_root_line = QtWidgets.QLineEdit('/assets')
         self.pick_root_line.setPlaceholderText(
-            'Enter path to the projects folder...')
+            'Enter path to the assets folder...')
         self.pick_root_feedback = QtWidgets.QLabel('')
         self.pick_root_feedback.setAlignment(QtCore.Qt.AlignRight)
 
@@ -163,10 +163,10 @@ class UpdateConfigWidget(QtWidgets.QDialog):
 
         self.pathsettings.layout().addWidget(self.pick_job_menu, 1)
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('\n'), 1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Projects'), 1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Assets'), 1)
 
         label = QtWidgets.QLabel(
-            'A relative path of the projects located inside the current job (press enter to set)')
+            'A relative path of the assets located inside the current job (press enter to set)')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Config file reader for maya projects.
+"""Config file reader for maya assets.
 
 The ConfigParser allows setting comments and custom properties
-for individual scene files or projects.
+for individual scene files or assets.
 
 Attributes:
     archived (bool):            The status of the current item.
@@ -118,7 +118,7 @@ class LocalConfig(UnicodeConfigParser):
     Attributes:
         server (str):       The path to the server
         job (str):          The name of the current job. (Currently this is the name of the job folder.)
-        root (str):         This is the location of the folder where the maya project folders are located.
+        root (str):         This is the location of the folder where the maya asset folders are located.
 
     """
     SECTIONS = ['activejob', 'favourites', 'mayawidget']
@@ -188,7 +188,7 @@ class LocalConfig(UnicodeConfigParser):
 
     @property
     def root(self):
-        """The currently set relative project root folder path."""
+        """The currently set relative asset root folder path."""
         if self.has_option('activejob', 'root'):
             opt = self.get('activejob', 'root')
             if opt != 'None':
@@ -202,30 +202,30 @@ class LocalConfig(UnicodeConfigParser):
         self.write_ini()
 
     @property
-    def show_favourites_project_mode(self):
-        """The saved show favourite projects mode."""
+    def show_favourites_asset_mode(self):
+        """The saved show favourite assets mode."""
         opt = self._get_option(
             'mayawidget',
-            'show_favourites_project_mode',
+            'show_favourites_asset_mode',
             False
         )
         return False if opt.lower() == 'false' else True
 
-    @show_favourites_project_mode.setter
-    def show_favourites_project_mode(self, val):
-        self.set('mayawidget', 'show_favourites_project_mode', '{}'.format(val))
+    @show_favourites_asset_mode.setter
+    def show_favourites_asset_mode(self, val):
+        self.set('mayawidget', 'show_favourites_asset_mode', '{}'.format(val))
         self.write_ini()
 
     @property
-    def show_archived_project_mode(self):
-        """The saved Show archived projects mode."""
+    def show_archived_asset_mode(self):
+        """The saved Show archived assets mode."""
         opt = self._get_option(
-            'mayawidget', 'show_archived_project_mode', False)
+            'mayawidget', 'show_archived_asset_mode', False)
         return False if opt.lower() == 'false' else True
 
-    @show_archived_project_mode.setter
-    def show_archived_project_mode(self, val):
-        self.set('mayawidget', 'show_archived_project_mode', '{}'.format(val))
+    @show_archived_asset_mode.setter
+    def show_archived_asset_mode(self, val):
+        self.set('mayawidget', 'show_archived_asset_mode', '{}'.format(val))
         self.write_ini()
 
     @property
@@ -287,6 +287,16 @@ class LocalConfig(UnicodeConfigParser):
         self.set('mayawidget', 'current_filter', '{}'.format(val))
         self.write_ini()
 
+    @property
+    def current_widget(self):
+        """Stores the currently visible widget's index."""
+        return int(self._get_option('mayawidget', 'current_widget', '0'))
+
+    @current_widget.setter
+    def current_widget(self, val):
+        self.set('mayawidget', 'current_widget', '{}'.format(val))
+        self.write_ini()
+
     def clear_location(self):
         """Clears all saved locations from the local configuration file."""
         self._get_option('activejob', 'history', '')
@@ -294,11 +304,14 @@ class LocalConfig(UnicodeConfigParser):
         self.write_ini()
 
     @property
-    def location(self):
-        """Returns the location of configuration values set.
+    def locations(self):
+        """Returns the list of all available
 
-        The string is stored the following format:
+        The raw string is stored as follows:
             'server1,job1,root1; server2,job2,root2;'
+
+        Returns:
+            list:   A list of [server, job, root] strings.
 
         """
         location = self._get_option('activejob', 'history', '')
@@ -338,48 +351,48 @@ class LocalConfig(UnicodeConfigParser):
         self.write_ini()
 
     @property
-    def project_scenes_folder(self):
-        """The name of the ``scenes`` folder inside the project folder."""
-        return self._get_option('activejob', 'project_scenes_folder', 'scenes')
+    def asset_scenes_folder(self):
+        """The name of the ``scenes`` folder inside the asset folder."""
+        return self._get_option('activejob', 'asset_scenes_folder', 'scenes')
 
-    @project_scenes_folder.setter
-    def project_scenes_folder(self, val):
-        self.set('activejob', 'project_scenes_folder', '{}'.format(val))
+    @asset_scenes_folder.setter
+    def asset_scenes_folder(self, val):
+        self.set('activejob', 'asset_scenes_folder', '{}'.format(val))
         self.write_ini()
 
     @property
-    def project_renders_folder(self):
-        """The name of the ``renders`` folder inside the project folder."""
-        return self._get_option('activejob', 'project_renders_folder', 'renders')
+    def asset_renders_folder(self):
+        """The name of the ``renders`` folder inside the asset folder."""
+        return self._get_option('activejob', 'asset_renders_folder', 'renders')
 
-    @project_renders_folder.setter
-    def project_renders_folder(self, val):
-        self.set('activejob', 'project_renders_folder', '{}'.format(val))
+    @asset_renders_folder.setter
+    def asset_renders_folder(self, val):
+        self.set('activejob', 'asset_renders_folder', '{}'.format(val))
         self.write_ini()
 
     @property
-    def project_textures_folder(self):
-        """The name of the ``textures`` folder inside the project folder."""
-        return self._get_option('activejob', 'project_textures_folder', 'textures')
+    def asset_textures_folder(self):
+        """The name of the ``textures`` folder inside the asset folder."""
+        return self._get_option('activejob', 'asset_textures_folder', 'textures')
 
-    @project_textures_folder.setter
-    def project_textures_folder(self, val):
-        self.set('activejob', 'project_textures_folder', '{}'.format(val))
+    @asset_textures_folder.setter
+    def asset_textures_folder(self, val):
+        self.set('activejob', 'asset_textures_folder', '{}'.format(val))
         self.write_ini()
 
     @property
-    def project_exports_folder(self):
-        """The name of the ``exports`` folder inside the project folder."""
-        return self._get_option('activejob', 'project_exports_folder', 'exports')
+    def asset_exports_folder(self):
+        """The name of the ``exports`` folder inside the asset folder."""
+        return self._get_option('activejob', 'asset_exports_folder', 'exports')
 
-    @project_exports_folder.setter
-    def project_exports_folder(self, val):
-        self.set('activejob', 'project_exports_folder', '{}'.format(val))
+    @asset_exports_folder.setter
+    def asset_exports_folder(self, val):
+        self.set('activejob', 'asset_exports_folder', '{}'.format(val))
         self.write_ini()
 
 
 class CustomConfig(UnicodeConfigParser):
-    """Baseclass for the Project- and FileConfigs."""
+    """Baseclass for the Asset- and FileConfigs."""
 
     SECTIONS = ['properties',]
 
@@ -415,11 +428,11 @@ class CustomConfig(UnicodeConfigParser):
         self.set('properties', 'archived', '{}'.format(val))
 
 
-class ProjectConfig(CustomConfig):
-    """Reads and writes Maya project properties."""
+class AssetConfig(CustomConfig):
+    """Reads and writes Maya asset properties."""
 
     def __init__(self, path):
-        super(ProjectConfig, self).__init__(path)
+        super(AssetConfig, self).__init__(path)
 
     @staticmethod
     def getConfigPath(path):
@@ -429,7 +442,7 @@ class ProjectConfig(CustomConfig):
 
     @staticmethod
     def getThumbnailPath(path):
-        """Returns the path to the project's thumbnail."""
+        """Returns the path to the asset's thumbnail."""
         fileInfo = QtCore.QFileInfo(path)
         return '{}/.thumbnail.png'.format(fileInfo.filePath())
 

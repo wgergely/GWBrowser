@@ -10,7 +10,7 @@ import mayabrowser.common as common
 from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_config
-from mayabrowser.configparsers import ProjectConfig
+from mayabrowser.configparsers import AssetConfig
 from mayabrowser.configparsers import FileConfig
 
 
@@ -21,7 +21,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         super(BaseDelegate, self).__init__(parent=parent)
 
     def sizeHint(self, option, index):
-        """Custom size-hint. Sets the size of the files and project widget items."""
+        """Custom size-hint. Sets the size of the files and asset widget items."""
         selected = index.row() == self.parent().currentIndex().row()
         size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
         return size
@@ -87,30 +87,30 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 break
 
         # Bottom
-        if index.row() != last_visible:
-            rect = QtCore.QRectF(
-                option.rect.left(),
-                option.rect.top() + option.rect.height() - THICKNESS,
-                option.rect.width(),
-                THICKNESS
-            )
-            painter.drawRect(rect)
+        # if index.row() != last_visible:
+        rect = QtCore.QRectF(
+            option.rect.left(),
+            option.rect.top() + option.rect.height() - THICKNESS,
+            option.rect.width(),
+            THICKNESS
+        )
+        painter.drawRect(rect)
+        #
+        # first_visible = 0
+        # for first_visible in xrange(self.parent().count()):
+        #     item = self.parent().item(first_visible)
+        #     if not item.isHidden():
+        #         break
 
-        first_visible = 0
-        for first_visible in xrange(self.parent().count()):
-            item = self.parent().item(first_visible)
-            if not item.isHidden():
-                break
-
-        if index.row() != first_visible:
+        # if index.row() != first_visible:
             # Top
-            rect = QtCore.QRectF(
-                option.rect.left(),
-                option.rect.top(),
-                option.rect.width(),
-                THICKNESS
-            )
-            painter.drawRect(rect)
+        rect = QtCore.QRectF(
+            option.rect.left(),
+            option.rect.top(),
+            option.rect.width(),
+            THICKNESS
+        )
+        painter.drawRect(rect)
 
     def paint_selection_indicator(self, *args):
         """Paints the blue leading rectangle to indicate the current selection."""
@@ -175,15 +175,17 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         shd_rect = QtCore.QRect(option.rect)
         shd_rect.setLeft(rect.left() + rect.width())
 
-        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
-        gradient.setColorAt(0.2, QtGui.QColor(68,68,68,0))
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
-        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
-        gradient.setColorAt(0.02, QtGui.QColor(68,68,68,0))
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
@@ -241,7 +243,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             image,
             image.rect()
         )
-
 
         painter.restore()
 
@@ -311,13 +312,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(brush)
         painter.drawRect(option.rect)
 
-
         grad_rect = QtCore.QRect(
             0, 0, option.rect.width(), option.rect.height()
         )
-        gradient = QtGui.QLinearGradient(option.rect.topLeft(), option.rect.topRight())
-        gradient.setColorAt(1, QtGui.QColor(0,0,0,0))
-        gradient.setColorAt(0.5, QtGui.QColor(50,50,50,200))
+        gradient = QtGui.QLinearGradient(
+            option.rect.topLeft(), option.rect.topRight())
+        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
+        gradient.setColorAt(0.5, QtGui.QColor(50, 50, 50, 200))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(option.rect)
 
@@ -343,13 +344,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         raise NotImplementedError('get_noteeditor_cls() is abstract.')
-
-    def custom_doubleclick_event(self, parent, option, index):
-        """Abstract method needs to be overriden in the subclass.
-        Action to perform on double-click.
-
-        """
-        raise NotImplementedError('custom_doubleclick_event() is abstract.')
 
     def get_name_rect(self, rect):
         """Returns the rectangle containing the name.
@@ -416,7 +410,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def get_note_rect(self, rect):
         """Returns the rectangle, font and the font metrics used to draw the note text.
 
-        Returns:        tuple [QtCore.QRect, QtGui.QFont, QtGui.QFontMetrics]
+        Arguments:
+            rect (QtCore.QRect):  The visual rectangle of the current row.
+
+        Returns:
+            tuple: A tuple of QtCore.QRect, QtGui.QFont, QtGui.QFontMetrics instances.
 
         """
         painter = QtGui.QPainter()
@@ -442,33 +440,37 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         editor_rect.moveTop(editor_rect.top() + metrics.height())
         return editor_rect, font, metrics
 
-    def get_thumbnail_editor_rect(self, rect):
+    def get_thumbnail_rect(self, rect):
         """Returns the rectangle for the thumbnail editor."""
         rect = QtCore.QRect(rect)
         rect.moveLeft(4)
         rect.setWidth(rect.height())
         return rect
 
-    def createEditor(self, parent, option, index):  # pylint: disable=W0613
+    def get_location_editor_rect(self, rect):
+        rect = QtCore.QRect(rect)
+        rect.setLeft(rect.right() - rect.height())
+        rect.setWidth(rect.height())
+        return rect
+
+    def createEditor(self, parent, option, index, editor=None):  # pylint: disable=W0613
         """Creates the custom editors needed to edit the thumbnail and the description.
 
         References:
         http: // doc.qt.io/qt-5/QItemEditorFactory.html  # standard-editing-widgets
 
         """
-        cursorPos = QtGui.QCursor().pos()
-        cursorPos = self.parent().mapFromGlobal(cursorPos)
-
-        rect, _, _ = self.get_note_rect(option.rect)
-        if rect.contains(cursorPos):
+        if not editor:
+            return
+        elif editor == 0:  # Editor to edit notes
+            rect, _, _ = self.get_note_rect(option.rect)
             return self.get_noteeditor_cls(index, rect, self.parent(), parent=parent)
-
-        rect = self.get_thumbnail_editor_rect(option.rect)
-        if rect.contains(cursorPos):
+        elif editor == 1:  # Editor to pick a thumbnail
+            rect = self.get_thumbnail_rect(option.rect)
             return self.get_thumbnaileditor_cls(index, rect, self.parent(), parent=parent)
+        elif editor == 2:  # Button to remove a location, no editor needed
+            return
 
-        # A bit hack-ish to include hide() in this function but why not! :/
-        self.custom_doubleclick_event(parent, option, index)
 
 class LocationWidgetDelegate(BaseDelegate):
 
@@ -483,60 +485,330 @@ class LocationWidgetDelegate(BaseDelegate):
 
         selected = option.state & QtWidgets.QStyle.State_Selected
         args = (painter, option, index, selected, None, None)
-
         self.paint_background(*args)
-        self.paint_data(*args)
+
+        if index.row() < (self.parent().count() - 1):
+            self.paint_data(*args)
+            self.paint_selection_indicator(*args)
+            self.paint_remove_button(*args)
+            self.paint_thumbnail(*args)
+            self.paint_active(*args)
+        else:
+            self.paint_add_button(*args)
+
         self.paint_separators(*args)
-        self.paint_selection_indicator(*args)
+
+    def get_note_rect(self, *args):
+        """There's no note rectangle on the locations widget, setting it to zero."""
+        return QtCore.QRect(0, 0, 0, 0), None, None
+
+    def get_thumbnaileditor_cls(self, *args, **kwargs):
+        """The widget used to edit the thumbnail of the asset."""
+        index = self.parent().currentIndex()
+        server, job, root = index.data(QtCore.Qt.StatusTipRole).split(',')
+        local_config.read_ini()
+
+        # Updating the local config file
+        local_config.server = server
+        local_config.job = job
+        local_config.root = root
+
+        # Emiting a signal upon change
+        self.parent().locationChanged.emit(server, job, root)
+        return None
+
+    def paint_remove_button(self, *args):
+        """Paints the delete location button."""
+        painter, option, index, selected, _, _ = args
+        pos = QtGui.QCursor().pos()
+        pos = self.parent().mapFromGlobal(pos)
+        rect = self.get_location_editor_rect(option.rect)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter.save()
+
+        if hover and rect.contains(pos):
+            path = '{}/rsc/remove_hover.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        else:
+            path = '{}/rsc/remove.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        # Thumbnail image
+        if path in common.IMAGE_CACHE:
+            image = common.IMAGE_CACHE[path]
+        else:
+            image = QtGui.QImage()
+            image.load(path)
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                option.rect.height()
+            )
+            common.IMAGE_CACHE[path] = image
+
+        # Factoring aspect ratio in
+        longer = float(max(image.rect().width(), image.rect().height()))
+        factor = float(rect.width() / longer)
+        if image.rect().width() < image.rect().height():
+            rect.setWidth(float(image.rect().width()) * factor)
+        else:
+            rect.setHeight(float(image.rect().height()) * factor)
+
+        rect.moveLeft(
+            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+        )
+        rect.moveTop(
+            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+        )
+
+        painter.drawImage(
+            rect,
+            image,
+            image.rect()
+        )
+        painter.restore()
+
+    def paint_add_button(self, *args):
+        """Paints the thumbnail of the item."""
+        painter, option, index, selected, _, _ = args
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(rect.height())
+        rect.moveLeft((option.rect.width() / 2) - (rect.width() / 2))
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter.save()
+        painter.setPen(QtCore.Qt.NoPen)
+
+        if hover:
+            path = '{}/rsc/bookmark_add_hover.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        else:
+            path = '{}/rsc/bookmark_add.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+
+        # Thumbnail image
+        if path in common.IMAGE_CACHE:
+            image = common.IMAGE_CACHE[path]
+        else:
+            image = QtGui.QImage()
+            image.load(path)
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                option.rect.height()
+            )
+            common.IMAGE_CACHE[path] = image
+
+        # Factoring aspect ratio in
+        longer = float(max(image.rect().width(), image.rect().height()))
+        factor = float(rect.width() / longer)
+        if image.rect().width() < image.rect().height():
+            rect.setWidth(float(image.rect().width()) * factor)
+        else:
+            rect.setHeight(float(image.rect().height()) * factor)
+
+        rect.moveLeft(
+            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+        )
+        rect.moveTop(
+            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+        )
+
+        painter.drawImage(
+            rect,
+            image,
+            image.rect()
+        )
+        painter.restore()
+
+    def paint_active(self, *args):
+        painter, option, index, selected, _, _ = args
+
+        item = self.parent().itemFromIndex(index)
+        if self.parent().activeItem is not item:
+            return
+
+        painter.save()
+
+        WIDTH = 4
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        pen = QtGui.QPen(QtGui.QColor(common.SELECTION))
+
+        pen.setWidth(2)
+        painter.setPen(pen)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(4)
+        rect.setWidth(option.rect.height())
+
+        rect.setTop(rect.top() + WIDTH)
+        rect.setBottom(rect.bottom() - (WIDTH))
+        rect.setLeft(rect.left() + WIDTH)
+        rect.setRight(rect.right() - (WIDTH))
+
+        painter.drawRect(rect)
+        painter.restore()
+
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnail of the item."""
+        painter, option, index, selected, _, _ = args
+
+        painter.save()
+
+        if selected:
+            color = common.THUMBNAIL_BACKGROUND_SELECTED
+        else:
+            color = common.BACKGROUND
+
+        rect = QtCore.QRect(option.rect)
+        # Making the aspect ratio of the image 16/9
+        rect.setWidth(rect.height())
+        rect.moveLeft(rect.left() + 4)  # Accounting for the leading indicator
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
+        # Shadow next to the thumbnail
+        shd_rect = QtCore.QRect(option.rect)
+        shd_rect.setLeft(rect.left() + rect.width())
+
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        item = self.parent().itemFromIndex(index)
+        if self.parent().activeItem is item:
+            path = '{}/rsc/bookmark_active.png'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        else:
+            path = '{}/rsc/bookmark.png'.format(
+            QtCore.QFileInfo(__file__).dir().path()
+            )
+        # Thumbnail image
+        if path in common.IMAGE_CACHE:
+            image = common.IMAGE_CACHE[path]
+        else:
+            image = QtGui.QImage()
+            image.load(path)
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                option.rect.height()
+            )
+            common.IMAGE_CACHE[path] = image
+
+        # Factoring aspect ratio in
+        longer = float(max(image.rect().width(), image.rect().height()))
+        factor = float(rect.width() / longer)
+        if image.rect().width() < image.rect().height():
+            rect.setWidth(float(image.rect().width()) * factor)
+        else:
+            rect.setHeight(float(image.rect().height()) * factor)
+
+        rect.moveLeft(
+            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+        )
+        rect.moveTop(
+            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+        )
+
+        painter.drawImage(
+            rect,
+            image,
+            image.rect()
+        )
+        painter.restore()
 
     def paint_data(self, *args):
         painter, option, index, selected, _, _ = args
 
         painter.save()
+
         font = QtGui.QFont('Roboto Black')
-        font.setBold(True)
-        font.setPointSize(8)
+        font.setBold(False)
+        font.setPointSize(9)
         painter.setFont(font)
+
+        server, job, root = index.data(QtCore.Qt.StatusTipRole).split(',')
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(4 + option.rect.height() + common.MARGIN)
-        rect.setWidth(rect.width() - (common.MARGIN * 2))
-        painter.setPen(QtGui.QPen(common.TEXT))
+        rect.setRight(option.rect.right() - rect.height())
+
+        if selected:
+            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+        else:
+            painter.setPen(QtGui.QPen(common.TEXT))
+
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
-            index.data(QtCore.Qt.DisplayRole).upper()
+            '{}\n'.format(job.upper())
         )
+
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight | QtCore.Qt.TextWordWrap,
+            '{}'.format(root.upper())
+        )
+
+        font = QtGui.QFont('Roboto')
+        font.setBold(False)
+        font.setItalic(True)
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.setPen(QtGui.QPen(common.TEXT_NOTE))
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            '\n{}/{}/{}'.format(server, job, root)
+        )
+
         painter.restore()
 
-class ProjectWidgetDelegate(BaseDelegate):
-    """Delegate used by the ``ProjectWidget`` to display the collecteds projects."""
+
+class AssetWidgetDelegate(BaseDelegate):
+    """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
 
     def get_thumbnail_path(self, index):
-        """The path to the thumbnail of the project."""
-        return ProjectConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
+        """The path to the thumbnail of the asset."""
+        return AssetConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
 
     def get_config_path(self, index):
-        """The path to the project's configuration file."""
-        return ProjectConfig.getConfigPath(index.data(QtCore.Qt.StatusTipRole))
+        """The path to the asset's configuration file."""
+        return AssetConfig.getConfigPath(index.data(QtCore.Qt.StatusTipRole))
 
     @staticmethod
     def get_thumbnaileditor_cls(*args, **kwargs):
-        """The widget used to edit the thumbnail of the project."""
-        return ProjectThumbnailEditor(*args, **kwargs)
+        """The widget used to edit the thumbnail of the asset."""
+        return AssetThumbnailEditor(*args, **kwargs)
 
     @staticmethod
     def get_noteeditor_cls(*args, **kwargs):
-        """The widget used to edit the description of the project."""
-        return ProjectNoteEditor(*args, **kwargs)
+        """The widget used to edit the description of the asset."""
+        return AssetNoteEditor(*args, **kwargs)
 
     def paint_custom(self, *args):
         """Custom paint action to draw the buttons to trigger."""
         pass
 
     def paint_data(self, *args):
-        """Paints the ``ProjectWidget``'s `QListWidgetItems`' names and notes."""
+        """Paints the ``AssetWidget``'s `QListWidgetItems`' names and notes."""
         painter, option, index, selected, _, _ = args
 
         if selected:
@@ -598,11 +870,6 @@ class ProjectWidgetDelegate(BaseDelegate):
             text
         )
 
-    def custom_doubleclick_event(self, parent, option, index):
-        self.parent().active_item = index
-        self.parent().hide()
-        self.parent().parent_.files_button.clicked.emit()
-
 
 class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
@@ -661,7 +928,7 @@ class FilesWidgetDelegate(BaseDelegate):
         basedirs = basedirs.replace(
             self.parent().collector.root_info.filePath(), ''
         ).replace(
-            local_config.project_scenes_folder, ''
+            local_config.asset_scenes_folder, ''
         ).lstrip('/').rstrip('/')
 
         painter.setBrush(QtCore.Qt.NoBrush)
@@ -845,10 +1112,6 @@ class FilesWidgetDelegate(BaseDelegate):
             num /= 1024.0
         return "%.1f%s%s" % (num, 'Yi', suffix)
 
-    def custom_doubleclick_event(self, parent, option, index):
-        """Opens the scene on double-click."""
-        self.parent().action_on_enter_key()
-
     def get_thumbnail_path(self, index):
         return FileConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
 
@@ -896,7 +1159,7 @@ class ThumbnailEditor(QtWidgets.QWidget):
             del common.IMAGE_CACHE[path]
 
         if image.save(path):
-            ProjectConfig.set_hidden(path, hide=True)
+            AssetConfig.set_hidden(path, hide=True)
             self.parent().update()
 
     @staticmethod
@@ -922,19 +1185,11 @@ class ThumbnailEditor(QtWidgets.QWidget):
             'Method is abstract and has to be overwritten.')
 
 
-class ProjectThumbnailEditor(ThumbnailEditor):
-    """Edits the project's thumbnail."""
-
-    def get_thumbnail_path(self, index):
-        """The path of the project's thumbnail."""
-        return ProjectConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
-
-
 class SceneThumbnailEditor(ThumbnailEditor):
-    """Edits the project's thumbnail."""
+    """Edits the asset's thumbnail."""
 
     def get_thumbnail_path(self, index):
-        """The path of the project's thumbnail."""
+        """The path of the asset's thumbnail."""
         return FileConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
 
 
@@ -1080,20 +1335,20 @@ class NoteEditor(QtWidgets.QWidget):
             self._view.closePersistentEditor(item)
 
 
-class ProjectNoteEditor(NoteEditor):
-    """Edits the notes of projects."""
+class AssetNoteEditor(NoteEditor):
+    """Edits the notes of assets."""
 
     def __init__(self, *args, **kwargs):
-        super(ProjectNoteEditor, self).__init__(*args, **kwargs)
+        super(AssetNoteEditor, self).__init__(*args, **kwargs)
         self.editor.setAlignment(QtCore.Qt.AlignRight)
 
     @staticmethod
     def get_config_instance(*args, **kwargs):
-        return ProjectConfig(*args, **kwargs)
+        return AssetConfig(*args, **kwargs)
 
 
 class SceneNoteEditor(NoteEditor):
-    """Edits the notes of projects."""
+    """Edits the notes of assets."""
 
     @staticmethod
     def get_config_instance(*args, **kwargs):

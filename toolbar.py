@@ -1,4 +1,4 @@
-'Edit locations'# -*- coding: utf-8 -*-
+'Edit locations'  # -*- coding: utf-8 -*-
 """``MayaBrowserWidget`` is the plug-in's main widget.
 When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
 otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.
@@ -12,9 +12,9 @@ Example:
     widget = MayaBrowserWidget()
     widget.show()
 
-The project and the file lists are collected by the ``collector.ProjectCollector``
+The asset and the file lists are collected by the ``collector.AssetCollector``
 and ```collector.FilesCollector`` classes. The gathered files then are displayed
-in the ``listwidgets.ProjectsListWidget`` and ``listwidgets.FilesListWidget`` items.
+in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` items.
 
 """
 
@@ -31,133 +31,46 @@ from mayabrowser.common import MayaQWidgetDockableMixin
 from mayabrowser.common import shiboken2
 
 from mayabrowser.listlocation import LocationWidget
-from mayabrowser.listproject import ProjectWidget
+from mayabrowser.listasset import AssetWidget
 from mayabrowser.listmaya import MayaFilesWidget
 from mayabrowser.configparsers import local_config
-from mayabrowser.configparsers import ProjectConfig
+from mayabrowser.configparsers import AssetConfig
 from mayabrowser.delegate import ThumbnailEditor
-from mayabrowser.updatewidget import UpdateConfigWidget
 from mayabrowser.actions import Actions
 
 
-class MayaBrowserContextMenu(Actions):
-    """Context menu associated with the MayaBrowserWidget.
 
-    Methods:
-        reveal_server:          Shows the server folder in the explorer.
-        reveal_job:             Shows the job folder in the explorer.
-        reveal_projects:        Shows the location of the projects in the explorer.
-        configure:              Opens ``UpdateConfigWidget`` to configure the local settings.
+# @staticmethod
+# def reveal_server():
+#     """Shows the current server folder in the file explorer."""
+#     file_info = QtCore.QFileInfo(
+#         '{}'.format(local_config.server)
+#     )
+#     path = file_info.filePath()
+#     url = QtCore.QUrl.fromLocalFile(path)
+#     QtGui.QDesktopServices.openUrl(url)
+#
+# @staticmethod
+# def reveal_job():
+#     """Reveals the current job folder in the file explorer."""
+#     file_info = QtCore.QFileInfo(
+#         '{}/{}'.format(local_config.server, local_config.job)
+#     )
+#     path = file_info.filePath()
+#     url = QtCore.QUrl.fromLocalFile(path)
+#     QtGui.QDesktopServices.openUrl(url)
+#
+# @staticmethod
+# def reveal_assets():
+#     """Reveals the current assets folder in the file explorer."""
+#     file_info = QtCore.QFileInfo(
+#         '{}/{}/{}'.format(local_config.server,
+#                           local_config.job, local_config.root)
+#     )
+#     path = file_info.filePath()
+#     url = QtCore.QUrl.fromLocalFile(path)
+#     QtGui.QDesktopServices.openUrl(url)
 
-    """
-
-    def __init__(self, parent=None):
-        super(MayaBrowserContextMenu, self).__init__(parent=parent)
-
-    def location_changed(self, action):
-        """Action triggered when the location has changed.
-
-        Args:
-            action (QAction):       Instance of the triggered action.
-
-        """
-        local_config.server = action.data()[0]
-        local_config.job = action.data()[1]
-        local_config.root = action.data()[2]
-        self.parent().sync_config()
-
-    def add_location(self):
-        """Populates the menu with location of project locations."""
-        submenu = self.addMenu('Locations')
-        if not local_config.location:
-            return
-
-        for item in local_config.location:
-            if item[0] == '':
-                continue
-
-            action = submenu.addAction('{}/{}/{}'.format(*item))
-            action.setData(item)
-            action.triggered.connect(
-                functools.partial(self.location_changed, action))
-            action.setCheckable(True)
-            if (
-                (item[0] == local_config.server) and
-                (item[1] == local_config.job) and
-                (item[2] == local_config.root)
-            ):
-                action.setChecked(True)
-
-    def add_actions(self):
-        self.add_location()
-        self.add_action_set(self.ACTION_SET)
-
-    @property
-    def ACTION_SET(self):
-        """Custom contextmenu action-list."""
-        items = OrderedDict()
-        items['Configure locations'] = {}
-        items['<separator>'] = {}
-        items['Reveal projects'] = {}
-        items['Reveal job'] = {}
-        items['Reveal server'] = {}
-        return items
-
-    @staticmethod
-    def reveal_server():
-        """Shows the current server folder in the file explorer."""
-        file_info = QtCore.QFileInfo(
-            '{}'.format(local_config.server)
-        )
-        path = file_info.filePath()
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    @staticmethod
-    def reveal_job():
-        """Reveals the current job folder in the file explorer."""
-        file_info = QtCore.QFileInfo(
-            '{}/{}'.format(local_config.server, local_config.job)
-        )
-        path = file_info.filePath()
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    @staticmethod
-    def reveal_projects():
-        """Reveals the current projects folder in the file explorer."""
-        file_info = QtCore.QFileInfo(
-            '{}/{}/{}'.format(local_config.server,
-                              local_config.job, local_config.root)
-        )
-        path = file_info.filePath()
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    def configure_locations(self):
-        """Opens a dialog to set the active project folder and writes
-        the pick into a local config file.
-
-        """
-        local_config.read_ini()
-
-        w = UpdateConfigWidget(
-            server=local_config.server,
-            job=local_config.job,
-            root=local_config.root
-        )
-        pixmap = self.parent().get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-        w.setWindowIcon(QtGui.QIcon(pixmap))
-
-        result = w.exec_()
-
-        if result:
-            local_config.server = w.server
-            local_config.job = w.job
-            local_config.root = w.root
-        self.parent().sync_config()
-
-        local_config.append_to_location(w.server, w.job, w.root)
 
 
 SingletonType = type(QtWidgets.QWidget)
@@ -180,7 +93,7 @@ class Singleton(SingletonType):
         return cls._instances[cls]
 
 
-class ProjectThumbnail(QtWidgets.QLabel):
+class AssetThumbnail(QtWidgets.QLabel):
     """Clickable QLabel."""
 
     clicked = QtCore.Signal()
@@ -195,10 +108,9 @@ class ProjectThumbnail(QtWidgets.QLabel):
         self.doubleClicked.emit()
 
 
-
-
 class FaderWidget(QtWidgets.QWidget):
     """Overlaywidget responsible for list cross-fade effect."""
+
     def __init__(self, old_widget, new_widget):
         super(FaderWidget, self).__init__(parent=new_widget)
 
@@ -227,15 +139,46 @@ class FaderWidget(QtWidgets.QWidget):
         self.pixmap_opacity = 1.0 - value
         self.repaint()
 
+class OverlayWidget(QtWidgets.QWidget):
+    """Overlaywidget responsible for list cross-fade effect."""
+
+    def __init__(self, new_widget):
+        super(OverlayWidget, self).__init__(parent=new_widget)
+
+        self.old_pixmap = QtGui.QPixmap(new_widget.size())
+        self.old_pixmap.fill(QtGui.QColor(50, 50, 50))
+        # old_widget.render(self.old_pixmap)
+        self.pixmap_opacity = 0.0
+
+        self.timeline = QtCore.QTimeLine()
+        self.timeline.valueChanged.connect(self.animate)
+        # self.timeline.finished.connect(self.close)
+        self.timeline.setDuration(300)
+        self.timeline.start()
+
+        self.resize(new_widget.size())
+        self.show()
+
+    def animate(self, value):
+        self.pixmap_opacity = (0.0 + value) * 0.8
+        self.repaint()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setOpacity(self.pixmap_opacity)
+        painter.drawPixmap(0, 0, self.old_pixmap)
+        painter.end()
+
 
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
-    """Singleton MayaQWidgetDockable widget containing the ``projectWidgetButton``
+    """Singleton MayaQWidgetDockable widget containing the ``assetWidgetButton``
     and the ``filesWidgetButton`` buttons.
 
     Attributes:
         instances (dict):               Class instances.
-        projectsWidget (QListWidget):   List of the collected Maya projects.
-        filesWidget (QListWidget):      List of files found associated with the project.
+        assetsWidget (QListWidget):   List of the collected Maya assets.
+        filesWidget (QListWidget):      List of files found associated with the asset.
 
         configChanged (QtCore.QSignal): Custom signal emitted when the configuration file changes.
 
@@ -245,7 +188,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     # """Singleton metaclass."""
 
     instances = {}
+
+    # Signals
     configChanged = QtCore.Signal()
+    projectChanged = QtCore.Signal()
+    assetChanged = QtCore.Signal()
+    fileChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(MayaBrowserWidget, self).__init__(parent=parent)
@@ -254,13 +202,19 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.maya_callbacks = []  # Maya api callbacks
         self.maya_actions = []  # Maya ui
 
-
-        # Saving the initial config settings.
+        # Applying the initial config settings.
+        local_config.read_ini()
         self._kwargs = {
             'server': None,
             'job': None,
             'root': None
         }
+        if local_config.server and local_config.job and local_config.root:
+            self._kwargs = {
+                'server': local_config.server,
+                'job': local_config.job,
+                'root': local_config.root
+            }
 
         self._contextMenu = None
         self.fader_widget = None
@@ -268,32 +222,33 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         # Create layout
         self._createUI()
 
-        self.locationsWidget = LocationWidget()
-        self.projectsWidget = ProjectWidget()
-        self.filesWidget = MayaFilesWidget()
-
-        self.stacked_widget.addWidget(self.locationsWidget)
-        # self.stacked_widget.addWidget(self.projectsWidget)
-        # self.stacked_widget.addWidget(self.filesWidget)
-        # self.stacked_widget.setCurrentIndex(0)
-
-
-        self.projectsWidget.parent_ = self
-        self.filesWidget.parent_ = self
-
-
         pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-        self.projectsWidget.setWindowIcon(QtGui.QIcon(pixmap))
+
+        self.locationsWidget = LocationWidget()
+        self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
+        self.assetsWidget = AssetWidget()
+        self.assetsWidget.setWindowIcon(QtGui.QIcon(pixmap))
+        self.filesWidget = MayaFilesWidget()
         self.filesWidget.setWindowIcon(QtGui.QIcon(pixmap))
 
+        self.stacked_widget.addWidget(self.locationsWidget)
+        self.stacked_widget.addWidget(self.assetsWidget)
+        self.stacked_widget.addWidget(self.filesWidget)
+
+        # Setting initial state
+        self.stacked_widget.setCurrentIndex(local_config.current_widget)
+        self.mode_pick.setCurrentIndex(local_config.current_widget)
 
         self.config_string = ''
         self.config_watch_timer = QtCore.QTimer()
         self.config_watch_timer.setInterval(2000)
+        self.config_watch_timer.start()
 
         self._connectSignals()
+
         self.sync_config()
-        self.sync_active_maya_project()
+        self.sync_active_maya_asset()
+
 
     @property
     def workspacecontrol(self):
@@ -322,10 +277,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         return pixmap
 
     def setThumbnail(self, path, opacity=1, size=common.ROW_BUTTONS_HEIGHT):
-        """Sets the given path as the thumbnail of the project."""
+        """Sets the given path as the thumbnail of the asset."""
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
-        self.project_thumbnail.setPixmap(pixmap)
-
+        self.asset_thumbnail.setPixmap(pixmap)
 
     def addCustomFonts(self):
         """Adds our custom fonts to the application.
@@ -336,11 +290,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """
 
         d = QtCore.QDir(
-                '{}/rsc/fonts'.format(
+            '{}/rsc/fonts'.format(
                 QtCore.QFileInfo(__file__).dir().path()
             )
         )
-        d.setNameFilters(['*.ttf',])
+        d.setNameFilters(['*.ttf', ])
 
         font_families = []
         for f in d.entryInfoList(
@@ -348,8 +302,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             QtCore.QDir.NoDotAndDotDot
         ):
             idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
-            font_families.append(QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
-
+            font_families.append(
+                QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
 
     def _createUI(self):
         """Creates the layout.
@@ -359,7 +313,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         +-----------------+
         |                 |
         |                 |
-        | stacked_widget  |     This a the widget containing the lists widgets of `projects`, `assets` and `files`.
+        | stacked_widget  |     This a the widget containing the lists widgets of `assets`, `assets` and `files`.
         |                 |
         |                 |
         +-----------------+
@@ -411,12 +365,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.layout().addWidget(self.stacked_widget)
         self.layout().addWidget(self.row_footer)
 
-        self.project_thumbnail = ProjectThumbnail(parent=self)
-        self.project_thumbnail.setAlignment(
+        self.asset_thumbnail = AssetThumbnail(parent=self)
+        self.asset_thumbnail.setAlignment(
             QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.project_thumbnail.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-        self.project_thumbnail.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
-        self.project_thumbnail.setStyleSheet(
+        self.asset_thumbnail.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.asset_thumbnail.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
+        self.asset_thumbnail.setStyleSheet(
             """
             QLabel {\
                 background-color: rgb(60, 60, 60);\
@@ -434,44 +388,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             """
         )
 
-        self.projects_button = QtWidgets.QPushButton('Projects')
-        self.projects_button.setStyleSheet(self.buttonStyle())
-        self.projects_button.setToolTip('Browse, activate Maya projects...')
-        self.projects_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.projects_button.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-
-        self.assets_button = QtWidgets.QPushButton('Assets')
-        self.assets_button.setStyleSheet(self.buttonStyle())
-        self.assets_button.setToolTip('Browse, activate Maya projects...')
-        self.assets_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.assets_button.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-
-        self.files_button = QtWidgets.QPushButton('Files')
-        self.files_button.setStyleSheet(self.buttonStyle())
-        self.files_button.setToolTip(
-            'Browse, open, import or reference scene files...')
-        self.files_button.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.files_button.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-
         self.mode_pick = DropdownWidget()
         self.mode_pick.addItem('Projects')
         self.mode_pick.addItem('Assets')
         self.mode_pick.addItem('Files')
 
         self.row_buttons.layout().addWidget(self.mode_pick, 1)
-        self.row_buttons.layout().addWidget(self.projects_button, 1)
-        self.row_buttons.layout().addWidget(self.assets_button, 1)
-        self.row_buttons.layout().addWidget(self.files_button, 1)
-        self.row_buttons.layout().addWidget(self.project_thumbnail, 0)
+        self.row_buttons.layout().addWidget(self.asset_thumbnail, 0)
 
     @staticmethod
     def buttonStyle():
@@ -505,11 +428,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     def contextMenuEvent(self, event):
         """Custom context menu event."""
-        self._contextMenu = MayaBrowserContextMenu(parent=self)
-        self._contextMenu.setFixedWidth(self.rect().width())
-        self._contextMenu.move(self.mapToGlobal(self.rect().bottomLeft()))
-        self._contextMenu.show()
-        self.move_widget_to_available_geo(self._contextMenu)
+        pass
 
     def sync_config(self, *args, **kwargs):
         """Keeps an eye out for configuration file changes and triggers a refresh
@@ -517,9 +436,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         """
         if not QtCore.QFileInfo(local_config.getConfigPath(None)).exists():
+            self.setWindowTitle('No asset added yet.')
             return
 
         local_config.read_ini()
+
         if (
             (self._kwargs['server'] == local_config.server) and
             (self._kwargs['job'] == local_config.job) and
@@ -527,39 +448,40 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         ):
             return
 
-        print '# Browser: The configuration file has changed.'
-
         self._kwargs = {
             'server': local_config.server,
             'job': local_config.job,
             'root': local_config.root
         }
 
-        self.filesWidget.hide()
-        self.projectsWidget.refresh(**self._kwargs)
-        self.projectChanged()
-        self.setWindowTitle('{} > {} > {}'.format(
-            local_config.server, local_config.job, local_config.root).lower())
+        self.configChanged.emit()
+        self.assetChanged.emit()
 
-    def sync_active_maya_project(self, setActive=True):
-        """Selects the active maya project in the list and sets it as the ``active_item``."""
+        self.assetsWidget.refresh()
+        self.setWindowTitle(
+            '{}:  {}'.format(
+            local_config.job, local_config.root).upper()
+        )
+
+    def sync_active_maya_asset(self, setActive=True):
+        """Selects the active maya asset in the list and sets it as the ``active_item``."""
         if not cmds.workspace(q=True, fn=True):
             return
 
         file_info = QtCore.QFileInfo(cmds.workspace(q=True, fn=True))
-        item = self.projectsWidget.findItems(
+        item = self.assetsWidget.findItems(
             file_info.baseName().upper(),
             QtCore.Qt.MatchContains
         )
         if not item:
             return
 
-        index = self.projectsWidget.indexFromItem(item[0])
-        self.projectsWidget.setCurrentItem(item[0])
-        self.projectsWidget.scrollTo(index)
+        index = self.assetsWidget.indexFromItem(item[0])
+        self.assetsWidget.setCurrentItem(item[0])
+        self.assetsWidget.scrollTo(index)
 
         if setActive:
-            self.projectsWidget.active_item = item[0]
+            self.assetsWidget.active_item = item[0]
 
     def sync_active_maya_scene(self, *args, **kwargs):
         """Selects and scrolls to the current item in the list."""
@@ -688,24 +610,23 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         widget.move(x, y)
 
     def _connectSignals(self):
-        self.assets_button.clicked.connect(
-            functools.partial(self.activate_widget, self.projectsWidget)
-        )
-        self.project_thumbnail.clicked.connect(
-            functools.partial(self.activate_widget, self.projectsWidget)
-        )
-        self.project_thumbnail.doubleClicked.connect(
-            MayaBrowserContextMenu.reveal_projects
-        )
-
-        self.files_button.clicked.connect(
-            functools.partial(self.activate_widget, self.filesWidget)
-        )
-
-        self.projectsWidget.projectChanged.connect(self.projectChanged)
-        self.filesWidget.sceneChanged.connect(self.sync_active_maya_scene)
+        self.mode_pick.currentIndexChanged.connect(self.view_changed)
+        self.stacked_widget.currentChanged.connect(self.mode_pick.setCurrentIndex)
 
         self.config_watch_timer.timeout.connect(self.sync_config)
+
+        self.locationsWidget.locationChanged.connect(self.location_changed)
+        # self.assetsWidget.assetChanged.connect(self.assetChanged)
+        # self.filesWidget.sceneChanged.connect(self.sync_active_maya_scene)
+
+    def location_changed(self, server, job, root):
+        self.sync_config()
+
+
+    def view_changed(self, index):
+        """Triggered when a different view is selected."""
+        self.activate_widget(self.stacked_widget.widget(index))
+        local_config.current_widget = index
 
     def add_maya_callbacks(self):
         """This method is called by the Maya plug-in when initializing."""
@@ -769,11 +690,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     def uninitialize(self):
         """Method called by the plug-in, responsible for deleting the widgets."""
-        # self.projectsWidget.close()
-        # self.filesWidget.close()
-
         self.filesWidget.deleteLater()
-        self.projectsWidget.deleteLater()
+        self.assetsWidget.deleteLater()
 
         self.close()
 
@@ -794,12 +712,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         menu = self.get_global_file_menu()
 
         def _files_func():
-            self.projectsWidget.hide()
             self.activate_widget(self.filesWidget)
 
-        def _project_func():
-            self.filesWidget.hide()
-            self.activate_widget(self.projectsWidget)
+        def _asset_func():
+            self.activate_widget(self.assetsWidget)
 
         # We're adding our actions after the second separator.
         count = 0
@@ -823,19 +739,19 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         action.setIcon(icon)
         action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         action.setShortcut('Ctrl+Shift+F')
-        action.setStatusTip('Show the project\'s files')
+        action.setStatusTip('Show the asset\'s files')
 
         action.triggered.connect(_files_func)
         menu.insertAction(before, action)
         self.maya_actions.append(action)
         before = action
 
-        action = QtWidgets.QAction('Projects...', menu)
+        action = QtWidgets.QAction('Assets...', menu)
         action.setIcon(icon)
         action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
         action.setShortcut('Ctrl+Shift+P')
-        action.setStatusTip('Show the projects')
-        action.triggered.connect(_project_func)
+        action.setStatusTip('Show the assets')
+        action.triggered.connect(_asset_func)
         menu.insertAction(before, action)
         self.maya_actions.append(action)
         before = action
@@ -871,71 +787,35 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """Called by the installed application shortcut."""
         self.show()
 
-    def projectChanged(self):
-        """Signal emitted when the project has changed."""
-        file_info = self.projectsWidget.collector.active_item
+    def _assetChanged(self):
+        """Signal emitted when the asset has changed."""
+        file_info = self.assetsWidget.collector.active_item
         if file_info:
             cmds.workspace(file_info.filePath(), openWorkspace=True)
-            path = ProjectConfig.getThumbnailPath(file_info.filePath())
+            path = AssetConfig.getThumbnailPath(file_info.filePath())
             thumb_info = QtCore.QFileInfo(path)
 
-            # Set the button name
-            self.assets_button.setText(
-                file_info.fileName().replace('_', ' ').title())
-
-            # Setting the project's thumbnail as the label thumbnail
+            # Setting the asset's thumbnail as the label thumbnail
             if thumb_info.exists():
                 self.setThumbnail(thumb_info.filePath())
             else:
                 self.setThumbnail(common.CUSTOM_THUMBNAIL)
-            self.projectsWidget.hide()
         else:
             self.setThumbnail(common.CUSTOM_THUMBNAIL)
-            self.projectsWidget.hide()
 
         self.filesWidget.update_path(file_info)
         self.filesWidget.refresh()
 
-    def move_widget(self, widget):
-        """Moves the given widget to bottomLeft corner of the thumbnail label."""
-        if not self.isVisible():
-            app = QtCore.QCoreApplication.instance()
-            cursor = QtGui.QCursor()
-            screenID = app.desktop().screenNumber(cursor.pos())
-            screen = app.screens()[screenID]
-            screen_rect = screen.availableGeometry()
-
-            qr = widget.frameGeometry()
-            cp = screen_rect.center()
-            qr.moveCenter(cp)
-            widget.move(qr.topLeft())
-            return
-
-        pos = self.mapToGlobal(
-            self.rect().bottomLeft())
-        widget.move(pos.x(), pos.y())
-
     def activate_widget(self, widget):
-        """Method connected to the top button's clicked() signal."""
-        # self.move_widget(widget)
-
-        self.stacked_widget.currentWidget().setWindowOpacity(0)
-        self.stacked_widget.currentWidget().animate_opacity()
+        """Method to change between views."""
         self.fader_widget = FaderWidget(
             self.stacked_widget.currentWidget(), widget)
         self.stacked_widget.setCurrentWidget(widget)
-
-        # self.stacked_widget.setFocus()
-        # self.stacked_widget.activateWindow()
-        # self.stacked_widget.raise_()
-        # widget.show()
-        # self.move_widget_to_available_geo(widget)
 
     def showEvent(self, event):
         """Customized show event.
 
         Sets the window title and the icon based on the configuration values.
-
         """
         self._kwargs['server'] = local_config.server
         self._kwargs['job'] = local_config.job
@@ -949,10 +829,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.setWindowTitle('Browser not configured')
             return
 
-        self.setWindowTitle('{} > {} > {}'.format(
-            local_config.server, local_config.job, local_config.root).lower())
+        self.setWindowTitle(
+            '{}:  {}'.format(
+            local_config.job, local_config.root).upper()
+        )
+
         self.config_watch_timer.start()
-        self.sync_active_maya_project()
+        self.sync_active_maya_asset()
 
         if not self.get_workspace_control():
             return
@@ -963,34 +846,18 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         if not self.get_parent_window():
             return
 
-        self.get_parent_window().setFixedWidth(common.WIDTH)
-        self.get_parent_window().setFixedHeight(common.ROW_HEIGHT * 0.66)
-
         pixmap = self.get_thumbnail_pixmap(
             common.CUSTOM_THUMBNAIL, opacity=1, size=(common.ROW_HEIGHT * 0.66)
         )
         self.setWindowIcon(QtGui.QIcon(pixmap))
-        self.get_parent_window().setWindowIcon(QtGui.QIcon(pixmap))
 
     def keyPressEvent(self, event):
         """Custom key actions."""
-        if event.modifiers() == QtCore.Qt.NoModifier:
-            if event.key() == QtCore.Qt.Key_P:
-                self.assets_button.clicked.emit()
-            elif event.key() == QtCore.Qt.Key_F:
-                self.files_button.clicked.emit()
-            elif event.key() == QtCore.Qt.Key_Escape:
-                self.hide()
+        pass
 
     def hideEvent(self, event):
         """Custom hide event."""
-        if self.projectsWidget.isVisible():
-            self.projectsWidget.hide()
-        if self.filesWidget.isVisible():
-            self.filesWidget.hide()
-
         self.config_watch_timer.stop()
-
 
 
 class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
@@ -1012,8 +879,8 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         args = (painter, option, index, selected)
 
         self.paint_background(*args)
-        self.paint_selection_indicator(*args)
         self.paint_thumbnail(*args)
+        self.paint_selection_indicator(*args)
         self.paint_name(*args)
 
     def paint_selection_indicator(self, *args):
@@ -1089,15 +956,17 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         shd_rect = QtCore.QRect(option.rect)
         shd_rect.setLeft(rect.left() + rect.width())
 
-        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
-        gradient.setColorAt(0.2, QtGui.QColor(68,68,68,0))
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
-        gradient = QtGui.QLinearGradient(shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0,0,0,50))
-        gradient.setColorAt(0.02, QtGui.QColor(68,68,68,0))
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
@@ -1107,13 +976,12 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
             )
         if index.row() == 1:
             path = '{}/rsc/package.png'.format(
-            QtCore.QFileInfo(__file__).dir().path()
+                QtCore.QFileInfo(__file__).dir().path()
             )
         if index.row() == 2:
             path = '{}/rsc/file.png'.format(
-    QtCore.QFileInfo(__file__).dir().path()
-)
-
+                QtCore.QFileInfo(__file__).dir().path()
+            )
 
         # Thumbnail image
         if path in common.IMAGE_CACHE:
@@ -1152,6 +1020,7 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
 class DropdownWidget(QtWidgets.QComboBox):
     """Custom dropdown widget."""
+
     def __init__(self, parent=None):
         super(DropdownWidget, self).__init__(parent=parent)
         self.setItemDelegate(DropdownWidgetDelegate())
@@ -1164,8 +1033,6 @@ class DropdownWidget(QtWidgets.QComboBox):
             """
         )
         self.view().setFixedWidth(common.WIDTH)
-        # self.setSizeAdjustPolicy(QtWidgets.QFontComboBox.AdjustToContents)
-
         self.setStyleSheet(
             """\
             QComboBox {\
@@ -1200,22 +1067,21 @@ class DropdownWidget(QtWidgets.QComboBox):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
         )
-        self._connectSignals()
 
-    def add_modes(self, modes):
-        self.clear()
-        for mode in modes:
-            self.addItem(mode)
+        self.overlayWidget = None
 
-    def _connectSignals(self):
-        pass
+    def showPopup(self):
+        self.overlayWidget = OverlayWidget(self.parent().parent().stacked_widget)
+        super(DropdownWidget, self).showPopup()
 
-
+    def hidePopup(self):
+        if self.overlayWidget:
+            self.overlayWidget.close()
+        super(DropdownWidget, self).hidePopup()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = MayaBrowserWidget()
     # widget.move(50, 50)
     widget.show()
-    widget.assets_button.clicked.emit()
     app.exec_()

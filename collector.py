@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """PySide2 dependent base-class for querring folders and files.
 
-The values used to initialize the ``ProjectCollector`` and the ``FileCollector.get_files()``
+The values used to initialize the ``AssetCollector`` and the ``FileCollector.get_files()``
 method are stored in a local configuration file. ``LocalConfig`` is used to edit
 the stored values.
 
@@ -10,10 +10,10 @@ Example:
     .. code-block:: python
         :linenos:
 
-        collector = ProjectCollector(
+        collector = AssetCollector(
             server='C:/temp',
             job='superjob',
-            root='projects'
+            root='assets'
         )
         collector.set_active_item(item)
 
@@ -22,7 +22,7 @@ Example:
     .. code-block:: python
         :linenos:
 
-        file_info = QtCore.QFileInfo('//server/job/project')
+        file_info = QtCore.QFileInfo('//server/job/asset')
         collector = FileCollector(file_info)
         scenes = collector.get_files(
             sort_order=0,
@@ -37,13 +37,13 @@ import re
 from PySide2 import QtCore
 from mayabrowser.configparsers import local_config
 
-class ProjectCollector(object):
+class AssetCollector(object):
     """Object to collect folders and files from a specified file location.
 
     Args:
         server (str):                   Path to server where the jobs are located.
         job (str):                      The name of the current job.
-        root (str):                     The job projects root folder name.
+        root (str):                     The job assets root folder name.
 
     Attributes:
         items (QFileInfo list):         List of the collected folders.
@@ -101,11 +101,11 @@ class ProjectCollector(object):
             return
 
         # All good, ready to collect.
-        self.collect_projects()
+        self.collect_assets()
 
     @property
     def root_info(self):
-        """The current QFileInfo object of the project root."""
+        """The current QFileInfo object of the asset root."""
         return self._root_qi
 
     @property
@@ -150,8 +150,8 @@ class ProjectCollector(object):
         self._active_index = self.items.index(item)
         self._active_item = self.items[self._active_index]
 
-    def collect_projects(self):
-        """Collects all maya projects."""
+    def collect_assets(self):
+        """Collects all maya assets."""
         if not self.root_info:
             return
 
@@ -192,7 +192,7 @@ class FileCollector(object):
 
     @property
     def root_info(self):
-        """The current QFileInfo object of the project root."""
+        """The current QFileInfo object of the asset root."""
         return self._root_qi
 
     @root_info.setter
@@ -219,7 +219,7 @@ class FileCollector(object):
         it = QtCore.QDirIterator(
             '{}/{}'.format(
                 self.root_info.filePath(),
-                local_config.project_scenes_folder
+                local_config.asset_scenes_folder
             ),
             self.FILE_EXTENSION_MASK,
             flags=QtCore.QDir.Dirs | QtCore.QDir.NoSymLinks |
