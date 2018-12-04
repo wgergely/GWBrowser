@@ -80,8 +80,8 @@ class Singleton(SingletonType):
     """Singleton metaclass for the MayaBrowserWidget widget.
 
     Note:
-        We have to supply an appropiate type object as the baseclass,
-        'type' won't work. Creating type(QtWidgets.QWidget) seems to function.
+        We have to supply an appropiate type object as the base class,
+        'object' won't work. Creating type(QtWidgets.QWidget) seems to function.
 
     """
     _instances = {}
@@ -109,7 +109,7 @@ class AssetThumbnail(QtWidgets.QLabel):
 
 
 class FaderWidget(QtWidgets.QWidget):
-    """Overlaywidget responsible for list cross-fade effect."""
+    """Overlaywidget responsible for the `stacked_widget` cross-fade effect."""
 
     def __init__(self, old_widget, new_widget):
         super(FaderWidget, self).__init__(parent=new_widget)
@@ -139,8 +139,9 @@ class FaderWidget(QtWidgets.QWidget):
         self.pixmap_opacity = 1.0 - value
         self.repaint()
 
+
 class OverlayWidget(QtWidgets.QWidget):
-    """Overlaywidget responsible for list cross-fade effect."""
+    """Widget shown over the stacked_widget when mode_pick is active."""
 
     def __init__(self, new_widget):
         super(OverlayWidget, self).__init__(parent=new_widget)
@@ -172,8 +173,7 @@ class OverlayWidget(QtWidgets.QWidget):
 
 
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
-    """Singleton MayaQWidgetDockable widget containing the ``assetWidgetButton``
-    and the ``filesWidgetButton`` buttons.
+    """Singleton MayaQWidgetDockable widget containing the list of locations, assets and scenes.
 
     Attributes:
         instances (dict):               Class instances.
