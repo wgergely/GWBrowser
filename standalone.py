@@ -3,15 +3,13 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
-from PySide2 import QtWidgets, QtGui, QtCore
+import logging
+import os
+
+from PySide2 import QtWidgets, QtCore
 
 from mayabrowser.toolbar import MayaBrowserWidget
 
-import logging
-from multiprocessing import Process
-import os
-import sys
-import tempfile
 
 
 class SingleInstanceException(BaseException):
