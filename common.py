@@ -40,9 +40,9 @@ BACKGROUND = QtGui.QColor(68, 68, 68)
 THUMBNAIL_BACKGROUND_SELECTED = QtGui.QColor(100, 100, 100)
 THUMBNAIL_BACKGROUND = QtGui.QColor(90, 90, 90)
 
-TEXT_SELECTED = QtGui.QColor(255, 255, 255)
 TEXT = QtGui.QColor(230, 230, 230)
-# TEXT_NOTE = QtGui.QColor(180, 180, 240)
+TEXT_SELECTED = QtGui.QColor(255, 255, 255)
+TEXT_DISABLED = QtGui.QColor(100, 100, 100)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 TEXT_NOTE = QtGui.QColor(200, 200, 200)
 
@@ -53,6 +53,28 @@ ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
 LABEL1 = QtGui.QColor(82, 153, 105)
 LABEL1_TEXT = QtGui.QColor(162, 233, 185)
+
+
+SERVERS = [
+    '//gordo/jobs',
+    '//localhost/c$/temp'
+]
+"""
+Some settings, such network path for the shared server have to be hard-coded.
+Customize these variables as needed.
+"""
+
+STYLESHEET_PATH = os.path.normpath(
+    os.path.abspath(
+        os.path.join(
+            __file__,
+            os.pardir,
+            'rsc',
+            'customStylesheet.css'
+        )
+    )
+)
+
 
 
 # Label colors

@@ -1,22 +1,39 @@
 # -*- coding: utf-8 -*-
-"""This is a widget to set the path used the Collector to look for assets.
+"""Defines ``UpdateConfigWidget``, a popup dialog used add a new path to the local configuration file.
+
+Note:
+    The widget itself makes no changes to the configurations file, but rather sets internal attributes that
+    can be used later tpo modfiy the configrations file.
+
+    The final path is a composit of [server]/[job]/[root].
+
+Example:
+    .. code-block:: python
+        :linenos:
+
+        widget = UpdateConfigWidget()
+        widget.exec_()
+        print widget.server # None or the selected server, eg //gordo/jobs
+
 
 Attributes:
-    server (str):   The path to the server. None if invalid.
-    job (str):      The name of the job folder. None if invalid.
-    root (str):     The name of the assets root folder. None if invalid.
+    server (str):   The path to the server. `None` if invalid.
+    job (str):      The name of the job folder. `None` if invalid.
+    root (str):     A relative path to the folder where the assets are located. `None` if invalid.
 
-The final set path is a composit of [path]/[job]/[root].
 
 """
 
 
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
+import mayabrowser.common as common
+from mayabrowser.delegate import BaseDelegate
+
 # pylint: disable=E1101, C0103, R0913, I1101
 
 
 class SettingsWidget(QtWidgets.QWidget):
-    """This widget contains all the appropiate settings for Maya Browser."""
+    """This widget contains location-specific folder settings."""
 
     def __init__(self, parent=None):
         super(SettingsWidget, self).__init__(parent=parent)
@@ -85,6 +102,58 @@ class SettingsWidget(QtWidgets.QWidget):
         self.layout().addStretch()
 
 
+class ComboBoxItemDelegate(BaseDelegate):
+    def __init__(self, parent=None):
+        super(ComboBoxItemDelegate, self).__init__(parent=parent)
+
+
+    def paint(self, painter, option, index):
+        """The main paint method."""
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        selected = option.state & QtWidgets.QStyle.State_Selected
+
+        args = (painter, option, index, selected, False, False)
+
+        self.paint_background(*args)
+        self.paint_data(*args)
+        self.paint_selection_indicator(*args)
+
+    def paint_data(self, *args):
+        painter, option, index, selected, _, _ = args
+
+        painter.save()
+
+        font = QtGui.QFont('Roboto Black')
+        font.setBold(False)
+        font.setPointSize(9)
+        painter.setFont(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(common.MARGIN)
+        rect.setRight(option.rect.right())
+
+        if selected:
+            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+        else:
+            painter.setPen(QtGui.QPen(common.TEXT))
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            '{}'.format(index.data())
+        )
+        painter.restore()
+
+    def sizeHint(self, option, index):
+        return QtCore.QSize(12, common.ROW_BUTTONS_HEIGHT)
+
 
 class UpdateConfigWidget(QtWidgets.QDialog):
     """Interface to update the path querried."""
@@ -92,15 +161,47 @@ class UpdateConfigWidget(QtWidgets.QDialog):
     def __init__(self, server=None, job=None, root=None, parent=None):
         """Initialises the widget with optional default values."""
         super(UpdateConfigWidget, self).__init__(parent=parent)
+
         self.server = None
         self.job = None
         self.root = None
 
+        self.set_custom_stylesheet()
+        self.addCustomFonts()
+
         self.installEventFilter(self)
-        self.setWindowTitle('Configure Maya Browser')
+        self.setWindowTitle('Add location')
         self._createUI()
         self._connectSignals()
         self._setInitValues(server, job, root)
+
+
+
+    @staticmethod
+    def addCustomFonts():
+        """Adds our custom fonts to the application.
+
+        Returns:
+            type: Description of returned object.
+
+        """
+
+        d = QtCore.QDir(
+            '{}/rsc/fonts'.format(
+                QtCore.QFileInfo(__file__).dir().path()
+            )
+        )
+        d.setNameFilters(['*.ttf', ])
+
+        font_families = []
+        for f in d.entryInfoList(
+            QtCore.QDir.Files |
+            QtCore.QDir.NoDotAndDotDot
+        ):
+            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
+            font_families.append(
+                QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+
 
     def eventFilter(self, widget, event):
         if event.type() != QtCore.QEvent.KeyPress:
@@ -111,24 +212,69 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             return True
         return False
 
+    def set_custom_stylesheet(self):
+        """Sets the custom stylesheet for the widget."""
+        with open(common.STYLESHEET_PATH, 'r') as f:
+            string = f.read()
+            string = string.encode(encoding='UTF-8', errors='strict')
+
+        customStyleSheet = string.format(
+            fontFamily='Roboto',
+            fontSize=9,
+            widgetBG='{},{},{},{}'.format(*common.BACKGROUND.getRgb()),
+            darkBG='{},{},{},{}'.format(*common.SECONDARY_BACKGROUND.getRgb()),
+            buttonBG='{},{},{},{}'.format(*common.BACKGROUND_SELECTED.getRgb()),
+            buttonDisabledBG='{},{},{},{}'.format(*common.SECONDARY_BACKGROUND.getRgb()),
+            activeText='{},{},{},{}'.format(*common.TEXT.getRgb()),
+            dormantText='{},{},{},{}'.format(*common.TEXT_NOTE.getRgb()),
+            disabledText='{},{},{},{}'.format(*common.TEXT_DISABLED.getRgb()),
+            headerBG='{},{},{},{}'.format(*common.BACKGROUND.getRgb()),
+            headerText='{},{},{},{}'.format(*common.TEXT.getRgb()),
+            headerSectionText='{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            separator='{},{},{},{}'.format(*common.SEPARATOR.getRgb()),
+            indicator='{},{},{},{}'.format(*common.SELECTION.getRgb())
+        )
+        self.setStyleSheet(customStyleSheet)
+
     def _createUI(self):
-        """Creates the ui layout."""
+        """Creates the UI layout.
+
+        +------------------+------------------+
+        |                  |                  |
+        |                  |                  |
+        |   pathsettings   |                  |
+        |                  |                  |
+        |                  |                  |
+        +------------------+------------------+
+
+        """
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(18, 18, 18, 18)
-        # self.setFixedWidth(360)
+        self.layout().setContentsMargins(
+            common.MARGIN,
+            common.MARGIN,
+            common.MARGIN,
+            common.MARGIN
+        )
 
         self.pathsettings = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
-        self.pathsettings.layout().setSpacing(1)
+        self.pathsettings.layout().setSpacing(common.MARGIN * 0.33)
 
         self.layout().addWidget(self.pathsettings)
 
+
         # row1
-        self.pick_server_line = QtWidgets.QLineEdit('//gordo/jobs')
-        self.pick_server_line.setPlaceholderText('Enter path to the server...')
+        self.pick_server_widget = QtWidgets.QComboBox()
+        self.pick_server_widget.setFrame(False)
+        self.pick_server_widget.setDuplicatesEnabled(False)
+        self.pick_server_widget.setItemDelegate(ComboBoxItemDelegate(self.pick_server_widget))
+        for server in common.SERVERS:
+            item = self.pick_server_widget.addItem(server)
+
+
         self.pick_server_feedback = QtWidgets.QLabel('Server not selected.')
-        self.pick_server_feedback.setAlignment(QtCore.Qt.AlignRight)
+        self.pick_server_feedback.setAlignment(QtCore.Qt.AlignCenter)
         self.pick_job_menu = QtWidgets.QComboBox()
         self.pick_root_line = QtWidgets.QLineEdit('/assets')
         self.pick_root_line.setPlaceholderText(
@@ -146,17 +292,17 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 1)
 
         label = QtWidgets.QLabel(
-            'Path pointing to the studio\'s jobs are located (press enter to set)')
+            'Select the network path the job is located at:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
 
-        self.pathsettings.layout().addWidget(self.pick_server_line, 1)
+        self.pathsettings.layout().addWidget(self.pick_server_widget, 1)
         self.pathsettings.layout().addWidget(self.pick_server_feedback, 1)
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 1)
 
         label = QtWidgets.QLabel(
-            'The name of the current job')
+            'Select the job:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
@@ -166,7 +312,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(QtWidgets.QLabel('Assets'), 1)
 
         label = QtWidgets.QLabel(
-            'A relative path of the assets located inside the current job (press enter to set)')
+            'Select the folder where the assets are located:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
@@ -183,8 +329,8 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.setMinimumWidth(300)
 
     def _connectSignals(self):
-        self.pick_server_line.returnPressed.connect(self.serverEdited)
-        self.pick_server_line.returnPressed.connect(self.jobChanged)
+        self.pick_server_widget.currentIndexChanged.connect(self.serverEdited)
+        self.pick_server_widget.currentIndexChanged.connect(self.jobChanged)
 
         self.pick_job_menu.currentIndexChanged.connect(self.jobChanged)
         self.pick_job_menu.currentIndexChanged.connect(self.rootEdited)
@@ -196,12 +342,10 @@ class UpdateConfigWidget(QtWidgets.QDialog):
 
     def _setInitValues(self, server, job, root):
         """Sets the initial values in the widget."""
-        if not server:
-            self.serverEdited()
-            return
-        self.pick_server_line.setText(server)
         self.serverEdited()
-        if not job:
+        if not server:
+            return
+        elif not job:
             return
         self.pick_job_menu.setCurrentText(job)
         if job:
@@ -217,8 +361,8 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.done(0)
 
     def serverEdited(self):
-        """Triggered when editing the server field."""
-        text = self.pick_server_line.text()
+        """Triggered when server selection is changed."""
+        text = self.pick_server_widget.currentData()
         file_info = QtCore.QFileInfo()
         file_info.setFile(text)
 
@@ -288,7 +432,8 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         )
         if file_info.exists():
             self.ok_button.setDisabled(False)
-            job_info = QtCore.QFileInfo(self.pick_job_menu.currentData(QtCore.Qt.UserRole))
+            job_info = QtCore.QFileInfo(
+                self.pick_job_menu.currentData(QtCore.Qt.UserRole))
             self.root = file_info.filePath().replace(job_info.filePath(), '').strip('/')
             self.pick_root_feedback.setText(
                 '{}\nAll good!'.format(file_info.filePath())
@@ -302,8 +447,9 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             )
             self.pick_root_feedback.setStyleSheet('color: red;')
 
+
 if __name__ == '__main__':
     a = QtWidgets.QApplication([])
     a.w = UpdateConfigWidget()
     a.w.exec_()
-    a.exec_()
+    # a.exec_()

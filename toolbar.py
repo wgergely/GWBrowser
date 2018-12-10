@@ -281,7 +281,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
         self.asset_thumbnail.setPixmap(pixmap)
 
-    def addCustomFonts(self):
+    @staticmethod
+    def addCustomFonts():
         """Adds our custom fonts to the application.
 
         Returns:
