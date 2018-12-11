@@ -124,40 +124,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
-
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        self.setStyleSheet(
-            """
-            QListWidget {\
-                outline: none;\
-                border: none;\
-                margin: 0px;\
-                padding: 0px;\
-                background: rgb(50, 50, 50);
-                font-family: "Roboto Black";\
-                font-size: 8pt;\
-            }\
-            QScrollBar {\
-            	width:6px;\
-            	height:6px;\
-            }\
-            QScrollBar:vertical, QScrollBar:horizontal {\
-            	background: rgb(40, 40, 40);\
-            	border: none;\
-            }\
-            QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {\
-            	background: rgb(75, 75, 75);\
-            	border: 0px solid;\
-            	border-radius: 2px;\
-            	max-height: 250px;\
-            	min-height: 50px;\
-            }\
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {\
-            	background: rgb(40, 40, 40);\
-            }\
-            """
-        )
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item."""
@@ -410,7 +377,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self._contextMenu = self.ContextMenu(index, parent=self)
         if index.isValid():
             rect = self.visualRect(index)
-            self._contextMenu.setFixedWidth(200)
+            self._contextMenu.setFixedWidth(self.width())
             self._contextMenu.show()
             self._contextMenu.move(self.mapToGlobal(rect.bottomLeft()))
         else:

@@ -1,5 +1,5 @@
 'Edit locations'  # -*- coding: utf-8 -*-
-"""``MayaBrowserWidget`` is the plug-in's main widget.
+"""``BrowserWidget`` is the plug-in's main widget.
 When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
 otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.
 
@@ -8,8 +8,8 @@ Example:
 .. code-block:: python
     :linenos:
 
-    from mayabrowser.toolbar import MayaBrowserWidget
-    widget = MayaBrowserWidget()
+    from mayabrowser.toolbar import BrowserWidget
+    widget = BrowserWidget()
     widget.show()
 
 The asset and the file lists are collected by the ``collector.AssetCollector``
@@ -21,7 +21,6 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 # pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
 
 from collections import OrderedDict
-import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
@@ -40,44 +39,11 @@ from mayabrowser.actions import Actions
 
 
 
-# @staticmethod
-# def reveal_server():
-#     """Shows the current server folder in the file explorer."""
-#     file_info = QtCore.QFileInfo(
-#         '{}'.format(local_config.server)
-#     )
-#     path = file_info.filePath()
-#     url = QtCore.QUrl.fromLocalFile(path)
-#     QtGui.QDesktopServices.openUrl(url)
-#
-# @staticmethod
-# def reveal_job():
-#     """Reveals the current job folder in the file explorer."""
-#     file_info = QtCore.QFileInfo(
-#         '{}/{}'.format(local_config.server, local_config.job)
-#     )
-#     path = file_info.filePath()
-#     url = QtCore.QUrl.fromLocalFile(path)
-#     QtGui.QDesktopServices.openUrl(url)
-#
-# @staticmethod
-# def reveal_assets():
-#     """Reveals the current assets folder in the file explorer."""
-#     file_info = QtCore.QFileInfo(
-#         '{}/{}/{}'.format(local_config.server,
-#                           local_config.job, local_config.root)
-#     )
-#     path = file_info.filePath()
-#     url = QtCore.QUrl.fromLocalFile(path)
-#     QtGui.QDesktopServices.openUrl(url)
-
-
-
 SingletonType = type(QtWidgets.QWidget)
 
 
 class Singleton(SingletonType):
-    """Singleton metaclass for the MayaBrowserWidget widget.
+    """Singleton metaclass for the BrowserWidget widget.
 
     Note:
         We have to supply an appropiate type object as the base class,
@@ -93,7 +59,7 @@ class Singleton(SingletonType):
         return cls._instances[cls]
 
 
-class AssetThumbnail(QtWidgets.QLabel):
+class ThumbnailWidget(QtWidgets.QLabel):
     """Clickable QLabel."""
 
     clicked = QtCore.Signal()
@@ -172,8 +138,8 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
-    """Singleton MayaQWidgetDockable widget containing the list of locations, assets and scenes.
+class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
+    """Singleton MayaQWidgetDockable widget containing the lists of locations, assets and scenes.
 
     Attributes:
         instances (dict):               Class instances.
@@ -196,7 +162,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     fileChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
-        super(MayaBrowserWidget, self).__init__(parent=parent)
+        super(BrowserWidget, self).__init__(parent=parent)
         self.instances[self.objectName()] = self
         self._workspacecontrol = None
         self.maya_callbacks = []  # Maya api callbacks
@@ -281,30 +247,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
         self.asset_thumbnail.setPixmap(pixmap)
 
-    @staticmethod
-    def addCustomFonts():
-        """Adds our custom fonts to the application.
-
-        Returns:
-            type: Description of returned object.
-
-        """
-
-        d = QtCore.QDir(
-            '{}/rsc/fonts'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-        )
-        d.setNameFilters(['*.ttf', ])
-
-        font_families = []
-        for f in d.entryInfoList(
-            QtCore.QDir.Files |
-            QtCore.QDir.NoDotAndDotDot
-        ):
-            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
-            font_families.append(
-                QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
     def _createUI(self):
         """Creates the layout.
@@ -322,18 +266,22 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         +-----------------+
 
         """
-        self.addCustomFonts()
+        common.set_custom_stylesheet(self)
 
         # Main layout
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.setFixedWidth(common.WIDTH)
+        self.setMinimumWidth(200.0)
+        # self.setPreferredWidth(common.WIDTH)
+        self.setMaximumWidth(common.WIDTH * 2)
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred
         )
+
         pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
@@ -342,11 +290,16 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.row_buttons.layout().setContentsMargins(0, 0, 0, 0)
         self.row_buttons.layout().setSpacing(0)
         self.row_buttons.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.row_buttons.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Minimum
+        )
 
         self.stacked_widget = QtWidgets.QStackedWidget()
         self.stacked_widget.layout().setContentsMargins(0, 0, 0, 0)
         self.stacked_widget.layout().setSpacing(0)
-        self.stacked_widget.setFixedHeight(common.STACKED_WIDGET_HEIGHT)
+        self.stacked_widget.setMinimumHeight(common.ROW_HEIGHT)
+        self.stacked_widget.sizeHint = self.sizeHint
         self.stacked_widget.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
@@ -359,14 +312,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.row_footer.setFixedHeight(common.ROW_FOOTER_HEIGHT)
         self.row_footer.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.Minimum
         )
 
         self.layout().addWidget(self.row_buttons)
         self.layout().addWidget(self.stacked_widget)
         self.layout().addWidget(self.row_footer)
 
-        self.asset_thumbnail = AssetThumbnail(parent=self)
+        self.asset_thumbnail = ThumbnailWidget(parent=self)
         self.asset_thumbnail.setAlignment(
             QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         self.asset_thumbnail.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -574,10 +527,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         }
 
         if MayaQWidgetDockableMixin is common.LocalContext:
-            super(MayaBrowserWidget, self).show()
+            super(BrowserWidget, self).show()
             return
 
-        super(MayaBrowserWidget, self).show(**kwargs)
+        super(BrowserWidget, self).show(**kwargs)
 
     def move_widget_to_available_geo(self, widget):
         """Moves the widget inside the available screen geomtery, if any of the edges
@@ -669,7 +622,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def get_global_file_menu():
         """Initilizes and returns the Maya application\'s ``File`` menu."""
         app = QtCore.QCoreApplication.instance()
-        app.maya_menubar = MayaBrowserWidget.get_mayawindow().findChild(
+        app.maya_menubar = BrowserWidget.get_mayawindow().findChild(
             QtWidgets.QMenuBar, options=QtCore.Qt.FindDirectChildrenOnly
         )
         app.maya_file_menu = next(
@@ -1020,50 +973,13 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class DropdownWidget(QtWidgets.QComboBox):
-    """Custom dropdown widget."""
+    """Custom dropdown widget to select the current mode."""
 
     def __init__(self, parent=None):
         super(DropdownWidget, self).__init__(parent=parent)
         self.setItemDelegate(DropdownWidgetDelegate())
-        self.view().setStyleSheet(
-            """\
-            QWidget {\
-                margin: 0;
-                padding: 0;\
-            }\
-            """
-        )
         self.view().setFixedWidth(common.WIDTH)
-        self.setStyleSheet(
-            """\
-            QComboBox {\
-                text-align: left;\
-                border-left: 4px solid rgb(110, 110, 110);\
-                padding-left: 10px;\
-                padding-right: 10px;\
-                border-style: solid;\
-                color: rgb(230, 230, 230);\
-                background-color: rgb(110, 110, 110);\
-                font-family: "Roboto Black";\
-                font-size: 8pt;\
-            }\
-            QComboBox:hover {\
-                border-left: 4px solid rgb(87, 163, 202);\
-                color: rgb(230, 230, 230);\
-                background-color: rgb(130, 130, 130);\
-            }\
-            QComboBox::drop-down {\
-                background-color: transparent;\
-                width: 0px;\
-                height: 0px;\
-                padding:0px;\
-                margin:0px;\
-                border-width: 0px;\
-                border-style: none;\
-                border-radius: 0px;\
-            }\
-            """
-        )
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
@@ -1072,17 +988,19 @@ class DropdownWidget(QtWidgets.QComboBox):
         self.overlayWidget = None
 
     def showPopup(self):
+        """Toggling overlay widget when combobox is shown."""
         self.overlayWidget = OverlayWidget(self.parent().parent().stacked_widget)
         super(DropdownWidget, self).showPopup()
 
     def hidePopup(self):
+        """Toggling overlay widget when combobox is shown."""
         if self.overlayWidget:
             self.overlayWidget.close()
         super(DropdownWidget, self).hidePopup()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    widget = MayaBrowserWidget()
+    widget = BrowserWidget()
     # widget.move(50, 50)
     widget.show()
     app.exec_()

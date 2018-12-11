@@ -166,42 +166,13 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.job = None
         self.root = None
 
-        self.set_custom_stylesheet()
-        self.addCustomFonts()
+        common.set_custom_stylesheet(self)
 
         self.installEventFilter(self)
         self.setWindowTitle('Add location')
         self._createUI()
         self._connectSignals()
         self._setInitValues(server, job, root)
-
-
-
-    @staticmethod
-    def addCustomFonts():
-        """Adds our custom fonts to the application.
-
-        Returns:
-            type: Description of returned object.
-
-        """
-
-        d = QtCore.QDir(
-            '{}/rsc/fonts'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-        )
-        d.setNameFilters(['*.ttf', ])
-
-        font_families = []
-        for f in d.entryInfoList(
-            QtCore.QDir.Files |
-            QtCore.QDir.NoDotAndDotDot
-        ):
-            idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
-            font_families.append(
-                QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
-
 
     def eventFilter(self, widget, event):
         if event.type() != QtCore.QEvent.KeyPress:
@@ -212,29 +183,6 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             return True
         return False
 
-    def set_custom_stylesheet(self):
-        """Sets the custom stylesheet for the widget."""
-        with open(common.STYLESHEET_PATH, 'r') as f:
-            string = f.read()
-            string = string.encode(encoding='UTF-8', errors='strict')
-
-        customStyleSheet = string.format(
-            fontFamily='Roboto',
-            fontSize=9,
-            widgetBG='{},{},{},{}'.format(*common.BACKGROUND.getRgb()),
-            darkBG='{},{},{},{}'.format(*common.SECONDARY_BACKGROUND.getRgb()),
-            buttonBG='{},{},{},{}'.format(*common.BACKGROUND_SELECTED.getRgb()),
-            buttonDisabledBG='{},{},{},{}'.format(*common.SECONDARY_BACKGROUND.getRgb()),
-            activeText='{},{},{},{}'.format(*common.TEXT.getRgb()),
-            dormantText='{},{},{},{}'.format(*common.TEXT_NOTE.getRgb()),
-            disabledText='{},{},{},{}'.format(*common.TEXT_DISABLED.getRgb()),
-            headerBG='{},{},{},{}'.format(*common.BACKGROUND.getRgb()),
-            headerText='{},{},{},{}'.format(*common.TEXT.getRgb()),
-            headerSectionText='{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            separator='{},{},{},{}'.format(*common.SEPARATOR.getRgb()),
-            indicator='{},{},{},{}'.format(*common.SELECTION.getRgb())
-        )
-        self.setStyleSheet(customStyleSheet)
 
     def _createUI(self):
         """Creates the UI layout.

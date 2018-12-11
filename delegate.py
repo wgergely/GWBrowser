@@ -76,9 +76,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
 
         if not selected:
-            THICKNESS = 0.5
+            THICKNESS = 1.0
         else:
-            THICKNESS = 0.5
+            THICKNESS = 1.0
 
         last_visible = 0
         for last_visible in reversed(xrange(self.parent().count())):
@@ -87,28 +87,20 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 break
 
         # Bottom
-        # if index.row() != last_visible:
         rect = QtCore.QRectF(
             option.rect.left(),
             option.rect.top() + option.rect.height() - THICKNESS,
             option.rect.width(),
-            THICKNESS
+            (THICKNESS / 2.0)
         )
         painter.drawRect(rect)
-        #
-        # first_visible = 0
-        # for first_visible in xrange(self.parent().count()):
-        #     item = self.parent().item(first_visible)
-        #     if not item.isHidden():
-        #         break
 
-        # if index.row() != first_visible:
-            # Top
+        # Top
         rect = QtCore.QRectF(
             option.rect.left(),
             option.rect.top(),
             option.rect.width(),
-            THICKNESS
+            (THICKNESS / 2.0)
         )
         painter.drawRect(rect)
 
@@ -150,6 +142,26 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
+    def paint_shadow(self, option):
+        """Paints a drop-shadow"""
+        # Shadow next to the thumbnail
+        shd_rect = QtCore.QRect(option.rect)
+        shd_rect.setLeft(rect.left() + rect.width())
+
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
+        gradient = QtGui.QLinearGradient(
+            shd_rect.topLeft(), shd_rect.topRight())
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(shd_rect)
+
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _ = args
@@ -170,24 +182,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
-
-        # Shadow next to the thumbnail
-        shd_rect = QtCore.QRect(option.rect)
-        shd_rect.setLeft(rect.left() + rect.width())
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
 
         # Checking if the images are in the cache already:
         # Placeholder image
@@ -490,7 +484,6 @@ class LocationWidgetDelegate(BaseDelegate):
         if index.row() < (self.parent().count() - 1):
             self.paint_data(*args)
             self.paint_selection_indicator(*args)
-            self.paint_remove_button(*args)
             self.paint_thumbnail(*args)
             self.paint_active(*args)
         else:
@@ -517,60 +510,8 @@ class LocationWidgetDelegate(BaseDelegate):
         self.parent().locationChanged.emit(server, job, root)
         return None
 
-    def paint_remove_button(self, *args):
-        """Paints the delete location button."""
-        painter, option, index, selected, _, _ = args
-        pos = QtGui.QCursor().pos()
-        pos = self.parent().mapFromGlobal(pos)
-        rect = self.get_location_editor_rect(option.rect)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter.save()
-
-        if hover and rect.contains(pos):
-            path = '{}/rsc/remove_hover.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-        else:
-            path = '{}/rsc/remove.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-        # Thumbnail image
-        if path in common.IMAGE_CACHE:
-            image = common.IMAGE_CACHE[path]
-        else:
-            image = QtGui.QImage()
-            image.load(path)
-            image = ThumbnailEditor.smooth_copy(
-                image,
-                option.rect.height()
-            )
-            common.IMAGE_CACHE[path] = image
-
-        # Factoring aspect ratio in
-        longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / longer)
-        if image.rect().width() < image.rect().height():
-            rect.setWidth(float(image.rect().width()) * factor)
-        else:
-            rect.setHeight(float(image.rect().height()) * factor)
-
-        rect.moveLeft(
-            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
-        )
-        rect.moveTop(
-            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
-        )
-
-        painter.drawImage(
-            rect,
-            image,
-            image.rect()
-        )
-        painter.restore()
-
     def paint_add_button(self, *args):
-        """Paints the thumbnail of the item."""
+        """Paints the special add button."""
         painter, option, index, selected, _, _ = args
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
@@ -624,6 +565,7 @@ class LocationWidgetDelegate(BaseDelegate):
         painter.restore()
 
     def paint_active(self, *args):
+        """paints the bookmark's active indicator."""
         painter, option, index, selected, _, _ = args
 
         item = self.parent().itemFromIndex(index)
@@ -653,7 +595,7 @@ class LocationWidgetDelegate(BaseDelegate):
         painter.restore()
 
     def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the item."""
+        """Paints the thumbnail of the bookmark item."""
         painter, option, index, selected, _, _ = args
 
         painter.save()
@@ -672,24 +614,6 @@ class LocationWidgetDelegate(BaseDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        # Shadow next to the thumbnail
-        shd_rect = QtCore.QRect(option.rect)
-        shd_rect.setLeft(rect.left() + rect.width())
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
-
         item = self.parent().itemFromIndex(index)
         if self.parent().activeItem is item:
             path = '{}/rsc/bookmark_active.png'.format(
@@ -697,7 +621,7 @@ class LocationWidgetDelegate(BaseDelegate):
             )
         else:
             path = '{}/rsc/bookmark.png'.format(
-            QtCore.QFileInfo(__file__).dir().path()
+                QtCore.QFileInfo(__file__).dir().path()
             )
         # Thumbnail image
         if path in common.IMAGE_CACHE:
@@ -734,11 +658,13 @@ class LocationWidgetDelegate(BaseDelegate):
         painter.restore()
 
     def paint_data(self, *args):
+        """Paints the bookmark's name, path."""
         painter, option, index, selected, _, _ = args
 
         painter.save()
+        painter.setBrush(QtCore.Qt.NoBrush)
 
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont('Roboto Medium')
         font.setBold(False)
         font.setPointSize(9)
         painter.setFont(font)
@@ -747,36 +673,58 @@ class LocationWidgetDelegate(BaseDelegate):
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(4 + option.rect.height() + common.MARGIN)
-        rect.setRight(option.rect.right() - rect.height())
-
+        rect.setRight(rect.right() - common.MARGIN)
         if selected:
             painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
         else:
             painter.setPen(QtGui.QPen(common.TEXT))
 
-        painter.setBrush(QtCore.Qt.NoBrush)
+        # Root
+        font = QtGui.QFont('Roboto')
+        font.setBold(True)
+        font.setPointSize(9)
+        painter.setFont(font)
+        metrics = QtGui.QFontMetrics(painter.font())
+        text = metrics.elidedText(
+            root.upper(),
+            QtCore.Qt.ElideLeft,
+            rect.width()
+        )
+        width = metrics.width(text) + common.MARGIN
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
-            '{}\n'.format(job.upper())
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+            text
         )
 
+        metrics = QtGui.QFontMetrics(painter.font())
+        text = metrics.elidedText(
+            job.lower(),
+            QtCore.Qt.ElideRight,
+            rect.width() - width
+        )
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight | QtCore.Qt.TextWordWrap,
-            '{}'.format(root.upper())
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text + '\n'
         )
 
+        # Path
         font = QtGui.QFont('Roboto')
         font.setBold(False)
-        font.setItalic(True)
         font.setPointSize(8)
         painter.setFont(font)
-        painter.setPen(QtGui.QPen(common.TEXT_NOTE))
+        metrics = QtGui.QFontMetrics(painter.font())
+        text = metrics.elidedText(
+            '{}/{}/{}'.format(server, job, root),
+            QtCore.Qt.ElideRight,
+            rect.width() - width
+        )
+        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
-            '\n{}/{}/{}'.format(server, job, root)
+            '\n' + text
         )
 
         painter.restore()

@@ -41,18 +41,76 @@ class LocationWidgetContextMenu(BaseContextMenu):
     def ACTION_SET(self):
         """A custom set of actions to display."""
         items = OrderedDict()
+
         if self.index.isValid():
-            items['Reveal'] = {}
-            items['Remove'] = {}
-            items['<separator>.....'] = {}
+            if self.index.data(QtCore.Qt.DisplayRole) == 'Add location':
+                return items
+
+            server, job, root = self.index.data(QtCore.Qt.StatusTipRole).split(',')
+
+            items['{} - {}'.format(job.upper(), root.upper())] = {'disabled': True}
+            items['Reveal bookmark'] = {}
+            items['<separator>.'] = {}
+            items['Reveal server'] = {}
+            items['Reveal job'] = {}
+            items['<separator>..'] = {}
+            items['Remove bookmark'] = {}
+            items['<separator>...'] = {}
         items['Refresh'] = {}
+        items['<separator>....'] = {}
+        items['Remove all bookmarks'] = {}
         return items
 
-    def reveal(self):
+    @staticmethod
+    def reveal_bookmark():
+        """Shows the current server folder in the file explorer."""
+        file_info = QtCore.QFileInfo(
+            '{}/{}/{}'.format(
+                local_config.server,
+                local_config.job,
+                local_config.root
+            )
+        )
+        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
+        QtGui.QDesktopServices.openUrl(url)
+
+    @staticmethod
+    def reveal_server():
+        """Shows the current server folder in the file explorer."""
+        file_info = QtCore.QFileInfo(
+            '{}'.format(
+                local_config.server
+            )
+        )
+        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
+        QtGui.QDesktopServices.openUrl(url)
+
+    @staticmethod
+    def reveal_job():
+        """Shows the current server folder in the file explorer."""
+        file_info = QtCore.QFileInfo(
+            '{}/{}'.format(
+                local_config.server,
+                local_config.job
+            )
+        )
+        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
+        QtGui.QDesktopServices.openUrl(url)
+
+
+    def add_bookmark(self):
         pass
 
-    def remove(self):
-        pass
+    def remove_bookmark(self):
+        local_config.remove_location(
+            *self.index.data(QtCore.Qt.StatusTipRole).split(',')
+        )
+        self.parent().refresh()
+
+    def remove_all_bookmarks(self):
+        """Removes all saved locations from the bookmarks list."""
+        local_config.clear_locations()
+        self.parent().refresh()
 
     def refresh(self):
         self.parent().refresh()
@@ -146,15 +204,25 @@ class LocationWidget(BaseListWidget):
         """
         self.clear()
         if not local_config.locations:
+            item = QtWidgets.QListWidgetItem('Add location')
+            self.addItem(item)
             return
 
         for location in local_config.locations:
-            server, job, root = location
+            item = QtWidgets.QListWidgetItem()
+
+            try:
+                server, job, root = location
+            except ValueError:
+                server, job, root = ('', '', '')
 
             if server == '':
                 continue
+            elif job == '':
+                continue
+            elif root == '':
+                continue
 
-            item = QtWidgets.QListWidgetItem()
             item.setData(
                 QtCore.Qt.DisplayRole,
                 '{}  -  {}'.format(job, root)
@@ -176,7 +244,9 @@ class LocationWidget(BaseListWidget):
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.addItem(item)
 
+
         item = QtWidgets.QListWidgetItem('Add location')
+        item.setFlags(QtCore.Qt.NoItemFlags)
         self.addItem(item)
 
     def mouseReleaseEvent(self, event):

@@ -3,7 +3,7 @@
 
 import os
 import random
-from PySide2 import QtGui
+from PySide2 import QtGui, QtCore
 
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
 
@@ -42,12 +42,12 @@ THUMBNAIL_BACKGROUND = QtGui.QColor(90, 90, 90)
 
 TEXT = QtGui.QColor(230, 230, 230)
 TEXT_SELECTED = QtGui.QColor(255, 255, 255)
-TEXT_DISABLED = QtGui.QColor(100, 100, 100)
-SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 TEXT_NOTE = QtGui.QColor(200, 200, 200)
+SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
+TEXT_DISABLED = QtGui.QColor(100, 100, 100)
 
 SEPARATOR = QtGui.QColor(58, 58, 58)
-SELECTION = QtGui.QColor(87, 163, 202)
+SELECTION = QtGui.QColor(87, 137, 242)
 ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 
 LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
@@ -64,16 +64,62 @@ Some settings, such network path for the shared server have to be hard-coded.
 Customize these variables as needed.
 """
 
-STYLESHEET_PATH = os.path.normpath(
-    os.path.abspath(
-        os.path.join(
-            __file__,
-            os.pardir,
-            'rsc',
-            'customStylesheet.css'
+
+
+def _add_custom_fonts():
+    """Adds custom fonts to the application."""
+
+    d = QtCore.QDir(
+        '{}/rsc/fonts'.format(
+            QtCore.QFileInfo(__file__).dir().path()
         )
     )
-)
+    d.setNameFilters(['*.ttf', ])
+
+    font_families = []
+    for f in d.entryInfoList(
+        QtCore.QDir.Files |
+        QtCore.QDir.NoDotAndDotDot
+    ):
+        idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
+        font_families.append(
+            QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+
+
+def set_custom_stylesheet(widget):
+    """Applies the custom stylesheet to the given widget."""
+    _add_custom_fonts()
+
+    path = os.path.normpath(
+        os.path.abspath(
+            os.path.join(
+                __file__,
+                os.pardir,
+                'rsc',
+                'customStylesheet.css'
+            )
+        )
+    )
+
+    with open(path, 'r') as f:
+        f.seek(0)
+        qss = f.read()
+        qss = qss.encode(encoding='UTF-8', errors='strict')
+        qss = qss.format(
+            fontFamily='Roboto',
+            fontSize=9,
+            BACKGROUND='{},{},{},{}'.format(*BACKGROUND.getRgb()),
+            BACKGROUND_SELECTED='{},{},{},{}'.format(*BACKGROUND_SELECTED.getRgb()),
+            SECONDARY_BACKGROUND='{},{},{},{}'.format(*SECONDARY_BACKGROUND.getRgb()),
+            TEXT='{},{},{},{}'.format(*TEXT.getRgb()),
+            SECONDARY_TEXT='{},{},{},{}'.format(*SECONDARY_TEXT.getRgb()),
+            TEXT_DISABLED='{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
+            TEXT_SELECTED='{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
+            SEPARATOR='{},{},{},{}'.format(*SEPARATOR.getRgb()),
+            SELECTION='{},{},{},{}'.format(*SELECTION.getRgb())
+        )
+        widget.setStyleSheet(qss)
+
 
 
 
@@ -81,6 +127,7 @@ STYLESHEET_PATH = os.path.normpath(
 ASSIGNED_LABELS = {}
 # Thumbnail cache
 IMAGE_CACHE = {}
+
 
 def label_generator():
     """Generates QColors from an array of RGB values.

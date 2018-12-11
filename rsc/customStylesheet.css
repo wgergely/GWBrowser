@@ -1,7 +1,7 @@
 QWidget {{
-	background-color: rgbaa({widgetBG});
-	color: rgba({dormantText});
-	border-width: 0;
+	background-color: rgbaa({BACKGROUND});
+	color: rgba({SECONDARY_TEXT});
+	border-width: 1px;
 	border: none;
 	margin: 0px;
 	padding: 0px;
@@ -11,62 +11,62 @@ QWidget {{
 }}
 
 QWidget:disabled {{
-	color: rgba({dormantText});
+	color: rgba({SECONDARY_TEXT});
 }}
 
 QWidget:focus {{
 	border: solid;
 	border-width: 1px;
-	border-color: rgba(87, 163, 202);
+	border-color: rgba({SELECTION});
 }}
 QWidget:window {{
 	border: solid;
 	border-width: 1px;
-	border-color: rgba(87, 163, 202);
+	border-color: rgba({SELECTION});
 }}
 
 
 QCheckBox {{
-	color: rgba({activeText});
+	color: rgba({TEXT});
 	background-color: transparent;
 	margin: 0px;
 	padding: 4px;
 }}
-QCheckBox::indicator {{
+QCheckBox::SELECTION {{
 	height: 12px;
 	width: 12px;
 	border: 0px solid;
 	border-radius: 6px;
 }}
-QCheckBox::indicator:unchecked {{
-	background-color: rgba({darkBG});
+QCheckBox::SELECTION:unchecked {{
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QCheckBox::indicator:checked  {{
-	background-color: rgba({dormantText});
+QCheckBox::SELECTION:checked  {{
+	background-color: rgba({SELECTION});
 }}
 
 
 QRadioButton {{
-	color: rgba({dormantText});
+	color: rgba({SECONDARY_TEXT});
 	background-color: transparent;
 	margin: 0px;
 	padding: 4px;
 }}
 QRadioButton:disabled {{
-	color: rgba({disabledText});
-	background-color: rgba({buttonDisabledBG});
+	color: rgba({TEXT_DISABLED});
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QRadioButton::indicator {{
+QRadioButton::SELECTION {{
 	height: 12px;
 	width: 12px;
 	border: 0px solid;
 	border-radius: 2px;
 }}
-QRadioButton::indicator:unchecked {{
-	background-color: rgba({darkBG});
+QRadioButton::SELECTION:unchecked {{
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QRadioButton::indicator:checked  {{
-	background-color: rgba({dormantText});
+QRadioButton::SELECTION:checked  {{
+	background-color: rgba({SECONDARY_TEXT});
 }}
 
 
@@ -76,40 +76,54 @@ QPushButton {{
 		padding-left: 10px;
 		padding-right: 10px;
 		border-style: solid;
-		color: rgba({activeText});
-		background-color: rgb(110, 110, 110);
+		color: rgba({TEXT});
+		background-color: rgba({BACKGROUND_SELECTED});
 		font-family: "Roboto Black";
 		font-size: 8pt;
 		height: 24px;
 }}
 QPushButton:disabled {{
-	color: rgba({disabledText});
-	background-color: rgba({buttonDisabledBG});
+	color: rgba({TEXT_DISABLED});
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 QPushButton:hover {{
 	padding-left: 8px;
-		border-left: 3px solid rgb(87, 163, 202);
-		color: rgb(230, 230, 230);
-		background-color: rgb(100, 100, 100);
+		border-left: 3px solid rgba({SELECTION});
+		color: rgba({TEXT_SELECTED});
+		background-color: rgba(100, 100, 100, 255);
 }}
 QPushButton:pressed {{
-		border-left: 4px solid rgb(87, 163, 202);
+		border-left: 4px solid rgba({SELECTION});
 		padding-left: 7px;
-		color: rgb(255, 255, 255);
-		background-color: rgb(130, 130, 130);
+		color: rgba({TEXT_SELECTED});
+		background-color: rgba({TEXT});
 }}
 
 QComboBox {{
-	color: rgba({activeText});
-	background-color: rgba({buttonBG});
-	border: 0px solid;
-	border-radius: 2px;
-	margin: 0px;
-	padding: 6px;
+	text-align: left;
+	height: 24px;
+	border-left: 4px solid rgba({BACKGROUND_SELECTED});
+	padding-left: 10px;
+	padding-right: 10px;
+	border-style: solid;
+	color: rgba({TEXT});
+	background-color: rgba({BACKGROUND_SELECTED});
+	font-family: "Roboto Black";
+	font-size: 8pt;
+}}
+QComboBox:hover {{
+		border-left: 4px solid rgb({SELECTION});
+		color: rgb({TEXT_SELECTED});
+		background-color: rgba(130, 130, 130, 255);
+}}
+QComboBox:focus {{
+		border: solid;
+		border-width: 1px 1px 1px 4px;
+		border-color: rgba({SELECTION});
 }}
 QComboBox:disabled {{
-	color: rgba({disabledText});
-	background-color: rgba({buttonDisabledBG});
+	color: rgba({TEXT_DISABLED});
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 QComboBox QAbstractItemView {{
 	margin: 0px;
@@ -117,38 +131,44 @@ QComboBox QAbstractItemView {{
 	outline: none;
 }}
 QComboBox::drop-down {{
-	color: rgba({activeText});
-	background-color: rgba({buttonBG});
-	border: 0px solid;
-	border-radius: 2px;
+		background-color: transparent;
+		width: 0px;
+		height: 0px;
+		padding: 0px;
+		margin: 0px;
+		border-width: 0px;
+		border-style: none;
+		border-radius: 0px;
 }}
 QComboBox::drop-down:disabled {{
-	background-color: rgba({buttonDisabledBG});
+	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 
+
 QLineEdit {{
-	background-color: rgba({darkBG});
-	color: rgba({activeText});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	color: rgba({TEXT});
 	border: 0px solid;
 	border-radius: 2px;
 	padding: 6px;
 }}
 QLineEdit:disabled {{
-	background-color: rgba({buttonDisabledBG});
-	color: rgba({disabledText});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	color: rgba({TEXT_DISABLED});
 }}
 
 QTextEdit {{
-	background-color: rgba({darkBG});
-	color: rgba({activeText});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	color: rgba({TEXT});
 	border: 0px solid;
 	border-radius: 2px;
 	padding: 6px;
 }}
 QTextEdit:disabled {{
-	background-color: rgba({buttonDisabledBG});
-	color: rgba({disabledText});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	color: rgba({TEXT_DISABLED});
 }}
+
 
 
 QScrollBar {{
@@ -156,25 +176,35 @@ QScrollBar {{
 	height:6px;
 }}
 QScrollBar:vertical, QScrollBar:horizontal {{
-	background: rgba({darkBG});
+	background: rgba({SECONDARY_BACKGROUND});
 	border: none;
 }}
 QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {{
-	background: rgba({buttonDisabledBG});
+	background: rgba({SECONDARY_BACKGROUND});
 	border: 0px solid;
 	border-radius: 2px;
 	max-height: 250px;
 	min-height: 50px;
 }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-	background: rgba({darkBG});
+	background: rgba({SECONDARY_BACKGROUND});
+}}
+
+QListWidget {{
+		outline: none;
+		border: none;
+		margin: 0px;
+		padding: 0px;
+		background: rgba({SECONDARY_BACKGROUND});
+		font-family: "Roboto Black";
+		font-size: 8pt;
 }}
 
 
 
 QTableView {{
-	color: rgba({activeText});
-	background-color: rgba({darkBG});
+	color: rgba({TEXT});
+	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
 	border-width: 0px;
 	margin: 0px;
@@ -182,20 +212,20 @@ QTableView {{
 	font-weight: normal;
 	selection-background-color: transparent;
 }}
-QTableView::indicator {{
-	background-color: rgba({indicator});
+QTableView::SELECTION {{
+	background-color: rgba({SELECTION});
 }}
 
 
 QHeaderView {{
-	color: rgba({headerText});
-	background-color: rgba({headerText});
+	color: rgba({TEXT});
+	background-color: rgba({TEXT});
 	margin: 0px;
 	padding: 0px;
 }}
 QHeaderView::section {{
-	background-color: rgba({headerBG});
-	color: rgba({headerSectionText});
+	background-color: rgba({BACKGROUND});
+	color: rgba({TEXT_SELECTED});
 	border: none;
 	padding-left: 12px;
 	margin:0px;
@@ -204,8 +234,8 @@ QHeaderView::section {{
 }}
 
 QTreeView {{
-	background-color: rgba({darkBG});
-	color: rgba({activeText});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	color: rgba({TEXT});
 	border: none;
 	border-width: 0px;
 	outline: none;
@@ -229,39 +259,39 @@ QTreeView::item:selected {{
 	background: transparent;
   border: none;
 }}
-QTreeView::indicator {{
+QTreeView::SELECTION {{
 	outline: 0;
-	background-color: rgba({indicator});
+	background-color: rgba({SELECTION});
 }}
 
 QLabel {{
-	color: rgba({activeText});
+	color: rgba({TEXT});
 	background-color: transparent;
 }}
 QLabel:disabled {{
 	background-color: transparent;
-	color: rgba({disabledText});
+	color: rgba({TEXT_DISABLED});
 }}
 
 
 QMenu {{
 		padding: 0;
 		margin: 0;
-		color: rgba({dormantText});
-    background-color: rgba({widgetBG}); /* sets background of the menu */
+		color: rgba({SECONDARY_TEXT});
+    background-color: rgba({BACKGROUND}); /* sets background of the menu */
     border: none;
 }}
 QMenu::item:disabled {{
 	background-color: transparent;
-	color: rgba({disabledText});
+	color: rgba({TEXT_DISABLED});
 }}
 QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
-    color: rgba({activeText});
-    background-color: rgba({disabledText});
+    color: rgba({TEXT});
+    background-color: rgba({TEXT_DISABLED});
 }}
-QMenu::separator {{
+QMenu::SEPARATOR {{
     height: 2px;
-    background: rgba({separator});
+    background: rgba({SEPARATOR});
     margin-left: 10px;
     margin-right: 5px;
 }}

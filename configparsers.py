@@ -297,7 +297,7 @@ class LocalConfig(UnicodeConfigParser):
         self.set('mayawidget', 'current_widget', '{}'.format(val))
         self.write_ini()
 
-    def clear_location(self):
+    def clear_locations(self):
         """Clears all saved locations from the local configuration file."""
         self._get_option('activejob', 'history', '')
         self.set('activejob', 'history', '')
@@ -326,6 +326,32 @@ class LocalConfig(UnicodeConfigParser):
 
         return array
 
+    def remove_location(self, server, job, root):
+        """Removes the given item from the history.
+
+        Args:
+            server (type): Description of parameter `server`.
+            job (type): Description of parameter `job`.
+            root (type): Description of parameter `root`.
+
+
+        """
+        array = self._get_option('activejob', 'history', '').split(';')
+
+        string = ''
+        for item in array:
+            if item == '{},{},{}'.format(server, job, root):
+                continue
+
+            string += item
+            string += ';'
+
+        string = string.rstrip(';').lstrip(';')
+
+        self.set('activejob', 'history', '{}'.format(string))
+        self.write_ini()
+
+
     def append_to_location(self, server, job, root):
         """Adds an item to the location.
 
@@ -338,7 +364,7 @@ class LocalConfig(UnicodeConfigParser):
 
         array = self._get_option('activejob', 'history', '').split(';')
         array.append('{},{},{}'.format(server, job, root))
-        array = sorted(list(set(array))) # reving duplicate items
+        array = sorted(list(set(array))) # removing duplicate items
 
         string = ''
         for item in array:
