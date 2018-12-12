@@ -22,12 +22,12 @@ from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
 from mayabrowser.configparsers import local_config
-from mayabrowser.delegate import LocationWidgetDelegate
+from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.updatewidget import UpdateConfigWidget
 
 
-class LocationWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with the LocationWidget.
+class BookmarksWidgetContextMenu(BaseContextMenu):
+    """Context menu associated with the BookmarksWidget.
 
     Methods:
         refresh:                    Refreshes the collector and repopulates the widget.
@@ -46,11 +46,12 @@ class LocationWidgetContextMenu(BaseContextMenu):
             if self.index.data(QtCore.Qt.DisplayRole) == 'Add location':
                 return items
 
-            server, job, root = self.index.data(QtCore.Qt.StatusTipRole).split(',')
+            server, job, root = self.index.data(
+                QtCore.Qt.UserRole).split(',')
 
-            items['{} - {}'.format(job.upper(), root.upper())] = {'disabled': True}
+            items['{} - {}'.format(job.upper(), root.upper())
+                  ] = {'disabled': True}
             items['Reveal bookmark'] = {}
-            items['<separator>.'] = {}
             items['Reveal server'] = {}
             items['Reveal job'] = {}
             items['<separator>..'] = {}
@@ -61,16 +62,11 @@ class LocationWidgetContextMenu(BaseContextMenu):
         items['Remove all bookmarks'] = {}
         return items
 
-    @staticmethod
-    def reveal_bookmark():
+    def reveal_bookmark(self):
         """Shows the current server folder in the file explorer."""
-        file_info = QtCore.QFileInfo(
-            '{}/{}/{}'.format(
-                local_config.server,
-                local_config.job,
-                local_config.root
-            )
-        )
+        file_info = self.index.data(QtCore.Qt.PathRole)
+        print file_info
+
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
         QtGui.QDesktopServices.openUrl(url)
 
@@ -97,13 +93,12 @@ class LocationWidgetContextMenu(BaseContextMenu):
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
         QtGui.QDesktopServices.openUrl(url)
 
-
     def add_bookmark(self):
         pass
 
     def remove_bookmark(self):
         local_config.remove_location(
-            *self.index.data(QtCore.Qt.StatusTipRole).split(',')
+            *self.index.data(QtCore.Qt.UserRole).split(',')
         )
         self.parent().refresh()
 
@@ -116,7 +111,7 @@ class LocationWidgetContextMenu(BaseContextMenu):
         self.parent().refresh()
 
 
-class LocationWidget(BaseListWidget):
+class BookmarksWidget(BaseListWidget):
     """Custom QListWidget containing all the active locations.
 
     Assets are folders with an identifier file, by default
@@ -127,14 +122,14 @@ class LocationWidget(BaseListWidget):
         locationChanged
 
     """
-    Delegate = LocationWidgetDelegate
-    ContextMenu = LocationWidgetContextMenu
+    Delegate = BookmarksWidgetDelegate
+    ContextMenu = BookmarksWidgetContextMenu
 
     # Signals
     locationChanged = QtCore.Signal(str, str, str)
 
     def __init__(self, parent=None):
-        super(LocationWidget, self).__init__(parent=parent)
+        super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle('Projects')
         self._connectSignals()
 
@@ -151,11 +146,15 @@ class LocationWidget(BaseListWidget):
         """
         for n in xrange(self.count()):
             item = self.item(n)
-            data = item.data(QtCore.Qt.StatusTipRole)
+            data = item.data(QtCore.Qt.UserRole)
             if not data:
                 continue
 
-            server, job, root = item.data(QtCore.Qt.StatusTipRole).split(',')
+            try:
+                server, job, root = item.data(
+                    QtCore.Qt.UserRole).split(',')
+            except ValueError:
+                continue
 
             if (
                 server == local_config.server and
@@ -164,7 +163,6 @@ class LocationWidget(BaseListWidget):
             ):
                 return item
         return None
-
 
     def add_project(self):
         """Opens a dialog to add a new project to the list of saved locations.
@@ -189,7 +187,6 @@ class LocationWidget(BaseListWidget):
         local_config.append_to_location(w.server, w.job, w.root)
         self.locationChanged.emit(w.server, w.job, w.root)
 
-
     def refresh(self, *args):
         """Refreshes the list of found assets."""
         idx = self.currentIndex()
@@ -200,9 +197,9 @@ class LocationWidget(BaseListWidget):
         pass
 
     def add_items(self):
-        """Querries the local_config instance and adds all the saved locations.
-        """
+        """Adds the bookmarks saved in the local_config file to the widget."""
         self.clear()
+
         if not local_config.locations:
             item = QtWidgets.QListWidgetItem('Add location')
             self.addItem(item)
@@ -216,37 +213,54 @@ class LocationWidget(BaseListWidget):
             except ValueError:
                 server, job, root = ('', '', '')
 
-            if server == '':
-                continue
-            elif job == '':
-                continue
-            elif root == '':
+            if (server or job or root) == '':
                 continue
 
+            # Data
+            item.setData(QtCore.Qt.DisplayRole,
+                         '{}  -  {}'.format(job, root))
+            item.setData(QtCore.Qt.EditRole,
+                         item.data(QtCore.Qt.DisplayRole))
+            item.setData(QtCore.Qt.StatusTipRole,
+                         'Bookmark: {}/{}/{}'.format(server, job, root))
+            item.setData(QtCore.Qt.ToolTipRole,
+                         item.data(QtCore.Qt.StatusTipRole))
+            item.setData(QtCore.Qt.UserRole,
+                         '{},{},{}'.format(server, job, root))
+            item.setData(QtCore.Qt.PathRole,
+                         QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)))
             item.setData(
-                QtCore.Qt.DisplayRole,
-                '{}  -  {}'.format(job, root)
-            )
-            item.setData(
-                QtCore.Qt.EditRole,
-                '{}  -  {}'.format(job, root)
-            )
-            item.setData(
-                QtCore.Qt.StatusTipRole,
-                '{},{},{}'.format(server, job, root)
-            )
-            item.setData(
-                QtCore.Qt.ToolTipRole,
-                '{},{},{}'.format(server, job, root)
-            )
+                QtCore.Qt.SizeHintRole,
+                QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
 
-            item.setSizeHint(QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
+            # Flags
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+
             self.addItem(item)
 
-
-        item = QtWidgets.QListWidgetItem('Add location')
+        item = QtWidgets.QListWidgetItem()
         item.setFlags(QtCore.Qt.NoItemFlags)
+        item.setData(
+            QtCore.Qt.DisplayRole,
+            'Add location'
+        )
+        item.setData(
+            QtCore.Qt.EditRole,
+            'Add location'
+        )
+        item.setData(
+            QtCore.Qt.StatusTipRole,
+            'Add a new bookmark'
+        )
+        item.setData(
+            QtCore.Qt.ToolTipRole,
+            'Add a new bookmark'
+        )
+        item.setData(
+            QtCore.Qt.PathRole,
+            None
+        )
+
         self.addItem(item)
 
     def mouseReleaseEvent(self, event):
@@ -255,14 +269,14 @@ class LocationWidget(BaseListWidget):
         if index.isValid() and index.row() == (self.count() - 1):
             self.add_project()
             return
-        super(LocationWidget, self).mouseReleaseEvent(event)
+        super(BookmarksWidget, self).mouseReleaseEvent(event)
 
     def custom_doubleclick_event(self, index):
         """We're emiting a custom signal. Any other widgets that need to
         have their content refreshed should connect to the ``locationChanged`` signal.
 
         """
-        server, job, root = index.data(QtCore.Qt.StatusTipRole).split(',')
+        server, job, root = index.data(QtCore.Qt.UserRole).split(',')
 
         local_config.read_ini()
 
@@ -276,7 +290,6 @@ class LocationWidget(BaseListWidget):
 
         self.parent().parent().activate_widget(self.parent().parent().assetsWidget)
 
-
     def action_on_enter_key(self):
         """Custom enter key action."""
         pass
@@ -288,5 +301,5 @@ class LocationWidget(BaseListWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    LocationWidget().show()
+    BookmarksWidget().show()
     app.exec_()

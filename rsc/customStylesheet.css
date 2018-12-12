@@ -26,6 +26,23 @@ QWidget:window {{
 }}
 
 
+
+QStatusBar {{
+	color: rgba({SECONDARY_TEXT});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	font-family: "Roboto Black";
+	font-size: 7pt;
+	margin: 0px;
+	padding: 0px;
+	height: 24px;
+}}
+
+QToolTip {{
+	margin: 0px;
+	padding: 0px;
+	height: 24px;
+}}
+
 QCheckBox {{
 	color: rgba({TEXT});
 	background-color: transparent;
@@ -277,21 +294,24 @@ QLabel:disabled {{
 QMenu {{
 		padding: 0;
 		margin: 0;
-		color: rgba({SECONDARY_TEXT});
-    background-color: rgba({BACKGROUND}); /* sets background of the menu */
+		color: rgba({TEXT});
+    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
     border: none;
+		outline: none;
 }}
 QMenu::item:disabled {{
-	background-color: transparent;
+	color: rgba({TEXT_DISABLED});
+}}
+QMenu::item:disabled:selected {{
 	color: rgba({TEXT_DISABLED});
 }}
 QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
-    color: rgba({TEXT});
+    color: rgba({TEXT_SELECTED});
     background-color: rgba({TEXT_DISABLED});
 }}
 QMenu::SEPARATOR {{
-    height: 2px;
+    height: 1px;
     background: rgba({SEPARATOR});
     margin-left: 10px;
-    margin-right: 5px;
+    margin-right: 10px;
 }}

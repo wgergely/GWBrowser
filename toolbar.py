@@ -1,4 +1,6 @@
-'Edit locations'  # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
+
 """``BrowserWidget`` is the plug-in's main widget.
 When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
 otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.
@@ -18,9 +20,7 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 
 """
 
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
 
-from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
@@ -29,14 +29,12 @@ from mayabrowser.common import OpenMayaUI
 from mayabrowser.common import MayaQWidgetDockableMixin
 from mayabrowser.common import shiboken2
 
-from mayabrowser.listlocation import LocationWidget
+from mayabrowser.listlocation import BookmarksWidget
 from mayabrowser.listasset import AssetWidget
 from mayabrowser.listmaya import MayaFilesWidget
 from mayabrowser.configparsers import local_config
 from mayabrowser.configparsers import AssetConfig
 from mayabrowser.delegate import ThumbnailEditor
-from mayabrowser.actions import Actions
-
 
 
 SingletonType = type(QtWidgets.QWidget)
@@ -190,7 +188,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
 
-        self.locationsWidget = LocationWidget()
+        self.locationsWidget = BookmarksWidget()
         self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
         self.assetsWidget = AssetWidget()
         self.assetsWidget.setWindowIcon(QtGui.QIcon(pixmap))
@@ -214,7 +212,6 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         self.sync_config()
         self.sync_active_maya_asset()
-
 
     @property
     def workspacecontrol(self):
@@ -262,7 +259,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         |                 |
         |                 |
         +-----------------+
-        |    row_footer   |     Infobar
+        |    status_bar   |     Infobar
         +-----------------+
 
         """
@@ -305,19 +302,16 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             QtWidgets.QSizePolicy.Expanding
         )
 
-        self.row_footer = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(self.row_footer)
-        self.row_footer.layout().setContentsMargins(0, 0, 0, 0)
-        self.row_footer.layout().setSpacing(0)
-        self.row_footer.setFixedHeight(common.ROW_FOOTER_HEIGHT)
-        self.row_footer.setSizePolicy(
+        self.status_bar = QtWidgets.QStatusBar()
+        self.status_bar.setFixedHeight(common.ROW_FOOTER_HEIGHT)
+        self.status_bar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
 
         self.layout().addWidget(self.row_buttons)
         self.layout().addWidget(self.stacked_widget)
-        self.layout().addWidget(self.row_footer)
+        self.layout().addWidget(self.status_bar)
 
         self.asset_thumbnail = ThumbnailWidget(parent=self)
         self.asset_thumbnail.setAlignment(
@@ -414,7 +408,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.assetsWidget.refresh()
         self.setWindowTitle(
             '{}:  {}'.format(
-            local_config.job, local_config.root).upper()
+                local_config.job, local_config.root).upper()
         )
 
     def sync_active_maya_asset(self, setActive=True):
@@ -565,17 +559,22 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
     def _connectSignals(self):
         self.mode_pick.currentIndexChanged.connect(self.view_changed)
-        self.stacked_widget.currentChanged.connect(self.mode_pick.setCurrentIndex)
-
+        self.stacked_widget.currentChanged.connect(
+            self.mode_pick.setCurrentIndex)
         self.config_watch_timer.timeout.connect(self.sync_config)
 
         self.locationsWidget.locationChanged.connect(self.location_changed)
+        self.locationsWidget.itemEntered.connect(self.itemEntered)
         # self.assetsWidget.assetChanged.connect(self.assetChanged)
         # self.filesWidget.sceneChanged.connect(self.sync_active_maya_scene)
 
+    def itemEntered(self, item):
+        """Custom itemEntered signal."""
+        message = item.data(QtCore.Qt.StatusTipRole)
+        self.status_bar.showMessage(message, timeout=3000)
+
     def location_changed(self, server, job, root):
         self.sync_config()
-
 
     def view_changed(self, index):
         """Triggered when a different view is selected."""
@@ -785,7 +784,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         self.setWindowTitle(
             '{}:  {}'.format(
-            local_config.job, local_config.root).upper()
+                local_config.job, local_config.root).upper()
         )
 
         self.config_watch_timer.start()
@@ -989,7 +988,8 @@ class DropdownWidget(QtWidgets.QComboBox):
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
-        self.overlayWidget = OverlayWidget(self.parent().parent().stacked_widget)
+        self.overlayWidget = OverlayWidget(
+            self.parent().parent().stacked_widget)
         super(DropdownWidget, self).showPopup()
 
     def hidePopup(self):
@@ -997,6 +997,7 @@ class DropdownWidget(QtWidgets.QComboBox):
         if self.overlayWidget:
             self.overlayWidget.close()
         super(DropdownWidget, self).hidePopup()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -109,6 +109,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         # Scrollbar visibility
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
+        #Style
+        common.set_custom_stylesheet(self)
+
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
         app = QtCore.QCoreApplication.instance()
@@ -377,13 +380,17 @@ class BaseListWidget(QtWidgets.QListWidget):
         self._contextMenu = self.ContextMenu(index, parent=self)
         if index.isValid():
             rect = self.visualRect(index)
-            self._contextMenu.setFixedWidth(self.width())
+            self._contextMenu.setFixedWidth(self.rect().width())
             self._contextMenu.show()
             self._contextMenu.move(self.mapToGlobal(rect.bottomLeft()))
         else:
             self._contextMenu.setFixedWidth(self.rect().width())
             self._contextMenu.show()
-            self._contextMenu.move(self.mapToGlobal(self.rect().topLeft()))
+            cursor_pos = QtGui.QCursor().pos()
+            self._contextMenu.move(
+                self.mapToGlobal(self.rect().topLeft()).x(),
+                cursor_pos.y()
+            )
         self._contextMenu.move(self._contextMenu.x(), self._contextMenu.y())
 
         self.parent().parent().move_widget_to_available_geo(self._contextMenu)

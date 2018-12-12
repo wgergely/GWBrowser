@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Common classes, settings and methods."""
+"""Module for storingcommon variables and methods across the project.
+
+Defines the default sizes for widgets and the default colour template.
+It also contains the methods used to set our custom stylesheet.
+"""
 
 import os
 import random
@@ -7,23 +11,26 @@ from PySide2 import QtGui, QtCore
 
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
 
+# Custom data flag - Extending Built-in.
+# QUESTION: Might be a bad idea?
+QtCore.Qt.PathRole = 0x0200  # Role used to store FileInfo items
 
 MARGIN = 18
 ROW_HEIGHT = 54
 WIDTH = 640
-HEIGHT = 640
+HEIGHT = 480
 
 # Sizes
 # +-----------------+
-# |   row_buttons   |     A row of buttons to toggle filters and views.
+# |   row_buttons   |     A row of buttons to toggle filters and views
 # +-----------------+
 # |                 |
 # |                 |
-# | stacked_widget  |     This a the widget containing the lists widgets of `projects`, `assets` and `files`.
+# | stacked_widget  |     Stacked Widget of `projects`, `assets` and `files`
 # |                 |
 # |                 |
 # +-----------------+
-# |    row_footer   |     Infobar
+# |    row_footer   |     QStatusBar
 # +-----------------+
 
 ROW_BUTTONS_HEIGHT = 24
@@ -63,7 +70,6 @@ SERVERS = [
 Some settings, such network path for the shared server have to be hard-coded.
 Customize these variables as needed.
 """
-
 
 
 def _add_custom_fonts():
@@ -109,8 +115,10 @@ def set_custom_stylesheet(widget):
             fontFamily='Roboto',
             fontSize=9,
             BACKGROUND='{},{},{},{}'.format(*BACKGROUND.getRgb()),
-            BACKGROUND_SELECTED='{},{},{},{}'.format(*BACKGROUND_SELECTED.getRgb()),
-            SECONDARY_BACKGROUND='{},{},{},{}'.format(*SECONDARY_BACKGROUND.getRgb()),
+            BACKGROUND_SELECTED='{},{},{},{}'.format(
+                *BACKGROUND_SELECTED.getRgb()),
+            SECONDARY_BACKGROUND='{},{},{},{}'.format(
+                *SECONDARY_BACKGROUND.getRgb()),
             TEXT='{},{},{},{}'.format(*TEXT.getRgb()),
             SECONDARY_TEXT='{},{},{},{}'.format(*SECONDARY_TEXT.getRgb()),
             TEXT_DISABLED='{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
@@ -119,7 +127,6 @@ def set_custom_stylesheet(widget):
             SELECTION='{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
-
 
 
 
@@ -188,6 +195,7 @@ def _custom_thumbnail():
         os.pardir,
         'thumbnails/custom_thumbnail.png'
     )
+
 
 def _maya_thumbnail():
     """The path to the custom thumbnail."""

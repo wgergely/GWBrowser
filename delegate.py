@@ -15,31 +15,61 @@ from mayabrowser.configparsers import FileConfig
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
-    """Base delegate class."""
+    """Base delegate containing methods to draw our list items."""
 
     def __init__(self, parent=None):
         super(BaseDelegate, self).__init__(parent=parent)
 
-    def sizeHint(self, option, index):
-        """Custom size-hint. Sets the size of the files and asset widget items."""
-        selected = index.row() == self.parent().currentIndex().row()
-        size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        return size
+    def _get_paint_args(self, painter, option, index):
+        """Returns a list of boolean arguments used to paint items."""
+        selected = option.state & QtWidgets.QStyle.State_Selected
+        focused = option.state & QtWidgets.QStyle.State_HasFocus
 
-    def get_thumbnail_path(self, index):
-        """Abstract method to be overriden in the subclass.
-        Should return the path to the thumbnail file.
+        favourite = index.flags() & configparser.MarkedAsFavourite
+        archived = index.flags() & configparser.MarkedAsArchived
+        active = index.flags() & configparser.MarkedAsActive
 
-        """
-        raise NotImplementedError(
-            'get_thumbnail_path() is abstract and has to be overriden in the subclass.'
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
         )
+        args = (painter, option, index, selected, focused, active, archived, favourite)
+        return args
+
+    def paint_focus(self, *args):
+        painter, option, index, selected, focused, active, archived, favourite = args
+
+        if not focused:
+            return
+
+        painter.save()
+        painter.setBrush(QtCore.Qt.NoBrush)
+        pen = QtGui.QPen(common.SELECTION)
+        pen.setWidth(1.0)
+
+        rect = QtCore.QRectF(option.rect)
+        rect.setLeft(rect.left() + 1)
+        rect.setTop(rect.top() + 1)
+        rect.setRight(rect.right() - 1)
+        rect.setBottom(rect.bottom() - 1)
+
+        path = QtGui.QPainterPath()
+        path.addRect(rect)
+
+        painter.strokePath(path, pen)
+
+        painter.restore()
 
     def paint_favourite(self, *args):
         """Paints the little yellow dot, that marks items as the favourite item."""
-        painter, option, _, selected, _, favourite = args
+        painter, option, _, selected, _, _, _, favourite = args
+
         if not favourite:
             return
+
+        painter.save()
 
         if selected:
             color = common.FAVORUITE_SELECTED
@@ -56,9 +86,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveTop(option.rect.top() + size)
         painter.drawRoundedRect(rect, size * 0.5, size * 0.5)
 
+        painter.restore()
+
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
+
+        painter.save()
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
@@ -69,9 +103,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
+        painter.restore()
+
     def paint_separators(self, *args):
         """Paints horizontal separators."""
-        painter, option, index, selected, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
+
+        painter.save()
+
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
 
@@ -104,12 +143,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         painter.drawRect(rect)
 
+        painter.save()
+
     def paint_selection_indicator(self, *args):
         """Paints the blue leading rectangle to indicate the current selection."""
-        painter, option, _, selected, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
 
         if not selected:
             return
+
+        painter.save()
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.SELECTION))
@@ -117,12 +160,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(4)
         painter.drawRect(rect)
 
+        painter.restore()
+
     def paint_active_indicator(self, *args):
         """Paints the yellow leading rectangle to indicate item is set as current."""
-        painter, option, index, selected, _, _ = args
+        painter, option, index, selected, _, active, _, _ = args
 
-        if not self.parent().collector.active_item:
+        if not active:
             return
+
+        painter.save()
 
         p = self.parent().collector.active_item.filePath()
         if p != index.data(QtCore.Qt.StatusTipRole):
@@ -142,9 +189,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-    def paint_shadow(self, option):
+        painter.restore()
+
+    def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
-        # Shadow next to the thumbnail
+        painter, option, index, selected, focused, active, archived, favourite = args
+
+        painter.save()
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + 4 + option.rect.height())
+        rect.setWidth()
+
         shd_rect = QtCore.QRect(option.rect)
         shd_rect.setLeft(rect.left() + rect.width())
 
@@ -162,9 +218,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
+        painter.restore()
+
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
-        painter, option, index, selected, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
 
         painter.save()
 
@@ -241,49 +299,46 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.restore()
 
     def paint_data(self, *args):
-        """Abstract method to be overriden in the subclass.
-        Method should be responsible for displaying all the data elements.
+        painter, option, index, selected, _, _, _, _ = args
 
-        """
-        raise NotImplementedError(
-            'paint_data() is abstract and has to be overriden.'
+        painter.save()
+
+        font = painter.font()
+        font.setPointSize(9)
+        font.setBold(False)
+        painter.setFont(font)
+        painter.setBrush(QtCore.Qt.NoBrush)
+
+        if selected:
+            painter.setPen(QtGui.QPen(common.TEXT))
+        else:
+            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + 4 + option.rect.height() + common.MARGIN)
+        rect.setRight(rect.left() - common.MARGIN)
+
+        metrics = QtGui.QFontMetrics(painter.font())
+        text = metrics.elidedText(
+            index.data(QtCore.Qt.DisplayRole),
+            QtCore.Qt.ElideMiddle,
+            rect.width()
+        )
+        width = metrics.width(text) + common.MARGIN
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text
         )
 
-    def paint(self, painter, option, index):
-        """The main paint method."""
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
-
-        selected = option.state & QtWidgets.QStyle.State_Selected
-        favourite = index.data(
-            QtCore.Qt.UserRole) & configparser.MarkedAsFavourite
-        archived = index.data(
-            QtCore.Qt.UserRole) & configparser.MarkedAsArchived
-
-        args = (painter, option, index, selected, archived, favourite)
-
-        self.paint_background(*args)
-        self.paint_data(*args)
-        self.paint_favourite(*args)
-        self.paint_separators(*args)
-        self.paint_filter_indicator(*args)
-        self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
-        self.paint_thumbnail(*args)
-        self.paint_archived(*args)
-        self.paint_custom(*args)
-
-    def paint_custom(*args):
-        """To define any custom paint action, override this method in the subclass."""
-        pass
+        painter.restore()
 
     def paint_filter_indicator(self, *args):
         """Paints the leading color-bar if a filter is active."""
-        painter, option, _, _, _, _ = args
+        painter, option, _, _, _, _, _, _ = args
+
+        painter.save()
+
         _filter = self.parent().current_filter
         if _filter == '/':
             return
@@ -294,21 +349,22 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
         painter.drawRect(rect)
 
+        painter.restore()
+
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items marked as `archived`."""
-        painter, option, _, _, archived, _ = args
+        painter, option, index, selected, focused, active, archived, favourite = args
+
         if not archived:
             return
 
         painter.save()
+
         painter.setPen(QtCore.Qt.NoPen)
         brush = QtGui.QBrush(common.ARCHIVED_OVERLAY)
         painter.setBrush(brush)
         painter.drawRect(option.rect)
 
-        grad_rect = QtCore.QRect(
-            0, 0, option.rect.width(), option.rect.height()
-        )
         gradient = QtGui.QLinearGradient(
             option.rect.topLeft(), option.rect.topRight())
         gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
@@ -465,60 +521,56 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif editor == 2:  # Button to remove a location, no editor needed
             return
 
+    def sizeHint(self, option, index):
+        """Custom size-hint. Sets the size of the files and asset widget items."""
+        selected = index.row() == self.parent().currentIndex().row()
+        size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        return size
 
-class LocationWidgetDelegate(BaseDelegate):
+    def get_thumbnail_path(self, index):
+        """Abstract method to be overriden in the subclass.
+        Should return the path to the thumbnail file.
 
-    def paint(self, painter, option, index):
-        """The main paint method."""
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
+        """
+        raise NotImplementedError(
+            'get_thumbnail_path() is abstract and has to be overriden in the subclass.'
         )
 
-        selected = option.state & QtWidgets.QStyle.State_Selected
-        args = (painter, option, index, selected, None, None)
+
+class BookmarksWidgetDelegate(BaseDelegate):
+    """The delegate used to paint the bookmark items."""
+
+    def paint(self, painter, option, index):
+        """Defines how the BookmarksWidgetItems should be painted."""
+
+        args = self._get_paint_args(painter, option, index)
+
         self.paint_background(*args)
 
-        if index.row() < (self.parent().count() - 1):
-            self.paint_data(*args)
-            self.paint_selection_indicator(*args)
-            self.paint_thumbnail(*args)
-            self.paint_active(*args)
-        else:
+        if index.row() == (self.parent().count() - 1):
             self.paint_add_button(*args)
+            self.paint_focus(*args)
+            return
 
+        self.paint_data(*args)
+        self.paint_selection_indicator(*args)
+        self.paint_thumbnail(*args)
         self.paint_separators(*args)
+        self.paint_active(*args)
+        self.paint_focus(*args)
 
-    def get_note_rect(self, *args):
-        """There's no note rectangle on the locations widget, setting it to zero."""
-        return QtCore.QRect(0, 0, 0, 0), None, None
-
-    def get_thumbnaileditor_cls(self, *args, **kwargs):
-        """The widget used to edit the thumbnail of the asset."""
-        index = self.parent().currentIndex()
-        server, job, root = index.data(QtCore.Qt.StatusTipRole).split(',')
-        local_config.read_ini()
-
-        # Updating the local config file
-        local_config.server = server
-        local_config.job = job
-        local_config.root = root
-
-        # Emiting a signal upon change
-        self.parent().locationChanged.emit(server, job, root)
-        return None
 
     def paint_add_button(self, *args):
         """Paints the special add button."""
-        painter, option, index, selected, _, _ = args
+        painter, option, _, _, _, _, _, _ = args
+
+        painter.save()
+
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
         rect.moveLeft((option.rect.width() / 2) - (rect.width() / 2))
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        painter.save()
         painter.setPen(QtCore.Qt.NoPen)
 
         if hover:
@@ -562,11 +614,12 @@ class LocationWidgetDelegate(BaseDelegate):
             image,
             image.rect()
         )
+
         painter.restore()
 
     def paint_active(self, *args):
         """paints the bookmark's active indicator."""
-        painter, option, index, selected, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
 
         item = self.parent().itemFromIndex(index)
         if self.parent().activeItem is not item:
@@ -592,11 +645,12 @@ class LocationWidgetDelegate(BaseDelegate):
         rect.setRight(rect.right() - (WIDTH))
 
         painter.drawRect(rect)
+
         painter.restore()
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
-        painter, option, index, selected, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
 
         painter.save()
 
@@ -655,11 +709,12 @@ class LocationWidgetDelegate(BaseDelegate):
             image,
             image.rect()
         )
+
         painter.restore()
 
     def paint_data(self, *args):
         """Paints the bookmark's name, path."""
-        painter, option, index, selected, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
 
         painter.save()
         painter.setBrush(QtCore.Qt.NoBrush)
@@ -669,7 +724,7 @@ class LocationWidgetDelegate(BaseDelegate):
         font.setPointSize(9)
         painter.setFont(font)
 
-        server, job, root = index.data(QtCore.Qt.StatusTipRole).split(',')
+        server, job, root = index.data(QtCore.Qt.UserRole).split(',')
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(4 + option.rect.height() + common.MARGIN)
@@ -729,6 +784,24 @@ class LocationWidgetDelegate(BaseDelegate):
 
         painter.restore()
 
+    def get_note_rect(self, *args):
+        """There's no note rectangle on the locations widget, setting it to zero."""
+        return QtCore.QRect(0, 0, 0, 0), None, None
+
+    def get_thumbnaileditor_cls(self, *args, **kwargs):
+        """The widget used to edit the thumbnail of the asset."""
+        index = self.parent().currentIndex()
+        server, job, root = index.data(QtCore.Qt.UserRole).split(',')
+        local_config.read_ini()
+
+        # Updating the local config file
+        local_config.server = server
+        local_config.job = job
+        local_config.root = root
+
+        # Emiting a signal upon change
+        self.parent().locationChanged.emit(server, job, root)
+        return None
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""

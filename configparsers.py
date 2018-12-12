@@ -22,9 +22,10 @@ from ConfigParser import ConfigParser
 from PySide2 import QtCore
 
 # Flags
-NoFlag = 0
-MarkedAsArchived = 1
-MarkedAsFavourite = 2
+NoFlag = 0x000
+MarkedAsArchived = 0x1000
+MarkedAsFavourite = 0x2000
+MarkedAsActive = 0x3000
 
 
 class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style class!
