@@ -21,7 +21,7 @@ import mayabrowser.common as common
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.updatewidget import UpdateConfigWidget
 
@@ -75,7 +75,7 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         """Shows the current server folder in the file explorer."""
         file_info = QtCore.QFileInfo(
             '{}'.format(
-                local_config.server
+                local_settings.server
             )
         )
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
@@ -86,8 +86,8 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         """Shows the current server folder in the file explorer."""
         file_info = QtCore.QFileInfo(
             '{}/{}'.format(
-                local_config.server,
-                local_config.job
+                local_settings.server,
+                local_settings.job
             )
         )
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
@@ -97,14 +97,14 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         pass
 
     def remove_bookmark(self):
-        local_config.remove_location(
+        local_settings.remove_location(
             *self.index.data(QtCore.Qt.UserRole).split(',')
         )
         self.parent().refresh()
 
     def remove_all_bookmarks(self):
         """Removes all saved locations from the bookmarks list."""
-        local_config.clear_locations()
+        local_settings.clear_locations()
         self.parent().refresh()
 
     def refresh(self):
@@ -157,35 +157,28 @@ class BookmarksWidget(BaseListWidget):
                 continue
 
             if (
-                server == local_config.server and
-                job == local_config.job and
-                root == local_config.root
+                server == local_settings.server and
+                job == local_settings.job and
+                root == local_settings.root
             ):
                 return item
         return None
 
     def add_project(self):
-        """Opens a dialog to add a new project to the list of saved locations.
-        """
-        local_config.read_ini()
-
-        w = UpdateConfigWidget(
-            server=local_config.server,
-            job=local_config.job,
-            root=local_config.root
-        )
+        """Opens a dialog to add a new project to the list of saved locations."""
+        w = UpdateConfigWidget()
         pixmap = self.parent().parent().get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
         w.setWindowIcon(QtGui.QIcon(pixmap))
 
         result = w.exec_()
 
-        if result:
-            local_config.server = w.server
-            local_config.job = w.job
-            local_config.root = w.root
-
-        local_config.append_to_location(w.server, w.job, w.root)
-        self.locationChanged.emit(w.server, w.job, w.root)
+        # if result:
+        #     local_settings.server = w.server
+        #     local_settings.job = w.job
+        #     local_settings.root = w.root
+        #
+        # local_settings.append_to_location(w.server, w.job, w.root)
+        # self.locationChanged.emit(w.server, w.job, w.root)
 
     def refresh(self, *args):
         """Refreshes the list of found assets."""
@@ -197,15 +190,15 @@ class BookmarksWidget(BaseListWidget):
         pass
 
     def add_items(self):
-        """Adds the bookmarks saved in the local_config file to the widget."""
+        """Adds the bookmarks saved in the local_settings file to the widget."""
         self.clear()
 
-        if not local_config.locations:
+        if not local_settings.locations:
             item = QtWidgets.QListWidgetItem('Add location')
             self.addItem(item)
             return
 
-        for location in local_config.locations:
+        for location in local_settings.locations:
             item = QtWidgets.QListWidgetItem()
 
             try:
@@ -278,12 +271,12 @@ class BookmarksWidget(BaseListWidget):
         """
         server, job, root = index.data(QtCore.Qt.UserRole).split(',')
 
-        local_config.read_ini()
+        local_settings.read_ini()
 
         # Updating the local config file
-        local_config.server = server
-        local_config.job = job
-        local_config.root = root
+        local_settings.server = server
+        local_settings.job = job
+        local_settings.root = root
 
         # Emiting a signal upon change
         self.locationChanged.emit(server, job, root)

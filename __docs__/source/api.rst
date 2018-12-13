@@ -63,7 +63,7 @@ Configuration
 .. automodule:: mayabrowser.configparsers
 
 
-.. autoclass:: mayabrowser.configparsers.LocalConfig
+.. autoclass:: mayabrowser.configparsers.LocalSettings
   :members:
 
 
@@ -76,10 +76,10 @@ Configuration
 
 
 -----------
-LocalConfig
+LocalSettings
 -----------
 
-.. autoclass:: mayabrowser.configparsers.LocalConfig
+.. autoclass:: mayabrowser.configparsers.LocalSettings
   :members:
 
 ----------

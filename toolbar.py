@@ -32,7 +32,7 @@ from mayabrowser.common import shiboken2
 from mayabrowser.listlocation import BookmarksWidget
 from mayabrowser.listasset import AssetWidget
 from mayabrowser.listmaya import MayaFilesWidget
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetConfig
 from mayabrowser.delegate import ThumbnailEditor
 
@@ -167,17 +167,17 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.maya_actions = []  # Maya ui
 
         # Applying the initial config settings.
-        local_config.read_ini()
+        local_settings.read_ini()
         self._kwargs = {
             'server': None,
             'job': None,
             'root': None
         }
-        if local_config.server and local_config.job and local_config.root:
+        if local_settings.server and local_settings.job and local_settings.root:
             self._kwargs = {
-                'server': local_config.server,
-                'job': local_config.job,
-                'root': local_config.root
+                'server': local_settings.server,
+                'job': local_settings.job,
+                'root': local_settings.root
             }
 
         self._contextMenu = None
@@ -200,8 +200,8 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.stacked_widget.addWidget(self.filesWidget)
 
         # Setting initial state
-        self.stacked_widget.setCurrentIndex(local_config.current_widget)
-        self.mode_pick.setCurrentIndex(local_config.current_widget)
+        self.stacked_widget.setCurrentIndex(local_settings.current_widget)
+        self.mode_pick.setCurrentIndex(local_settings.current_widget)
 
         self.config_string = ''
         self.config_watch_timer = QtCore.QTimer()
@@ -383,23 +383,23 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         when change is detected.
 
         """
-        if not QtCore.QFileInfo(local_config.getConfigPath(None)).exists():
+        if not QtCore.QFileInfo(local_settings.getConfigPath(None)).exists():
             self.setWindowTitle('No asset added yet.')
             return
 
-        local_config.read_ini()
+        local_settings.read_ini()
 
         if (
-            (self._kwargs['server'] == local_config.server) and
-            (self._kwargs['job'] == local_config.job) and
-            (self._kwargs['root'] == local_config.root)
+            (self._kwargs['server'] == local_settings.server) and
+            (self._kwargs['job'] == local_settings.job) and
+            (self._kwargs['root'] == local_settings.root)
         ):
             return
 
         self._kwargs = {
-            'server': local_config.server,
-            'job': local_config.job,
-            'root': local_config.root
+            'server': local_settings.server,
+            'job': local_settings.job,
+            'root': local_settings.root
         }
 
         self.configChanged.emit()
@@ -408,7 +408,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.assetsWidget.refresh()
         self.setWindowTitle(
             '{}:  {}'.format(
-                local_config.job, local_config.root).upper()
+                local_settings.job, local_settings.root).upper()
         )
 
     def sync_active_maya_asset(self, setActive=True):
@@ -579,7 +579,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
     def view_changed(self, index):
         """Triggered when a different view is selected."""
         self.activate_widget(self.stacked_widget.widget(index))
-        local_config.current_widget = index
+        local_settings.current_widget = index
 
     def add_maya_callbacks(self):
         """This method is called by the Maya plug-in when initializing."""
@@ -770,9 +770,9 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         Sets the window title and the icon based on the configuration values.
         """
-        self._kwargs['server'] = local_config.server
-        self._kwargs['job'] = local_config.job
-        self._kwargs['root'] = local_config.root
+        self._kwargs['server'] = local_settings.server
+        self._kwargs['job'] = local_settings.job
+        self._kwargs['root'] = local_settings.root
 
         if (
             (not self._kwargs['server']) or
@@ -784,7 +784,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         self.setWindowTitle(
             '{}:  {}'.format(
-                local_config.job, local_config.root).upper()
+                local_settings.job, local_settings.root).upper()
         )
 
         self.config_watch_timer.start()

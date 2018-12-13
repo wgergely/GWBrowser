@@ -113,7 +113,7 @@ QPushButton:pressed {{
 		border-left: 4px solid rgba({SELECTION});
 		padding-left: 7px;
 		color: rgba({TEXT_SELECTED});
-		background-color: rgba({TEXT});
+		background-color: rgba(130, 130, 130, 255);
 }}
 
 QComboBox {{

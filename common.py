@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101, R0903
 """Module for storingcommon variables and methods across the project.
 
 Defines the default sizes for widgets and the default colour template.
@@ -9,29 +10,24 @@ import os
 import random
 from PySide2 import QtGui, QtCore
 
-# pylint: disable=E1101, C0103, R0913, I1101, R0903
 
-# Custom data flag - Extending Built-in.
-# QUESTION: Might be a bad idea?
+SERVERS = [
+    {'path': '//gordo/jobs', 'nickname': 'Gordo'},
+    {'path': '//sloth/jobs', 'nickname': 'Sloth'},
+    {'path': '//localhost/c$/temp', 'nickname': 'Local Drive'},
+]
+"""
+Some settings, such network path for the shared server have to be hard-coded.
+Customize these variables as needed.
+"""
+
 QtCore.Qt.PathRole = 0x0200  # Role used to store FileInfo items
+"""Special Role used to store QFileInfo objects."""
 
 MARGIN = 18
 ROW_HEIGHT = 54
 WIDTH = 640
 HEIGHT = 480
-
-# Sizes
-# +-----------------+
-# |   row_buttons   |     A row of buttons to toggle filters and views
-# +-----------------+
-# |                 |
-# |                 |
-# | stacked_widget  |     Stacked Widget of `projects`, `assets` and `files`
-# |                 |
-# |                 |
-# +-----------------+
-# |    row_footer   |     QStatusBar
-# +-----------------+
 
 ROW_BUTTONS_HEIGHT = 24
 STACKED_WIDGET_HEIGHT = 640
@@ -60,16 +56,6 @@ ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
 LABEL1 = QtGui.QColor(82, 153, 105)
 LABEL1_TEXT = QtGui.QColor(162, 233, 185)
-
-
-SERVERS = [
-    '//gordo/jobs',
-    '//localhost/c$/temp'
-]
-"""
-Some settings, such network path for the shared server have to be hard-coded.
-Customize these variables as needed.
-"""
 
 
 def _add_custom_fonts():

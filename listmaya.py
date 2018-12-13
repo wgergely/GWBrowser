@@ -16,7 +16,7 @@ from mayabrowser.listbase import BaseListWidget
 from mayabrowser.common import cmds
 import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import FileConfig
 from mayabrowser.collector import FileCollector
 from mayabrowser.delegate import FilesWidgetDelegate
@@ -95,7 +95,7 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
 
             items['Favourite'] = {
                 'checkable': True,
-                'checked': local_config.is_favourite(name)
+                'checked': local_settings.is_favourite(name)
             }
             items['Isolate favourites'] = {
                 'checkable': True,
@@ -214,43 +214,43 @@ class MayaFilesWidget(BaseListWidget):
 
     @property
     def show_favourites_mode(self):
-        return local_config.show_favourites_file_mode
+        return local_settings.show_favourites_file_mode
 
     @show_favourites_mode.setter
     def show_favourites_mode(self, val):
-        local_config.show_favourites_file_mode = val
+        local_settings.show_favourites_file_mode = val
 
     @property
     def show_archived_mode(self):
-        return local_config.show_archived_file_mode
+        return local_settings.show_archived_file_mode
 
     @show_archived_mode.setter
     def show_archived_mode(self, val):
-        local_config.show_archived_file_mode = val
+        local_settings.show_archived_file_mode = val
 
     @property
     def sort_mode(self):
-        return local_config.sort_file_mode
+        return local_settings.sort_file_mode
 
     @sort_mode.setter
     def sort_mode(self, val):
-        local_config.sort_file_mode = val
+        local_settings.sort_file_mode = val
 
     @property
     def reverse_mode(self):
-        return local_config.reverse_file_mode
+        return local_settings.reverse_file_mode
 
     @reverse_mode.setter
     def reverse_mode(self, val):
-        local_config.reverse_file_mode = val
+        local_settings.reverse_file_mode = val
 
     @property
     def current_filter(self):
-        return local_config.current_filter
+        return local_settings.current_filter
 
     @current_filter.setter
     def current_filter(self, val):
-        local_config.current_filter = val
+        local_settings.current_filter = val
 
     def set_sort_mode(self, sort_mode, reverse_mode):
         """Sets the sorting order of the collector.
@@ -450,7 +450,7 @@ class MayaFilesWidget(BaseListWidget):
         modes = QtCore.QDir(
             '{}/{}'.format(
                 self.collector.root_info.filePath(),
-                local_config.asset_scenes_folder
+                local_settings.asset_scenes_folder
             )
         )
         modes = modes.entryInfoList(
@@ -487,7 +487,7 @@ class MayaFilesWidget(BaseListWidget):
             basedirs = basedirs.replace(
                 self.collector.root_info.filePath(), ''
             ).replace(
-                local_config.asset_scenes_folder, ''
+                local_settings.asset_scenes_folder, ''
             ).lstrip('/').rstrip('/')
 
             item = QtWidgets.QListWidgetItem()
@@ -512,7 +512,7 @@ class MayaFilesWidget(BaseListWidget):
             flags = configparser.NoFlag
             if config.archived:
                 flags = flags | configparser.MarkedAsArchived
-            elif local_config.is_favourite(f.fileName()):
+            elif local_settings.is_favourite(f.fileName()):
                 flags = flags | configparser.MarkedAsFavourite
             item.setData(
                 QtCore.Qt.UserRole,

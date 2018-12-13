@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101
 """Config file reader for maya assets.
 
 The ConfigParser allows setting comments and custom properties
@@ -12,7 +13,6 @@ To retrieve the config file path, or the associated thumbnail you can use
 getConfigPath() or getThumbnailPath().
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 import os
 import sys
@@ -111,8 +111,12 @@ class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style
         self.set(section, option, '{}'.format(val))
         return self.get(section, option)
 
+class Settings():
+    """Module used to store application specific settings"""
 
-class LocalConfig(UnicodeConfigParser):
+
+
+class LocalSettings(QtCore.QSettings):
     """A custom ConfigParser object responsible for setting and getting
     workstation-specific settings.
 
@@ -124,298 +128,15 @@ class LocalConfig(UnicodeConfigParser):
     """
     SECTIONS = ['activejob', 'favourites', 'mayawidget']
 
-    def __init__(self, path=None):
-        super(LocalConfig, self).__init__(path)
-
-        if QtCore.QFileInfo(self.getConfigPath(path)).exists():
-            self.read_ini()
-        else:
-            self.server = None
-            self.job = None
-            self.root = None
-            self.write_ini()
-
-    @staticmethod
-    def getConfigPath(path):
-        """Returns the path to the configuration file."""
-        return '{}/browser_maya_config.ini'.format(QtCore.QDir.tempPath())
-
-    def is_favourite(self, val):
-        """Returns wheter the given file-name is set as a 'favourite'."""
-        key = val.replace('.', '_').replace(' ', '')
-        return self.has_option('favourites', key)
-
-    def set_favourite(self, val):
-        """Marks the name of the scene as favourite."""
-        key = val.replace('.', '_').replace(' ', '')
-        self.set('favourites', key, None)
-        self.write_ini()
-
-    def remove_favourite(self, val):
-        """Removes a previously marked item from the favourites."""
-        key = val.replace('.', '_').replace(' ', '')
-        self.remove_option('favourites', key)
-        self.write_ini()
-
-    @property
-    def server(self):
-        """The currently set server path."""
-        if self.has_option('activejob', 'server'):
-            opt = self.get('activejob', 'server')
-            if opt != 'None':
-                return opt
-            return None
-        return None
-
-    @server.setter
-    def server(self, val):
-        self.set('activejob', 'server', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def job(self):
-        """The currently set job name."""
-        if self.has_option('activejob', 'job'):
-            opt = self.get('activejob', 'job')
-            if opt != 'None':
-                return opt
-            return None
-        return None
-
-    @job.setter
-    def job(self, val):
-        self.set('activejob', 'job', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def root(self):
-        """The currently set relative asset root folder path."""
-        if self.has_option('activejob', 'root'):
-            opt = self.get('activejob', 'root')
-            if opt != 'None':
-                return opt
-            return None
-        return None
-
-    @root.setter
-    def root(self, val):
-        self.set('activejob', 'root', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def show_favourites_asset_mode(self):
-        """The saved show favourite assets mode."""
-        opt = self._get_option(
-            'mayawidget',
-            'show_favourites_asset_mode',
-            False
+    def __init__(self, parent=None):
+        """Reads the ini if exists, otherwise sets server,job and root to `None`."""
+        super(LocalSettings, self).__init__(
+            QtCore.QSettings.SystemScope,
+            'Glassworks',
+            'Browser',
+            parent=parent
         )
-        return False if opt.lower() == 'false' else True
-
-    @show_favourites_asset_mode.setter
-    def show_favourites_asset_mode(self, val):
-        self.set('mayawidget', 'show_favourites_asset_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def show_archived_asset_mode(self):
-        """The saved Show archived assets mode."""
-        opt = self._get_option(
-            'mayawidget', 'show_archived_asset_mode', False)
-        return False if opt.lower() == 'false' else True
-
-    @show_archived_asset_mode.setter
-    def show_archived_asset_mode(self, val):
-        self.set('mayawidget', 'show_archived_asset_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def show_favourites_file_mode(self):
-        """The saved show favourite files mode."""
-        opt = self._get_option(
-            'mayawidget', 'show_favourites_file_mode', False)
-        return False if opt.lower() == 'false' else True
-
-    @show_favourites_file_mode.setter
-    def show_favourites_file_mode(self, val):
-        self.set('mayawidget', 'show_favourites_file_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def show_archived_file_mode(self):
-        """The saved Show archived files mode."""
-        opt = self._get_option('mayawidget', 'show_archived_file_mode', False)
-        return False if opt.lower() == 'false' else True
-
-    @show_archived_file_mode.setter
-    def show_archived_file_mode(self, val):
-        self.set('mayawidget', 'show_archived_file_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def sort_file_mode(self):
-        """The saved file sorting mode."""
-        opt = self._get_option('mayawidget', 'sort_file_mode', 0)
-        return int(opt)
-
-    @sort_file_mode.setter
-    def sort_file_mode(self, val):
-        self.set('mayawidget', 'sort_file_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def reverse_file_mode(self):
-        """The saved list order mode."""
-        opt = self._get_option('mayawidget', 'reverse_file_mode', False)
-        return False if opt.lower() == 'false' else True
-
-    @reverse_file_mode.setter
-    def reverse_file_mode(self, val):
-        self.set('mayawidget', 'reverse_file_mode', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def current_filter(self):
-        """The currenty set filter.
-
-        When a filter is set only the files inside that folder are collected.
-        Setting it to '/' will collect all the files.
-        """
-        return self._get_option('mayawidget', 'current_filter', '/')
-
-    @current_filter.setter
-    def current_filter(self, val):
-        self.set('mayawidget', 'current_filter', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def current_widget(self):
-        """Stores the currently visible widget's index."""
-        return int(self._get_option('mayawidget', 'current_widget', '0'))
-
-    @current_widget.setter
-    def current_widget(self, val):
-        self.set('mayawidget', 'current_widget', '{}'.format(val))
-        self.write_ini()
-
-    def clear_locations(self):
-        """Clears all saved locations from the local configuration file."""
-        self._get_option('activejob', 'history', '')
-        self.set('activejob', 'history', '')
-        self.write_ini()
-
-    @property
-    def locations(self):
-        """Returns the list of all available
-
-        The raw string is stored as follows:
-            'server1,job1,root1; server2,job2,root2;'
-
-        Returns:
-            list:   A list of [server, job, root] strings.
-
-        """
-        location = self._get_option('activejob', 'history', '')
-        location = location.split(';')
-
-        if not location:
-            return []
-
-        array = []
-        for setting in location:
-            array.append(setting.split(','))
-
-        return array
-
-    def remove_location(self, server, job, root):
-        """Removes the given item from the history.
-
-        Args:
-            server (type): Description of parameter `server`.
-            job (type): Description of parameter `job`.
-            root (type): Description of parameter `root`.
-
-
-        """
-        array = self._get_option('activejob', 'history', '').split(';')
-
-        string = ''
-        for item in array:
-            if item == '{},{},{}'.format(server, job, root):
-                continue
-
-            string += item
-            string += ';'
-
-        string = string.rstrip(';').lstrip(';')
-
-        self.set('activejob', 'history', '{}'.format(string))
-        self.write_ini()
-
-
-    def append_to_location(self, server, job, root):
-        """Adds an item to the location.
-
-        Args:
-            server (str):       The path to the server.
-            job (str):          The name of the job.
-            root (str):         The name of the root folder.
-
-        """
-
-        array = self._get_option('activejob', 'history', '').split(';')
-        array.append('{},{},{}'.format(server, job, root))
-        array = sorted(list(set(array))) # removing duplicate items
-
-        string = ''
-        for item in array:
-            string += item
-            string += ';'
-
-        string = string.rstrip(';').lstrip(';')
-
-        self.set('activejob', 'history', '{}'.format(string))
-        self.write_ini()
-
-    @property
-    def asset_scenes_folder(self):
-        """The name of the ``scenes`` folder inside the asset folder."""
-        return self._get_option('activejob', 'asset_scenes_folder', 'scenes')
-
-    @asset_scenes_folder.setter
-    def asset_scenes_folder(self, val):
-        self.set('activejob', 'asset_scenes_folder', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def asset_renders_folder(self):
-        """The name of the ``renders`` folder inside the asset folder."""
-        return self._get_option('activejob', 'asset_renders_folder', 'renders')
-
-    @asset_renders_folder.setter
-    def asset_renders_folder(self, val):
-        self.set('activejob', 'asset_renders_folder', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def asset_textures_folder(self):
-        """The name of the ``textures`` folder inside the asset folder."""
-        return self._get_option('activejob', 'asset_textures_folder', 'textures')
-
-    @asset_textures_folder.setter
-    def asset_textures_folder(self, val):
-        self.set('activejob', 'asset_textures_folder', '{}'.format(val))
-        self.write_ini()
-
-    @property
-    def asset_exports_folder(self):
-        """The name of the ``exports`` folder inside the asset folder."""
-        return self._get_option('activejob', 'asset_exports_folder', 'exports')
-
-    @asset_exports_folder.setter
-    def asset_exports_folder(self, val):
-        self.set('activejob', 'asset_exports_folder', '{}'.format(val))
-        self.write_ini()
+        self.setDefaultFormat(QtCore.QSettings.NativeFormat)
 
 
 class CustomConfig(UnicodeConfigParser):
@@ -495,5 +216,5 @@ class FileConfig(CustomConfig):
         )
 
 
-local_config = LocalConfig()
+local_settings = LocalSettings()
 """An instance of the local configuration created when loading this module."""

@@ -2,7 +2,7 @@
 """PySide2 dependent base-class for querring folders and files.
 
 The values used to initialize the ``AssetCollector`` and the ``FileCollector.get_files()``
-method are stored in a local configuration file. ``LocalConfig`` is used to edit
+method are stored in a local configuration file. ``LocalSettings`` is used to edit
 the stored values.
 
 Example:
@@ -35,7 +35,7 @@ Example:
 
 import re
 from PySide2 import QtCore
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 
 class AssetCollector(object):
     """Object to collect folders and files from a specified file location.
@@ -219,7 +219,7 @@ class FileCollector(object):
         it = QtCore.QDirIterator(
             '{}/{}'.format(
                 self.root_info.filePath(),
-                local_config.asset_scenes_folder
+                local_settings.asset_scenes_folder
             ),
             self.FILE_EXTENSION_MASK,
             flags=QtCore.QDir.Dirs | QtCore.QDir.NoSymLinks |

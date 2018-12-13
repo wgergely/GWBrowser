@@ -9,7 +9,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import mayabrowser.common as common
 from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetConfig
 from mayabrowser.configparsers import FileConfig
 
@@ -107,7 +107,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_separators(self, *args):
         """Paints horizontal separators."""
-        painter, option, _, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
 
         painter.save()
 
@@ -118,12 +118,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             THICKNESS = 1.0
         else:
             THICKNESS = 1.0
-
-        last_visible = 0
-        for last_visible in reversed(xrange(self.parent().count())):
-            item = self.parent().item(last_visible)
-            if not item.isHidden():
-                break
 
         # Bottom
         rect = QtCore.QRectF(
@@ -142,7 +136,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             (THICKNESS / 2.0)
         )
         painter.drawRect(rect)
-
         painter.save()
 
     def paint_selection_indicator(self, *args):
@@ -171,13 +164,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.save()
 
-        p = self.parent().collector.active_item.filePath()
-        if p != index.data(QtCore.Qt.StatusTipRole):
-            return
-
-        if p != QtCore.QFileInfo(cmds.workspace(q=True, fn=True)).filePath():
-            return
-
         rect = QtCore.QRect(option.rect)
         rect.setWidth(4)
 
@@ -186,6 +172,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.FAVORUITE_SELECTED
         else:
             color = common.FAVORUITE
+
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
@@ -792,16 +779,17 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """The widget used to edit the thumbnail of the asset."""
         index = self.parent().currentIndex()
         server, job, root = index.data(QtCore.Qt.UserRole).split(',')
-        local_config.read_ini()
+        local_settings.read_ini()
 
         # Updating the local config file
-        local_config.server = server
-        local_config.job = job
-        local_config.root = root
+        local_settings.server = server
+        local_settings.job = job
+        local_settings.root = root
 
         # Emiting a signal upon change
         self.parent().locationChanged.emit(server, job, root)
         return None
+
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
@@ -949,7 +937,7 @@ class FilesWidgetDelegate(BaseDelegate):
         basedirs = basedirs.replace(
             self.parent().collector.root_info.filePath(), ''
         ).replace(
-            local_config.asset_scenes_folder, ''
+            local_settings.asset_scenes_folder, ''
         ).lstrip('/').rstrip('/')
 
         painter.setBrush(QtCore.Qt.NoBrush)

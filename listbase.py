@@ -11,7 +11,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from mayabrowser.common import cmds
 import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.actions import Actions
 from mayabrowser.capture import ScreenGrabber
 
@@ -37,11 +37,11 @@ class BaseContextMenu(Actions):
             flags = flags | configparser.MarkedAsArchived
 
         # Saving the config file and flags
-        if local_config.is_favourite(file_info.fileName()):
-            local_config.remove_favourite(file_info.fileName())
+        if local_settings.is_favourite(file_info.fileName()):
+            local_settings.remove_favourite(file_info.fileName())
         else:
             flags = flags | configparser.MarkedAsFavourite
-            local_config.set_favourite(file_info.fileName())
+            local_settings.set_favourite(file_info.fileName())
 
         item = self.parent().itemFromIndex(self.index)
         item.setData(
@@ -68,7 +68,7 @@ class BaseContextMenu(Actions):
         flags = configparser.NoFlag
         if config.archived:
             flags = flags | configparser.MarkedAsArchived
-        elif local_config.is_favourite(file_info.fileName()):
+        elif local_settings.is_favourite(file_info.fileName()):
             flags = flags | configparser.MarkedAsFavourite
 
         # Set the flag as custom user data

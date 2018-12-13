@@ -24,7 +24,7 @@ from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_config
+from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetConfig
 from mayabrowser.collector import AssetCollector
 from mayabrowser.delegate import AssetWidgetDelegate
@@ -52,18 +52,18 @@ class AssetWidgetContextMenu(BaseContextMenu):
             action (QAction):       Instance of the triggered action.
 
         """
-        local_config.server = action.data()[0]
-        local_config.job = action.data()[1]
-        local_config.root = action.data()[2]
+        local_settings.server = action.data()[0]
+        local_settings.job = action.data()[1]
+        local_settings.root = action.data()[2]
         self.parent().parent().parent().sync_config()
 
     def add_location(self):
         """Populates the menu with location of asset locations."""
         submenu = self.addMenu('Locations')
-        if not local_config.location:
+        if not local_settings.location:
             return
 
-        for item in local_config.location:
+        for item in local_settings.location:
             if item[0] == '':
                 continue
             action = submenu.addAction('{}/{}/{}'.format(*item))
@@ -72,9 +72,9 @@ class AssetWidgetContextMenu(BaseContextMenu):
                 functools.partial(self.location_changed, action))
             action.setCheckable(True)
             if (
-                (item[0] == local_config.server) and
-                (item[1] == local_config.job) and
-                (item[2] == local_config.root)
+                (item[0] == local_settings.server) and
+                (item[1] == local_settings.job) and
+                (item[2] == local_settings.root)
             ):
                 action.setChecked(True)
 
@@ -98,7 +98,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
             items['<separator>..'] = {}
             items['Favourite'] = {
             'checkable': True,
-            'checked': local_config.is_favourite(name)
+            'checked': local_settings.is_favourite(name)
             }
             items['Isolate favourites'] = {
                 'checkable': True,
@@ -166,9 +166,9 @@ class AssetWidget(BaseListWidget):
 
     def __init__(self, parent=None):
         self._collector = AssetCollector(
-            server=local_config.server,
-            job=local_config.job,
-            root=local_config.root
+            server=local_settings.server,
+            job=local_settings.job,
+            root=local_settings.root
         )
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
@@ -229,20 +229,20 @@ class AssetWidget(BaseListWidget):
     @property
     def show_favourites_mode(self):
         """The current show favourites state as saved in the local configuration file."""
-        return local_config.show_favourites_asset_mode
+        return local_settings.show_favourites_asset_mode
 
     @show_favourites_mode.setter
     def show_favourites_mode(self, val):
-        local_config.show_favourites_asset_mode = val
+        local_settings.show_favourites_asset_mode = val
 
     @property
     def show_archived_mode(self):
         """The current Show archived state as saved in the local configuration file."""
-        return local_config.show_archived_asset_mode
+        return local_settings.show_archived_asset_mode
 
     @show_archived_mode.setter
     def show_archived_mode(self, val):
-        local_config.show_archived_asset_mode = val
+        local_settings.show_archived_asset_mode = val
 
     def refresh(self):
         """Refreshes the list of found assets."""
@@ -300,7 +300,7 @@ class AssetWidget(BaseListWidget):
             flags = configparser.NoFlag
             if config.archived:
                 flags = flags | configparser.MarkedAsArchived
-            elif local_config.is_favourite(f.fileName()):
+            elif local_settings.is_favourite(f.fileName()):
                 flags = flags | configparser.MarkedAsFavourite
 
             item.setData(
@@ -392,7 +392,7 @@ class AssetWidget(BaseListWidget):
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_config.asset_textures_folder
+            local_settings.asset_textures_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
@@ -402,7 +402,7 @@ class AssetWidget(BaseListWidget):
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_config.asset_scenes_folder
+            local_settings.asset_scenes_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
@@ -412,7 +412,7 @@ class AssetWidget(BaseListWidget):
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_config.asset_renders_folder
+            local_settings.asset_renders_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
@@ -422,7 +422,7 @@ class AssetWidget(BaseListWidget):
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_config.asset_exports_folder
+            local_settings.asset_exports_folder
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)

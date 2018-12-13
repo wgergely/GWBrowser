@@ -86,10 +86,9 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName('Browser')
         self.set_model_id()
 
-        path = u'{}/{}.loc'
-        tempdir = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        path = path.format(tempdir, StandaloneApp.MODEL_ID)
+        path = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.DocumentsLocation)
+        path = u'{}/{}.loc'.format(path, StandaloneApp.MODEL_ID)
 
         try:
             SingleInstance(lockfile=path)
