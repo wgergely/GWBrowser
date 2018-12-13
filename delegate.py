@@ -35,11 +35,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
-        args = (painter, option, index, selected, focused, active, archived, favourite)
+        args = (painter, option, index, selected,
+                focused, active, archived, favourite)
         return args
 
     def paint_focus(self, *args):
-        painter, option, index, selected, focused, active, archived, favourite = args
+        painter, option, _, _, focused, _, _, _ = args
 
         if not focused:
             return
@@ -339,7 +340,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.restore()
 
     def paint_archived(self, *args):
-        """Paints a `disabled` overlay on top of items marked as `archived`."""
+        """Paints a `disabled` overlay on top of items flagged as `archived`."""
         painter, option, index, selected, focused, active, archived, favourite = args
 
         if not archived:
@@ -544,8 +545,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_thumbnail(*args)
         self.paint_separators(*args)
         self.paint_active(*args)
+        self.paint_archived(*args)
         self.paint_focus(*args)
-
 
     def paint_add_button(self, *args):
         """Paints the special add button."""
@@ -553,9 +554,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         painter.save()
 
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+        painter.drawRect(option.rect)
+
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
-        rect.moveLeft((option.rect.width() / 2) - (rect.width() / 2))
+        rect.moveLeft(rect.left() + 4)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.setPen(QtCore.Qt.NoPen)
@@ -606,10 +611,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint_active(self, *args):
         """paints the bookmark's active indicator."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, focused, active, archived, favourite = args
 
-        item = self.parent().itemFromIndex(index)
-        if self.parent().activeItem is not item:
+        if not active:
             return
 
         painter.save()
@@ -637,7 +641,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, focused, active, archived, favourite = args
 
         painter.save()
 
@@ -655,8 +659,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        item = self.parent().itemFromIndex(index)
-        if self.parent().activeItem is item:
+        if active:
             path = '{}/rsc/bookmark_active.png'.format(
                 QtCore.QFileInfo(__file__).dir().path()
             )
@@ -711,28 +714,73 @@ class BookmarksWidgetDelegate(BaseDelegate):
         font.setPointSize(9)
         painter.setFont(font)
 
-        server, job, root = index.data(QtCore.Qt.UserRole).split(',')
+        server, job, root, count = index.data(QtCore.Qt.UserRole).split(',')
+        count = int(count)
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(4 + option.rect.height() + common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
-        if selected:
-            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
-        else:
-            painter.setPen(QtGui.QPen(common.TEXT))
 
         # Root
         font = QtGui.QFont('Roboto')
         font.setBold(True)
-        font.setPointSize(9)
+        font.setPointSize(8)
         painter.setFont(font)
         metrics = QtGui.QFontMetrics(painter.font())
+        text = re.sub(r'[_]+', ' ', root.upper())
+        if count:
+            text = '{} ({} items)'.format(text, count)
         text = metrics.elidedText(
-            root.upper(),
+            text,
             QtCore.Qt.ElideLeft,
             rect.width()
         )
         width = metrics.width(text) + common.MARGIN
+
+        # Text background
+        # Sizing it to the text
+        bg_rect = QtCore.QRect(rect)
+        bg_rect.setLeft(bg_rect.right() - metrics.width(text))
+        bg_rect.setHeight(metrics.height())
+        bg_rect.moveTop(bg_rect.top() + (option.rect.height() /
+                                         2.0) - (bg_rect.height() / 2.0))
+        # Adding margin
+        offset = 4.0
+        bg_rect.setTop(bg_rect.top() - (offset / 2))
+        bg_rect.setBottom(bg_rect.bottom() + (offset / 2))
+        bg_rect.setLeft(bg_rect.left() - offset)
+        bg_rect.setRight(bg_rect.right() + offset)
+
+        path = QtGui.QPainterPath()
+        path.addRoundedRect(QtCore.QRectF(bg_rect), 1.5, 1.5)
+
+        if not count:
+            painter.setPen(QtGui.QPen(common.TEXT_WARNING))
+
+        color = common.get_label(root)
+        if selected:
+            selected_color = QtGui.QColor(color)
+            selected_color.setRed(selected_color.red() + 20)
+            selected_color.setGreen(selected_color.green() + 20)
+            selected_color.setBlue(selected_color.blue() + 20)
+            if count:
+                painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+                painter.fillPath(path, selected_color)
+            else:
+                txtColor = QtGui.QColor(common.TEXT_WARNING)
+                txtColor.setRed(txtColor.red() + 20)
+                txtColor.setGreen(txtColor.green() + 20)
+                txtColor.setBlue(txtColor.blue() + 20)
+                painter.setPen(QtGui.QPen(txtColor))
+        else:
+            if count:
+                painter.setPen(QtGui.QPen(common.TEXT))
+                painter.fillPath(path, color)
+            else:
+                color = QtGui.QColor(common.BACKGROUND)
+                painter.setPen(QtGui.QPen(common.TEXT_WARNING))
+                painter.fillPath(path, color)
+
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
@@ -741,7 +789,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         metrics = QtGui.QFontMetrics(painter.font())
         text = metrics.elidedText(
-            job.lower(),
+            re.sub(r'[\W\d\_]+', ' ', job.upper()),
             QtCore.Qt.ElideRight,
             rect.width() - width
         )
@@ -772,22 +820,17 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.restore()
 
     def get_note_rect(self, *args):
-        """There's no note rectangle on the locations widget, setting it to zero."""
+        """There's no editable note on the Bookmarks widget, hence setting it to zero."""
         return QtCore.QRect(0, 0, 0, 0), None, None
 
     def get_thumbnaileditor_cls(self, *args, **kwargs):
-        """The widget used to edit the thumbnail of the asset."""
-        index = self.parent().currentIndex()
-        server, job, root = index.data(QtCore.Qt.UserRole).split(',')
-        local_settings.read_ini()
+        """Double-clicking the thumbnail on the BookmarksWidget will set the said
+        item to become active. Hence, no editor widget is returned.
 
-        # Updating the local config file
-        local_settings.server = server
-        local_settings.job = job
-        local_settings.root = root
+        It will, however set the selected bookmark to be active one.
 
-        # Emiting a signal upon change
-        self.parent().locationChanged.emit(server, job, root)
+        """
+        self.parent().set_current_item_as_active()
         return None
 
 

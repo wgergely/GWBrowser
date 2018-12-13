@@ -162,23 +162,17 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
         self.instances[self.objectName()] = self
+
         self._workspacecontrol = None
         self.maya_callbacks = []  # Maya api callbacks
         self.maya_actions = []  # Maya ui
 
         # Applying the initial config settings.
-        local_settings.read_ini()
         self._kwargs = {
-            'server': None,
-            'job': None,
-            'root': None
+            'server': local_settings.value('activepath/server'),
+            'job': local_settings.value('activepath/job'),
+            'root': local_settings.value('activepath/root')
         }
-        if local_settings.server and local_settings.job and local_settings.root:
-            self._kwargs = {
-                'server': local_settings.server,
-                'job': local_settings.job,
-                'root': local_settings.root
-            }
 
         self._contextMenu = None
         self.fader_widget = None
@@ -186,7 +180,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         # Create layout
         self._createUI()
 
-        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
+        pixmap = common.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
 
         self.locationsWidget = BookmarksWidget()
         self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
@@ -219,29 +213,9 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self._workspacecontrol = self.get_workspace_control()
         return self._workspacecontrol
 
-    @staticmethod
-    def get_thumbnail_pixmap(path, opacity=1, size=(common.ROW_BUTTONS_HEIGHT)):
-        """Returns a pixmap of the input path."""
-        image = QtGui.QImage()
-        image.load(path)
-        image = ThumbnailEditor.smooth_copy(image, size)
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-        # Setting transparency
-        image = QtGui.QImage(
-            pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
-        image.fill(QtCore.Qt.transparent)
-        painter = QtGui.QPainter(image)
-        painter.setOpacity(opacity)
-        painter.drawPixmap(0, 0, pixmap)
-        painter.end()
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-        return pixmap
-
     def setThumbnail(self, path, opacity=1, size=common.ROW_BUTTONS_HEIGHT):
         """Sets the given path as the thumbnail of the asset."""
-        pixmap = self.get_thumbnail_pixmap(path, opacity=opacity, size=size)
+        pixmap = common.get_thumbnail_pixmap(path, opacity=opacity, size=size)
         self.asset_thumbnail.setPixmap(pixmap)
 
     def sizeHint(self):
@@ -279,7 +253,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             QtWidgets.QSizePolicy.Preferred
         )
 
-        pixmap = self.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
+        pixmap = common.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.row_buttons = QtWidgets.QWidget()
@@ -525,37 +499,6 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             return
 
         super(BrowserWidget, self).show(**kwargs)
-
-    def move_widget_to_available_geo(self, widget):
-        """Moves the widget inside the available screen geomtery, if any of the edges
-        falls outside.
-
-        """
-        app = QtCore.QCoreApplication.instance()
-        screenID = app.desktop().screenNumber(self)
-        screen = app.screens()[screenID]
-        screen_rect = screen.availableGeometry()
-
-        # Widget's rectangle in the global screen space
-        rect = QtCore.QRect()
-        topLeft = widget.mapToGlobal(widget.rect().topLeft())
-        rect.setTopLeft(topLeft)
-        rect.setWidth(widget.rect().width())
-        rect.setHeight(widget.rect().height())
-
-        x = rect.x()
-        y = rect.y()
-
-        if rect.left() < screen_rect.left():
-            x = screen_rect.x()
-        if rect.top() < screen_rect.top():
-            y = screen_rect.y()
-        if rect.right() > screen_rect.right():
-            x = screen_rect.right() - rect.width()
-        if rect.bottom() > screen_rect.bottom():
-            y = screen_rect.bottom() - rect.height()
-
-        widget.move(x, y)
 
     def _connectSignals(self):
         self.mode_pick.currentIndexChanged.connect(self.view_changed)

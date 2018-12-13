@@ -48,6 +48,7 @@ TEXT_SELECTED = QtGui.QColor(255, 255, 255)
 TEXT_NOTE = QtGui.QColor(200, 200, 200)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 TEXT_DISABLED = QtGui.QColor(100, 100, 100)
+TEXT_WARNING = SECONDARY_TEXT
 
 SEPARATOR = QtGui.QColor(58, 58, 58)
 SELECTION = QtGui.QColor(87, 137, 242)
@@ -56,6 +57,65 @@ ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
 LABEL1 = QtGui.QColor(82, 153, 105)
 LABEL1_TEXT = QtGui.QColor(162, 233, 185)
+
+
+
+def get_thumbnail_pixmap(path, opacity=1, size=(ROW_BUTTONS_HEIGHT)):
+    """Returns a pixmap of the input path."""
+    from mayabrowser.delegate import ThumbnailEditor
+
+    image = QtGui.QImage()
+    image.load(path)
+    image = ThumbnailEditor.smooth_copy(image, size)
+    pixmap = QtGui.QPixmap()
+    pixmap.convertFromImage(image)
+    # Setting transparency
+    image = QtGui.QImage(
+        pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
+    image.fill(QtCore.Qt.transparent)
+    painter = QtGui.QPainter(image)
+    painter.setOpacity(opacity)
+    painter.drawPixmap(0, 0, pixmap)
+    painter.end()
+    pixmap = QtGui.QPixmap()
+    pixmap.convertFromImage(image)
+    return pixmap
+
+
+def move_widget_to_available_geo(widget):
+    """Moves the widget inside the available screen geomtery, if any of the edges
+    fall outside.
+
+    """
+    app = QtCore.QCoreApplication.instance()
+    if widget.parentWidget():
+        screenID = app.desktop().screenNumber(widget.parentWidget())
+    else:
+        screenID = app.desktop().primaryScreen()
+
+    screen = app.screens()[screenID]
+    screen_rect = screen.availableGeometry()
+
+    # Widget's rectangle in the global screen space
+    rect = QtCore.QRect()
+    topLeft = widget.mapToGlobal(widget.rect().topLeft())
+    rect.setTopLeft(topLeft)
+    rect.setWidth(widget.rect().width())
+    rect.setHeight(widget.rect().height())
+
+    x = rect.x()
+    y = rect.y()
+
+    if rect.left() < screen_rect.left():
+        x = screen_rect.x()
+    if rect.top() < screen_rect.top():
+        y = screen_rect.y()
+    if rect.right() > screen_rect.right():
+        x = screen_rect.right() - rect.width()
+    if rect.bottom() > screen_rect.bottom():
+        y = screen_rect.bottom() - rect.height()
+
+    widget.move(x, y)
 
 
 def _add_custom_fonts():
@@ -196,6 +256,27 @@ CUSTOM_THUMBNAIL = _custom_thumbnail()
 MAYA_THUMBNAIL = _maya_thumbnail()
 
 
+
+def count_assets(path):
+    """Returns the number of assets inside the given folder."""
+    dir = QtCore.QDir(path)
+    dir.setFilter(
+        QtCore.QDir.NoDotAndDotDot |
+        QtCore.QDir.Dirs |
+        QtCore.QDir.NoSymLinks |
+        QtCore.QDir.Readable
+    )
+
+    # Counting the number assets found
+    count = 0
+    for file_info in dir.entryInfoList():
+        dir = QtCore.QDir(file_info.filePath())
+        dir.setFilter(QtCore.QDir.Files)
+        dir.setNameFilters(('*.mel',))
+        if dir.entryInfoList():
+            count += 1
+    return count
+
 class LocalContext(object):
     """Calls to the unavailable methods are directed here when not loading from Maya."""
 
@@ -209,6 +290,7 @@ class LocalContext(object):
 
     def file(self, *args, **kwargs):
         return None
+
 
 
 try:

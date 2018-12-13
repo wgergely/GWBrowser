@@ -26,7 +26,7 @@ Attributes:
 
 
 import re
-
+import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import mayabrowser.common as common
@@ -116,32 +116,29 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.installEventFilter(self)
         self.setWindowTitle('Add location')
         self._createUI()
+
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint |
+            QtCore.Qt.Window
+        )
+
         self._connectSignals()
         self._set_initial_values()
 
         self._root = None
 
 
-    def get_choice(self):
+    def get_bookmark(self):
         """Returns the currently selected items."""
-        return (
-            self.pick_server_widget.currentData(QtCore.Qt.UserRole),
-            self.pick_job_widget.currentData(QtCore.Qt.UserRole),
-            self._root
-        )
+        server = self.pick_server_widget.currentData(QtCore.Qt.UserRole)
+        job = self.pick_job_widget.currentData(QtCore.Qt.UserRole)
+        root = self._root
+        key = '{}/{}/{}'.format(server, job, root)
+        return {key: {'server': server, 'job': job, 'root': root}}
 
     def _createUI(self):
-        """Creates the UI layout.
-
-        +------------------+------------------+
-        |                  |                  |
-        |                  |                  |
-        |   pathsettings   |                  |
-        |                  |                  |
-        |                  |                  |
-        +------------------+------------------+
-
-        """
+        """Creates the UI layout."""
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(
             common.MARGIN,
@@ -155,13 +152,11 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
         self.pathsettings.layout().setSpacing(common.MARGIN * 0.33)
 
-
         # Server
         self.pick_server_widget = QtWidgets.QComboBox()
         view = QtWidgets.QListWidget()  # Setting a custom view here
         self.pick_server_widget.setModel(view.model())
         self.pick_server_widget.setView(view)
-        self.pick_server_widget.setFrame(False)
         self.pick_server_widget.setDuplicatesEnabled(False)
         self.pick_server_widget.setItemDelegate(
             ComboBoxItemDelegate(self.pick_server_widget))
@@ -170,7 +165,6 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         view = QtWidgets.QListWidget()  # Setting a custom view here
         self.pick_job_widget.setModel(view.model())
         self.pick_job_widget.setView(view)
-        self.pick_job_widget.setFrame(False)
         self.pick_job_widget.setDuplicatesEnabled(False)
         self.pick_job_widget.setItemDelegate(
             ComboBoxItemDelegate(self.pick_job_widget))
@@ -194,43 +188,51 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         pixmap = QtGui.QPixmap()
         pixmap.load(path)
         pixmap = pixmap.scaledToWidth(128, QtCore.Qt.SmoothTransformation)
-        label = QtWidgets.QLabel()
-        label.setPixmap(pixmap)
-        self.layout().addWidget(label)
+        self.label = QtWidgets.QLabel()
+        self.label.setPixmap(pixmap)
+        self.layout().addStretch(0.5)
+        self.layout().addWidget(self.label)
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(self.pathsettings)
+        self.layout().addStretch(0.5)
 
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 1)
+        self.pathsettings.layout().addStretch(10)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 0.1)
         label = QtWidgets.QLabel(
             'Select the network path the job is located at:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_server_widget, 1)
-        self.pathsettings.layout().addStretch(1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 1)
+        self.pathsettings.layout().addWidget(self.pick_server_widget, 0.1)
+        self.pathsettings.layout().addStretch(0.1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 0.1)
         label = QtWidgets.QLabel(
             'Select the job:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_job_widget, 1)
-        self.pathsettings.layout().addStretch(1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Assets'), 1)
+        self.pathsettings.layout().addWidget(self.pick_job_widget, 0.1)
+        self.pathsettings.layout().addStretch(0.1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Assets'), 0.1)
         label = QtWidgets.QLabel(
             'Select the folder inside the Job containing a list of shots and/or assets:')
         label.setWordWrap(True)
         label.setDisabled(True)
         self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_root_widget, 1)
+        self.pathsettings.layout().addWidget(self.pick_root_widget, 0.1)
+        self.pathsettings.layout().addStretch(3)
+        self.pathsettings.layout().addWidget(row, 0.1)
         self.pathsettings.layout().addStretch(10)
-        self.pathsettings.layout().addWidget(row, 1)
-        self.pathsettings.setMinimumWidth(300)
 
     def _connectSignals(self):
         self.pick_server_widget.currentIndexChanged.connect(self.serverChanged)
         self.pick_job_widget.currentIndexChanged.connect(self.jobChanged)
         self.pick_root_widget.pressed.connect(self._pick_root)
+
+        partial = functools.partial(self.done, 0)
+        self.cancel_button.pressed.connect(partial)
+        partial = functools.partial(self.done, 1)
+        self.ok_button.pressed.connect(partial)
 
     def _add_servers(self):
         self.pick_server_widget.clear()
@@ -301,24 +303,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             return
 
         self.ok_button.setDisabled(False)
-
-        dir = QtCore.QDir(path)
-        dir.setFilter(
-            QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks |
-            QtCore.QDir.Readable
-        )
-
-
-        # Counting the number assets found
-        count = 0
-        for file_info in dir.entryInfoList():
-            dir = QtCore.QDir(file_info.filePath())
-            dir.setFilter(QtCore.QDir.Files)
-            dir.setNameFilters(('*.mel',))
-            if dir.entryInfoList():
-                count += 1
+        count = common.count_assets(path)
 
         # Removing the server and job name from the selection
         path = path.replace(self.pick_job_widget.currentData(QtCore.Qt.PathRole).filePath(), '')

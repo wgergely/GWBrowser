@@ -22,13 +22,14 @@ from ConfigParser import ConfigParser
 from PySide2 import QtCore
 
 # Flags
-NoFlag = 0x000
-MarkedAsArchived = 0x1000
-MarkedAsFavourite = 0x2000
-MarkedAsActive = 0x3000
+NoFlag = 0
+MarkedAsArchived = 0b100000000
+MarkedAsFavourite = 0b1000000000
+MarkedAsActive = 0b10000000000
 
 
-class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style class!
+# ConfigParser is an old-style class!
+class UnicodeConfigParser(object, ConfigParser):
     """Unicode capable ConfigParser."""
     SECTIONS = []
 
@@ -43,7 +44,8 @@ class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style
             fp.write(u'[{}]\n'.format('DEFAULT'))
             for (key, value) in self._defaults.items():
                 s = u'{key} = {value}\n'
-                fp.write(s.format(key=key, value=str(value).replace('\n', '\n\t')))
+                fp.write(s.format(key=key, value=str(
+                    value).replace('\n', '\n\t')))
             fp.write(u'\n')
         for section in self._sections:
             fp.write(u'[{}]\n'.format(section))
@@ -51,7 +53,8 @@ class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style
                 if key == '__name__':
                     continue
                 if (value is not None) or (self._optcre == self.OPTCRE):
-                    key = ' = '.join((key, str(value).decode('utf-8').replace('\n', '\n\t')))
+                    key = ' = '.join(
+                        (key, str(value).decode('utf-8').replace('\n', '\n\t')))
                 fp.write(u'{}\n'.format(key))
             fp.write(u'\n')
 
@@ -61,7 +64,8 @@ class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style
         Make sure to overwrite this in the subclass.
 
         """
-        raise NotImplementedError('getConfigPath() has to be overwritten in the subclass.')
+        raise NotImplementedError(
+            'getConfigPath() has to be overwritten in the subclass.')
 
     @staticmethod
     def set_hidden(path, hide=True):
@@ -111,9 +115,9 @@ class UnicodeConfigParser(object, ConfigParser):  # ConfigParser is an old-style
         self.set(section, option, '{}'.format(val))
         return self.get(section, option)
 
+
 class Settings():
     """Module used to store application specific settings"""
-
 
 
 class LocalSettings(QtCore.QSettings):
@@ -142,7 +146,7 @@ class LocalSettings(QtCore.QSettings):
 class CustomConfig(UnicodeConfigParser):
     """Baseclass for the Asset- and FileConfigs."""
 
-    SECTIONS = ['properties',]
+    SECTIONS = ['properties', ]
 
     def __init__(self, path):
         super(CustomConfig, self).__init__(path)

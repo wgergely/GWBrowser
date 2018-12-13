@@ -193,18 +193,18 @@ QScrollBar {{
 	height:6px;
 }}
 QScrollBar:vertical, QScrollBar:horizontal {{
-	background: rgba({SECONDARY_BACKGROUND});
+	background: rgba({SEPARATOR});
 	border: none;
 }}
 QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {{
-	background: rgba({SECONDARY_BACKGROUND});
+	background: rgba({BACKGROUND_SELECTED});
 	border: 0px solid;
 	border-radius: 2px;
 	max-height: 250px;
 	min-height: 50px;
 }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
-	background: rgba({SECONDARY_BACKGROUND});
+	background: rgba({SEPARATOR});
 }}
 
 QListWidget {{

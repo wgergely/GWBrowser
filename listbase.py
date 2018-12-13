@@ -380,20 +380,20 @@ class BaseListWidget(QtWidgets.QListWidget):
         self._contextMenu = self.ContextMenu(index, parent=self)
         if index.isValid():
             rect = self.visualRect(index)
-            self._contextMenu.setFixedWidth(self.rect().width())
+            self._contextMenu.setFixedWidth(self.viewport().rect().width())
             self._contextMenu.show()
-            self._contextMenu.move(self.mapToGlobal(rect.bottomLeft()))
+            self._contextMenu.move(self.viewport().mapToGlobal(rect.bottomLeft()))
         else:
-            self._contextMenu.setFixedWidth(self.rect().width())
+            self._contextMenu.setFixedWidth(self.viewport().rect().width())
             self._contextMenu.show()
             cursor_pos = QtGui.QCursor().pos()
             self._contextMenu.move(
-                self.mapToGlobal(self.rect().topLeft()).x(),
+                self.viewport().mapToGlobal(self.viewport().rect().topLeft()).x(),
                 cursor_pos.y()
             )
         self._contextMenu.move(self._contextMenu.x(), self._contextMenu.y())
 
-        self.parent().parent().move_widget_to_available_geo(self._contextMenu)
+        common.move_widget_to_available_geo(self._contextMenu)
 
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
