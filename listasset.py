@@ -25,7 +25,7 @@ from mayabrowser.listbase import BaseListWidget
 
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
-from mayabrowser.configparsers import AssetConfig
+from mayabrowser.configparsers import AssetSettings
 from mayabrowser.collector import AssetCollector
 from mayabrowser.delegate import AssetWidgetDelegate
 from mayabrowser.popover import PopupCanvas
@@ -45,41 +45,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
     """
 
-    def location_changed(self, action):
-        """Action triggered when the location has changed.
-
-        Args:
-            action (QAction):       Instance of the triggered action.
-
-        """
-        local_settings.server = action.data()[0]
-        local_settings.job = action.data()[1]
-        local_settings.root = action.data()[2]
-        self.parent().parent().parent().sync_config()
-
-    def add_location(self):
-        """Populates the menu with location of asset locations."""
-        submenu = self.addMenu('Locations')
-        if not local_settings.location:
-            return
-
-        for item in local_settings.location:
-            if item[0] == '':
-                continue
-            action = submenu.addAction('{}/{}/{}'.format(*item))
-            action.setData(item)
-            action.triggered.connect(
-                functools.partial(self.location_changed, action))
-            action.setCheckable(True)
-            if (
-                (item[0] == local_settings.server) and
-                (item[1] == local_settings.job) and
-                (item[2] == local_settings.root)
-            ):
-                action.setChecked(True)
-
     def add_actions(self):
-        self.add_location()
         self.add_action_set(self.ACTION_SET)
 
     @property
@@ -87,18 +53,20 @@ class AssetWidgetContextMenu(BaseContextMenu):
         """A custom set of actions to display."""
         items = OrderedDict()
         if self.index.isValid():
-            config = self.parent().Config(self.index.data(QtCore.Qt.StatusTipRole))
-            data = self.index.data(QtCore.Qt.StatusTipRole)
-            name = QtCore.QFileInfo(data).fileName()
+            file_info = self.index.data(QtCore.Qt.PathRole)
+            settings = AssetSettings(file_info.filePath())
 
-            items['<separator>0'] = {}
-            items['Set as active asset'] = {}
+            items[file_info.filePath()] = {'disabled': True}
+            items['Activate'] = {}
             items['<separator>.'] = {}
             items['Capture thumbnail'] = {}
             items['<separator>..'] = {}
+
+            favourites = local_settings.value('favourites')
+            favourites = favourites if favourites else []
             items['Favourite'] = {
-            'checkable': True,
-            'checked': local_settings.is_favourite(name)
+                'checkable': True,
+                'checked': True if file_info.filePath() in favourites else False
             }
             items['Isolate favourites'] = {
                 'checkable': True,
@@ -111,9 +79,12 @@ class AssetWidgetContextMenu(BaseContextMenu):
             items['Show renders'] = {}
             items['Show textures'] = {}
             items['<separator>....'] = {}
+
+            archived = settings.value('flags/archived')
+            archived = archived if archived else False
             items['Archived'] = {
                 'checkable': True,
-                'checked': config.archived
+                'checked': archived
             }
         items['Show archived'] = {
             'checkable': True,
@@ -127,8 +98,9 @@ class AssetWidgetContextMenu(BaseContextMenu):
         items['Refresh'] = {}
         return items
 
-    def set_as_active_asset(self):
-        self.parent().active_item = self.parent().currentItem()
+    def activate(self):
+        """Sets the current item as ``active``."""
+        self.parent().set_current_item_as_active()
 
     def capture_thumbnail(self):
         self.parent().capture_thumbnail()
@@ -153,20 +125,54 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
 
 class AssetWidget(BaseListWidget):
-    """Custom QListWidget containing all the collected maya assets.
+    """Custom QListWidget for displaying the found assets inside the set ``path``.
 
-    Assets are folders with an identifier file, by default
-    the asset collector will look for a file in the root of the asset folder
-    called ``workspace.mel``. If this file is not found the folder is ignored.
+    Arguments:
+        server (str):   The server, job and root, making up the path to querry.
+        job (str):
+        root (str):
+
+    Methods:
+        set_path([str, str, str]):  Sets the path.
 
     """
-    Config = AssetConfig
     Delegate = AssetWidgetDelegate
     ContextMenu = AssetWidgetContextMenu
 
-    def __init__(self, parent=None):
+    # Signals
+    activeChanged = QtCore.Signal(str)
+
+    def __init__(self, server=None, job=None, root=None, parent=None):
+        self._path = (server, job, root)
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
+
+    def set_path(self, server, job, root):
+        """Sets the path."""
+        self._path = (server, job, root)
+
+    def set_current_item_as_active(self):
+        """Sets the current item item as ``active``."""
+        item = self.currentItem()
+
+
+        archived = item.flags() & configparser.MarkedAsArchived
+        if archived:
+            return
+
+        # Updating the local config file
+        asset = item.data(QtCore.Qt.PathRole).baseName()
+        local_settings.setValue('activepath/asset', asset)
+
+        # Set flags
+        active_item = self.active_item()
+        if active_item:
+            active_item.setFlags(active_item.flags() & ~
+                                 configparser.MarkedAsActive)
+        item.setFlags(item.flags() | configparser.MarkedAsActive)
+
+        # Emiting change a signal upon change
+        self.activeChanged.emit(asset)
 
     def show_popover(self):
         """Popup widget show on long-mouse-press."""
@@ -183,57 +189,6 @@ class AssetWidget(BaseListWidget):
         QtCore.QCoreApplication.instance().sendEvent(self.popover, click)
         QtCore.QCoreApplication.instance().postEvent(self.popover, click)
 
-    @property
-    def current_filter(self):
-        """The current filter - this is not currently  implemented for ``AssetWidget``."""
-        return '/'
-
-    @property
-    def active_item(self):
-        """``active_item`` defines the currently set maya asset.
-        The property is querried by FilesWidget to list the available
-        Maya scenes.
-
-        Note:
-            Setting ``active_item`` emits a ``assetChanged`` signal.
-
-        """
-        if not self.collector.active_item:
-            return None
-        item = self.findItems(
-            self.collector.active_item.baseName().upper(),
-            QtCore.Qt.MatchEndsWith | QtCore.Qt.MatchStartsWith | QtCore.Qt.MatchContains
-        )
-        return item[0] if item else None
-
-    @active_item.setter
-    def active_item(self, item):
-        if isinstance(item, (QtCore.QModelIndex, QtWidgets.QListWidgetItem)):
-            data = item.data(QtCore.Qt.StatusTipRole)
-            self.collector.set_active_item(QtCore.QFileInfo(data))
-            self.viewport().repaint()
-            self.assetChanged.emit()
-        else:
-            self.collector.set_active_item(None)
-
-    @property
-    def show_favourites_mode(self):
-        """The current show favourites state as saved in the local configuration file."""
-        return local_settings.show_favourites_asset_mode
-
-    @show_favourites_mode.setter
-    def show_favourites_mode(self, val):
-        local_settings.show_favourites_asset_mode = val
-
-    @property
-    def show_archived_mode(self):
-        """The current Show archived state as saved in the local configuration file."""
-        return local_settings.show_archived_asset_mode
-
-    @show_archived_mode.setter
-    def show_archived_mode(self, val):
-        local_settings.show_archived_asset_mode = val
-
     def refresh(self):
         """Refreshes the list of found assets."""
         # Remove QFileSystemWatcher paths:
@@ -241,10 +196,7 @@ class AssetWidget(BaseListWidget):
             self.fileSystemWatcher.removePath(path)
 
         idx = self.currentIndex()
-        self.collector.update(**self.parent().parent()._kwargs)
-        self.add_items()  # Adds the file
-
-        self.parent().parent().sync_active_maya_asset()
+        self.add_items()
         self.set_row_visibility()
         self.setCurrentIndex(idx)
 
@@ -262,43 +214,46 @@ class AssetWidget(BaseListWidget):
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
-        if self.collector.root_info:
-            self.fileSystemWatcher.addPath(
-                self.collector.root_info.filePath()
-            )
+        if not any(self._path):
+            return
 
-        for f in self.collector.items:
+        collector = AssetCollector('/'.join(self._path))
+        self.fileSystemWatcher.addPath('/'.join(self._path))
+
+        for f in collector.get():
             item = QtWidgets.QListWidgetItem()
-            item.setData(
-                QtCore.Qt.DisplayRole,
-                f.baseName().upper()
-            )
-            item.setData(
-                QtCore.Qt.EditRole,
-                f.baseName().upper()
-            )
-            item.setData(
-                QtCore.Qt.StatusTipRole,
-                f.filePath()
-            )
-            item.setData(
-                QtCore.Qt.ToolTipRole,
-                f.filePath()
-            )
+            item.setData(QtCore.Qt.DisplayRole, f.baseName())
+            item.setData(QtCore.Qt.EditRole,
+                         item.data(QtCore.Qt.DisplayRole))
+            item.setData(QtCore.Qt.StatusTipRole,
+                         u'Asset: {}\n{}'.format(
+                             f.baseName(), f.filePath()
+                         ))
+            item.setData(QtCore.Qt.ToolTipRole,
+                         item.data(QtCore.Qt.StatusTipRole))
 
-            config = self.Config(f.filePath())
-            flags = configparser.NoFlag
-            if config.archived:
-                flags = flags | configparser.MarkedAsArchived
-            elif local_settings.is_favourite(f.fileName()):
-                flags = flags | configparser.MarkedAsFavourite
-
+            item.setData(QtCore.Qt.PathRole, f)
             item.setData(
-                QtCore.Qt.UserRole,
-                flags
-            )
-            item.setSizeHint(QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
+                QtCore.Qt.SizeHintRole,
+                QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT))
+
+            settings = AssetSettings(f.filePath())
+            item.setData(QtCore.Qt.UserRole, settings.value(
+                'description/description'))  # Notes will be stored here
+
+            # Flags
+            if settings.value('flags/archived'):
+                item.setFlags(item.flags() | configparser.MarkedAsArchived)
+            favourites = local_settings.value('favourites')
+            favourites = favourites if favourites else []
+            if f.filePath() in favourites:
+                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
+
+            if f.baseName() == local_settings.value('activepath/asset'):
+                item.setFlags(item.flags() | configparser.MarkedAsActive)
+
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+
             self.addItem(item)
 
     def action_on_enter_key(self):
@@ -417,6 +372,15 @@ class AssetWidget(BaseListWidget):
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
+    def _warning_strings(self):
+        server, job, root = self._path
+        if not all(self._path):
+            return 'No Bookmark has been set yet.\nAssets will be shown here after you select one in the Bookmarks menu.'
+        if not any(self._path):
+            return 'Error: Invalid path set.\nServer: {}\nJob: {}\nRoot: {}'.format(
+                server, job, root
+            )
+
     def eventFilter(self, widget, event):
         """AssetWidget's custom paint is triggered here.
 
@@ -428,32 +392,22 @@ class AssetWidget(BaseListWidget):
             self._paint_widget_background()
 
             if self.count() == 0:
-                # Message to show when no assets are found.
-                set_text = 'No assets found in \n{}/{}/{}'.format(
-                    self.parent().parent()._kwargs['server'],
-                    self.parent().parent()._kwargs['job'],
-                    self.parent().parent()._kwargs['root'],
-                ).strip('/')
-
-                # Message to show when no configuration has been set.
-                not_set_text = 'No location has been set.\n'
-                not_set_text += 'Right-click on the Browser Toolbar and select \'Configure\' to set the location of your assets.'
-                text = set_text if self.parent().parent()._kwargs['server'] else not_set_text
-
-                self.paint_message(text)
+                self.paint_message(self._warning_strings())
             elif self.count() > self.count_visible():
                 self.paint_message(
-                    '{} items are hidden by filters'.format(self.count() - self.count_visible())
+                    'All {} items are hidden by filters'.format(
+                        self.count() - self.count_visible())
                 )
 
         return False
 
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-        self.parent().parent().sync_active_maya_asset(setActive=False)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    app.w = AssetWidget()
+    app.w = AssetWidget('//gordo/jobs', 'tkwwbk_8077', 'build')
+    # app.w.set_path('//gordo/jobs','tkwwbk_8077', 'build')
     app.w.show()
     app.exec_()

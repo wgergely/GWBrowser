@@ -36,6 +36,7 @@ Example:
 import re
 from PySide2 import QtCore
 from mayabrowser.configparsers import local_settings
+import mayabrowser.common as common
 
 
 class AssetCollector(object):
@@ -45,8 +46,10 @@ class AssetCollector(object):
         path (str):             Path to an ``asset`` folder as a string.
 
     """
+
     def __init__(self, path):
         self._path = path
+        self._count = 0
 
         file_info = QtCore.QFileInfo(self._path)
         if not file_info.exists():
@@ -54,12 +57,18 @@ class AssetCollector(object):
         elif not file_info.isReadable():
             raise IOError('"{}" is not readable.'.format(file_info.filePath()))
 
+    @property
+    def count(self):
+        """The number of assets found."""
+        return self._count
+
     def _generator(self):
         """Generator expression. Collects files from the ``path`` and the subdirectories
         within.
 
         Yields: A QFileInfo instance.
         """
+        self._count = 0
         it = QtCore.QDirIterator(
             self._path,
             flags=QtCore.QDir.NoSymLinks |
@@ -68,12 +77,25 @@ class AssetCollector(object):
         )
         while it.hasNext():
             path = it.next()
-            item = QtCore.QDir(path)
+            item = QtCore.QFileInfo(path)
+
             if item.fileName() == '.' or item.fileName() == '..':
                 continue
             if not item.isDir():
                 continue
-            QtCore.QDir(path)
+
+            # Validate assets and skip folders without the identifier
+            identifier = QtCore.QDir(path).entryList(
+                (common.ASSET_IDENTIFIER, ),
+                filters=QtCore.QDir.Files |
+                QtCore.QDir.NoDotAndDotDot |
+                QtCore.QDir.NoSymLinks
+            )
+
+            if not identifier:
+                continue
+
+            self._count += 1
             yield item
 
     def get(self, sort_order=0, reverse=False, filter=None):

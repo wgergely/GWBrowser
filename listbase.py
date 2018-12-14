@@ -27,27 +27,24 @@ class BaseContextMenu(Actions):
         self.add_action_set(self.ActionSet)
 
     def favourite(self):
-        """Toggles the state of the item."""
-        data = self.index.data(QtCore.Qt.StatusTipRole)
-        file_info = QtCore.QFileInfo(data)
-        config = self.parent().Config(file_info.filePath())
+        """Toggles the favourite state of the item."""
+        item = self.parent().currentItem()
+        file_info = item.data(QtCore.Qt.PathRole)
 
-        flags = configparser.NoFlag
-        if config.archived:
-            flags = flags | configparser.MarkedAsArchived
+        archived = item.flags() & configparser.MarkedAsArchived
+        if archived: # Favouriting archived items are not allowed
+            return
 
-        # Saving the config file and flags
-        if local_settings.is_favourite(file_info.fileName()):
-            local_settings.remove_favourite(file_info.fileName())
+        favourites = local_settings.value('favourites')
+        favourites = favourites if favourites else []
+        if file_info.filePath() in favourites:
+            item.setFlags(item.flags() & ~configparser.MarkedAsFavourite) # clears flag
+            favourites.remove(file_info.filePath())
         else:
-            flags = flags | configparser.MarkedAsFavourite
-            local_settings.set_favourite(file_info.fileName())
+            favourites.append(file_info.filePath())
+            item.setFlags(item.flags() | configparser.MarkedAsFavourite) # adds flag
+        local_settings.setValue('favourites', favourites)
 
-        item = self.parent().itemFromIndex(self.index)
-        item.setData(
-            QtCore.Qt.UserRole,
-            flags
-        )
         self.parent().set_row_visibility()
 
     def isolate_favourites(self):
@@ -109,7 +106,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         # Scrollbar visibility
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
-        #Style
+        # Style
         common.set_custom_stylesheet(self)
 
         # Keyboard search timer and placeholder string.
@@ -128,6 +125,46 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+
+    @property
+    def filter(self):
+        """The current filter."""
+        val = local_settings.value('widget/{}/filter'.format(self.__class__.__name__))
+        return val if val else False
+
+    @filter.setter
+    def filter(self, val):
+        local_settings.setValue('widget/{}/filter'.format(self.__class__.__name__), val)
+
+    @property
+    def show_favourites_mode(self):
+        """The current show favourites state as saved in the local configuration file."""
+        val = local_settings.value('widget/{}/show_favourites'.format(self.__class__.__name__))
+        return val if val else False
+
+    @show_favourites_mode.setter
+    def show_favourites_mode(self, val):
+        local_settings.setValue('widget/{}/show_favourites'.format(self.__class__.__name__), val)
+
+    @property
+    def show_archived_mode(self):
+        """The current Show archived state as saved in the local configuration file."""
+        val = local_settings.value('widget/{}/show_archived'.format(self.__class__.__name__))
+        return val if val else False
+
+    @show_archived_mode.setter
+    def show_archived_mode(self, val):
+        local_settings.setValue('widget/{}/show_archived'.format(self.__class__.__name__), val)
+
+    @property
+    def sort_order(self):
+        val = local_settings.value('widget/{}/sort_order'.format(self.__class__.__name__))
+        return val if val else False
+
+    @sort_order.setter
+    def sort_order(self, val):
+        local_settings.setValue('widget/{}/sort_order'.format(self.__class__.__name__), val)
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item."""
@@ -154,7 +191,6 @@ class BaseListWidget(QtWidgets.QListWidget):
 
             if result != QtWidgets.QMessageBox.Save:
                 return
-
 
         path = self.Config.getThumbnailPath(file_info.filePath())
         # Deleting the thumbnail from our image cache
@@ -190,8 +226,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         on the keyboard.
 
         """
-        visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
-        if visible_items: # jumping to the beginning of the list after the last item
+        visible_items = [self.item(n) for n in xrange(
+            self.count()) if not self.item(n).isHidden()]
+        if visible_items:  # jumping to the beginning of the list after the last item
             if self.currentItem() is visible_items[-1]:
                 self.setCurrentItem(
                     visible_items[0],
@@ -215,8 +252,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         on the keyboard.
 
         """
-        visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
-        if visible_items: # jumping to the end of the list after the first item
+        visible_items = [self.item(n) for n in xrange(
+            self.count()) if not self.item(n).isHidden()]
+        if visible_items:  # jumping to the end of the list after the first item
             if self.currentItem() is visible_items[0]:
                 self.setCurrentItem(
                     visible_items[-1],
@@ -247,7 +285,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         cursor = QtGui.QCursor()
         opos = cursor.pos()
         rect = self.visualRect(self.currentIndex())
-        rect, _, _ = self.itemDelegate().get_note_rect(rect)
+        rect, _, _ = self.itemDelegate().get_description_rect(rect)
         pos = self.mapToGlobal(rect.topLeft())
         cursor.setPos(pos)
         self.editItem(self.currentItem())
@@ -285,9 +323,10 @@ class BaseListWidget(QtWidgets.QListWidget):
                     self.timer.start()
 
                 self.timed_search_string += event.text()
-                self.timer.start() # restarting timer on input
+                self.timer.start()  # restarting timer on input
 
-                visible_items = [self.item(n) for n in xrange(self.count()) if not self.item(n).isHidden()]
+                visible_items = [self.item(n) for n in xrange(
+                    self.count()) if not self.item(n).isHidden()]
                 for item in visible_items:
                     # When only one key is pressed we want to cycle through
                     # only items starting with that letter:
@@ -361,7 +400,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         parent = self.viewport()
         option = self.viewOptions()
 
-        note_rect, _, _ = self.itemDelegate().get_note_rect(rect)
+        note_rect, _, _ = self.itemDelegate().get_description_rect(rect)
         thumbnail_rect = self.itemDelegate().get_thumbnail_rect(rect)
         location_rect = self.itemDelegate().get_location_editor_rect(rect)
 
@@ -374,7 +413,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         else:
             self.custom_doubleclick_event(index)
 
-
     def contextMenuEvent(self, event):
         index = self.indexAt(event.pos())
         self._contextMenu = self.ContextMenu(index, parent=self)
@@ -382,7 +420,8 @@ class BaseListWidget(QtWidgets.QListWidget):
             rect = self.visualRect(index)
             self._contextMenu.setFixedWidth(self.viewport().rect().width())
             self._contextMenu.show()
-            self._contextMenu.move(self.viewport().mapToGlobal(rect.bottomLeft()))
+            self._contextMenu.move(
+                self.viewport().mapToGlobal(rect.bottomLeft()))
         else:
             self._contextMenu.setFixedWidth(self.viewport().rect().width())
             self._contextMenu.show()
@@ -399,15 +438,25 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
         # self.fileSystemWatcher.fileChanged.connect(self.refresh)
 
+    def active_item(self):
+        """Return the ``active`` item.
+
+        The active item is indicated by the ``configparser.MarkedAsActive`` flag.
+        If no item has been flagged as `active`, returns ``None``.
+        """
+        for n in xrange(self.count()):
+            item = self.item(n)
+            if item.flags() & configparser.MarkedAsActive:
+                return item
+        return None
+
     def set_row_visibility(self):
         """Sets the visibility of the list-items based on modes and options."""
         for n in xrange(self.count()):
             item = self.item(n)
 
-            markedAsArchived = bool(item.data(
-                QtCore.Qt.UserRole) & configparser.MarkedAsArchived)
-            markedAsFavourite = bool(item.data(
-                QtCore.Qt.UserRole) & configparser.MarkedAsFavourite)
+            markedAsArchived = item.flags() & configparser.MarkedAsArchived
+            markedAsFavourite = item.flags() & configparser.MarkedAsFavourite
 
             if self.show_archived_mode and self.show_favourites_mode:
                 if markedAsFavourite:
@@ -439,15 +488,17 @@ class BaseListWidget(QtWidgets.QListWidget):
         """Paints a custom message onto the list widget."""
         painter = QtGui.QPainter()
         painter.begin(self)
-        rect = QtCore.QRect(self.rect())
+        rect = QtCore.QRect(self.viewport().rect())
         rect.moveLeft(rect.left())  # offsetting by the margin
         rect.setWidth(self.rect().width())
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        painter.setPen(QtGui.QPen(QtGui.QColor(200, 200, 200)))
+        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
+
+
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignCenter,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignCenter | QtCore.Qt.TextWordWrap,
             text
         )
 

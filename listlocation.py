@@ -144,18 +144,6 @@ class BookmarksWidget(BaseListWidget):
     def _connectSignals(self):
         pass
 
-    def active_item(self):
-        """Return the ``active`` item.
-
-        The active item is indicated by the ``configparser.MarkedAsActive`` flag.
-        If no item has been flagged as `active`, returns ``None``.
-        """
-        for n in xrange(self.count()):
-            item = self.item(n)
-            if item.flags() & configparser.MarkedAsActive:
-                return item
-        return None
-
     def set_current_item_as_active(self):
         """Sets the current item item as ``active``."""
         item = self.currentItem()
