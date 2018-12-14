@@ -16,10 +16,27 @@ SERVERS = [
     {'path': '//sloth/jobs', 'nickname': 'Sloth'},
     {'path': '//localhost/c$/temp', 'nickname': 'Local Drive'},
 ]
+"""Default values for the server have to be hard-coded.
+Make sure to customize these settings depending on your environment."""
+
+ASSET_IDENTIFIER = 'workspace.mel'
+"""When with the given name is present in the root of a folder, it will be
+considered an ``assets``."""
+
+ASSET_FOLDERS = {
+    'exports': 'exports',
+    'scenes': 'scenes',
+    'renders': 'renders'
+}
+"""``Assets`` are directory structures compartmentalizing data. ``Browser``
+is designed to read and annote ``scene``, ``cache`` (exports) and
+``rendere`` files.
+
+Depending on your setup these folder might have different names you can
+customize here. Browser will assume all of these folder reside in the root of
+the ``asset`` folder.
 """
-Some settings, such network path for the shared server have to be hard-coded.
-Customize these variables as needed.
-"""
+
 
 QtCore.Qt.PathRole = 0x0200  # Role used to store FileInfo items
 """Special Role used to store QFileInfo objects."""

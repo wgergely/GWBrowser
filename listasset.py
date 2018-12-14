@@ -165,11 +165,6 @@ class AssetWidget(BaseListWidget):
     ContextMenu = AssetWidgetContextMenu
 
     def __init__(self, parent=None):
-        self._collector = AssetCollector(
-            server=local_settings.server,
-            job=local_settings.job,
-            root=local_settings.root
-        )
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
 
@@ -187,11 +182,6 @@ class AssetWidget(BaseListWidget):
         )
         QtCore.QCoreApplication.instance().sendEvent(self.popover, click)
         QtCore.QCoreApplication.instance().postEvent(self.popover, click)
-
-    @property
-    def collector(self):
-        """The collector object associated with the widget."""
-        return self._collector
 
     @property
     def current_filter(self):
@@ -461,3 +451,9 @@ class AssetWidget(BaseListWidget):
     def showEvent(self, event):
         """Show event will set the size of the widget."""
         self.parent().parent().sync_active_maya_asset(setActive=False)
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    app.w = AssetWidget()
+    app.w.show()
+    app.exec_()
