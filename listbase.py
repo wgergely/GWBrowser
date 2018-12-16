@@ -394,7 +394,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         """
         super(BaseListWidget, self).mouseDoubleClickEvent(event)
         index = self.indexAt(event.pos())
-        item = self.itemAt(event.pos())
         rect = self.visualRect(index)
 
         parent = self.viewport()
@@ -405,11 +404,12 @@ class BaseListWidget(QtWidgets.QListWidget):
         location_rect = self.itemDelegate().get_location_editor_rect(rect)
 
         if note_rect.contains(event.pos()):
-            self.itemDelegate().createEditor(parent, option, index, editor=0)
+            editor = self.itemDelegate().createEditor(parent, option, index, editor=1)
+            print editor.show()
         elif thumbnail_rect.contains(event.pos()):
-            self.itemDelegate().createEditor(parent, option, index, editor=1)
-        elif location_rect.contains(event.pos()):
             self.itemDelegate().createEditor(parent, option, index, editor=2)
+        elif location_rect.contains(event.pos()):
+            self.itemDelegate().createEditor(parent, option, index, editor=3)
         else:
             self.custom_doubleclick_event(index)
 
@@ -437,6 +437,26 @@ class BaseListWidget(QtWidgets.QListWidget):
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
         # self.fileSystemWatcher.fileChanged.connect(self.refresh)
+
+
+    def set_current_item_as_active(self):
+        """Sets the current item item as ``active``."""
+        item = self.currentItem()
+
+        if not item:
+            return
+
+        archived = item.flags() & configparser.MarkedAsArchived
+        if archived:
+            return
+
+        # Set flags
+        active_item = self.active_item()
+        if active_item:
+            active_item.setFlags(active_item.flags() & ~
+                                 configparser.MarkedAsActive)
+        item.setFlags(item.flags() | configparser.MarkedAsActive)
+
 
     def active_item(self):
         """Return the ``active`` item.

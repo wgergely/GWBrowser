@@ -80,6 +80,8 @@ LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
 LABEL1 = QtGui.QColor(82, 153, 105)
 LABEL1_TEXT = QtGui.QColor(162, 233, 185)
 
+THUMBNAIL_IMAGE_SIZE = 1024
+
 
 def get_thumbnail_pixmap(path, opacity=1, size=(ROW_BUTTONS_HEIGHT)):
     """Returns a pixmap of the input path."""

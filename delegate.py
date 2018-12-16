@@ -182,19 +182,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pen.setWidth(2)
         painter.setPen(pen)
 
-        # Thumbnail
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(4)
-        rect.setWidth(option.rect.height())
-
-        rect.setTop(rect.top() + WIDTH)
-        rect.setBottom(rect.bottom() - (WIDTH))
-        rect.setLeft(rect.left() + WIDTH)
-        rect.setRight(rect.right() - (WIDTH))
-
-        painter.drawRect(rect)
-
-        # Rest
+        # Main rectangle
         rect = QtCore.QRect(option.rect)
         rect.setLeft(4 + option.rect.height())
 
@@ -255,7 +243,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.THUMBNAIL_BACKGROUND
 
         rect = QtCore.QRect(option.rect)
-        # Making the aspect ratio of the image 16/9
         rect.setLeft(rect.left() + 4)  # Accounting for the leading indicator
         rect.setWidth(rect.height())
 
@@ -517,7 +504,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(rect.height())
         return rect
 
-    def createEditor(self, parent, option, index, editor=None):  # pylint: disable=W0613
+    def createEditor(self, parent, option, index, editor=0):  # pylint: disable=W0613
         """Creates the custom editors needed to edit the thumbnail and the description.
 
         References:
@@ -526,13 +513,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """
         if not editor:
             return
-        elif editor == 0:  # Editor to edit notes
+        elif editor == 1:  # Editor to edit notes
             rect, _, _ = self.get_description_rect(option.rect)
             return self.get_noteeditor_cls(index, rect, self.parent(), parent=parent)
-        elif editor == 1:  # Editor to pick a thumbnail
+        elif editor == 2:  # Editor to pick a thumbnail
             rect = self.get_thumbnail_rect(option.rect)
             return self.get_thumbnaileditor_cls(index, rect, self.parent(), parent=parent)
-        elif editor == 2:  # Button to remove a location, no editor needed
+        elif editor == 3:  # Button to remove a location, no editor needed
             return
 
     def sizeHint(self, option, index):
@@ -841,7 +828,7 @@ class AssetWidgetDelegate(BaseDelegate):
     @staticmethod
     def get_noteeditor_cls(*args, **kwargs):
         """The widget used to edit the description of the asset."""
-        return AssetNoteEditor(*args, **kwargs)
+        return NoteEditor(*args, **kwargs)
 
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
@@ -1178,7 +1165,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
     @staticmethod
     def get_noteeditor_cls(*args, **kwargs):
-        return SceneNoteEditor(*args, **kwargs)
+        return NoteEditor(*args, **kwargs)
 
 
 class ThumbnailEditor(QtWidgets.QWidget):
@@ -1186,33 +1173,36 @@ class ThumbnailEditor(QtWidgets.QWidget):
 
     def __init__(self, index, rect, view, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
-        self._index = index
-        self._rect = rect
-        self._view = view
 
-        self.dialog = QtWidgets.QFileDialog()
-        self.dialog.setFileMode(QtWidgets.QFileDialog.AnyFile)
-        self.dialog.setViewMode(QtWidgets.QFileDialog.List)
-        self.dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        self.dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
+        file_info = index.data(QtCore.Qt.PathRole)
+        settings = AssetSettings(file_info.filePath())
+        dialog = QtWidgets.QFileDialog()
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
+        dialog.setDirectory(QtCore.QDir(file_info.filePath()))
+        dialog.setOption(QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
-        if not self.dialog.exec_():
+        if not dialog.exec_():
             return
-        if not self.dialog.selectedFiles():
+
+        if not dialog.selectedFiles():
             return
 
         image = QtGui.QImage()
-        image.load(self.dialog.selectedFiles()[0])
-        image = self.smooth_copy(image, 512)
+        image.load(next(f for f in dialog.selectedFiles()))
+        image = self.smooth_copy(image, common.THUMBNAIL_IMAGE_SIZE)
 
-        path = self.get_thumbnail_path(index)
+        # Deleting previous thumbnail from the image cache
+        if settings.thumbnail_path() in common.IMAGE_CACHE:
+            del common.IMAGE_CACHE[settings.thumbnail_path()]
 
-        # Deleting the thumbnail from the image cache
-        if path in common.IMAGE_CACHE:
-            del common.IMAGE_CACHE[path]
-
-        if image.save(path):
-            AssetConfig.set_hidden(path, hide=True)
+        # Saving the thumbnail and creating the directories as necessary
+        file_info = QtCore.QFileInfo(settings.thumbnail_path())
+        if not file_info.dir().exists():
+            QtCore.QDir().mkpath(file_info.dir().path())
+        if image.save(settings.thumbnail_path()):
             self.parent().update()
 
     @staticmethod
@@ -1232,19 +1222,6 @@ class ThumbnailEditor(QtWidgets.QWidget):
         )
         return image
 
-    def get_thumbnail_path(self, index):
-        """Abstract."""
-        raise NotImplementedError(
-            'Method is abstract and has to be overwritten.')
-
-
-class SceneThumbnailEditor(ThumbnailEditor):
-    """Edits the asset's thumbnail."""
-
-    def get_thumbnail_path(self, index):
-        """The path of the asset's thumbnail."""
-        return FileConfig.getThumbnailPath(index.data(QtCore.Qt.StatusTipRole))
-
 
 class NoteEditor(QtWidgets.QWidget):
     """Note editor baseclass."""
@@ -1254,9 +1231,6 @@ class NoteEditor(QtWidgets.QWidget):
         self._index = index
         self._rect = rect
         self._view = view
-
-        self.config = self.get_config_instance(
-            self._index.data(QtCore.Qt.StatusTipRole))
 
         self.editor = None
         self._createUI()
@@ -1356,20 +1330,16 @@ class NoteEditor(QtWidgets.QWidget):
         """
         )
 
-    @staticmethod
-    def get_config_instance(*args, **kwargs):
-        """Abstract method."""
-        raise NotImplementedError(
-            'Action is abstract and needs to be overwritten in the subclass.')
-
     def showEvent(self, event):  # pylint: disable=W0613
         """Show event."""
+        return
         self.move(
             self._rect.left(),
             self._rect.top()
         )
         self.setFixedWidth(self._rect.width())
-        self.editor.setText(self.config.description)
+
+        self.editor.setText(self._index.data(QtCore.Qt.UserRole))
         self.editor.selectAll()
 
     def action(self):
@@ -1386,23 +1356,3 @@ class NoteEditor(QtWidgets.QWidget):
         except TypeError:
             item = self._view.itemFromIndex(self._index)
             self._view.closePersistentEditor(item)
-
-
-class AssetNoteEditor(NoteEditor):
-    """Edits the notes of assets."""
-
-    def __init__(self, *args, **kwargs):
-        super(AssetNoteEditor, self).__init__(*args, **kwargs)
-        self.editor.setAlignment(QtCore.Qt.AlignRight)
-
-    @staticmethod
-    def get_config_instance(*args, **kwargs):
-        return AssetConfig(*args, **kwargs)
-
-
-class SceneNoteEditor(NoteEditor):
-    """Edits the notes of assets."""
-
-    @staticmethod
-    def get_config_instance(*args, **kwargs):
-        return FileConfig(*args, **kwargs)

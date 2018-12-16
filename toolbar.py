@@ -30,7 +30,7 @@ from mayabrowser.common import MayaQWidgetDockableMixin
 from mayabrowser.common import shiboken2
 
 from mayabrowser.listlocation import BookmarksWidget
-from mayabrowser.listasset import AssetWidget
+from mayabrowser.assetwidget import AssetWidget
 from mayabrowser.listmaya import MayaFilesWidget
 from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetConfig

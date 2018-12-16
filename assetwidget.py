@@ -16,7 +16,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import os
 from collections import OrderedDict
-import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
@@ -153,23 +152,11 @@ class AssetWidget(BaseListWidget):
 
     def set_current_item_as_active(self):
         """Sets the current item item as ``active``."""
-        item = self.currentItem()
-
-
-        archived = item.flags() & configparser.MarkedAsArchived
-        if archived:
-            return
+        super(AssetWidget, self).set_current_item_as_active()
 
         # Updating the local config file
-        asset = item.data(QtCore.Qt.PathRole).baseName()
+        asset = self.currentItem().data(QtCore.Qt.PathRole).baseName()
         local_settings.setValue('activepath/asset', asset)
-
-        # Set flags
-        active_item = self.active_item()
-        if active_item:
-            active_item.setFlags(active_item.flags() & ~
-                                 configparser.MarkedAsActive)
-        item.setFlags(item.flags() | configparser.MarkedAsActive)
 
         # Emiting change a signal upon change
         self.activeChanged.emit(asset)
