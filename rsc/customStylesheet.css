@@ -1,5 +1,5 @@
 QWidget {{
-	background-color: rgbaa({BACKGROUND});
+	background-color: rgba({BACKGROUND});
 	color: rgba({SECONDARY_TEXT});
 	border-width: 1px;
 	border: none;
@@ -14,6 +14,7 @@ QWidget:disabled {{
 	color: rgba({SECONDARY_TEXT});
 }}
 
+
 QWidget:focus {{
 	border: solid;
 	border-width: 1px;
@@ -26,7 +27,6 @@ QWidget:window {{
 }}
 
 
-
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -36,6 +36,32 @@ QStatusBar {{
 	padding: 0px;
 	height: 24px;
 }}
+
+QPlainTextEdit {{
+	background-color: rgba({TEXT});
+	border-width: 1px;
+	border: none;
+	margin: 1px;
+	padding: 1px;
+	outline: 0;
+	color: rgba({SEPARATOR});
+	font-family: "Roboto Medium";
+	font-size: 11pt;
+}}
+
+QPlainTextEdit:focus {{
+	color: rgba(0,0,0,255);
+	background-color: rgba({TEXT_SELECTED});
+}}
+QPlainTextEdit:disabled {{
+	border: solid;
+	border-width: 1px;
+	border-color: rgba(180,180,180,255);
+	color: rgba(150,150,150,255);
+	background-color: rgba(210,210,210,255);
+}}
+
+
 
 QToolTip {{
 	margin: 0px;

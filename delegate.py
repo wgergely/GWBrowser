@@ -1226,17 +1226,46 @@ class ThumbnailEditor(QtWidgets.QWidget):
 class NoteEditor(QtWidgets.QWidget):
     """Note editor baseclass."""
 
-    def __init__(self, index, rect, view, parent=None):
+    def __init__(self, index, parent=None):
         super(NoteEditor, self).__init__(parent=parent)
         self._index = index
-        self._rect = rect
-        self._view = view
 
         self.editor = None
+        self.settings = configparser.AssetSettings(self._index.data(QtCore.Qt.PathRole).filePath())
         self._createUI()
-        self.editor.setTextMargins(0, 0, 0, 0)
+
+        self.editor.focusOutEvent = self.focusOutEvent
         self.editor.installEventFilter(self)
+
         self._connectSignals()
+
+        # Widget is show when created
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+
+        self.set_size(self.parent().viewport().size())
+        self.setFocusProxy(self.editor)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        self.show()
+        self.setFocus()
+
+        self.editor.setText(self.settings.value('description/description'))
+        self.editor.selectAll()
+
+    def sizeHint(self):
+        return QtCore.QSize(
+            self.parent().visualRect(self._index).width(),
+            self.parent().visualRect(self._index).height()
+        )
+
+    def set_size(self, size):
+        """Sets the widget size."""
+        rect = QtCore.QRect(self.parent().visualRect(self._index))
+        rect.setLeft(rect.left() + 4 + rect.height())
+
+        self.move(rect.topLeft())
+        self.resize(size.width() - rect.left(), rect.height())
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
@@ -1252,20 +1281,16 @@ class NoteEditor(QtWidgets.QWidget):
                 return True
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.action()
-                self._view.key_down()
-                self._view.key_tab()
+                self.parent().key_down()
+                self.parent().key_tab()
                 return True
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.action()
-                self._view.key_up()
-                self._view.key_tab()
+                self.parent().key_up()
+                self.parent().key_tab()
                 return True
             elif event.key() == QtCore.Qt.Key_Escape:
-                try:  # Older versions of Qt5 seems to require a QlistWidgetItem, not a QModelIndex.
-                    self._view.closePersistentEditor(self._index)
-                except TypeError:
-                    item = self._view.itemFromIndex(self._index)
-                    self._view.closePersistentEditor(item)
+                self.close()
                 return True
 
         if event.modifiers() == QtCore.Qt.ShiftModifier:
@@ -1284,75 +1309,74 @@ class NoteEditor(QtWidgets.QWidget):
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
-            try:  # Older versions of Qt5 seems to require a QlistWidgetItem, not a QModelIndex.
-                self._view.closePersistentEditor(self._index)
-            except TypeError:
-                item = self._view.itemFromIndex(self._index)
-                self._view.closePersistentEditor(item)
+            self.close()
 
     def _connectSignals(self):
         """Connects signals."""
         self.editor.editingFinished.connect(self.action)
+        self.parent().sizeChanged.connect(self.set_size)
 
     def _createUI(self):
         """Creates the layout."""
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(common.MARGIN * 0.5, 0, common.MARGIN * 0.5, 0)
+        self.layout().setSpacing(6)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
 
         self.editor = QtWidgets.QLineEdit()
-        self.editor.focusOutEvent = self.focusOutEvent
-        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.layout().addWidget(self.editor)
-        self.setFocusProxy(self.editor)
-
-        self.setStyleSheet(
-            """
-        QWidget {
-            background-color: rgb(50,50,50);
-            color: rgb(230, 230, 230);
-            border: none;
-            outline: none;
-            border-radius: 3px;
-            padding: 3 3 3 3;
-            margin: 0;
-            font: 8pt "Roboto Medium";
-        }
-        """
-        )
+        self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.editor.setTextMargins(0, 0, 0, 0)
 
         self.editor.setStyleSheet(
-            """
-        QLineEdit {
-            padding: 0 0 0 0;
-            margin: 0 0 0 0;
-        }
-        """
+            'background-color: rgb(50,50,50);\
+            color: rgba({},{},{},{});\
+            font-family: "Roboto Medium"; font-size: 8pt;'.format(*common.TEXT_NOTE.getRgb())
         )
 
-    def showEvent(self, event):  # pylint: disable=W0613
-        """Show event."""
-        return
-        self.move(
-            self._rect.left(),
-            self._rect.top()
+        label = QtWidgets.QLabel('Description')
+        label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        label.setStyleSheet(
+            'font-family: "Roboto Black";\
+            font-size: 8pt;\
+            color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
         )
-        self.setFixedWidth(self._rect.width())
 
-        self.editor.setText(self._index.data(QtCore.Qt.UserRole))
-        self.editor.selectAll()
+        self.layout().addStretch(1)
+        self.layout().addWidget(label, 1)
+        self.layout().addWidget(self.editor, 1)
+        self.layout().addStretch(1)
+
+    def paintEvent(self, event):
+        """Custom paint used to paint the background."""
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            rect = QtCore.QRect()
+            rect.setWidth(self.width())
+            rect.setHeight(self.height())
+
+            pen = QtGui.QPen(common.SELECTION)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            color = QtGui.QColor(common.BACKGROUND_SELECTED)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRect(rect)
+            painter.end()
+
+            return
+        super(NoteEditor, self).paintEvent(event)
 
     def action(self):
         """Main actions to run when the return key is pressed."""
-        if self.config.description == self.editor.text():
+        if self.settings.value('description/description') == self.editor.text():
+            self.close()
             return
 
-        self.config.description = self.editor.text()
-        self.config.write_ini()
-
-        # Older (<5.10?) versions of Qt5 seems to require a QlistWidgetItem, not a QModelIndex.
-        try:
-            self._view.closePersistentEditor(self._index)
-        except TypeError:
-            item = self._view.itemFromIndex(self._index)
-            self._view.closePersistentEditor(item)
+        item = self.parent().itemFromIndex(self._index)
+        item.setData(QtCore.Qt.UserRole, self.editor.text())
+        self.settings.setValue('description/description', self.editor.text())
+        self.close()

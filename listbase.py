@@ -14,6 +14,7 @@ import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
 from mayabrowser.actions import Actions
 from mayabrowser.capture import ScreenGrabber
+from mayabrowser.delegate import NoteEditor
 
 
 class BaseContextMenu(Actions):
@@ -83,8 +84,11 @@ class BaseContextMenu(Actions):
 class BaseListWidget(QtWidgets.QListWidget):
     """Base class for the custom list widgets."""
 
+    # Signals
     assetChanged = QtCore.Signal()
     sceneChanged = QtCore.Signal()
+    sizeChanged = QtCore.Signal(QtCore.QSize)
+
     Delegate = NotImplementedError
     ContextMenu = NotImplementedError
 
@@ -404,14 +408,20 @@ class BaseListWidget(QtWidgets.QListWidget):
         location_rect = self.itemDelegate().get_location_editor_rect(rect)
 
         if note_rect.contains(event.pos()):
-            editor = self.itemDelegate().createEditor(parent, option, index, editor=1)
-            print editor.show()
+            editor = NoteEditor(index, parent=self)
+            editor.show()
         elif thumbnail_rect.contains(event.pos()):
             self.itemDelegate().createEditor(parent, option, index, editor=2)
         elif location_rect.contains(event.pos()):
             self.itemDelegate().createEditor(parent, option, index, editor=3)
         else:
             self.custom_doubleclick_event(index)
+
+
+    def resizeEvent(self, event):
+        """Custom resize event."""
+        self.sizeChanged.emit(self.viewport().size())
+        super(BaseListWidget, self).resizeEvent(event)
 
     def contextMenuEvent(self, event):
         index = self.indexAt(event.pos())
