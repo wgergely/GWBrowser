@@ -40,6 +40,7 @@ class TodoItemEditor(QtWidgets.QTextEdit):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Fixed
         )
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAlignment(QtCore.Qt.AlignJustify)
 
         self.setMouseTracking(True)
@@ -58,13 +59,10 @@ class TodoItemEditor(QtWidgets.QTextEdit):
                 block = self.document().begin()
             else:
                 block = block.next()
-
             cursor = QtGui.QTextCursor(block)
             textBlockFormat = cursor.blockFormat()
             textBlockFormat.setAlignment(QtCore.Qt.AlignJustify)
             cursor.mergeBlockFormat(textBlockFormat)
-            print block.text()
-
             i += 1
 
     def _contentChanged(self):
@@ -122,7 +120,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         super(DragIndicatorButton, self).__init__(parent=parent)
         self.setDisabled(checked)
         self.set_pixmap()
-
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.dragStartPosition = None
 
     def set_pixmap(self):
@@ -239,6 +237,8 @@ class CheckBoxButton(QtWidgets.QLabel):
 
         self._connectSignals()
 
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+
     @property
     def checked(self):
         return self._checked
@@ -310,6 +310,8 @@ class TodoEditors(QtWidgets.QWidget):
         self.drop_target_index = -1
 
         self.items = []
+
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
     def _create_separator(self):
         self.separator = QtWidgets.QLabel(parent=self.parent())
@@ -448,6 +450,8 @@ class TodoItemsWidget(QtWidgets.QWidget):
                 checked=items[k]['checked']
             )
 
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -459,15 +463,18 @@ class TodoItemsWidget(QtWidgets.QWidget):
 
         self.add_button = AddButton()
         self.add_button.pressed.connect(_pressed)
-
+        self.add_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.remove_button = RemoveButton()
+        self.remove_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
         row = QtWidgets.QWidget()
         row.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum
         )
+        row.setFocusPolicy(QtCore.Qt.NoFocus)
+
         QtWidgets.QHBoxLayout(row)
         row.layout().addWidget(self.add_button, 0)
         row.layout().addStretch(1)
@@ -480,6 +487,7 @@ class TodoItemsWidget(QtWidgets.QWidget):
         scrollarea = QtWidgets.QScrollArea()
         scrollarea.setWidgetResizable(True)
         scrollarea.setWidget(self.editors)
+        scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.layout().addWidget(scrollarea)
 
@@ -508,10 +516,14 @@ class TodoItemsWidget(QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(row)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(12)
+        row.setFocusPolicy(QtCore.Qt.NoFocus)
 
         checkbox = CheckBoxButton(checked=not checked)
+        checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
         editor = TodoItemEditor(text, checked=not checked)
+        editor.setFocusPolicy(QtCore.Qt.StrongFocus)
         drag = DragIndicatorButton(checked=False)
+        drag.setFocusPolicy(QtCore.Qt.NoFocus)
 
         def _setDisabled(b, widget=None):
             widget.setDisabled(not b)
@@ -539,6 +551,7 @@ class TodoItemsWidget(QtWidgets.QWidget):
             self.editors.items.insert(idx, row)
 
         checkbox.clicked.emit(checkbox._checked)
+
         editor.setFocus()
         editor.selectAll()
 
@@ -581,10 +594,12 @@ class AddButton(QtWidgets.QLabel):
         pixmap = pixmap.fromImage(image)
         self.setPixmap(pixmap)
 
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
     def mouseReleaseEvent(self, event):
         self.pressed.emit()
+
 
 class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
@@ -602,7 +617,7 @@ class RemoveButton(QtWidgets.QLabel):
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
