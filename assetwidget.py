@@ -388,9 +388,12 @@ class AssetWidget(BaseListWidget):
 
         return False
 
+    def select_active_item(self):
+        self.setCurrentItem(self.active_item())
+
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-
+        self.select_active_item()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

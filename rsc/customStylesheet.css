@@ -37,10 +37,11 @@ QStatusBar {{
 	height: 24px;
 }}
 
-QPlainTextEdit {{
+TodoItemEditor {{
 	background-color: rgba({TEXT});
 	border-width: 1px;
-	border: none;
+	border: solid;
+	border-color: rgba(180,180,180,255);
 	margin: 1px;
 	padding: 1px;
 	outline: 0;
@@ -49,12 +50,12 @@ QPlainTextEdit {{
 	font-size: 11pt;
 }}
 
-QPlainTextEdit:focus {{
+TodoItemEditor:focus {{
 	color: rgba(0,0,0,255);
 	background-color: rgba({TEXT_SELECTED});
 }}
-QPlainTextEdit:disabled {{
-	border: solid;
+TodoItemEditor:disabled {{
+	border: none;
 	border-width: 1px;
 	border-color: rgba(180,180,180,255);
 	color: rgba(150,150,150,255);
@@ -200,14 +201,14 @@ QLineEdit:disabled {{
 	color: rgba({TEXT_DISABLED});
 }}
 
-QTextEdit {{
+.QTextEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	color: rgba({TEXT});
 	border: 0px solid;
 	border-radius: 2px;
 	padding: 6px;
 }}
-QTextEdit:disabled {{
+.QTextEdit:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	color: rgba({TEXT_DISABLED});
 }}
@@ -234,18 +235,18 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-pa
 }}
 
 
-QPlainTextEdit QScrollBar:vertical, QPlainTextEdit QScrollBar:horizontal {{
+TodoItemEditor QScrollBar:vertical, TodoItemEditor QScrollBar:horizontal {{
 	background: rgba({SECONDARY_TEXT});
 	border: none;
 }}
-QPlainTextEdit QScrollBar::handle:vertical, QPlainTextEdit QScrollBar::handle:vertical, QPlainTextEdit QScrollBar::handle:horizontal, QPlainTextEdit QScrollBar::handle:horizontal {{
+TodoItemEditor QScrollBar::handle:vertical, TodoItemEditor QScrollBar::handle:vertical, TodoItemEditor QScrollBar::handle:horizontal, TodoItemEditor QScrollBar::handle:horizontal {{
 	background: rgba({TEXT});
 	border: 0px solid;
-	border-radius: 2px;
+	border-radius: 0px;
 	max-height: 250px;
-	min-height: 50px;
+	min-height: 24;
 }}
-QPlainTextEdit QScrollBar::add-page:vertical, QPlainTextEdit QScrollBar::sub-page:vertical, QPlainTextEdit QScrollBar::add-page:horizontal, QPlainTextEdit QScrollBar::sub-page:horizontal {{
+TodoItemEditor QScrollBar::add-page:vertical, TodoItemEditor QScrollBar::sub-page:vertical, TodoItemEditor QScrollBar::add-page:horizontal, TodoItemEditor QScrollBar::sub-page:horizontal {{
 	background: rgba({SECONDARY_TEXT});
 }}
 

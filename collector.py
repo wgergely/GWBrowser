@@ -35,7 +35,6 @@ Example:
 
 import re
 from PySide2 import QtCore
-from mayabrowser.configparsers import local_settings
 import mayabrowser.common as common
 
 
