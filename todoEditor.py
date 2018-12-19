@@ -22,21 +22,25 @@ class TodoItemEditor(QtWidgets.QPlainTextEdit):
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setPlainText(text)
         self.setBackgroundVisible(False)
         self.document().setDocumentMargin(common.MARGIN)
+
+        metrics = QtGui.QFontMetrics(self.document().defaultFont())
+        metrics.width('  ')
+        self.setTabStopWidth(common.MARGIN)
+
         self.setMinimumWidth(200)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Fixed
         )
 
-        metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        metrics.width('  ')
-        self.setTabStopWidth(common.MARGIN)
+        self.setMouseTracking(True)
+
+        self.document().setPlainText(text)
+
         self.document().contentsChanged.connect(self._contentChanged)
 
-        self.setMouseTracking(True)
 
     def _contentChanged(self):
         """Sets the height of the editor."""
