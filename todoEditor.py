@@ -161,8 +161,8 @@ class DragIndicatorButton(QtWidgets.QLabel):
             return
 
         # Drag is only going to be valid when the mouse has travelled far enough
-        if ((event.pos() - self.dragStartPosition).manhattanLength() < app.startDragDistance()):
-            return
+        # if ((event.pos() - self.dragStartPosition).manhattanLength() < app.startDragDistance()):
+        #     return
 
         drag = QtGui.QDrag(self.parent())
 
@@ -207,14 +207,24 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay.setPixmap(pixmap)
         overlay.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        # Initiating the drag with the separator shown
+
+        # Preparing the drag...
+        remove_button = self.parent().parent().parent(
+        ).parent().parent().findChild(RemoveButton)
+        add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
+        remove_button.setPixmap(remove_button.active_pixmap)
+        add_button.setHidden(True)
         self.parent().parent().separator.setHidden(False)
         overlay.show()
+
+        # Starting the drag...
         drag.exec_(QtCore.Qt.MoveAction)
 
-        # Cleanup
+        # Cleanup after drag has finished...
         overlay.close()
         self.parent().parent().separator.setHidden(True)
+        remove_button.setPixmap(remove_button.inactive_pixmap)
+        add_button.setHidden(False)
 
 
 class CheckBoxButton(QtWidgets.QLabel):
@@ -283,6 +293,38 @@ class CheckBoxButton(QtWidgets.QLabel):
         self._unchecked_pixmap = QtGui.QPixmap(
             ThumbnailEditor.smooth_copy(image, 24))
 
+class Separator(QtWidgets.QLabel):
+    def __init__(self, parent=None):
+        super(Separator, self).__init__(parent=parent)
+        pixmap = QtGui.QPixmap(QtCore.QSize(4096, 8))
+        pixmap.fill(common.SELECTION)
+        self.setPixmap(pixmap)
+
+        self.setHidden(True)
+
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint
+        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAcceptDrops(True)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
+        )
+        self.setFixedWidth(1)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasFormat('browser/todo-drag'):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """Calling the parent's drop event, when the drop is on the separator."""
+        self.parent().dropEvent(event)
 
 class TodoEditors(QtWidgets.QWidget):
     """This is a convenience widget for storing the added todo items.
@@ -305,34 +347,12 @@ class TodoEditors(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
-        self.separator = None
-        self._create_separator()
+        self.separator = Separator(parent=self)
         self.drop_target_index = -1
 
         self.items = []
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-    def _create_separator(self):
-        self.separator = QtWidgets.QLabel(parent=self.parent())
-
-        pixmap = QtGui.QPixmap(QtCore.QSize(self.width(), 4))
-        pixmap.fill(common.SELECTION)
-        self.separator.setPixmap(pixmap)
-        self.separator.setHidden(True)
-
-        self.separator.setFocusPolicy(QtCore.Qt.NoFocus)
-
-        self.separator.setWindowFlags(
-            QtCore.Qt.Widget |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-        self.separator.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.separator.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.separator.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-        self.separator.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        # self.separator.setDisabled(True)
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
@@ -341,8 +361,6 @@ class TodoEditors(QtWidgets.QWidget):
 
     def dragMoveEvent(self, event):
         """Custom drag move event responsible for indicating the drop area."""
-        self.separator.setFixedWidth(self.parent().width())
-
         # Move indicator
         idx, y = self._separator_pos(event)
 
@@ -356,8 +374,9 @@ class TodoEditors(QtWidgets.QWidget):
         self.drop_target_index = idx
 
         self.separator.setHidden(False)
-        pos = self.mapToGlobal(QtCore.QPoint(self.parent().geometry().x(), y))
+        pos = self.mapToGlobal(QtCore.QPoint(self.geometry().x(), y))
         self.separator.move(pos)
+        self.separator.setFixedWidth(self.width())
 
     def dropEvent(self, event):
         if self.drop_target_index == -1:
@@ -452,7 +471,6 @@ class TodoItemsWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
         self.layout().setSpacing(0)
@@ -543,17 +561,30 @@ class TodoItemsWidget(QtWidgets.QWidget):
         row.layout().addWidget(editor, 1)
         row.layout().addWidget(drag)
 
+
+        row.effect = QtWidgets.QGraphicsOpacityEffect(row)
+        row.effect.setOpacity(1.0)
+        row.animation = QtCore.QPropertyAnimation(row.effect, 'opacity')
+        row.animation.setDuration(1500)
+        row.animation.setKeyValueAt(0, 0)
+        row.animation.setKeyValueAt(0.5, 0.8)
+        row.animation.setKeyValueAt(1, 1.0)
+        # row.animation.setLoopCount(-1)
+        row.setGraphicsEffect(row.effect)
+        row.setAutoFillBackground(True)
+
         if idx is None:
             self.editors.layout().addWidget(row, 1)
             self.editors.items.append(row)
         else:
             self.editors.layout().insertWidget(idx, row, 1)
             self.editors.items.insert(idx, row)
+            # editor.selectAll()
 
+        row.animation.start()
         checkbox.clicked.emit(checkbox._checked)
 
         editor.setFocus()
-        editor.selectAll()
 
     def _collect_data(self):
         """Returns all the items found in the todo widget."""
@@ -604,20 +635,41 @@ class AddButton(QtWidgets.QLabel):
 class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
-        self.setMouseTracking(True)
 
-        path = '{}/rsc/todo_remove.png'.format(
-            QtCore.QFileInfo(__file__).dir().path()
-        )
+        self.inactive_pixmap = self._pixmap('todo_remove')
+        self.active_pixmap = self._pixmap('todo_remove_activated')
 
-        image = QtGui.QImage(path)
-        image = ThumbnailEditor.smooth_copy(image, 24)
-        pixmap = QtGui.QPixmap()
-        pixmap = pixmap.fromImage(image)
-        self.setPixmap(pixmap)
+        self.setPixmap(self.inactive_pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setMouseTracking(True)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        """Accepting the drag operation."""
+        if event.mimeData().hasFormat('browser/todo-drag'):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        """Drop event responsible for deleting an item from the todo list."""
+        editors = self.parent().parent().editors
+        idx = editors.items.index(event.source())
+        row = editors.items.pop(idx)
+        editors.layout().removeWidget(row)
+        row.deleteLater()
+
+
+    def _pixmap(self, name):
+        path = '{}/rsc/{}.png'.format(
+            QtCore.QFileInfo(__file__).dir().path(),
+            name
+        )
+        image = QtGui.QImage(path)
+        image = ThumbnailEditor.smooth_copy(image, 24)
+        pixmap = QtGui.QPixmap()
+        return pixmap.fromImage(image)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
