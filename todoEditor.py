@@ -96,7 +96,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         super(DragIndicatorButton, self).__init__(parent=parent)
         self.setDisabled(checked)
         self.set_pixmap()
-        
+
         self.dragStartPosition = None
 
     def set_pixmap(self):
@@ -133,7 +133,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         self.dragStartPosition = event.pos()
 
     def mouseMoveEvent(self, event):
-        """After the mousePressEvent, the drag operation is handled here."""
+        """After the mousePressEvent, the drag operation is initiated here."""
         app = QtCore.QCoreApplication.instance()
 
         left_button = event.buttons() & QtCore.Qt.LeftButton
@@ -157,6 +157,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap(editor.size())
         editor.render(pixmap)
         drag.setPixmap(pixmap)
+        drag.setHotSpot(QtCore.QPoint(pixmap.width() + 6, 0))
 
         drag.exec_(QtCore.Qt.CopyAction)
 

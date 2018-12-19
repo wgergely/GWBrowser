@@ -233,6 +233,24 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-pa
 	background: rgba({SEPARATOR});
 }}
 
+
+QPlainTextEdit QScrollBar:vertical, QPlainTextEdit QScrollBar:horizontal {{
+	background: rgba({SECONDARY_TEXT});
+	border: none;
+}}
+QPlainTextEdit QScrollBar::handle:vertical, QPlainTextEdit QScrollBar::handle:vertical, QPlainTextEdit QScrollBar::handle:horizontal, QPlainTextEdit QScrollBar::handle:horizontal {{
+	background: rgba({TEXT});
+	border: 0px solid;
+	border-radius: 2px;
+	max-height: 250px;
+	min-height: 50px;
+}}
+QPlainTextEdit QScrollBar::add-page:vertical, QPlainTextEdit QScrollBar::sub-page:vertical, QPlainTextEdit QScrollBar::add-page:horizontal, QPlainTextEdit QScrollBar::sub-page:horizontal {{
+	background: rgba({SECONDARY_TEXT});
+}}
+
+
+
 QListWidget {{
 		outline: none;
 		border: none;
