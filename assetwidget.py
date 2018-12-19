@@ -248,7 +248,7 @@ class AssetWidget(BaseListWidget):
         self.active_item = self.currentItem()
 
     def custom_doubleclick_event(self, index):
-        self.active_item = index
+        pass
 
     def action_on_custom_keys(self, event):
         """Custom keyboard shortcuts for the AssetsWidget are defined here.

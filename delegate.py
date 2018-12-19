@@ -46,6 +46,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         painter.save()
+
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=False
+        )
+
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.SELECTION)
         pen.setWidth(1.0)
@@ -174,7 +182,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.save()
 
-        WIDTH = 4
+        WIDTH = 6
 
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.SELECTION)
@@ -1296,13 +1304,13 @@ class NoteEditor(QtWidgets.QWidget):
         if event.modifiers() == QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
                 self.action()
-                self._view.key_up()
-                self._view.key_tab()
+                self.parent().key_up()
+                self.parent().key_tab()
                 return True
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.action()
-                self._view.key_up()
-                self._view.key_tab()
+                self.parent().key_up()
+                self.parent().key_tab()
                 return True
         return False
 

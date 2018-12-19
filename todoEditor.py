@@ -1,10 +1,7 @@
-# http://doc.qt.io/qt-5/richtext.html
-# http://doc.qt.io/qt-5/richtext-html-subset.html
 # -*- coding: utf-8 -*-
 
 """
-Objective: Tickable Todo items.
-Needed: Tickbox / rich text body.
+
 """
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -14,8 +11,14 @@ from mayabrowser.delegate import ThumbnailEditor
 
 
 class TodoItemEditor(QtWidgets.QPlainTextEdit):
-    """Custom QTextEdit widget for adding `To-Do` items to assets."""
+    """Custom QPlainTextEdit widget for writing `Todo`'s.
 
+    The editor automatically sets its size to accommodate the contents of the document.
+    Some of the code has been lifted and implemented from Cameel's implementation.
+
+    https://github.com/cameel/auto-resizing-text-edit/
+
+    """
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
@@ -36,11 +39,13 @@ class TodoItemEditor(QtWidgets.QPlainTextEdit):
         self.setMouseTracking(True)
 
     def _contentChanged(self):
+        """Sets the height of the editor."""
         self.setFixedHeight(
             self.heightForWidth(self.width())
         )
 
     def get_minHeight(self):
+        """Returns the desired minimum height of the editor."""
         margins = self.contentsMargins()
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
         line_height = metrics.height() + metrics.leading()
@@ -73,7 +78,15 @@ class TodoItemEditor(QtWidgets.QPlainTextEdit):
 
 
 class DragIndicatorButton(QtWidgets.QLabel):
-    """Custom checkbox used for Todo Items."""
+    """Dotted button indicating a draggable item.
+
+    The button is responsible for initiating a QDrag operation and setting the
+    mime data. The data is populated with the `TodoEditor`'s text and the
+    custom MIME_TYPE. The latter is needed to accept the drag operation
+    in the target drop widet.
+    """
+
+    MIME_TYPE = 'browser/todo-drag'
 
     pressed = QtCore.Signal(QtWidgets.QWidget)
     released = QtCore.Signal(QtWidgets.QWidget)
@@ -83,6 +96,8 @@ class DragIndicatorButton(QtWidgets.QLabel):
         super(DragIndicatorButton, self).__init__(parent=parent)
         self.setDisabled(checked)
         self.set_pixmap()
+        
+        self.dragStartPosition = None
 
     def set_pixmap(self):
         icon_path = QtCore.QFileInfo(__file__).dir().path()
@@ -136,7 +151,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         data = QtCore.QByteArray()
         data.append(0)
-        mime_data.setData('browser/todo-drag', data)
+        mime_data.setData(self.MIME_TYPE, data)
         drag.setMimeData(mime_data)
 
         pixmap = QtGui.QPixmap(editor.size())
