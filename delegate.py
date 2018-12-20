@@ -260,27 +260,27 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Checking if the images are in the cache already:
         # Placeholder image
-        if common.MAYA_THUMBNAIL in common.IMAGE_CACHE:
-            placeholder = common.IMAGE_CACHE[common.MAYA_THUMBNAIL]
+        if common.PLACEHOLDER in common.IMAGE_CACHE:
+            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
         else:
             placeholder = QtGui.QImage()
-            placeholder.load(common.MAYA_THUMBNAIL)
+            placeholder.load(common.PLACEHOLDER)
             placeholder = ThumbnailEditor.smooth_copy(
                 placeholder,
                 option.rect.height()
             )
-            common.IMAGE_CACHE[common.MAYA_THUMBNAIL] = placeholder
+            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
 
-        path = AssetSettings(index.data(QtCore.Qt.PathRole).filePath()).thumbnail_path()
+        settings = AssetSettings(index.data(QtCore.Qt.PathRole).filePath())
         image = placeholder
 
         # Thumbnail image
-        if QtCore.QFileInfo(path).exists():
-            if path in common.IMAGE_CACHE:
-                image = common.IMAGE_CACHE[path]
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+            if settings.thumbnail_path() in common.IMAGE_CACHE:
+                image = common.IMAGE_CACHE[settings.thumbnail_path()]
             else:
                 image = QtGui.QImage()
-                image.load(path)
+                image.load(settings.thumbnail_path())
                 if image.isNull():
                     image = placeholder
                 else:
@@ -288,7 +288,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                         image,
                         option.rect.height()
                     )
-                    common.IMAGE_CACHE[path] = image
+                    common.IMAGE_CACHE[settings.thumbnail_path()] = image
         else:
             image = placeholder
 

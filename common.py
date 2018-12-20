@@ -276,7 +276,7 @@ def _maya_thumbnail():
 
 
 CUSTOM_THUMBNAIL = _custom_thumbnail()
-MAYA_THUMBNAIL = _maya_thumbnail()
+PLACEHOLDER = _maya_thumbnail()
 
 
 def count_assets(path):

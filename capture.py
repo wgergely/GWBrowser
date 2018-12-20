@@ -25,7 +25,7 @@ class ScreenGrabber(QtWidgets.QDialog):
 
     This tool does not by itself perform a screen capture. The resulting
     capture rect can be used (e.g. with the ScreenGrabber.get_desktop_pixmap function) to
-    blit the selected portion of the screen into a pixmap.
+    save the selected portion of the screen into a pixmap.
     """
 
     def __init__(self, parent=None):
@@ -33,6 +33,8 @@ class ScreenGrabber(QtWidgets.QDialog):
 
         self._opacity = 1
         self._click_pos = None
+        self._offset_pos = None
+
         self._capture_rect = QtCore.QRect()
 
         self.setWindowFlags(
@@ -56,7 +58,7 @@ class ScreenGrabber(QtWidgets.QDialog):
 
     def paintEvent(self, event):
         """
-        Paint event
+        Paint event.
         """
         # Convert click and current mouse positions to local space.
         mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
@@ -134,13 +136,55 @@ class ScreenGrabber(QtWidgets.QDialog):
                 event.globalPos()
             ).normalized()
             self._click_pos = None
+            self._offset_pos = None
         self.close()
 
     def mouseMoveEvent(self, event):
         """
         Mouse move event
         """
-        self.repaint()
+
+        app = QtGui.QGuiApplication.instance()
+        modifiers = app.queryKeyboardModifiers()
+
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+
+        if no_modifier:
+            self.__click_pos = None
+            self._offset_pos = None
+            self.repaint()
+            return
+
+        if not self._click_pos:
+            return
+
+        # Allowing the shifting of the rectagle with the modifier keys
+        if (shift_modifier and (control_modifier or alt_modifier)) or control_modifier or alt_modifier:
+            if not self._offset_pos:
+                self.__click_pos = QtCore.QPoint(self._click_pos)
+                self._offset_pos = QtCore.QPoint(event.globalPos())
+
+            cursor_pos = QtGui.QCursor().pos()
+            self._click_pos = QtCore.QPoint(
+                self.__click_pos.x() - (self._offset_pos.x() - event.globalPos().x()),
+                self.__click_pos.y() - (self._offset_pos.y() - event.globalPos().y())
+            )
+            self.repaint()
+
+        # Shift constrains the rectangle to a square
+        if shift_modifier:
+            cursor = QtGui.QCursor()
+            rect = QtCore.QRect()
+            rect.setTopLeft(self._click_pos)
+            rect.setBottomRight(event.globalPos())
+            rect.setHeight(rect.width())
+
+            cursor.setPos(rect.bottomRight())
+
+            self.repaint()
 
     @classmethod
     def screen_capture(cls):
@@ -229,3 +273,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         pixmap = cls.screen_capture()
         pixmap.save(output_path)
         return output_path
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    app.w = ScreenGrabber.screen_capture()

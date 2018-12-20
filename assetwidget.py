@@ -59,6 +59,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
             items['Activate'] = {}
             items['<separator>.'] = {}
             items['Capture thumbnail'] = {}
+            items['Remove thumbnail'] = {}
             items['<separator>..'] = {}
 
             favourites = local_settings.value('favourites')
@@ -103,6 +104,9 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
     def capture_thumbnail(self):
         self.parent().capture_thumbnail()
+
+    def remove_thumbnail(self):
+        self.parent().remove_thumbnail()
 
     def show_asset_in_explorer(self):
         self.parent().reveal_asset()

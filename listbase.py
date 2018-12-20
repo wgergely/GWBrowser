@@ -8,13 +8,14 @@ found by the collector classes.
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from mayabrowser.common import cmds
 import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
+from mayabrowser.configparsers import AssetSettings
 from mayabrowser.actions import Actions
 from mayabrowser.capture import ScreenGrabber
 from mayabrowser.delegate import NoteEditor
+from mayabrowser.delegate import ThumbnailEditor
 
 
 class BaseContextMenu(Actions):
@@ -171,41 +172,87 @@ class BaseListWidget(QtWidgets.QListWidget):
         local_settings.setValue('widget/{}/sort_order'.format(self.__class__.__name__), val)
 
     def capture_thumbnail(self):
-        """Captures a thumbnail for the current item."""
+        """Captures a thumbnail for the current item using ScreenGrabber."""
         item = self.currentItem()
+
         if not item:
             return
 
-        scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
-        file_info = QtCore.QFileInfo(item.data(QtCore.Qt.StatusTipRole))
+        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
 
-        if scene_info.filePath() != file_info.filePath():
-            mbox = QtWidgets.QMessageBox()
-            mbox.setText(
-                'The selected scene is not the one currently open.'
-            )
-            mbox.setInformativeText(
-                'Are you sure you want to use this scene to make the thumbnail?')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Save |
-                QtWidgets.QMessageBox.Cancel
-            )
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
-            result = mbox.exec_()
-
-            if result != QtWidgets.QMessageBox.Save:
-                return
-
-        path = self.Config.getThumbnailPath(file_info.filePath())
         # Deleting the thumbnail from our image cache
-        if path in common.IMAGE_CACHE:
-            del common.IMAGE_CACHE[path]
+        if settings.thumbnail_path() in common.IMAGE_CACHE:
+            del common.IMAGE_CACHE[settings.thumbnail_path()]
 
-        ScreenGrabber.screen_capture_file(output_path=path)
-        self.Config.set_hidden(path)
+        # Saving the image
+        ScreenGrabber.screen_capture_file(output_path=settings.thumbnail_path())
 
-        # Show
-        self.parent().activate_widget(self)
+        rect = self.visualRect(self.currentIndex())
+
+        # Placeholder
+        if common.PLACEHOLDER in common.IMAGE_CACHE:
+            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
+        else:
+            placeholder = QtGui.QImage()
+            placeholder.load(common.PLACEHOLDER)
+            placeholder = ThumbnailEditor.smooth_copy(
+                placeholder,
+                rect.height()
+            )
+            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
+
+
+        image = QtGui.QImage()
+        image.load(settings.thumbnail_path())
+        if image.isNull():
+            image = placeholder
+        else:
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                rect.height()
+            )
+            common.IMAGE_CACHE[settings.thumbnail_path()] = image
+
+
+    def remove_thumbnail(self):
+        """Deletes the given thumbnail."""
+        item = self.currentItem()
+        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
+        rect = self.visualRect(self.currentIndex())
+
+        # Placeholder
+        if common.PLACEHOLDER in common.IMAGE_CACHE:
+            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
+        else:
+            placeholder = QtGui.QImage()
+            placeholder.load(common.PLACEHOLDER)
+            placeholder = ThumbnailEditor.smooth_copy(
+                placeholder,
+                rect.height()
+            )
+            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
+
+        f = QtCore.QFile(settings.thumbnail_path())
+
+        if f.exists():
+            f.remove()
+
+        if settings.thumbnail_path() in common.IMAGE_CACHE:
+            del common.IMAGE_CACHE[settings.thumbnail_path()]
+
+        image = QtGui.QImage()
+        image.load(settings.thumbnail_path())
+        if image.isNull():
+            image = placeholder
+        else:
+            image = ThumbnailEditor.smooth_copy(
+                image,
+                rect.height()
+            )
+            common.IMAGE_CACHE[settings.thumbnail_path()] = image
+
+
+
 
     def _paint_widget_background(self):
         """Our list widgets arer see-through, because of their drop-shadow.
