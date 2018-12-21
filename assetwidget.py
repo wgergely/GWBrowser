@@ -45,47 +45,83 @@ class AssetWidgetContextMenu(BaseContextMenu):
     """
 
     def add_actions(self):
-        self.add_action_set(self.ACTION_SET)
+        if self.index.isValid():
+            self.add_action_set(self.VALID_ACTION_SET)
+        self.add_copy_menu()
+        self.add_action_set(self.INVALID_ACTION_SET)
+
+    def add_copy_menu(self):
+        import functools
+        def cp(s):
+            QtGui.QClipboard().setText(s)
+
+        menu = QtWidgets.QMenu(parent=self)
+        menu.setTitle('Paths - Copy to clipboard')
+
+        # Url
+        file_path = self.index.data(QtCore.Qt.PathRole).filePath()
+        url = QtCore.QUrl()
+        url = url.fromLocalFile(file_path)
+
+        action = menu.addAction('Slack / Web url')
+        action.setEnabled(False)
+        action = menu.addAction(url.toString())
+        action.triggered.connect(functools.partial(cp, url.toString()))
+
+        menu.addSeparator()
+
+        action = menu.addAction('MacOS network path')
+        action.setEnabled(False)
+        action = menu.addAction(url.toString().replace('file://', 'smb://'))
+        action.triggered.connect(functools.partial(cp, url.toString().replace('file://', 'smb://')))
+
+        menu.addSeparator()
+
+        action = menu.addAction('Path')
+        action.setEnabled(False)
+        action = menu.addAction(file_path)
+        action.triggered.connect(functools.partial(cp, file_path))
+
+        menu.addSeparator()
+
+        action = menu.addAction('Windows path')
+        action.setEnabled(False)
+        action = menu.addAction(file_path)
+        action.triggered.connect(functools.partial(cp, QtCore.QDir.toNativeSeparators(file_path)))
+
+        self.addMenu(menu)
+        self.addSeparator()
 
     @property
-    def ACTION_SET(self):
+    def VALID_ACTION_SET(self):
         """A custom set of actions to display."""
         items = OrderedDict()
-        if self.index.isValid():
-            file_info = self.index.data(QtCore.Qt.PathRole)
-            settings = AssetSettings(file_info.filePath())
+        file_info = self.index.data(QtCore.Qt.PathRole)
+        item = self.parent().itemFromIndex(self.index)
 
-            items[file_info.filePath()] = {'disabled': True}
-            items['Activate'] = {}
-            items['<separator>.'] = {}
-            items['Capture thumbnail'] = {}
-            items['Remove thumbnail'] = {}
-            items['<separator>..'] = {}
+        archived = item.flags() & configparser.MarkedAsArchived
+        favourite = item.flags() & configparser.MarkedAsFavourite
 
-            favourites = local_settings.value('favourites')
-            favourites = favourites if favourites else []
-            items['Favourite'] = {
-                'checkable': True,
-                'checked': True if file_info.filePath() in favourites else False
-            }
-            items['Isolate favourites'] = {
-                'checkable': True,
-                'checked': self.parent().show_favourites_mode
-            }
-            items['<separator>...'] = {}
-            items['Show asset in explorer'] = {}
-            items['Show exports'] = {}
-            items['Show scenes'] = {}
-            items['Show renders'] = {}
-            items['Show textures'] = {}
-            items['<separator>....'] = {}
+        items[file_info.filePath()] = {'disabled': True}
+        items['Activate'] = {}
+        items['<separator>.'] = {}
+        items['Capture thumbnail'] = {}
+        items['Remove thumbnail'] = {}
+        items['<separator>..'] = {}
+        items['Favourite'] = {
+            'checkable': True,
+            'checked': bool(favourite)
+        }
+        items['Archived'] = {
+            'checkable': True,
+            'checked': bool(archived)
+        }
+        items['<separator>...'] = {}
+        return items
 
-            archived = settings.value('flags/archived')
-            archived = archived if archived else False
-            items['Archived'] = {
-                'checkable': True,
-                'checked': archived
-            }
+    @property
+    def INVALID_ACTION_SET(self):
+        items = OrderedDict()
         items['Show archived'] = {
             'checkable': True,
             'checked': self.parent().show_archived_mode
@@ -143,7 +179,7 @@ class AssetWidget(BaseListWidget):
     ContextMenu = AssetWidgetContextMenu
 
     # Signals
-    activeChanged = QtCore.Signal(str)
+    activated = QtCore.Signal(str)
 
     def __init__(self, server=None, job=None, root=None, parent=None):
         self._path = (server, job, root)
@@ -163,7 +199,7 @@ class AssetWidget(BaseListWidget):
         local_settings.setValue('activepath/asset', asset)
 
         # Emiting change a signal upon change
-        self.activeChanged.emit(asset)
+        self.activated.emit(asset)
 
     def show_popover(self):
         """Popup widget show on long-mouse-press."""
@@ -249,72 +285,27 @@ class AssetWidget(BaseListWidget):
 
     def action_on_enter_key(self):
         """Custom enter key action."""
-        self.active_item = self.currentItem()
+        self.set_current_item_as_active()
 
     def custom_doubleclick_event(self, index):
-        pass
+        self.set_current_item_as_active()
 
     def action_on_custom_keys(self, event):
         """Custom keyboard shortcuts for the AssetsWidget are defined here.
-
-        **Implemented shortcuts**:
-        ::
-
-            Ctrl + C:           Copies the asset's path to the clipboard.
-            Ctrl + Shift + C:   Copies the files's URI path to the clipboard.
-            Ctrl + O:           Sets the current item as the active asset and opens shows the filewidget.
-            Ctrl + P:           Reveals the asset in the explorer.
-            Ctrl + T:           Reveals the asset's textures folder.
-            Ctrl + S:           Reveals the asset's scenes folder.
-            Ctrl + R:           Reveals the asset's renders folder.
-            Ctrl + E:           Reveals the asset's exports folder.
-            Ctrl + F:           Toggles favourite.
-            Ctrl + Shift + F:   Toggles Isolate favourites.
-            Ctrl + A:           Toggles archived.
-            Ctrl + Shift + A:   Toggles Show archived.
-
         """
         item = self.currentItem()
         if not item:
             return
+
         data = item.data(QtCore.Qt.StatusTipRole)
 
-        if event.modifiers() == QtCore.Qt.ControlModifier:
-            if event.key() == QtCore.Qt.Key_O:
-                self.active_item = self.currentItem()
+        if event.modifiers() & QtCore.Qt.NoModifier:
+            if event.key() == QtCore.Qt.Key_Enter:
+                self.custom_doubleclick_event()
+        elif event.modifiers() & QtCore.Qt.AltModifier:
             if event.key() == QtCore.Qt.Key_C:
-                path = os.path.normpath(data)
-                QtGui.QClipboard().setText(path)
-            elif event.key() == QtCore.Qt.Key_P:
-                self.reveal_asset()
-            elif event.key() == QtCore.Qt.Key_T:
-                self.reveal_asset_textures()
-            elif event.key() == QtCore.Qt.Key_S:
-                self.reveal_asset_scenes()
-            elif event.key() == QtCore.Qt.Key_R:
-                self.reveal_asset_renders()
-            elif event.key() == QtCore.Qt.Key_E:
-                self.reveal_asset_exports()
-            elif event.key() == QtCore.Qt.Key_F:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.favourite()
-            elif event.key() == QtCore.Qt.Key_A:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.archived()
-        elif event.modifiers() & QtCore.Qt.ShiftModifier:
-            if event.key() == QtCore.Qt.Key_F:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.isolate_favourites()
-            elif event.key() == QtCore.Qt.Key_A:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.show_archived()
-            elif event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
-                url = url.fromLocalFile(data)
+                url = url.fromLocalFile(item.data(QtCore.Qt.PathRole).filePath())
                 QtGui.QClipboard().setText(url.toString())
 
     def reveal_asset(self):
