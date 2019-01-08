@@ -127,6 +127,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.save()
 
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=False
+        )
+
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
 
@@ -140,7 +147,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             option.rect.left(),
             option.rect.top() + option.rect.height() - THICKNESS,
             option.rect.width(),
-            (THICKNESS / 2.0)
+            (THICKNESS)
         )
         painter.drawRect(rect)
 
@@ -149,7 +156,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             option.rect.left(),
             option.rect.top(),
             option.rect.width(),
-            (THICKNESS / 2.0)
+            (THICKNESS)
         )
         painter.drawRect(rect)
         painter.save()
@@ -843,13 +850,13 @@ class AssetWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
-        self.paint_separators(*args)
         self.paint_thumbnail(*args)
         self.paint_favourite(*args)
         self.paint_archived(*args)
         self.paint_data(*args)
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
+        self.paint_separators(*args)
         self.paint_thumbnail_shadow(*args)
         self.paint_focus(*args)
 
@@ -869,10 +876,12 @@ class AssetWidgetDelegate(BaseDelegate):
             on=True
         )
         painter.setBrush(QtCore.Qt.NoBrush)
-        if not selected:
+        if not selected and not active:
             color = common.TEXT
-        elif selected:
+        elif selected and not active:
             color = common.TEXT_SELECTED
+        elif active:
+            color = common.SELECTION
 
         painter.setPen(QtGui.QPen(color))
 
@@ -894,7 +903,7 @@ class AssetWidgetDelegate(BaseDelegate):
 
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
 

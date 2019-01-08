@@ -52,18 +52,18 @@ class PopupButton(QtWidgets.QPushButton):
 
 class PopupCanvas(QtWidgets.QWidget):
 
-    def __init__(self, origin, parent=None):
+    def __init__(self, labels, actions, origin, parent=None):
         super(PopupCanvas, self).__init__(parent=parent)
 
+        self.animation = None
         self.origin = origin
+        self._labels = labels
+        self.actions = actions
+        self.buttons = []
+
         self._createUI()
 
         self.setWindowOpacity(0.01)
-        self.animation = None
-
-        # self.timer = QtCore.QTimer()
-        # self.timer.setInterval(20)
-        # self.timer.setSingleShot(False)
 
         self._connectSignals()
 
@@ -116,7 +116,6 @@ class PopupCanvas(QtWidgets.QWidget):
         """Method connected to the clicked() signal."""
         self.set_full_screen()
         self.move_buttons()
-        # self.timer.start()
 
         self.animate_opacity()
         super(PopupCanvas, self).show()
@@ -135,21 +134,17 @@ class PopupCanvas(QtWidgets.QWidget):
     def _createUI(self):
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint
-            # QtCore.Qt.WindowTransparentForInput
         )
 
         self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-        # self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        self.button1 = PopupButton('Scenes files...', parent=self)
-        self.button2 = PopupButton('Textures...', parent=self)
-        self.button3 = PopupButton('Exports...', parent=self)
-        self.button4 = PopupButton('Renders...', parent=self)
+        for button in self._labels:
+            b = PopupButton(button, parent=self)
+            self.buttons.append(b)
 
         self.installEventFilter(self)
 
@@ -159,47 +154,29 @@ class PopupCanvas(QtWidgets.QWidget):
 
         if event.type() == QtCore.QEvent.MouseMove:
             self.update()
-            if self.button1.geometry().contains(pos):
-                self.button1.setStyleSheet(PopupButton.active_button_style())
-            elif self.button2.geometry().contains(pos):
-                self.button2.setStyleSheet(PopupButton.active_button_style())
-            elif self.button3.geometry().contains(pos):
-                self.button3.setStyleSheet(PopupButton.active_button_style())
-            elif self.button4.geometry().contains(pos):
-                self.button4.setStyleSheet(PopupButton.active_button_style())
-            else:
-                self.button1.setStyleSheet(PopupButton.button_style())
-                self.button2.setStyleSheet(PopupButton.button_style())
-                self.button3.setStyleSheet(PopupButton.button_style())
-                self.button4.setStyleSheet(PopupButton.button_style())
-                # return True
+            for button in self.buttons:
+                if button.geometry().contains(pos):
+                    button.setStyleSheet(PopupButton.active_button_style())
+                else:
+                    button.setStyleSheet(PopupButton.button_style())
+                    button.setStyleSheet(PopupButton.button_style())
+                    button.setStyleSheet(PopupButton.button_style())
+                    button.setStyleSheet(PopupButton.button_style())
 
         if event.type() == QtCore.QEvent.MouseButtonRelease:
-            if self.button1.geometry().contains(pos):
-                self.button1.clicked.emit()
-                self.close()
-            elif self.button2.geometry().contains(pos):
-                self.button2.clicked.emit()
-                self.close()
-            elif self.button3.geometry().contains(pos):
-                self.button3.clicked.emit()
-                self.close()
-            elif self.button4.geometry().contains(pos):
-                self.button4.clicked.emit()
-                self.close()
-
-            # self.close()
-            # return True
+            for button in self.buttons:
+                if button.geometry().contains(pos):
+                    button.clicked.emit()
+                    self.close()
 
         return False
 
     def move_buttons(self):
         """Moves the popu-up buttons to place."""
-        buttons = [self.button1, self.button2, self.button3, self.button4]
         increment = 25.0
-        angle = 0 - (increment * float(len(buttons))) / 2.0 + (increment / 2.0)
+        angle = 0 - (increment * float(len(self.buttons))) / 2.0 + (increment / 2.0)
 
-        for button in reversed(buttons):
+        for button in reversed(self.buttons):
             pos = QtCore.QPoint(
                 self.origin.x() - 120,
                 self.origin.y(),
@@ -213,11 +190,8 @@ class PopupCanvas(QtWidgets.QWidget):
             angle += increment
 
     def _connectSignals(self):
-        pass
-        # self.button1.clicked.connect(self.close)
-        # self.button2.clicked.connect(self.close)
-        # self.button3.clicked.connect(self.close)
-        # self.timer.timeout.connect(self.update)
+        for button, action in zip(self.buttons, self.actions):
+            button.clicked.connect(action)
 
     def keyPressEvent(self, event):
         if event.modifiers() == QtCore.Qt.NoModifier:
@@ -237,19 +211,9 @@ if __name__ == '__main__':
     cursor = QtGui.QCursor()
     origin = cursor.pos()
 
-    widget = PopupCanvas(origin)
+    def test():
+        print 'click'
+    widget = PopupCanvas(('a', 'b'), (test, test), origin)
     widget.show()
-    # w2 = Dot()
-    # w2.show()
-    # w1 = Dot()
-    # w1.show()
-    # w3 = Dot()
-    # w3.show()
-    #
-    # pos2 = rotate(origin, QtCore.QPoint(origin.x(), origin.y() - offset), 0)
-    # pos3 = rotate(origin, QtCore.QPoint(origin.x(), origin.y() - offset), 90)
-    # w1.move(pos1)
-    # w2.move(pos2)
-    # w3.move(pos3)
 
     a.exec_()
