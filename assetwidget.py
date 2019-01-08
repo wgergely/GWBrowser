@@ -32,16 +32,6 @@ from mayabrowser.popover import PopupCanvas
 
 class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget.
-
-    Methods:
-        set_as_active_asset:      Sets the current item as the *`active item`*
-        show_asset_in_explorer:   Shows current item in the explorer.
-        show_textures:              Shows the asset's ``textures`` folder.
-        show_scenes:                Shows the asset's ``scenes`` folder.
-        show_renders:               Shows the asset's ``renders`` folder.
-        show_exports:               Shows the asset's ``exports`` folder.
-        refresh:                    Refreshes the collector and repopulates the widget.
-
     """
 
     def add_actions(self):
@@ -130,13 +120,11 @@ class AssetWidgetContextMenu(BaseContextMenu):
 class AssetWidget(BaseListWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
 
-    Arguments:
-        server (str):   The server, job and root, making up the path to querry.
-        job (str):
-        root (str):
+    Signals:
+        activeChanged (Signal):         Signal emited when the active asset has changed.
 
-    Methods:
-        set_path([str, str, str]):  Sets the path.
+    Properties:
+        path (tuple[str, str, str]):    Sets the path to search for assets.
 
     """
     Delegate = AssetWidgetDelegate
@@ -150,9 +138,14 @@ class AssetWidget(BaseListWidget):
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
 
-    def set_path(self, server, job, root):
-        """Sets the path."""
-        self._path = (server, job, root)
+    @property
+    def path(self):
+        """The path to the folder where the assets are located as a tuple of strings"""
+        return self._path
+
+    @path.setter
+    def path(self, *args):
+        self._path = args
 
     def set_current_item_as_active(self):
         """Sets the current item item as ``active``."""
@@ -205,11 +198,11 @@ class AssetWidget(BaseListWidget):
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
-        if not any(self._path):
+        if not any(self.path):
             return
 
-        collector = AssetCollector('/'.join(self._path))
-        self.fileSystemWatcher.addPath('/'.join(self._path))
+        collector = AssetCollector('/'.join(self.path))
+        self.fileSystemWatcher.addPath('/'.join(self.path))
 
         for f in collector.get():
             item = QtWidgets.QListWidgetItem()
@@ -364,10 +357,10 @@ class AssetWidget(BaseListWidget):
         QtGui.QDesktopServices.openUrl(url)
 
     def _warning_strings(self):
-        server, job, root = self._path
-        if not all(self._path):
+        server, job, root = self.path
+        if not all(self.path):
             return 'No Bookmark has been set yet.\nAssets will be shown here after you select one in the Bookmarks menu.'
-        if not any(self._path):
+        if not any(self.path):
             return 'Error: Invalid path set.\nServer: {}\nJob: {}\nRoot: {}'.format(
                 server, job, root
             )
@@ -399,9 +392,16 @@ class AssetWidget(BaseListWidget):
         """Show event will set the size of the widget."""
         self.select_active_item()
 
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    app.w = AssetWidget('//gordo/jobs', 'tkwwbk_8077', 'build')
-    # app.w.set_path('//gordo/jobs','tkwwbk_8077', 'build')
+
+    app.w = AssetWidget(
+        local_settings.value('activepath/server'),
+        local_settings.value('activepath/job'),
+        local_settings.value('activepath/root'),
+    )
+    # app.w.path = ('//gordo/jobs','tkwwbk_8077', 'build')
     app.w.show()
     app.exec_()
