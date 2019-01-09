@@ -58,22 +58,23 @@ ROW_FOOTER_HEIGHT = 18
 FAVORUITE_SELECTED = QtGui.QColor(250, 250, 100)
 FAVORUITE = QtGui.QColor(235, 235, 68)
 
-BACKGROUND_SELECTED = QtGui.QColor(100, 100, 100)
+BACKGROUND_SELECTED = QtGui.QColor(128, 128, 128)
 SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
-BACKGROUND = QtGui.QColor(68, 68, 68)
+BACKGROUND = QtGui.QColor(98, 98, 98)
 
-THUMBNAIL_BACKGROUND_SELECTED = QtGui.QColor(100, 100, 100)
-THUMBNAIL_BACKGROUND = QtGui.QColor(90, 90, 90)
+THUMBNAIL_BACKGROUND_SELECTED = QtGui.QColor(85, 85, 85)
+THUMBNAIL_BACKGROUND = QtGui.QColor(77, 77, 77)
+THUMBNAIL_IMAGE_BACKGROUND = QtGui.QColor(30, 30, 30)
 
-TEXT = QtGui.QColor(230, 230, 230)
+TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(255, 255, 255)
-TEXT_NOTE = QtGui.QColor(120, 130, 220)
+TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 TEXT_DISABLED = QtGui.QColor(100, 100, 100)
 TEXT_WARNING = SECONDARY_TEXT
 
 SEPARATOR = QtGui.QColor(58, 58, 58)
-SELECTION = QtGui.QColor(87, 137, 242)
+SELECTION = QtGui.QColor(100, 161, 255)
 ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 
 LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
@@ -278,6 +279,23 @@ def _maya_thumbnail():
 CUSTOM_THUMBNAIL = _custom_thumbnail()
 PLACEHOLDER = _maya_thumbnail()
 
+
+def get_color_average(image):
+    """Returns the average color of an image."""
+    r = []
+    g = []
+    b = []
+    for x in xrange(image.width()):
+        for y in xrange(image.height()):
+            r.append(image.pixelColor(x, y).red())
+            g.append(image.pixelColor(x, y).green())
+            b.append(image.pixelColor(x, y).blue())
+    average_color = QtGui.QColor(
+        sum(r)/float(len(r)),
+        sum(g)/float(len(g)),
+        sum(b)/float(len(b))
+    )
+    return average_color
 
 def count_assets(path):
     """Returns the number of assets inside the given folder."""

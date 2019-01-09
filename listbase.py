@@ -212,6 +212,7 @@ class BaseListWidget(QtWidgets.QListWidget):
                 rect.height()
             )
             common.IMAGE_CACHE[settings.thumbnail_path()] = image
+            common.IMAGE_CACHE[settings.thumbnail_path() + 'BG'] = common.get_color_average(image)
 
 
     def remove_thumbnail(self):

@@ -29,7 +29,7 @@ from mayabrowser.common import OpenMayaUI
 from mayabrowser.common import MayaQWidgetDockableMixin
 from mayabrowser.common import shiboken2
 
-from mayabrowser.listlocation import BookmarksWidget
+from mayabrowser.bookmarksWidget import BookmarksWidget
 from mayabrowser.assetwidget import AssetWidget
 from mayabrowser.listmaya import MayaFilesWidget
 from mayabrowser.configparsers import local_settings

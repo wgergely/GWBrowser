@@ -106,16 +106,23 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, _, _, _, _ = args
+        painter, option, _, selected, focused, active, _, _ = args
 
         painter.save()
-
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
-        if selected:
+        if selected and not active:
             color = common.BACKGROUND_SELECTED
-        else:
+        elif not selected and not active:
             color = common.BACKGROUND
+        elif selected and active:
+            color = QtGui.QColor(common.SELECTION)
+            color.setRed(color.red() - 20)
+            color.setGreen(color.green() -20)
+            color.setBlue(color.blue())
+        elif not selected and active:
+            color = QtGui.QColor(49, 107, 218)
+
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
@@ -138,9 +145,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
 
         if not selected:
-            THICKNESS = 1.0
+            THICKNESS = 0.5
         else:
-            THICKNESS = 1.0
+            THICKNESS = 0.5
 
         # Bottom
         rect = QtCore.QRectF(
@@ -189,32 +196,41 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.save()
 
-        WIDTH = 6
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=False
+        )
 
-        painter.setBrush(QtCore.Qt.NoBrush)
+        OFFSET = 0.0
+        WIDTH = 1.0
+
         pen = QtGui.QPen(common.SELECTION)
-
-        pen.setWidth(2)
+        pen.setWidth(WIDTH)
         painter.setPen(pen)
 
         # Main rectangle
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(4 + option.rect.height())
+        # rect.setLeft(rect.left() + rect.height() + 4)
 
-        rect.setTop(rect.top() + WIDTH)
-        rect.setBottom(rect.bottom() - (WIDTH))
-        rect.setLeft(rect.left() + WIDTH)
-        rect.setRight(rect.right() - (WIDTH))
+        rect.setTop(rect.top() + OFFSET + (WIDTH / 2.0) + 1.0)
+        rect.setBottom(rect.bottom() - OFFSET - (WIDTH / 2.0))
+        rect.setLeft(rect.left() + OFFSET + (WIDTH / 2.0))
+        rect.setRight(rect.right() - OFFSET - (WIDTH / 2.0))
 
+        color = QtGui.QColor(common.TEXT)
+        color.setAlpha(10)
+        painter.setBrush(color)
         painter.drawRect(rect)
 
         # Leading rectangle
-        rect = QtCore.QRect(option.rect)
+        # rect = QtCore.QRect(option.rect)
         rect.setWidth(4)
-
-        painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(common.SELECTION))
+        painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
+
         painter.restore()
 
 
@@ -296,8 +312,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                         option.rect.height()
                     )
                     common.IMAGE_CACHE[settings.thumbnail_path()] = image
+                    common.IMAGE_CACHE[settings.thumbnail_path() + 'BG'] = common.get_color_average(image)
         else:
             image = placeholder
+
+        if image is not placeholder:
+            bg_rect = QtCore.QRect(option.rect)
+            bg_rect.setLeft(bg_rect.left() + 4)  # Accounting for the leading indicator
+            bg_rect.setWidth(bg_rect.height())
+            painter.setBrush(QtGui.QBrush(common.IMAGE_CACHE[settings.thumbnail_path() + 'BG']))
+            painter.drawRect(bg_rect)
 
         # Factoring aspect ratio in
         longer = float(max(image.rect().width(), image.rect().height()))
@@ -436,7 +460,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         metrics = QtGui.QFontMetrics(painter.font())
         editor_rect = QtCore.QRect(rect)
 
-        editor_rect.setLeft(editor_rect.left() + 4 + rect.height() + common.MARGIN)
+        editor_rect.setLeft(editor_rect.left() + 4 + rect.height() + (common.MARGIN * 1.5))
         editor_rect.setRight(editor_rect.right() - common.MARGIN)
         editor_rect.setHeight(metrics.height())
 
@@ -497,12 +521,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         metrics = QtGui.QFontMetrics(font)
         rect = QtCore.QRect(rect)
 
-        rect.setLeft(rect.left() + 4 + rect.height() + common.MARGIN)
-        rect.setRight(rect.right() - common.MARGIN)
+        rect.setLeft(rect.left() + 4 + rect.height() + (common.MARGIN * 1.5))
+        rect.setRight(rect.right() - (common.MARGIN))
 
-        # Center rectangle
+        padding = 2.0
+
+        # Centering rectangle vertically
         rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
+        rect.setHeight(metrics.height() + (padding * 2))
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         return rect, font, metrics
 
@@ -846,7 +872,7 @@ class AssetWidgetDelegate(BaseDelegate):
         return NoteEditor(*args, **kwargs)
 
     def paint(self, painter, option, index):
-        """Defines how the BookmarksWidgetItems should be painted."""
+        """Defines how the ``AssetWidget``'s' items should be painted."""
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
@@ -855,9 +881,9 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_archived(*args)
         self.paint_data(*args)
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
         self.paint_separators(*args)
         self.paint_thumbnail_shadow(*args)
+        self.paint_active_indicator(*args)
         self.paint_focus(*args)
 
     def paint_custom(self, *args):
@@ -876,24 +902,30 @@ class AssetWidgetDelegate(BaseDelegate):
             on=True
         )
         painter.setBrush(QtCore.Qt.NoBrush)
+
         if not selected and not active:
             color = common.TEXT
         elif selected and not active:
             color = common.TEXT_SELECTED
-        elif active:
-            color = common.SELECTION
-
+        elif not selected and active:
+            color = QtGui.QColor(common.TEXT)
+        elif selected and active:
+            color = QtGui.QColor(common.TEXT_SELECTED)
         painter.setPen(QtGui.QPen(color))
+
 
         # Name
         rect, font, metrics = self.get_name_rect(option.rect)
 
-
-        painter.setFont(font)
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub('[^0-9a-zA-Z]+', ' ', text)
         text = re.sub('[_]{1,}', ' ', text)
         text = text.lstrip().rstrip().upper()
+
+        if active:
+            text = '{} (Active)'.format(text)
+
+        painter.setFont(font)
 
         text = metrics.elidedText(
             text,
@@ -907,6 +939,7 @@ class AssetWidgetDelegate(BaseDelegate):
             text
         )
 
+        # Description
         rect, font, metrics = self.get_description_rect(option.rect)
         painter.setFont(font)
 
@@ -917,15 +950,36 @@ class AssetWidgetDelegate(BaseDelegate):
         )
 
         if not selected:
-            painter.setPen(common.TEXT_NOTE)
+            color = QtGui.QColor(common.TEXT_NOTE)
         else:
             color = QtGui.QColor(common.TEXT_NOTE)
-            color.setRed(color.red() + 50)
-            color.setGreen(color.green() + 50)
-            color.setBlue(color.blue() + 50)
+            color.setRed(color.red() + 20.0)
+            color.setGreen(color.green() + 20.0)
+            color.setBlue(color.blue() + 20.0)
+
+        # Editing indicator
+        if selected:
+            nrect = QtCore.QRect(rect)
+            nrect.moveLeft(nrect.left() - 4)
+            nrect.setTop(nrect.top() - 2)
+            nrect.setBottom(nrect.bottom() + 2)
+            nrect.setWidth(2)
+            ncolor = QtGui.QColor(common.SEPARATOR)
+            ncolor.setAlpha(30)
+            # pen.setWidth(1)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(ncolor)
+            painter.drawRect(nrect)
+
+            nrect.setWidth(rect.width() + 4)
+            ncolor.setAlpha(30)
+            painter.setBrush(ncolor)
+            painter.drawRect(nrect)
+
+        painter.setPen(color)
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
 
@@ -1280,9 +1334,9 @@ class NoteEditor(QtWidgets.QWidget):
         """Sets the widget size."""
         rect = QtCore.QRect(self.parent().visualRect(self._index))
         rect.setLeft(rect.left() + 4 + rect.height())
+        self.move(rect.left() + 1, rect.top() + 2)
+        self.resize(size.width() - rect.left(), rect.height() - 1)
 
-        self.move(rect.topLeft())
-        self.resize(size.width() - rect.left(), rect.height())
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
@@ -1336,7 +1390,7 @@ class NoteEditor(QtWidgets.QWidget):
     def _createUI(self):
         """Creates the layout."""
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(common.MARGIN * 0.5, 0, common.MARGIN * 0.5, 0)
+        self.layout().setContentsMargins(common.MARGIN * 1.5, 0, common.MARGIN * 0.5, 0)
         self.layout().setSpacing(6)
 
         self.setSizePolicy(
@@ -1345,7 +1399,7 @@ class NoteEditor(QtWidgets.QWidget):
         )
 
         self.editor = QtWidgets.QLineEdit()
-        self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
 
         self.editor.setStyleSheet(
@@ -1354,7 +1408,7 @@ class NoteEditor(QtWidgets.QWidget):
             font-family: "Roboto Medium"; font-size: 8pt;'.format(*common.TEXT_NOTE.getRgb())
         )
 
-        label = QtWidgets.QLabel('Description')
+        label = QtWidgets.QLabel('Edit description')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         label.setStyleSheet(
             'font-family: "Roboto Black";\
