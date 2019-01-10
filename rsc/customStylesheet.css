@@ -340,9 +340,13 @@ QMenu {{
 		padding: 0;
 		margin: 0;
 		color: rgba({TEXT});
-    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+    background-color: rgba({BACKGROUND}); /* sets background of the menu */
     border: none;
 		outline: none;
+}}
+QMenu::item {{
+	padding: 10px 10px 10px 32px;
+	margin: 0;
 }}
 QMenu::item:disabled {{
 	color: rgba({TEXT_DISABLED});
@@ -352,11 +356,22 @@ QMenu::item:disabled:selected {{
 }}
 QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
     color: rgba({TEXT_SELECTED});
-    background-color: rgba({TEXT_DISABLED});
+    background-color: rgba({BACKGROUND_SELECTED});
 }}
 QMenu::SEPARATOR {{
     height: 1px;
     background: rgba({SEPARATOR});
     margin-left: 10px;
     margin-right: 10px;
+}}
+
+
+QToolTip {{
+		padding: 0;
+		margin: 0;
+		color: rgba({TEXT});
+    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+    border: none;
+		outline: none;
+		font-size: 9pt;
 }}
