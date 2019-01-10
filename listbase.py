@@ -180,78 +180,19 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
 
-        # Deleting the thumbnail from our image cache
-        if settings.thumbnail_path() in common.IMAGE_CACHE:
-            del common.IMAGE_CACHE[settings.thumbnail_path()]
-
         # Saving the image
+        common.delete_image(settings.thumbnail_path())
         ScreenGrabber.screen_capture_file(output_path=settings.thumbnail_path())
-
-        rect = self.visualRect(self.currentIndex())
-
-        # Placeholder
-        if common.PLACEHOLDER in common.IMAGE_CACHE:
-            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
-        else:
-            placeholder = QtGui.QImage()
-            placeholder.load(common.PLACEHOLDER)
-            placeholder = ThumbnailEditor.smooth_copy(
-                placeholder,
-                rect.height()
-            )
-            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
-
-
-        image = QtGui.QImage()
-        image.load(settings.thumbnail_path())
-        if image.isNull():
-            image = placeholder
-        else:
-            image = ThumbnailEditor.smooth_copy(
-                image,
-                rect.height()
-            )
-            common.IMAGE_CACHE[settings.thumbnail_path()] = image
-            common.IMAGE_CACHE[settings.thumbnail_path() + 'BG'] = common.get_color_average(image)
+        common.delete_image(settings.thumbnail_path(), delete_file=False)
+        self.repaint()
 
 
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
         item = self.currentItem()
         settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
-        rect = self.visualRect(self.currentIndex())
-
-        # Placeholder
-        if common.PLACEHOLDER in common.IMAGE_CACHE:
-            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
-        else:
-            placeholder = QtGui.QImage()
-            placeholder.load(common.PLACEHOLDER)
-            placeholder = ThumbnailEditor.smooth_copy(
-                placeholder,
-                rect.height()
-            )
-            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
-
-        f = QtCore.QFile(settings.thumbnail_path())
-
-        if f.exists():
-            f.remove()
-
-        if settings.thumbnail_path() in common.IMAGE_CACHE:
-            del common.IMAGE_CACHE[settings.thumbnail_path()]
-
-        image = QtGui.QImage()
-        image.load(settings.thumbnail_path())
-        if image.isNull():
-            image = placeholder
-        else:
-            image = ThumbnailEditor.smooth_copy(
-                image,
-                rect.height()
-            )
-            common.IMAGE_CACHE[settings.thumbnail_path()] = image
-
+        common.delete_image(settings.thumbnail_path())
+        self.repaint()
 
 
 
@@ -473,24 +414,24 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def contextMenuEvent(self, event):
         index = self.indexAt(event.pos())
-        self._contextMenu = self.ContextMenu(index, parent=self)
+        widget = self.ContextMenu(index, parent=self)
         if index.isValid():
             rect = self.visualRect(index)
-            self._contextMenu.setFixedWidth(self.viewport().rect().width())
-            self._contextMenu.show()
-            self._contextMenu.move(
-                self.viewport().mapToGlobal(rect.bottomLeft()))
-        else:
-            self._contextMenu.setFixedWidth(self.viewport().rect().width())
-            self._contextMenu.show()
-            cursor_pos = QtGui.QCursor().pos()
-            self._contextMenu.move(
-                self.viewport().mapToGlobal(self.viewport().rect().topLeft()).x(),
-                cursor_pos.y()
+            widget.setFixedWidth(self.viewport().geometry().width())
+            widget.move(
+                self.viewport().mapToGlobal(rect.bottomLeft()).x(),
+                self.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
             )
-        self._contextMenu.move(self._contextMenu.x(), self._contextMenu.y())
-
-        common.move_widget_to_available_geo(self._contextMenu)
+        else:
+            widget.setFixedWidth(self.viewport().geometry().width())
+            cursor_pos = QtGui.QCursor().pos()
+            widget.move(
+                self.viewport().mapToGlobal(self.viewport().geometry().topLeft()).x(),
+                cursor_pos.y() + 1
+            )
+        widget.move(widget.x(), widget.y())
+        common.move_widget_to_available_geo(widget)
+        widget.show()
 
     def _connectSignals(self):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
