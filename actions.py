@@ -4,7 +4,7 @@ Customized QMenu for displaying context menus based on action-set dictionaries.
 """
 
 # pylint: disable=E1101, C0103, R0913, I1101
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtGui, QtCore
 
 
 class Actions(QtWidgets.QMenu):
@@ -12,7 +12,22 @@ class Actions(QtWidgets.QMenu):
 
     def __init__(self, parent=None):
         super(Actions, self).__init__(parent=parent)
+        self.setToolTipsVisible(True)
         self.add_actions()
+
+    def showEvent(self, event):
+        """Clipping the action text to fit the size of the widget upon showing."""
+        for action in self.actions():
+            if not action.text():
+                continue
+
+            metrics = QtGui.QFontMetrics(self.font())
+            text = metrics.elidedText(
+                action.text(),
+                QtCore.Qt.ElideMiddle,
+                self.width() - 32 - 10 # padding set in the stylesheet
+            )
+            action.setText(text)
 
     def add_actions(self):
         """Abstract method to be overriden in the subclass."""
