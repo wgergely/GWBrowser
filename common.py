@@ -70,7 +70,7 @@ TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(255, 255, 255)
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-TEXT_DISABLED = QtGui.QColor(100, 100, 100)
+TEXT_DISABLED = QtGui.QColor(130, 130, 130)
 TEXT_WARNING = SECONDARY_TEXT
 
 SEPARATOR = QtGui.QColor(58, 58, 58)
@@ -206,6 +206,76 @@ ASSIGNED_LABELS = {}
 IMAGE_CACHE = {}
 
 
+def cache_image(path, height, overwrite=False):
+    """Saves the image at the path to the image cache. The cached images are
+    stored in the IMAGE_CACHE dictionary.
+
+    If the loading the image fails, we'll automatically use
+
+    We're also saving an average of colour to be used as the background when the
+    image is not squarical.
+
+    Args:
+        path (str):    Path to the image file.
+        height (int):  Description of parameter `height`.
+
+    Returns:
+        type: Description of returned object.
+
+    """
+    from mayabrowser.delegate import ThumbnailEditor
+
+    path = QtCore.QFileInfo(path)
+    path = path.filePath()
+
+    k = '{path}:{height}'.format(
+        path=path,
+        height=height
+    )
+
+    if k in IMAGE_CACHE and not overwrite:
+        return
+
+    image = QtGui.QImage()
+    image.load(path)
+
+    # If the load fails, use the placeholder image
+    if image.isNull():
+        image.load(PLACEHOLDER)
+        image = ThumbnailEditor.smooth_copy(
+            image,
+            height
+        )
+    else:
+        image = ThumbnailEditor.smooth_copy(
+            image,
+            height
+        )
+
+    # Average colour
+    IMAGE_CACHE[k] = image
+    IMAGE_CACHE['{path}:BackgroundColor'.format(
+        path=path
+    )] = get_color_average(image)
+
+
+def delete_image(path, delete_file=True):
+    """Deletes the given file and the associated cached data.
+
+    Args:
+        path (type): Path to the image file.
+
+    """
+    file_ = QtCore.QFile(path)
+
+    if file_.exists() and delete_file:
+        file_.remove()
+
+    keys = [k for k in IMAGE_CACHE if path.lower() in k.lower()]
+    for k in keys:
+        del IMAGE_CACHE[k]
+
+
 def label_generator():
     """Generates QColors from an array of RGB values.
 
@@ -291,11 +361,12 @@ def get_color_average(image):
             g.append(image.pixelColor(x, y).green())
             b.append(image.pixelColor(x, y).blue())
     average_color = QtGui.QColor(
-        sum(r)/float(len(r)),
-        sum(g)/float(len(g)),
-        sum(b)/float(len(b))
+        sum(r) / float(len(r)),
+        sum(g) / float(len(g)),
+        sum(b) / float(len(b))
     )
     return average_color
+
 
 def count_assets(path):
     """Returns the number of assets inside the given folder."""
