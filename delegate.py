@@ -118,7 +118,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif selected and active:
             color = QtGui.QColor(common.SELECTION)
             color.setRed(color.red() - 20)
-            color.setGreen(color.green() -20)
+            color.setGreen(color.green() - 20)
             color.setBlue(color.blue())
         elif not selected and active:
             color = QtGui.QColor(49, 107, 218)
@@ -233,7 +233,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.restore()
 
-
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
         painter, option, index, selected, focused, active, archived, favourite = args
@@ -268,64 +267,47 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.save()
 
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + 4)  # Accounting for the leading indicator
+        rect.setWidth(rect.height())
+
+        # Background rectangle
         if selected:
             color = common.THUMBNAIL_BACKGROUND_SELECTED
         else:
             color = common.THUMBNAIL_BACKGROUND
 
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + 4)  # Accounting for the leading indicator
-        rect.setWidth(rect.height())
-
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        # Checking if the images are in the cache already:
-        # Placeholder image
-        if common.PLACEHOLDER in common.IMAGE_CACHE:
-            placeholder = common.IMAGE_CACHE[common.PLACEHOLDER]
-        else:
-            placeholder = QtGui.QImage()
-            placeholder.load(common.PLACEHOLDER)
-            placeholder = ThumbnailEditor.smooth_copy(
-                placeholder,
-                option.rect.height()
-            )
-            common.IMAGE_CACHE[common.PLACEHOLDER] = placeholder
-
         settings = AssetSettings(index.data(QtCore.Qt.PathRole).filePath())
-        image = placeholder
 
-        # Thumbnail image
+        # Caching image
+        common.cache_image(settings.thumbnail_path(), option.rect.height())
+
+        # Painting background rectangle when the image exists
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            if settings.thumbnail_path() in common.IMAGE_CACHE:
-                image = common.IMAGE_CACHE[settings.thumbnail_path()]
-            else:
-                image = QtGui.QImage()
-                image.load(settings.thumbnail_path())
-                if image.isNull():
-                    image = placeholder
-                else:
-                    image = ThumbnailEditor.smooth_copy(
-                        image,
-                        option.rect.height()
-                    )
-                    common.IMAGE_CACHE[settings.thumbnail_path()] = image
-                    common.IMAGE_CACHE[settings.thumbnail_path() + 'BG'] = common.get_color_average(image)
-        else:
-            image = placeholder
-
-        if image is not placeholder:
             bg_rect = QtCore.QRect(option.rect)
-            bg_rect.setLeft(bg_rect.left() + 4)  # Accounting for the leading indicator
+            bg_rect.setLeft(bg_rect.left() + 4)
             bg_rect.setWidth(bg_rect.height())
-            painter.setBrush(QtGui.QBrush(common.IMAGE_CACHE[settings.thumbnail_path() + 'BG']))
+            bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
+                path=settings.thumbnail_path(),
+            )]
+            painter.setBrush(QtGui.QBrush(bg_color))
             painter.drawRect(bg_rect)
 
-        # Factoring aspect ratio in
+        # Getting the thumbnail from the cache
+        k = '{path}:{height}'.format(
+            path=settings.thumbnail_path(),
+            height=option.rect.height()
+        )
+        image = common.IMAGE_CACHE[k]
+
+        # Resizing the rectangle to accommodate the image's aspect ration
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / longer)
+
         if image.rect().width() < image.rect().height():
             rect.setWidth(float(image.rect().width()) * factor)
         else:
@@ -460,7 +442,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         metrics = QtGui.QFontMetrics(painter.font())
         editor_rect = QtCore.QRect(rect)
 
-        editor_rect.setLeft(editor_rect.left() + 4 + rect.height() + (common.MARGIN * 1.5))
+        editor_rect.setLeft(editor_rect.left() + 4 +
+                            rect.height() + (common.MARGIN * 1.5))
         editor_rect.setRight(editor_rect.right() - common.MARGIN)
         editor_rect.setHeight(metrics.height())
 
@@ -913,7 +896,6 @@ class AssetWidgetDelegate(BaseDelegate):
             color = QtGui.QColor(common.TEXT_SELECTED)
         painter.setPen(QtGui.QPen(color))
 
-
         # Name
         rect, font, metrics = self.get_name_rect(option.rect)
 
@@ -943,8 +925,13 @@ class AssetWidgetDelegate(BaseDelegate):
         rect, font, metrics = self.get_description_rect(option.rect)
         painter.setFont(font)
 
+        if not index.data(QtCore.Qt.UserRole):
+            text = 'Double-click to add description...'
+        else:
+            text = index.data(QtCore.Qt.UserRole)
+
         text = metrics.elidedText(
-            index.data(QtCore.Qt.UserRole),
+            text,
             QtCore.Qt.ElideRight,
             rect.width()
         )
@@ -957,31 +944,24 @@ class AssetWidgetDelegate(BaseDelegate):
             color.setGreen(color.green() + 20.0)
             color.setBlue(color.blue() + 20.0)
 
-        # Editing indicator
-        if selected:
-            nrect = QtCore.QRect(rect)
-            nrect.moveLeft(nrect.left() - 4)
-            nrect.setTop(nrect.top() - 2)
-            nrect.setBottom(nrect.bottom() + 2)
-            nrect.setWidth(2)
-            ncolor = QtGui.QColor(common.SEPARATOR)
-            ncolor.setAlpha(30)
-            # pen.setWidth(1)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(ncolor)
-            painter.drawRect(nrect)
+        # On mouse hover we're adding a small text indicator for the description area
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-            nrect.setWidth(rect.width() + 4)
-            ncolor.setAlpha(30)
-            painter.setBrush(ncolor)
-            painter.drawRect(nrect)
-
-        painter.setPen(color)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
+        if not index.data(QtCore.Qt.UserRole) and hover:
+            color.setAlpha(100)
+            painter.setPen(color)
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                text
+            )
+        elif index.data(QtCore.Qt.UserRole):
+            painter.setPen(color)
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                text
+            )
 
         painter.restore()
 
@@ -1240,20 +1220,26 @@ class FilesWidgetDelegate(BaseDelegate):
 
 
 class ThumbnailEditor(QtWidgets.QWidget):
-    """Thumbnail editor baseclass."""
+    """Editor widget used by the Asset- and FileWidget delegateself.
 
+    The editor is responsible for associating a thumbnail image with
+    an Asset- or FileWidget item via a file-browser prompt.
+
+    """
     def __init__(self, index, rect, view, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
 
-        file_info = index.data(QtCore.Qt.PathRole)
-        settings = AssetSettings(file_info.filePath())
+        settings = AssetSettings(index.data(QtCore.Qt.PathRole).filePath())
+
+        # Opening dialog to select an image file
         dialog = QtWidgets.QFileDialog()
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
-        dialog.setDirectory(QtCore.QDir(file_info.filePath()))
-        dialog.setOption(QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
+        dialog.setDirectory(QtCore.QDir(index.data(QtCore.Qt.PathRole).filePath()))
+        dialog.setOption(
+            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
         if not dialog.exec_():
             return
@@ -1261,20 +1247,23 @@ class ThumbnailEditor(QtWidgets.QWidget):
         if not dialog.selectedFiles():
             return
 
+        # Saving the image
+        common.delete_image(settings.thumbnail_path())
+
+        # Saving the thumbnail and creating the directories as necessary
         image = QtGui.QImage()
         image.load(next(f for f in dialog.selectedFiles()))
         image = self.smooth_copy(image, common.THUMBNAIL_IMAGE_SIZE)
 
-        # Deleting previous thumbnail from the image cache
-        if settings.thumbnail_path() in common.IMAGE_CACHE:
-            del common.IMAGE_CACHE[settings.thumbnail_path()]
-
-        # Saving the thumbnail and creating the directories as necessary
         file_info = QtCore.QFileInfo(settings.thumbnail_path())
         if not file_info.dir().exists():
             QtCore.QDir().mkpath(file_info.dir().path())
-        if image.save(settings.thumbnail_path()):
-            self.parent().update()
+            
+        image.save(settings.thumbnail_path())
+
+        common.delete_image(settings.thumbnail_path(), delete_file=False)
+        self.parent().repaint()
+
 
     @staticmethod
     def smooth_copy(image, size):
@@ -1302,7 +1291,8 @@ class NoteEditor(QtWidgets.QWidget):
         self._index = index
 
         self.editor = None
-        self.settings = configparser.AssetSettings(self._index.data(QtCore.Qt.PathRole).filePath())
+        self.settings = configparser.AssetSettings(
+            self._index.data(QtCore.Qt.PathRole).filePath())
         self._createUI()
 
         self.editor.focusOutEvent = self.focusOutEvent
@@ -1336,7 +1326,6 @@ class NoteEditor(QtWidgets.QWidget):
         rect.setLeft(rect.left() + 4 + rect.height())
         self.move(rect.left() + 1, rect.top() + 2)
         self.resize(size.width() - rect.left(), rect.height() - 1)
-
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
