@@ -46,7 +46,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
             QtGui.QClipboard().setText(s)
 
         menu = QtWidgets.QMenu(parent=self)
-        menu.setTitle('Paths - Copy to clipboard')
+        menu.setTitle('Copy')
 
         # Url
         file_path = self.index.data(QtCore.Qt.PathRole).filePath()
@@ -92,7 +92,6 @@ class AssetWidgetContextMenu(BaseContextMenu):
         archived = item.flags() & configparser.MarkedAsArchived
         favourite = item.flags() & configparser.MarkedAsFavourite
 
-        items[file_info.filePath()] = {'disabled': True}
         items['Activate'] = {}
         items['<separator>.'] = {}
         items['Capture thumbnail'] = {}
@@ -245,13 +244,12 @@ class AssetWidget(BaseListWidget):
             item.setData(QtCore.Qt.DisplayRole, f.baseName())
             item.setData(QtCore.Qt.EditRole,
                          item.data(QtCore.Qt.DisplayRole))
-            item.setData(QtCore.Qt.StatusTipRole,
-                         u'Asset: {}\n{}'.format(
-                             f.baseName(), f.filePath()
-                         ))
-            item.setData(QtCore.Qt.ToolTipRole,
-                         item.data(QtCore.Qt.StatusTipRole))
-
+            item.setData(QtCore.Qt.StatusTipRole, f.filePath())
+            tooltip = u'{}\n\n'.format(f.baseName().upper())
+            tooltip += u'{}\n'.format(self._path[1].upper())
+            tooltip += u'{}\n\n'.format(self._path[2].upper())
+            tooltip += u'{}'.format(f.filePath())
+            item.setData(QtCore.Qt.ToolTipRole, tooltip)
             item.setData(QtCore.Qt.PathRole, f)
             item.setData(
                 QtCore.Qt.SizeHintRole,
