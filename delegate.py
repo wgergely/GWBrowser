@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Delegate and editor classes for the list widgets.
-"""
 # pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
+
+
+"""This module defines the delegates used to paint the ListWidgetItems and the
+associated data.
+
+"""
+
 
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -11,7 +16,6 @@ from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
-# from mayabrowser.configparsers import FileConfig
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -39,8 +43,99 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 focused, active, archived, favourite)
         return args
 
+    @staticmethod
+    def get_text_area(rect, emphasis):
+        """Returns the elements needed to paint primary text elements.
+        Note that the returned rectangle covers the whole
+
+        Args:
+            rect (QRect): style option item.
+            section (int): The empasis of the font.
+
+        Returns:
+            Tuple: Tuple of [`QRect`, `QFont`, `QFontMetrics`]
+
+        """
+        rect = QtCore.QRect(rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
+
+        # Primary font is used to draw item names
+        if emphasis is common.PRIMARY_FONT:
+            font = QtGui.QFont('Roboto Black')
+            font.setPointSizeF(9.5)
+            font.setBold(False)
+            font.setItalic(False)
+        # Secondary fonts are used to draw description and file information
+        elif emphasis is common.SECONDARY_FONT:
+            font = QtGui.QFont('Roboto Medium')
+            font.setPointSizeF(9.0)
+            font.setBold(False)
+            font.setItalic(False)
+        elif emphasis is common.TERCIARY_FONT:
+            font = QtGui.QFont('Roboto')
+            font.setPointSizeF(8.0)
+            font.setBold(False)
+            font.setItalic(True)
+
+        # Metrics
+        metrics = QtGui.QFontMetrics(font)
+        return rect, font, metrics
+
+    @staticmethod
+    def get_state_color(option, index, color):
+        """Returns a modified colour taking the current item state into
+        consideration.
+
+        Args:
+            option (QStyleOption): Description of parameter `option`.
+            index (QModelIndex): Item's index.
+            color (QColor): The colour to apply the state to.
+
+        Returns:
+            QColor: The new colour.
+
+        """
+        selected = option.state & QtWidgets.QStyle.State_Selected
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        # Custom states
+        favourite = index.flags() & configparser.MarkedAsFavourite
+        archived = index.flags() & configparser.MarkedAsArchived
+        active = index.flags() & configparser.MarkedAsActive
+
+        color = QtGui.QColor(color)
+
+        if favourite:
+            color = QtGui.QColor(common.FAVOURITE)
+        if active:
+            color = QtGui.QColor(common.SELECTION)
+
+        if selected:
+            color.setRed(color.red() / 0.92)
+            color.setGreen(color.green() / 0.92)
+            color.setBlue(color.blue() / 0.92)
+            return color
+
+        if archived:  # Disabled colour
+            color.setRed(color.red() / 1.96)
+            color.setGreen(color.green() / 1.96)
+            color.setBlue(color.blue() / 1.96)
+
+        if hover:
+            color.setRed(color.red() + 15)
+            color.setGreen(color.green() + 15)
+            color.setBlue(color.blue() + 15)
+
+        return color
+
     def paint_focus(self, *args):
-        painter, option, _, _, focused, _, _, _ = args
+        """Paintets the rectangle around theitem indicating keyboard focus."""
+        painter, option, index, _, focused, _, _, _ = args
 
         if not focused:
             return
@@ -54,59 +149,68 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             on=False
         )
 
+        color = self.get_state_color(option, index, common.SELECTION)
         painter.setBrush(QtCore.Qt.NoBrush)
-        pen = QtGui.QPen(common.SELECTION)
+        pen = QtGui.QPen(color)
         pen.setWidth(1.0)
 
         rect = QtCore.QRectF(option.rect)
-        rect.setLeft(rect.left() + 1)
+        rect.setLeft(rect.left())
         rect.setTop(rect.top() + 1)
         rect.setRight(rect.right() - 1)
         rect.setBottom(rect.bottom() - 1)
 
         path = QtGui.QPainterPath()
         path.addRect(rect)
-
         painter.strokePath(path, pen)
 
         painter.restore()
 
     def paint_favourite(self, *args):
-        """Paints the little yellow dot, that marks items as the favourite item."""
-        painter, option, index, selected, focused, active, archived, favourite = args
-
-        if not favourite:
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, favourite = args
+        if option.rect.width() < 250.0:
             return
 
         painter.save()
 
-        if selected:
-            color = QtGui.QColor(common.SELECTION)
-            color.setRed(color.red() + 20)
-            color.setGreen(color.green() + 20)
-            color.setBlue(color.blue() + 20)
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 0)
+
+        # Icon
+        if favourite:
+            color = QtGui.QColor(common.FAVOURITE)
         else:
-            color = common.SELECTION
+            color = QtGui.QColor(common.SECONDARY_TEXT)
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(color))
+        pos = QtGui.QCursor().pos()
+        pos = self.parent().mapFromGlobal(pos)
 
-        size = 6
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(option.rect.width() - size * 2)
-        rect.setWidth(size)
+        pixmap = common.get_rsc_pixmap('favourite', color, common.INLINE_ICON_SIZE)
 
-        rect.setHeight(size)
-        rect.moveTop(rect.top() + (rect.height()))
-        # rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        painter.drawRoundedRect(rect, size * 0.5, size * 0.5)
+        painter.setPen(QtCore.Qt.NoPen)
+        if favourite:
+            color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(60)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRoundedRect(bg_rect, 2.0, 2.0)
+
+        # Icon
+        painter.drawPixmap(rect, pixmap)
 
         painter.restore()
 
+
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, focused, active, _, _ = args
+        painter, option, _, selected, _, active, _, _ = args
 
         painter.save()
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
@@ -130,7 +234,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_separators(self, *args):
         """Paints horizontal separators."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
 
         painter.save()
 
@@ -169,81 +273,62 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.save()
 
     def paint_selection_indicator(self, *args):
-        """Paints the blue leading rectangle to indicate the current selection."""
-        painter, option, _, selected, _, _, _, _ = args
+        """Paints the leading rectangle indicating the selection."""
+        painter, option, index, selected, _, _, _, _ = args
 
         painter.save()
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(common.INDICATOR_WIDTH)
 
         if selected:
-            painter.setBrush(QtGui.QBrush(common.SELECTION))
+            color = self.get_state_color(option, index, common.SELECTION)
         else:
-            painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+            color = self.get_state_color(option, index, common.SEPARATOR)
 
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(4)
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
         painter.restore()
 
     def paint_active_indicator(self, *args):
-        """Paints the yellow leading rectangle to indicate item is set as current."""
-        painter, option, index, selected, _, active, _, _ = args
+        """Paints the leading rectangle to indicate item is set as current."""
+        painter, option, index, _, _, active, _, _ = args
 
         if not active:
             return
 
         painter.save()
 
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=False
-        )
-
-        OFFSET = 0.0
-        WIDTH = 1.0
-
-        pen = QtGui.QPen(common.SELECTION)
-        pen.setWidth(WIDTH)
-        painter.setPen(pen)
-
-        # Main rectangle
         rect = QtCore.QRect(option.rect)
-        # rect.setLeft(rect.left() + rect.height() + 4)
+        rect.setTop(rect.top() + 1)
 
-        rect.setTop(rect.top() + OFFSET + (WIDTH / 2.0) + 1.0)
-        rect.setBottom(rect.bottom() - OFFSET - (WIDTH / 2.0))
-        rect.setLeft(rect.left() + OFFSET + (WIDTH / 2.0))
-        rect.setRight(rect.right() - OFFSET - (WIDTH / 2.0))
+        color = self.get_state_color(option, index, common.SELECTION)
 
-        color = QtGui.QColor(common.TEXT)
-        color.setAlpha(10)
+        rect.setWidth(common.INDICATOR_WIDTH)
         painter.setBrush(color)
+        painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
 
-        # Leading rectangle
-        # rect = QtCore.QRect(option.rect)
-        rect.setWidth(4)
-        painter.setBrush(QtGui.QBrush(common.SELECTION))
-        painter.setPen(QtCore.Qt.NoPen)
+        rect.moveRight(option.rect.right())
         painter.drawRect(rect)
 
         painter.restore()
 
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
-        painter, option, index, selected, focused, active, archived, favourite = args
+        painter, option, _, _, _, _, _, _ = args
 
         painter.save()
 
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + 4 + option.rect.height())
+        rect.setLeft(
+            rect.left() +
+            common.INDICATOR_WIDTH +
+            option.rect.height()
+        )
         rect.setWidth(option.rect.height())
-
-        # rect.setLeft(rect.left() + rect.width())
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
@@ -268,7 +353,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.save()
 
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + 4)  # Accounting for the leading indicator
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
         rect.setWidth(rect.height())
 
         # Background rectangle
@@ -289,7 +374,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Painting background rectangle when the image exists
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             bg_rect = QtCore.QRect(option.rect)
-            bg_rect.setLeft(bg_rect.left() + 4)
+            bg_rect.setLeft(bg_rect.left() + common.INDICATOR_WIDTH)
             bg_rect.setWidth(bg_rect.height())
             bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
                 path=settings.thumbnail_path(),
@@ -330,31 +415,24 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_data(self, *args):
         painter, option, index, selected, _, _, _, _ = args
-
         painter.save()
 
-        font = painter.font()
-        font.setPointSize(9)
-        font.setBold(False)
-        painter.setFont(font)
-        painter.setBrush(QtCore.Qt.NoBrush)
-
         if selected:
-            painter.setPen(QtGui.QPen(common.TEXT))
-        else:
-            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+            color = QtGui.QColor(common.TEXT_SELECTED)
+        elif not selected:
+            color = QtGui.QColor(common.TEXT)
 
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + 4 + option.rect.height() + common.MARGIN)
-        rect.setRight(rect.left() - common.MARGIN)
+        rect, metrics, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
 
-        metrics = QtGui.QFontMetrics(painter.font())
         text = metrics.elidedText(
             index.data(QtCore.Qt.DisplayRole),
             QtCore.Qt.ElideMiddle,
             rect.width()
         )
-        width = metrics.width(text) + common.MARGIN
+
+        painter.setPen(QtGui.QPen(color))
+        painter.setBrush(QtCore.Qt.NoBrush)
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -374,7 +452,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         rect = QtCore.QRect(option.rect)
-        rect.setWidth(4)
+        rect.setWidth(common.INDICATOR_WIDTH)
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
         painter.drawRect(rect)
@@ -383,7 +461,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items flagged as `archived`."""
-        painter, option, index, selected, focused, active, archived, favourite = args
+        painter, option, _, _, _, _, archived, _ = args
 
         if not archived:
             return
@@ -408,52 +486,39 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(option.rect)
 
         painter.restore()
-
-    @staticmethod
-    def get_thumbnaileditor_cls(*args, **kwargs):
-        """Abstract method needs to be overriden in the subclass.
-        Should return the Class Type of the editor.
-
-        """
-        raise NotImplementedError('get_thumbnaileditor_cls() is abstract.')
-
-    @staticmethod
-    def get_noteeditor_cls(*args, **kwargs):
-        """Abstract method needs to be overriden in the subclass.
-        Should return the Class Type of the editor.
-
-        """
-        raise NotImplementedError('get_noteeditor_cls() is abstract.')
-
-    def get_name_rect(self, rect):
-        """Returns the rectangle containing the name.
-
-        Args:
-            rect (QtCore.QRect): The QListWidgetItem's visual rectangle.
-
-        Returns:            QtCore.QRect
-
-        """
-        painter = QtGui.QPainter()
-        font = QtGui.QFont('Roboto Black')
-        font.setBold(False)
-        font.setPointSize(9.0)
-        painter.setFont(font)
-        metrics = QtGui.QFontMetrics(painter.font())
-        editor_rect = QtCore.QRect(rect)
-
-        editor_rect.setLeft(editor_rect.left() + 4 +
-                            rect.height() + (common.MARGIN * 1.5))
-        editor_rect.setRight(editor_rect.right() - common.MARGIN)
-        editor_rect.setHeight(metrics.height())
-
-        # Center rectangle
-        editor_rect.moveTop(
-            rect.top() +
-            (rect.height() * 0.5) -
-            (editor_rect.height() * 0.5)
-        )
-        return editor_rect, font, metrics
+    #
+    # def get_name_rect(self, rect):
+    #     """Returns the rectangle containing the name.
+    #
+    #     Args:
+    #         rect (QtCore.QRect): The QListWidgetItem's visual rectangle.
+    #
+    #     Returns:            QtCore.QRect
+    #
+    #     """
+    #     painter = QtGui.QPainter()
+    #     font = QtGui.QFont('Roboto Black')
+    #     font.setBold(False)
+    #     font.setPointSize(9.0)
+    #     painter.setFont(font)
+    #     metrics = QtGui.QFontMetrics(painter.font())
+    #     editor_rect = QtCore.QRect(rect)
+    #
+    #     editor_rect.setLeft(
+    #         editor_rect.left() + common.INDICATOR_WIDTH +
+    #         rect.height() + (common.MARGIN * 1.5)
+    #     )
+    #
+    #     editor_rect.setRight(editor_rect.right() - common.MARGIN)
+    #     editor_rect.setHeight(metrics.height())
+    #
+    #     # Center rectangle
+    #     editor_rect.moveTop(
+    #         rect.top() +
+    #         (rect.height() * 0.5) -
+    #         (editor_rect.height() * 0.5)
+    #     )
+    #     return editor_rect, font, metrics
 
     def get_filename_rect(self, rect):
         """Returns the rectangle containing the name.
@@ -473,7 +538,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         metrics = QtGui.QFontMetrics(painter.font())
         editor_rect = QtCore.QRect(rect)
 
-        offset = 4 + rect.height() + common.MARGIN
+        offset = rect.height() + common.INDICATOR_WIDTH + common.MARGIN
         editor_rect.moveLeft(editor_rect.left() + offset)
         editor_rect.setWidth(editor_rect.width() - offset - common.MARGIN)
         editor_rect.setHeight(metrics.height())
@@ -504,7 +569,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         metrics = QtGui.QFontMetrics(font)
         rect = QtCore.QRect(rect)
 
-        rect.setLeft(rect.left() + 4 + rect.height() + (common.MARGIN * 1.5))
+        rect.setLeft(
+            rect.left() +
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            (common.MARGIN * 1.5)
+        )
         rect.setRight(rect.right() - (common.MARGIN))
 
         padding = 2.0
@@ -518,7 +588,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def get_thumbnail_rect(self, rect):
         """Returns the rectangle for the thumbnail editor."""
         rect = QtCore.QRect(rect)
-        rect.moveLeft(4)
+        rect.moveLeft(common.INDICATOR_WIDTH)
         rect.setWidth(rect.height())
         return rect
 
@@ -528,38 +598,28 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(rect.height())
         return rect
 
-    def createEditor(self, parent, option, index, editor=0):  # pylint: disable=W0613
-        """Creates the custom editors needed to edit the thumbnail and the description.
-
-        References:
-        http: // doc.qt.io/qt-5/QItemEditorFactory.html  # standard-editing-widgets
-
-        """
-        if not editor:
-            return
-        elif editor == 1:  # Editor to edit notes
-            rect, _, _ = self.get_description_rect(option.rect)
-            return self.get_noteeditor_cls(index, rect, self.parent(), parent=parent)
-        elif editor == 2:  # Editor to pick a thumbnail
-            rect = self.get_thumbnail_rect(option.rect)
-            return self.get_thumbnaileditor_cls(index, rect, self.parent(), parent=parent)
-        elif editor == 3:  # Button to remove a location, no editor needed
-            return
+    # def createEditor(self, parent, option, index, editor=0):  # pylint: disable=W0613
+    #     """Creates the custom editors needed to edit the thumbnail and the description.
+    #
+    #     References:
+    #     http: // doc.qt.io/qt-5/QItemEditorFactory.html  # standard-editing-widgets
+    #
+    #     """
+    #     if not editor:
+    #         return
+    #     elif editor == 1:  # Editor to edit notes
+    #         rect, _, _ = self.get_description_rect(option.rect)
+    #         return self.get_noteeditor_cls(index, rect, self.parent(), parent=parent)
+    #     elif editor == 2:  # Editor to pick a thumbnail
+    #         rect = self.get_thumbnail_rect(option.rect)
+    #         return self.get_thumbnaileditor_cls(index, rect, self.parent(), parent=parent)
+    #     elif editor == 3:  # Button to remove a location, no editor needed
+    #         return
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
-        selected = index.row() == self.parent().currentIndex().row()
-        size = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        size = QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
         return size
-
-    def get_thumbnail_path(self, index):
-        """Abstract method to be overriden in the subclass.
-        Should return the path to the thumbnail file.
-
-        """
-        raise NotImplementedError(
-            'get_thumbnail_path() is abstract and has to be overriden in the subclass.'
-        )
 
 
 class BookmarksWidgetDelegate(BaseDelegate):
@@ -597,7 +657,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + 4)
+        rect.moveLeft(rect.left() + common.INDICATOR_WIDTH)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.setPen(QtCore.Qt.NoPen)
@@ -617,7 +677,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         else:
             image = QtGui.QImage()
             image.load(path)
-            image = ThumbnailEditor.smooth_copy(
+            image = common.resize_image(
                 image,
                 option.rect.height()
             )
@@ -648,7 +708,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
-        painter, option, index, selected, focused, active, archived, favourite = args
+        painter, option, _, selected, _, active, _, _ = args
 
         painter.save()
 
@@ -660,7 +720,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(option.rect)
         # Making the aspect ratio of the image 16/9
         rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + 4)  # Accounting for the leading indicator
+        rect.moveLeft(rect.left() + common.INDICATOR_WIDTH)
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
@@ -680,7 +740,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         else:
             image = QtGui.QImage()
             image.load(path)
-            image = ThumbnailEditor.smooth_copy(
+            image = common.resize_image(
                 image,
                 option.rect.height()
             )
@@ -725,7 +785,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         count = int(count)
 
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(4 + option.rect.height() + common.MARGIN)
+        rect.setLeft(option.rect.height() +
+                     common.INDICATOR_WIDTH + common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
 
         # Root
@@ -830,29 +891,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """There's no editable note on the Bookmarks widget, hence setting it to zero."""
         return QtCore.QRect(0, 0, 0, 0), None, None
 
-    def get_thumbnaileditor_cls(self, *args, **kwargs):
-        """Double-clicking the thumbnail on the BookmarksWidget will set the said
-        item to become active. Hence, no editor widget is returned.
-
-        It will, however set the selected bookmark to be active one.
-
-        """
-        self.parent().set_current_item_as_active()
-        return None
-
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
-
-    @staticmethod
-    def get_thumbnaileditor_cls(*args, **kwargs):
-        """The widget used to edit the thumbnail of the asset."""
-        return ThumbnailEditor(*args, **kwargs)
-
-    @staticmethod
-    def get_noteeditor_cls(*args, **kwargs):
-        """The widget used to edit the description of the asset."""
-        return NoteEditor(*args, **kwargs)
 
     def paint(self, painter, option, index):
         """Defines how the ``AssetWidget``'s' items should be painted."""
@@ -861,73 +902,159 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         self.paint_thumbnail(*args)
         self.paint_favourite(*args)
-        self.paint_archived(*args)
-        self.paint_data(*args)
+        self.paint_name(*args)
+        self.paint_description(*args)
         self.paint_selection_indicator(*args)
         self.paint_separators(*args)
         self.paint_thumbnail_shadow(*args)
         self.paint_active_indicator(*args)
+        self.paint_archived(*args)
         self.paint_focus(*args)
 
-    def paint_custom(self, *args):
-        """Custom paint action to draw the buttons to trigger."""
-        pass
 
-    def paint_data(self, *args):
-        """Paints the ``AssetWidget``'s `QListWidgetItems`' names and notes."""
-        painter, option, index, selected, focused, active, archived, favourite = args
+    @staticmethod
+    def get_inline_icon_rect(rect, size, idx):
+        """Returns the rectangle needed to draw an in-line item icon.
+
+        Args:
+            rect (QRect): The original item rectangle.
+            size (int): The size of the rectangle.
+            idx (int): The id number of the rectangle.
+
+        Returns:
+            Tuple: The pixmap and the icon's background rectangle.
+
+        """
+        rect = QtCore.QRect(rect)
+
+        #Vertical
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(size)
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        # Horizontal
+        rect.setLeft(rect.right() - size)
+        rect.moveRight(rect.right() - common.MARGIN)
+
+        for _ in xrange(idx):
+            rect.moveRight(rect.right() - common.INDICATOR_WIDTH - size)
+
+        # Background
+        size = max(rect.width(), rect.height())
+        bg_rect = QtCore.QRect(rect)
+        bg_rect.setWidth(size)
+        bg_rect.setHeight(size)
+
+        offset = 4.0
+        bg_rect.setLeft(bg_rect.left() - offset)
+        bg_rect.setTop(bg_rect.top() - offset)
+        bg_rect.setRight(bg_rect.right() + offset)
+        bg_rect.setBottom(bg_rect.bottom() + offset)
+
+        return rect, bg_rect
+
+    def paint_favourite(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, favourite = args
+        if option.rect.width() < 250.0:
+            return
 
         painter.save()
+
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
-        painter.setBrush(QtCore.Qt.NoBrush)
 
-        if not selected and not active:
-            color = common.TEXT
-        elif selected and not active:
-            color = common.TEXT_SELECTED
-        elif not selected and active:
-            color = QtGui.QColor(common.TEXT)
-        elif selected and active:
-            color = QtGui.QColor(common.TEXT_SELECTED)
-        painter.setPen(QtGui.QPen(color))
+        rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 0)
 
-        # Name
-        rect, font, metrics = self.get_name_rect(option.rect)
+        # Icon
+        if favourite:
+            color = QtGui.QColor(common.FAVOURITE)
+        else:
+            color = QtGui.QColor(common.SECONDARY_TEXT)
 
+        pos = QtGui.QCursor().pos()
+        pos = self.parent().mapFromGlobal(pos)
+
+        pixmap = common.get_rsc_pixmap('favourite', color, common.INLINE_ICON_SIZE)
+
+
+        painter.setPen(QtCore.Qt.NoPen)
+        if favourite:
+            color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(60)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRoundedRect(bg_rect, 2.0, 2.0)
+
+        # Icon
+        painter.drawPixmap(rect, pixmap)
+
+        painter.restore()
+
+    def paint_name(self, *args):
+        """Paints the item names inside the ``AssetWidget``."""
+        painter, option, index, _, _, active, _, _ = args
+        painter.save()
+
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
+
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+
+        # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub('[^0-9a-zA-Z]+', ' ', text)
         text = re.sub('[_]{1,}', ' ', text)
-        text = text.lstrip().rstrip().upper()
-
-        if active:
-            text = '{} (Active)'.format(text)
-
-        painter.setFont(font)
-
+        text = '{}*'.format(text) if active else text.strip()
         text = metrics.elidedText(
-            text,
+            text.upper(),
             QtCore.Qt.ElideRight,
             rect.width()
         )
 
+        color = self.get_state_color(option, index, common.TEXT)
+
+        painter.setFont(font)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
 
-        # Description
-        rect, font, metrics = self.get_description_rect(option.rect)
-        painter.setFont(font)
+        painter.restore()
 
+    def paint_description(self, *args):
+        """Paints the item description inside the ``AssetWidget``."""
+        painter, option, index, _, _, _, _, _ = args
+        painter.save()
+
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.SECONDARY_FONT)
+
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        if not index.data(QtCore.Qt.UserRole) and not hover:
+            return
+
+        # Resizing the height and moving below the name
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0) +
+                     metrics.lineSpacing())
+
+        color = self.get_state_color(option, index, common.TEXT_NOTE)
         if not index.data(QtCore.Qt.UserRole):
+            _, font, metrics = self.get_text_area(
+                option.rect, common.TERCIARY_FONT)
             text = 'Double-click to add description...'
-        else:
+            color.setAlpha(100)
+        elif index.data(QtCore.Qt.UserRole):
             text = index.data(QtCore.Qt.UserRole)
 
         text = metrics.elidedText(
@@ -936,37 +1063,19 @@ class AssetWidgetDelegate(BaseDelegate):
             rect.width()
         )
 
-        if not selected:
-            color = QtGui.QColor(common.TEXT_NOTE)
-        else:
-            color = QtGui.QColor(common.TEXT_NOTE)
-            color.setRed(color.red() + 20.0)
-            color.setGreen(color.green() + 20.0)
-            color.setBlue(color.blue() + 20.0)
-
-        # On mouse hover we're adding a small text indicator for the description area
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        if not index.data(QtCore.Qt.UserRole) and hover:
-            color.setAlpha(100)
-            painter.setPen(color)
-            painter.drawText(
-                rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                text
-            )
-        elif index.data(QtCore.Qt.UserRole):
-            painter.setPen(color)
-            painter.drawText(
-                rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                text
-            )
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
+        painter.setFont(font)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text
+        )
 
         painter.restore()
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
+        return QtCore.QSize(self.parent().viewport().width(), common.ASSET_ROW_HEIGHT)
 
 
 class FilesWidgetDelegate(BaseDelegate):
@@ -983,7 +1092,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         rect = QtCore.QRect(option.rect)
-        rect.setWidth(4)
+        rect.setWidth(common.INDICATOR_WIDTH)
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         if selected:
@@ -1048,7 +1157,8 @@ class FilesWidgetDelegate(BaseDelegate):
 
             basedir_rect.setWidth(metrics.width(basedir))
             basedir_rect.setLeft(basedir_rect.left() - 2)
-            basedir_rect.setWidth(basedir_rect.width() + 4)
+            basedir_rect.setWidth(basedir_rect.width() +
+                                  common.INDICATOR_WIDTH)
             basedir_total_width += metrics.width(basedir) + 6
 
             # Skip folders that are too long to draw
@@ -1201,242 +1311,3 @@ class FilesWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
-
-    @staticmethod
-    def _byte_to_string(num, suffix='B'):
-        for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
-            if abs(num) < 1024.0:
-                return "%3.1f%s%s" % (num, unit, suffix)
-            num /= 1024.0
-        return "%.1f%s%s" % (num, 'Yi', suffix)
-
-    @staticmethod
-    def get_thumbnaileditor_cls(*args, **kwargs):
-        return SceneThumbnailEditor(*args, **kwargs)
-
-    @staticmethod
-    def get_noteeditor_cls(*args, **kwargs):
-        return NoteEditor(*args, **kwargs)
-
-
-class ThumbnailEditor(QtWidgets.QWidget):
-    """Editor widget used by the Asset- and FileWidget delegateself.
-
-    The editor is responsible for associating a thumbnail image with
-    an Asset- or FileWidget item via a file-browser prompt.
-
-    """
-    def __init__(self, index, rect, view, parent=None):
-        super(ThumbnailEditor, self).__init__(parent=parent)
-
-        settings = AssetSettings(index.data(QtCore.Qt.PathRole).filePath())
-
-        # Opening dialog to select an image file
-        dialog = QtWidgets.QFileDialog()
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
-        dialog.setDirectory(QtCore.QDir(index.data(QtCore.Qt.PathRole).filePath()))
-        dialog.setOption(
-            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
-
-        if not dialog.exec_():
-            return
-
-        if not dialog.selectedFiles():
-            return
-
-        # Saving the image
-        common.delete_image(settings.thumbnail_path())
-
-        # Saving the thumbnail and creating the directories as necessary
-        image = QtGui.QImage()
-        image.load(next(f for f in dialog.selectedFiles()))
-        image = self.smooth_copy(image, common.THUMBNAIL_IMAGE_SIZE)
-
-        file_info = QtCore.QFileInfo(settings.thumbnail_path())
-        if not file_info.dir().exists():
-            QtCore.QDir().mkpath(file_info.dir().path())
-            
-        image.save(settings.thumbnail_path())
-
-        common.delete_image(settings.thumbnail_path(), delete_file=False)
-        self.parent().repaint()
-
-
-    @staticmethod
-    def smooth_copy(image, size):
-        """Returns an aspect-ratio aware smooth scaled copy of the image."""
-        longer = float(max(image.width(), image.height()))
-        factor = float(float(size) / float(longer))
-        if image.width() < image.height():
-            image = image.smoothScaled(
-                float(image.width()) * factor,
-                size
-            )
-            return image
-        image = image.smoothScaled(
-            size,
-            float(image.height()) * factor
-        )
-        return image
-
-
-class NoteEditor(QtWidgets.QWidget):
-    """Note editor baseclass."""
-
-    def __init__(self, index, parent=None):
-        super(NoteEditor, self).__init__(parent=parent)
-        self._index = index
-
-        self.editor = None
-        self.settings = configparser.AssetSettings(
-            self._index.data(QtCore.Qt.PathRole).filePath())
-        self._createUI()
-
-        self.editor.focusOutEvent = self.focusOutEvent
-        self.editor.installEventFilter(self)
-
-        self._connectSignals()
-
-        # Widget is show when created
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-
-        self.set_size(self.parent().viewport().size())
-        self.setFocusProxy(self.editor)
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
-
-        self.show()
-        self.setFocus()
-
-        self.editor.setText(self.settings.value('description/description'))
-        self.editor.selectAll()
-
-    def sizeHint(self):
-        return QtCore.QSize(
-            self.parent().visualRect(self._index).width(),
-            self.parent().visualRect(self._index).height()
-        )
-
-    def set_size(self, size):
-        """Sets the widget size."""
-        rect = QtCore.QRect(self.parent().visualRect(self._index))
-        rect.setLeft(rect.left() + 4 + rect.height())
-        self.move(rect.left() + 1, rect.top() + 2)
-        self.resize(size.width() - rect.left(), rect.height() - 1)
-
-    def eventFilter(self, widget, event):
-        """We're filtering the enter key event here, otherwise, the
-        list widget would close open finishing editing.
-
-        """
-        if not event.type() == QtCore.QEvent.KeyPress:
-            return False
-
-        if event.modifiers() == QtCore.Qt.NoModifier:
-            if (event.key() == QtCore.Qt.Key_Return) or event.key() == QtCore.Qt.Key_Enter:
-                self.action()
-                return True
-            elif event.key() == QtCore.Qt.Key_Tab:
-                self.action()
-                self.parent().key_down()
-                self.parent().key_tab()
-                return True
-            elif event.key() == QtCore.Qt.Key_Backtab:
-                self.action()
-                self.parent().key_up()
-                self.parent().key_tab()
-                return True
-            elif event.key() == QtCore.Qt.Key_Escape:
-                self.close()
-                return True
-
-        if event.modifiers() == QtCore.Qt.ShiftModifier:
-            if event.key() == QtCore.Qt.Key_Tab:
-                self.action()
-                self.parent().key_up()
-                self.parent().key_tab()
-                return True
-            elif event.key() == QtCore.Qt.Key_Backtab:
-                self.action()
-                self.parent().key_up()
-                self.parent().key_tab()
-                return True
-        return False
-
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            self.close()
-
-    def _connectSignals(self):
-        """Connects signals."""
-        self.editor.editingFinished.connect(self.action)
-        self.parent().sizeChanged.connect(self.set_size)
-
-    def _createUI(self):
-        """Creates the layout."""
-        QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(common.MARGIN * 1.5, 0, common.MARGIN * 0.5, 0)
-        self.layout().setSpacing(6)
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-
-        self.editor = QtWidgets.QLineEdit()
-        self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        self.editor.setTextMargins(0, 0, 0, 0)
-
-        self.editor.setStyleSheet(
-            'background-color: rgb(50,50,50);\
-            color: rgba({},{},{},{});\
-            font-family: "Roboto Medium"; font-size: 8pt;'.format(*common.TEXT_NOTE.getRgb())
-        )
-
-        label = QtWidgets.QLabel('Edit description')
-        label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        label.setStyleSheet(
-            'font-family: "Roboto Black";\
-            font-size: 8pt;\
-            color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
-        )
-
-        self.layout().addStretch(1)
-        self.layout().addWidget(label, 1)
-        self.layout().addWidget(self.editor, 1)
-        self.layout().addStretch(1)
-
-    def paintEvent(self, event):
-        """Custom paint used to paint the background."""
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(self)
-            rect = QtCore.QRect()
-            rect.setWidth(self.width())
-            rect.setHeight(self.height())
-
-            pen = QtGui.QPen(common.SELECTION)
-            pen.setWidth(2)
-            painter.setPen(pen)
-            color = QtGui.QColor(common.BACKGROUND_SELECTED)
-            painter.setBrush(QtGui.QBrush(color))
-            painter.drawRect(rect)
-            painter.end()
-
-            return
-        super(NoteEditor, self).paintEvent(event)
-
-    def action(self):
-        """Main actions to run when the return key is pressed."""
-        if self.settings.value('description/description') == self.editor.text():
-            self.close()
-            return
-
-        item = self.parent().itemFromIndex(self._index)
-        item.setData(QtCore.Qt.UserRole, self.editor.text())
-        self.settings.setValue('description/description', self.editor.text())
-        self.close()

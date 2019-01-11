@@ -140,7 +140,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
                 color.setAlpha(image.pixelColor(x, y).alpha())
                 image.setPixelColor(x, y, color)
         pixmap = QtGui.QPixmap(
-            ThumbnailEditor.smooth_copy(image, 24))
+            common.resize_image(image, 24))
 
         self.setPixmap(pixmap)
 
@@ -281,7 +281,7 @@ class CheckBoxButton(QtWidgets.QLabel):
                 color.setAlpha(image.pixelColor(x, y).alpha())
                 image.setPixelColor(x, y, color)
         self._checked_pixmap = QtGui.QPixmap(
-            ThumbnailEditor.smooth_copy(image, 24))
+            common.resize_image(image, 24))
 
         image.load(checked)
         color = QtGui.QColor(common.SELECTION)
@@ -291,7 +291,7 @@ class CheckBoxButton(QtWidgets.QLabel):
                 image.setPixelColor(x, y, color)
 
         self._unchecked_pixmap = QtGui.QPixmap(
-            ThumbnailEditor.smooth_copy(image, 24))
+            common.resize_image(image, 24))
 
 class Separator(QtWidgets.QLabel):
     def __init__(self, parent=None):
@@ -620,7 +620,7 @@ class AddButton(QtWidgets.QLabel):
         )
 
         image = QtGui.QImage(path)
-        image = ThumbnailEditor.smooth_copy(image, 24)
+        image = common.resize_image(image, 24)
         pixmap = QtGui.QPixmap()
         pixmap = pixmap.fromImage(image)
         self.setPixmap(pixmap)
@@ -666,7 +666,7 @@ class RemoveButton(QtWidgets.QLabel):
             name
         )
         image = QtGui.QImage(path)
-        image = ThumbnailEditor.smooth_copy(image, 24)
+        image = common.resize_image(image, 24)
         pixmap = QtGui.QPixmap()
         return pixmap.fromImage(image)
 

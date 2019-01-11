@@ -14,8 +14,6 @@ from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
 from mayabrowser.actions import Actions
 from mayabrowser.capture import ScreenGrabber
-from mayabrowser.delegate import NoteEditor
-from mayabrowser.delegate import ThumbnailEditor
 
 
 class BaseContextMenu(Actions):
@@ -30,24 +28,7 @@ class BaseContextMenu(Actions):
 
     def favourite(self):
         """Toggles the favourite state of the item."""
-        item = self.parent().currentItem()
-        file_info = item.data(QtCore.Qt.PathRole)
-
-        archived = item.flags() & configparser.MarkedAsArchived
-        if archived: # Favouriting archived items are not allowed
-            return
-
-        favourites = local_settings.value('favourites')
-        favourites = favourites if favourites else []
-        if file_info.filePath() in favourites:
-            item.setFlags(item.flags() & ~configparser.MarkedAsFavourite) # clears flag
-            favourites.remove(file_info.filePath())
-        else:
-            favourites.append(file_info.filePath())
-            item.setFlags(item.flags() | configparser.MarkedAsFavourite) # adds flag
-        local_settings.setValue('favourites', favourites)
-
-        self.parent().set_row_visibility()
+        self.parent().toggle_favourite()
 
     def isolate_favourites(self):
         """Hides all items except the items marked as favouire."""
@@ -103,6 +84,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setSortingEnabled(False)
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
         self.installEventFilter(self)
         self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -120,6 +102,12 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = ''
+
+        self.multi_toggle_pos = None
+        self.multi_toggle_state = None
+        self.multi_toggle_idx = None
+        self.multi_toggle_item = None
+        self.multi_toggle_items = {}
 
         self.add_items()
         self.set_row_visibility()
@@ -170,6 +158,40 @@ class BaseListWidget(QtWidgets.QListWidget):
     @sort_order.setter
     def sort_order(self, val):
         local_settings.setValue('widget/{}/sort_order'.format(self.__class__.__name__), val)
+
+    def toggle_favourite(self, item=None, state=None):
+        """Toggles the favourite state of the current item.
+        If item and state are set explicity, it is possible to set the state
+        of the specified item to the specified state.
+
+        Args:
+            item (QListWidgetItem): The item to change.
+            state (None or bool): The state to set.
+
+        """
+        if not item:
+            item = self.currentItem()
+
+        file_info = item.data(QtCore.Qt.PathRole)
+
+        archived = item.flags() & configparser.MarkedAsArchived
+        if archived: # Favouriting archived items are not allowed
+            return
+
+        favourites = local_settings.value('favourites')
+        favourites = favourites if favourites else []
+
+        if file_info.filePath() in favourites:
+            if state is None or state is False:
+                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite) # clears flag
+                favourites.remove(file_info.filePath())
+        else:
+            if state is None or state is True:
+                favourites.append(file_info.filePath())
+                item.setFlags(item.flags() | configparser.MarkedAsFavourite) # adds flag
+        local_settings.setValue('favourites', favourites)
+
+        self.set_row_visibility()
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item using ScreenGrabber."""
@@ -368,43 +390,17 @@ class BaseListWidget(QtWidgets.QListWidget):
                 c += 1
         return c
 
-    def custom_doubleclick_event(self, index):
-        """Action to perform on double-click. Abstract method needs to be overriden in the subclass.
-        """
-        raise NotImplementedError('custom_doubleclick_event() is abstract.')
-
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
 
-        A double click can `open` an item, or it can trigger an edit event.
-        As each item is associated with multiple editors, we have to filter
-        the double-click event before calling the item delegate's `createEditor`
-        method.
+        A double click can `activate` an item, or it can trigger an edit event.
+        As each item is associated with multiple editors we have to inspect
+        the double-click location before calling deciding what action to take.
 
-        Finally `custom_doubleclick_event` is called - this method has to be implemented
-        in the subclass.
-
+        Make sure to overwrite this in the subclass.
         """
-        super(BaseListWidget, self).mouseDoubleClickEvent(event)
-        index = self.indexAt(event.pos())
-        rect = self.visualRect(index)
+        raise NotImplementedError('mouseDoubleClickEvent is abstract.')
 
-        parent = self.viewport()
-        option = self.viewOptions()
-
-        note_rect, _, _ = self.itemDelegate().get_description_rect(rect)
-        thumbnail_rect = self.itemDelegate().get_thumbnail_rect(rect)
-        location_rect = self.itemDelegate().get_location_editor_rect(rect)
-
-        if note_rect.contains(event.pos()):
-            editor = NoteEditor(index, parent=self)
-            editor.show()
-        elif thumbnail_rect.contains(event.pos()):
-            self.itemDelegate().createEditor(parent, option, index, editor=2)
-        elif location_rect.contains(event.pos()):
-            self.itemDelegate().createEditor(parent, option, index, editor=3)
-        else:
-            self.custom_doubleclick_event(index)
 
 
     def resizeEvent(self, event):

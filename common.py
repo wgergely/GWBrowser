@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
-"""Module for storingcommon variables and methods across the project.
+
+
+"""Module for defining common variables and methods across the project.
 
 Defines the default sizes for widgets and the default colour template.
 It also contains the methods used to set our custom stylesheet.
+
 """
 
+
 import os
-import sys
 import random
+
 from PySide2 import QtGui, QtCore
 
 
@@ -42,21 +46,23 @@ the ``asset`` folder.
 QtCore.Qt.PathRole = 0x0200  # Role used to store FileInfo items
 """Special Role used to store QFileInfo objects."""
 
-MARGIN = 18
-ROW_HEIGHT = 54
+# Sizes
+MARGIN = 18.0
+ROW_HEIGHT = 54.0
 
-BOOKMARK_ROW_HEIGHT = 54
-ASSET_ROW_HEIGHT = 84
+BOOKMARK_ROW_HEIGHT = 54.0
+ASSET_ROW_HEIGHT = 84.0
 
-WIDTH = 640
-HEIGHT = 480
+WIDTH = 640.0
+HEIGHT = 480.0
 
-ROW_BUTTONS_HEIGHT = 24
-STACKED_WIDGET_HEIGHT = 640
-ROW_FOOTER_HEIGHT = 18
+INDICATOR_WIDTH = 6.0
+INLINE_ICON_SIZE = 18
 
-FAVORUITE_SELECTED = QtGui.QColor(250, 250, 100)
-FAVORUITE = QtGui.QColor(235, 235, 68)
+ROW_BUTTONS_HEIGHT = 24.0
+STACKED_WIDGET_HEIGHT = 640.0
+ROW_FOOTER_HEIGHT = 18.0
+THUMBNAIL_IMAGE_SIZE = 1024.0
 
 BACKGROUND_SELECTED = QtGui.QColor(128, 128, 128)
 SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
@@ -68,31 +74,50 @@ THUMBNAIL_IMAGE_BACKGROUND = QtGui.QColor(30, 30, 30)
 
 TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(255, 255, 255)
+TEXT_DISABLED = QtGui.QColor(130, 130, 130)
+
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-TEXT_DISABLED = QtGui.QColor(130, 130, 130)
 TEXT_WARNING = SECONDARY_TEXT
 
 SEPARATOR = QtGui.QColor(58, 58, 58)
+
 SELECTION = QtGui.QColor(100, 161, 255)
+FAVOURITE = QtGui.QColor(233, 89, 92)
 ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 
-LABEL1_SELECTED = QtGui.QColor(102, 173, 125)
-LABEL1 = QtGui.QColor(82, 153, 105)
-LABEL1_TEXT = QtGui.QColor(162, 233, 185)
-
-THUMBNAIL_IMAGE_SIZE = 1024
+PRIMARY_FONT = 0
+SECONDARY_FONT = 1
+TERCIARY_FONT = 2
 
 
-def get_thumbnail_pixmap(path, opacity=1, size=(ROW_BUTTONS_HEIGHT)):
-    """Returns a pixmap of the input path."""
-    from mayabrowser.delegate import ThumbnailEditor
+def get_thumbnail_pixmap(path, opacity=1.0, size=(ROW_BUTTONS_HEIGHT)):
+    """Loads the given file as a QPixmap.
+
+
+    Args:
+        path (str):        The path to the image-file to load.
+        opacity (float):   Transparency value between 1.0 and 0.0.
+        size (int):        Size of the image.
+
+    Returns:
+        QPixmap: The loaded image as a QPixmap.
+
+    """
+    file_ = QtCore.QFileInfo(path)
+    if not file_.exists():
+        return QtGui.QPixmap()
 
     image = QtGui.QImage()
-    image.load(path)
-    image = ThumbnailEditor.smooth_copy(image, size)
+    image.load(file_.filePath())
+
+    if image.isNull():
+        return QtGui.QPixmap()
+
+    image = resize_image(image, size)
     pixmap = QtGui.QPixmap()
     pixmap.convertFromImage(image)
+
     # Setting transparency
     image = QtGui.QImage(
         pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
@@ -103,6 +128,7 @@ def get_thumbnail_pixmap(path, opacity=1, size=(ROW_BUTTONS_HEIGHT)):
     painter.end()
     pixmap = QtGui.QPixmap()
     pixmap.convertFromImage(image)
+
     return pixmap
 
 
@@ -223,8 +249,6 @@ def cache_image(path, height, overwrite=False):
         type: Description of returned object.
 
     """
-    from mayabrowser.delegate import ThumbnailEditor
-
     path = QtCore.QFileInfo(path)
     path = path.filePath()
 
@@ -242,12 +266,12 @@ def cache_image(path, height, overwrite=False):
     # If the load fails, use the placeholder image
     if image.isNull():
         image.load(PLACEHOLDER)
-        image = ThumbnailEditor.smooth_copy(
+        image = resize_image(
             image,
             height
         )
     else:
-        image = ThumbnailEditor.smooth_copy(
+        image = resize_image(
             image,
             height
         )
@@ -290,8 +314,9 @@ def label_generator():
     Yields:         QtCore.QColor
 
     """
+    global colors
     colors = []
-    for n in xrange(50):
+    for _ in xrange(999):
         a = [104, 101, 170]
         v = 20
         colors.append([
@@ -322,9 +347,10 @@ def get_label(k):
 
 
 def revert_labels():
+    global ASSIGNED_LABELS
+    global colors
     ASSIGNED_LABELS = {}
 
-    global colors
     colors = label_generator()
 
 
@@ -350,6 +376,32 @@ CUSTOM_THUMBNAIL = _custom_thumbnail()
 PLACEHOLDER = _maya_thumbnail()
 
 
+def resize_image(image, size):
+    """Returns a scaled copy of the image fitting inside the square of ``size``.
+
+    Args:
+        image (QImage): The image to rescale.
+        size (int): The width/height of the square.
+
+    Returns:
+        QImage: The resized copy of the original image.
+
+    """
+    longer = float(max(image.width(), image.height()))
+    factor = float(float(size) / float(longer))
+    if image.width() < image.height():
+        image = image.smoothScaled(
+            float(image.width()) * factor,
+            size
+        )
+        return image
+    image = image.smoothScaled(
+        size,
+        float(image.height()) * factor
+    )
+    return image
+
+
 def get_color_average(image):
     """Returns the average color of an image."""
     r = []
@@ -368,10 +420,56 @@ def get_color_average(image):
     return average_color
 
 
+def get_rsc_pixmap(name, color, size):
+    """Loads a rescoure image and returns it as a re-sized and coloured QPixmap.
+
+    Args:
+        name (str): Name of the resource without the extension.
+        color (QColor): The colour of the icon.
+        size (int): The size of pixmap.
+
+    Returns:
+        QPixmap: The loaded image
+
+    """
+    path = QtCore.QFileInfo(__file__)
+    path = path.dir()
+    path = '{}/rsc/{}.png'.format(path.path(), name)
+
+    file_ = QtCore.QFileInfo(path)
+    if not file_.exists():
+        return QtGui.QPixmap()
+
+    image = QtGui.QImage(file_.filePath())
+    image.load(path)
+
+    if image.isNull():
+        return QtGui.QPixmap()
+
+    k = '{name}:{size}:{color}'.format(name=name, size=size, color=color.name())
+    if k in IMAGE_CACHE:
+        return IMAGE_CACHE[k]
+
+
+    painter = QtGui.QPainter()
+    painter.begin(image)
+    painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
+    painter.setBrush(QtGui.QBrush(color))
+    painter.drawRect(image.rect())
+    painter.end()
+
+    image = resize_image(image, size)
+    pixmap = QtGui.QPixmap()
+    pixmap.convertFromImage(image)
+
+    IMAGE_CACHE[k] = pixmap
+    return IMAGE_CACHE[k]
+
+
 def count_assets(path):
     """Returns the number of assets inside the given folder."""
-    dir = QtCore.QDir(path)
-    dir.setFilter(
+    dir_ = QtCore.QDir(path)
+    dir_.setFilter(
         QtCore.QDir.NoDotAndDotDot |
         QtCore.QDir.Dirs |
         QtCore.QDir.NoSymLinks |
@@ -380,13 +478,23 @@ def count_assets(path):
 
     # Counting the number assets found
     count = 0
-    for file_info in dir.entryInfoList():
-        dir = QtCore.QDir(file_info.filePath())
+    for file_info in dir_.entryInfoList():
+        dir_ = QtCore.QDir(file_info.filePath())
         dir.setFilter(QtCore.QDir.Files)
         dir.setNameFilters((ASSET_IDENTIFIER,))
         if dir.entryInfoList():
             count += 1
     return count
+
+
+
+def byte_to_string(num, suffix='B'):
+    """Converts a numeric byte-value to a human readable string."""
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
 
 
 class LocalContext(object):

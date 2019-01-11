@@ -885,7 +885,7 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         else:
             image = QtGui.QImage()
             image.load(path)
-            image = ThumbnailEditor.smooth_copy(
+            image = common.resize_image(
                 image,
                 option.rect.height()
             )

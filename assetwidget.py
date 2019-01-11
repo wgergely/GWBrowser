@@ -14,13 +14,13 @@ The actual name of these folders can be customized in the ``common.py`` module.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import os
 from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
+import mayabrowser.editors as editors
 
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
@@ -42,6 +42,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
     def add_copy_menu(self):
         import functools
+
         def cp(s):
             QtGui.QClipboard().setText(s)
 
@@ -63,7 +64,8 @@ class AssetWidgetContextMenu(BaseContextMenu):
         action = menu.addAction('MacOS network path')
         action.setEnabled(False)
         action = menu.addAction(url.toString().replace('file://', 'smb://'))
-        action.triggered.connect(functools.partial(cp, url.toString().replace('file://', 'smb://')))
+        action.triggered.connect(functools.partial(
+            cp, url.toString().replace('file://', 'smb://')))
 
         menu.addSeparator()
 
@@ -77,7 +79,8 @@ class AssetWidgetContextMenu(BaseContextMenu):
         action = menu.addAction('Windows path')
         action.setEnabled(False)
         action = menu.addAction(file_path)
-        action.triggered.connect(functools.partial(cp, QtCore.QDir.toNativeSeparators(file_path)))
+        action.triggered.connect(functools.partial(
+            cp, QtCore.QDir.toNativeSeparators(file_path)))
 
         self.addMenu(menu)
         self.addSeparator()
@@ -86,7 +89,6 @@ class AssetWidgetContextMenu(BaseContextMenu):
     def VALID_ACTION_SET(self):
         """A custom set of actions to display."""
         items = OrderedDict()
-        file_info = self.index.data(QtCore.Qt.PathRole)
         item = self.parent().itemFromIndex(self.index)
 
         archived = item.flags() & configparser.MarkedAsArchived
@@ -270,15 +272,139 @@ class AssetWidget(BaseListWidget):
             if f.baseName() == local_settings.value('activepath/asset'):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
 
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-
             self.addItem(item)
+
+    def mousePressEvent(self, event):
+        """In-line buttons are triggered here."""
+        index = self.indexAt(event.pos())
+        rect = self.visualRect(index)
+
+        if rect.width() < 250.0:
+            return super(AssetWidget, self).mousePressEvent(event)
+
+        for n in xrange(1):
+            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
+                rect, common.INLINE_ICON_SIZE, n)
+            # Beginning multi-toggle operation
+            if bg_rect.contains(event.pos()):
+                self.multi_toggle_pos = event.pos()
+                self.multi_toggle_state = not index.flags() & configparser.MarkedAsFavourite
+                self.multi_toggle_idx = n
+                return True
+
+        return super(AssetWidget, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """In-line buttons are triggered here."""
+        index = self.indexAt(event.pos())
+        rect = self.visualRect(index)
+        idx = index.row()
+
+        # Cheking the button
+        if idx not in self.multi_toggle_items:
+            for n in xrange(1):
+                _, bg_rect = self.itemDelegate().get_inline_icon_rect(
+                    rect, common.INLINE_ICON_SIZE, n)
+                if bg_rect.contains(event.pos()):
+                    if n == 0:
+                        self.toggle_favourite(item=self.itemFromIndex(index))
+                        break
+
+        super(AssetWidget, self).mouseReleaseEvent(event)
+
+        self.multi_toggle_pos = None
+        self.multi_toggle_state = None
+        self.multi_toggle_idx = None
+        self.multi_toggle_item = None
+        self.multi_toggle_items = {}
+
+    def mouseMoveEvent(self, event):
+        """Multi-toggle is handled here."""
+        if self.multi_toggle_pos is None:
+            super(AssetWidget, self).mouseMoveEvent(event)
+            return
+
+        app = QtWidgets.QApplication.instance()
+        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app.startDragDistance():
+            super(AssetWidget, self).mouseMoveEvent(event)
+            return
+
+
+        pos = event.pos()
+        pos.setX(0)
+        index = self.indexAt(pos)
+        initial_index = self.indexAt(self.multi_toggle_pos)
+        idx = index.row()
+
+        favourite = not not index.flags() & configparser.MarkedAsFavourite
+
+        # Filter the current item
+        if index == self.multi_toggle_item:
+            return
+        self.multi_toggle_item = index
+
+        # Before toggling the item, we're saving it's state
+
+        if idx not in self.multi_toggle_items:
+            if self.multi_toggle_idx == 0:
+                # A state
+                self.multi_toggle_items[idx] = favourite
+                # Apply first state
+                self.toggle_favourite(
+                    item=self.itemFromIndex(index),
+                    state=self.multi_toggle_state
+                )
+        else:
+            if index == initial_index:
+                return
+            # Reset state
+            self.toggle_favourite(
+                item=self.itemFromIndex(index),
+                state=self.multi_toggle_items.pop(idx)
+            )
+
+    def mouseDoubleClickEvent(self, event):
+        """Custom double-click event.
+
+        A double click can `activate` an item, or it can trigger an edit event.
+        As each item is associated with multiple editors we have to inspect
+        the double-click location before deciding what action to take.
+
+        """
+        index = self.indexAt(event.pos())
+        rect = self.visualRect(index)
+
+        thumbnail_rect = QtCore.QRect(rect)
+        thumbnail_rect.setWidth(rect.height())
+        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
+
+        name_rect, _, metrics = AssetWidgetDelegate.get_text_area(
+            rect, common.PRIMARY_FONT)
+        name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
+        name_rect.setHeight(metrics.height())
+        name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
+
+        description_rect, _, metrics = AssetWidgetDelegate.get_text_area(
+            rect, common.SECONDARY_FONT)
+        description_rect.moveTop(
+            description_rect.top() + (description_rect.height() / 2.0))
+        description_rect.setHeight(metrics.height())
+        description_rect.moveTop(description_rect.top(
+        ) - (description_rect.height() / 2.0) + metrics.lineSpacing())
+
+        if description_rect.contains(event.pos()):
+            widget = editors.DescriptionEditorWidget(index, parent=self)
+            widget.show()
+            return
+        elif thumbnail_rect.contains(event.pos()):
+            editors.ThumbnailEditor(index)
+            return
+        else:
+            self.set_current_item_as_active()
+            return
 
     def action_on_enter_key(self):
         """Custom enter key action."""
-        self.set_current_item_as_active()
-
-    def custom_doubleclick_event(self, index):
         self.set_current_item_as_active()
 
     def action_on_custom_keys(self, event):
@@ -292,11 +418,12 @@ class AssetWidget(BaseListWidget):
 
         if event.modifiers() & QtCore.Qt.NoModifier:
             if event.key() == QtCore.Qt.Key_Enter:
-                self.custom_doubleclick_event()
+                self.set_current_item_as_active()
         elif event.modifiers() & QtCore.Qt.AltModifier:
             if event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
-                url = url.fromLocalFile(item.data(QtCore.Qt.PathRole).filePath())
+                url = url.fromLocalFile(
+                    item.data(QtCore.Qt.PathRole).filePath())
                 QtGui.QClipboard().setText(url.toString())
 
     def reveal_asset(self):
@@ -380,7 +507,6 @@ class AssetWidget(BaseListWidget):
     def showEvent(self, event):
         """Show event will set the size of the widget."""
         self.select_active_item()
-
 
 
 if __name__ == '__main__':
