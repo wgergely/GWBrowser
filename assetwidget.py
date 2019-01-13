@@ -289,8 +289,7 @@ class AssetWidget(BaseListWidget):
         """In-line buttons are triggered here."""
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
-
-        if rect.width() < 250.0:
+        if self.viewport().width() < 250.0:
             return super(AssetWidget, self).mousePressEvent(event)
 
         for n in xrange(2):
@@ -308,15 +307,33 @@ class AssetWidget(BaseListWidget):
 
         return super(AssetWidget, self).mousePressEvent(event)
 
+    def show_todos(self):
+        """Shows the ``TodoEditorWidget`` for the current item."""
+        from mayabrowser.todoEditor import TodoEditorWidget
+        index = self.currentIndex()
+        rect = self.visualRect(index)
+        widget = TodoEditorWidget(
+            index.data(QtCore.Qt.PathRole).filePath(),
+            parent=self
+        )
+        pos = self.viewport().mapToGlobal(rect.topLeft())
+        widget.move(pos.x(), pos.y())
+        widget.resize(self.viewport().width(), 600)
+        common.move_widget_to_available_geo(widget)
+        widget.show()
+
     def mouseReleaseEvent(self, event):
         """In-line buttons are triggered here."""
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
         idx = index.row()
 
+        if self.viewport().width() < 250.0:
+            return super(AssetWidget, self).mouseReleaseEvent(event)
+
         # Cheking the button
         if idx not in self.multi_toggle_items:
-            for n in xrange(2):
+            for n in xrange(4):
                 _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                     rect, common.INLINE_ICON_SIZE, n)
                 if bg_rect.contains(event.pos()):
@@ -326,6 +343,11 @@ class AssetWidget(BaseListWidget):
                     elif n == 1:
                         self.toggle_archived(item=self.itemFromIndex(index))
                         break
+                    elif n == 2:
+                        self.reveal_folder('')
+                    elif n == 3:
+                        self.show_todos()
+
 
         super(AssetWidget, self).mouseReleaseEvent(event)
 
@@ -337,6 +359,9 @@ class AssetWidget(BaseListWidget):
 
     def mouseMoveEvent(self, event):
         """Multi-toggle is handled here."""
+        if self.viewport().width() < 250.0:
+            return super(AssetWidget, self).mouseMoveEvent(event)
+
         if self.multi_toggle_pos is None:
             super(AssetWidget, self).mouseMoveEvent(event)
             return

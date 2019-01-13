@@ -909,8 +909,11 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
         self.paint_active_indicator(*args)
+
+        self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
+        self.paint_todo_icon(*args)
 
         self.paint_name(*args)
         self.paint_description(*args)
@@ -950,7 +953,6 @@ class AssetWidgetDelegate(BaseDelegate):
         bg_rect = QtCore.QRect(rect)
         bg_rect.setWidth(size)
         bg_rect.setHeight(size)
-
         bg_rect.setLeft(bg_rect.left() - offset)
         bg_rect.setTop(bg_rect.top() - offset)
         bg_rect.setRight(bg_rect.right() + offset)
@@ -965,38 +967,68 @@ class AssetWidgetDelegate(BaseDelegate):
             return
 
         painter.save()
-
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
-
         rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 0)
 
-        # Icon
         if favourite:
             color = QtGui.QColor(common.FAVOURITE)
         else:
             color = QtGui.QColor(common.SECONDARY_TEXT)
 
-        pos = QtGui.QCursor().pos()
-        pos = self.parent().mapFromGlobal(pos)
-
         pixmap = common.get_rsc_pixmap('favourite', color, common.INLINE_ICON_SIZE)
-
-
         painter.setPen(QtCore.Qt.NoPen)
+
         if favourite:
             color = QtGui.QColor(common.SEPARATOR)
             color.setAlpha(60)
             painter.setBrush(QtGui.QBrush(color))
             painter.drawRoundedRect(bg_rect, 2.0, 2.0)
-
-        # Icon
         painter.drawPixmap(rect, pixmap)
+        painter.restore()
 
+    def paint_folder_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, _ = args
+        if option.rect.width() < 250.0:
+            return
+
+        painter.save()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 2)
+        color = QtGui.QColor(common.SECONDARY_TEXT)
+        pixmap = common.get_rsc_pixmap('folder', color, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPixmap(rect, pixmap)
+        painter.restore()
+
+    def paint_todo_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, _ = args
+        if option.rect.width() < 250.0:
+            return
+
+        painter.save()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
+        color = QtGui.QColor(common.TEXT)
+        pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPixmap(rect, pixmap)
         painter.restore()
 
     def paint_name(self, *args):

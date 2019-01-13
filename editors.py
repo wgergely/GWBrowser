@@ -55,7 +55,6 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         image.save(settings.thumbnail_path())
 
         common.delete_image(settings.thumbnail_path(), delete_file=False)
-        self.parent().repaint()
 
 
 class DescriptionEditorWidget(QtWidgets.QWidget):

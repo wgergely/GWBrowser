@@ -345,7 +345,7 @@ QMenu {{
 		outline: none;
 }}
 QMenu::item {{
-	padding: 10px 10px 10px 32px;
+	padding: 4px 4px 4px 24px;
 	margin: 0;
 }}
 QMenu::item:disabled {{
