@@ -14,17 +14,12 @@ getConfigPath() or getThumbnailPath().
 
 """
 
-import os
-import re
-import sys
-from ConfigParser import ConfigParser
 
+import re
 from PySide2 import QtCore
 
-import mayabrowser.common as common
 
 # Flags
-NoFlag = 0
 MarkedAsArchived = 0b100000000
 MarkedAsFavourite = 0b1000000000
 MarkedAsActive = 0b10000000000
@@ -38,6 +33,7 @@ class LocalSettings(QtCore.QSettings):
     widget settings and filter modes.
 
     """
+
     def __init__(self, parent=None):
         super(LocalSettings, self).__init__(
             QtCore.QSettings.UserScope,
@@ -60,6 +56,7 @@ class LocalSettings(QtCore.QSettings):
                 return None
         return val
 
+
 class AssetSettings(QtCore.QSettings):
     """Stores the settings
     Attributes:
@@ -69,7 +66,6 @@ class AssetSettings(QtCore.QSettings):
 
     """
     SECTIONS = ['activejob', 'favourites', 'mayawidget']
-
 
     def __init__(self, path, parent=None):
         self._path = path
@@ -82,13 +78,32 @@ class AssetSettings(QtCore.QSettings):
         self.setFallbacksEnabled(False)
 
     def ini_path(self):
+        """Returns the path to the Asset's configuration file.
+        If the parent folder doesn't exists we will automatically create it here.
+
+        Returns:
+            str: The path to the configuration file as a string.
+
+        """
         file_info = QtCore.QFileInfo(self._path)
-        path = '{}/.browser/{}'.format(file_info.path(), re.sub(r'[\.]+', '_', file_info.fileName()))
-        return r'{}.conf'.format(path)
+        file_name = re.sub(r'[\.]+', '_', file_info.fileName())
+
+        # if not file_info.dir().exists():
+        #     QtCore.QDir().mkpath(file_info.dir().path())
+
+        asset_path = '{}/.browser/{}.conf'.format(file_info.path(), file_name)
+        if file_info.dir().exists():
+            dir_ = QtCore.QDir('{}/.browser'.format(file_info.path()))
+            if not dir_.exists():
+                file_info.dir().mkpath('.browser')
+                print '# Asset config root folder created.'
+
+        return asset_path
 
     def thumbnail_path(self):
         file_info = QtCore.QFileInfo(self._path)
-        path = '{}/.browser/{}'.format(file_info.path(), re.sub(r'[\.]+', '_', file_info.fileName()))
+        path = '{}/.browser/{}'.format(file_info.path(),
+                                       re.sub(r'[\.]+', '_', file_info.fileName()))
         return r'{}.png'.format(path)
 
     def value(self, *args, **kwargs):
@@ -105,12 +120,10 @@ class AssetSettings(QtCore.QSettings):
         return val
 
 
-
 local_settings = LocalSettings()
 """An instance of the local configuration created when loading this module."""
 
 if __name__ == '__main__':
-
     setting = AssetSettings('//gordo/jobs/tkwwbk_8077/build/2d_hair')
-    # setting.setValue('description/description', 'Test note')
-    print setting.value('description/description')
+    # setting.setValue('config/description', 'Test note')
+    print setting.value('config/description')

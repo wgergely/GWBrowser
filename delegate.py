@@ -166,7 +166,49 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.restore()
 
-    def paint_favourite(self, *args):
+    def paint_archived_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, archived, _ = args
+        if option.rect.width() < 250.0:
+            return
+
+        painter.save()
+
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 1)
+
+        pos = QtGui.QCursor().pos()
+        pos = self.parent().mapFromGlobal(pos)
+
+        # Icon
+        if archived:
+            color = QtGui.QColor(common.FAVOURITE)
+        else:
+            color = QtGui.QColor(common.SECONDARY_TEXT)
+
+        painter.setPen(QtCore.Qt.NoPen)
+
+        if archived:
+            pixmap = common.get_rsc_pixmap('archived', color, common.INLINE_ICON_SIZE)
+            color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(60)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRoundedRect(bg_rect, 2.0, 2.0)
+        else:
+            pixmap = common.get_rsc_pixmap('active', color, common.INLINE_ICON_SIZE)
+
+        # Icon
+        painter.drawPixmap(rect, pixmap)
+
+        painter.restore()
+
+    def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
         if option.rect.width() < 250.0:
@@ -280,6 +322,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
+        rect.setTop(rect.top() + 1)
 
         if selected:
             color = self.get_state_color(option, index, common.SELECTION)
@@ -414,6 +457,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.restore()
 
     def paint_data(self, *args):
+        """Generic paint method to draw the name of an item."""
         painter, option, index, selected, _, _, _, _ = args
         painter.save()
 
@@ -469,15 +513,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.save()
 
         painter.setPen(QtCore.Qt.NoPen)
-        brush = QtGui.QBrush(common.ARCHIVED_OVERLAY)
-        painter.setBrush(brush)
-        painter.drawRect(option.rect)
-
-        gradient = QtGui.QLinearGradient(
-            option.rect.topLeft(), option.rect.topRight())
-        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
-        gradient.setColorAt(0.5, QtGui.QColor(50, 50, 50, 200))
-        painter.setBrush(QtGui.QBrush(gradient))
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 150)))
         painter.drawRect(option.rect)
 
         brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 40))
@@ -486,39 +522,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(option.rect)
 
         painter.restore()
-    #
-    # def get_name_rect(self, rect):
-    #     """Returns the rectangle containing the name.
-    #
-    #     Args:
-    #         rect (QtCore.QRect): The QListWidgetItem's visual rectangle.
-    #
-    #     Returns:            QtCore.QRect
-    #
-    #     """
-    #     painter = QtGui.QPainter()
-    #     font = QtGui.QFont('Roboto Black')
-    #     font.setBold(False)
-    #     font.setPointSize(9.0)
-    #     painter.setFont(font)
-    #     metrics = QtGui.QFontMetrics(painter.font())
-    #     editor_rect = QtCore.QRect(rect)
-    #
-    #     editor_rect.setLeft(
-    #         editor_rect.left() + common.INDICATOR_WIDTH +
-    #         rect.height() + (common.MARGIN * 1.5)
-    #     )
-    #
-    #     editor_rect.setRight(editor_rect.right() - common.MARGIN)
-    #     editor_rect.setHeight(metrics.height())
-    #
-    #     # Center rectangle
-    #     editor_rect.moveTop(
-    #         rect.top() +
-    #         (rect.height() * 0.5) -
-    #         (editor_rect.height() * 0.5)
-    #     )
-    #     return editor_rect, font, metrics
 
     def get_filename_rect(self, rect):
         """Returns the rectangle containing the name.
@@ -901,14 +904,17 @@ class AssetWidgetDelegate(BaseDelegate):
 
         self.paint_background(*args)
         self.paint_thumbnail(*args)
-        self.paint_favourite(*args)
-        self.paint_name(*args)
-        self.paint_description(*args)
-        self.paint_selection_indicator(*args)
+        self.paint_archived(*args)
         self.paint_separators(*args)
+        self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
         self.paint_active_indicator(*args)
-        self.paint_archived(*args)
+        self.paint_favourite_icon(*args)
+        self.paint_archived_icon(*args)
+
+        self.paint_name(*args)
+        self.paint_description(*args)
+
         self.paint_focus(*args)
 
 
@@ -935,8 +941,9 @@ class AssetWidgetDelegate(BaseDelegate):
         rect.setLeft(rect.right() - size)
         rect.moveRight(rect.right() - common.MARGIN)
 
+        offset = 4.0
         for _ in xrange(idx):
-            rect.moveRight(rect.right() - common.INDICATOR_WIDTH - size)
+            rect.moveRight(rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
 
         # Background
         size = max(rect.width(), rect.height())
@@ -944,7 +951,6 @@ class AssetWidgetDelegate(BaseDelegate):
         bg_rect.setWidth(size)
         bg_rect.setHeight(size)
 
-        offset = 4.0
         bg_rect.setLeft(bg_rect.left() - offset)
         bg_rect.setTop(bg_rect.top() - offset)
         bg_rect.setRight(bg_rect.right() + offset)
@@ -952,7 +958,7 @@ class AssetWidgetDelegate(BaseDelegate):
 
         return rect, bg_rect
 
-    def paint_favourite(self, *args):
+    def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
         if option.rect.width() < 250.0:

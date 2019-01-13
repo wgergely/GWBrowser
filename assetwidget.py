@@ -37,7 +37,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
     def add_actions(self):
         if self.index.isValid():
             self.add_action_set(self.VALID_ACTION_SET)
-        self.add_copy_menu()
+            self.add_copy_menu()
         self.add_action_set(self.INVALID_ACTION_SET)
 
     def add_copy_menu(self):
@@ -47,7 +47,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
             QtGui.QClipboard().setText(s)
 
         menu = QtWidgets.QMenu(parent=self)
-        menu.setTitle('Copy')
+        menu.setTitle('Paths')
 
         # Url
         file_path = self.index.data(QtCore.Qt.PathRole).filePath()
@@ -108,6 +108,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
             'checked': bool(archived)
         }
         items['<separator>...'] = {}
+        items['Show in explorer'] = {}
         return items
 
     @property
@@ -135,23 +136,12 @@ class AssetWidgetContextMenu(BaseContextMenu):
     def remove_thumbnail(self):
         self.parent().remove_thumbnail()
 
-    def show_asset_in_explorer(self):
-        self.parent().reveal_asset()
-
-    def show_textures(self):
-        self.parent().reveal_asset_textures()
-
-    def show_scenes(self):
-        self.parent().reveal_asset_scenes()
-
-    def show_renders(self):
-        self.parent().reveal_asset_renders()
-
-    def show_exports(self):
-        self.parent().reveal_asset_exports()
+    def show_in_explorer(self):
+        self.parent().reveal_folder('')
 
     def refresh(self):
         self.parent().refresh()
+
 
 
 class AssetWidget(BaseListWidget):
@@ -170,8 +160,12 @@ class AssetWidget(BaseListWidget):
     # Signals
     activated = QtCore.Signal(str)
 
-    def __init__(self, server=None, job=None, root=None, parent=None):
-        self._path = (server, job, root)
+    def __init__(self, root=None, parent=None):
+        self._path = (
+            local_settings.value('activepath/server'),
+            local_settings.value('activepath/job'),
+            local_settings.value('activepath/root')
+        )
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
 
@@ -238,8 +232,23 @@ class AssetWidget(BaseListWidget):
         if not any(self.path):
             return
 
-        collector = AssetCollector('/'.join(self.path))
-        self.fileSystemWatcher.addPath('/'.join(self.path))
+        err_one = 'An error occured when trying to collect the assets.\n\n{}'
+
+        try:
+            collector = AssetCollector('/'.join(self.path))
+            self.fileSystemWatcher.addPath('/'.join(self.path))
+        except IOError as err:
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                'Error',
+                err_one.format(err.message)
+            ).exec_()
+        except Exception as err:
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                'Error',
+                err_one.format(err.message)
+            ).exec_()
 
         for f in collector.get():
             item = QtWidgets.QListWidgetItem()
@@ -259,11 +268,13 @@ class AssetWidget(BaseListWidget):
 
             settings = AssetSettings(f.filePath())
             item.setData(QtCore.Qt.UserRole, settings.value(
-                'description/description'))  # Notes will be stored here
+                'config/description'))  # Notes will be stored here
 
-            # Flags
-            if settings.value('flags/archived'):
+            # Archived
+            if settings.value('config/archived'):
                 item.setFlags(item.flags() | configparser.MarkedAsArchived)
+
+            # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
             if f.filePath() in favourites:
@@ -282,13 +293,16 @@ class AssetWidget(BaseListWidget):
         if rect.width() < 250.0:
             return super(AssetWidget, self).mousePressEvent(event)
 
-        for n in xrange(1):
+        for n in xrange(2):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                 rect, common.INLINE_ICON_SIZE, n)
             # Beginning multi-toggle operation
             if bg_rect.contains(event.pos()):
                 self.multi_toggle_pos = event.pos()
-                self.multi_toggle_state = not index.flags() & configparser.MarkedAsFavourite
+                if n == 0:
+                    self.multi_toggle_state = not index.flags() & configparser.MarkedAsFavourite
+                elif n == 1:
+                    self.multi_toggle_state = not index.flags() & configparser.MarkedAsArchived
                 self.multi_toggle_idx = n
                 return True
 
@@ -302,12 +316,15 @@ class AssetWidget(BaseListWidget):
 
         # Cheking the button
         if idx not in self.multi_toggle_items:
-            for n in xrange(1):
+            for n in xrange(2):
                 _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                     rect, common.INLINE_ICON_SIZE, n)
                 if bg_rect.contains(event.pos()):
                     if n == 0:
                         self.toggle_favourite(item=self.itemFromIndex(index))
+                        break
+                    elif n == 1:
+                        self.toggle_archived(item=self.itemFromIndex(index))
                         break
 
         super(AssetWidget, self).mouseReleaseEvent(event)
@@ -324,11 +341,10 @@ class AssetWidget(BaseListWidget):
             super(AssetWidget, self).mouseMoveEvent(event)
             return
 
-        app = QtWidgets.QApplication.instance()
-        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app.startDragDistance():
+        app_ = QtWidgets.QApplication.instance()
+        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
             super(AssetWidget, self).mouseMoveEvent(event)
             return
-
 
         pos = event.pos()
         pos.setX(0)
@@ -337,16 +353,18 @@ class AssetWidget(BaseListWidget):
         idx = index.row()
 
         favourite = not not index.flags() & configparser.MarkedAsFavourite
+        archived = not not index.flags() & configparser.MarkedAsArchived
 
         # Filter the current item
         if index == self.multi_toggle_item:
             return
+
         self.multi_toggle_item = index
 
         # Before toggling the item, we're saving it's state
 
         if idx not in self.multi_toggle_items:
-            if self.multi_toggle_idx == 0:
+            if self.multi_toggle_idx == 0:  # Favourite button
                 # A state
                 self.multi_toggle_items[idx] = favourite
                 # Apply first state
@@ -354,14 +372,27 @@ class AssetWidget(BaseListWidget):
                     item=self.itemFromIndex(index),
                     state=self.multi_toggle_state
                 )
-        else:
+            if self.multi_toggle_idx == 1:  # Archived button
+                # A state
+                self.multi_toggle_items[idx] = archived
+                # Apply first state
+                self.toggle_archived(
+                    item=self.itemFromIndex(index),
+                    state=self.multi_toggle_state
+                )
+        else:  # Reset state
             if index == initial_index:
                 return
-            # Reset state
-            self.toggle_favourite(
-                item=self.itemFromIndex(index),
-                state=self.multi_toggle_items.pop(idx)
-            )
+            if self.multi_toggle_idx == 0:  # Favourite button
+                self.toggle_favourite(
+                    item=self.itemFromIndex(index),
+                    state=self.multi_toggle_items.pop(idx)
+                )
+            elif self.multi_toggle_idx == 1:  # Favourite button
+                self.toggle_archived(
+                    item=self.itemFromIndex(index),
+                    state=self.multi_toggle_items.pop(idx)
+                )
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
@@ -426,60 +457,49 @@ class AssetWidget(BaseListWidget):
                     item.data(QtCore.Qt.PathRole).filePath())
                 QtGui.QClipboard().setText(url.toString())
 
-    def reveal_asset(self):
-        item = self.currentItem()
-        path = item.data(QtCore.Qt.StatusTipRole)
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
+    def reveal_folder(self, name):
+        """Reveals the specified folder in the file explorer.
 
-    def reveal_asset_textures(self):
-        """Opens the ``textures`` folder."""
+        Args:
+            name (str): A relative path or the folder's name.
+
+        """
         item = self.currentItem()
         path = '{}/{}'.format(
             item.data(QtCore.Qt.StatusTipRole),
-            local_settings.asset_textures_folder
-        )
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    def reveal_asset_scenes(self):
-        """Opens the ``scenes`` folder."""
-        item = self.currentItem()
-        path = '{}/{}'.format(
-            item.data(QtCore.Qt.StatusTipRole),
-            local_settings.asset_scenes_folder
-        )
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    def reveal_asset_renders(self):
-        """Opens the ``renders`` folder."""
-        item = self.currentItem()
-        path = '{}/{}'.format(
-            item.data(QtCore.Qt.StatusTipRole),
-            local_settings.asset_renders_folder
-        )
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    def reveal_asset_exports(self):
-        """Opens the ``exports`` folder."""
-        item = self.currentItem()
-        path = '{}/{}'.format(
-            item.data(QtCore.Qt.StatusTipRole),
-            local_settings.asset_exports_folder
+            name
         )
         url = QtCore.QUrl.fromLocalFile(path)
         QtGui.QDesktopServices.openUrl(url)
 
     def _warning_strings(self):
+        """Custom warning strings to paint."""
         server, job, root = self.path
+        file_info = QtCore.QFileInfo('{}/{}/{}'.format(*self.path))
+
+        warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
+        warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'
+        warning_three = 'An error occured when trying to collect the assets.\n\n{}'
+        warning_four = 'The active bookmark ({}/{}/{}) does not contain any assets...yet.'
+        warning_five = '{} items are hidden by filters'
+
         if not all(self.path):
-            return 'No Bookmark has been set yet.\nAssets will be shown here after you select one in the Bookmarks menu.'
+            return warning_one
         if not any(self.path):
-            return 'Error: Invalid path set.\nServer: {}\nJob: {}\nRoot: {}'.format(
+            return warning_two.format(
                 server, job, root
             )
+        if not file_info.exists():
+            return warning_three
+
+        if not self.count():
+            return warning_four.format(*self.path)
+
+        if self.count() > self.count_visible():
+            return warning_five.format(
+                self.count() - self.count_visible())
+
+        return ''
 
     def eventFilter(self, widget, event):
         """AssetWidget's custom paint is triggered here.
@@ -490,15 +510,7 @@ class AssetWidget(BaseListWidget):
         """
         if event.type() == QtCore.QEvent.Paint:
             self._paint_widget_background()
-
-            if self.count() == 0:
-                self.paint_message(self._warning_strings())
-            elif self.count() > self.count_visible():
-                self.paint_message(
-                    'All {} items are hidden by filters'.format(
-                        self.count() - self.count_visible())
-                )
-
+            self.paint_message(self._warning_strings())
         return False
 
     def select_active_item(self):
@@ -512,11 +524,6 @@ class AssetWidget(BaseListWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
 
-    app.w = AssetWidget(
-        local_settings.value('activepath/server'),
-        local_settings.value('activepath/job'),
-        local_settings.value('activepath/root'),
-    )
-    # app.w.path = ('//gordo/jobs','tkwwbk_8077', 'build')
+    app.w = AssetWidget()
     app.w.show()
     app.exec_()

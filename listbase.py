@@ -30,34 +30,13 @@ class BaseContextMenu(Actions):
         """Toggles the favourite state of the item."""
         self.parent().toggle_favourite()
 
+    def archived(self):
+        """Marks the curent item as 'archived'."""
+        self.parent().toggle_archived()
+
     def isolate_favourites(self):
         """Hides all items except the items marked as favouire."""
         self.parent().show_favourites()
-
-    def archived(self):
-        """Marks the curent item as 'archived'."""
-        data = self.index.data(QtCore.Qt.StatusTipRole)
-        file_info = QtCore.QFileInfo(data)
-        config = self.parent().Config(file_info.filePath())
-
-        # Write the change to the config file.
-        config.archived = not config.archived
-        config.write_ini()
-
-        # Set the flag
-        flags = configparser.NoFlag
-        if config.archived:
-            flags = flags | configparser.MarkedAsArchived
-        elif local_settings.is_favourite(file_info.fileName()):
-            flags = flags | configparser.MarkedAsFavourite
-
-        # Set the flag as custom user data
-        item = self.parent().itemFromIndex(self.index)
-        item.setData(
-            QtCore.Qt.UserRole,
-            flags
-        )
-        self.parent().set_row_visibility()
 
     def show_archived(self):
         self.parent().show_archived()
@@ -119,50 +98,57 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
-
     @property
     def filter(self):
         """The current filter."""
-        val = local_settings.value('widget/{}/filter'.format(self.__class__.__name__))
+        val = local_settings.value(
+            'widget/{}/filter'.format(self.__class__.__name__))
         return val if val else False
 
     @filter.setter
     def filter(self, val):
-        local_settings.setValue('widget/{}/filter'.format(self.__class__.__name__), val)
+        local_settings.setValue(
+            'widget/{}/filter'.format(self.__class__.__name__), val)
 
     @property
     def show_favourites_mode(self):
         """The current show favourites state as saved in the local configuration file."""
-        val = local_settings.value('widget/{}/show_favourites'.format(self.__class__.__name__))
+        val = local_settings.value(
+            'widget/{}/show_favourites'.format(self.__class__.__name__))
         return val if val else False
 
     @show_favourites_mode.setter
     def show_favourites_mode(self, val):
-        local_settings.setValue('widget/{}/show_favourites'.format(self.__class__.__name__), val)
+        local_settings.setValue(
+            'widget/{}/show_favourites'.format(self.__class__.__name__), val)
 
     @property
     def show_archived_mode(self):
         """The current Show archived state as saved in the local configuration file."""
-        val = local_settings.value('widget/{}/show_archived'.format(self.__class__.__name__))
+        val = local_settings.value(
+            'widget/{}/show_archived'.format(self.__class__.__name__))
         return val if val else False
 
     @show_archived_mode.setter
     def show_archived_mode(self, val):
-        local_settings.setValue('widget/{}/show_archived'.format(self.__class__.__name__), val)
+        local_settings.setValue(
+            'widget/{}/show_archived'.format(self.__class__.__name__), val)
 
     @property
     def sort_order(self):
-        val = local_settings.value('widget/{}/sort_order'.format(self.__class__.__name__))
+        val = local_settings.value(
+            'widget/{}/sort_order'.format(self.__class__.__name__))
         return val if val else False
 
     @sort_order.setter
     def sort_order(self, val):
-        local_settings.setValue('widget/{}/sort_order'.format(self.__class__.__name__), val)
+        local_settings.setValue(
+            'widget/{}/sort_order'.format(self.__class__.__name__), val)
 
     def toggle_favourite(self, item=None, state=None):
-        """Toggles the favourite state of the current item.
-        If item and state are set explicity, it is possible to set the state
-        of the specified item to the specified state.
+        """Toggles the ``favourite`` state of the current item.
+        If `item` and/or `state` are set explicity, those values will be used
+        instead of the currentItem.
 
         Args:
             item (QListWidgetItem): The item to change.
@@ -174,22 +160,60 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         file_info = item.data(QtCore.Qt.PathRole)
 
+        # Favouriting archived items are not allowed
         archived = item.flags() & configparser.MarkedAsArchived
-        if archived: # Favouriting archived items are not allowed
+        if archived:
             return
 
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
 
         if file_info.filePath() in favourites:
-            if state is None or state is False:
-                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite) # clears flag
+            if state is None or state is False: # clears flag
+                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite)
                 favourites.remove(file_info.filePath())
         else:
-            if state is None or state is True:
+            if state is None or state is True: # adds flag
                 favourites.append(file_info.filePath())
-                item.setFlags(item.flags() | configparser.MarkedAsFavourite) # adds flag
+                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
+
         local_settings.setValue('favourites', favourites)
+        self.set_row_visibility()
+
+    def toggle_archived(self, item=None, state=None):
+        """Toggles the ``archived`` state of the current item.
+        If `item` and/or `state` are set explicity, those values will be used
+        instead of the currentItem.
+
+        Note:
+            Archived items are automatically removed from the favourites.
+
+        Args:
+            item (QListWidgetItem): The item to change.
+            state (None or bool): The state to set.
+
+        """
+        if not item:
+            item = self.currentItem()
+
+        archived = item.flags() & configparser.MarkedAsArchived
+        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
+        favourites = local_settings.value('favourites')
+        favourites = favourites if favourites else []
+        file_info = item.data(QtCore.Qt.PathRole)
+
+        if archived:
+            if state is None or state is False: # clears flag
+                item.setFlags(item.flags() & ~configparser.MarkedAsArchived)
+                settings.setValue('config/archived', False)
+        else:
+            if state is None or state is True: # adds flag
+                settings.setValue('config/archived', True)
+                item.setFlags(item.flags() | configparser.MarkedAsArchived)
+                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite)
+                if file_info.filePath() in favourites:
+                    favourites.remove(file_info.filePath())
+                    local_settings.setValue('favourites', favourites)
 
         self.set_row_visibility()
 
@@ -204,10 +228,10 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         # Saving the image
         common.delete_image(settings.thumbnail_path())
-        ScreenGrabber.screen_capture_file(output_path=settings.thumbnail_path())
+        ScreenGrabber.screen_capture_file(
+            output_path=settings.thumbnail_path())
         common.delete_image(settings.thumbnail_path(), delete_file=False)
         self.repaint()
-
 
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
@@ -216,10 +240,8 @@ class BaseListWidget(QtWidgets.QListWidget):
         common.delete_image(settings.thumbnail_path())
         self.repaint()
 
-
-
     def _paint_widget_background(self):
-        """Our list widgets arer see-through, because of their drop-shadow.
+        """Our list widgets are see-through, because of their drop-shadow.
         Hence, we manually have to paint a solid background to them.
 
         """
@@ -401,8 +423,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         """
         raise NotImplementedError('mouseDoubleClickEvent is abstract.')
 
-
-
     def resizeEvent(self, event):
         """Custom resize event."""
         self.sizeChanged.emit(self.viewport().size())
@@ -433,7 +453,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
         # self.fileSystemWatcher.fileChanged.connect(self.refresh)
 
-
     def set_current_item_as_active(self):
         """Sets the current item item as ``active``."""
         item = self.currentItem()
@@ -451,7 +470,6 @@ class BaseListWidget(QtWidgets.QListWidget):
             active_item.setFlags(active_item.flags() & ~
                                  configparser.MarkedAsActive)
         item.setFlags(item.flags() | configparser.MarkedAsActive)
-
 
     def active_item(self):
         """Return the ``active`` item.
@@ -502,18 +520,17 @@ class BaseListWidget(QtWidgets.QListWidget):
     def paint_message(self, text):
         """Paints a custom message onto the list widget."""
         painter = QtGui.QPainter()
+
         painter.begin(self)
         rect = QtCore.QRect(self.viewport().rect())
-        rect.moveLeft(rect.left())  # offsetting by the margin
-        rect.setWidth(self.rect().width())
+        rect.setLeft(rect.left() + common.MARGIN)
+        rect.setRight(rect.right() - common.MARGIN)
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
-
-
+        painter.setPen(QtGui.QPen(common.FAVOURITE))
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignCenter | QtCore.Qt.TextWordWrap,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
             text
         )
 

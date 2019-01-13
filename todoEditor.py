@@ -460,7 +460,7 @@ class TodoItemsWidget(QtWidgets.QWidget):
 
         # Populating widget with the saved settings
         settings = AssetSettings(path)
-        items = settings.value('description/todos')
+        items = settings.value('config/todos')
         if not items:
             return
         for k in items:
@@ -605,7 +605,7 @@ class TodoItemsWidget(QtWidgets.QWidget):
 
     def save_settings(self):
         settings = AssetSettings('C:/temp/temp')
-        settings.setValue('description/todos', self._collect_data())
+        settings.setValue('config/todos', self._collect_data())
 
 
 class AddButton(QtWidgets.QLabel):

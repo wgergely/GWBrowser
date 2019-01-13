@@ -49,12 +49,15 @@ class AssetCollector(object):
     def __init__(self, path):
         self._path = path
         self._count = 0
+        
+        err_one = 'The specified path ({}) could not be found.'
+        err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
 
         file_info = QtCore.QFileInfo(self._path)
         if not file_info.exists():
-            raise IOError('"{}" does not exist.'.format(file_info.filePath()))
+            raise IOError(err_one.format(file_info.filePath()))
         elif not file_info.isReadable():
-            raise IOError('"{}" is not readable.'.format(file_info.filePath()))
+            raise IOError(err_two.format(file_info.filePath()))
 
     @property
     def count(self):
@@ -171,17 +174,24 @@ class FileCollector(object):
         self._name_filter = name_filter
 
         file_info = QtCore.QFileInfo(self._path)
+
+        err_one = 'The specified path ({}) could not be found.'
+        err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
+        err_three = 'The specified path ({}) is valid, but {} could not be found.'
+        err_four = 'The specified path ({}) is valid, but {} could not be read.'
+
         if not file_info.exists():
-            raise IOError('"{}" does not exist.'.format(file_info.filePath()))
+            raise IOError(err_one.format(file_info.filePath()))
         elif not file_info.isReadable():
-            raise IOError('"{}" is not readable.'.format(file_info.filePath()))
+            raise IOError(err_two.format(file_info.filePath()))
 
         file_info = QtCore.QFileInfo(
             '{}/{}'.format(self._path, self._asset_folder))
+
         if not file_info.exists():
-            raise IOError('"{}" does not exist.'.format(file_info.filePath()))
+            raise IOError(err_three.format(file_info.filePath(), asset_folder))
         elif not file_info.isReadable():
-            raise IOError('"{}" is not readable.'.format(file_info.filePath()))
+            raise IOError(err_.format(file_info.filePath(), asset_folder))
 
     def set_name_filter(self, val):
         """Sets the name filters to the given value."""

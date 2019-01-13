@@ -52,10 +52,6 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         image.load(next(f for f in self.selectedFiles()))
         image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
 
-        file_info = QtCore.QFileInfo(settings.thumbnail_path())
-        if not file_info.dir().exists():
-            QtCore.QDir().mkpath(file_info.dir().path())
-
         image.save(settings.thumbnail_path())
 
         common.delete_image(settings.thumbnail_path(), delete_file=False)
@@ -90,7 +86,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self.show()
         self.editor.setFocus()
 
-        self.editor.setText(self.settings.value('description/description'))
+        self.editor.setText(self.settings.value('config/description'))
         self.editor.selectAll()
 
     def sizeHint(self):
@@ -218,11 +214,11 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
     def action(self):
         """Main actions to run when the return key is pressed."""
-        if self.settings.value('description/description') == self.editor.text():
+        if self.settings.value('config/description') == self.editor.text():
             self.close()
             return
 
         item = self.parent().itemFromIndex(self._index)
         item.setData(QtCore.Qt.UserRole, self.editor.text())
-        self.settings.setValue('description/description', self.editor.text())
+        self.settings.setValue('config/description', self.editor.text())
         self.close()
