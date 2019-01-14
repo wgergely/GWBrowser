@@ -33,7 +33,6 @@ class LocalSettings(QtCore.QSettings):
     widget settings and filter modes.
 
     """
-
     def __init__(self, parent=None):
         super(LocalSettings, self).__init__(
             QtCore.QSettings.UserScope,

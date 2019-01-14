@@ -515,7 +515,7 @@ class MayaFilesWidget(BaseListWidget):
             elif local_settings.is_favourite(f.fileName()):
                 flags = flags | configparser.MarkedAsFavourite
             item.setData(
-                QtCore.Qt.UserRole,
+                common.DescriptionRole,
                 flags
             )
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)

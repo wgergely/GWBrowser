@@ -37,32 +37,6 @@ QStatusBar {{
 	height: 24px;
 }}
 
-TodoItemEditor {{
-	background-color: rgba({TEXT});
-	border-width: 1px;
-	border: solid;
-	border-color: rgba(180,180,180,255);
-	margin: 1px;
-	padding: 1px;
-	outline: 0;
-	color: rgba({SEPARATOR});
-	font-family: "Roboto Medium";
-	font-size: 11pt;
-}}
-
-TodoItemEditor:focus {{
-	color: rgba(0,0,0,255);
-	background-color: rgba({TEXT_SELECTED});
-}}
-TodoItemEditor:disabled {{
-	border: none;
-	border-width: 1px;
-	border-color: rgba(180,180,180,255);
-	color: rgba(150,150,150,255);
-	background-color: rgba(210,210,210,255);
-}}
-
-
 
 QToolTip {{
 	margin: 0px;
@@ -235,20 +209,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-pa
 }}
 
 
-TodoItemEditor QScrollBar:vertical, TodoItemEditor QScrollBar:horizontal {{
-	background: rgba({SECONDARY_TEXT});
-	border: none;
-}}
-TodoItemEditor QScrollBar::handle:vertical, TodoItemEditor QScrollBar::handle:vertical, TodoItemEditor QScrollBar::handle:horizontal, TodoItemEditor QScrollBar::handle:horizontal {{
-	background: rgba({TEXT});
-	border: 0px solid;
-	border-radius: 0px;
-	max-height: 250px;
-	min-height: 24;
-}}
-TodoItemEditor QScrollBar::add-page:vertical, TodoItemEditor QScrollBar::sub-page:vertical, TodoItemEditor QScrollBar::add-page:horizontal, TodoItemEditor QScrollBar::sub-page:horizontal {{
-	background: rgba({SECONDARY_TEXT});
-}}
 
 
 
@@ -375,3 +335,57 @@ QToolTip {{
 		outline: none;
 		font-size: 9pt;
 }}
+
+
+
+TodoEditorWidget {{
+		background-color: rgba(230,230,230,255);
+		color: rgba({SECONDARY_TEXT});
+		border-width: 0px;
+		border: none;
+		margin: 0px;
+		padding: 0px;
+		outline: 0;
+		font-family: {fontFamily};
+		font-size: {fontSize}pt;
+	}}
+
+	TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
+		background: rgba({SECONDARY_TEXT});
+		border: none;
+	}}
+	TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
+		background: rgba({TEXT});
+		border: 0px solid;
+		border-radius: 0px;
+		max-height: 250px;
+		min-height: 24;
+	}}
+	TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
+		background: rgba({SECONDARY_TEXT});
+	}}
+
+	TodoItemEditor {{
+		background-color: rgba(240,240,240,255);
+		border-width: 0px;
+		border: solid;
+		border-color: rgba(180,180,180,255);
+		margin: 0px 0px 0px 0px;
+		padding: 0px;
+		outline: 0;
+		color: rgba(0,0,0,255);
+		font-family: "Roboto Medium";
+		font-size: 11pt;
+	}}
+
+	TodoItemEditor:focus {{
+		color: rgba(30,30,30,255);
+		background-color: rgba(255,255,255,255);
+	}}
+	TodoItemEditor:disabled {{
+		border: none;
+		border-width: 1px;
+		border-color: rgba(180,180,180,255);
+		color: rgba({SELECTION});
+		background-color: rgba(230,230,230,255);
+	}}

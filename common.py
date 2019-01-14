@@ -42,9 +42,13 @@ customize here. Browser will assume all of these folder reside in the root of
 the ``asset`` folder.
 """
 
-
-QtCore.Qt.PathRole = 0x0200  # Role used to store FileInfo items
-"""Special Role used to store QFileInfo objects."""
+# Extending the
+PathRole = 0x02000  # Role used to store FileInfo items
+"""Special role used to store QFileInfo objects."""
+DescriptionRole = 0x03000  # Role used to store FileInfo items
+"""Special role used to store QFileInfo objects."""
+TodoCountRole = 0x04000  # Role used to store FileInfo items
+"""Special role used to store the count of todos."""
 
 # Sizes
 MARGIN = 18.0
@@ -314,17 +318,16 @@ def label_generator():
     Yields:         QtCore.QColor
 
     """
-    global colors
-    colors = []
+    arr = []
     for _ in xrange(999):
-        a = [104, 101, 170]
-        v = 20
-        colors.append([
+        a = [190, 89, 92]
+        v = 30
+        arr.append([
             random.randint(a[0] - v, a[0] + v),
             random.randint(a[1] - v, a[1] + v),
             random.randint(a[2] - v, a[2] + v)
         ])
-    for color in colors:
+    for color in arr:
         yield QtGui.QColor(*color)
 
 
@@ -341,16 +344,16 @@ def get_label(k):
     Returns:        QColor.
 
     """
+    global colors
     if k.lower() not in ASSIGNED_LABELS:
         ASSIGNED_LABELS[k.lower()] = next(colors)
     return ASSIGNED_LABELS[k.lower()]
 
 
 def revert_labels():
-    global ASSIGNED_LABELS
     global colors
+    global ASSIGNED_LABELS
     ASSIGNED_LABELS = {}
-
     colors = label_generator()
 
 
@@ -480,9 +483,9 @@ def count_assets(path):
     count = 0
     for file_info in dir_.entryInfoList():
         dir_ = QtCore.QDir(file_info.filePath())
-        dir.setFilter(QtCore.QDir.Files)
-        dir.setNameFilters((ASSET_IDENTIFIER,))
-        if dir.entryInfoList():
+        dir_.setFilter(QtCore.QDir.Files)
+        dir_.setNameFilters((ASSET_IDENTIFIER,))
+        if dir_.entryInfoList():
             count += 1
     return count
 

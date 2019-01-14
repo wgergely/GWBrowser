@@ -131,8 +131,8 @@ class UpdateConfigWidget(QtWidgets.QDialog):
 
     def get_bookmark(self):
         """Returns the currently selected items."""
-        server = self.pick_server_widget.currentData(QtCore.Qt.UserRole)
-        job = self.pick_job_widget.currentData(QtCore.Qt.UserRole)
+        server = self.pick_server_widget.currentData(common.DescriptionRole)
+        job = self.pick_job_widget.currentData(common.DescriptionRole)
         root = self._root
         key = '{}/{}/{}'.format(server, job, root)
         return {key: {'server': server, 'job': job, 'root': root}}
@@ -245,14 +245,14 @@ class UpdateConfigWidget(QtWidgets.QDialog):
                          '{}\n{}'.format(server['nickname'], server['path']))
             item.setData(QtCore.Qt.ToolTipRole,
                          '{}\n{}'.format(server['nickname'], server['path']))
-            item.setData(QtCore.Qt.UserRole, server['path'])
-            item.setData(QtCore.Qt.PathRole, QtCore.QFileInfo(server['path']))
+            item.setData(common.DescriptionRole, server['path'])
+            item.setData(common.PathRole, QtCore.QFileInfo(server['path']))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 200, common.ROW_BUTTONS_HEIGHT))
 
             self.pick_server_widget.view().addItem(item)
 
-            if not item.data(QtCore.Qt.PathRole).exists():
+            if not item.data(common.PathRole).exists():
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
     def _add_jobs(self, dir):
@@ -271,8 +271,8 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             item.setData(QtCore.Qt.EditRole, file_info.fileName())
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, file_info.filePath())
-            item.setData(QtCore.Qt.UserRole, file_info.fileName())
-            item.setData(QtCore.Qt.PathRole, file_info)
+            item.setData(common.DescriptionRole, file_info.fileName())
+            item.setData(common.PathRole, file_info)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 200, common.ROW_BUTTONS_HEIGHT))
 
@@ -284,7 +284,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
 
         dialog = QtWidgets.QFileDialog()
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
-        file_info = self.pick_job_widget.currentData(QtCore.Qt.PathRole)
+        file_info = self.pick_job_widget.currentData(common.PathRole)
 
         path = dialog.getExistingDirectory(
             self,
@@ -306,7 +306,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         count = common.count_assets(path)
 
         # Removing the server and job name from the selection
-        path = path.replace(self.pick_job_widget.currentData(QtCore.Qt.PathRole).filePath(), '')
+        path = path.replace(self.pick_job_widget.currentData(common.PathRole).filePath(), '')
         path = path.lstrip('/').rstrip('/')
 
         # Setting the internal root variable
@@ -334,7 +334,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
             return
 
         item = self.pick_server_widget.view().item(idx)
-        dir = QtCore.QDir(item.data(QtCore.Qt.PathRole).filePath())
+        dir = QtCore.QDir(item.data(common.PathRole).filePath())
         self._add_jobs(dir)
 
     def _set_initial_values(self):
@@ -345,7 +345,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         if local_settings.value('activepath/server'):
             idx = self.pick_server_widget.findData(
                 local_settings.value('activepath/server'),
-                role=QtCore.Qt.UserRole,
+                role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )
             self.pick_server_widget.setCurrentIndex(idx)
@@ -354,7 +354,7 @@ class UpdateConfigWidget(QtWidgets.QDialog):
         if local_settings.value('activepath/job'):
             idx = self.pick_job_widget.findData(
                 local_settings.value('activepath/job'),
-                role=QtCore.Qt.UserRole,
+                role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )
             self.pick_job_widget.setCurrentIndex(idx)

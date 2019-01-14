@@ -158,7 +158,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             item = self.currentItem()
 
-        file_info = item.data(QtCore.Qt.PathRole)
+        file_info = item.data(common.PathRole)
 
         # Favouriting archived items are not allowed
         archived = item.flags() & configparser.MarkedAsArchived
@@ -197,10 +197,10 @@ class BaseListWidget(QtWidgets.QListWidget):
             item = self.currentItem()
 
         archived = item.flags() & configparser.MarkedAsArchived
-        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole).filePath())
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
-        file_info = item.data(QtCore.Qt.PathRole)
+        file_info = item.data(common.PathRole)
 
         if archived:
             if state is None or state is False: # clears flag
@@ -224,7 +224,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             return
 
-        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole).filePath())
 
         # Saving the image
         common.delete_image(settings.thumbnail_path())
@@ -236,7 +236,7 @@ class BaseListWidget(QtWidgets.QListWidget):
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
         item = self.currentItem()
-        settings = AssetSettings(item.data(QtCore.Qt.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole).filePath())
         common.delete_image(settings.thumbnail_path())
         self.repaint()
 
@@ -527,7 +527,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         rect.setRight(rect.right() - common.MARGIN)
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        painter.setPen(QtGui.QPen(common.FAVOURITE))
+        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,

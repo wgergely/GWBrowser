@@ -50,7 +50,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
         menu.setTitle('Paths')
 
         # Url
-        file_path = self.index.data(QtCore.Qt.PathRole).filePath()
+        file_path = self.index.data(common.PathRole).filePath()
         url = QtCore.QUrl()
         url = url.fromLocalFile(file_path)
 
@@ -183,7 +183,7 @@ class AssetWidget(BaseListWidget):
         super(AssetWidget, self).set_current_item_as_active()
 
         # Updating the local config file
-        asset = self.currentItem().data(QtCore.Qt.PathRole).baseName()
+        asset = self.currentItem().data(common.PathRole).baseName()
         local_settings.setValue('activepath/asset', asset)
 
         # Emiting change a signal upon change
@@ -261,14 +261,23 @@ class AssetWidget(BaseListWidget):
             tooltip += u'{}\n\n'.format(self._path[2].upper())
             tooltip += u'{}'.format(f.filePath())
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
-            item.setData(QtCore.Qt.PathRole, f)
+            item.setData(common.PathRole, f)
             item.setData(
                 QtCore.Qt.SizeHintRole,
                 QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT))
 
             settings = AssetSettings(f.filePath())
-            item.setData(QtCore.Qt.UserRole, settings.value(
-                'config/description'))  # Notes will be stored here
+
+            item.setData(common.DescriptionRole, settings.value(
+                'config/description'))
+
+            todos = settings.value('config/todos')
+            if todos:
+                todos = len([k for k in todos if not todos[k]['checked'] and todos[k]['text']])
+                item.setData(common.TodoCountRole, todos)
+            else:
+                item.setData(common.TodoCountRole, 0)
+
 
             # Archived
             if settings.value('config/archived'):
@@ -289,7 +298,7 @@ class AssetWidget(BaseListWidget):
         """In-line buttons are triggered here."""
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
-        if self.viewport().width() < 250.0:
+        if self.viewport().width() < 360.0:
             return super(AssetWidget, self).mousePressEvent(event)
 
         for n in xrange(2):
@@ -312,13 +321,10 @@ class AssetWidget(BaseListWidget):
         from mayabrowser.todoEditor import TodoEditorWidget
         index = self.currentIndex()
         rect = self.visualRect(index)
-        widget = TodoEditorWidget(
-            index.data(QtCore.Qt.PathRole).filePath(),
-            parent=self
-        )
-        pos = self.viewport().mapToGlobal(rect.topLeft())
-        widget.move(pos.x(), pos.y())
-        widget.resize(self.viewport().width(), 600)
+        widget = TodoEditorWidget(index, parent=self)
+        pos = self.mapToGlobal(self.rect().topLeft())
+        widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
+        widget.resize(self.width(), self.height())
         common.move_widget_to_available_geo(widget)
         widget.show()
 
@@ -328,7 +334,7 @@ class AssetWidget(BaseListWidget):
         rect = self.visualRect(index)
         idx = index.row()
 
-        if self.viewport().width() < 250.0:
+        if self.viewport().width() < 360.0:
             return super(AssetWidget, self).mouseReleaseEvent(event)
 
         # Cheking the button
@@ -359,7 +365,7 @@ class AssetWidget(BaseListWidget):
 
     def mouseMoveEvent(self, event):
         """Multi-toggle is handled here."""
-        if self.viewport().width() < 250.0:
+        if self.viewport().width() < 360.0:
             return super(AssetWidget, self).mouseMoveEvent(event)
 
         if self.multi_toggle_pos is None:
@@ -479,7 +485,7 @@ class AssetWidget(BaseListWidget):
             if event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
                 url = url.fromLocalFile(
-                    item.data(QtCore.Qt.PathRole).filePath())
+                    item.data(common.PathRole).filePath())
                 QtGui.QClipboard().setText(url.toString())
 
     def reveal_folder(self, name):

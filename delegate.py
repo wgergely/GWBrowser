@@ -169,7 +169,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
-        if option.rect.width() < 250.0:
+        if option.rect.width() < 360.0:
             return
 
         painter.save()
@@ -211,7 +211,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
-        if option.rect.width() < 250.0:
+        if option.rect.width() < 360.0:
             return
 
         painter.save()
@@ -409,7 +409,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        settings = AssetSettings(index.data(QtCore.Qt.PathRole).filePath())
+        settings = AssetSettings(index.data(common.PathRole).filePath())
 
         # Caching image
         common.cache_image(settings.thumbnail_path(), option.rect.height())
@@ -601,24 +601,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(rect.height())
         return rect
 
-    # def createEditor(self, parent, option, index, editor=0):  # pylint: disable=W0613
-    #     """Creates the custom editors needed to edit the thumbnail and the description.
-    #
-    #     References:
-    #     http: // doc.qt.io/qt-5/QItemEditorFactory.html  # standard-editing-widgets
-    #
-    #     """
-    #     if not editor:
-    #         return
-    #     elif editor == 1:  # Editor to edit notes
-    #         rect, _, _ = self.get_description_rect(option.rect)
-    #         return self.get_noteeditor_cls(index, rect, self.parent(), parent=parent)
-    #     elif editor == 2:  # Editor to pick a thumbnail
-    #         rect = self.get_thumbnail_rect(option.rect)
-    #         return self.get_thumbnaileditor_cls(index, rect, self.parent(), parent=parent)
-    #     elif editor == 3:  # Button to remove a location, no editor needed
-    #         return
-
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
         size = QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
@@ -784,7 +766,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         font.setPointSize(9)
         painter.setFont(font)
 
-        server, job, root, count = index.data(QtCore.Qt.UserRole).split(',')
+        server, job, root, count = index.data(common.DescriptionRole).split(',')
         count = int(count)
 
         rect = QtCore.QRect(option.rect)
@@ -963,7 +945,7 @@ class AssetWidgetDelegate(BaseDelegate):
     def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
-        if option.rect.width() < 250.0:
+        if option.rect.width() < 360.0:
             return
 
         painter.save()
@@ -994,16 +976,17 @@ class AssetWidgetDelegate(BaseDelegate):
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
-        if option.rect.width() < 250.0:
+        if option.rect.width() < 360.0:
             return
-
         painter.save()
+
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
+
         rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 2)
         color = QtGui.QColor(common.SECONDARY_TEXT)
         pixmap = common.get_rsc_pixmap('folder', color, common.INLINE_ICON_SIZE)
@@ -1013,8 +996,8 @@ class AssetWidgetDelegate(BaseDelegate):
 
     def paint_todo_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, _, _ = args
-        if option.rect.width() < 250.0:
+        painter, option, index, _, _, _, _, _ = args
+        if option.rect.width() < 360.0:
             return
 
         painter.save()
@@ -1024,11 +1007,38 @@ class AssetWidgetDelegate(BaseDelegate):
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
+
         rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
         color = QtGui.QColor(common.TEXT)
         pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
+
+        if not index.data(common.TodoCountRole):
+            return
+
+        count_rect = QtCore.QRect(rect)
+        count_rect.setWidth(8)
+        count_rect.setHeight(8)
+
+        count_rect.moveCenter(rect.bottomRight())
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSizeF(8.0)
+        painter.setFont(font)
+
+        pen = QtGui.QPen(common.FAVOURITE)
+        pen.setWidth(8.0)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
+        painter.drawRoundedRect(count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+
+        painter.setPen(QtGui.QPen(common.TEXT))
+        painter.drawText(
+            count_rect,
+            QtCore.Qt.AlignCenter,
+            '{}'.format(index.data(common.TodoCountRole))
+        )
+
         painter.restore()
 
     def paint_name(self, *args):
@@ -1043,6 +1053,10 @@ class AssetWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
+
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
+            rect.setRight(icon_rect.left())
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
@@ -1077,7 +1091,7 @@ class AssetWidgetDelegate(BaseDelegate):
             option.rect, common.SECONDARY_FONT)
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        if not index.data(QtCore.Qt.UserRole) and not hover:
+        if not index.data(common.DescriptionRole) and not hover:
             return
 
         # Resizing the height and moving below the name
@@ -1087,13 +1101,17 @@ class AssetWidgetDelegate(BaseDelegate):
                      metrics.lineSpacing())
 
         color = self.get_state_color(option, index, common.TEXT_NOTE)
-        if not index.data(QtCore.Qt.UserRole):
+        if not index.data(common.DescriptionRole):
             _, font, metrics = self.get_text_area(
                 option.rect, common.TERCIARY_FONT)
             text = 'Double-click to add description...'
             color.setAlpha(100)
-        elif index.data(QtCore.Qt.UserRole):
-            text = index.data(QtCore.Qt.UserRole)
+        elif index.data(common.DescriptionRole):
+            text = index.data(common.DescriptionRole)
+
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
+            rect.setRight(icon_rect.left())
 
         text = metrics.elidedText(
             text,

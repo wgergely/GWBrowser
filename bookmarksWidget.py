@@ -48,7 +48,7 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
                 return items
 
             server, job, root, _ = self.index.data(
-                QtCore.Qt.UserRole).split(',')
+                common.DescriptionRole).split(',')
 
             items['{} - {}'.format(job.upper(), root.upper())
                   ] = {'disabled': True}
@@ -72,27 +72,27 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
     def reveal_bookmark(self):
         """Shows the current server folder in the file explorer."""
-        file_info = self.index.data(QtCore.Qt.PathRole)
+        file_info = self.index.data(common.PathRole)
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_server(self):
         """Shows the current server folder in the file explorer."""
-        server, _, _, _ = self.index.data(QtCore.Qt.UserRole).split(',')
+        server, _, _, _ = self.index.data(common.DescriptionRole).split(',')
         file_info = QtCore.QFileInfo('{}'.format(server))
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
         QtGui.QDesktopServices.openUrl(url)
 
     def reveal_job(self):
         """Shows the current server folder in the file explorer."""
-        server, job, _, _ = self.index.data(QtCore.Qt.UserRole).split(',')
+        server, job, _, _ = self.index.data(common.DescriptionRole).split(',')
         file_info = QtCore.QFileInfo('{}/{}'.format(server, job))
         url = QtCore.QUrl.fromLocalFile(file_info.filePath())
         QtGui.QDesktopServices.openUrl(url)
 
     def remove(self):
         """Remove the bookmark from the ``local_settings``."""
-        k = self.index.data(QtCore.Qt.PathRole).filePath()
+        k = self.index.data(common.PathRole).filePath()
         bookmarks = local_settings.value('bookmarks')
 
         k = bookmarks.pop(k, None)
@@ -147,7 +147,7 @@ class BookmarksWidget(BaseListWidget):
     def set_current_item_as_active(self):
         """Sets the current item item as ``active``."""
         item = self.currentItem()
-        server, job, root, _ = item.data(QtCore.Qt.UserRole).split(',')
+        server, job, root, _ = item.data(common.DescriptionRole).split(',')
 
         # Updating the local config file
         local_settings.setValue('activepath/server', server)
@@ -201,7 +201,7 @@ class BookmarksWidget(BaseListWidget):
             self.refresh()
 
             for n in xrange(self.count()):
-                if self.item(n).data(QtCore.Qt.PathRole).filePath() == key:
+                if self.item(n).data(common.PathRole).filePath() == key:
                     self.setCurrentItem(self.item(n))
                 break
             self.set_current_item_as_active()
@@ -227,7 +227,7 @@ class BookmarksWidget(BaseListWidget):
         self.refresh()
 
         for n in xrange(self.count()):
-            if self.item(n).data(QtCore.Qt.PathRole).filePath() == key:
+            if self.item(n).data(common.PathRole).filePath() == key:
                 self.setCurrentItem(self.item(n))
                 break
 
@@ -273,13 +273,13 @@ class BookmarksWidget(BaseListWidget):
                              bookmarks[k]['root']))
             item.setData(QtCore.Qt.ToolTipRole,
                          item.data(QtCore.Qt.StatusTipRole))
-            item.setData(QtCore.Qt.UserRole,
+            item.setData(common.DescriptionRole,
                          u'{},{},{},{}'.format(
                              bookmarks[k]['server'],
                              bookmarks[k]['job'],
                              bookmarks[k]['root'],
                              count))
-            item.setData(QtCore.Qt.PathRole,
+            item.setData(common.PathRole,
                          QtCore.QFileInfo('{}/{}/{}'.format(
                              bookmarks[k]['server'],
                              bookmarks[k]['job'],
@@ -324,7 +324,7 @@ class BookmarksWidget(BaseListWidget):
             'Add a new bookmark'
         )
         item.setData(
-            QtCore.Qt.PathRole,
+            common.PathRole,
             None
         )
 
@@ -338,11 +338,11 @@ class BookmarksWidget(BaseListWidget):
             return
         super(BookmarksWidget, self).mouseReleaseEvent(event)
 
-    def custom_doubleclick_event(self, index):
-        """We're emiting a custom signal. Any other widgets that need to
-        have their content refreshed should connect to the ``locationChanged`` signal.
-
+    def mouseDoubleClickEvent(self, event):
+        """When the bookmark item is double-clicked the the item will be actiaved.
         """
+        if self.currentItem() is self.active_item():
+            return
         self.set_current_item_as_active()
 
     def action_on_enter_key(self):
