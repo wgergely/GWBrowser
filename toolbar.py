@@ -31,7 +31,7 @@ from mayabrowser.common import shiboken2
 
 from mayabrowser.bookmarksWidget import BookmarksWidget
 from mayabrowser.assetwidget import AssetWidget
-from mayabrowser.listmaya import MayaFilesWidget
+from mayabrowser.listmaya import FilesWidget
 from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetConfig
 from mayabrowser.delegate import ThumbnailEditor
@@ -186,7 +186,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
         self.assetsWidget = AssetWidget()
         self.assetsWidget.setWindowIcon(QtGui.QIcon(pixmap))
-        self.filesWidget = MayaFilesWidget()
+        self.filesWidget = FilesWidget()
         self.filesWidget.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.stacked_widget.addWidget(self.locationsWidget)

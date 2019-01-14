@@ -99,11 +99,20 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
     @property
+    def path(self):
+        """The path of the assets folder as a (server, job, root) string tuple."""
+        return self._path
+
+    @path.setter
+    def path(self, *args):
+        self._path = args
+
+    @property
     def filter(self):
         """The current filter."""
         val = local_settings.value(
             'widget/{}/filter'.format(self.__class__.__name__))
-        return val if val else False
+        return val if val else '/'
 
     @filter.setter
     def filter(self, val):
@@ -138,12 +147,23 @@ class BaseListWidget(QtWidgets.QListWidget):
     def sort_order(self):
         val = local_settings.value(
             'widget/{}/sort_order'.format(self.__class__.__name__))
-        return val if val else False
+        return int(val) if val else 0
 
     @sort_order.setter
     def sort_order(self, val):
         local_settings.setValue(
             'widget/{}/sort_order'.format(self.__class__.__name__), val)
+
+    @property
+    def reverse(self):
+        val = local_settings.value(
+            'widget/{}/reverse'.format(self.__class__.__name__))
+        return int(val) if val else False
+
+    @reverse.setter
+    def reverse(self, val):
+        local_settings.setValue(
+            'widget/{}/reverse'.format(self.__class__.__name__), val)
 
     def toggle_favourite(self, item=None, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -465,9 +485,8 @@ class BaseListWidget(QtWidgets.QListWidget):
             return
 
         # Set flags
-        active_item = self.active_item()
-        if active_item:
-            active_item.setFlags(active_item.flags() & ~
+        if self.active_item():
+            self.active_item().setFlags(active_item.flags() & ~
                                  configparser.MarkedAsActive)
         item.setFlags(item.flags() | configparser.MarkedAsActive)
 
@@ -482,6 +501,10 @@ class BaseListWidget(QtWidgets.QListWidget):
             if item.flags() & configparser.MarkedAsActive:
                 return item
         return None
+
+    def select_active_item(self):
+        """Selects the active item."""
+        self.setCurrentItem(self.active_item())
 
     def set_row_visibility(self):
         """Sets the visibility of the list-items based on modes and options."""
@@ -525,13 +548,18 @@ class BaseListWidget(QtWidgets.QListWidget):
         rect = QtCore.QRect(self.viewport().rect())
         rect.setLeft(rect.left() + common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
+        rect.setBottom(rect.bottom() - common.MARGIN)
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
         painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
+            QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom | QtCore.Qt.TextWordWrap,
             text
         )
 
         painter.end()
+
+    def showEvent(self, event):
+        """Show event will set the size of the widget."""
+        self.select_active_item()

@@ -32,6 +32,15 @@ class LocalSettings(QtCore.QSettings):
     """Used to store all user-specific settings, such as list of favourites,
     widget settings and filter modes.
 
+    The current path settings are stored under the ``activepath`` section.
+
+    Activepath keys:
+        activepath/server:  Path of the `active` server.
+        activepath/job:     Name of the `active` job folder.
+        activepath/root:    The name of the relative location of the active bookmark.
+        activepath/asset:   The name of the `active` asset folder
+        activepath/file:    The relative path of the `active` file.
+
     """
     def __init__(self, parent=None):
         super(LocalSettings, self).__init__(
@@ -57,26 +66,22 @@ class LocalSettings(QtCore.QSettings):
 
 
 class AssetSettings(QtCore.QSettings):
-    """Stores the settings
-    Attributes:
-        name (str):         The file-name.
-        job (str):          The name of the current job. (Currently this is the name of the job folder.)
-        root (str):         This is the location of the folder where the maya asset folders are located.
+    """Wrapper class for QSettings for storing asset and file settings.
+
+    The asset settings will be stored as an ``.conf`` files in the
+    ``[asset root]/.browser`` folder.
 
     """
-    SECTIONS = ['activejob', 'favourites', 'mayawidget']
-
     def __init__(self, path, parent=None):
         self._path = path
-
         super(AssetSettings, self).__init__(
-            self.ini_path(),
+            self.conf_path(),
             QtCore.QSettings.IniFormat,
             parent=parent
         )
         self.setFallbacksEnabled(False)
 
-    def ini_path(self):
+    def conf_path(self):
         """Returns the path to the Asset's configuration file.
         If the parent folder doesn't exists we will automatically create it here.
 
@@ -87,17 +92,13 @@ class AssetSettings(QtCore.QSettings):
         file_info = QtCore.QFileInfo(self._path)
         file_name = re.sub(r'[\.]+', '_', file_info.fileName())
 
-        # if not file_info.dir().exists():
-        #     QtCore.QDir().mkpath(file_info.dir().path())
-
-        asset_path = '{}/.browser/{}.conf'.format(file_info.path(), file_name)
+        conf_path = '{}/.browser/{}.conf'.format(file_info.path(), file_name)
         if file_info.dir().exists():
             dir_ = QtCore.QDir('{}/.browser'.format(file_info.path()))
             if not dir_.exists():
                 file_info.dir().mkpath('.browser')
                 print '# Asset config root folder created.'
-
-        return asset_path
+        return conf_path
 
     def thumbnail_path(self):
         file_info = QtCore.QFileInfo(self._path)

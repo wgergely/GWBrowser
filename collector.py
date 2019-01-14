@@ -49,7 +49,7 @@ class AssetCollector(object):
     def __init__(self, path):
         self._path = path
         self._count = 0
-        
+
         err_one = 'The specified path ({}) could not be found.'
         err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
 
@@ -157,7 +157,7 @@ class FileCollector(object):
         path (str):             Path to an ``asset`` folder as a string.
         asset_folder (str):     Subfolder inside the ``asset`` folder. Eg. `'scenes'`
                                 See ``common.ASSET_FOLDERS`` for accepted values.
-        name_filter ([str,]):   Returns only items with the given names.
+        name_filter ([str,]):   Returns only items containing any of the given strings.
 
     Methods:
         set_name_filter(str):   Sets the file mask.
@@ -168,30 +168,26 @@ class FileCollector(object):
 
     """
 
-    def __init__(self, path, asset_folder, name_filter=('*.*',)):
+    DEFAULT_NAME_FILTER = [
+        '*.psd',
+        '*.ma',
+        '*.mb',
+        '*.aep',
+    ]
+
+    def __init__(self, path, name_filter=DEFAULT_NAME_FILTER):
         self._path = path
-        self._asset_folder = asset_folder
         self._name_filter = name_filter
 
-        file_info = QtCore.QFileInfo(self._path)
+        file_info = QtCore.QFileInfo(path)
 
         err_one = 'The specified path ({}) could not be found.'
         err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
-        err_three = 'The specified path ({}) is valid, but {} could not be found.'
-        err_four = 'The specified path ({}) is valid, but {} could not be read.'
 
         if not file_info.exists():
             raise IOError(err_one.format(file_info.filePath()))
         elif not file_info.isReadable():
             raise IOError(err_two.format(file_info.filePath()))
-
-        file_info = QtCore.QFileInfo(
-            '{}/{}'.format(self._path, self._asset_folder))
-
-        if not file_info.exists():
-            raise IOError(err_three.format(file_info.filePath(), asset_folder))
-        elif not file_info.isReadable():
-            raise IOError(err_.format(file_info.filePath(), asset_folder))
 
     def set_name_filter(self, val):
         """Sets the name filters to the given value."""
@@ -204,12 +200,13 @@ class FileCollector(object):
         Yields: A QFileInfo instance.
         """
         it = QtCore.QDirIterator(
-            '{}/{}'.format(self._path, self._asset_folder),
+            self._path,
             self._name_filter,
             flags=QtCore.QDir.NoSymLinks |
             QtCore.QDir.NoDotAndDotDot |
             QtCore.QDirIterator.Subdirectories
         )
+
         while it.hasNext():
             item = QtCore.QFileInfo(it.next())
             if item.fileName() == '.' or item.fileName() == '..':
@@ -226,7 +223,7 @@ class FileCollector(object):
                                 1 = Modified
                                 2 = Created
                                 3 = Size
-            reversed (bool):     Reverses the list order.
+            reversed (bool):    Reverses the list order.
             filter (str):       Returns only items containing this string.
 
         Returns:                List of QFileInfo instances.

@@ -49,6 +49,10 @@ DescriptionRole = 0x03000  # Role used to store FileInfo items
 """Special role used to store QFileInfo objects."""
 TodoCountRole = 0x04000  # Role used to store FileInfo items
 """Special role used to store the count of todos."""
+FileDetailsRole = 0x05000  # Role used to store FileInfo items
+"""Special role used to store the count of todos."""
+FileModeRole = 0x06000  # Role used to store FileInfo items
+"""Special role used to store the count of todos."""
 
 # Sizes
 MARGIN = 18.0
@@ -56,6 +60,7 @@ ROW_HEIGHT = 54.0
 
 BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
+FILE_ROW_HEIGHT = 72.0
 
 WIDTH = 640.0
 HEIGHT = 480.0
@@ -319,8 +324,11 @@ def label_generator():
 
     """
     arr = []
-    for _ in xrange(999):
-        a = [190, 89, 92]
+    for n in xrange(999):
+        if n % 2 == 0:
+            a = [190, 89, 92]
+        else:
+            a = [92, 89, 190]
         v = 30
         arr.append([
             random.randint(a[0] - v, a[0] + v),

@@ -49,10 +49,10 @@ Maya
 -------------
 
 
-.. autoclass:: mayabrowser.listmaya.MayaFilesWidgetContextMenu
+.. autoclass:: mayabrowser.listmaya.FilesWidgetContextMenu
 
 
-.. autoclass:: mayabrowser.listmaya.MayaFilesWidget
+.. autoclass:: mayabrowser.listmaya.FilesWidget
   :members:
 
 

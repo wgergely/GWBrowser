@@ -27,7 +27,6 @@ from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
 from mayabrowser.collector import AssetCollector
 from mayabrowser.delegate import AssetWidgetDelegate
-from mayabrowser.popover import PopupCanvas
 
 
 class AssetWidgetContextMenu(BaseContextMenu):
@@ -148,19 +147,18 @@ class AssetWidget(BaseListWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
 
     Signals:
-        activeChanged (Signal):         Signal emited when the active asset has changed.
+        activated (Signal):         Signal emited when the active asset has changed.
 
     Properties:
         path (tuple[str, str, str]):    Sets the path to search for assets.
 
     """
-    Delegate = AssetWidgetDelegate
     ContextMenu = AssetWidgetContextMenu
-
+    Delegate = AssetWidgetDelegate
     # Signals
     activated = QtCore.Signal(str)
 
-    def __init__(self, root=None, parent=None):
+    def __init__(self, parent=None):
         self._path = (
             local_settings.value('activepath/server'),
             local_settings.value('activepath/job'),
@@ -169,40 +167,19 @@ class AssetWidget(BaseListWidget):
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
 
-    @property
-    def path(self):
-        """The path to the folder where the assets are located as a tuple of strings"""
-        return self._path
-
-    @path.setter
-    def path(self, *args):
-        self._path = args
-
     def set_current_item_as_active(self):
-        """Sets the current item item as ``active``."""
+        """Sets the current item item as ``active`` and
+        emits the ``activated`` signal.
+
+        """
         super(AssetWidget, self).set_current_item_as_active()
 
         # Updating the local config file
         asset = self.currentItem().data(common.PathRole).baseName()
         local_settings.setValue('activepath/asset', asset)
+        local_settings.setValue('activepath/file', None)
 
-        # Emiting change a signal upon change
         self.activated.emit(asset)
-
-    def show_popover(self):
-        """Popup widget show on long-mouse-press."""
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, True)
-        cursor = QtGui.QCursor()
-        self.popover = PopupCanvas(cursor.pos())
-        self.popover.show()
-
-        click = QtGui.QMouseEvent(
-            QtCore.QEvent.MouseButtonRelease, cursor.pos(),
-            QtCore.Qt.LeftButton, 0,
-            QtCore.Qt.NoModifier
-        )
-        QtCore.QCoreApplication.instance().sendEvent(self.popover, click)
-        QtCore.QCoreApplication.instance().postEvent(self.popover, click)
 
     def refresh(self):
         """Refreshes the list of found assets."""
@@ -250,27 +227,32 @@ class AssetWidget(BaseListWidget):
                 err_one.format(err.message)
             ).exec_()
 
-        for f in collector.get():
+        for file_info in collector.get():
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, f.baseName())
+            settings = AssetSettings(file_info.filePath())
+
+            item.setData(QtCore.Qt.DisplayRole, file_info.baseName())
             item.setData(QtCore.Qt.EditRole,
                          item.data(QtCore.Qt.DisplayRole))
-            item.setData(QtCore.Qt.StatusTipRole, f.filePath())
-            tooltip = u'{}\n\n'.format(f.baseName().upper())
+
+            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
+
+            tooltip = u'{}\n\n'.format(file_info.baseName().upper())
             tooltip += u'{}\n'.format(self._path[1].upper())
             tooltip += u'{}\n\n'.format(self._path[2].upper())
-            tooltip += u'{}'.format(f.filePath())
+            tooltip += u'{}'.format(file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
-            item.setData(common.PathRole, f)
+
+            item.setData(common.PathRole, file_info)
+
             item.setData(
                 QtCore.Qt.SizeHintRole,
                 QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT))
 
-            settings = AssetSettings(f.filePath())
-
             item.setData(common.DescriptionRole, settings.value(
                 'config/description'))
 
+            # Todos
             todos = settings.value('config/todos')
             if todos:
                 todos = len([k for k in todos if not todos[k]['checked'] and todos[k]['text']])
@@ -286,10 +268,10 @@ class AssetWidget(BaseListWidget):
             # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
-            if f.filePath() in favourites:
+            if file_info.filePath() in favourites:
                 item.setFlags(item.flags() | configparser.MarkedAsFavourite)
 
-            if f.baseName() == local_settings.value('activepath/asset'):
+            if file_info.baseName() == local_settings.value('activepath/asset'):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
 
             self.addItem(item)
@@ -543,13 +525,6 @@ class AssetWidget(BaseListWidget):
             self._paint_widget_background()
             self.paint_message(self._warning_strings())
         return False
-
-    def select_active_item(self):
-        self.setCurrentItem(self.active_item())
-
-    def showEvent(self, event):
-        """Show event will set the size of the widget."""
-        self.select_active_item()
 
 
 if __name__ == '__main__':

@@ -109,6 +109,8 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         local_settings.setValue('activepath/server', None)
         local_settings.setValue('activepath/job', None)
         local_settings.setValue('activepath/root', None)
+        local_settings.setValue('activepath/asset', None)
+        local_settings.setValue('activepath/file', None)
 
         self.parent().refresh()
 
@@ -153,6 +155,8 @@ class BookmarksWidget(BaseListWidget):
         local_settings.setValue('activepath/server', server)
         local_settings.setValue('activepath/job', job)
         local_settings.setValue('activepath/root', root)
+        local_settings.setValue('activepath/asset', None)
+        local_settings.setValue('activepath/file', None)
 
         archived = item.flags() & configparser.MarkedAsArchived
         if archived:
@@ -223,6 +227,8 @@ class BookmarksWidget(BaseListWidget):
                 'activepath/server', bookmark[key]['server'])
             local_settings.setValue('activepath/job', bookmark[key]['job'])
             local_settings.setValue('activepath/root', bookmark[key]['root'])
+            local_settings.setValue('activepath/asset', None)
+            local_settings.setValue('activepath/file', None)
 
         self.refresh()
 

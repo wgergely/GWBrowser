@@ -13,24 +13,23 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
-from mayabrowser.common import cmds
 import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
+from mayabrowser.configparsers import AssetSettings
 from mayabrowser.configparsers import local_settings
-from mayabrowser.configparsers import FileConfig
 from mayabrowser.collector import FileCollector
 from mayabrowser.delegate import FilesWidgetDelegate
 
 
-class MayaFilesWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with MayaFilesWidget."""
+class FilesWidgetContextMenu(BaseContextMenu):
+    """Context menu associated with FilesWidget."""
 
     def __init__(self, *args, **kwargs):
-        super(MayaFilesWidgetContextMenu, self).__init__(*args, **kwargs)
+        super(FilesWidgetContextMenu, self).__init__(*args, **kwargs)
         self.filter_actions = []
 
     def filter_changed(self, action):
-        self.parent().current_filter = action.data()
+        self.parent().filter = action.data()
 
         for _action in self.filter_actions:
             _action.setChecked(False)
@@ -74,7 +73,7 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
 
         # Check the current item
         for _action in self.filter_actions:
-            if _action.data() == self.parent().current_filter:
+            if _action.data() == self.parent().filter:
                 _action.setChecked(True)
 
         self.addSeparator()
@@ -107,19 +106,19 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
             items['Sort:'] = {'disabled': True}
             items['Alphabetical'] = {
                 'checkable': True,
-                'checked': (self.parent().sort_mode == 0)
+                'checked': (self.parent().sort_order == 0)
             }
             items['Last modified'] = {
                 'checkable': True,
-                'checked': (self.parent().sort_mode == 1)
+                'checked': (self.parent().sort_order == 1)
             }
             items['Created'] = {
                 'checkable': True,
-                'checked': (self.parent().sort_mode == 2)
+                'checked': (self.parent().sort_order == 2)
             }
             items['Size'] = {
                 'checkable': True,
-                'checked': (self.parent().sort_mode == 3)
+                'checked': (self.parent().sort_order == 3)
             }
             items['Reverse'] = {
                 'checkable': True,
@@ -154,20 +153,20 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
         self.parent().capture_thumbnail()
 
     def alphabetical(self):
-        self.parent().set_sort_mode(0, self.parent().reverse_mode)
+        self.parent().set_sort_order(0, self.parent().reverse_mode)
 
     def last_modified(self):
-        self.parent().set_sort_mode(1, self.parent().reverse_mode)
+        self.parent().set_sort_order(1, self.parent().reverse_mode)
 
     def created(self):
-        self.parent().set_sort_mode(2, self.parent().reverse_mode)
+        self.parent().set_sort_order(2, self.parent().reverse_mode)
 
     def size(self):
-        self.parent().set_sort_mode(3, self.parent().reverse_mode)
+        self.parent().set_sort_order(3, self.parent().reverse_mode)
 
     def reverse(self):
-        self.parent().set_sort_mode(
-            self.parent().sort_mode,
+        self.parent().set_sort_order(
+            self.parent().sort_order,
             not self.parent().reverse_mode
         )
 
@@ -200,143 +199,51 @@ class MayaFilesWidgetContextMenu(BaseContextMenu):
         self.parent().refresh()
 
 
-class MayaFilesWidget(BaseListWidget):
-    """Custom QListWidget containing all the collected files."""
+class FilesWidget(BaseListWidget):
+    """Files widget is responsible for listing scene and project files of an asset.
 
-    Config = FileConfig
+    It relies on a custom collector class to gether the files requested.
+    The scene files live in their respective root folder, usually ``scenes``.
+    The first subfolder inside this folder will refer to the ``mode`` of the
+    asset file.
+
+    Signals:
+
+    """
+
     Delegate = FilesWidgetDelegate
-    ContextMenu = MayaFilesWidgetContextMenu
+    ContextMenu = FilesWidgetContextMenu
 
-    def __init__(self, root_info=None, parent=None):
-        self.collector = FileCollector(root_info)
-        super(MayaFilesWidget, self).__init__(parent=parent)
+    # Signals
+    fileOpened = QtCore.Signal(str)
+    fileSaved = QtCore.Signal(str)
+    fileImported = QtCore.Signal(str)
+    fileReferenced = QtCore.Signal(str)
+
+    fileChanged = QtCore.Signal(str)
+
+    def __init__(self, parent=None):
+        self._path = (
+            local_settings.value('activepath/server'),
+            local_settings.value('activepath/job'),
+            local_settings.value('activepath/root'),
+            local_settings.value('activepath/asset')
+        )
+        super(FilesWidget, self).__init__(parent=parent)
         self.setWindowTitle('Files')
 
-    @property
-    def show_favourites_mode(self):
-        return local_settings.show_favourites_file_mode
-
-    @show_favourites_mode.setter
-    def show_favourites_mode(self, val):
-        local_settings.show_favourites_file_mode = val
-
-    @property
-    def show_archived_mode(self):
-        return local_settings.show_archived_file_mode
-
-    @show_archived_mode.setter
-    def show_archived_mode(self, val):
-        local_settings.show_archived_file_mode = val
-
-    @property
-    def sort_mode(self):
-        return local_settings.sort_file_mode
-
-    @sort_mode.setter
-    def sort_mode(self, val):
-        local_settings.sort_file_mode = val
-
-    @property
-    def reverse_mode(self):
-        return local_settings.reverse_file_mode
-
-    @reverse_mode.setter
-    def reverse_mode(self, val):
-        local_settings.reverse_file_mode = val
-
-    @property
-    def current_filter(self):
-        return local_settings.current_filter
-
-    @current_filter.setter
-    def current_filter(self, val):
-        local_settings.current_filter = val
-
-    def set_sort_mode(self, sort_mode, reverse_mode):
+    def set_sort_order(self, sort_order, reverse_mode):
         """Sets the sorting order of the collector.
 
         Args:
-            sort_mode (int):        The mode between 0 and 4. See ``FilesCollector``.
+            sort_order (int):        The mode between 0 and 4. See ``FilesCollector``.
             reverse_mode (bool):    Reverse list
 
         """
-        self.sort_mode = sort_mode
+        self.sort_order = sort_order
         self.reverse_mode = reverse_mode
         self.add_items()
-        self.get_scene_modes()
         self.set_row_visibility()
-
-    def open_scene(self, path):
-        """Opens the given scene."""
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            return
-
-        result = self.save_scene()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
-
-        cmds.file(file_info.filePath(), open=True, force=True)
-
-    def import_scene(self, path):
-        """Imports the given scene locally."""
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            return
-
-        result = self.save_scene()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
-
-        cmds.file(
-            file_info.filePath(),
-            i=True,
-            ns='REF_{}#'.format(file_info.baseName()),
-        )
-
-    def import_referenced_scene(self, path):
-        """Imports the given scene as a reference."""
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
-            return
-
-        result = self.save_scene()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
-
-        cmds.file(
-            file_info.filePath(),
-            reference=True,
-            ns='Ref_{}#'.format(file_info.baseName()),
-            rfn='Ref_{}RN'.format(file_info.baseName()),
-        )
-
-    @staticmethod
-    def save_scene():
-        """If the current scene needs changing prompts the user with
-        a pop-up message to save the scene.
-
-        """
-        if cmds.file(q=True, modified=True):
-            mbox = QtWidgets.QMessageBox()
-            mbox.setText(
-                'Current scene has unsaved changes.'
-            )
-            mbox.setInformativeText('Save the scene now?')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Save |
-                QtWidgets.QMessageBox.Discard |
-                QtWidgets.QMessageBox.Cancel
-            )
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
-            result = mbox.exec_()
-
-            if result == QtWidgets.QMessageBox.Cancel:
-                return result
-            elif result == QtWidgets.QMessageBox.Save:
-                cmds.SaveScene()
-                return result
-            return result
 
     def action_on_enter_key(self):
         """Action to perform when the enter key is pressed."""
@@ -345,7 +252,7 @@ class MayaFilesWidget(BaseListWidget):
         self.open_scene(self.currentItem().data(QtCore.Qt.StatusTipRole))
         self.sceneChanged.emit()
 
-    def custom_doubleclick_event(self, index):
+    def mouseDoubleClickEvent(self, event):
         """Opens the scene on double-click."""
         self.action_on_enter_key()
 
@@ -419,13 +326,12 @@ class MayaFilesWidget(BaseListWidget):
 
         idx = self.currentIndex()
         self.add_items()
-        self.get_scene_modes()
         self.setCurrentIndex(idx)
         self.set_row_visibility()
 
         self.sceneChanged.emit()
 
-    def get_scene_modes(self):
+    def get_modes(self):
         """`Modes` are subfolders inside the `scene` folder.
 
         For example:
@@ -439,27 +345,14 @@ class MayaFilesWidget(BaseListWidget):
 
         """
         common.revert_labels()
-
-        # Let's querry all the subfolders from the scenes_root dir
-        if not self.collector.root_info:
-            return
-
-        if not self.collector.root_info.exists():
-            return
-
-        modes = QtCore.QDir(
-            '{}/{}'.format(
-                self.collector.root_info.filePath(),
-                local_settings.asset_scenes_folder
-            )
-        )
-        modes = modes.entryInfoList(
+        dir_ = QtCore.QDir('{}/{}/{}/{}'.format(*self.path))
+        dir_ = dir_.entryInfoList(
             sort=QtCore.QDir.Name,
             filters=QtCore.QDir.AllDirs | QtCore.QDir.NoDotAndDotDot
         )
 
-        for mode in modes:
-            common.get_label(mode.baseName())
+        for file_info in dir_:
+            common.get_label(file_info.baseName())
 
     def add_items(self):
         """Retrieves the files found by the ``FilesCollector`` and adds them as
@@ -472,70 +365,122 @@ class MayaFilesWidget(BaseListWidget):
 
         """
         self.clear()
+
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
-        for f in self.collector.get_files(
-            sort_order=self.sort_mode,
-            reverse=self.reverse_mode,
-            filter=self.current_filter
-        ):
-            self.fileSystemWatcher.addPath(f.dir().path())
+        err_one = 'An error occured when trying to collect the files.\n\n{}'
 
-            # Getting the base directories
-            basedirs = f.dir().path()
-            basedirs = basedirs.replace(
-                self.collector.root_info.filePath(), ''
-            ).replace(
-                local_settings.asset_scenes_folder, ''
-            ).lstrip('/').rstrip('/')
+        try:
+            path = '{}/{}/{}/{}'.format(*self.path)
+            collector = FileCollector(path)
+            self.fileSystemWatcher.addPath(path)
+        except IOError as err:
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                'Error',
+                err_one.format(err.message)
+            ).exec_()
+        except Exception as err:
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                'Error',
+                err_one.format(err.message)
+            ).exec_()
+
+
+        for file_info in collector.get(
+            sort_order=self.sort_order,
+            reverse=self.reverse,
+            filter=self.filter
+        ):
+            self.fileSystemWatcher.addPath(file_info.dir().path())
 
             item = QtWidgets.QListWidgetItem()
-            item.setData(
-                QtCore.Qt.DisplayRole,
-                '{}/{}'.format(basedirs, f.fileName())
-            )
-            item.setData(
-                QtCore.Qt.EditRole,
-                '{}/{}'.format(basedirs, f.fileName())
-            )
-            item.setData(
-                QtCore.Qt.StatusTipRole,
-                f.filePath()
-            )
-            item.setData(
-                QtCore.Qt.ToolTipRole,
-                'Maya scene: "{}"'.format(f.filePath())
-            )
+            settings = AssetSettings(file_info.filePath())
 
-            config = self.Config(f.filePath())
-            flags = configparser.NoFlag
-            if config.archived:
-                flags = flags | configparser.MarkedAsArchived
-            elif local_settings.is_favourite(f.fileName()):
-                flags = flags | configparser.MarkedAsFavourite
-            item.setData(
-                common.DescriptionRole,
-                flags
+            item.setData(QtCore.Qt.DisplayRole, file_info.fileName())
+            item.setData(QtCore.Qt.EditRole,
+                         item.data(QtCore.Qt.DisplayRole))
+
+            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
+
+            tooltip = u'{}\n\n'.format(file_info.fileName().upper())
+            tooltip += u'{}\n'.format(self._path[1].upper())
+            tooltip += u'{}\n\n'.format(self._path[2].upper())
+            tooltip += u'{}'.format(file_info.filePath())
+            item.setData(QtCore.Qt.ToolTipRole, tooltip)
+
+            item.setData(common.PathRole, file_info)
+
+            info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                day=file_info.lastModified().toString('dd'),
+                month=file_info.lastModified().toString('MM'),
+                year=file_info.lastModified().toString('yyyy'),
+                hour=file_info.lastModified().toString('hh'),
+                minute=file_info.lastModified().toString('mm'),
+                size=common.byte_to_string(file_info.size())
             )
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
+            item.setData(common.FileDetailsRole, info_string)
+
+            mode = file_info.path()
+            mode = mode.replace('{}/{}/{}/{}'.format(*self.path), '')
+            mode = mode.strip('/').split('/')
+            item.setData(common.FileModeRole, mode)
+
+            item.setData(
+                QtCore.Qt.SizeHintRole,
+                QtCore.QSize(common.WIDTH, common.FILE_ROW_HEIGHT))
+
+            item.setData(common.DescriptionRole, settings.value(
+                'config/description'))
+
+            # Todos
+            todos = settings.value('config/todos')
+            if todos:
+                todos = len([k for k in todos if not todos[k]['checked'] and todos[k]['text']])
+                item.setData(common.TodoCountRole, todos)
+            else:
+                item.setData(common.TodoCountRole, 0)
+
+
+            # Archived
+            if settings.value('config/archived'):
+                item.setFlags(item.flags() | configparser.MarkedAsArchived)
+
+            # Favourite
+            favourites = local_settings.value('favourites')
+            favourites = favourites if favourites else []
+            if file_info.filePath() in favourites:
+                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
+
+            if file_info.baseName() == local_settings.value('activepath/asset'):
+                item.setFlags(item.flags() | configparser.MarkedAsActive)
+
             self.addItem(item)
 
+
+
     def eventFilter(self, widget, event):
-        """MayaFilesWidget's custom paint is triggered here."""
+        """FilesWidget's custom paint is triggered here."""
         if event.type() == QtCore.QEvent.Paint:
             self._paint_widget_background()
 
             if self.count() == 0:
-                self.paint_message('{}:  No scene files found.'.format(
-                    'Show all items' if self.current_filter == '/' else self.current_filter
-                )
+                self.paint_message(
+                    'No scene files found ({})'.format(
+                        'showing all items' if self.filter == '/' else self.filter
+                    )
                 )
             elif self.count() > self.count_visible():
                 self.paint_message(
                     '{} items are hidden.'.format(self.count()))
         return False
 
-    def showEvent(self, event):
-        """Show event will set the size of the widget."""
-        self.sceneChanged.emit()
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    widget = FilesWidget()
+    widget.show()
+    app.exec_()

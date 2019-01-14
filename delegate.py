@@ -601,6 +601,207 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(rect.height())
         return rect
 
+
+    @staticmethod
+    def get_inline_icon_rect(rect, size, idx):
+        """Returns the rectangle needed to draw an in-line item icon.
+
+        Args:
+            rect (QRect): The original item rectangle.
+            size (int): The size of the rectangle.
+            idx (int): The id number of the rectangle.
+
+        Returns:
+            Tuple: The pixmap and the icon's background rectangle.
+
+        """
+        rect = QtCore.QRect(rect)
+
+        #Vertical
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(size)
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        # Horizontal
+        rect.setLeft(rect.right() - size)
+        rect.moveRight(rect.right() - common.MARGIN)
+
+        offset = 4.0
+        for _ in xrange(idx):
+            rect.moveRight(rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
+
+        # Background
+        size = max(rect.width(), rect.height())
+        bg_rect = QtCore.QRect(rect)
+        bg_rect.setWidth(size)
+        bg_rect.setHeight(size)
+        bg_rect.setLeft(bg_rect.left() - offset)
+        bg_rect.setTop(bg_rect.top() - offset)
+        bg_rect.setRight(bg_rect.right() + offset)
+        bg_rect.setBottom(bg_rect.bottom() + offset)
+
+        return rect, bg_rect
+
+    def paint_favourite_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, favourite = args
+        if option.rect.width() < 360.0:
+            return
+
+        painter.save()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+        rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 0)
+
+        if favourite:
+            color = QtGui.QColor(common.FAVOURITE)
+        else:
+            color = QtGui.QColor(common.SECONDARY_TEXT)
+
+        pixmap = common.get_rsc_pixmap('favourite', color, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+
+        if favourite:
+            color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(60)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRoundedRect(bg_rect, 2.0, 2.0)
+        painter.drawPixmap(rect, pixmap)
+        painter.restore()
+
+    def paint_folder_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, _ = args
+        if option.rect.width() < 360.0:
+            return
+        painter.save()
+
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 2)
+        color = QtGui.QColor(common.SECONDARY_TEXT)
+        pixmap = common.get_rsc_pixmap('folder', color, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPixmap(rect, pixmap)
+        painter.restore()
+
+    def paint_todo_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, index, _, _, _, _, _ = args
+        if option.rect.width() < 360.0:
+            return
+
+        painter.save()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
+
+
+        # Background rectangle
+        bg_rect = QtCore.QRect(rect)
+        bg_rect.setTop(option.rect.top())
+        bg_rect.setBottom(option.rect.bottom())
+        bg_rect.moveLeft(bg_rect.left() - (common.MARGIN))
+        painter.setPen(QtCore.Qt.NoPen)
+        bg_rect.setRight(option.rect.right())
+        color = QtGui.QColor(common.SEPARATOR)
+        color.setAlpha(100)
+        painter.setBrush(color)
+        painter.drawRect(bg_rect)
+
+        color = QtGui.QColor(common.TEXT)
+        pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPixmap(rect, pixmap)
+
+        if not index.data(common.TodoCountRole):
+            return
+
+        count_rect = QtCore.QRect(rect)
+        count_rect.setWidth(8)
+        count_rect.setHeight(8)
+
+        count_rect.moveCenter(rect.bottomRight())
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSizeF(8.0)
+        painter.setFont(font)
+
+        pen = QtGui.QPen(common.FAVOURITE)
+        pen.setWidth(8.0)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
+        painter.drawRoundedRect(count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+
+        painter.setPen(QtGui.QPen(common.TEXT))
+        painter.drawText(
+            count_rect,
+            QtCore.Qt.AlignCenter,
+            '{}'.format(index.data(common.TodoCountRole))
+        )
+
+        painter.restore()
+
+    def paint_description(self, *args):
+        """Paints the item description inside the ``AssetWidget``."""
+        painter, option, index, _, _, _, _, _ = args
+        painter.save()
+
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.SECONDARY_FONT)
+
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        if not index.data(common.DescriptionRole) and not hover:
+            return
+
+        # Resizing the height and moving below the name
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0) +
+                     metrics.lineSpacing())
+
+        color = self.get_state_color(option, index, common.TEXT_NOTE)
+        if not index.data(common.DescriptionRole):
+            _, font, metrics = self.get_text_area(
+                option.rect, common.TERCIARY_FONT)
+            text = 'Double-click to add description...'
+            color.setAlpha(100)
+        elif index.data(common.DescriptionRole):
+            text = index.data(common.DescriptionRole)
+
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
+            rect.setRight(icon_rect.left() - common.MARGIN)
+
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            rect.width()
+        )
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
+        painter.setFont(font)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text
+        )
+
+        painter.restore()
+
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
         size = QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
@@ -872,10 +1073,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         painter.restore()
 
-    def get_description_rect(self, *args):
-        """There's no editable note on the Bookmarks widget, hence setting it to zero."""
-        return QtCore.QRect(0, 0, 0, 0), None, None
-
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
@@ -890,156 +1087,18 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_separators(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
-        self.paint_active_indicator(*args)
-
-        self.paint_folder_icon(*args)
-        self.paint_favourite_icon(*args)
-        self.paint_archived_icon(*args)
+        #
         self.paint_todo_icon(*args)
-
+        self.paint_archived_icon(*args)
+        self.paint_favourite_icon(*args)
+        self.paint_folder_icon(*args)
+        #
+        self.paint_active_indicator(*args)
+        #
         self.paint_name(*args)
         self.paint_description(*args)
-
+        #
         self.paint_focus(*args)
-
-
-    @staticmethod
-    def get_inline_icon_rect(rect, size, idx):
-        """Returns the rectangle needed to draw an in-line item icon.
-
-        Args:
-            rect (QRect): The original item rectangle.
-            size (int): The size of the rectangle.
-            idx (int): The id number of the rectangle.
-
-        Returns:
-            Tuple: The pixmap and the icon's background rectangle.
-
-        """
-        rect = QtCore.QRect(rect)
-
-        #Vertical
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(size)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-        # Horizontal
-        rect.setLeft(rect.right() - size)
-        rect.moveRight(rect.right() - common.MARGIN)
-
-        offset = 4.0
-        for _ in xrange(idx):
-            rect.moveRight(rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
-
-        # Background
-        size = max(rect.width(), rect.height())
-        bg_rect = QtCore.QRect(rect)
-        bg_rect.setWidth(size)
-        bg_rect.setHeight(size)
-        bg_rect.setLeft(bg_rect.left() - offset)
-        bg_rect.setTop(bg_rect.top() - offset)
-        bg_rect.setRight(bg_rect.right() + offset)
-        bg_rect.setBottom(bg_rect.bottom() + offset)
-
-        return rect, bg_rect
-
-    def paint_favourite_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, _, favourite = args
-        if option.rect.width() < 360.0:
-            return
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
-        rect, bg_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 0)
-
-        if favourite:
-            color = QtGui.QColor(common.FAVOURITE)
-        else:
-            color = QtGui.QColor(common.SECONDARY_TEXT)
-
-        pixmap = common.get_rsc_pixmap('favourite', color, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
-
-        if favourite:
-            color = QtGui.QColor(common.SEPARATOR)
-            color.setAlpha(60)
-            painter.setBrush(QtGui.QBrush(color))
-            painter.drawRoundedRect(bg_rect, 2.0, 2.0)
-        painter.drawPixmap(rect, pixmap)
-        painter.restore()
-
-    def paint_folder_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, _, _ = args
-        if option.rect.width() < 360.0:
-            return
-        painter.save()
-
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
-
-        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 2)
-        color = QtGui.QColor(common.SECONDARY_TEXT)
-        pixmap = common.get_rsc_pixmap('folder', color, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawPixmap(rect, pixmap)
-        painter.restore()
-
-    def paint_todo_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, index, _, _, _, _, _ = args
-        if option.rect.width() < 360.0:
-            return
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
-
-        rect, _ = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
-        color = QtGui.QColor(common.TEXT)
-        pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawPixmap(rect, pixmap)
-
-        if not index.data(common.TodoCountRole):
-            return
-
-        count_rect = QtCore.QRect(rect)
-        count_rect.setWidth(8)
-        count_rect.setHeight(8)
-
-        count_rect.moveCenter(rect.bottomRight())
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSizeF(8.0)
-        painter.setFont(font)
-
-        pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(8.0)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-        painter.drawRoundedRect(count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
-
-        painter.setPen(QtGui.QPen(common.TEXT))
-        painter.drawText(
-            count_rect,
-            QtCore.Qt.AlignCenter,
-            '{}'.format(index.data(common.TodoCountRole))
-        )
-
-        painter.restore()
 
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetWidget``."""
@@ -1082,54 +1141,6 @@ class AssetWidgetDelegate(BaseDelegate):
 
         painter.restore()
 
-    def paint_description(self, *args):
-        """Paints the item description inside the ``AssetWidget``."""
-        painter, option, index, _, _, _, _, _ = args
-        painter.save()
-
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.SECONDARY_FONT)
-
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-        if not index.data(common.DescriptionRole) and not hover:
-            return
-
-        # Resizing the height and moving below the name
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0) +
-                     metrics.lineSpacing())
-
-        color = self.get_state_color(option, index, common.TEXT_NOTE)
-        if not index.data(common.DescriptionRole):
-            _, font, metrics = self.get_text_area(
-                option.rect, common.TERCIARY_FONT)
-            text = 'Double-click to add description...'
-            color.setAlpha(100)
-        elif index.data(common.DescriptionRole):
-            text = index.data(common.DescriptionRole)
-
-        if option.rect.width() >= 360.0:
-            _, icon_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 3)
-            rect.setRight(icon_rect.left())
-
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideRight,
-            rect.width()
-        )
-
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(color))
-        painter.setFont(font)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
-
-        painter.restore()
-
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ASSET_ROW_HEIGHT)
 
@@ -1137,233 +1148,166 @@ class AssetWidgetDelegate(BaseDelegate):
 class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
 
-    def paint_active_indicator(self, *args):
-        """Paints the yellow leading rectangle to indicate item is set as current."""
-        painter, option, index, selected, _, _ = args
+    def paint(self, painter, option, index):
+        """Defines how the ``FilesWidget``'s' items should be painted."""
+        args = self._get_paint_args(painter, option, index)
 
-        maya_file_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+        self.paint_background(*args)
+        self.paint_thumbnail(*args)
+        self.paint_archived(*args)
+        self.paint_separators(*args)
+        self.paint_selection_indicator(*args)
+        self.paint_thumbnail_shadow(*args)
+        self.paint_active_indicator(*args)
+        #
+        rect = self.paint_mode(*args)
+        self.paint_name(rect, *args)
+        self.paint_description(*args)
+        #
+        self.paint_folder_icon(*args)
+        self.paint_favourite_icon(*args)
+        self.paint_archived_icon(*args)
+        #
+        self.paint_focus(*args)
 
-        if maya_file_info.filePath() != file_info.filePath():
-            return
+    def paint_mode(self, *args):
+        """Paints the mode and the subsequent subfolders."""
+        painter, option, index, _, _, active, _, _ = args
+        painter.save()
 
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(common.INDICATOR_WIDTH)
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
 
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        if selected:
-            color = common.FAVORUITE_SELECTED
-        else:
-            color = common.FAVORUITE
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.SECONDARY_FONT)
+        font.setPointSizeF(7.5)
 
-    def paint_data(self, *args):
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+
+        painter.setFont(font)
+        modes = index.data(common.FileModeRole)
+
+        padding = 2.0
+        rect.setWidth(0)
+
+        if option.rect.width() < 440.0:
+            return rect
+
+        for n, mode in enumerate(modes):
+            mode = mode.upper()
+
+            if n == 0:
+                bg_color = self.get_state_color(option, index, common.get_label(mode))
+            else:
+                bg_color = self.get_state_color(option, index, common.TEXT_DISABLED)
+
+            pen = QtGui.QPen(bg_color)
+            pen.setWidth(padding)
+            painter.setPen(pen)
+            painter.setBrush(QtGui.QBrush(bg_color))
+
+            rect.setWidth(metrics.width(mode))
+            painter.drawRoundedRect(rect, 2.0, 2.0)
+
+            if n == 0:
+                color = self.get_state_color(option, index, common.TEXT)
+            else:
+                color = self.get_state_color(option, index, common.SECONDARY_TEXT)
+
+            painter.setPen(QtGui.QPen(color))
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignCenter,
+                mode
+            )
+
+            if n >= 1:
+                break
+            rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
+
+        return rect
+
+    def paint_name(self, mode_rect, *args):
         """Paints the ``FilesWidget``'s `QListWidgetItem` names, sub-directories and
         file informations.
 
         """
-        painter, option, index, selected, _, _ = args
-        if selected:
-            color = common.TEXT_SELECTED
-        elif not selected:
-            color = common.TEXT
+        painter, option, index, _, _, active, _, _ = args
+        painter.save()
 
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.DisplayRole))
-        rect, font, _ = self.get_filename_rect(option.rect)
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
+
+        font.setPointSizeF(8.0)
+        metrics = QtGui.QFontMetrics(font)
         painter.setFont(font)
-        rect.setTop(rect.top() - 3)
 
-        metrics = QtGui.QFontMetrics(painter.font())
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.setLeft(mode_rect.right() + 6.0)
 
-        filename = file_info.baseName().upper()
-        filename = re.sub('[^0-9a-zA-Z]+', '_', filename)
-        filename = re.sub('[_]{1,}', '_', filename)
-        filename = filename.strip('_')
-        filename = metrics.elidedText(
-            filename,
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(option.rect, common.INLINE_ICON_SIZE, 2)
+            rect.setRight(icon_rect.left() - (common.INLINE_ICON_SIZE) - common.MARGIN)
+
+        # Asset name
+        text = index.data(QtCore.Qt.DisplayRole)
+        # text = re.sub('[^0-9a-zA-Z]+', ' ', text)
+        # text = re.sub('[_]{1,}', ' ', text)
+        text = text.split('.')
+        ext = text.pop(-1)
+        text = '.'.join(text).upper()
+        text = '{}.{}'.format(text, ext)
+
+
+        text = '{}*'.format(text) if active else text.strip()
+        text = metrics.elidedText(
+            text,
             QtCore.Qt.ElideMiddle,
             rect.width()
         )
 
-        # Geting the base directories
-        basedirs = file_info.dir().path()
-        basedirs = basedirs.replace(
-            self.parent().collector.root_info.filePath(), ''
-        ).replace(
-            local_settings.asset_scenes_folder, ''
-        ).lstrip('/').rstrip('/')
+        color = self.get_state_color(option, index, common.TEXT)
 
+        painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(QtGui.QPen(color))
-
-        # Iterating the base directories
-        basedir_rect = QtCore.QRect(rect)
-        available_width = rect.width() - metrics.width(filename) - common.MARGIN
-        basedir_total_width = 0
-
-        for idx, basedir in enumerate(basedirs.split('/')):
-            if not len(basedir):
-                continue
-
-            if idx == 0:
-                basedir = basedir.upper()
-            else:
-                basedir = basedir.upper()
-
-            basedir_rect.setWidth(metrics.width(basedir))
-            basedir_rect.setLeft(basedir_rect.left() - 2)
-            basedir_rect.setWidth(basedir_rect.width() +
-                                  common.INDICATOR_WIDTH)
-            basedir_total_width += metrics.width(basedir) + 6
-
-            # Skip folders that are too long to draw
-            if available_width < basedir_total_width:
-                painter.drawText(
-                    basedir_rect,
-                    QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                    '...'
-                )
-                break
-
-            path = QtGui.QPainterPath()
-            path.addRoundedRect(QtCore.QRectF(basedir_rect), 1.5, 1.5)
-
-            # First subdir
-            if idx == 0:
-                bgcolor = common.get_label(basedir)
-                if selected:
-                    bgcolor = QtGui.QColor(bgcolor)
-                    bgcolor.setRed(bgcolor.red() + 20)
-                    bgcolor.setGreen(bgcolor.green() + 20)
-                    bgcolor.setBlue(bgcolor.blue() + 20)
-                painter.fillPath(path, bgcolor)
-            # Secondary subdirs
-            else:
-                bgcolor = common.SECONDARY_BACKGROUND
-                if selected:
-                    bgcolor = common.BACKGROUND_SELECTED
-                painter.fillPath(path, bgcolor)
-
-            # painter.drawPath(path)
-
-            # Draw name
-            if idx == 0:  # first subdir
-                data_color = QtGui.QColor(common.get_label(basedir))
-                data_color.setRed(data_color.red() + 80)
-                data_color.setGreen(data_color.green() + 80)
-                data_color.setBlue(data_color.blue() + 80)
-            elif idx > 0:  # secondary subdirs
-                data_color = QtGui.QColor(common.SECONDARY_TEXT)
-
-            painter.setPen(QtGui.QPen(data_color))
-            painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
+        if option.rect.width() > 360.0:
             painter.drawText(
-                basedir_rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignCenter,
-                basedir
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+                text
+            )
+        else:
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                text
             )
 
-            # Move rect
-            basedir_rect.moveLeft(
-                basedir_rect.left() +
-                basedir_rect.width() +
-                6 * 1
-            )
+        rect.setLeft(rect.right())
+        rect.setTop(option.rect.top())
+        rect.setBottom(option.rect.bottom())
+        rect.moveLeft(rect.left() + (common.MARGIN))
+        painter.setPen(QtCore.Qt.NoPen)
 
-        # Filename
-        font = QtGui.QFont(painter.font())
-        font.setBold(True)
-        font.setItalic(False)
-        font.setPointSize(8.0)
-        painter.setFont(font)
-        metrics = QtGui.QFontMetrics(painter.font())
+        rect.setRight(option.rect.right())
+        color = QtGui.QColor(common.SEPARATOR)
+        color.setAlpha(100)
 
-        painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        painter.setPen(QtGui.QPen(color))
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-            filename
-        )
+        painter.setBrush(color)
+        painter.drawRect(rect)
 
-        rect.setHeight(metrics.height())
-        rect.moveTop(
-            option.rect.top() +
-            (option.rect.height() * 0.5) -
-            (rect.height() * 0.5) +
-            metrics.height()
-        )
+        painter.restore()
 
-        # File information
-        font = QtGui.QFont(painter.font())
-        font.setBold(False)
-        # font.setItalic(True)
-        font.setPointSize(7.0)
-        painter.setFont(font)
-
-        metrics = QtGui.QFontMetrics(painter.font())
-
-        info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-            day=info.lastModified().toString('dd'),
-            month=info.lastModified().toString('MM'),
-            year=info.lastModified().toString('yyyy'),
-            hour=info.lastModified().toString('hh'),
-            minute=info.lastModified().toString('mm'),
-            size=self._byte_to_string(info.size())
-        )
-
-        info_string = metrics.elidedText(
-            info_string,
-            QtCore.Qt.ElideRight,
-            rect.width() - common.MARGIN
-        )
-
-        if selected:
-            color = common.TEXT
-        else:
-            color = common.SECONDARY_TEXT
-        painter.setPen(QtGui.QPen(color))
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-            info_string
-        )
-        info_width = metrics.width(info_string)
-
-        # Description
-        config_info = QtCore.QFileInfo(self.get_config_path(index))
-        if not config_info.exists():
-            return
-
-        text = None
-        with open(self.get_config_path(index), 'r') as f:
-            text = next((l for l in f if 'description' in l), None)
-
-        if not text:
-            return
-
-        rect, font, metrics = self.get_description_rect(option.rect)
-        painter.setFont(font)
-
-        metrics = QtGui.QFontMetrics(painter.font())
-        text = metrics.elidedText(
-            text.replace('description = ', '').lstrip().rstrip(),
-            QtCore.Qt.ElideRight,
-            rect.width() - common.MARGIN - info_width
-        )
-
-        rect.setWidth(rect.width() - info_width - common.MARGIN)
-        if not selected:
-            painter.setPen(common.TEXT_NOTE)
-        else:
-            color = QtGui.QColor(common.TEXT_NOTE)
-            color.setRed(color.red() + 50)
-            color.setGreen(color.green() + 50)
-            color.setBlue(color.blue() + 50)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
+    def sizeHint(self, option, index):
+        return QtCore.QSize(self.parent().viewport().width(), common.FILE_ROW_HEIGHT)
