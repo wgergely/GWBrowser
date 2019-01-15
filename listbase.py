@@ -42,6 +42,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.add_sort_menu()
         if index.isValid():
             self.add_reveal_folder_menu()
+            self.add_copy_menu()
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
@@ -129,7 +130,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': folder_icon2,
             'action': functools.partial(
                 common.reveal,
-                QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath())
+                QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath()),
+            'shortcut': QtGui.QKeySequence('Ctrl+O')
         }
         menu_set['Show in File Manager']['separator.'] = {}
         menu_set['Show in File Manager']['server'] = {
@@ -146,7 +148,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 common.reveal,
                 QtCore.QFileInfo('{}/{}'.format(server, job)).filePath())
         }
-        menu_set['Show in File Manager']['separator'] = {}
 
         it = QtCore.QDirIterator(
             self.index.data(common.PathRole).filePath(),
@@ -168,7 +169,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             items = list(reversed(sorted(items, key=common.sort_keys[self.parent().sort_order()])))
 
         for file_info in items:
-            if file_info.fileName() == '.' or file_info.fileName() == '..':
+            if file_info.fileName()[0] == '.':
                 continue
             if not file_info.isDir():
                 continue
@@ -182,75 +183,46 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
         self.create_menu(menu_set)
 
-    def add_file_folder_menu(self):
+    def add_copy_menu(self):
         """Menu containing the subfolders of the selected item."""
         if not self.index.data(common.DescriptionRole):
             return
 
-        folder_icon = common.get_rsc_pixmap('folder', common.SECONDARY_TEXT, 18.0)
-        folder_icon2 = common.get_rsc_pixmap('folder', common.FAVOURITE, 18.0)
+        copy_icon = common.get_rsc_pixmap('copy', common.SECONDARY_TEXT, 18.0)
+        copy_icon2 = common.get_rsc_pixmap('copy', common.FAVOURITE, 18.0)
+
         menu_set = collections.OrderedDict()
-        menu_set['separator>'] = {}
-        menu_set['Show in File Manager'] = collections.OrderedDict()
-        menu_set['Show in File Manager:icon'] = folder_icon
+        menu_set['Copy'] = collections.OrderedDict()
+        menu_set['Copy:icon'] = copy_icon
 
-        server, job, root, _ = self.index.data(common.DescriptionRole).split(',')
-        menu_set['Show in File Manager']['root'] = {
-            'text': 'Show bookmark...',
-            'icon': folder_icon2,
+        path = '{}/{}/{}'.format(*self.index.data(common.DescriptionRole).split(','))
+        path = QtCore.QFileInfo(path).filePath()
+        url = QtCore.QUrl().fromLocalFile(path).toString()
+
+        menu_set['Copy']['windows1'] = {
+            'text': 'Windows  -  \\\\back\\slashes',
+            'icon': copy_icon2,
             'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath())
+                QtGui.QClipboard().setText,
+                QtCore.QDir.toNativeSeparators(path))
         }
-        menu_set['Show in File Manager']['separator.'] = {}
-        menu_set['Show in File Manager']['server'] = {
-            'text': 'Show server...',
-            'icon': folder_icon2,
+        menu_set['Copy']['windows2'] = {
+            'text': 'Windows  -  //forward/slashes',
+            'icon': copy_icon2,
+            'action': functools.partial(QtGui.QClipboard().setText, path)
+        }
+        menu_set['Copy']['slack'] = {
+            'text': 'URL  -  file://Slack/friendly',
+            'icon': copy_icon2,
+            'action': functools.partial(QtGui.QClipboard().setText, url)
+        }
+        menu_set['Copy']['macos'] = {
+            'text': 'SMB  -  smb://MacOS/path',
+            'icon': copy_icon2,
             'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo(server).filePath())
+                QtGui.QClipboard().setText,
+                url.replace('file://', 'smb://'))
         }
-        menu_set['Show in File Manager']['job'] = {
-            'text': 'Show job folder...',
-            'icon': folder_icon2,
-            'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo('{}/{}'.format(server, job)).filePath())
-        }
-        menu_set['Show in File Manager']['separator'] = {}
-
-        it = QtCore.QDirIterator(
-            self.index.data(common.PathRole).filePath(),
-            flags=QtCore.QDirIterator.NoIteratorFlags,
-            filters=QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks |
-            QtCore.QDir.Readable
-        )
-        items = []
-        while it.hasNext():
-            path = it.next()
-            file_info = QtCore.QFileInfo(path)
-            items.append(file_info)
-
-        if not self.parent().is_reversed():
-            items = sorted(items, key=common.sort_keys[self.parent().sort_order()])
-        else:
-            items = list(reversed(sorted(items, key=common.sort_keys[self.parent().sort_order()])))
-
-        for file_info in items:
-            if file_info.fileName() == '.' or file_info.fileName() == '..':
-                continue
-            if not file_info.isDir():
-                continue
-
-            menu_set['Show in File Manager'][file_info.baseName()] = {
-                'text': file_info.baseName().upper(),
-                'icon': folder_icon,
-                'action': functools.partial(
-                    common.reveal,
-                    file_info.filePath())
-            }
         self.create_menu(menu_set)
 
     @property
@@ -335,8 +307,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 action.setIconVisibleInMenu(True)
                 action.setIcon(menu_set[k]['icon'])
             if 'shortcut' in menu_set[k]:
-                action.shortcutVisibleInContextMenu(True)
-                action.setShortCut(menu_set[k]['shortcut'])
+                action.setShortcut(menu_set[k]['shortcut'])
             if 'visible' in menu_set[k]:
                 action.setVisible(menu_set[k]['visible'])
             else:
@@ -756,7 +727,8 @@ class BaseListWidget(QtWidgets.QListWidget):
                             break
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
-            self.action_on_custom_keys(event)
+            pass
+
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
                 self.key_up()

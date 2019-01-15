@@ -136,7 +136,7 @@ class AssetCollector(BaseCollector):
             path = it.next()
             file_info = QtCore.QFileInfo(path)
 
-            if file_info.fileName() == '.' or file_info.fileName() == '..':
+            if file_info.fileName()[0] == '.':
                 continue
             if not file_info.isDir():
                 continue

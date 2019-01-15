@@ -42,8 +42,6 @@ class AssetWidgetContextMenu(BaseContextMenu):
     def add_copy_menu(self):
         import functools
 
-        def cp(s):
-            QtGui.QClipboard().setText(s)
 
         menu = QtWidgets.QMenu(parent=self)
         menu.setTitle('Paths')
@@ -56,33 +54,19 @@ class AssetWidgetContextMenu(BaseContextMenu):
         action = menu.addAction('Slack / Web url')
         action.setEnabled(False)
         action = menu.addAction(url.toString())
-        action.triggered.connect(functools.partial(cp, url.toString()))
 
-        menu.addSeparator()
-
-        action = menu.addAction('MacOS network path')
-        action.setEnabled(False)
-        action = menu.addAction(url.toString().replace('file://', 'smb://'))
         action.triggered.connect(functools.partial(
-            cp, url.toString().replace('file://', 'smb://')))
-
-        menu.addSeparator()
-
-        action = menu.addAction('Path')
-        action.setEnabled(False)
-        action = menu.addAction(file_path)
-        action.triggered.connect(functools.partial(cp, file_path))
-
-        menu.addSeparator()
-
-        action = menu.addAction('Windows path')
-        action.setEnabled(False)
-        action = menu.addAction(file_path)
+            QtGui.QClipboard().setText, url.toString()))
         action.triggered.connect(functools.partial(
-            cp, QtCore.QDir.toNativeSeparators(file_path)))
-
-        self.addMenu(menu)
-        self.addSeparator()
+            QtGui.QClipboard().setText,
+            url.toString().replace('file://', 'smb://')))
+        action.triggered.connect(functools.partial(
+            QtGui.QClipboard().setText, file_path))
+        action.triggered.connect(functools.partial(
+            QtGui.QClipboard().setText, file_path))
+        action.triggered.connect(functools.partial(
+            QtGui.QClipboard().setText,
+            QtCore.QDir.toNativeSeparators(file_path)))
 
     @property
     def VALID_ACTION_SET(self):
