@@ -983,7 +983,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         metrics = QtGui.QFontMetrics(painter.font())
         text = re.sub(r'[_]+', ' ', root.upper())
         if count:
-            text = '{} ({} items)'.format(text, count)
+            text = '{}  |  {} assets'.format(text, count)
         text = metrics.elidedText(
             text,
             QtCore.Qt.ElideLeft,

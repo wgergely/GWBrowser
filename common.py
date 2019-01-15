@@ -12,6 +12,7 @@ It also contains the methods used to set our custom stylesheet.
 
 import os
 import random
+import re
 
 from PySide2 import QtGui, QtCore
 
@@ -53,6 +54,43 @@ FileDetailsRole = 0x05000  # Role used to store FileInfo items
 """Special role used to store the count of todos."""
 FileModeRole = 0x06000  # Role used to store FileInfo items
 """Special role used to store the count of todos."""
+
+
+"""Item sorting flags"""
+SortByName = 0
+SortByLastModified = 1
+SortByLastCreated = 2
+SortBySize = 3
+
+
+def sort_alphanum_key(key):
+    def _convert(text):
+        return int(text) if text.isdigit() else text
+
+    def _split(key):
+        return re.split('([0-9]+)', key.filePath())
+
+    return [_convert(f) for f in _split(key)]
+
+
+def sort_last_modified_key(key):
+    return key.lastModified().toMSecsSinceEpoch()
+
+
+def sort_last_created_key(key):
+    return key.created().toMSecsSinceEpoch()
+
+
+def sort_size_key(key):
+    return key.size()
+
+
+sort_keys = {
+    SortByName: sort_alphanum_key,
+    SortByLastModified: sort_last_modified_key,
+    SortByLastCreated: sort_last_created_key,
+    SortBySize: sort_size_key,
+}
 
 # Sizes
 MARGIN = 18.0
@@ -329,7 +367,7 @@ def label_generator():
             a = [190, 89, 92]
         else:
             a = [92, 89, 190]
-        v = 30
+        v = 15
         arr.append([
             random.randint(a[0] - v, a[0] + v),
             random.randint(a[1] - v, a[1] + v),
@@ -457,10 +495,10 @@ def get_rsc_pixmap(name, color, size):
     if image.isNull():
         return QtGui.QPixmap()
 
-    k = '{name}:{size}:{color}'.format(name=name, size=size, color=color.name())
+    k = '{name}:{size}:{color}'.format(
+        name=name, size=size, color=color.name())
     if k in IMAGE_CACHE:
         return IMAGE_CACHE[k]
-
 
     painter = QtGui.QPainter()
     painter.begin(image)
@@ -498,7 +536,6 @@ def count_assets(path):
     return count
 
 
-
 def byte_to_string(num, suffix='B'):
     """Converts a numeric byte-value to a human readable string."""
     for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
@@ -506,6 +543,12 @@ def byte_to_string(num, suffix='B'):
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
+
+
+def reveal(path):
+    """Reveal the given path in the file manager."""
+    url = QtCore.QUrl.fromLocalFile(path)
+    QtGui.QDesktopServices.openUrl(url)
 
 
 class LocalContext(object):

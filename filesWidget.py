@@ -223,13 +223,13 @@ class FilesWidget(BaseListWidget):
     fileChanged = QtCore.Signal(str)
 
     def __init__(self, parent=None):
+        super(FilesWidget, self).__init__(parent=parent)
         self._path = (
             local_settings.value('activepath/server'),
             local_settings.value('activepath/job'),
             local_settings.value('activepath/root'),
             local_settings.value('activepath/asset')
         )
-        super(FilesWidget, self).__init__(parent=parent)
         self.setWindowTitle('Files')
 
     def set_sort_order(self, sort_order, reverse_mode):

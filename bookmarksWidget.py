@@ -21,6 +21,8 @@ import mayabrowser.common as common
 from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 
+from mayabrowser.collector import BookmarksCollector
+
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
 from mayabrowser.delegate import BookmarksWidgetDelegate
@@ -31,91 +33,59 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the BookmarksWidget.
 
     Methods:
-        refresh:                    Refreshes the collector and repopulates the widget.
+        refresh: Refreshes the collector and repopulates the widget.
 
     """
 
-    def add_actions(self):
-        self.add_action_set(self.ACTION_SET)
+    def __init__(self, index, parent=None):
+        super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
+        if not index.isValid():
+            return
 
-    @property
-    def ACTION_SET(self):
-        """A custom set of actions to display."""
-        items = OrderedDict()
+        server, job, root, count = self.index.data(
+            common.DescriptionRole
+        ).split(',')
 
-        if self.index.isValid():
-            if self.index.data(QtCore.Qt.DisplayRole) == 'Add location':
-                return items
+        menu_set = OrderedDict()
 
-            server, job, root, _ = self.index.data(
-                common.DescriptionRole).split(',')
+        menu_set['separator'] = {}
+        menu_set['header'] = {
+            'text': '{}: {}'.format(job, root),
+            'disabled': True,
+            'visible': index.isValid()
+        }
 
-            items['{} - {}'.format(job.upper(), root.upper())
-                  ] = {'disabled': True}
-            if not self.index.flags() & configparser.MarkedAsActive:
-                items['Activate'] = {}
-            items['<separator>...'] = {}
-            items['Reveal bookmark'] = {}
-            items['Reveal server'] = {}
-            items['Reveal job'] = {}
-            items['<separator>..'] = {}
-            if not self.index.flags() & configparser.MarkedAsActive:
-                items['Remove'] = {}
-            items['<separator>...'] = {}
-        items['Refresh'] = {}
-        items['<separator>....'] = {}
-        items['Remove all'] = {}
-        return items
+        self.create_menu(menu_set)
 
-    def activate(self):
-        self.parent().set_current_item_as_active()
-
-    def reveal_bookmark(self):
-        """Shows the current server folder in the file explorer."""
-        file_info = self.index.data(common.PathRole)
-        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
-        QtGui.QDesktopServices.openUrl(url)
-
-    def reveal_server(self):
-        """Shows the current server folder in the file explorer."""
-        server, _, _, _ = self.index.data(common.DescriptionRole).split(',')
-        file_info = QtCore.QFileInfo('{}'.format(server))
-        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
-        QtGui.QDesktopServices.openUrl(url)
-
-    def reveal_job(self):
-        """Shows the current server folder in the file explorer."""
-        server, job, _, _ = self.index.data(common.DescriptionRole).split(',')
-        file_info = QtCore.QFileInfo('{}/{}'.format(server, job))
-        url = QtCore.QUrl.fromLocalFile(file_info.filePath())
-        QtGui.QDesktopServices.openUrl(url)
-
-    def remove(self):
-        """Remove the bookmark from the ``local_settings``."""
-        k = self.index.data(common.PathRole).filePath()
-        bookmarks = local_settings.value('bookmarks')
-
-        k = bookmarks.pop(k, None)
-        if not k:
-            raise RuntimeError('Failed to remove bookmark.')
-
-        local_settings.setValue('bookmarks', bookmarks)
-        self.parent().refresh()
-
-    def remove_all(self):
-        """Removes all saved locations from the bookmarks list."""
-        local_settings.setValue('bookmarks', None)
-
-        local_settings.setValue('activepath/server', None)
-        local_settings.setValue('activepath/job', None)
-        local_settings.setValue('activepath/root', None)
-        local_settings.setValue('activepath/asset', None)
-        local_settings.setValue('activepath/file', None)
-
-        self.parent().refresh()
-
-    def refresh(self):
-        self.parent().refresh()
+    # def activate(self):
+    #     self.parent().set_current_item_as_active()
+    #
+    # def remove(self):
+    #     """Remove the bookmark from the ``local_settings``."""
+    #     k = self.index.data(common.PathRole).filePath()
+    #     bookmarks = local_settings.value('bookmarks')
+    #
+    #     k = bookmarks.pop(k, None)
+    #     if not k:
+    #         raise RuntimeError('Failed to remove bookmark.')
+    #
+    #     local_settings.setValue('bookmarks', bookmarks)
+    #     self.parent().refresh()
+    #
+    # def remove_all(self):
+    #     """Removes all saved locations from the bookmarks list."""
+    #     local_settings.setValue('bookmarks', None)
+    #
+    #     local_settings.setValue('activepath/server', None)
+    #     local_settings.setValue('activepath/job', None)
+    #     local_settings.setValue('activepath/root', None)
+    #     local_settings.setValue('activepath/asset', None)
+    #     local_settings.setValue('activepath/file', None)
+    #
+    #     self.parent().refresh()
+    #
+    # def refresh(self):
+    #     self.parent().refresh()
 
 
 class BookmarksWidget(BaseListWidget):
@@ -129,15 +99,13 @@ class BookmarksWidget(BaseListWidget):
         locationChanged
 
     """
-    Delegate = BookmarksWidgetDelegate
-    ContextMenu = BookmarksWidgetContextMenu
-
-    # Signals
-    activeChanged = QtCore.Signal(str, str, str)
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle('Bookmarks')
+        self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
+        self._context_menu_cls = BookmarksWidgetContextMenu
+
         self._connectSignals()
 
         # Select the active item
@@ -147,7 +115,12 @@ class BookmarksWidget(BaseListWidget):
         pass
 
     def set_current_item_as_active(self):
-        """Sets the current item item as ``active``."""
+        """Sets the current item as ``active_item``.
+
+        Emits the ``activeBookmarkChanged``, ``activeAssetChanged`` and
+        ``activeFileChanged`` signals.
+
+        """
         item = self.currentItem()
         server, job, root, _ = item.data(common.DescriptionRole).split(',')
 
@@ -169,8 +142,10 @@ class BookmarksWidget(BaseListWidget):
                                  configparser.MarkedAsActive)
         item.setFlags(item.flags() | configparser.MarkedAsActive)
 
-        # Emiting change a signal upon change
-        self.activeChanged.emit(server, job, root)
+        # Emiting active changed signals
+        self.activeBookmarkChanged.emit((server, job, root))
+        self.activeAssetChanged.emit(None)
+        self.activeFileChanged.emit(None)
 
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""
@@ -237,12 +212,6 @@ class BookmarksWidget(BaseListWidget):
                 self.setCurrentItem(self.item(n))
                 break
 
-    def refresh(self, *args):
-        """Refreshes the list of found assets."""
-        idx = self.currentIndex()
-        self.add_items()
-        self.setCurrentIndex(idx)
-
     def set_row_visibility(self):
         pass
 
@@ -250,68 +219,63 @@ class BookmarksWidget(BaseListWidget):
         """Adds the bookmarks saved in the local_settings file to the widget."""
         self.clear()
 
-        if not local_settings.value('bookmarks'):
-            item = QtWidgets.QListWidgetItem('Add location')
-            self.addItem(item)
-            return
+        # Collecting items
+        collector = BookmarksCollector()
+        items = collector.get_items(
+            key=self.sort_order(),
+            reverse=self.is_reversed(),
+            path_filter=self.filter()
+        )
 
-        bookmarks = local_settings.value('bookmarks')
-        for k in sorted(bookmarks):
+        for file_info in items:
             item = QtWidgets.QListWidgetItem()
 
-            path = u'{}/{}/{}'.format(
-                bookmarks[k]['server'],
-                bookmarks[k]['job'],
-                bookmarks[k]['root'])
-            count = common.count_assets(path)
-
             # Data
-            item.setData(QtCore.Qt.DisplayRole,
-                         u'{}  -  {}'.format(
-                             bookmarks[k]['job'],
-                             bookmarks[k]['root']))
-            item.setData(QtCore.Qt.EditRole,
-                         item.data(QtCore.Qt.DisplayRole))
+            item.setData(
+                QtCore.Qt.DisplayRole,
+                u'{}  -  {}'.format(file_info.job, file_info.root)
+            )
+            item.setData(QtCore.Qt.EditRole, item.data(QtCore.Qt.DisplayRole))
             item.setData(QtCore.Qt.StatusTipRole,
                          u'Bookmark: {}/{}/{}'.format(
-                             bookmarks[k]['server'],
-                             bookmarks[k]['job'],
-                             bookmarks[k]['root']))
+                             file_info.server,
+                             file_info.job,
+                             file_info.root))
             item.setData(QtCore.Qt.ToolTipRole,
                          item.data(QtCore.Qt.StatusTipRole))
             item.setData(common.DescriptionRole,
                          u'{},{},{},{}'.format(
-                             bookmarks[k]['server'],
-                             bookmarks[k]['job'],
-                             bookmarks[k]['root'],
-                             count))
+                             file_info.server,
+                             file_info.job,
+                             file_info.root,
+                             file_info.size()))
             item.setData(common.PathRole,
                          QtCore.QFileInfo('{}/{}/{}'.format(
-                             bookmarks[k]['server'],
-                             bookmarks[k]['job'],
-                             bookmarks[k]['root'])))
+                             file_info.server,
+                             file_info.job,
+                             file_info.root)))
             item.setData(
                 QtCore.Qt.SizeHintRole,
                 QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
 
             # Active
             if (
-                bookmarks[k]['server'] == local_settings.value('activepath/server') and
-                bookmarks[k]['job'] == local_settings.value('activepath/job') and
-                bookmarks[k]['root'] == local_settings.value('activepath/root')
+                file_info.server == local_settings.value('activepath/server') and
+                file_info.job == local_settings.value('activepath/job') and
+                file_info.root == local_settings.value('activepath/root')
             ):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
 
             # Archived means the server is not reachable
-            exists = QtCore.QFileInfo(path).exists()
-            if not exists:
+            if not file_info.exists():
                 item.setFlags(item.flags() | configparser.MarkedAsArchived)
 
             # Flags
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
             self.addItem(item)
 
-        item = QtWidgets.QListWidgetItem()
+        # The 'Add location' button at the bottom of the list
+        item=QtWidgets.QListWidgetItem()
         item.setFlags(QtCore.Qt.NoItemFlags)
         item.setData(
             QtCore.Qt.DisplayRole,
@@ -338,7 +302,7 @@ class BookmarksWidget(BaseListWidget):
 
     def mouseReleaseEvent(self, event):
         """Custom mouse event handling the add button click."""
-        index = self.indexAt(event.pos())
+        index=self.indexAt(event.pos())
         if index.isValid() and index.row() == (self.count() - 1):
             self.show_add_bookmark_widget()
             return
@@ -351,17 +315,9 @@ class BookmarksWidget(BaseListWidget):
             return
         self.set_current_item_as_active()
 
-    def action_on_enter_key(self):
-        """Custom enter key action."""
-        pass
-
-    def action_on_custom_keys(self, event):
-        """Custom keyboard shortcuts for the AssetsWidget are defined here."""
-        pass
-
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    app.w = BookmarksWidget()
+    app=QtWidgets.QApplication([])
+    app.w=BookmarksWidget()
     app.w.show()
     app.exec_()

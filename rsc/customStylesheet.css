@@ -30,7 +30,7 @@ QWidget:window {{
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
-	font-family: "Roboto Black";
+	font-family: {fontFamily};
 	font-size: 7pt;
 	margin: 0px;
 	padding: 0px;
@@ -96,7 +96,7 @@ QPushButton {{
 		border-style: solid;
 		color: rgba({TEXT});
 		background-color: rgba({BACKGROUND_SELECTED});
-		font-family: "Roboto Black";
+		font-family: {fontFamily};
 		font-size: 8pt;
 		height: 24px;
 }}
@@ -126,7 +126,7 @@ QComboBox {{
 	border-style: solid;
 	color: rgba({TEXT});
 	background-color: rgba({BACKGROUND_SELECTED});
-	font-family: "Roboto Black";
+	font-family: {fontFamily};
 	font-size: 8pt;
 }}
 QComboBox:hover {{
@@ -218,7 +218,7 @@ QListWidget {{
 		margin: 0px;
 		padding: 0px;
 		background: rgba({SECONDARY_BACKGROUND});
-		font-family: "Roboto Black";
+		font-family: {fontFamily};
 		font-size: 8pt;
 }}
 
@@ -300,19 +300,27 @@ QMenu {{
 		padding: 0;
 		margin: 0;
 		color: rgba({TEXT});
+		font-size: 8.5pt;
+		font-family: {fontFamily};
     background-color: rgba({BACKGROUND}); /* sets background of the menu */
     border: none;
 		outline: none;
 }}
 QMenu::item {{
-	padding: 4px 4px 4px 24px;
+	padding: 8px 8px 8px 30px;
 	margin: 0;
 }}
-QMenu::item:disabled {{
-	color: rgba({TEXT_DISABLED});
+QMenu::icon {{
+	padding: 8px 8px 8px 6px;
+	margin: 0;
 }}
-QMenu::item:disabled:selected {{
+QMenu::item:disabled{{
 	color: rgba({TEXT_DISABLED});
+	background-color: rgba({BACKGROUND}); /* sets background of the menu */
+}}
+QMenu::item:disabled:selected{{
+	color: rgba({TEXT_DISABLED});
+	background-color: rgba({BACKGROUND}); /* sets background of the menu */
 }}
 QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
     color: rgba({TEXT_SELECTED});
