@@ -165,7 +165,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key]['separator'] = {}
 
         it = QtCore.QDirIterator(
-            self.index.data(common.PathRole).filePath(),
+            self.index.data(common.PathRole),
             flags=QtCore.QDirIterator.NoIteratorFlags,
             filters=QtCore.QDir.NoDotAndDotDot |
             QtCore.QDir.Dirs |
@@ -281,6 +281,19 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
+    def add_refresh_menu(self):
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+        menu_set['Refresh'] = {
+            'action': self.parent().refresh
+        }
+        if self.index.isValid():
+            menu_set['Activate'] = {
+                'action': self.parent().set_current_item_as_active
+            }
+
+        self.create_menu(menu_set)
+
     @property
     def index(self):
         """The QModelIndex the context menu is associated with."""
@@ -369,20 +382,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             else:
                 action.setVisible(True)
 
-    # def favourite(self):
-    #     """Toggles the favourite state of the item."""
-    #     self.parent().toggle_favourite()
-    #
-    # def archived(self):
-    #     """Marks the curent item as 'archived'."""
-    #     self.parent().toggle_archived()
-    #
-    # def isolate_favourites(self):
-    #     """Hides all items except the items marked as favouire."""
-    #     self.parent().show_favourites()
-    #
-    # def show_archived(self):
-    #     self.parent().show_archived()
 
     def showEvent(self, event):
         """Elides the action text to fit the size of the widget upon showing."""
@@ -535,7 +534,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             item = self.currentItem()
 
-        file_info = item.data(common.PathRole)
+        file_info = QtCore.QFileInfo(item.data(common.PathRole))
 
         # Favouriting archived items are not allowed
         archived = item.flags() & configparser.MarkedAsArchived
@@ -574,10 +573,10 @@ class BaseListWidget(QtWidgets.QListWidget):
             item = self.currentItem()
 
         archived = item.flags() & configparser.MarkedAsArchived
-        settings = AssetSettings(item.data(common.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole))
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
-        file_info = item.data(common.PathRole)
+        file_info = QtCore.QFileInfo(item.data(common.PathRole))
 
         if archived:
             if state is None or state is False:  # clears flag
@@ -601,7 +600,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             return
 
-        settings = AssetSettings(item.data(common.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole))
 
         # Saving the image
         common.delete_image(settings.thumbnail_path())
@@ -613,7 +612,7 @@ class BaseListWidget(QtWidgets.QListWidget):
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
         item = self.currentItem()
-        settings = AssetSettings(item.data(common.PathRole).filePath())
+        settings = AssetSettings(item.data(common.PathRole))
         common.delete_image(settings.thumbnail_path())
         self.repaint()
 
@@ -634,16 +633,26 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def refresh(self, *args):
         """Re-populates the list-widget with the collected items."""
-        index = self.currentItem()
-        data = index.data(QtCore.Qt.DisplayRole)
+        item = self.currentItem()
+
+        path = None
+        if item:
+            if item.data(common.PathRole):
+                path = item.data(common.PathRole)
 
         self.add_items()
         self.set_row_visibility()
 
-        item = self.findItems(data, QtCore.Qt.MatchExactly)
-        item = next((f for f in item), None)
-        if item:
-            self.setCurrentItem(item)
+        if not path:
+            return
+        for n in xrange(self.count()):
+            if self.item(n).isHidden():
+                continue
+            if not self.item(n).data(common.PathRole):
+                continue
+            if self.item(n).data(common.PathRole) == path:
+                self.setCurrentItem(self.item(n))
+                break
 
     def action_on_enter_key(self):
         self.set_current_item_as_active()

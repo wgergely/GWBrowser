@@ -993,6 +993,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         for n in xrange(self.parent().count()):
             try:
                 item = self.parent().item(n)
+                if item.isHidden():
+                    continue
                 text = self._get_root_text(item, rect, metrics)
                 width.append(metrics.width(text))
             except:

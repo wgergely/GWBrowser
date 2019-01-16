@@ -437,8 +437,8 @@ class MoveWidget(QtWidgets.QWidget):
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.NoButton:
             return
-        offset = (event.pos() - self.move_start_event_pos)
         if self.move_start_widget_pos:
+            offset = (event.pos() - self.move_start_event_pos)
             self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
 
 class ResizeWidget(QtWidgets.QWidget):
