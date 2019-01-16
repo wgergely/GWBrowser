@@ -32,41 +32,15 @@ from mayabrowser.delegate import AssetWidgetDelegate
 class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget.
     """
+    def __init__(self, index, parent=None):
+        super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_refresh_menu()
 
     def add_actions(self):
         if self.index.isValid():
             self.add_action_set(self.VALID_ACTION_SET)
             self.add_copy_menu()
         self.add_action_set(self.INVALID_ACTION_SET)
-
-    def add_copy_menu(self):
-        import functools
-
-
-        menu = QtWidgets.QMenu(parent=self)
-        menu.setTitle('Paths')
-
-        # Url
-        file_path = self.index.data(common.PathRole).filePath()
-        url = QtCore.QUrl()
-        url = url.fromLocalFile(file_path)
-
-        action = menu.addAction('Slack / Web url')
-        action.setEnabled(False)
-        action = menu.addAction(url.toString())
-
-        action.triggered.connect(functools.partial(
-            QtGui.QClipboard().setText, url.toString()))
-        action.triggered.connect(functools.partial(
-            QtGui.QClipboard().setText,
-            url.toString().replace('file://', 'smb://')))
-        action.triggered.connect(functools.partial(
-            QtGui.QClipboard().setText, file_path))
-        action.triggered.connect(functools.partial(
-            QtGui.QClipboard().setText, file_path))
-        action.triggered.connect(functools.partial(
-            QtGui.QClipboard().setText,
-            QtCore.QDir.toNativeSeparators(file_path)))
 
     @property
     def VALID_ACTION_SET(self):
@@ -126,7 +100,6 @@ class AssetWidgetContextMenu(BaseContextMenu):
         self.parent().refresh()
 
 
-
 class AssetWidget(BaseListWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
 
@@ -139,17 +112,19 @@ class AssetWidget(BaseListWidget):
     """
     ContextMenu = AssetWidgetContextMenu
     Delegate = AssetWidgetDelegate
-    # Signals
-    activated = QtCore.Signal(str)
 
     def __init__(self, parent=None):
-        self._path = (
-            local_settings.value('activepath/server'),
-            local_settings.value('activepath/job'),
-            local_settings.value('activepath/root')
+        super(AssetWidget, self).__init__(
+            (local_settings.value('activepath/server'),
+             local_settings.value('activepath/job'),
+             local_settings.value('activepath/root')),
+            parent=parent
         )
-        super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle('Assets')
+        self.setItemDelegate(AssetWidgetDelegate(parent=self))
+        self._context_menu_cls = AssetWidgetContextMenu
+        # Select the active item
+        self.setCurrentItem(self.active_item())
 
     def set_current_item_as_active(self):
         """Sets the current item item as ``active`` and
@@ -159,22 +134,11 @@ class AssetWidget(BaseListWidget):
         super(AssetWidget, self).set_current_item_as_active()
 
         # Updating the local config file
-        asset = self.currentItem().data(common.PathRole).baseName()
-        local_settings.setValue('activepath/asset', asset)
+        file_info = QtCore.QFileInfo(self.currentItem().data(common.PathRole))
+        local_settings.setValue('activepath/asset', file_info.baseName())
         local_settings.setValue('activepath/file', None)
 
-        self.activated.emit(asset)
-
-    def refresh(self):
-        """Refreshes the list of found assets."""
-        # Remove QFileSystemWatcher paths:
-        for path in self.fileSystemWatcher.directories():
-            self.fileSystemWatcher.removePath(path)
-
-        idx = self.currentIndex()
-        self.add_items()
-        self.set_row_visibility()
-        self.setCurrentIndex(idx)
+        self.activeAssetChanged.emit(file_info.baseName())
 
     def add_items(self):
         """Retrieves the assets found by the AssetCollector and adds them as
@@ -186,9 +150,9 @@ class AssetWidget(BaseListWidget):
             have some performance implications. Needs testing!
 
         """
-        self.clear()
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
+        self.clear()
 
         if not any(self.path):
             return
@@ -211,7 +175,13 @@ class AssetWidget(BaseListWidget):
                 err_one.format(err.message)
             ).exec_()
 
-        for file_info in collector.get():
+        items = collector.get_items(
+            key=self.sort_order(),
+            reverse=self.is_reversed(),
+            path_filter=self.filter()
+        )
+
+        for file_info in items:
             item = QtWidgets.QListWidgetItem()
             settings = AssetSettings(file_info.filePath())
 
@@ -227,7 +197,7 @@ class AssetWidget(BaseListWidget):
             tooltip += u'{}'.format(file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
 
-            item.setData(common.PathRole, file_info)
+            item.setData(common.PathRole, file_info.filePath())
 
             item.setData(
                 QtCore.Qt.SizeHintRole,
@@ -239,11 +209,11 @@ class AssetWidget(BaseListWidget):
             # Todos
             todos = settings.value('config/todos')
             if todos:
-                todos = len([k for k in todos if not todos[k]['checked'] and todos[k]['text']])
+                todos = len([k for k in todos if not todos[k]
+                             ['checked'] and todos[k]['text']])
                 item.setData(common.TodoCountRole, todos)
             else:
                 item.setData(common.TodoCountRole, 0)
-
 
             # Archived
             if settings.value('config/archived'):
@@ -319,7 +289,6 @@ class AssetWidget(BaseListWidget):
                         self.reveal_folder('')
                     elif n == 3:
                         self.show_todos()
-
 
         super(AssetWidget, self).mouseReleaseEvent(event)
 
@@ -451,7 +420,7 @@ class AssetWidget(BaseListWidget):
             if event.key() == QtCore.Qt.Key_C:
                 url = QtCore.QUrl()
                 url = url.fromLocalFile(
-                    item.data(common.PathRole).filePath())
+                    item.data(common.PathRole))
                 QtGui.QClipboard().setText(url.toString())
 
     def reveal_folder(self, name):
@@ -476,7 +445,7 @@ class AssetWidget(BaseListWidget):
 
         warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
         warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'
-        warning_three = 'An error occured when trying to collect the assets.\n\n{}'
+        warning_three = 'The active bookmark does not exist.\nBookmark: {}'
         warning_four = 'The active bookmark ({}/{}/{}) does not contain any assets...yet.'
         warning_five = '{} items are hidden by filters'
 
@@ -487,7 +456,7 @@ class AssetWidget(BaseListWidget):
                 server, job, root
             )
         if not file_info.exists():
-            return warning_three
+            return warning_three.format('/'.join(self.path))
 
         if not self.count():
             return warning_four.format(*self.path)

@@ -412,7 +412,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        settings = AssetSettings(index.data(common.PathRole).filePath())
+        settings = AssetSettings(index.data(common.PathRole))
 
         # Caching image
         common.cache_image(settings.thumbnail_path(), option.rect.height())

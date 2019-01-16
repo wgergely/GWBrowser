@@ -413,9 +413,9 @@ class BaseListWidget(QtWidgets.QListWidget):
     activeAssetChanged = QtCore.Signal(str)
     activeFileChanged = QtCore.Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, path, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
-        self._path = None
+        self._path = path
         self._context_menu_cls = BaseContextMenu
 
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
@@ -464,8 +464,8 @@ class BaseListWidget(QtWidgets.QListWidget):
         return self._path
 
     @path.setter
-    def path(self, *args):
-        self._path = args
+    def path(self, val):
+        self._path = val
 
     def filter(self):
         """The current filter."""
@@ -631,7 +631,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         painter.drawRect(rect)
         painter.end()
 
-    def refresh(self, *args):
+    def refresh(self):
         """Re-populates the list-widget with the collected items."""
         item = self.currentItem()
 
@@ -876,6 +876,7 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         The active item is indicated by the ``configparser.MarkedAsActive`` flag.
         If no item has been flagged as `active`, returns ``None``.
+
         """
         for n in xrange(self.count()):
             item = self.item(n)

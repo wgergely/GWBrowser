@@ -128,14 +128,17 @@ class DragIndicatorButton(QtWidgets.QLabel):
         self.dragStartPosition = None
 
         if self.isEnabled():
-            pixmap = common.get_rsc_pixmap('drag_indicator', common.SEPARATOR, 18)
+            pixmap = common.get_rsc_pixmap(
+                'drag_indicator', common.SEPARATOR, 18)
         else:
-            pixmap = common.get_rsc_pixmap('drag_indicator', common.TEXT_DISABLED, 18)
+            pixmap = common.get_rsc_pixmap(
+                'drag_indicator', common.TEXT_DISABLED, 18)
         self.setPixmap(pixmap)
 
     def setDisabled(self, b):
         super(DragIndicatorButton, self).setDisabled(b)
-        pixmap = common.get_rsc_pixmap('drag_indicator', common.TEXT_DISABLED, 18)
+        pixmap = common.get_rsc_pixmap(
+            'drag_indicator', common.TEXT_DISABLED, 18)
         self.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
@@ -197,7 +200,8 @@ class DragIndicatorButton(QtWidgets.QLabel):
         ).parent().parent().findChild(RemoveButton)
         # Ugh, ugly code...
         add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
-        pixmap = pixmap = common.get_rsc_pixmap('todo_remove_activated', common.FAVOURITE, 24)
+        pixmap = pixmap = common.get_rsc_pixmap(
+            'todo_remove_activated', common.FAVOURITE, 24)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
         self.parent().parent().separator.setHidden(False)
@@ -242,16 +246,17 @@ class CheckBoxButton(QtWidgets.QLabel):
 
     def set_pixmap(self, checked):
         if checked:
-            pixmap = common.get_rsc_pixmap('checkbox_unchecked', common.SEPARATOR, 24)
+            pixmap = common.get_rsc_pixmap(
+                'checkbox_unchecked', common.SEPARATOR, 24)
             self.setPixmap(pixmap)
         else:
-            pixmap = common.get_rsc_pixmap('checkbox_checked', common.SELECTION, 24)
+            pixmap = common.get_rsc_pixmap(
+                'checkbox_checked', common.SELECTION, 24)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
         self._checked = not self._checked
         self.clicked.emit(self._checked)
-
 
 
 class Separator(QtWidgets.QLabel):
@@ -419,8 +424,10 @@ class TodoEditors(QtWidgets.QWidget):
         elif source_idx > idx:  # move down
             return (idx, lines[idx])
 
+
 class MoveWidget(QtWidgets.QWidget):
     """Widget used to move the editor window."""
+
     def __init__(self, parent=None):
         super(MoveWidget, self).__init__(parent=parent)
         self.setMouseTracking(True)
@@ -432,7 +439,8 @@ class MoveWidget(QtWidgets.QWidget):
     def mousePressEvent(self, event):
         self.move_in_progress = True
         self.move_start_event_pos = event.pos()
-        self.move_start_widget_pos = self.mapToGlobal(self.geometry().topLeft())
+        self.move_start_widget_pos = self.mapToGlobal(
+            self.geometry().topLeft())
 
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.NoButton:
@@ -441,8 +449,10 @@ class MoveWidget(QtWidgets.QWidget):
             offset = (event.pos() - self.move_start_event_pos)
             self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
 
+
 class ResizeWidget(QtWidgets.QWidget):
     """Widget used to move the editor window."""
+
     def __init__(self, parent=None):
         super(ResizeWidget, self).__init__(parent=parent)
         self.setMouseTracking(True)
@@ -463,7 +473,8 @@ class ResizeWidget(QtWidgets.QWidget):
         offset = (event.pos() - self.move_start_event_pos)
         if self.move_start_geo:
             rect = self.parent().geometry()
-            rect.setRight(rect.left() + self.move_start_geo.width() + offset.x())
+            rect.setRight(
+                rect.left() + self.move_start_geo.width() + offset.x())
             rect.setBottom(rect.bottom() + offset.y())
             self.parent().setGeometry(rect)
 
@@ -495,7 +506,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         if not index.isValid():
             return
-        settings = AssetSettings(index.data(common.PathRole).filePath())
+        settings = AssetSettings(index.data(common.PathRole))
         items = settings.value('config/todos')
 
         if not items:
@@ -580,7 +591,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
-        settings = AssetSettings(self.index.data(common.PathRole).filePath())
+        settings = AssetSettings(self.index.data(common.PathRole))
         settings.setValue('config/todos', self._collect_data())
 
     def _createUI(self):
@@ -629,7 +640,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         }\
         """)
         row.layout().addWidget(label, 1)
-        # row.layout().addStretch(1)
         row.layout().addWidget(self.remove_button, 0)
 
         self.editors = TodoEditors()
@@ -644,7 +654,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
-
         self.layout().addWidget(row)
         self.layout().addWidget(scrollarea)
         self.layout().addWidget(ResizeWidget())
@@ -658,6 +667,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             item = self.editors.items[n]
             editor = item.findChild(TodoItemEditor)
             checkbox = item.findChild(CheckBoxButton)
+            if not editor.document().toPlainText():
+                continue
             data[n] = {
                 'checked': not checkbox.checked,
                 'text': editor.document().toPlainText(),
@@ -673,6 +684,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def focusOutEvent(self, event):
         if event.lostFocus():
             self.close()
+
 
 class AddButton(QtWidgets.QLabel):
     """Custom icon button to add a new todo item."""
@@ -698,6 +710,7 @@ class AddButton(QtWidgets.QLabel):
 
 class RemoveButton(QtWidgets.QLabel):
     """Custom icon button to remove an item or close the editor."""
+
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
 

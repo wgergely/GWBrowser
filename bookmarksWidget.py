@@ -63,11 +63,10 @@ class BookmarksWidget(BaseListWidget):
     """
 
     def __init__(self, parent=None):
-        super(BookmarksWidget, self).__init__(parent=parent)
+        super(BookmarksWidget, self).__init__(None, parent=parent)
         self.setWindowTitle('Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self._context_menu_cls = BookmarksWidgetContextMenu
-
         # Select the active item
         self.setCurrentItem(self.active_item())
 
