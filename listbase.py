@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101
 """Module defines the QListWidget items used to browse the projects and the files
 found by the collector classes.
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 import re
 import functools
@@ -43,14 +43,18 @@ class BaseContextMenu(QtWidgets.QMenu):
         if index.isValid():
             self.add_reveal_folder_menu()
             self.add_copy_menu()
+            self.add_mode_toggles_menu()
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
         sort_menu_icon = common.get_rsc_pixmap('sort', common.FAVOURITE, 18.0)
-        arrow_up_icon = common.get_rsc_pixmap('arrow_up', common.FAVOURITE, 18.0)
-        arrow_down_icon = common.get_rsc_pixmap('arrow_down', common.FAVOURITE, 18.0)
+        arrow_up_icon = common.get_rsc_pixmap(
+            'arrow_up', common.FAVOURITE, 18.0)
+        arrow_down_icon = common.get_rsc_pixmap(
+            'arrow_down', common.FAVOURITE, 18.0)
         item_off_icon = common.get_rsc_pixmap('item_off', common.TEXT, 18.0)
-        item_on_icon = common.get_rsc_pixmap('item_on', common.TEXT_SELECTED, 18.0)
+        item_on_icon = common.get_rsc_pixmap(
+            'item_on', common.TEXT_SELECTED, 18.0)
 
         sort_by_name = self.parent().sort_order() == common.SortByName
         sort_modified = self.parent().sort_order() == common.SortByLastModified
@@ -66,7 +70,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'checked': True if self.parent().is_reversed() else False,
             'icon': arrow_down_icon if self.parent().is_reversed() else arrow_up_icon,
             'action': (
-                functools.partial(self.parent().set_reversed, not self.parent().is_reversed()),
+                functools.partial(self.parent().set_reversed,
+                                  not self.parent().is_reversed()),
                 self.parent().refresh
             )
         }
@@ -78,7 +83,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_by_name else False,
             'action': (
-                functools.partial(self.parent().set_sort_order, common.SortByName),
+                functools.partial(
+                    self.parent().set_sort_order, common.SortByName),
                 self.parent().refresh
             )
         }
@@ -87,7 +93,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_modified else False,
             'action': (
-                functools.partial(self.parent().set_sort_order, common.SortByLastModified),
+                functools.partial(self.parent().set_sort_order,
+                                  common.SortByLastModified),
                 self.parent().refresh
             )
         }
@@ -96,7 +103,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_created else False,
             'action': (
-                functools.partial(self.parent().set_sort_order, common.SortByLastCreated),
+                functools.partial(self.parent().set_sort_order,
+                                  common.SortByLastCreated),
                 self.parent().refresh
             )
         }
@@ -105,7 +113,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_size else False,
             'action': (
-                functools.partial(self.parent().set_sort_order, common.SortBySize),
+                functools.partial(
+                    self.parent().set_sort_order, common.SortBySize),
                 self.parent().refresh
             )
         }
@@ -113,19 +122,23 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.create_menu(menu_set)
 
     def add_reveal_folder_menu(self):
-        """Menu containing the subfolders of the selected item."""
-        if not self.index.data(common.DescriptionRole):
+        """Creates a menu containing"""
+        if not self.index.data(QtCore.Qt.UserRole):
             return
 
-        folder_icon = common.get_rsc_pixmap('folder', common.SECONDARY_TEXT, 18.0)
+        folder_icon = common.get_rsc_pixmap(
+            'folder', common.SECONDARY_TEXT, 18.0)
         folder_icon2 = common.get_rsc_pixmap('folder', common.FAVOURITE, 18.0)
-        menu_set = collections.OrderedDict()
-        menu_set['separator>'] = {}
-        menu_set['Show in File Manager'] = collections.OrderedDict()
-        menu_set['Show in File Manager:icon'] = folder_icon
 
-        server, job, root, _ = self.index.data(common.DescriptionRole).split(',')
-        menu_set['Show in File Manager']['root'] = {
+        menu_set = collections.OrderedDict()
+
+        key = 'Show in File Manager'
+        menu_set['separator>'] = {}
+        menu_set[key] = collections.OrderedDict()
+        menu_set['{}:icon'.format(key)] = folder_icon
+
+        server, job, root, _ = self.index.data(QtCore.Qt.UserRole)
+        menu_set[key]['root'] = {
             'text': 'Show bookmark',
             'icon': folder_icon2,
             'action': functools.partial(
@@ -133,21 +146,23 @@ class BaseContextMenu(QtWidgets.QMenu):
                 QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath()),
             'shortcut': QtGui.QKeySequence('Ctrl+O')
         }
-        menu_set['Show in File Manager']['separator.'] = {}
-        menu_set['Show in File Manager']['server'] = {
+        menu_set[key]['separator.'] = {}
+        menu_set[key]['server'] = {
             'text': 'Show server',
             'icon': folder_icon2,
             'action': functools.partial(
                 common.reveal,
                 QtCore.QFileInfo(server).filePath())
         }
-        menu_set['Show in File Manager']['job'] = {
+        menu_set[key]['job'] = {
             'text': 'Show job folder',
             'icon': folder_icon2,
             'action': functools.partial(
                 common.reveal,
                 QtCore.QFileInfo('{}/{}'.format(server, job)).filePath())
         }
+
+        menu_set[key]['separator'] = {}
 
         it = QtCore.QDirIterator(
             self.index.data(common.PathRole).filePath(),
@@ -164,9 +179,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             items.append(file_info)
 
         if not self.parent().is_reversed():
-            items = sorted(items, key=common.sort_keys[self.parent().sort_order()])
+            items = sorted(
+                items, key=common.sort_keys[self.parent().sort_order()])
         else:
-            items = list(reversed(sorted(items, key=common.sort_keys[self.parent().sort_order()])))
+            items = list(
+                reversed(sorted(items, key=common.sort_keys[self.parent().sort_order()])))
 
         for file_info in items:
             if file_info.fileName()[0] == '.':
@@ -174,7 +191,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             if not file_info.isDir():
                 continue
 
-            menu_set['Show in File Manager'][file_info.baseName()] = {
+            menu_set[key][file_info.baseName()] = {
                 'text': file_info.baseName().upper(),
                 'icon': folder_icon,
                 'action': functools.partial(
@@ -195,34 +212,73 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set['Copy'] = collections.OrderedDict()
         menu_set['Copy:icon'] = copy_icon
 
-        path = '{}/{}/{}'.format(*self.index.data(common.DescriptionRole).split(','))
+        path = '{}/{}/{}'.format(*self.index.data(QtCore.Qt.UserRole))
         path = QtCore.QFileInfo(path).filePath()
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
-        menu_set['Copy']['windows1'] = {
+        key = 'Copy'
+
+        menu_set[key]['windows1'] = {
             'text': 'Windows  -  \\\\back\\slashes',
             'icon': copy_icon2,
             'action': functools.partial(
                 QtGui.QClipboard().setText,
                 QtCore.QDir.toNativeSeparators(path))
         }
-        menu_set['Copy']['windows2'] = {
+        menu_set[key]['windows2'] = {
             'text': 'Windows  -  //forward/slashes',
             'icon': copy_icon2,
             'action': functools.partial(QtGui.QClipboard().setText, path)
         }
-        menu_set['Copy']['slack'] = {
+        menu_set[key]['slack'] = {
             'text': 'URL  -  file://Slack/friendly',
             'icon': copy_icon2,
             'action': functools.partial(QtGui.QClipboard().setText, url)
         }
-        menu_set['Copy']['macos'] = {
+        menu_set[key]['macos'] = {
             'text': 'SMB  -  smb://MacOS/path',
             'icon': copy_icon2,
             'action': functools.partial(
                 QtGui.QClipboard().setText,
                 url.replace('file://', 'smb://'))
         }
+        self.create_menu(menu_set)
+
+    def add_mode_toggles_menu(self):
+        """Ads the menu-items needed to add set favourite or archived status."""
+        favourite_on_icon = common.get_rsc_pixmap(
+            'favourite', common.FAVOURITE, 18.0)
+        favourite_off_icon = common.get_rsc_pixmap(
+            'favourite', common.SECONDARY_TEXT, 18.0)
+        archived_on_icon = common.get_rsc_pixmap(
+            'archived', common.FAVOURITE, 18.0)
+        archived_off_icon = common.get_rsc_pixmap(
+            'archived', common.TEXT, 18.0)
+
+        favourite = self.index.flags() & configparser.MarkedAsFavourite
+        archived = self.index.flags() & configparser.MarkedAsArchived
+
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+        if self.__class__.__name__ == 'BookmarksWidgetContextMenu':
+            text = 'Remove bookmark'
+        else:
+            text = 'Disable'
+        menu_set['archived'] = {
+            'text': 'Enable' if archived else text,
+            'icon': archived_off_icon if archived else archived_on_icon,
+            'checkable': True,
+            'checked': archived,
+            'action':   self.parent().toggle_archived
+        }
+        menu_set['favourite'] = {
+            'text': 'Remove from favourites' if favourite else 'Mark as favourite',
+            'icon': favourite_off_icon if archived else favourite_on_icon,
+            'checkable': True,
+            'checked': favourite,
+            'action': self.parent().toggle_favourite
+        }
+
         self.create_menu(menu_set)
 
     @property
@@ -257,10 +313,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             parent = self
 
         for k in menu_set:
-            if ':' in k: # Skipping `speudo` keys
+            if ':' in k:  # Skipping `speudo` keys
                 continue
 
-            if isinstance(menu_set[k], collections.OrderedDict): # Recursive menu creation
+            # Recursive menu creation
+            if isinstance(menu_set[k], collections.OrderedDict):
                 parent = QtWidgets.QMenu(k, parent=self)
 
                 # width = self.parent().viewport().geometry().width()
@@ -279,7 +336,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 continue
 
             action = parent.addAction(k)
-
 
             if 'data' in menu_set[k]:  # Skipping disabled items
                 action.setData(menu_set[k]['data'])
@@ -313,7 +369,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             else:
                 action.setVisible(True)
 
-
     # def favourite(self):
     #     """Toggles the favourite state of the item."""
     #     self.parent().toggle_favourite()
@@ -329,7 +384,6 @@ class BaseContextMenu(QtWidgets.QMenu):
     # def show_archived(self):
     #     self.parent().show_archived()
 
-
     def showEvent(self, event):
         """Elides the action text to fit the size of the widget upon showing."""
         for action in self.actions():
@@ -343,7 +397,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 self.width() - 32 - 10  # padding set in the stylesheet
             )
             action.setText(text)
-
 
 
 class BaseListWidget(QtWidgets.QListWidget):
@@ -510,11 +563,11 @@ class BaseListWidget(QtWidgets.QListWidget):
         instead of the currentItem.
 
         Note:
-            Archived items are automatically removed from the favourites.
+            Archived items are automatically removed from ``favourites``.
 
         Args:
-            item (QListWidgetItem): The item to change.
-            state (None or bool): The state to set.
+            item (QListWidgetItem): The explicit item to change.
+            state (None or bool): The explicit state to set.
 
         """
         if not item:

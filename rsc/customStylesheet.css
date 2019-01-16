@@ -96,7 +96,7 @@ QPushButton {{
 		border-style: solid;
 		color: rgba({TEXT});
 		background-color: rgba({BACKGROUND_SELECTED});
-		font-family: {fontFamily};
+		font-family: "Roboto Black";
 		font-size: 8pt;
 		height: 24px;
 }}
@@ -108,7 +108,7 @@ QPushButton:hover {{
 	padding-left: 8px;
 		border-left: 3px solid rgba({SELECTION});
 		color: rgba({TEXT_SELECTED});
-		background-color: rgba(100, 100, 100, 255);
+		background-color: rgba(150, 150, 150, 255);
 }}
 QPushButton:pressed {{
 		border-left: 4px solid rgba({SELECTION});
@@ -126,13 +126,13 @@ QComboBox {{
 	border-style: solid;
 	color: rgba({TEXT});
 	background-color: rgba({BACKGROUND_SELECTED});
-	font-family: {fontFamily};
+	font-family: "Roboto Black";
 	font-size: 8pt;
 }}
 QComboBox:hover {{
 		border-left: 4px solid rgb({SELECTION});
 		color: rgb({TEXT_SELECTED});
-		background-color: rgba(130, 130, 130, 255);
+		background-color: rgba(150, 150, 150, 255);
 }}
 QComboBox:focus {{
 		border: solid;

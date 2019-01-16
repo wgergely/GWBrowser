@@ -346,7 +346,6 @@ def delete_image(path, delete_file=True):
     for k in keys:
         del IMAGE_CACHE[k]
 
-
 def label_generator():
     """Generates QColors from an array of RGB values.
 
@@ -363,15 +362,12 @@ def label_generator():
     """
     arr = []
     for n in xrange(999):
-        if n % 2 == 0:
-            a = [190, 89, 92]
-        else:
-            a = [92, 89, 190]
-        v = 15
+        a = [120, 60, 150] if n % 2 == 0 else [150, 60, 120]
+        v = 20
         arr.append([
-            random.randint(a[0] - v, a[0] + v),
-            random.randint(a[1] - v, a[1] + v),
-            random.randint(a[2] - v, a[2] + v)
+            random.randint(max(a[0] - v, 0), min(a[0] + v, 255)),
+            random.randint(max(a[1] - (v/3), 0), min(a[1] + (v/3), 255)),
+            random.randint(max(a[2] - v, 0), min(a[2] + v, 255))
         ])
     for color in arr:
         yield QtGui.QColor(*color)

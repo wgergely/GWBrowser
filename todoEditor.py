@@ -434,15 +434,12 @@ class MoveWidget(QtWidgets.QWidget):
         self.move_start_event_pos = event.pos()
         self.move_start_widget_pos = self.mapToGlobal(self.geometry().topLeft())
 
-
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.NoButton:
             return
-
         offset = (event.pos() - self.move_start_event_pos)
         if self.move_start_widget_pos:
             self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
-        pos = self.mapToGlobal(event.pos())
 
 class ResizeWidget(QtWidgets.QWidget):
     """Widget used to move the editor window."""
@@ -615,20 +612,23 @@ class TodoEditorWidget(QtWidgets.QWidget):
             text = '{} - Notes and Tasks'.format(
                 self.index.data(QtCore.Qt.DisplayRole).upper()
             )
-            label = QtWidgets.QLabel(text)
-            label.setSizePolicy(
-                QtWidgets.QSizePolicy.Minimum,
-                QtWidgets.QSizePolicy.Minimum
-            )
-            label.setAlignment(QtCore.Qt.AlignCenter)
-            label.setStyleSheet("""\
-            QLabel {\
-                color: rgb(30,30,30);\
-            	font-family: "Roboto Medium";\
-            	font-size: 11pt;\
-            }\
-            """)
-            row.layout().addWidget(label, 1)
+        else:
+            text = 'Notes and Tasks'
+
+        label = QtWidgets.QLabel(text)
+        label.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
+        )
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setStyleSheet("""\
+        QLabel {\
+            color: rgb(30,30,30);\
+        	font-family: "Roboto Medium";\
+        	font-size: 11pt;\
+        }\
+        """)
+        row.layout().addWidget(label, 1)
         # row.layout().addStretch(1)
         row.layout().addWidget(self.remove_button, 0)
 
@@ -667,7 +667,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def hideEvent(self, event):
         """Saving the contents on close/hide."""
         self.save_settings()
-        self.parent().refresh()
+        if self.parent():
+            self.parent().refresh()
 
     def focusOutEvent(self, event):
         if event.lostFocus():

@@ -349,8 +349,8 @@ class AssetWidget(BaseListWidget):
         initial_index = self.indexAt(self.multi_toggle_pos)
         idx = index.row()
 
-        favourite = not not index.flags() & configparser.MarkedAsFavourite
-        archived = not not index.flags() & configparser.MarkedAsArchived
+        favourite = index.flags() & configparser.MarkedAsFavourite
+        archived = index.flags() & configparser.MarkedAsArchived
 
         # Filter the current item
         if index == self.multi_toggle_item:
