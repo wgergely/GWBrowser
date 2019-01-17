@@ -184,7 +184,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Ugh, ugly code...
         add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
         pixmap = pixmap = common.get_rsc_pixmap(
-            'todo_remove_activated', common.FAVOURITE, 24)
+            'todo_remove_activated', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
         self.parent().parent().separator.setHidden(False)
@@ -196,7 +196,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Cleanup after drag has finished...
         overlay.close()
         self.parent().parent().separator.setHidden(True)
-        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 18)
+        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
 
@@ -291,9 +291,8 @@ class TodoEditors(QtWidgets.QWidget):
         super(TodoEditors, self).__init__(parent=parent)
         QtWidgets.QVBoxLayout(self)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
-        self.layout().setContentsMargins(0,0,0,0)
-        self.layout().setSpacing(2)
-        self.setMinimumWidth(300)
+        self.layout().setContentsMargins(8,8,8,8)
+        self.layout().setSpacing(8)
 
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
@@ -407,7 +406,6 @@ class TodoEditors(QtWidgets.QWidget):
         elif source_idx > idx:  # move down
             return (idx, lines[idx])
 
-
 class MoveWidget(QtWidgets.QWidget):
     """Widget used to move the editor window."""
 
@@ -485,6 +483,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             QtCore.Qt.FramelessWindowHint
         )
         self._createUI()
+        self.installEventFilter(self)
 
         if not index.isValid():
             return
@@ -500,6 +499,97 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 checked=items[k]['checked']
             )
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+    def eventFilter(self, widget, event):
+        """Using the custom event filter to paint the background."""
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setPen(common.FAVOURITE)
+            font = QtGui.QFont('Roboto Medium')
+            font.setBold(False)
+            font.setPointSize(10.0)
+            painter.setFont(font)
+            painter.drawText(
+                self.rect(),
+                QtCore.Qt.AlignCenter,
+                'No todo items in the list. Yet.\nYou can add a new item using the plus button.' if not len(self.editors.items) else ''
+            )
+            painter.end()
+        return False
+
+    def _get_next_enabled(self, n):
+        # Finding the next enabled editor
+        for _ in xrange(len(self.editors.items) - n):
+            n += 1
+            if n >= len(self.editors.items):
+                return self._get_next_enabled(-1)
+            item = self.editors.items[n]
+            editor = item.findChild(TodoItemEditor)
+            if editor.isEnabled():
+                return n
+
+    def key_tab(self):
+        """Defining tabbing forward between items."""
+        if not self.editors.items:
+            return
+
+        n = 0
+        for n, item in enumerate(self.editors.items):
+            editor = item.findChild(TodoItemEditor)
+            if editor.hasFocus():
+                break
+
+        n = self._get_next_enabled(n)
+        if n > -1:
+            item = self.editors.items[n]
+            editor = item.findChild(TodoItemEditor)
+            editor.setFocus()
+            self.scrollarea.ensureWidgetVisible(editor, ymargin=editor.height())
+
+    def key_return(self,):
+        """Control enter toggles the state of the checkbox."""
+        for item in self.editors.items:
+            editor = item.findChild(TodoItemEditor)
+            checkbox = item.findChild(CheckBoxButton)
+            if editor.hasFocus():
+                checkbox.clicked.emit(not checkbox.checked)
+                break
+
+    def keyPressEvent(self, event):
+        """Custom keypresses."""
+        no_modifier = event.modifiers() == QtCore.Qt.NoModifier
+        control_modifier = event.modifiers() == QtCore.Qt.ControlModifier
+        shift_modifier = event.modifiers() == QtCore.Qt.ShiftModifier
+
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.close()
+
+        if shift_modifier:
+            if event.key() == QtCore.Qt.Key_Tab:
+                print '#Key_Tab'
+                return True
+            if event.key() == QtCore.Qt.Key_Backtab:
+                print '#Key_Backtab'
+                return True
+
+        if control_modifier:
+            if event.key() == QtCore.Qt.Key_S:
+                self.save_settings()
+                return True
+            elif event.key() == QtCore.Qt.Key_N:
+                self.add_button.pressed.emit()
+                return True
+            elif event.key() == QtCore.Qt.Key_Tab:
+                self.key_tab()
+                return True
+            elif event.key() == QtCore.Qt.Key_Return:
+                self.key_return()
+
+
+
+
+
 
     @property
     def index(self):
@@ -552,7 +642,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.animation.setKeyValueAt(0, 0)
         row.animation.setKeyValueAt(0.5, 0.8)
         row.animation.setKeyValueAt(1, 1.0)
-        # row.animation.setLoopCount(-1)
         row.setGraphicsEffect(row.effect)
         row.setAutoFillBackground(True)
 
@@ -562,7 +651,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         else:
             self.editors.layout().insertWidget(idx, row, 0)
             self.editors.items.insert(idx, row)
-            # editor.selectAll()
 
         row.animation.start()
         checkbox.clicked.emit(checkbox._checked)
@@ -584,10 +672,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         def _pressed():
             self.add_item(text='', idx=0)
 
-        self.add_button = AddButton()
-        self.add_button.pressed.connect(_pressed)
-        self.add_button.setFocusPolicy(QtCore.Qt.NoFocus)
-
         self.remove_button = RemoveButton()
         self.remove_button.setFocusPolicy(QtCore.Qt.NoFocus)
 
@@ -599,6 +683,15 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.setFocusPolicy(QtCore.Qt.NoFocus)
 
         QtWidgets.QHBoxLayout(row)
+        self.add_button = AddButton()
+        self.add_button.pressed.connect(_pressed)
+        self.add_button.pressed.connect(self.update)
+        self.add_button.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.add_button.setFixedWidth(32)
+        self.add_button.setFixedHeight(32)
+        self.add_button.setAlignment(QtCore.Qt.AlignCenter)
+        pixmap = common.get_rsc_pixmap('todo', common.FAVOURITE, 32)
+        self.add_button.setPixmap(pixmap)
         row.layout().addWidget(self.add_button, 0)
 
         if self.index.isValid():
@@ -628,16 +721,16 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.setMinimumWidth(self.editors.minimumWidth() + 6)
         self.setMinimumHeight(100)
 
-        scrollarea = QtWidgets.QScrollArea()
-        scrollarea.setWidgetResizable(True)
-        scrollarea.setWidget(self.editors)
-        scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.scrollarea = QtWidgets.QScrollArea()
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setWidget(self.editors)
+        self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.layout().addWidget(row)
-        self.layout().addWidget(scrollarea)
+        self.layout().addWidget(self.scrollarea)
         self.layout().addWidget(ResizeWidget())
 
         common.set_custom_stylesheet(self)
@@ -666,6 +759,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def focusOutEvent(self, event):
         if event.lostFocus():
             self.close()
+
+    def sizeHint(self):
+        return QtCore.QSize(800, 600)
 
 
 class AddButton(QtWidgets.QLabel):
@@ -696,7 +792,7 @@ class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
 
-        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 18)
+        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 32)
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -721,15 +817,6 @@ class RemoveButton(QtWidgets.QLabel):
         editors.layout().removeWidget(row)
         row.deleteLater()
 
-    def _pixmap(self, name):
-        path = '{}/rsc/{}.png'.format(
-            QtCore.QFileInfo(__file__).dir().path(),
-            name
-        )
-        image = QtGui.QImage(path)
-        image = common.resize_image(image, 24)
-        pixmap = QtGui.QPixmap()
-        return pixmap.fromImage(image)
 
 
 if __name__ == '__main__':
