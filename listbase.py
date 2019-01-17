@@ -139,7 +139,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         server, job, root, asset, file_ = self.index.data(common.ParentRole)
         if file_:
             menu_set[key]['asset'] = {
-                'text': 'Show bookmark',
+                'text': 'Show file',
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
@@ -147,7 +147,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
         if asset:
             menu_set[key]['asset'] = {
-                'text': 'Show bookmark',
+                'text': 'Show asset',
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
@@ -161,13 +161,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath()),
         }
         menu_set[key]['separator.'] = {}
-        menu_set[key]['server'] = {
-            'text': 'Show server',
-            'icon': folder_icon2,
-            'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo(server).filePath())
-        }
         menu_set[key]['job'] = {
             'text': 'Show job folder',
             'icon': folder_icon2,
@@ -216,20 +209,17 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_copy_menu(self):
         """Menu containing the subfolders of the selected item."""
-        if not self.index.data(common.DescriptionRole):
-            return
-
         copy_icon = common.get_rsc_pixmap('copy', common.SECONDARY_TEXT, 18.0)
         copy_icon2 = common.get_rsc_pixmap('copy', common.FAVOURITE, 18.0)
 
         menu_set = collections.OrderedDict()
-        menu_set['Copy'] = collections.OrderedDict()
-        menu_set['Copy:icon'] = copy_icon
 
         path = self.index.data(common.PathRole)
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
-        key = 'Copy'
+        key = 'Copy path'
+        menu_set[key] = collections.OrderedDict()
+        menu_set['{}:icon'.format(key)] = copy_icon
 
         menu_set[key]['windows1'] = {
             'text': 'Windows  -  \\\\back\\slashes',
@@ -347,6 +337,20 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
 
         self.create_menu(menu_set)
+
+    def add_thumbnail_menu(self):
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+        menu_set['Capture thumbnail'] = {
+        }
+        menu_set['Remove thumbnail'] = {
+        }
+        menu_set['Pick thumbnail'] = {
+            'text': 'Capture Thumbnail'
+        }
+
+        self.create_menu(menu_set)
+
 
     @property
     def index(self):

@@ -374,7 +374,7 @@ TodoEditorWidget {{
 	}}
 
 	TodoItemEditor {{
-		background-color: rgba(240,240,240,255);
+		background-color: rgba(235,235,235,255);
 		border-width: 0px;
 		border: solid;
 		border-color: rgba(180,180,180,255);
@@ -382,12 +382,12 @@ TodoEditorWidget {{
 		padding: 0px;
 		outline: 0;
 		color: rgba(0,0,0,255);
-		font-family: "Roboto";
-		font-size: 11pt;
+		font-family: "Roboto Medium";
+		font-size: 10pt;
 	}}
 
 	CheckBoxButton, DragIndicatorButton{{
-		background-color: rgba(220,220,220,255);
+		background-color: rgba(235,235,235,255);
 		margin: 0px;
 		padding-left: 10px;
 	}}
@@ -403,7 +403,7 @@ TodoEditorWidget {{
 		border: none;
 		border-width: 1px;
 		border-color: rgba(180,180,180,255);
-		color: rgba({SELECTION});
+		color: rgba({FAVOURITE});
 		background-color: rgba(230,230,230,255);
 	}}
 

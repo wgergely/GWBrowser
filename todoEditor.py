@@ -38,6 +38,10 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         metrics.width('  ')
         self.setTabStopWidth(common.MARGIN)
 
+        font = QtGui.QFont('Roboto Medium')
+        font.setPointSizeF(10.0)
+        self.document().setDefaultFont(font)
+
         self.setUndoRedoEnabled(True)
 
         self.setSizePolicy(
@@ -52,6 +56,14 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         self.document().setPlainText(text)
 
         self.document().contentsChanged.connect(self._contentChanged)
+
+    def setDisabled(self, b):
+        super(TodoItemEditor, self).setDisabled(b)
+        font = QtGui.QFont('Roboto Medium')
+        font.setPointSizeF(10.0)
+        if b:
+            font.setStrikeOut(True)
+        self.document().setDefaultFont(font)
 
     def _contentChanged(self):
         """Sets the height of the editor."""
@@ -115,13 +127,18 @@ class DragIndicatorButton(QtWidgets.QLabel):
                 'drag_indicator', common.SEPARATOR, 18)
         else:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.TEXT_DISABLED, 18)
+                'drag_indicator', common.FAVOURITE, 18)
         self.setPixmap(pixmap)
 
     def setDisabled(self, b):
-        super(DragIndicatorButton, self).setDisabled(b)
-        pixmap = common.get_rsc_pixmap(
-            'drag_indicator', common.TEXT_DISABLED, 18)
+        # super(DragIndicatorButton, self).setDisabled(b)
+        if b:
+            pixmap = common.get_rsc_pixmap(
+                'drag_indicator', common.FAVOURITE, 18)
+        else:
+            pixmap = common.get_rsc_pixmap(
+                'drag_indicator', common.SEPARATOR, 18)
+
         self.setPixmap(pixmap)
 
     def mousePressEvent(self, event):
@@ -184,7 +201,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Ugh, ugly code...
         add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
         pixmap = pixmap = common.get_rsc_pixmap(
-            'todo_remove_activated', common.FAVOURITE, 32)
+            'todo_remove_activated', QtGui.QColor(255,0,0), 24)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
         self.parent().parent().separator.setHidden(False)
@@ -234,7 +251,7 @@ class CheckBoxButton(QtWidgets.QLabel):
             self.setPixmap(pixmap)
         else:
             pixmap = common.get_rsc_pixmap(
-                'checkbox_checked', common.SELECTION, 24)
+                'checkbox_checked', common.FAVOURITE, 24)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -246,7 +263,7 @@ class Separator(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(Separator, self).__init__(parent=parent)
         pixmap = QtGui.QPixmap(QtCore.QSize(4096, 2))
-        pixmap.fill(common.SELECTION)
+        pixmap.fill(common.FAVOURITE)
         self.setPixmap(pixmap)
 
         self.setHidden(True)
@@ -513,7 +530,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter.drawText(
                 self.rect(),
                 QtCore.Qt.AlignCenter,
-                'No todo items in the list. Yet.\nYou can add a new item using the plus button.' if not len(self.editors.items) else ''
+                'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.' if not len(self.editors.items) else ''
             )
             painter.end()
         return False
@@ -630,6 +647,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         checkbox.clicked.connect(
             functools.partial(_setDisabled, widget=editor))
+        checkbox.clicked.connect(
+            functools.partial(_setDisabled, widget=drag))
 
         row.layout().addWidget(checkbox)
         row.layout().addWidget(drag)

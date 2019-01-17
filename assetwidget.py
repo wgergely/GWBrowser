@@ -32,7 +32,9 @@ class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget."""
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_thumbnail_menu()
         self.add_refresh_menu()
+
 
 
 
@@ -185,7 +187,9 @@ class AssetWidget(BaseListWidget):
         widget = TodoEditorWidget(index, parent=self)
         pos = self.mapToGlobal(self.rect().topLeft())
         widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
-        widget.resize(self.width(), self.height())
+        widget.setMinimumWidth(640)
+        widget.setMinimumHeight(800)
+        # widget.resize(self.width(), self.height())
         common.move_widget_to_available_geo(widget)
         widget.show()
 

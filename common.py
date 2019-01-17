@@ -117,7 +117,7 @@ SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
 BACKGROUND = QtGui.QColor(98, 98, 98)
 
 THUMBNAIL_BACKGROUND_SELECTED = QtGui.QColor(85, 85, 85)
-THUMBNAIL_BACKGROUND = QtGui.QColor(77, 77, 77)
+THUMBNAIL_BACKGROUND = QtGui.QColor(80, 80, 80)
 THUMBNAIL_IMAGE_BACKGROUND = QtGui.QColor(30, 30, 30)
 
 TEXT = QtGui.QColor(220, 220, 220)
@@ -227,6 +227,7 @@ def set_custom_stylesheet(widget):
             TEXT_DISABLED='{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
             TEXT_SELECTED='{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
             SEPARATOR='{},{},{},{}'.format(*SEPARATOR.getRgb()),
+            FAVOURITE='{},{},{},{}'.format(*FAVOURITE.getRgb()),
             SELECTION='{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
