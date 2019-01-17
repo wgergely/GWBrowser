@@ -32,7 +32,6 @@ class TodoItemEditor(QtWidgets.QTextEdit):
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        # self.setBackgroundVisible(False)
         self.document().setDocumentMargin(common.MARGIN)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
@@ -53,22 +52,6 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         self.document().setPlainText(text)
 
         self.document().contentsChanged.connect(self._contentChanged)
-        # self.document().contentsChange.connect(self._contentsChange)
-
-    def _contentsChange(self, position, charsRemoved, charsAdded):
-        """Custom formatting options for todo items are applied here."""
-        block = None
-        i = 0
-        while i < self.document().blockCount():
-            if not block:
-                block = self.document().begin()
-            else:
-                block = block.next()
-            cursor = QtGui.QTextCursor(block)
-            textBlockFormat = cursor.blockFormat()
-            textBlockFormat.setAlignment(QtCore.Qt.AlignJustify)
-            cursor.mergeBlockFormat(textBlockFormat)
-            i += 1
 
     def _contentChanged(self):
         """Sets the height of the editor."""
@@ -80,7 +63,7 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         """Returns the desired minimum height of the editor."""
         margins = self.contentsMargins()
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = metrics.height() + metrics.leading()
+        line_height = (metrics.height() + metrics.leading()) * 8 # Lines tall
         return line_height + margins.top() + margins.bottom()
 
     def heightForWidth(self, width):
@@ -178,7 +161,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         pixmap = pixmap.fromImage(image)
 
         drag.setPixmap(pixmap)
-        drag.setHotSpot(QtCore.QPoint(pixmap.width(), pixmap.height() / 2.0))
+        drag.setHotSpot(QtCore.QPoint(0, pixmap.height() / 2.0))
 
         # Drag origin indicator
         pixmap = QtGui.QPixmap(self.parent().size())
@@ -308,8 +291,8 @@ class TodoEditors(QtWidgets.QWidget):
         super(TodoEditors, self).__init__(parent=parent)
         QtWidgets.QVBoxLayout(self)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
-        self.layout().setContentsMargins(common.MARGIN * 2, 0, common.MARGIN * 2, 0)
-        self.layout().setSpacing(common.MARGIN)
+        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setSpacing(2)
         self.setMinimumWidth(300)
 
         self.setMouseTracking(True)
@@ -501,7 +484,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint
         )
-
         self._createUI()
 
         if not index.isValid():
@@ -535,7 +517,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         QtWidgets.QHBoxLayout(row)
         row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(12)
+        row.layout().setSpacing(0)
         row.setFocusPolicy(QtCore.Qt.NoFocus)
 
         checkbox = CheckBoxButton(checked=not checked)

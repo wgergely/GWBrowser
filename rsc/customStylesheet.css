@@ -200,7 +200,7 @@ QScrollBar:vertical, QScrollBar:horizontal {{
 QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {{
 	background: rgba({BACKGROUND_SELECTED});
 	border: 0px solid;
-	border-radius: 2px;
+	border-radius: 3px;
 	max-height: 250px;
 	min-height: 50px;
 }}
@@ -359,18 +359,18 @@ TodoEditorWidget {{
 	}}
 
 	TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
-		background: rgba({SECONDARY_TEXT});
+		background: rgba(230,230,230,255);
 		border: none;
 	}}
 	TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
-		background: rgba({TEXT});
+		background: rgba(100,100,100,255);
 		border: 0px solid;
-		border-radius: 0px;
+		border-radius: 3px;
 		max-height: 250px;
 		min-height: 24;
 	}}
 	TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
-		background: rgba({SECONDARY_TEXT});
+		background: rgba(230,230,230,255);
 	}}
 
 	TodoItemEditor {{
@@ -382,13 +382,22 @@ TodoEditorWidget {{
 		padding: 0px;
 		outline: 0;
 		color: rgba(0,0,0,255);
-		font-family: "Roboto Medium";
+		font-family: "Roboto";
 		font-size: 11pt;
+	}}
+
+	CheckBoxButton, DragIndicatorButton{{
+		background-color: rgba(220,220,220,255);
+		margin: 0px;
+		padding-left: 10px;
 	}}
 
 	TodoItemEditor:focus {{
 		color: rgba(30,30,30,255);
 		background-color: rgba(255,255,255,255);
+		border-width: 0px;
+		border: none;
+		outline: 0;
 	}}
 	TodoItemEditor:disabled {{
 		border: none;
@@ -397,6 +406,8 @@ TodoEditorWidget {{
 		color: rgba({SELECTION});
 		background-color: rgba(230,230,230,255);
 	}}
+
+
 
 	AddBookmarkWidget {{
 			background-color: rgba(150,150,150,255);

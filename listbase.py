@@ -282,11 +282,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': archived_off_icon if archived else archived_on_icon,
             'checkable': True,
             'checked': archived,
-            'action':   self.parent().toggle_archived
+            'action': self.parent().toggle_archived
         }
         menu_set['favourite'] = {
             'text': 'Remove from favourites' if favourite else 'Mark as favourite',
-            'icon': favourite_off_icon if archived else favourite_on_icon,
+            'icon': favourite_off_icon if favourite else favourite_on_icon,
             'checkable': True,
             'checked': favourite,
             'action': self.parent().toggle_favourite
@@ -511,7 +511,7 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         # Populating the
         self.add_items()
-        self.set_row_visibility()
+        self.set_item_visibility()
 
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
@@ -594,7 +594,7 @@ class BaseListWidget(QtWidgets.QListWidget):
                 item.setFlags(item.flags() | configparser.MarkedAsFavourite)
 
         local_settings.setValue('favourites', favourites)
-        self.set_row_visibility()
+        self.set_item_visibility()
 
     def toggle_archived(self, item=None, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -632,7 +632,7 @@ class BaseListWidget(QtWidgets.QListWidget):
                     favourites.remove(file_info.filePath())
                     local_settings.setValue('favourites', favourites)
 
-        self.set_row_visibility()
+        self.set_item_visibility()
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item using ScreenGrabber."""
@@ -667,7 +667,7 @@ class BaseListWidget(QtWidgets.QListWidget):
                 path = item.data(common.PathRole)
 
         self.add_items()
-        self.set_row_visibility()
+        self.set_item_visibility()
 
         if not path:
             return
@@ -904,30 +904,33 @@ class BaseListWidget(QtWidgets.QListWidget):
         """Selects the active item."""
         self.setCurrentItem(self.active_item())
 
-    def set_row_visibility(self):
-        """Sets the visibility of the list-items based on their set flags."""
+    def set_item_visibility(self):
+        """Sets the visibility of the list-items based on the item-flags."""
         for n in xrange(self.count()):
             item = self.item(n)
 
             markedAsArchived = item.flags() & configparser.MarkedAsArchived
             markedAsFavourite = item.flags() & configparser.MarkedAsFavourite
 
-            if self.get_display_mode('archive') and self.get_display_mode('favourite'):
+            hide_archived = self.get_display_mode('archived')
+            isolate_favourites = self.get_display_mode('favourite')
+
+            if hide_archived and isolate_favourites:
                 if markedAsFavourite:
                     item.setHidden(False)
                     continue
                 item.setHidden(True)
                 continue
-            elif not self.get_display_mode('archive') and self.get_display_mode('favourite'):
+            elif not hide_archived and isolate_favourites:
                 if markedAsFavourite:
                     item.setHidden(False)
                     continue
                 item.setHidden(True)
                 continue
-            elif self.get_display_mode('archive') and not self.get_display_mode('favourite'):
+            elif hide_archived and not isolate_favourites:
                 item.setHidden(False)
                 continue
-            elif not self.get_display_mode('archive') and not self.get_display_mode('favourite'):
+            elif not hide_archived and not isolate_favourites:
                 item.setHidden(markedAsArchived)
 
     def paint_message(self, text):

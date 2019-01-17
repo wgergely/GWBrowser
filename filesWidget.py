@@ -243,7 +243,7 @@ class FilesWidget(BaseListWidget):
         self.sort_order = sort_order
         self.reverse_mode = reverse_mode
         self.add_items()
-        self.set_row_visibility()
+        self.set_item_visibility()
 
     def action_on_enter_key(self):
         """Action to perform when the enter key is pressed."""
@@ -327,7 +327,7 @@ class FilesWidget(BaseListWidget):
         idx = self.currentIndex()
         self.add_items()
         self.setCurrentIndex(idx)
-        self.set_row_visibility()
+        self.set_item_visibility()
 
         self.sceneChanged.emit()
 

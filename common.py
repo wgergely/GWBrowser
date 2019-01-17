@@ -243,10 +243,10 @@ def cache_image(path, height, overwrite=False):
     """Saves the image at the path to the image cache. The cached images are
     stored in the IMAGE_CACHE dictionary.
 
-    If the loading the image fails, we'll automatically use
+    If the loading the image fails, we'll use an empty image.
 
     We're also saving an average of colour to be used as the background when the
-    image is not squarical.
+    image is not square.
 
     Args:
         path (str):    Path to the image file.
@@ -256,32 +256,25 @@ def cache_image(path, height, overwrite=False):
         type: Description of returned object.
 
     """
-    path = QtCore.QFileInfo(path)
-    path = path.filePath()
-
     k = '{path}:{height}'.format(
         path=path,
         height=height
     )
-
     if k in IMAGE_CACHE and not overwrite:
         return
 
+    file_info = QtCore.QFileInfo(path)
+    if not file_info.exists():
+        file_info = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+
     image = QtGui.QImage()
-    image.load(path)
+    image.load(file_info.filePath())
 
     # If the load fails, use the placeholder image
-    if image.isNull():
-        image.load(PLACEHOLDER)
-        image = resize_image(
-            image,
-            height
-        )
-    else:
-        image = resize_image(
-            image,
-            height
-        )
+    image = resize_image(
+        image,
+        height
+    )
 
     # Average colour
     IMAGE_CACHE[k] = image
@@ -417,19 +410,16 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
     """
     k = '{name}:{size}:{color}'.format(
         name=name, size=size, color=color.name())
+
     if k in IMAGE_CACHE:
         return IMAGE_CACHE[k]
 
-    path = QtCore.QFileInfo(__file__)
-    path = path.dir()
-    path = '{}/rsc/{}.png'.format(path.path(), name)
-
-    file_ = QtCore.QFileInfo(path)
-    if not file_.exists():
+    file_info = QtCore.QFileInfo('{}/../rsc/{}.png'.format(__file__, name))
+    if not file_info.exists():
         return QtGui.QPixmap()
 
-    image = QtGui.QImage(file_.filePath())
-    image.load(path)
+    image = QtGui.QImage()
+    image.load(file_info.filePath())
 
     if image.isNull():
         return QtGui.QPixmap()
