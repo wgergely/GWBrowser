@@ -26,7 +26,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
     def __init__(self, index, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
 
-        settings = AssetSettings(index.data(common.PathRole).filePath())
+        settings = AssetSettings(index.data(common.PathRole))
 
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
@@ -34,7 +34,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         self.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         self.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
         self.setDirectory(QtCore.QDir(
-            index.data(common.PathRole).filePath()))
+            index.data(common.PathRole)))
         self.setOption(
             QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
@@ -66,7 +66,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
         self.editor = None
         self.settings = configparser.AssetSettings(
-            self._index.data(common.PathRole).filePath())
+            self._index.data(common.PathRole))
         self._createUI()
 
         self.editor.focusOutEvent = self.focusOutEvent

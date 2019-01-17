@@ -15,7 +15,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import re
-from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
@@ -23,7 +22,7 @@ from mayabrowser.listbase import BaseContextMenu
 from mayabrowser.listbase import BaseListWidget
 from mayabrowser.collector import BookmarksCollector
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings
+from mayabrowser.configparsers import local_settings, path_monitor
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.delegate import BaseDelegate
 
@@ -38,29 +37,11 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
-        if index.isValid():
-            self.add_bookmark_menu()
         self.add_refresh_menu()
-
-    def add_bookmark_menu(self):
-        """Adds options pertinent to bookmark items."""
-        _, job, root, _ = self.index.data(QtCore.Qt.UserRole)
-        menu_set = OrderedDict()
-
-        menu_set['separator'] = {}
-        menu_set['header'] = {
-            'text': '{}: {}'.format(job, root),
-            'disabled': True,
-            'visible': self.index.isValid()
-        }
-
-        self.create_menu(menu_set)
 
 
 class BookmarksWidget(BaseListWidget):
-    """Widget to display all added ``Bookmarks``.
-
-    """
+    """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(None, parent=parent)
@@ -78,15 +59,30 @@ class BookmarksWidget(BaseListWidget):
 
         """
         item = self.currentItem()
-        if not item.data(QtCore.Qt.UserRole):
+        if not item:
+            return
+        if item.flags() == QtCore.Qt.NoItemFlags:
             return
 
-        server, job, root, _ = item.data(QtCore.Qt.UserRole)
+        if self.active_item() is self.currentItem():
+            return
+
+        server, job, root, _, _ = item.data(common.ParentRole)
+
         # Updating the local config file
+        active_paths = path_monitor.get_active_paths()
         local_settings.setValue('activepath/server', server)
         local_settings.setValue('activepath/job', job)
         local_settings.setValue('activepath/root', root)
-        local_settings.setValue('activepath/asset', None)
+        path = item.data(common.PathRole)
+
+        # Keeping the asset selection if it exists inside the newly set bookmark
+        if active_paths['asset']:
+            path += '/{}'.format(active_paths['asset'])
+            if not QtCore.QFileInfo(path).exists():
+                local_settings.setValue('activepath/asset', None)
+
+        # Resetting
         local_settings.setValue('activepath/file', None)
 
         archived = item.flags() & configparser.MarkedAsArchived
@@ -139,57 +135,59 @@ class BookmarksWidget(BaseListWidget):
         self.clear()
 
         # Collecting items
-        collector = BookmarksCollector()
+        collector = BookmarksCollector(parent=self)
         items = collector.get_items(
-            key=self.sort_order(),
-            reverse=self.is_reversed(),
-            path_filter=self.filter()
+            key=self.get_item_sort_order(),
+            reverse=self.is_item_sort_reversed(),
+            path_filter=self.get_item_filter()
         )
 
         for file_info in items:
             item = QtWidgets.QListWidgetItem(parent=self)
 
+            # Qt Roles
             item.setData(
                 QtCore.Qt.DisplayRole, file_info.job)
             item.setData(QtCore.Qt.EditRole, item.data(QtCore.Qt.DisplayRole))
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole,
                          item.data(QtCore.Qt.StatusTipRole))
-            item.setData(common.DescriptionRole,
-                         u'{}/{}/{}'.format(
-                             file_info.server,
-                             file_info.job,
-                             file_info.root))
-            item.setData(QtCore.Qt.UserRole, (
-                file_info.server,
-                file_info.job,
-                file_info.root,
-                file_info.size()))
-            item.setData(common.PathRole, file_info.filePath())
             item.setData(
                 QtCore.Qt.SizeHintRole,
                 QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
 
-            # Active
+            # Custom roles
+            item.setData(common.PathRole, file_info.filePath())
+            item.setData(common.ParentRole, (
+                file_info.server,
+                file_info.job,
+                file_info.root,
+                None,
+                None))
+            item.setData(common.DescriptionRole,
+                         u'{}  |  {}  |  {}'.format(
+                             file_info.server,
+                             file_info.job,
+                             file_info.root))
+            item.setData(common.TodoCountRole, 0)
+            item.setData(common.FileDetailsRole, file_info.size())
+            item.setData(common.FileModeRole, None)
+
+            # Flags
             if (
                 file_info.server == local_settings.value('activepath/server') and
                 file_info.job == local_settings.value('activepath/job') and
                 file_info.root == local_settings.value('activepath/root')
             ):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
-
-            # If the folder does not exist marking it archived
             if not file_info.exists():
                 item.setFlags(item.flags() | configparser.MarkedAsArchived)
-
-            # Flags
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-
             # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 item.setFlags(item.flags() | configparser.MarkedAsFavourite)
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
             self.addItem(item)
 
@@ -334,12 +332,9 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.Window
-        )
-        pixmap = common.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-        self.setWindowIcon(QtGui.QIcon(pixmap))
-        self._connectSignals()
+            QtCore.Qt.Window)
 
+        self._connectSignals()
         self._set_initial_values()
 
     def get_bookmark(self):
@@ -363,6 +358,17 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             common.MARGIN,
             common.MARGIN
         )
+
+        # top label
+        label = QtWidgets.QLabel()
+        label.setText('Add bookmarks')
+        self.layout().addWidget(label, 0)
+        label.setStyleSheet("""
+            QLabel {
+                font-family: "Roboto Black";
+                font-size: 12pt;
+            }
+        """)
 
         self.pathsettings = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(self.pathsettings)
@@ -429,7 +435,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pathsettings.layout().addWidget(label, 0)
         self.pathsettings.layout().addWidget(self.pick_job_widget, 0.1)
         self.pathsettings.layout().addStretch(0.1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Assets'), 0.1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Bookmark folder'), 0.1)
         label = QtWidgets.QLabel(
             'Select the folder inside the Job containing a list of shots and/or assets:')
         label.setWordWrap(True)
@@ -455,7 +461,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # Let's double-check the integrity of the choice.
         path = ''
-        sequence = (bookmark[key]['server'], bookmark[key]['job'], bookmark[key]['root'])
+        sequence = (bookmark[key]['server'], bookmark[key]
+                    ['job'], bookmark[key]['root'])
         for value in sequence:
             path += '{}/'.format(value)
             dir_ = QtCore.QDir(path)
@@ -599,8 +606,10 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             self.pick_root_widget.setStyleSheet(
                 'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb()))
         else:
-            stylesheet = 'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
-            stylesheet += 'background-color: rgba({},{},{},{});'.format(*common.FAVOURITE.getRgb())
+            stylesheet = 'color: rgba({},{},{},{});'.format(
+                *common.TEXT.getRgb())
+            stylesheet += 'background-color: rgba({},{},{},{});'.format(
+                *common.FAVOURITE.getRgb())
             self.pick_root_widget.setStyleSheet(stylesheet)
 
         path = '{}:  {} assets'.format(path, count)
@@ -610,7 +619,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         """Triggered when the pick_job_widget selection changes."""
         self._root = None
         stylesheet = 'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
-        stylesheet += 'background-color: rgba({},{},{},{});'.format(*common.FAVOURITE.getRgb())
+        stylesheet += 'background-color: rgba({},{},{},{});'.format(
+            *common.FAVOURITE.getRgb())
 
         self.pick_root_widget.setStyleSheet(stylesheet)
         self.pick_root_widget.setText('Pick bookmark folder')
@@ -629,19 +639,21 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         """Sets the initial values in the widget."""
         self._add_servers()
 
+        local_paths = path_monitor.get_active_paths()
+
         # Select the currently active server
-        if local_settings.value('activepath/server'):
+        if local_paths['server']:
             idx = self.pick_server_widget.findData(
-                local_settings.value('activepath/server'),
+                local_paths['server'],
                 role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )
             self.pick_server_widget.setCurrentIndex(idx)
 
         # Select the currently active server
-        if local_settings.value('activepath/job'):
+        if local_paths['job']:
             idx = self.pick_job_widget.findData(
-                local_settings.value('activepath/job'),
+                local_paths['job'],
                 role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )

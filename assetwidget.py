@@ -14,7 +14,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
@@ -23,81 +22,18 @@ from mayabrowser.listbase import BaseListWidget
 import mayabrowser.editors as editors
 
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings
+from mayabrowser.configparsers import local_settings, path_monitor
 from mayabrowser.configparsers import AssetSettings
 from mayabrowser.collector import AssetCollector
 from mayabrowser.delegate import AssetWidgetDelegate
 
 
 class AssetWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with the AssetWidget.
-    """
+    """Context menu associated with the AssetWidget."""
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_refresh_menu()
 
-    def add_actions(self):
-        if self.index.isValid():
-            self.add_action_set(self.VALID_ACTION_SET)
-            self.add_copy_menu()
-        self.add_action_set(self.INVALID_ACTION_SET)
-
-    @property
-    def VALID_ACTION_SET(self):
-        """A custom set of actions to display."""
-        items = OrderedDict()
-        item = self.parent().itemFromIndex(self.index)
-
-        archived = item.flags() & configparser.MarkedAsArchived
-        favourite = item.flags() & configparser.MarkedAsFavourite
-
-        items['Activate'] = {}
-        items['<separator>.'] = {}
-        items['Capture thumbnail'] = {}
-        items['Remove thumbnail'] = {}
-        items['<separator>..'] = {}
-        items['Favourite'] = {
-            'checkable': True,
-            'checked': bool(favourite)
-        }
-        items['Archived'] = {
-            'checkable': True,
-            'checked': bool(archived)
-        }
-        items['<separator>...'] = {}
-        items['Show in explorer'] = {}
-        return items
-
-    @property
-    def INVALID_ACTION_SET(self):
-        items = OrderedDict()
-        items['Show archived'] = {
-            'checkable': True,
-            'checked': self.parent().show_archived_mode
-        }
-        items['Isolate favourites'] = {
-            'checkable': True,
-            'checked': self.parent().show_favourites_mode
-        }
-        items['<separator>.....'] = {}
-        items['Refresh'] = {}
-        return items
-
-    def activate(self):
-        """Sets the current item as ``active``."""
-        self.parent().set_current_item_as_active()
-
-    def capture_thumbnail(self):
-        self.parent().capture_thumbnail()
-
-    def remove_thumbnail(self):
-        self.parent().remove_thumbnail()
-
-    def show_in_explorer(self):
-        self.parent().reveal_folder('')
-
-    def refresh(self):
-        self.parent().refresh()
 
 
 class AssetWidget(BaseListWidget):
@@ -110,9 +46,6 @@ class AssetWidget(BaseListWidget):
         path (tuple[str, str, str]):    Sets the path to search for assets.
 
     """
-    ContextMenu = AssetWidgetContextMenu
-    Delegate = AssetWidgetDelegate
-
     def __init__(self, parent=None):
         super(AssetWidget, self).__init__(
             (local_settings.value('activepath/server'),
@@ -128,17 +61,16 @@ class AssetWidget(BaseListWidget):
 
     def set_current_item_as_active(self):
         """Sets the current item item as ``active`` and
-        emits the ``activated`` signal.
+        emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
 
         """
         super(AssetWidget, self).set_current_item_as_active()
-
-        # Updating the local config file
         file_info = QtCore.QFileInfo(self.currentItem().data(common.PathRole))
         local_settings.setValue('activepath/asset', file_info.baseName())
         local_settings.setValue('activepath/file', None)
 
         self.activeAssetChanged.emit(file_info.baseName())
+        self.activeFileChanged.emit(None)
 
     def add_items(self):
         """Retrieves the assets found by the AssetCollector and adds them as
@@ -154,71 +86,63 @@ class AssetWidget(BaseListWidget):
             self.fileSystemWatcher.removePath(path)
         self.clear()
 
-        if not any(self.path):
+        active_paths = path_monitor.get_active_paths()
+        if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
             return
 
-        err_one = 'An error occured when trying to collect the assets.\n\n{}'
+        path = '/'.join((active_paths['server'], active_paths['job'], active_paths['root']))
 
-        try:
-            collector = AssetCollector('/'.join(self.path))
-            self.fileSystemWatcher.addPath('/'.join(self.path))
-        except IOError as err:
-            return QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                'Error',
-                err_one.format(err.message)
-            ).exec_()
-        except Exception as err:
-            return QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                'Error',
-                err_one.format(err.message)
-            ).exec_()
-
+        self.fileSystemWatcher.addPath(path)
+        collector = AssetCollector(path, parent=self)
         items = collector.get_items(
-            key=self.sort_order(),
-            reverse=self.is_reversed(),
-            path_filter=self.filter()
+            key=self.get_item_sort_order(),
+            reverse=self.is_item_sort_reversed(),
+            path_filter=self.get_item_filter()
         )
 
         for file_info in items:
             item = QtWidgets.QListWidgetItem()
             settings = AssetSettings(file_info.filePath())
 
+            # Qt Roles
             item.setData(QtCore.Qt.DisplayRole, file_info.baseName())
-            item.setData(QtCore.Qt.EditRole,
-                         item.data(QtCore.Qt.DisplayRole))
-
+            item.setData(QtCore.Qt.EditRole, item.data(QtCore.Qt.DisplayRole))
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
 
             tooltip = u'{}\n\n'.format(file_info.baseName().upper())
-            tooltip += u'{}\n'.format(self._path[1].upper())
-            tooltip += u'{}\n\n'.format(self._path[2].upper())
+            tooltip += u'{}\n'.format(active_paths['server'].upper())
+            tooltip += u'{}\n\n'.format(active_paths['job'].upper())
             tooltip += u'{}'.format(file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
-
-            item.setData(common.PathRole, file_info.filePath())
-
             item.setData(
                 QtCore.Qt.SizeHintRole,
                 QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT))
 
+            # Custom roles
+            item.setData(common.PathRole, file_info.filePath())
+            item.setData(common.ParentRole, (
+                active_paths['server'],
+                active_paths['job'],
+                active_paths['root'],
+                file_info.baseName(),
+                None))
             item.setData(common.DescriptionRole, settings.value(
                 'config/description'))
 
             # Todos
             todos = settings.value('config/todos')
             if todos:
-                todos = len([k for k in todos if not todos[k]
+                count = len([k for k in todos if not todos[k]
                              ['checked'] and todos[k]['text']])
-                item.setData(common.TodoCountRole, todos)
             else:
-                item.setData(common.TodoCountRole, 0)
+                count = 0
+            item.setData(common.TodoCountRole, count)
+            item.setData(common.FileDetailsRole, file_info.size())
+            item.setData(common.FileModeRole, None)
 
-            # Archived
+            # Flags
             if settings.value('config/archived'):
                 item.setFlags(item.flags() | configparser.MarkedAsArchived)
-
             # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
@@ -227,6 +151,7 @@ class AssetWidget(BaseListWidget):
 
             if file_info.baseName() == local_settings.value('activepath/asset'):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
+            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
             self.addItem(item)
 
@@ -440,8 +365,8 @@ class AssetWidget(BaseListWidget):
 
     def _warning_strings(self):
         """Custom warning strings to paint."""
-        server, job, root = self.path
-        file_info = QtCore.QFileInfo('{}/{}/{}'.format(*self.path))
+        active_paths = path_monitor.get_active_paths()
+        file_info = QtCore.QFileInfo('{}/{}/{}'.format(active_paths['server'], active_paths['job'], active_paths['root']))
 
         warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
         warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'
@@ -449,17 +374,17 @@ class AssetWidget(BaseListWidget):
         warning_four = 'The active bookmark ({}/{}/{}) does not contain any assets...yet.'
         warning_five = '{} items are hidden by filters'
 
-        if not all(self.path):
+        if not all((active_paths['server'], active_paths['job'], active_paths['root'])):
             return warning_one
-        if not any(self.path):
+        if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
             return warning_two.format(
-                server, job, root
+                active_paths['server'], active_paths['job'], active_paths['root']
             )
         if not file_info.exists():
-            return warning_three.format('/'.join(self.path))
+            return warning_three.format('/'.join((active_paths['server'], active_paths['job'], active_paths['root'])))
 
         if not self.count():
-            return warning_four.format(*self.path)
+            return warning_four.format(active_paths['server'], active_paths['job'], active_paths['root'])
 
         if self.count() > self.count_visible():
             return warning_five.format(
@@ -475,7 +400,6 @@ class AssetWidget(BaseListWidget):
 
         """
         if event.type() == QtCore.QEvent.Paint:
-            self._paint_widget_background()
             self.paint_message(self._warning_strings())
         return False
 

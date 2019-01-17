@@ -16,6 +16,7 @@ getConfigPath() or getThumbnailPath().
 
 
 import re
+import collections
 from PySide2 import QtCore
 
 
@@ -26,6 +27,78 @@ MarkedAsActive = 0b10000000000
 
 COMPANY = 'Glassworks'
 APPLICATION = 'Browser'
+
+
+class ActivePathMonitor(QtCore.QObject):
+    """Utility class to help monitor active path changes.
+    When a path-change is detected, the activeChanged signal is emited.
+
+    """
+    # Signals
+    activeChanged = QtCore.Signal(collections.OrderedDict)
+
+    def __init__(self, parent=None):
+        super(ActivePathMonitor, self).__init__(parent=parent)
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(2000)
+        self.timer.timeout.connect(self.update_path)
+
+        self.active_path = ActivePathMonitor.get_active_path()
+
+    @staticmethod
+    def get_active_paths():
+        """Returns the currently set ``active`` paths as a dictionary.
+        Before returning the values we validate wheather the
+        saved path refers to an existing folder. The invalid items will be unset.
+
+        Note:
+            When the path is fully set it is made up of
+            `server`/`job`/`root`/`asset`/`file` elements.
+
+        Returns:
+            OrderedDict: Object containing the set active path items.
+
+        """
+        d = collections.OrderedDict()
+        d['server'] = local_settings.value('activepath/server')
+        d['job'] = local_settings.value('activepath/job')
+        d['root'] = local_settings.value('activepath/root')
+        d['asset'] = local_settings.value('activepath/asset')
+        d['file'] = local_settings.value('activepath/file')
+
+        # Checking whether the active-path actually exists
+        path = ''
+        for k in d:
+            path += '{}/'.format(d[k])
+            if not QtCore.QFileInfo(path).exists():
+                local_settings.setValue('activepath/{}'.format(k), None)
+                d[k] = None
+        return d
+
+    @staticmethod
+    def get_active_path():
+        """Returns the currently set ``active`` path as a string.
+
+        Returns:
+            str or None: The currently set active path.
+
+        """
+        path = ''
+        active_path = ActivePathMonitor.get_active_paths()
+        for k in active_path:
+            if not active_path[k]:
+                break
+            path += '{}/'.format(active_path[k])
+        return path if path else None
+
+    def update_path(self):
+        active_path = ActivePathMonitor.get_active_paths()
+        for k in active_path:
+            if self.active_path[k] == active_path[k]:
+                continue
+            self.active_path = active_path
+            self.activeChanged.emit(active_path)
+            print '# update_path()'
 
 
 class LocalSettings(QtCore.QSettings):
@@ -42,6 +115,7 @@ class LocalSettings(QtCore.QSettings):
         activepath/file:    The relative path of the `active` file.
 
     """
+
     def __init__(self, parent=None):
         super(LocalSettings, self).__init__(
             QtCore.QSettings.UserScope,
@@ -72,6 +146,7 @@ class AssetSettings(QtCore.QSettings):
     ``[asset root]/.browser`` folder.
 
     """
+
     def __init__(self, path, parent=None):
         self._path = path
         super(AssetSettings, self).__init__(
@@ -121,9 +196,5 @@ class AssetSettings(QtCore.QSettings):
 
 
 local_settings = LocalSettings()
+path_monitor = ActivePathMonitor()
 """An instance of the local configuration created when loading this module."""
-
-if __name__ == '__main__':
-    setting = AssetSettings('//gordo/jobs/tkwwbk_8077/build/2d_hair')
-    # setting.setValue('config/description', 'Test note')
-    print setting.value('config/description')

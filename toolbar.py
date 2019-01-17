@@ -180,8 +180,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         # Create layout
         self._createUI()
 
-        pixmap = common.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-
+        pixmap = common.get_rsc_pixmap('custom_thumbnail', common.FAVOURITE, 24)
         self.locationsWidget = BookmarksWidget()
         self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
         self.assetsWidget = AssetWidget()
@@ -215,7 +214,11 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
     def setThumbnail(self, path, opacity=1, size=common.ROW_BUTTONS_HEIGHT):
         """Sets the given path as the thumbnail of the asset."""
-        pixmap = common.get_thumbnail_pixmap(path, opacity=opacity, size=size)
+        image = QtGui.QImage()
+        image.load(path)
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
+        
         self.asset_thumbnail.setPixmap(pixmap)
 
     def sizeHint(self):

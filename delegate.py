@@ -863,45 +863,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setPen(QtCore.Qt.NoPen)
 
         if hover:
-            path = '{}/rsc/bookmark_add_hover.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
+            pixmap = common.get_rsc_pixmap('bookmark_add', common.TEXT, option.rect.height())
         else:
-            path = '{}/rsc/bookmark_add.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
-
-        # Thumbnail image
-        if path in common.IMAGE_CACHE:
-            image = common.IMAGE_CACHE[path]
-        else:
-            image = QtGui.QImage()
-            image.load(path)
-            image = common.resize_image(
-                image,
-                option.rect.height()
-            )
-            common.IMAGE_CACHE[path] = image
-
-        # Factoring aspect ratio in
-        longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / longer)
-        if image.rect().width() < image.rect().height():
-            rect.setWidth(float(image.rect().width()) * factor)
-        else:
-            rect.setHeight(float(image.rect().height()) * factor)
-
-        rect.moveLeft(
-            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
-        )
-        rect.moveTop(
-            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
-        )
-
-        painter.drawImage(
+            pixmap = common.get_rsc_pixmap('bookmark_add', common.SELECTION, option.rect.height())
+        painter.drawPixmap(
             rect,
-            image,
-            image.rect()
+            pixmap,
+            pixmap.rect()
         )
 
         painter.restore()
@@ -925,12 +893,15 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.drawRect(rect)
 
         if active:
-            pixmap = common.get_rsc_pixmap('bookmark', common.SELECTION, rect.height())
+            pixmap = common.get_rsc_pixmap(
+                'bookmark', common.SELECTION, rect.height())
         else:
             if favourite:
-                pixmap = common.get_rsc_pixmap('bookmark', common.FAVOURITE, rect.height())
+                pixmap = common.get_rsc_pixmap(
+                    'bookmark', common.FAVOURITE, rect.height())
             else:
-                pixmap = common.get_rsc_pixmap('bookmark', common.SECONDARY_TEXT, rect.height())
+                pixmap = common.get_rsc_pixmap(
+                    'bookmark', common.SECONDARY_TEXT, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -945,14 +916,15 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, _, _, _ = args
         painter.save()
 
-        rect, font, metrics = self.get_text_area(option.rect, common.PRIMARY_FONT)
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
 
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        _, _, _, count = index.data(QtCore.Qt.UserRole)
-        if not count:
+        # Count
+        if not index.data(common.FileDetailsRole):
             color = self.get_state_color(option, index, common.SECONDARY_TEXT)
         else:
             color = self.get_state_color(option, index, common.TEXT)
@@ -977,7 +949,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def _get_root_text(self, item, rect, metrics):
         """Gets the text for drawing the root."""
-        _, _, root, count = item.data(QtCore.Qt.UserRole)
+        _, _, root, _, _ = item.data(common.ParentRole)
+        count = item.data(common.FileDetailsRole)
+
         text = re.sub(r'[_]+', ' ', root.upper())
         if count:
             text = '{}  |  {} assets'.format(text, count)
@@ -989,7 +963,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def _get_longest_root_width(self, rect, metrics):
         # Finding the longest root string
-        width = [0,]
+        width = [0, ]
         for n in xrange(self.parent().count()):
             try:
                 item = self.parent().item(n)
@@ -1012,10 +986,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
             QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
-        _, _, _, count = index.data(QtCore.Qt.UserRole)
+        count = index.data(common.FileDetailsRole)
 
-
-        rect, font, metrics = self.get_text_area(option.rect, common.PRIMARY_FONT)
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
 
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
@@ -1023,7 +997,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         width = self._get_longest_root_width(rect, metrics)
 
-        text = self._get_root_text(self.parent().itemFromIndex(index), rect, metrics)
+        text = self._get_root_text(
+            self.parent().itemFromIndex(index), rect, metrics)
 
         rect.setLeft(rect.left() + (rect.width() - metrics.width(text)))
 

@@ -397,3 +397,15 @@ TodoEditorWidget {{
 		color: rgba({SELECTION});
 		background-color: rgba(230,230,230,255);
 	}}
+
+	AddBookmarkWidget {{
+			background-color: rgba(150,150,150,255);
+			color: rgba({SECONDARY_TEXT});
+			border-width: 1px;
+			border: none;
+			margin: 0px;
+			padding: 0px;
+			outline: 0;
+			font-family: {fontFamily};
+			font-size: {fontSize}pt;
+		}}

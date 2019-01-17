@@ -9,7 +9,6 @@ It also contains the methods used to set our custom stylesheet.
 
 """
 
-
 import os
 import random
 import re
@@ -29,14 +28,14 @@ ASSET_IDENTIFIER = 'workspace.mel'
 """When with the given name is present in the root of a folder, it will be
 considered an ``assets``."""
 
-ASSET_FOLDERS = {
-    'exports': 'exports',
-    'scenes': 'scenes',
-    'renders': 'renders'
-}
+
+ExportsFolder = 'exports'
+ScenesFolder ='scenes'
+RendersFolder = 'renders'
+
 """``Assets`` are directory structures compartmentalizing data. ``Browser``
 is designed to read and annote ``scene``, ``cache`` (exports) and
-``rendere`` files.
+``render`` files.
 
 Depending on your setup these folder might have different names you can
 customize here. Browser will assume all of these folder reside in the root of
@@ -44,23 +43,25 @@ the ``asset`` folder.
 """
 
 # Extending the
-PathRole = 0x02000  # Role used to store FileInfo items
-"""Special role used to store QFileInfo objects."""
-DescriptionRole = 0x03000  # Role used to store FileInfo items
-"""Special role used to store QFileInfo objects."""
-TodoCountRole = 0x04000  # Role used to store FileInfo items
-"""Special role used to store the count of todos."""
-FileDetailsRole = 0x05000  # Role used to store FileInfo items
-"""Special role used to store the count of todos."""
-FileModeRole = 0x06000  # Role used to store FileInfo items
-"""Special role used to store the count of todos."""
+PathRole = 1024
+"""Role used to store the path of the item."""
+ParentRole = 1025
+"""Role used to store the paths the item is associated with."""
+DescriptionRole = 1026
+"""Role used to store the description of the item."""
+TodoCountRole = 1027
+"""Asset role used to store the number of todos."""
+FileDetailsRole = 1028
+"""Special role used to save the information string of a file."""
+FileModeRole = 1029
+"""Role used to save the mode (subfolder) of the current file."""
 
 
-"""Item sorting flags"""
 SortByName = 0
 SortByLastModified = 1
 SortByLastCreated = 2
 SortBySize = 3
+"""Item sort flags"""
 
 
 def sort_alphanum_key(key):
@@ -130,53 +131,12 @@ TEXT_WARNING = SECONDARY_TEXT
 SEPARATOR = QtGui.QColor(58, 58, 58)
 
 SELECTION = QtGui.QColor(100, 161, 255)
-FAVOURITE = QtGui.QColor(233, 89, 92)
+FAVOURITE = QtGui.QColor(140, 120, 233)
 ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 
 PRIMARY_FONT = 0
 SECONDARY_FONT = 1
 TERCIARY_FONT = 2
-
-
-def get_thumbnail_pixmap(path, opacity=1.0, size=(ROW_BUTTONS_HEIGHT)):
-    """Loads the given file as a QPixmap.
-
-
-    Args:
-        path (str):        The path to the image-file to load.
-        opacity (float):   Transparency value between 1.0 and 0.0.
-        size (int):        Size of the image.
-
-    Returns:
-        QPixmap: The loaded image as a QPixmap.
-
-    """
-    file_ = QtCore.QFileInfo(path)
-    if not file_.exists():
-        return QtGui.QPixmap()
-
-    image = QtGui.QImage()
-    image.load(file_.filePath())
-
-    if image.isNull():
-        return QtGui.QPixmap()
-
-    image = resize_image(image, size)
-    pixmap = QtGui.QPixmap()
-    pixmap.convertFromImage(image)
-
-    # Setting transparency
-    image = QtGui.QImage(
-        pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
-    image.fill(QtCore.Qt.transparent)
-    painter = QtGui.QPainter(image)
-    painter.setOpacity(opacity)
-    painter.drawPixmap(0, 0, pixmap)
-    painter.end()
-    pixmap = QtGui.QPixmap()
-    pixmap.convertFromImage(image)
-
-    return pixmap
 
 
 def move_widget_to_available_geo(widget):
@@ -399,28 +359,6 @@ def revert_labels():
     colors = label_generator()
 
 
-def _custom_thumbnail():
-    """The path to the custom thumbnail."""
-    return os.path.join(
-        __file__,
-        os.pardir,
-        'thumbnails/custom_thumbnail.png'
-    )
-
-
-def _maya_thumbnail():
-    """The path to the custom thumbnail."""
-    return os.path.join(
-        __file__,
-        os.pardir,
-        'thumbnails/maya.png'
-    )
-
-
-CUSTOM_THUMBNAIL = _custom_thumbnail()
-PLACEHOLDER = _maya_thumbnail()
-
-
 def resize_image(image, size):
     """Returns a scaled copy of the image fitting inside the square of ``size``.
 
@@ -465,7 +403,7 @@ def get_color_average(image):
     return average_color
 
 
-def get_rsc_pixmap(name, color, size):
+def get_rsc_pixmap(name, color, size, opacity=1.0):
     """Loads a rescoure image and returns it as a re-sized and coloured QPixmap.
 
     Args:
@@ -477,6 +415,11 @@ def get_rsc_pixmap(name, color, size):
         QPixmap: The loaded image
 
     """
+    k = '{name}:{size}:{color}'.format(
+        name=name, size=size, color=color.name())
+    if k in IMAGE_CACHE:
+        return IMAGE_CACHE[k]
+
     path = QtCore.QFileInfo(__file__)
     path = path.dir()
     path = '{}/rsc/{}.png'.format(path.path(), name)
@@ -491,11 +434,6 @@ def get_rsc_pixmap(name, color, size):
     if image.isNull():
         return QtGui.QPixmap()
 
-    k = '{name}:{size}:{color}'.format(
-        name=name, size=size, color=color.name())
-    if k in IMAGE_CACHE:
-        return IMAGE_CACHE[k]
-
     painter = QtGui.QPainter()
     painter.begin(image)
     painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
@@ -506,6 +444,18 @@ def get_rsc_pixmap(name, color, size):
     image = resize_image(image, size)
     pixmap = QtGui.QPixmap()
     pixmap.convertFromImage(image)
+
+    # Setting transparency
+    if opacity < 1.0:
+        image = QtGui.QImage(
+            pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
+        image.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(image)
+        painter.setOpacity(opacity)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
 
     IMAGE_CACHE[k] = pixmap
     return IMAGE_CACHE[k]

@@ -17,14 +17,11 @@ import mayabrowser.common as common
 from mayabrowser.configparsers import local_settings
 
 
-class BaseCollector(object):
+class BaseCollector(QtCore.QObject):
     """Base class for collectors."""
 
-    ERR1 = 'The specified path ({}) could not be found.'
-    ERR2 = 'The specified path ({}) could not be read.\nCheck persmissions.'
-
-    def __init__(self, path=None):
-        self._path = path
+    def __init__(self, parent=None):
+        super(BaseCollector, self).__init__(parent=parent)
         self._count = 0
 
     @property
@@ -35,7 +32,6 @@ class BaseCollector(object):
     def item_generator(self):
         """Has to be overriden in the subclass."""
         raise NotImplementedError('generator is abstract.')
-
 
     def get_items(self, key=common.SortByName, reverse=False, path_filter='/'):
         """Sorts, filters and returns the items collected by the item_generator.
@@ -98,22 +94,13 @@ class AssetCollector(BaseCollector):
     """Collects ``assets`` from a specified path.
 
     Arguments:
-        path (str):             Path to an ``asset`` folder as a string.
+        path (str): A ``bookmark`` path.
 
     """
 
-    def __init__(self, path):
-        self._path = path
-        self._count = 0
-
-        err_one = 'The specified path ({}) could not be found.'
-        err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
-
-        file_info = QtCore.QFileInfo(self._path)
-        if not file_info.exists():
-            raise IOError(err_one.format(file_info.filePath()))
-        elif not file_info.isReadable():
-            raise IOError(err_two.format(file_info.filePath()))
+    def __init__(self, path, parent=None):
+        super(AssetCollector, self).__init__(parent=parent)
+        self.path = path
 
     def item_generator(self):
         """Generator expression. Collects files from the ``path`` and the subdirectories
@@ -125,7 +112,7 @@ class AssetCollector(BaseCollector):
         """
         self._count = 0  # Resetting the count
         it = QtCore.QDirIterator(
-            self._path,
+            self.path,
             flags=QtCore.QDirIterator.NoIteratorFlags,
             filters=QtCore.QDir.NoDotAndDotDot |
             QtCore.QDir.Dirs |
@@ -141,14 +128,13 @@ class AssetCollector(BaseCollector):
             if not file_info.isDir():
                 continue
 
-            # Validate assets and skip folders without the identifier
+            # Validate assets by skipping folders without the identifier file
             identifier = QtCore.QDir(path).entryList(
                 (common.ASSET_IDENTIFIER, ),
                 filters=QtCore.QDir.Files |
                 QtCore.QDir.NoDotAndDotDot |
                 QtCore.QDir.NoSymLinks
             )
-
             if not identifier:
                 continue
 
