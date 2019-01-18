@@ -17,8 +17,8 @@ The actual name of these folders can be customized in the ``common.py`` module.
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.listbase import BaseContextMenu
-from mayabrowser.listbase import BaseListWidget
+from mayabrowser.baselistwidget import BaseContextMenu
+from mayabrowser.baselistwidget import BaseListWidget
 import mayabrowser.editors as editors
 
 import mayabrowser.configparsers as configparser
@@ -30,7 +30,6 @@ from mayabrowser.delegate import AssetWidgetDelegate
 
 class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget."""
-
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
@@ -215,17 +214,18 @@ class AssetWidget(BaseListWidget):
                         self.toggle_archived(item=self.itemFromIndex(index))
                         break
                     elif n == 2:
-                        self.reveal_folder('')
+                        path = index.data(QtCore.Qt.StatusTipRole)
+                        common.reveal(path)
                     elif n == 3:
                         self.show_todos()
-
-        super(AssetWidget, self).mouseReleaseEvent(event)
 
         self.multi_toggle_pos = None
         self.multi_toggle_state = None
         self.multi_toggle_idx = None
         self.multi_toggle_item = None
         self.multi_toggle_items = {}
+
+        super(AssetWidget, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         """Multi-toggle is handled here."""
@@ -351,21 +351,6 @@ class AssetWidget(BaseListWidget):
                 url = url.fromLocalFile(
                     item.data(common.PathRole))
                 QtGui.QClipboard().setText(url.toString())
-
-    def reveal_folder(self, name):
-        """Reveals the specified folder in the file explorer.
-
-        Args:
-            name (str): A relative path or the folder's name.
-
-        """
-        item = self.currentItem()
-        path = '{}/{}'.format(
-            item.data(QtCore.Qt.StatusTipRole),
-            name
-        )
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
 
     def _warning_strings(self):
         """Custom warning strings to paint."""

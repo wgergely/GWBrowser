@@ -26,10 +26,10 @@ Base list widget
 ----------------
 
 
-.. automodule:: mayabrowser.listbase.BaseContextMenu
+.. automodule:: mayabrowser.baselistwidget.BaseContextMenu
 
 
-.. automodule:: mayabrowser.listbase.BaseListWidget
+.. automodule:: mayabrowser.baselistwidget.BaseListWidget
   :members:
 
 

@@ -340,6 +340,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.create_menu(menu_set)
 
     def add_thumbnail_menu(self):
+        """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
                     'capture_thumbnail', common.SECONDARY_TEXT, 18.0)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
@@ -348,6 +349,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                     'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
         revomove_thumbnail_pixmap = common.get_rsc_pixmap(
                     'todo_remove', common.FAVOURITE, 18.0)
+        show_thumbnail = common.get_rsc_pixmap(
+                    'active', common.FAVOURITE, 18.0)
 
         menu_set = collections.OrderedDict()
         key = 'Thumbnail'
@@ -355,23 +358,34 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = capture_thumbnail_pixmap
 
-        menu_set[key]['Capture'] = {
+        settings = AssetSettings(self.index.data(common.PathRole))
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+            menu_set[key]['Show thumbnail'] = {
+            'icon': show_thumbnail,
+            'action': functools.partial(
+                    editors.ThumbnailViewer,
+                    self.index,
+                    parent=self.parent()
+                )
+            }
+            menu_set[key]['separator'] = {}
+        menu_set[key]['Capture new'] = {
             'icon': capture_thumbnail_pixmap,
             'action': self.parent().capture_thumbnail
         }
-        menu_set[key]['Pick'] = {
+        menu_set[key]['Pick new'] = {
             'icon': pick_thumbnail_pixmap,
             'action': functools.partial(
                 editors.ThumbnailEditor,
                 self.index
             )
         }
-        menu_set[key]['separator'] = {}
-        menu_set[key]['Remove'] = {
-            'action': self.parent().remove_thumbnail,
-            'icon': revomove_thumbnail_pixmap
-        }
-
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+            menu_set[key]['separator.'] = {}
+            menu_set[key]['Remove'] = {
+                'action': self.parent().remove_thumbnail,
+                'icon': revomove_thumbnail_pixmap
+            }
 
         self.create_menu(menu_set)
 
@@ -501,6 +515,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         super(BaseListWidget, self).__init__(parent=parent)
         # The timer used to check for changes in the active path
         self._path = path
+        
         self._context_menu_cls = BaseContextMenu
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
 

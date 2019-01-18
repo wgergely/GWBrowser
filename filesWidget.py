@@ -10,8 +10,8 @@ import functools
 from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from mayabrowser.listbase import BaseContextMenu
-from mayabrowser.listbase import BaseListWidget
+from mayabrowser.baselistwidget import BaseContextMenu
+from mayabrowser.baselistwidget import BaseListWidget
 
 import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
@@ -23,180 +23,10 @@ from mayabrowser.delegate import FilesWidgetDelegate
 
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with FilesWidget."""
-
-    def __init__(self, *args, **kwargs):
-        super(FilesWidgetContextMenu, self).__init__(*args, **kwargs)
-        self.filter_actions = []
-
-    def filter_changed(self, action):
-        self.parent().filter = action.data()
-
-        for _action in self.filter_actions:
-            _action.setChecked(False)
-        action.setChecked(True)
-
-        self.refresh()
-
-    def add_mode_filters(self):
-        """Adds a menu to set the filter for the collector based on the
-        subdirectories found.
-
-        """
-        self.filter_actions = []
-
-        submenu = self.addMenu('Filter by type')
-        pixmap = QtGui.QPixmap(64, 64)
-        pixmap.fill(QtGui.QColor(200, 200, 200))
-        submenu.setIcon(QtGui.QIcon(pixmap))
-
-        action = submenu.addAction('Show all items')
-        self.filter_actions.append(action)
-
-        action.setCheckable(True)
-        action.setData('/')
-        action.triggered.connect(
-            functools.partial(self.filter_changed, action))
-
-        submenu.addSeparator()
-        for label in sorted(common.ASSIGNED_LABELS.keys()):
-            pixmap = QtGui.QPixmap(64, 64)
-            pixmap.fill(common.ASSIGNED_LABELS[label])
-            icon = QtGui.QIcon(pixmap)
-
-            action = submenu.addAction(label.title())
-            action.setIcon(icon)
-            action.setCheckable(True)
-            action.setData(label.lower())
-            action.triggered.connect(
-                functools.partial(self.filter_changed, action))
-            self.filter_actions.append(action)
-
-        # Check the current item
-        for _action in self.filter_actions:
-            if _action.data() == self.parent().filter:
-                _action.setChecked(True)
-
-        self.addSeparator()
-
-    def add_actions(self):
-        self.add_mode_filters()
-        self.add_action_set(self.ActionSet)
-
-    @property
-    def ActionSet(self):
-        """List of custom actions to show in the context menu."""
-        items = OrderedDict()
-        if self.index.isValid():
-            data = self.index.data(QtCore.Qt.StatusTipRole)
-            name = QtCore.QFileInfo(data).fileName()
-            config = self.parent().Config(
-                self.index.data(QtCore.Qt.StatusTipRole))
-
-            items['Favourite'] = {
-                'checkable': True,
-                'checked': local_settings.is_favourite(name)
-            }
-            items['Isolate favourites'] = {
-                'checkable': True,
-                'checked': self.parent().show_favourites_mode
-            }
-            items['<separator> 0'] = {}
-            items['Capture thumbnail'] = {}
-            items['<separator> 1'] = {}
-            items['Sort:'] = {'disabled': True}
-            items['Alphabetical'] = {
-                'checkable': True,
-                'checked': (self.parent().sort_order == 0)
-            }
-            items['Last modified'] = {
-                'checkable': True,
-                'checked': (self.parent().sort_order == 1)
-            }
-            items['Created'] = {
-                'checkable': True,
-                'checked': (self.parent().sort_order == 2)
-            }
-            items['Size'] = {
-                'checkable': True,
-                'checked': (self.parent().sort_order == 3)
-            }
-            items['Reverse'] = {
-                'checkable': True,
-                'checked': (self.parent().reverse_mode is True)
-            }
-            items['<separator> 2'] = {}
-            items['Open scene'] = {}
-            items['Import as local'] = {}
-            items['Import as reference'] = {}
-            items['<separator> 3'] = {}
-            items['Open in Maya instance'] = {}
-            items['<separator> 4'] = {}
-            items['Reveal scene in explorer'] = {}
-            items['<separator> 5'] = {}
-            items['Archived'] = {
-                'checkable': True,
-                'checked': config.archived
-            }
-        items['Show archived'] = {
-            'checkable': True,
-            'checked': self.parent().show_archived_mode
-        }
-        items['Isolate favourites'] = {
-            'checkable': True,
-            'checked': self.parent().show_favourites_mode
-        }
-        items['<separator> 6'] = {}
-        items['Refresh'] = {}
-        return items
-
-    def capture_thumbnail(self):
-        self.parent().capture_thumbnail()
-
-    def alphabetical(self):
-        self.parent().set_sort_order(0, self.parent().reverse_mode)
-
-    def last_modified(self):
-        self.parent().set_sort_order(1, self.parent().reverse_mode)
-
-    def created(self):
-        self.parent().set_sort_order(2, self.parent().reverse_mode)
-
-    def size(self):
-        self.parent().set_sort_order(3, self.parent().reverse_mode)
-
-    def reverse(self):
-        self.parent().set_sort_order(
-            self.parent().sort_order,
-            not self.parent().reverse_mode
-        )
-
-    def open_scene(self):
-        self.parent().action_on_enter_key()
-
-    def open_in_maya_instance(self):
-        item = self.parent().currentItem()
-        path = item.data(QtCore.Qt.StatusTipRole)
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
-
-    def import_as_local(self):
-        item = self.parent().currentItem()
-        path = item.data(QtCore.Qt.StatusTipRole)
-        self.parent().import_scene(path)
-
-    def import_as_reference(self):
-        item = self.parent().currentItem()
-        path = item.data(QtCore.Qt.StatusTipRole)
-        self.parent().import_referenced_scene(path)
-
-    def reveal_scene_in_explorer(self):
-        item = self.parent().currentItem()
-        info = QtCore.QFileInfo(item.data(QtCore.Qt.StatusTipRole))
-        url = QtCore.QUrl.fromLocalFile(info.dir().path())
-        QtGui.QDesktopServices.openUrl(url)
-
-    def refresh(self):
-        self.parent().refresh()
+    def __init__(self, index, parent=None):
+        super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_thumbnail_menu()
+        self.add_refresh_menu()
 
 
 class FilesWidget(BaseListWidget):
@@ -210,20 +40,15 @@ class FilesWidget(BaseListWidget):
     Signals:
 
     """
-
-    Delegate = FilesWidgetDelegate
-    ContextMenu = FilesWidgetContextMenu
-
     # Signals
     fileOpened = QtCore.Signal(str)
     fileSaved = QtCore.Signal(str)
     fileImported = QtCore.Signal(str)
     fileReferenced = QtCore.Signal(str)
 
-    fileChanged = QtCore.Signal(str)
-
     def __init__(self, parent=None):
-        super(FilesWidget, self).__init__(parent=parent)
+        super(FilesWidget, self).__init__(
+        parent=parent)
         self._path = (
             local_settings.value('activepath/server'),
             local_settings.value('activepath/job'),
@@ -231,89 +56,9 @@ class FilesWidget(BaseListWidget):
             local_settings.value('activepath/asset')
         )
         self.setWindowTitle('Files')
+        self.setItemDelegate(FilesWidgetDelegate(parent=self))
+        self._context_menu_cls = FilesWidgetContextMenu
 
-    def set_sort_order(self, sort_order, reverse_mode):
-        """Sets the sorting order of the collector.
-
-        Args:
-            sort_order (int):        The mode between 0 and 4. See ``FilesCollector``.
-            reverse_mode (bool):    Reverse list
-
-        """
-        self.sort_order = sort_order
-        self.reverse_mode = reverse_mode
-        self.add_items()
-        self.set_item_visibility()
-
-    def action_on_enter_key(self):
-        """Action to perform when the enter key is pressed."""
-        self.hide()
-        self.active_item = self.currentItem()
-        self.open_scene(self.currentItem().data(QtCore.Qt.StatusTipRole))
-        self.sceneChanged.emit()
-
-    def mouseDoubleClickEvent(self, event):
-        """Opens the scene on double-click."""
-        self.action_on_enter_key()
-
-    def action_on_custom_keys(self, event):
-        """Custom keyboard shortcuts for the AssetsWidget are defined here.
-
-        **Implemented shortcuts**:
-        ::
-
-            Ctrl + C:           Copies the files's path to the clipboard.
-            Ctrl + Shift + C:   Copies the files's URI path to the clipboard.
-            Ctrl + O:           Opens the file.
-            Ctrl + I:           Imports the item locally.
-            Ctrl + R:           Imports the item as a reference.
-            Ctrl + F:           Toggles favourite.
-            Ctrl + Shift + F:   Toggles Isolate favourites.
-            Ctrl + A:           Toggles archived.
-            Ctrl + Shift + A:   Toggles Show archived.
-
-        """
-        item = self.currentItem()
-        if not item:
-            return
-        data = item.data(QtCore.Qt.StatusTipRole)
-
-        if event.modifiers() == QtCore.Qt.ControlModifier:
-            if event.key() == QtCore.Qt.Key_C:
-                path = os.path.normpath(data)
-                QtGui.QClipboard().setText(path)
-            elif event.key() == QtCore.Qt.Key_O:
-                self.action_on_enter_key()
-            elif event.key() == QtCore.Qt.Key_I:
-                self.import_scene(data)
-            elif event.key() == QtCore.Qt.Key_R:
-                self.import_referenced_scene(data)
-            elif event.key() == QtCore.Qt.Key_F:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.favourite()
-            elif event.key() == QtCore.Qt.Key_A:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.archived()
-        elif event.modifiers() & QtCore.Qt.ShiftModifier:
-            if event.key() == QtCore.Qt.Key_F:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.isolate_favourites()
-            elif event.key() == QtCore.Qt.Key_A:
-                self._contextMenu = self.ContextMenu(
-                    self.currentIndex(), parent=self)
-                self._contextMenu.show_archived()
-            elif event.key() == QtCore.Qt.Key_C:
-                url = QtCore.QUrl()
-                url = url.fromLocalFile(data)
-                QtGui.QClipboard().setText(url.toString())
-
-    def update_path(self, path):
-        """Updates the collector path querried."""
-        file_info = QtCore.QFileInfo(path)
-        self.collector.root_info = file_info
 
     def refresh(self):
         """Refreshes the list if files.

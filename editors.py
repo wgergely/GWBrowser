@@ -11,6 +11,86 @@ import mayabrowser.common as common
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import AssetSettings
 
+class ThumbnailViewer(QtWidgets.QLabel):
+    """Widget used to view a thumbnail."""
+
+    def __init__(self, index, parent=None):
+        super(ThumbnailViewer, self).__init__(parent=parent)
+        settings = AssetSettings(index.data(common.PathRole))
+        file_info = QtCore.QFileInfo(settings.thumbnail_path())
+
+        if not file_info.exists():
+            return
+
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint |
+            QtCore.Qt.CustomizeWindowHint |
+            QtCore.Qt.Tool
+        )
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+
+        self.setStyleSheet('background-color: rgba(50,50,50,50)')
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        # pixmap = common.cache_image(settings.thumbnail_path(), common.THUMBNAIL_IMAGE_SIZE)
+        pixmap = QtGui.QPixmap(settings.thumbnail_path())
+        self.setPixmap(pixmap)
+
+
+        # print pixmap.isValid()
+        self.show()
+
+    def paintEvent(self, event):
+        """Custom paint event"""
+        painter = QtGui.QPainter(self)
+
+        # Draw background. Aside from aesthetics, this makes the full
+        # tool region accept mouse events.
+        painter.setBrush(QtGui.QColor(0, 0, 0, 150))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(event.rect())
+
+        rect = self.pixmap().rect()
+
+
+        width = 2.0
+        rect.moveTop((event.rect().height() / 2.0) - width)
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.moveLeft((event.rect().width() / 2.0) - width)
+        rect.moveLeft(rect.left() - (rect.width() / 2.0))
+        rect.setWidth(rect.width() + (width * 1.5))
+        rect.setHeight(rect.height() + (width * 1.5))
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        pen = QtGui.QPen(common.SELECTION)
+        pen.setWidth(2.0)
+        painter.setPen(pen)
+        painter.drawRect(rect)
+
+        painter.end()
+        super(ThumbnailViewer, self).paintEvent(event)
+
+    def _fit_screen_geometry(self):
+        # Compute the union of all screen geometries, and resize to fit.
+        app = QtCore.QCoreApplication.instance()
+        rect = app.desktop().availableGeometry(self.parent())
+        self.setGeometry(rect)
+
+    def showEvent(self, event):
+        self._fit_screen_geometry()
+
+
+    def keyPressEvent(self, event):
+        self.close()
+
+    def mousePressEvent(self, event):
+        self.close()
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.close()
 
 class ThumbnailEditor(QtWidgets.QFileDialog):
     """Editor widget used by the Asset- and FileWidget delegateself.
@@ -22,9 +102,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
 
     def __init__(self, index, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
-
         settings = AssetSettings(index.data(common.PathRole))
-
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
@@ -37,20 +115,17 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
 
         if not self.exec_():
             return
-
         if not self.selectedFiles():
             return
 
-        # Saving the image
+        # Deleting old image
         common.delete_image(settings.thumbnail_path())
 
-        # Saving the thumbnail and creating the directories as necessary
+        # Saving the thumbnail
         image = QtGui.QImage()
         image.load(next(f for f in self.selectedFiles()))
         image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
-
         image.save(settings.thumbnail_path())
-
         common.delete_image(settings.thumbnail_path(), delete_file=False)
 
 

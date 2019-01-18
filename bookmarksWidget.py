@@ -18,8 +18,8 @@ import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.listbase import BaseContextMenu
-from mayabrowser.listbase import BaseListWidget
+from mayabrowser.baselistwidget import BaseContextMenu
+from mayabrowser.baselistwidget import BaseListWidget
 from mayabrowser.collector import BookmarksCollector
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings, path_monitor
@@ -125,10 +125,18 @@ class BookmarksWidget(BaseListWidget):
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""
         widget = AddBookmarkWidget(parent=self)
-        widget.show()
 
-        # pos = self.viewport().mapToGlobal(self.viewport().rect().topLeft())
-        # widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
+        app = QtCore.QCoreApplication.instance()
+        rect = app.desktop().availableGeometry(self)
+
+        widget.show()
+        widget.move(
+            (rect.width() / 2.0) - (self.width() / 2.0),
+            (rect.height() / 2.0) - (self.height())
+        )
+            # rect.center().x() - (self.width() / 2.0),
+            # rect.center().y() - (self.height() / 2.0)
+        # )
 
     def add_items(self):
         """Adds the bookmarks saved in the local_settings file to the widget."""

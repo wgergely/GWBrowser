@@ -227,7 +227,7 @@ def set_custom_stylesheet(widget):
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
         qss = qss.format(
-            fontFamily='Roboto',
+            fontFamily='Roboto Medium',
             fontSize=9,
             BACKGROUND='{},{},{},{}'.format(*BACKGROUND.getRgb()),
             BACKGROUND_SELECTED='{},{},{},{}'.format(
@@ -267,7 +267,7 @@ def cache_image(path, height, overwrite=False):
         height=height
     )
     if k in IMAGE_CACHE and not overwrite:
-        return
+        return IMAGE_CACHE[k]
 
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
@@ -487,7 +487,12 @@ def byte_to_string(num, suffix='B'):
 
 
 def reveal(path):
-    """Reveal the given path in the file manager."""
+    """Reveals the specified folder in the file explorer.
+
+    Args:
+        name (str): A relative path or the folder's name.
+
+    """
     url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)
 

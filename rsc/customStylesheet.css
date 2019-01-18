@@ -6,7 +6,7 @@ QWidget {{
 	margin: 0px;
 	padding: 0px;
 	outline: 0;
-	font-family: {fontFamily};
+	font-family: "{fontFamily}";
 	font-size: {fontSize}pt;
 }}
 
@@ -30,7 +30,7 @@ QWidget:window {{
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
-	font-family: {fontFamily};
+	font-family: "{fontFamily}";
 	font-size: 7pt;
 	margin: 0px;
 	padding: 0px;
@@ -218,7 +218,7 @@ QListWidget {{
 		margin: 0px;
 		padding: 0px;
 		background: rgba({SECONDARY_BACKGROUND});
-		font-family: {fontFamily};
+		font-family: "{fontFamily}";
 		font-size: 8pt;
 }}
 
@@ -301,7 +301,6 @@ QMenu {{
 		margin: 0;
 		color: rgba({TEXT});
 		font-size: 8.5pt;
-		font-family: {fontFamily};
     background-color: rgba({BACKGROUND}); /* sets background of the menu */
     border: none;
 		outline: none;
@@ -354,7 +353,7 @@ TodoEditorWidget {{
 		margin: 0px;
 		padding: 0px;
 		outline: 0;
-		font-family: {fontFamily};
+		font-family: "{fontFamily}";
 		font-size: {fontSize}pt;
 	}}
 
@@ -382,7 +381,6 @@ TodoEditorWidget {{
 		padding: 0px;
 		outline: 0;
 		color: rgba(0,0,0,255);
-		font-family: "Roboto Medium";
 		font-size: 10pt;
 	}}
 
@@ -417,6 +415,6 @@ TodoEditorWidget {{
 			margin: 0px;
 			padding: 0px;
 			outline: 0;
-			font-family: {fontFamily};
+			font-family: "{fontFamily}";
 			font-size: {fontSize}pt;
 		}}
