@@ -30,12 +30,11 @@ from mayabrowser.delegate import AssetWidgetDelegate
 
 class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget."""
+
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
         self.add_refresh_menu()
-
-
 
 
 class AssetWidget(BaseListWidget):
@@ -48,6 +47,7 @@ class AssetWidget(BaseListWidget):
         path (tuple[str, str, str]):    Sets the path to search for assets.
 
     """
+
     def __init__(self, parent=None):
         super(AssetWidget, self).__init__(
             (local_settings.value('activepath/server'),
@@ -92,7 +92,8 @@ class AssetWidget(BaseListWidget):
         if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
             return
 
-        path = '/'.join((active_paths['server'], active_paths['job'], active_paths['root']))
+        path = '/'.join((active_paths['server'],
+                         active_paths['job'], active_paths['root']))
 
         self.fileSystemWatcher.addPath(path)
         collector = AssetCollector(path, parent=self)
@@ -183,7 +184,6 @@ class AssetWidget(BaseListWidget):
         """Shows the ``TodoEditorWidget`` for the current item."""
         from mayabrowser.todoEditor import TodoEditorWidget
         index = self.currentIndex()
-        rect = self.visualRect(index)
         widget = TodoEditorWidget(index, parent=self)
         pos = self.mapToGlobal(self.rect().topLeft())
         widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
@@ -370,7 +370,8 @@ class AssetWidget(BaseListWidget):
     def _warning_strings(self):
         """Custom warning strings to paint."""
         active_paths = path_monitor.get_active_paths()
-        file_info = QtCore.QFileInfo('{}/{}/{}'.format(active_paths['server'], active_paths['job'], active_paths['root']))
+        file_info = QtCore.QFileInfo(
+            '{}/{}/{}'.format(active_paths['server'], active_paths['job'], active_paths['root']))
 
         warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
         warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'

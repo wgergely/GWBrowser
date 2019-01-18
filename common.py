@@ -1,11 +1,33 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
+"""Module used to define common variables and methods used across the project.
+
+Global Variables
+    The studio wide servers are defined here. These are hard-coded
+    variables that will depend on the context the program is usedself.
+    Make sure to customize these settings depending on your environment.
+
+    ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder
+    as an ``asset``. At Glassworks we're using the maya project structure so this is
+    a ``workspace.mel`` file.
+
+    ``Assets`` are directory structures compartmentalizing data. ``Browser``
+    is designed to read and annote ``scene``, ``cache`` (exports) and
+    ``render`` files.
+
+    Depending on your setup these folders might have different names you can
+    customize them here. ``Browser`` will assume all of these folder reside in the
+    root of the ``asset`` folder.
 
 
-"""Module for defining common variables and methods across the project.
+Thumbnails and UI Icon
+    The variables and the methods needed to read and cache thumbnail images
+    and UI icon are also defined here.
 
-Defines the default sizes for widgets and the default colour template.
-It also contains the methods used to set our custom stylesheet.
+    All cached images are stored in ``IMAGE_CACHE``.
+    To add an image to the cache you can use the ``cache_image()`` method.
+
+    Loading and caching ui resource items is done by ``get_rsc_pixmap()``.
 
 """
 
@@ -21,8 +43,6 @@ SERVERS = [
     {'path': '//sloth/jobs', 'nickname': 'Sloth'},
     {'path': '//localhost/c$/temp', 'nickname': 'Local Drive'},
 ]
-"""Default values for the server have to be hard-coded.
-Make sure to customize these settings depending on your environment."""
 
 ASSET_IDENTIFIER = 'workspace.mel'
 """When with the given name is present in the root of a folder, it will be
@@ -30,17 +50,8 @@ considered an ``assets``."""
 
 
 ExportsFolder = 'exports'
-ScenesFolder ='scenes'
+ScenesFolder = 'scenes'
 RendersFolder = 'renders'
-
-"""``Assets`` are directory structures compartmentalizing data. ``Browser``
-is designed to read and annote ``scene``, ``cache`` (exports) and
-``render`` files.
-
-Depending on your setup these folder might have different names you can
-customize here. Browser will assume all of these folder reside in the root of
-the ``asset`` folder.
-"""
 
 # Extending the
 PathRole = 1024
@@ -92,6 +103,7 @@ sort_keys = {
     SortByLastCreated: sort_last_created_key,
     SortBySize: sort_size_key,
 }
+"""These are the methods/keys used to sort lists."""
 
 # Sizes
 MARGIN = 18.0
@@ -233,13 +245,6 @@ def set_custom_stylesheet(widget):
         widget.setStyleSheet(qss)
 
 
-
-# Label colors
-ASSIGNED_LABELS = {}
-# Thumbnail cache
-IMAGE_CACHE = {}
-
-
 def cache_image(path, height, overwrite=False):
     """Saves the image at the path to the image cache. The cached images are
     stored in the IMAGE_CACHE dictionary.
@@ -266,7 +271,8 @@ def cache_image(path, height, overwrite=False):
 
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
-        file_info = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+        file_info = QtCore.QFileInfo(
+            '{}/../rsc/placeholder.png'.format(__file__))
 
     image = QtGui.QImage()
     image.load(file_info.filePath())
@@ -300,6 +306,7 @@ def delete_image(path, delete_file=True):
     for k in keys:
         del IMAGE_CACHE[k]
 
+
 def label_generator():
     """Generates QColors from an array of RGB values.
 
@@ -308,8 +315,8 @@ def label_generator():
     .. code-block:: python
         :linenos:
 
-        colors = label_generator()
-        next(colors)
+        LABEL_COLORS = label_generator()
+        next(LABEL_COLORS)
 
     Yields:         QtCore.QColor
 
@@ -320,14 +327,11 @@ def label_generator():
         v = 20
         arr.append([
             random.randint(max(a[0] - v, 0), min(a[0] + v, 255)),
-            random.randint(max(a[1] - (v/3), 0), min(a[1] + (v/3), 255)),
+            random.randint(max(a[1] - (v / 3), 0), min(a[1] + (v / 3), 255)),
             random.randint(max(a[2] - v, 0), min(a[2] + v, 255))
         ])
     for color in arr:
         yield QtGui.QColor(*color)
-
-
-colors = label_generator()
 
 
 def get_label(k):
@@ -340,17 +344,17 @@ def get_label(k):
     Returns:        QColor.
 
     """
-    global colors
+    global LABEL_COLORS
     if k.lower() not in ASSIGNED_LABELS:
-        ASSIGNED_LABELS[k.lower()] = next(colors)
+        ASSIGNED_LABELS[k.lower()] = next(LABEL_COLORS)
     return ASSIGNED_LABELS[k.lower()]
 
 
 def revert_labels():
-    global colors
+    global LABEL_COLORS
     global ASSIGNED_LABELS
     ASSIGNED_LABELS = {}
-    colors = label_generator()
+    LABEL_COLORS = label_generator()
 
 
 def resize_image(image, size):
@@ -488,28 +492,53 @@ def reveal(path):
     QtGui.QDesktopServices.openUrl(url)
 
 
-class LocalContext(object):
-    """Calls to the unavailable methods are directed here when not loading from Maya."""
+NoHighlightFlag = 0b000000
+HeadingHighlight = 0b000001
+QuoteHighlight = 0b000010
+CodeHighlight = 0b000100
+BoldHighlight = 0b001000
+ItalicHighlight = 0b010000
 
-    def __init__(self, *args, **kwargs):
-        super(LocalContext, self).__init__()
-        self.args = args
-        self.kwargs = kwargs
+HIGHLIGHT_RULES = {
+    # Should yield 3 groups:
+    # group 1 = the file:// prefix if exists,
+    # group 2 = the //path or \\path
+    # group 3 = trailing space
+    'file_path': {
+        're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
+        'flag': CodeHighlight
+    },
+    'folder_path': {
+        're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
+        'flag': CodeHighlight
+    },
+    'quotes': {
+        're': re.compile(r'([\"\']+[^\"\']+[\'\"]+)', flags=re.IGNORECASE),
+        'flag': CodeHighlight
+    },
+    'bold': {
+        're': re.compile(r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})', flags=re.IGNORECASE),
+        'flag': BoldHighlight
+    },
+    'italicized': {
+        're': re.compile(r'([\*_]{1})([^\*_]+)([\*_]{1})', flags=re.IGNORECASE),
+        'flag': ItalicHighlight
+    },
+    'heading': {
+        're': re.compile(r'^([#]{1,6})', flags=re.IGNORECASE),
+        'flag': HeadingHighlight
+    },
+    'quote': {
+        're': re.compile(r'^([>]{1})', flags=re.IGNORECASE),
+        'flag': QuoteHighlight
+    },
+}
 
-    def workspace(self, *args, **kwargs):
-        return None
 
-    def file(self, *args, **kwargs):
-        return None
+# Label LABEL_COLORS
+ASSIGNED_LABELS = {}
+# Thumbnail cache
+IMAGE_CACHE = {}
 
-
-try:
-    import maya.cmds as cmds  # pylint: disable=E0401
-    import maya.OpenMayaUI as OpenMayaUI  # pylint: disable=E0401
-    from maya.app.general.mayaMixin import MayaQWidgetDockableMixin  # pylint: disable=E0401
-    import shiboken2  # pylint: disable=E0401
-except ImportError:
-    cmds = LocalContext()
-    OpenMayaUI = LocalContext()
-    MayaQWidgetDockableMixin = LocalContext
-    shiboken2 = LocalContext()
+# Property contains all the saVed label LABEL_COLORS
+LABEL_COLORS = label_generator()

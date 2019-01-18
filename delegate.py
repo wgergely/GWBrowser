@@ -1,20 +1,13 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
-
-
-"""This module defines the delegates used to paint the ListWidgetItems and the
-associated data.
-
-"""
+"""Main modules defining the delegates used to represent the QListWidgetItems."""
 
 
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
 
 
@@ -863,9 +856,11 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setPen(QtCore.Qt.NoPen)
 
         if hover:
-            pixmap = common.get_rsc_pixmap('bookmark_add', common.TEXT, option.rect.height())
+            pixmap = common.get_rsc_pixmap(
+                'bookmark_add', common.TEXT, option.rect.height())
         else:
-            pixmap = common.get_rsc_pixmap('bookmark_add', common.SELECTION, option.rect.height())
+            pixmap = common.get_rsc_pixmap(
+                'bookmark_add', common.SELECTION, option.rect.height())
         painter.drawPixmap(
             rect,
             pixmap,
@@ -954,7 +949,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = re.sub(r'[_]+', ' ', root.upper())
         if count:
-            text = '{}  |  {} assets'.format(text, count)
+            if count == 1:
+                text = '{}  |  {} asset'.format(text, count)
+            else:
+                text = '{}  |  {} assets'.format(text, count)
         return metrics.elidedText(
             text,
             QtCore.Qt.ElideLeft,

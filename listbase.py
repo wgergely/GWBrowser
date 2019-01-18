@@ -11,6 +11,7 @@ import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
+import mayabrowser.editors as editors
 import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
@@ -266,9 +267,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         if self.__class__.__name__ == 'BookmarksWidgetContextMenu':
             text = 'Remove bookmark'
         else:
-            text = 'Disable'
+            text = 'Enable' if archived else 'Disable'
         menu_set['archived'] = {
-            'text': 'Enable' if archived else text,
+            'text': text,
             'icon': archived_off_icon if archived else archived_on_icon,
             'checkable': True,
             'checked': archived,
@@ -339,15 +340,38 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.create_menu(menu_set)
 
     def add_thumbnail_menu(self):
+        capture_thumbnail_pixmap = common.get_rsc_pixmap(
+                    'capture_thumbnail', common.SECONDARY_TEXT, 18.0)
+        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+                    'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+                    'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+        revomove_thumbnail_pixmap = common.get_rsc_pixmap(
+                    'todo_remove', common.FAVOURITE, 18.0)
+
         menu_set = collections.OrderedDict()
+        key = 'Thumbnail'
         menu_set['separator'] = {}
-        menu_set['Capture thumbnail'] = {
+        menu_set[key] = collections.OrderedDict()
+        menu_set['{}:icon'.format(key)] = capture_thumbnail_pixmap
+
+        menu_set[key]['Capture'] = {
+            'icon': capture_thumbnail_pixmap,
+            'action': self.parent().capture_thumbnail
         }
-        menu_set['Remove thumbnail'] = {
+        menu_set[key]['Pick'] = {
+            'icon': pick_thumbnail_pixmap,
+            'action': functools.partial(
+                editors.ThumbnailEditor,
+                self.index
+            )
         }
-        menu_set['Pick thumbnail'] = {
-            'text': 'Capture Thumbnail'
+        menu_set[key]['separator'] = {}
+        menu_set[key]['Remove'] = {
+            'action': self.parent().remove_thumbnail,
+            'icon': revomove_thumbnail_pixmap
         }
+
 
         self.create_menu(menu_set)
 

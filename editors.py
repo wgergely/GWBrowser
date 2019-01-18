@@ -5,13 +5,10 @@
 """Widgets used to edit data in the list widgets."""
 
 
-import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.common import cmds
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings
 from mayabrowser.configparsers import AssetSettings
 
 
