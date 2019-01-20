@@ -13,9 +13,10 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import mayabrowser.common as common
 import mayabrowser.editors as editors
 import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings
+from mayabrowser.configparsers import local_settings, path_monitor
 from mayabrowser.configparsers import AssetSettings
 from mayabrowser.capture import ScreenGrabber
+
 
 
 class BaseContextMenu(QtWidgets.QMenu):
@@ -1012,3 +1013,45 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not index.isValid():
             self.setCurrentItem(None)
         super(BaseListWidget, self).mousePressEvent(event)
+
+
+    def _warning_strings(self):
+        """Custom warning strings to paint."""
+        active_paths = path_monitor.get_active_paths()
+        file_info = QtCore.QFileInfo(
+            '{}/{}/{}'.format(active_paths['server'], active_paths['job'], active_paths['root']))
+
+        warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
+        warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'
+        warning_three = 'The active bookmark does not exist.\nBookmark: {}'
+        warning_four = 'The active bookmark ({}/{}/{}) does not contain any assets...yet.'
+        warning_five = '{} items are hidden by filters'
+
+        if not all((active_paths['server'], active_paths['job'], active_paths['root'])):
+            return warning_one
+        if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
+            return warning_two.format(
+                active_paths['server'], active_paths['job'], active_paths['root']
+            )
+        if not file_info.exists():
+            return warning_three.format('/'.join((active_paths['server'], active_paths['job'], active_paths['root'])))
+
+        if not self.count():
+            return warning_four.format(active_paths['server'], active_paths['job'], active_paths['root'])
+
+        if self.count() > self.count_visible():
+            return warning_five.format(
+                self.count() - self.count_visible())
+
+        return ''
+
+    def eventFilter(self, widget, event):
+        """AssetWidget's custom paint is triggered here.
+
+        I'm using the custom paint event to display a user message when no
+        asset or files can be found.
+
+        """
+        if event.type() == QtCore.QEvent.Paint:
+            self.paint_message(self._warning_strings())
+        return False

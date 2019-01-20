@@ -23,6 +23,7 @@ from mayabrowser.delegate import FilesWidgetDelegate
 
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with FilesWidget."""
+
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
@@ -48,17 +49,16 @@ class FilesWidget(BaseListWidget):
 
     def __init__(self, parent=None):
         super(FilesWidget, self).__init__(
-        parent=parent)
-        self._path = (
-            local_settings.value('activepath/server'),
-            local_settings.value('activepath/job'),
-            local_settings.value('activepath/root'),
-            local_settings.value('activepath/asset')
+            (local_settings.value('activepath/server'),
+             local_settings.value('activepath/job'),
+             local_settings.value('activepath/root'),
+             local_settings.value('activepath/asset'),
+             local_settings.value('activepath/file')),
+            parent=parent
         )
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
-
 
     def refresh(self):
         """Refreshes the list if files.
@@ -69,12 +69,7 @@ class FilesWidget(BaseListWidget):
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
-        idx = self.currentIndex()
-        self.add_items()
-        self.setCurrentIndex(idx)
-        self.set_item_visibility()
-
-        self.sceneChanged.emit()
+        super(FilesWidget, self).refresh()
 
     def get_modes(self):
         """`Modes` are subfolders inside the `scene` folder.
@@ -133,7 +128,6 @@ class FilesWidget(BaseListWidget):
                 err_one.format(err.message)
             ).exec_()
 
-
         for file_info in collector.get(
             sort_order=self.sort_order,
             reverse=self.reverse,
@@ -183,11 +177,11 @@ class FilesWidget(BaseListWidget):
             # Todos
             todos = settings.value('config/todos')
             if todos:
-                todos = len([k for k in todos if not todos[k]['checked'] and todos[k]['text']])
+                todos = len([k for k in todos if not todos[k]
+                             ['checked'] and todos[k]['text']])
                 item.setData(common.TodoCountRole, todos)
             else:
                 item.setData(common.TodoCountRole, 0)
-
 
             # Archived
             if settings.value('config/archived'):
@@ -203,25 +197,6 @@ class FilesWidget(BaseListWidget):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
 
             self.addItem(item)
-
-
-
-    def eventFilter(self, widget, event):
-        """FilesWidget's custom paint is triggered here."""
-        if event.type() == QtCore.QEvent.Paint:
-            self._paint_widget_background()
-
-            if self.count() == 0:
-                self.paint_message(
-                    'No scene files found ({})'.format(
-                        'showing all items' if self.filter == '/' else self.filter
-                    )
-                )
-            elif self.count() > self.count_visible():
-                self.paint_message(
-                    '{} items are hidden.'.format(self.count()))
-        return False
-
 
 
 if __name__ == '__main__':
