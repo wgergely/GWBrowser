@@ -515,7 +515,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         super(BaseListWidget, self).__init__(parent=parent)
         # The timer used to check for changes in the active path
         self._path = path
-        
+
         self._context_menu_cls = BaseContextMenu
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
 
@@ -1005,3 +1005,10 @@ class BaseListWidget(QtWidgets.QListWidget):
         """Custom resize event will emit the ``sizeChanged`` signal."""
         self.sizeChanged.emit(event.size())
         super(BaseListWidget, self).resizeEvent(event)
+
+    def mousePressEvent(self, event):
+        """Deselecting item when the index is invalid."""
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            self.setCurrentItem(None)
+        super(BaseListWidget, self).mousePressEvent(event)

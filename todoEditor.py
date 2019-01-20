@@ -869,7 +869,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.add_button, 0)
 
         if self.index.isValid():
-            text = '{} - Notes and Tasks'.format(
+            _, job, _, _, _ = self.index.data(common.ParentRole)
+            text = '{}: {}  |  Notes and Tasks'.format(
+                job.upper(),
                 self.index.data(QtCore.Qt.DisplayRole).upper()
             )
         else:

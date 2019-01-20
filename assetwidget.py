@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101
+
 """Module defines a ListWidget used to represent the assets found in the root
 of the `server/job/assets` folder.
 
@@ -12,7 +14,6 @@ a ``renders``, ``textures``, ``exports`` and a ``scenes`` folder to be present.
 The actual name of these folders can be customized in the ``common.py`` module.
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
