@@ -31,6 +31,7 @@ from mayabrowser.delegate import AssetWidgetDelegate
 
 class AssetWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the AssetWidget."""
+
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_thumbnail_menu()
@@ -40,21 +41,18 @@ class AssetWidgetContextMenu(BaseContextMenu):
 class AssetWidget(BaseListWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
 
-    Signals:
-        activated (Signal):         Signal emited when the active asset has changed.
-
-    Properties:
-        path (tuple[str, str, str]):    Sets the path to search for assets.
+    Parameters
+    ----------
+    bookmark_path : tuple
+        A `Bookmark` made up of the server/job/root folders.
 
     """
 
-    def __init__(self, parent=None):
-        super(AssetWidget, self).__init__(
-            (local_settings.value('activepath/server'),
-             local_settings.value('activepath/job'),
-             local_settings.value('activepath/root')),
-            parent=parent
-        )
+    def __init__(self, bookmark, parent=None):
+        self.bookmark = bookmark
+
+        super(AssetWidget, self).__init__(parent=parent)
+
         self.setWindowTitle('Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self._context_menu_cls = AssetWidgetContextMenu
@@ -88,15 +86,15 @@ class AssetWidget(BaseListWidget):
             self.fileSystemWatcher.removePath(path)
         self.clear()
 
-        active_paths = path_monitor.get_active_paths()
-        if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
+        server, job, root = self.bookmark
+        if not any((server, job, root)):
             return
 
-        path = '/'.join((active_paths['server'],
-                         active_paths['job'], active_paths['root']))
+        path = '/'.join((server, job, root))
 
         self.fileSystemWatcher.addPath(path)
         collector = AssetCollector(path, parent=self)
+        self.collector_count = collector.count
         items = collector.get_items(
             key=self.get_item_sort_order(),
             reverse=self.is_item_sort_reversed(),
@@ -105,7 +103,7 @@ class AssetWidget(BaseListWidget):
 
         for file_info in items:
             item = QtWidgets.QListWidgetItem()
-            settings = AssetSettings(file_info.filePath())
+            settings = AssetSettings(path, file_info.filePath())
 
             # Qt Roles
             item.setData(QtCore.Qt.DisplayRole, file_info.baseName())
@@ -113,8 +111,8 @@ class AssetWidget(BaseListWidget):
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
 
             tooltip = u'{}\n\n'.format(file_info.baseName().upper())
-            tooltip += u'{}\n'.format(active_paths['server'].upper())
-            tooltip += u'{}\n\n'.format(active_paths['job'].upper())
+            tooltip += u'{}\n'.format(server.upper())
+            tooltip += u'{}\n\n'.format(job.upper())
             tooltip += u'{}'.format(file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
             item.setData(
@@ -123,12 +121,7 @@ class AssetWidget(BaseListWidget):
 
             # Custom roles
             item.setData(common.PathRole, file_info.filePath())
-            item.setData(common.ParentRole, (
-                active_paths['server'],
-                active_paths['job'],
-                active_paths['root'],
-                file_info.baseName(),
-                None))
+            item.setData(common.ParentRole, (server, job, root))
             item.setData(common.DescriptionRole, settings.value(
                 'config/description'))
 
@@ -151,17 +144,31 @@ class AssetWidget(BaseListWidget):
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 item.setFlags(item.flags() | configparser.MarkedAsFavourite)
-
+            # Active
             if file_info.baseName() == local_settings.value('activepath/asset'):
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
             self.addItem(item)
 
+    def show_todos(self):
+        """Shows the ``TodoEditorWidget`` for the current item."""
+        from mayabrowser.todoEditor import TodoEditorWidget
+        index = self.currentIndex()
+        widget = TodoEditorWidget(index, parent=self)
+        pos = self.mapToGlobal(self.rect().topLeft())
+        widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
+        widget.setMinimumWidth(640)
+        widget.setMinimumHeight(800)
+        # widget.resize(self.width(), self.height())
+        common.move_widget_to_available_geo(widget)
+        widget.show()
+
     def mousePressEvent(self, event):
         """In-line buttons are triggered here."""
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
+
         if self.viewport().width() < 360.0:
             return super(AssetWidget, self).mousePressEvent(event)
 
@@ -179,19 +186,6 @@ class AssetWidget(BaseListWidget):
                 return True
 
         return super(AssetWidget, self).mousePressEvent(event)
-
-    def show_todos(self):
-        """Shows the ``TodoEditorWidget`` for the current item."""
-        from mayabrowser.todoEditor import TodoEditorWidget
-        index = self.currentIndex()
-        widget = TodoEditorWidget(index, parent=self)
-        pos = self.mapToGlobal(self.rect().topLeft())
-        widget.move(pos.x() + common.MARGIN, pos.y() + common.MARGIN)
-        widget.setMinimumWidth(640)
-        widget.setMinimumHeight(800)
-        # widget.resize(self.width(), self.height())
-        common.move_widget_to_available_geo(widget)
-        widget.show()
 
     def mouseReleaseEvent(self, event):
         """In-line buttons are triggered here."""
@@ -215,8 +209,7 @@ class AssetWidget(BaseListWidget):
                         self.toggle_archived(item=self.itemFromIndex(index))
                         break
                     elif n == 2:
-                        path = index.data(QtCore.Qt.StatusTipRole)
-                        common.reveal(path)
+                        common.reveal(index.data(common.PathRole))
                     elif n == 3:
                         self.show_todos()
 
@@ -330,33 +323,14 @@ class AssetWidget(BaseListWidget):
             self.set_current_item_as_active()
             return
 
-    def action_on_enter_key(self):
-        """Custom enter key action."""
-        self.set_current_item_as_active()
-
-    def action_on_custom_keys(self, event):
-        """Custom keyboard shortcuts for the AssetsWidget are defined here.
-        """
-        item = self.currentItem()
-        if not item:
-            return
-
-        data = item.data(QtCore.Qt.StatusTipRole)
-
-        if event.modifiers() & QtCore.Qt.NoModifier:
-            if event.key() == QtCore.Qt.Key_Enter:
-                self.set_current_item_as_active()
-        elif event.modifiers() & QtCore.Qt.AltModifier:
-            if event.key() == QtCore.Qt.Key_C:
-                url = QtCore.QUrl()
-                url = url.fromLocalFile(
-                    item.data(common.PathRole))
-                QtGui.QClipboard().setText(url.toString())
-
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
 
-    app.w = AssetWidget()
+    bookmark = (local_settings.value('activepath/server'),
+                local_settings.value('activepath/job'),
+                local_settings.value('activepath/root')
+                )
+    app.w = AssetWidget(bookmark)
     app.w.show()
     app.exec_()

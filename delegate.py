@@ -405,8 +405,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        settings = AssetSettings(index.data(common.PathRole))
-
+        settings = AssetSettings(
+            '/'.join(index.data(common.ParentRole)),
+            index.data(common.PathRole)
+        )
         # Caching image
         common.cache_image(settings.thumbnail_path(), option.rect.height())
 
@@ -1140,7 +1142,8 @@ class FilesWidgetDelegate(BaseDelegate):
         #
         rect = self.paint_mode(*args)
         self.paint_name(rect, *args)
-        self.paint_description(*args)
+        rect = self.paint_info(*args)
+        self.paint_description(rect, *args)
         #
         self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)

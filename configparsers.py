@@ -17,6 +17,7 @@ getConfigPath() or getThumbnailPath().
 
 import re
 import collections
+import mayabrowser.common as common
 from PySide2 import QtCore
 
 
@@ -147,14 +148,16 @@ class AssetSettings(QtCore.QSettings):
 
     """
 
-    def __init__(self, path, parent=None):
-        self._path = path
+    def __init__(self, root, filepath, parent=None):
+        self.root = root
+        self.filepath = filepath
         super(AssetSettings, self).__init__(
             self.conf_path(),
             QtCore.QSettings.IniFormat,
             parent=parent
         )
         self.setFallbacksEnabled(False)
+
 
     def conf_path(self):
         """Returns the path to the Asset's configuration file.
@@ -164,22 +167,23 @@ class AssetSettings(QtCore.QSettings):
             str: The path to the configuration file as a string.
 
         """
-        file_info = QtCore.QFileInfo(self._path)
-        file_name = re.sub(r'[\.]+', '_', file_info.fileName())
+        def _name(text):
+            return re.sub(r'[^a-zA-Z0-9/]+', '_', text)
 
-        conf_path = '{}/.browser/{}.conf'.format(file_info.path(), file_name)
-        if file_info.dir().exists():
-            dir_ = QtCore.QDir('{}/.browser'.format(file_info.path()))
-            if not dir_.exists():
-                file_info.dir().mkpath('.browser')
-                print '# Asset config root folder created.'
-        return conf_path
+        path = self.filepath.replace(self.root, '').strip('/')
+        config_dir_path = '{}/.browser/'.format(self.root)
+        config_dir_path = QtCore.QFileInfo(config_dir_path)
+        if not config_dir_path.exists():
+            QtCore.QDir().mkdir(config_dir_path.filePath())
+
+        return '{}/.browser/{}.conf'.format(
+            self.root,
+            _name(path)
+        )
+
 
     def thumbnail_path(self):
-        file_info = QtCore.QFileInfo(self._path)
-        path = '{}/.browser/{}'.format(file_info.path(),
-                                       re.sub(r'[\.]+', '_', file_info.fileName()))
-        return r'{}.png'.format(path)
+        return self.conf_path().replace('.conf', '.png')
 
     def value(self, *args, **kwargs):
         val = super(AssetSettings, self).value(*args, **kwargs)

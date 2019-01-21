@@ -659,7 +659,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         if not index.isValid():
             return
-        settings = AssetSettings(index.data(common.PathRole))
+
+        settings = AssetSettings(
+            '/'.join(index.data(common.ParentRole)),
+            index.data(common.PathRole)
+        )
+
         items = settings.value('config/todos')
 
         if not items:
@@ -835,7 +840,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
-        settings = AssetSettings(self.index.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(self.index.data(common.ParentRole)),
+            self.index.data(common.PathRole)
+        )
         settings.setValue('config/todos', self._collect_data())
 
     def _createUI(self):

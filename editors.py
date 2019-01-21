@@ -8,7 +8,6 @@
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-import mayabrowser.configparsers as configparser
 from mayabrowser.configparsers import AssetSettings
 
 class ThumbnailViewer(QtWidgets.QLabel):
@@ -16,7 +15,10 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def __init__(self, index, parent=None):
         super(ThumbnailViewer, self).__init__(parent=parent)
-        settings = AssetSettings(index.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(index.data(common.ParentRole)),
+            index.data(common.PathRole)
+        )
         file_info = QtCore.QFileInfo(settings.thumbnail_path())
 
         if not file_info.exists():
@@ -102,7 +104,10 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
 
     def __init__(self, index, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
-        settings = AssetSettings(index.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(index.data(common.ParentRole)),
+            index.data(common.PathRole)
+        )
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
@@ -137,8 +142,10 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self._index = index
 
         self.editor = None
-        self.settings = configparser.AssetSettings(
-            self._index.data(common.PathRole))
+        self.settings = AssetSettings(
+            '/'.join(index.data(common.ParentRole)),
+            index.data(common.PathRole)
+        )
         self._createUI()
 
         self.editor.focusOutEvent = self.focusOutEvent

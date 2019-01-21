@@ -187,6 +187,7 @@ class FileCollector(BaseCollector):
         if not file_info.exists():
             return
 
+        self._count = 0  # Resetting the count
         it = QtCore.QDirIterator(
             file_info.filePath(),
             common.NameFilters[self.root],
@@ -202,6 +203,7 @@ class FileCollector(BaseCollector):
             if file_info.isDir():
                 continue
 
+            self._count += 1
             yield file_info
 
 

@@ -44,7 +44,7 @@ class BookmarksWidget(BaseListWidget):
     """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
-        super(BookmarksWidget, self).__init__(None, parent=parent)
+        super(BookmarksWidget, self).__init__(parent=parent)
         self.setWindowTitle('Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self._context_menu_cls = BookmarksWidgetContextMenu
@@ -134,9 +134,6 @@ class BookmarksWidget(BaseListWidget):
             (rect.width() / 2.0) - (self.width() / 2.0),
             (rect.height() / 2.0) - (self.height())
         )
-            # rect.center().x() - (self.width() / 2.0),
-            # rect.center().y() - (self.height() / 2.0)
-        # )
 
     def add_items(self):
         """Adds the bookmarks saved in the local_settings file to the widget."""
@@ -144,6 +141,7 @@ class BookmarksWidget(BaseListWidget):
 
         # Collecting items
         collector = BookmarksCollector(parent=self)
+        self.collector_count = collector.count
         items = collector.get_items(
             key=self.get_item_sort_order(),
             reverse=self.is_item_sort_reversed(),
@@ -238,6 +236,11 @@ class BookmarksWidget(BaseListWidget):
         """
         if self.currentItem() is self.active_item():
             return
+
+        archived = self.currentItem().flags() & configparser.MarkedAsArchived
+        if archived:
+            return
+
         self.set_current_item_as_active()
 
 

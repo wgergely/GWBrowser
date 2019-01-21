@@ -138,29 +138,46 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = folder_icon
 
-        server, job, root, asset, file_ = self.index.data(common.ParentRole)
-        if file_:
-            menu_set[key]['asset'] = {
+        if len(self.index.data(common.ParentRole)) == 4:
+            file_info = QtCore.QFileInfo(self.index.data(common.PathRole))
+            menu_set[key]['file'] = {
                 'text': 'Show file',
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
-                    QtCore.QFileInfo('{}/{}/{}/{}/{}'.format(server, job, root, asset, file)).filePath()),
+                    file_info.dir().path()
+                )
             }
-        if asset:
             menu_set[key]['asset'] = {
                 'text': 'Show asset',
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
-                    QtCore.QFileInfo('{}/{}/{}/{}'.format(server, job, root, asset)).filePath()),
+                    QtCore.QFileInfo('{}/{}/{}/{}'.format(
+                        self.index.data(common.ParentRole)[0],
+                        self.index.data(common.ParentRole)[1],
+                        self.index.data(common.ParentRole)[2],
+                        self.index.data(common.ParentRole)[3]
+                    )).filePath())
+            }
+        elif len(self.index.data(common.ParentRole)) == 3:
+            menu_set[key]['asset'] = {
+                'text': 'Show asset',
+                'icon': folder_icon2,
+                'action': functools.partial(
+                    common.reveal,
+                    self.index.data(common.PathRole))
             }
         menu_set[key]['root'] = {
             'text': 'Show bookmark',
             'icon': folder_icon2,
             'action': functools.partial(
                 common.reveal,
-                QtCore.QFileInfo('{}/{}/{}'.format(server, job, root)).filePath()),
+                QtCore.QFileInfo('{}/{}/{}'.format(
+                    self.index.data(common.ParentRole)[0],
+                    self.index.data(common.ParentRole)[1],
+                    self.index.data(common.ParentRole)[2]
+                )).filePath()),
         }
         menu_set[key]['separator.'] = {}
         menu_set[key]['job'] = {
@@ -168,7 +185,10 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': folder_icon2,
             'action': functools.partial(
                 common.reveal,
-                QtCore.QFileInfo('{}/{}'.format(server, job)).filePath())
+                QtCore.QFileInfo('{}/{}'.format(
+                    self.index.data(common.ParentRole)[0],
+                    self.index.data(common.ParentRole)[1]
+                )).filePath())
         }
 
         menu_set[key]['separator'] = {}
@@ -359,7 +379,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = capture_thumbnail_pixmap
 
-        settings = AssetSettings(self.index.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(self.index.data(common.ParentRole)),
+            self.index.data(common.PathRole)
+        )
+
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key]['Show thumbnail'] = {
             'icon': show_thumbnail,
@@ -497,14 +521,21 @@ class BaseContextMenu(QtWidgets.QMenu):
 class BaseListWidget(QtWidgets.QListWidget):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets.
 
-    Args:
-        path (str): The path used to initialize
+    Parameters
+    ----------
+        path: str
+            The path used to initialize
 
-    Signals:
-        sizeChanged (QSize): Emitted when the size of the widget changes.
-        activeBookmarkChanged (tuple): Emited when the active bookmark changes.
-        activeAssetChanged (str): Emited when the active asset changes.
-        activeFileChanged (str): Emited when the active file changes.
+    Signals
+    -------
+        sizeChanged: Signal(QSize)
+            Emitted when the size of the widget changes.
+        activeBookmarkChanged: Signal(tuple)
+            Emited when the active bookmark changes.
+        activeAssetChanged: Signal(str)
+            Emited when the active asset changes.
+        activeFileChanged: Signal(str)
+            Emited when the active file changes.
 
     """
     sizeChanged = QtCore.Signal(QtCore.QSize)
@@ -512,13 +543,14 @@ class BaseListWidget(QtWidgets.QListWidget):
     activeAssetChanged = QtCore.Signal(str)
     activeFileChanged = QtCore.Signal(str)
 
-    def __init__(self, path, parent=None):
+    def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
         # The timer used to check for changes in the active path
-        self._path = path
-
-        self._context_menu_cls = BaseContextMenu
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
+        self.fileSystemWatcher.directoryChanged.connect(self.refresh)
+
+        self.collector_count = 0
+        self._context_menu_cls = BaseContextMenu
 
         self.setSortingEnabled(False)
         self.setResizeMode(QtWidgets.QListView.Adjust)
@@ -528,14 +560,14 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
+
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        # Scrollbar visibility
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # Style
         common.set_custom_stylesheet(self)
 
         # Keyboard search timer and placeholder string.
@@ -657,7 +689,11 @@ class BaseListWidget(QtWidgets.QListWidget):
             item = self.currentItem()
 
         archived = item.flags() & configparser.MarkedAsArchived
-        settings = AssetSettings(item.data(common.PathRole))
+
+        settings = AssetSettings(
+            '/'.join(item.data(common.ParentRole)),
+            item.data(common.PathRole)
+        )
 
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
@@ -685,7 +721,10 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             return
 
-        settings = AssetSettings(item.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(item.data(common.ParentRole)),
+            item.data(common.PathRole)
+        )
 
         # Saving the image
         common.delete_image(settings.thumbnail_path())
@@ -697,7 +736,11 @@ class BaseListWidget(QtWidgets.QListWidget):
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
         item = self.currentItem()
-        settings = AssetSettings(item.data(common.PathRole))
+        settings = AssetSettings(
+            '/'.join(item.data(common.ParentRole)),
+            item.data(common.PathRole)
+        )
+
         common.delete_image(settings.thumbnail_path())
         self.repaint()
 
