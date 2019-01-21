@@ -8,7 +8,7 @@
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.configparsers import AssetSettings
+from mayabrowser.settings import AssetSettings
 
 class ThumbnailViewer(QtWidgets.QLabel):
     """Widget used to view a thumbnail."""

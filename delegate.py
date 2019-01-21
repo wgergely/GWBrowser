@@ -7,8 +7,8 @@ import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import AssetSettings
+import mayabrowser.settings as configparser
+from mayabrowser.settings import AssetSettings
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -806,6 +806,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.restore()
 
+        return metrics.width(text)
+
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
         size = QtCore.QSize(
@@ -1140,16 +1142,92 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_thumbnail_shadow(*args)
         self.paint_active_indicator(*args)
         #
-        rect = self.paint_mode(*args)
-        self.paint_name(rect, *args)
-        rect = self.paint_info(*args)
-        self.paint_description(rect, *args)
-        #
         self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
         #
+        rect = self.paint_mode(*args)
+        self.paint_name(rect, *args)
+        self.paint_description(*args)
+        #
         self.paint_focus(*args)
+
+    def paint_description(self, *args):
+        """Paints the item description inside the ``AssetWidget``."""
+        painter, option, index, _, _, _, _, _ = args
+        favourite = index.flags() & configparser.MarkedAsFavourite
+        archived = index.flags() & configparser.MarkedAsArchived
+        active = index.flags() & configparser.MarkedAsActive
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter.save()
+
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
+
+        font.setPointSizeF(8.0)
+        metrics = QtGui.QFontMetrics(font)
+        painter.setFont(font)
+
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0) + metrics.lineSpacing() + metrics.descent())
+
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(
+                option.rect, common.INLINE_ICON_SIZE, 2)
+            rect.setRight(icon_rect.left() -
+                          (common.INLINE_ICON_SIZE) - common.MARGIN)
+
+        color = self.get_state_color(option, index, common.TEXT_NOTE)
+
+        if not index.data(common.DescriptionRole) and hover:
+            text = '{}  |  {}'.format(
+                'Double-click to add description...',
+                index.data(common.FileDetailsRole)
+            )
+            color.setAlpha(200)
+        if not index.data(common.DescriptionRole) and not hover:
+            text = '{}'.format(
+            index.data(common.FileDetailsRole)
+            )
+        elif index.data(common.DescriptionRole):
+            text = '{}  |  {}'.format(
+                index.data(common.DescriptionRole),
+                index.data(common.FileDetailsRole)
+            )
+
+        if option.rect.width() >= 360.0:
+            _, icon_rect = self.get_inline_icon_rect(
+                option.rect, common.INLINE_ICON_SIZE, 3)
+            rect.setRight(icon_rect.left())
+
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            rect.width()
+        )
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
+        painter.setFont(font)
+        if option.rect.width() > 360.0:
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+                text
+            )
+        else:
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                text
+            )
+
+        painter.restore()
+
+        return metrics.width(text)
 
     def paint_mode(self, *args):
         """Paints the mode and the subsequent subfolders."""
@@ -1164,16 +1242,20 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         rect, font, metrics = self.get_text_area(
-            option.rect, common.SECONDARY_FONT)
-        font.setPointSizeF(7.5)
+            option.rect, common.PRIMARY_FONT)
+        font.setPointSizeF(8)
 
-        # Resizing the height and centering
+        # Resizing the height and Centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         painter.setFont(font)
         modes = index.data(common.FileModeRole)
+
+        if not modes[0]:
+            rect.setWidth(0)
+            return rect
 
         padding = 2.0
         rect.setWidth(0)
@@ -1185,11 +1267,9 @@ class FilesWidgetDelegate(BaseDelegate):
             mode = mode.upper()
 
             if n == 0:
-                bg_color = self.get_state_color(
-                    option, index, common.get_label(mode))
+                bg_color = common.FAVOURITE
             else:
-                bg_color = self.get_state_color(
-                    option, index, common.TEXT_DISABLED)
+                bg_color = QtGui.QColor(80, 80, 80)
 
             pen = QtGui.QPen(bg_color)
             pen.setWidth(padding)
@@ -1200,10 +1280,9 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.drawRoundedRect(rect, 2.0, 2.0)
 
             if n == 0:
-                color = self.get_state_color(option, index, common.TEXT)
+                color = common.TEXT
             else:
-                color = self.get_state_color(
-                    option, index, common.SECONDARY_TEXT)
+                color = common.SECONDARY_TEXT
 
             painter.setPen(QtGui.QPen(color))
             painter.drawText(
@@ -1224,6 +1303,11 @@ class FilesWidgetDelegate(BaseDelegate):
 
         """
         painter, option, index, _, _, active, _, _ = args
+
+        favourite = index.flags() & configparser.MarkedAsFavourite
+        archived = index.flags() & configparser.MarkedAsArchived
+        active = index.flags() & configparser.MarkedAsActive
+
         painter.save()
 
         rect, font, metrics = self.get_text_area(
@@ -1237,7 +1321,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
-        rect.setLeft(mode_rect.right() + 6.0)
+        rect.setLeft(mode_rect.right())
 
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
@@ -1247,14 +1331,11 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        # text = re.sub('[^0-9a-zA-Z]+', ' ', text)
-        # text = re.sub('[_]{1,}', ' ', text)
         text = text.split('.')
-        ext = text.pop(-1)
+        text.pop(-1)
         text = '.'.join(text).upper()
-        text = '{}.{}'.format(text, ext)
+        # text = '{}.{}'.format(text, ext)
 
-        text = '{}*'.format(text) if active else text.strip()
         text = metrics.elidedText(
             text,
             QtCore.Qt.ElideMiddle,
@@ -1262,6 +1343,10 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         color = self.get_state_color(option, index, common.TEXT)
+        if favourite or active:
+            color = common.TEXT_SELECTED
+        if archived:
+            color = common.SECONDARY_TEXT
 
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
@@ -1279,6 +1364,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 text
             )
 
+        # Bg rectangle
         rect.setLeft(rect.right())
         rect.setTop(option.rect.top())
         rect.setBottom(option.rect.bottom())
@@ -1295,4 +1381,4 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.restore()
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().viewport().width(), common.FILE_ROW_HEIGHT)
+        return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)

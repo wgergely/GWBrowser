@@ -5,18 +5,15 @@ found by the collector classes.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import os
-import functools
-from collections import OrderedDict
-from PySide2 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
 
 import mayabrowser.common as common
-import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import AssetSettings
-from mayabrowser.configparsers import local_settings
+import mayabrowser.settings as configparser
+from mayabrowser.settings import AssetSettings
+from mayabrowser.settings import local_settings
 from mayabrowser.collector import FileCollector
 from mayabrowser.delegate import FilesWidgetDelegate
 import mayabrowser.editors as editors
@@ -27,7 +24,8 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_thumbnail_menu()
+        if index.isValid():
+            self.add_thumbnail_menu()
         self.add_refresh_menu()
 
 
@@ -96,6 +94,15 @@ class FilesWidget(BaseListWidget):
             item = QtWidgets.QListWidgetItem()
             settings = AssetSettings('/'.join(self.path), file_info.filePath())
 
+            # Creating the folder for the settings if needed
+            config_dir_path = '{}/.browser/{}'.format(
+                '/'.join(self.path),
+                file_info.filePath().replace('/'.join(self.path), '').strip('/')
+            )
+            config_dir_path = QtCore.QFileInfo(config_dir_path)
+            if not config_dir_path.exists():
+                QtCore.QDir().mkpath(config_dir_path.filePath())
+
             self.fileSystemWatcher.addPath(file_info.dir().path())
             path = '{}/{}'.format('/'.join(self.path), self.root)
 
@@ -109,7 +116,7 @@ class FilesWidget(BaseListWidget):
             item.setData(QtCore.Qt.ToolTipRole, tooltip)
             item.setData(
                 QtCore.Qt.SizeHintRole,
-                QtCore.QSize(common.WIDTH, common.FILE_ROW_HEIGHT))
+                QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
 
             # Custom roles
 

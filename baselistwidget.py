@@ -12,9 +12,9 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 import mayabrowser.editors as editors
-import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings, path_monitor
-from mayabrowser.configparsers import AssetSettings
+import mayabrowser.settings as configparser
+from mayabrowser.settings import local_settings, path_monitor
+from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
 
 

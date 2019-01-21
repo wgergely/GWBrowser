@@ -14,7 +14,7 @@ import functools
 from PySide2 import QtCore
 
 import mayabrowser.common as common
-from mayabrowser.configparsers import local_settings
+from mayabrowser.settings import local_settings
 
 
 class BaseCollector(QtCore.QObject):

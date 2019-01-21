@@ -21,8 +21,8 @@ import mayabrowser.common as common
 from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
 from mayabrowser.collector import BookmarksCollector
-import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings, path_monitor
+import mayabrowser.settings as configparser
+from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.delegate import BaseDelegate
 

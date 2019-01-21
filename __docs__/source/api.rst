@@ -60,18 +60,18 @@ Configuration
 -------------
 
 
-.. automodule:: mayabrowser.configparsers
+.. automodule:: mayabrowser.settings
 
 
-.. autoclass:: mayabrowser.configparsers.LocalSettings
+.. autoclass:: mayabrowser.settings.LocalSettings
   :members:
 
 
-.. autoclass:: mayabrowser.configparsers.ProjectConfig
+.. autoclass:: mayabrowser.settings.ProjectConfig
   :members:
 
 
-.. autoclass:: mayabrowser.configparsers.FileConfig
+.. autoclass:: mayabrowser.settings.FileConfig
   :members:
 
 
@@ -79,21 +79,21 @@ Configuration
 LocalSettings
 -----------
 
-.. autoclass:: mayabrowser.configparsers.LocalSettings
+.. autoclass:: mayabrowser.settings.LocalSettings
   :members:
 
 ----------
 FileConfig
 ----------
 
-.. autoclass:: mayabrowser.configparsers.FileConfig
+.. autoclass:: mayabrowser.settings.FileConfig
   :members:
 
 -------------
 ProjectConfig
 -------------
 
-.. autoclass:: mayabrowser.configparsers.ProjectConfig
+.. autoclass:: mayabrowser.settings.ProjectConfig
   :members:
 
 

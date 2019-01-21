@@ -22,9 +22,9 @@ from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
 import mayabrowser.editors as editors
 
-import mayabrowser.configparsers as configparser
-from mayabrowser.configparsers import local_settings, path_monitor
-from mayabrowser.configparsers import AssetSettings
+import mayabrowser.settings as configparser
+from mayabrowser.settings import local_settings
+from mayabrowser.settings import AssetSettings
 from mayabrowser.collector import AssetCollector
 from mayabrowser.delegate import AssetWidgetDelegate
 
@@ -34,7 +34,8 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_thumbnail_menu()
+        if index.isValid():
+            self.add_thumbnail_menu()
         self.add_refresh_menu()
 
 
@@ -85,6 +86,14 @@ class AssetWidget(BaseListWidget):
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
         self.clear()
+
+        # Creating the folder for the settings if needed
+        config_dir_path = '{}/.browser/'.format(
+            '/'.join(self.bookmark))
+        config_dir_path = QtCore.QFileInfo(config_dir_path)
+        if not config_dir_path.exists():
+            QtCore.QDir().mkpath(config_dir_path.filePath())
+
 
         server, job, root = self.bookmark
         if not any((server, job, root)):
