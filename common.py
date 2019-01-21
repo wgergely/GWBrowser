@@ -53,6 +53,20 @@ ExportsFolder = 'exports'
 ScenesFolder = 'scenes'
 RendersFolder = 'renders'
 
+NameFilters = {
+    ExportsFolder: (
+        '*.abc', # Alembic
+        '*.obj',
+        '*.ass', # Arnold cache
+    ),
+    ScenesFolder: (
+        '*.ma',
+        '*.mb',
+    ),
+    RendersFolder: (),
+}
+"""A list of expected file-formats associated with the location."""
+
 # Extending the
 PathRole = 1024
 """Role used to store the path of the item."""

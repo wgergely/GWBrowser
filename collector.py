@@ -2,8 +2,8 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 
 
-"""This modules defines the classes used to gather the items needed to populate the list
-widgets. The collector classes can filter and sort the resulting list.
+"""This modules defines the classes used to gather the item needed to populate
+the list widgets. The collector classes can filter and sort the resulting list.
 
 Methods:
     get_items(key=common.SortByName, reverse=False, filter=None)
@@ -38,7 +38,7 @@ class BaseCollector(QtCore.QObject):
 
         Args:
             key (int):   The key used to sort the collected list.
-            reversed (bool): If true, returns the list is reversed.
+            reverse (bool): If true, returns the list is reversed.
             path_filter (str): Matches a path segment and returns only the appropiate items.
 
         Returns:
@@ -56,9 +56,9 @@ class BaseCollector(QtCore.QObject):
 
 
 class BookmarksCollector(BaseCollector):
-    """`Collects` bookmarks. Bookmarks really are only virtual objects,
-    but the collector can take care of the filtering and sorting like in the
-    Asset- and FileCollect classes."""
+    """Collects the saved ``Bookmarks``. Bookmarks are virtual,
+    but the collector can take care of the filtering and sorting them like
+    with assets and files."""
 
     def item_generator(self):
         """Generator expression. Collects all the bookmarks found in the local configuration file."""
@@ -142,69 +142,66 @@ class AssetCollector(BaseCollector):
             yield file_info
 
 
-class FileCollector(object):
-    """This is a convenience class to collect files from a given path.
+class FileCollector(BaseCollector):
+    """Collects the files needed to populate the Files Widget.
 
-    Arguments:
-        path (str):             Path to an ``asset`` folder as a string.
-        asset_folder (str):     Subfolder inside the ``asset`` folder. Eg. `'scenes'`
-                                See ``common.ASSET_FOLDERS`` for accepted values.
-        name_filter ([str,]):   Returns only items containing any of the given strings.
+    Parameters
+    ----------
+    path : str
+        The path to an asset.
+    root : str
+        The root folder to querry. See the common module for options.
 
-    Methods:
-        set_name_filter(str):   Sets the file mask.
-                                Default value is ``('*.*')``, returning all found files.
-                                To return only Maya scene files you can use ``('*.mb', '*.ma')``
-        get (sort_order, reversed, filter): Returns all found files as QFileInfo instances.
-
+    Attributes
+    ----------
+    modes : list
+        The list of subfolders noting a ``mode``.
 
     """
+    def __init__(self, path, root, parent=None):
+        super(FileCollector, self).__init__(parent=parent)
+        self.path = path
+        self.root = root
+        self.modes = self._get_modes()
 
-    DEFAULT_NAME_FILTER = [
-        '*.psd',
-        '*.ma',
-        '*.mb',
-        '*.aep',
-    ]
-
-    def __init__(self, path, name_filter=DEFAULT_NAME_FILTER):
-        self._path = path
-        self._name_filter = name_filter
-
-        file_info = QtCore.QFileInfo(path)
-
-        err_one = 'The specified path ({}) could not be found.'
-        err_two = 'The specified path ({}) could not be read.\nCheck persmissions.'
-
+    def _get_modes(self):
+        file_info = QtCore.QFileInfo('{}/{}'.format(self.path, self.root))
         if not file_info.exists():
-            raise IOError(err_one.format(file_info.filePath()))
-        elif not file_info.isReadable():
-            raise IOError(err_two.format(file_info.filePath()))
+            return []
 
-    def set_name_filter(self, val):
-        """Sets the name filters to the given value."""
-        self._name_filter = val
+        dir_ = QtCore.QDir(file_info.filePath())
+        return dir_.entryList(
+            filters=QtCore.QDir.Dirs |QtCore.QDir.NoDotAndDotDot,
+        )
 
     def item_generator(self):
-        """Generator expression. Collects files from the ``path`` and the subdirectories
+        """Generator expression. Collects files from the ``path/root`` and the subdirectories
         within.
 
         Yields: A QFileInfo instance.
+
         """
+        path = '{}/{}'.format(self.path, self.root)
+        file_info = QtCore.QFileInfo(path)
+
+        if not file_info.exists():
+            return
+
         it = QtCore.QDirIterator(
-            self._path,
-            self._name_filter,
-            flags=QtCore.QDir.NoSymLinks |
-            QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDirIterator.Subdirectories
+            file_info.filePath(),
+            common.NameFilters[self.root],
+            flags=QtCore.QDirIterator.Subdirectories
         )
 
         while it.hasNext():
-            file_info = QtCore.QFileInfo(it.next())
-            if file_info.fileName() == '.' or file_info.fileName() == '..':
+            path = it.next()
+            file_info = QtCore.QFileInfo(path)
+
+            if file_info.fileName()[0] == '.':
                 continue
             if file_info.isDir():
                 continue
+
             yield file_info
 
 
@@ -212,6 +209,9 @@ if __name__ == '__main__':
     # collector = FileCollector(r'Z:\tkwwbk_8077\build\knight', 'scenes', name_filter=('*',))
     # for f in collector.get(reverse=True, filter='temp.ma'):
     #     print f.fileName()
-    collector = BookmarksCollector()
-    for item in collector.get_items(reverse=True, path_filter='shots'):
+    collector = FileCollector(
+        r'\\gordo\jobs\tkwwbk_8077\build2\asset_one',
+        common.ScenesFolder
+    )
+    for item in collector.get_items(reverse=False, path_filter='/'):
         print item
