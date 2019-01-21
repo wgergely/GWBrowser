@@ -16,7 +16,7 @@ Methods:
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from mayabrowser import common
-from mayabrowser.configparsers import AssetSettings
+from mayabrowser.settings import AssetSettings
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -877,7 +877,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.add_button, 0)
 
         if self.index.isValid():
-            _, job, _, _, _ = self.index.data(common.ParentRole)
+            job = self.index.data(common.ParentRole)[1]
             text = '{}: {}  |  Notes and Tasks'.format(
                 job.upper(),
                 self.index.data(QtCore.Qt.DisplayRole).upper()

@@ -20,21 +20,15 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 
 """
 
-
+from collections import OrderedDict
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-from mayabrowser.common import cmds
-from mayabrowser.common import OpenMayaUI
-from mayabrowser.common import MayaQWidgetDockableMixin
-from mayabrowser.common import shiboken2
 
 from mayabrowser.bookmarksWidget import BookmarksWidget
 from mayabrowser.assetwidget import AssetWidget
-from mayabrowser.listmaya import FilesWidget
-from mayabrowser.configparsers import local_settings
-from mayabrowser.configparsers import AssetConfig
-from mayabrowser.delegate import ThumbnailEditor
+from mayabrowser.filesWidget import FilesWidget
+from mayabrowser.settings import local_settings, path_monitor
 
 
 SingletonType = type(QtWidgets.QWidget)
@@ -136,13 +130,13 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
+class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
     """Singleton MayaQWidgetDockable widget containing the lists of locations, assets and scenes.
 
     Attributes:
         instances (dict):               Class instances.
-        assetsWidget (QListWidget):   List of the collected Maya assets.
-        filesWidget (QListWidget):      List of files found associated with the asset.
+        assets_widget (QListWidget):   List of the collected Maya assets.
+        files_widget (QListWidget):      List of files found associated with the asset.
 
         configChanged (QtCore.QSignal): Custom signal emitted when the configuration file changes.
 
@@ -163,16 +157,8 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         super(BrowserWidget, self).__init__(parent=parent)
         self.instances[self.objectName()] = self
 
-        self._workspacecontrol = None
-        self.maya_callbacks = []  # Maya api callbacks
-        self.maya_actions = []  # Maya ui
-
         # Applying the initial config settings.
-        self._kwargs = {
-            'server': local_settings.value('activepath/server'),
-            'job': local_settings.value('activepath/job'),
-            'root': local_settings.value('activepath/root')
-        }
+        self.current_paths = OrderedDict(path_monitor.get_active_paths())
 
         self._contextMenu = None
         self.fader_widget = None
@@ -180,37 +166,32 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         # Create layout
         self._createUI()
 
-        pixmap = common.get_rsc_pixmap('custom_thumbnail', common.FAVOURITE, 24)
-        self.locationsWidget = BookmarksWidget()
-        self.locationsWidget.setWindowIcon(QtGui.QIcon(pixmap))
-        self.assetsWidget = AssetWidget()
-        self.assetsWidget.setWindowIcon(QtGui.QIcon(pixmap))
-        self.filesWidget = FilesWidget()
-        self.filesWidget.setWindowIcon(QtGui.QIcon(pixmap))
+        self.bookmarks_widget = BookmarksWidget()
+        self.assets_widget = AssetWidget((
+            self.current_paths['server'],
+            self.current_paths['job'],
+            self.current_paths['root']
+        ))
+        self.files_widget = FilesWidget((
+            self.current_paths['server'],
+            self.current_paths['job'],
+            self.current_paths['root'],
+            self.current_paths['asset']),
+            common.ScenesFolder
+            )
 
-        self.stacked_widget.addWidget(self.locationsWidget)
-        self.stacked_widget.addWidget(self.assetsWidget)
-        self.stacked_widget.addWidget(self.filesWidget)
+        self.stacked_widget.addWidget(self.bookmarks_widget)
+        self.stacked_widget.addWidget(self.assets_widget)
+        self.stacked_widget.addWidget(self.files_widget)
 
         # Setting initial state
-        self.stacked_widget.setCurrentIndex(local_settings.current_widget)
-        self.mode_pick.setCurrentIndex(local_settings.current_widget)
-
-        self.config_string = ''
-        self.config_watch_timer = QtCore.QTimer()
-        self.config_watch_timer.setInterval(2000)
-        self.config_watch_timer.start()
-
+        idx = local_settings.value('widget/{}/current_index'.format(self.__class__.__name__))
+        if not idx:
+            idx = 0
+        self.stacked_widget.setCurrentIndex(idx)
+        self.mode_pick.setCurrentIndex(idx)
         self._connectSignals()
 
-        self.sync_config()
-        self.sync_active_maya_asset()
-
-    @property
-    def workspacecontrol(self):
-        """The workspacecontrol associated with this widget."""
-        self._workspacecontrol = self.get_workspace_control()
-        return self._workspacecontrol
 
     def setThumbnail(self, path, opacity=1, size=common.ROW_BUTTONS_HEIGHT):
         """Sets the given path as the thumbnail of the asset."""
@@ -218,7 +199,7 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         image.load(path)
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
-        
+
         self.asset_thumbnail.setPixmap(pixmap)
 
     def sizeHint(self):
@@ -256,11 +237,9 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             QtWidgets.QSizePolicy.Preferred
         )
 
-        pixmap = common.get_thumbnail_pixmap(common.CUSTOM_THUMBNAIL)
-        self.setWindowIcon(QtGui.QIcon(pixmap))
-
         self.row_buttons = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(self.row_buttons)
+
         self.row_buttons.layout().setContentsMargins(0, 0, 0, 0)
         self.row_buttons.layout().setSpacing(0)
         self.row_buttons.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -304,7 +283,6 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             }\
             """
         )
-        self.setThumbnail(common.CUSTOM_THUMBNAIL, opacity=1)
         self.setStyleSheet(
             """
             QWidget {\
@@ -313,8 +291,8 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             """
         )
 
-        self.mode_pick = DropdownWidget()
-        self.mode_pick.addItem('Projects')
+        self.mode_pick = DropdownWidget(parent=self)
+        self.mode_pick.addItem('Bookmarks')
         self.mode_pick.addItem('Assets')
         self.mode_pick.addItem('Files')
 
@@ -351,168 +329,15 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
             """
         )
 
-    def contextMenuEvent(self, event):
-        """Custom context menu event."""
-        pass
-
-    def sync_config(self, *args, **kwargs):
-        """Keeps an eye out for configuration file changes and triggers a refresh
-        when change is detected.
-
-        """
-        if not QtCore.QFileInfo(local_settings.getConfigPath(None)).exists():
-            self.setWindowTitle('No asset added yet.')
-            return
-
-        local_settings.read_ini()
-
-        if (
-            (self._kwargs['server'] == local_settings.server) and
-            (self._kwargs['job'] == local_settings.job) and
-            (self._kwargs['root'] == local_settings.root)
-        ):
-            return
-
-        self._kwargs = {
-            'server': local_settings.server,
-            'job': local_settings.job,
-            'root': local_settings.root
-        }
-
-        self.configChanged.emit()
-        self.assetChanged.emit()
-
-        self.assetsWidget.refresh()
-        self.setWindowTitle(
-            '{}:  {}'.format(
-                local_settings.job, local_settings.root).upper()
-        )
-
-    def sync_active_maya_asset(self, setActive=True):
-        """Selects the active maya asset in the list and sets it as the ``active_item``."""
-        if not cmds.workspace(q=True, fn=True):
-            return
-
-        file_info = QtCore.QFileInfo(cmds.workspace(q=True, fn=True))
-        item = self.assetsWidget.findItems(
-            file_info.baseName().upper(),
-            QtCore.Qt.MatchContains
-        )
-        if not item:
-            return
-
-        index = self.assetsWidget.indexFromItem(item[0])
-        self.assetsWidget.setCurrentItem(item[0])
-        self.assetsWidget.scrollTo(index)
-
-        if setActive:
-            self.assetsWidget.active_item = item[0]
-
-    def sync_active_maya_scene(self, *args, **kwargs):
-        """Selects and scrolls to the current item in the list."""
-        if not cmds.file(q=True, expandName=True):
-            return
-
-        file_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
-        item = self.filesWidget.findItems(
-            file_info.fileName(),
-            QtCore.Qt.MatchContains
-        )
-        if not item:
-            return
-
-        index = self.filesWidget.indexFromItem(item[0])
-        self.filesWidget.active_item = item[0]
-        self.filesWidget.setCurrentItem(item[0])
-        self.filesWidget.scrollTo(index)
-
-        #
-        font = self.files_button.font()
-        metrics = QtGui.QFontMetrics(font)
-        filename = metrics.elidedText(
-            file_info.baseName(),
-            QtCore.Qt.ElideMiddle,
-            self.files_button.width() - common.MARGIN * 3
-        )
-        self.files_button.setText(filename)
-
-    def get_workspace_control(self):
-        """Returns the Maya WorkspaceControl associated with the widget.
-
-        TODO:
-            Workspacetcontrols are tricky to control in Maya as they are generated
-            automatically, upon showing this widget.
-
-            I would love to be able to save the dock-control's position and dock-area,
-            but finding it difficult to find a robost way to get these...
-
-        """
-        if MayaQWidgetDockableMixin is common.LocalContext:
-            return None
-
-        control_name = '{}WorkspaceControl'.format(
-            next((f for f in self.instances.iterkeys()), None))
-        control_ptr = OpenMayaUI.MQtUtil.findLayout(control_name)
-        if not control_ptr:
-            return None  # if not visible the control doesn't exists
-
-        return shiboken2.wrapInstance(long(control_ptr), QtWidgets.QWidget)
-
-    def get_parent_window(self):
-        """Returns the parent of the workspacecontrol inside Maya."""
-        widget = self.get_workspace_control()
-        if not widget:
-            return None
-        return widget.window()
-
-    def is_docked(self):
-        """Returns True if the workspacecontrol is docked."""
-        win = self.get_parent_window()
-        if not win:
-            return False
-        return True if win.parent() else False
-
-    def show(self):
-        """Custom show event. Calls the DockControls's show method with some
-        reasonable defaults.
-
-        """
-        kwargs = {
-            'dockable': True,
-            'floating': True,
-            'area': None,
-            'allowedArea': None,
-            'minWidth': common.WIDTH,
-            'maxWidth': common.WIDTH * 1.5,
-            'width': common.WIDTH,
-            'widthSizingProperty': None,
-            'height':   common.ROW_HEIGHT * 0.66,
-            'minHeight': common.ROW_HEIGHT * 0.66,
-            'maxHeight': common.ROW_HEIGHT * 0.66,
-            'heightSizingProperty': None,
-            'retain': True,
-            'plugins': None,
-            'controls': None,
-            'uiScript': None,
-            'closeCallback': None
-        }
-
-        if MayaQWidgetDockableMixin is common.LocalContext:
-            super(BrowserWidget, self).show()
-            return
-
-        super(BrowserWidget, self).show(**kwargs)
 
     def _connectSignals(self):
         self.mode_pick.currentIndexChanged.connect(self.view_changed)
         self.stacked_widget.currentChanged.connect(
             self.mode_pick.setCurrentIndex)
-        self.config_watch_timer.timeout.connect(self.sync_config)
 
-        self.locationsWidget.locationChanged.connect(self.location_changed)
-        self.locationsWidget.itemEntered.connect(self.itemEntered)
-        # self.assetsWidget.assetChanged.connect(self.assetChanged)
-        # self.filesWidget.sceneChanged.connect(self.sync_active_maya_scene)
+        self.bookmarks_widget.itemEntered.connect(self.itemEntered)
+        self.assets_widget.itemEntered.connect(self.itemEntered)
+        self.files_widget.itemEntered.connect(self.itemEntered)
 
     def itemEntered(self, item):
         """Custom itemEntered signal."""
@@ -527,184 +352,6 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
         self.activate_widget(self.stacked_widget.widget(index))
         local_settings.current_widget = index
 
-    def add_maya_callbacks(self):
-        """This method is called by the Maya plug-in when initializing."""
-        import maya.OpenMaya as api
-        callback = api.MSceneMessage.addCallback(
-            api.MSceneMessage.kAfterOpen, self.MSceneMessage_kAfterOpen)
-        self.maya_callbacks.append(callback)
-
-        # I wanted to implement a loading spinner, but Maya is blocking all signals
-        # on fileIO operations, hence unable to make this work...
-
-        # def start_spinner(self, userData):
-        #     """Custom maya callback."""
-        #     self.spinner = Spinner()
-        #     self.spinner.start()
-        #
-        # def stop_spinner(self, userData):
-        #     """Custom maya callback."""
-        #     self.spinner.stop()
-        #     self.spinner.deleteLater()
-
-    @staticmethod
-    def get_mayawindow():
-        """Returns the Main maya window.
-
-        Note:
-            There's a Maya ui method for getting the main window but this
-            seems to be working too.
-
-        """
-        app = QtCore.QCoreApplication.instance()
-        app.maya_window = next(
-            (f for f in app.topLevelWidgets() if f.objectName() == 'MayaWindow'),
-            RuntimeError('# Browser: Could not find the "MayaWindow".')
-        )
-        return app.maya_window
-
-    @staticmethod
-    def get_global_file_menu():
-        """Initilizes and returns the Maya application\'s ``File`` menu."""
-        app = QtCore.QCoreApplication.instance()
-        app.maya_menubar = BrowserWidget.get_mayawindow().findChild(
-            QtWidgets.QMenuBar, options=QtCore.Qt.FindDirectChildrenOnly
-        )
-        app.maya_file_menu = next(
-            (f for f in app.maya_menubar.actions() if f.text() == 'File'),
-            RuntimeError('# Browser: Could not find the "File" menu.')
-        )
-        # Trying to avoid garbage collections
-        app.maya_file_menu.setParent(app.maya_menubar)
-        # Trying to avoid garbage collections
-        app.maya_file_menu.menu().setParent(app.maya_menubar)
-        app.maya_file_menu = app.maya_file_menu.menu()
-
-        # Let's initialize the menu by showing it programmatically.
-        app.maya_file_menu.popup(app.maya_menubar.mapToGlobal(
-            app.maya_menubar.geometry().bottomLeft()))
-        app.maya_file_menu.setHidden(True)
-
-        return app.maya_file_menu
-
-    def uninitialize(self):
-        """Method called by the plug-in, responsible for deleting the widgets."""
-        self.filesWidget.deleteLater()
-        self.assetsWidget.deleteLater()
-
-        self.close()
-
-    def add_global_app_actions(self):
-        """This method is called by the Maya plug-in when loading and unloading,
-        and is responsible for populating the ``Application->File`` menu with
-        the custom plug-in actions.
-
-        The actions are added after the second separator.
-        In Maya 2018, this should be is after the built-in `Open/Save` menus
-        but before the `Archive scene` option.
-
-        """
-        pixmap = self.get_thumbnail_pixmap(
-            common.CUSTOM_THUMBNAIL, opacity=1, size=24
-        )
-        icon = QtGui.QIcon(pixmap)
-        menu = self.get_global_file_menu()
-
-        def _files_func():
-            self.activate_widget(self.filesWidget)
-
-        def _asset_func():
-            self.activate_widget(self.assetsWidget)
-
-        # We're adding our actions after the second separator.
-        count = 0
-        before = None
-        for item in menu.actions():
-            if count == 2:
-                before = item
-                break
-            if item.isSeparator():
-                count += 1
-                continue
-
-        # Last
-        action = QtWidgets.QAction(menu)
-        action.setSeparator(True)
-        menu.insertAction(before, action)
-        self.maya_actions.append(action)
-        before = action
-
-        action = QtWidgets.QAction('Files...', menu)
-        action.setIcon(icon)
-        action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
-        action.setShortcut('Ctrl+Shift+F')
-        action.setStatusTip('Show the asset\'s files')
-
-        action.triggered.connect(_files_func)
-        menu.insertAction(before, action)
-        self.maya_actions.append(action)
-        before = action
-
-        action = QtWidgets.QAction('Assets...', menu)
-        action.setIcon(icon)
-        action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
-        action.setShortcut('Ctrl+Shift+P')
-        action.setStatusTip('Show the assets')
-        action.triggered.connect(_asset_func)
-        menu.insertAction(before, action)
-        self.maya_actions.append(action)
-        before = action
-
-        # Toolbar
-        action = QtWidgets.QAction('Toolbar', menu)
-        action.setIcon(icon)
-        action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
-        action.setShortcut('Ctrl+Shift+O')
-        action.setStatusTip('Show the dockable browser control')
-        action.triggered.connect(self.show)
-        menu.insertAction(before, action)
-        self.maya_actions.append(action)
-
-    def remove_global_app_actions(self):
-        """This method is called by the Maya plug-in when unloading."""
-        menu = self.get_global_file_menu()
-        for action in self.maya_actions:
-            menu.removeAction(action)
-            action.deleteLater()
-
-    def remove_maya_callbacks(self):
-        """This method is called by the Maya plug-in when unloading."""
-        import maya.OpenMaya as api
-        for callback in self.maya_callbacks:
-            api.MMessage.removeCallback(callback)
-
-    def MSceneMessage_kAfterOpen(self, userData):
-        """Custom maya callback called after a scene has been opened."""
-        self.sync_active_maya_scene()
-
-    def shortcutActived(self):
-        """Called by the installed application shortcut."""
-        self.show()
-
-    def _assetChanged(self):
-        """Signal emitted when the asset has changed."""
-        file_info = self.assetsWidget.collector.active_item
-        if file_info:
-            cmds.workspace(file_info.filePath(), openWorkspace=True)
-            path = AssetConfig.getThumbnailPath(file_info.filePath())
-            thumb_info = QtCore.QFileInfo(path)
-
-            # Setting the asset's thumbnail as the label thumbnail
-            if thumb_info.exists():
-                self.setThumbnail(thumb_info.filePath())
-            else:
-                self.setThumbnail(common.CUSTOM_THUMBNAIL)
-        else:
-            self.setThumbnail(common.CUSTOM_THUMBNAIL)
-
-        self.filesWidget.update_path(file_info)
-        self.filesWidget.refresh()
-
     def activate_widget(self, widget):
         """Method to change between views."""
         self.fader_widget = FaderWidget(
@@ -716,47 +363,9 @@ class BrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: dis
 
         Sets the window title and the icon based on the configuration values.
         """
-        self._kwargs['server'] = local_settings.server
-        self._kwargs['job'] = local_settings.job
-        self._kwargs['root'] = local_settings.root
-
-        if (
-            (not self._kwargs['server']) or
-            (not self._kwargs['job']) or
-            (not self._kwargs['root'])
-        ):
-            self.setWindowTitle('Browser not configured')
-            return
-
-        self.setWindowTitle(
-            '{}:  {}'.format(
-                local_settings.job, local_settings.root).upper()
-        )
-
-        self.config_watch_timer.start()
-        self.sync_active_maya_asset()
-
-        if not self.get_workspace_control():
-            return
-
-        if not self.is_docked():
-            return
-
-        if not self.get_parent_window():
-            return
-
-        pixmap = self.get_thumbnail_pixmap(
-            common.CUSTOM_THUMBNAIL, opacity=1, size=(common.ROW_HEIGHT * 0.66)
-        )
+        pixmap = common.get_rsc_pixmap(
+            'custom_thumbnail', color=common.TEXT, size=(common.ROW_HEIGHT * 0.66))
         self.setWindowIcon(QtGui.QIcon(pixmap))
-
-    def keyPressEvent(self, event):
-        """Custom key actions."""
-        pass
-
-    def hideEvent(self, event):
-        """Custom hide event."""
-        self.config_watch_timer.stop()
 
 
 class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
@@ -764,7 +373,7 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         super(DropdownWidgetDelegate, self).__init__(parent=parent)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        return QtCore.QSize(self.parent().parent().width(), common.ROW_HEIGHT)
 
     def paint(self, painter, option, index):
         """The main paint method."""
@@ -922,9 +531,7 @@ class DropdownWidget(QtWidgets.QComboBox):
 
     def __init__(self, parent=None):
         super(DropdownWidget, self).__init__(parent=parent)
-        self.setItemDelegate(DropdownWidgetDelegate())
-        self.view().setFixedWidth(common.WIDTH)
-
+        self.setItemDelegate(DropdownWidgetDelegate(parent=self))
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
