@@ -64,6 +64,7 @@ class ActivePathMonitor(QtCore.QObject):
         d['job'] = local_settings.value('activepath/job')
         d['root'] = local_settings.value('activepath/root')
         d['asset'] = local_settings.value('activepath/asset')
+        d['fileroot'] = local_settings.value('activepath/fileroot')
         d['file'] = local_settings.value('activepath/file')
 
         # Checking whether the active-path actually exists

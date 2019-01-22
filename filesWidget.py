@@ -24,6 +24,7 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
+        self.add_location_toggles_menu()
         if index.isValid():
             self.add_thumbnail_menu()
         self.add_refresh_menu()
@@ -46,15 +47,18 @@ class FilesWidget(BaseListWidget):
     fileImported = QtCore.Signal(str)
     fileReferenced = QtCore.Signal(str)
 
-    def __init__(self, path, root, parent=None):
-        self.path = path # tuple(server,job,root,asset)
-        self.root = root
+    def __init__(self, asset, parent=None):
+        self._asset = asset # tuple(server,job,root,asset)
 
         super(FilesWidget, self).__init__(parent=parent)
 
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
+
+    def set_asset(self, asset):
+        self._asset = asset
+        self.refresh()
 
     def refresh(self):
         """Refreshes the list if files."""
@@ -77,13 +81,14 @@ class FilesWidget(BaseListWidget):
         for path in self.fileSystemWatcher.directories():
             self.fileSystemWatcher.removePath(path)
 
-        server, job, root, asset = self.path
-        if not all(self.path):
+        server, job, root, asset = self._asset
+        if not all(self._asset):
             return
 
-        self.fileSystemWatcher.addPath('/'.join(self.path))
+        self.fileSystemWatcher.addPath('/'.join(self._asset))
 
-        collector = FileCollector('/'.join(self.path), self.root)
+        location = self.get_location()
+        collector = FileCollector('/'.join(self._asset), location, parent=self)
         items = collector.get_items(
             key=self.get_item_sort_order(),
             reverse=self.is_item_sort_reversed(),
@@ -92,19 +97,19 @@ class FilesWidget(BaseListWidget):
         self.collector_count = collector.count
         for file_info in items:
             item = QtWidgets.QListWidgetItem()
-            settings = AssetSettings('/'.join(self.path), file_info.filePath())
+            settings = AssetSettings('/'.join(self._asset), file_info.filePath())
 
             # Creating the folder for the settings if needed
             config_dir_path = '{}/.browser/{}'.format(
-                '/'.join(self.path),
-                file_info.filePath().replace('/'.join(self.path), '').strip('/')
+                '/'.join(self._asset),
+                file_info.filePath().replace('/'.join(self._asset), '').strip('/')
             )
             config_dir_path = QtCore.QFileInfo(config_dir_path)
             if not config_dir_path.exists():
                 QtCore.QDir().mkpath(config_dir_path.filePath())
 
             self.fileSystemWatcher.addPath(file_info.dir().path())
-            path = '{}/{}'.format('/'.join(self.path), self.root)
+            path = '{}/{}'.format('/'.join(self._asset), location)
 
             # Qt Roles
             item.setData(QtCore.Qt.DisplayRole, file_info.fileName())
@@ -123,7 +128,7 @@ class FilesWidget(BaseListWidget):
             # Modes
             mode = file_info.path() # parent folder
             mode = mode.replace('{}/{}/{}/{}/{}'.format(
-                server, job, root, asset, self.root
+                server, job, root, asset, location
             ), '')
             mode = mode.strip('/').split('/')
             item.setData(common.FileModeRole, mode)
@@ -175,7 +180,7 @@ class FilesWidget(BaseListWidget):
             self.addItem(item)
 
     def _warning_strings(self):
-        server, job, root, asset = self.path
+        server, job, root, asset = self._asset
         path_err = '{} has not yet been set.'
         if not server:
             return str(path_err).format('Server')
@@ -187,7 +192,7 @@ class FilesWidget(BaseListWidget):
             return str(path_err).format('Asset')
 
         if not self.collector_count:
-            path = '/'.join(self.path)
+            path = '/'.join(self._asset)
             return '{} contains no valid items.'.format(path)
         if self.count() > self.count_visible():
             return '{} items hidden by filters.'.format(self.count() - self.count_visible())
@@ -359,7 +364,7 @@ if __name__ == '__main__':
             local_settings.value('activepath/root'),
             local_settings.value('activepath/asset'))
 
-    widget = FilesWidget(path, common.ScenesFolder)
+    widget = FilesWidget(path)
 
     widget.show()
     app.exec_()

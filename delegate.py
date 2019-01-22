@@ -948,7 +948,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def _get_root_text(self, item, rect, metrics):
         """Gets the text for drawing the root."""
-        _, _, root, _, _ = item.data(common.ParentRole)
+        root = item.data(common.ParentRole)[2]
         count = item.data(common.FileDetailsRole)
 
         text = re.sub(r'[_]+', ' ', root.upper())
@@ -1332,9 +1332,9 @@ class FilesWidgetDelegate(BaseDelegate):
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
         text = text.split('.')
-        text.pop(-1)
+        ext = text.pop(-1)
         text = '.'.join(text).upper()
-        # text = '{}.{}'.format(text, ext)
+        text = '{}.{}'.format(text, ext)
 
         text = metrics.elidedText(
             text,

@@ -14,13 +14,32 @@ QWidget:disabled {{
 	color: rgba({SECONDARY_TEXT});
 }}
 
-
 QWidget:focus {{
 	border: solid;
 	border-width: 1px;
 	border-color: rgba({SELECTION});
 }}
 QWidget:window {{
+	border: solid;
+	border-width: 1px;
+	border-color: rgba({SELECTION});
+}}
+
+
+
+QStackedWidget {{
+	background-color: rgba({SEPARATOR});
+	color: rgba({SECONDARY_TEXT});
+	border-width: 1px;
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	outline: 0;
+	font-family: "{fontFamily}";
+	font-size: {fontSize}pt;
+	}}
+
+QStackedWidget:focus {{
 	border: solid;
 	border-width: 1px;
 	border-color: rgba({SELECTION});

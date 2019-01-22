@@ -306,6 +306,33 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
+    def add_location_toggles_menu(self):
+        """Adds the menu needed to change context"""
+        locations_icon_pixmap = common.get_rsc_pixmap('location', common.TEXT_SELECTED, 18.0)
+        item_on_pixmap = common.get_rsc_pixmap('item_on', common.TEXT_SELECTED, 18.0)
+        item_off_pixmap = common.get_rsc_pixmap('item_off', common.TEXT_SELECTED, 18.0)
+
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+
+        key = 'Locations'
+
+        menu_set[key] = collections.OrderedDict()
+        menu_set['{}:icon'.format(key)] = locations_icon_pixmap
+
+        for k in common.NameFilters:
+            checked = self.parent().get_location() == k
+            menu_set[key][k] = {
+                'text': k.upper(),
+                'checkable': True,
+                'checked': checked,
+                'icon': item_on_pixmap if checked else item_off_pixmap,
+                'action': functools.partial(self.parent().set_location, k)
+            }
+
+        self.create_menu(menu_set)
+
+
     def add_display_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
@@ -519,28 +546,14 @@ class BaseContextMenu(QtWidgets.QMenu):
 
 
 class BaseListWidget(QtWidgets.QListWidget):
-    """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets.
+    """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
 
-    Parameters
-    ----------
-        path: str
-            The path used to initialize
-
-    Signals
-    -------
-        sizeChanged: Signal(QSize)
-            Emitted when the size of the widget changes.
-        activeBookmarkChanged: Signal(tuple)
-            Emited when the active bookmark changes.
-        activeAssetChanged: Signal(str)
-            Emited when the active asset changes.
-        activeFileChanged: Signal(str)
-            Emited when the active file changes.
-
-    """
+    # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
+
     activeBookmarkChanged = QtCore.Signal(tuple)
-    activeAssetChanged = QtCore.Signal(str)
+    activeAssetChanged = QtCore.Signal(tuple)
+    activeLocationChanged = QtCore.Signal(str)
     activeFileChanged = QtCore.Signal(str)
 
     def __init__(self, parent=None):
@@ -548,6 +561,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         # The timer used to check for changes in the active path
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
+
+        self._location = None
+        self.activeLocationChanged.connect(self.refresh)
 
         self.collector_count = 0
         self._context_menu_cls = BaseContextMenu
@@ -589,6 +605,22 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.add_items()
         self.set_item_visibility()
 
+    def get_location(self):
+        """Get's the current ``location``."""
+        val = local_settings.value('activepath/location')
+        return val if val else common.ScenesFolder
+
+    def set_location(self, val):
+        """Sets the location and emits the ``activeLocationChanged`` signal."""
+        key = 'activepath/location'
+        cval = local_settings.value(key)
+
+        if cval == val:
+            return
+
+        local_settings.setValue(key, val)
+        self.activeLocationChanged.emit(val)
+
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
         val = local_settings.value(
@@ -596,9 +628,8 @@ class BaseListWidget(QtWidgets.QListWidget):
         return val if val else '/'
 
     def set_item_filter(self, val):
-        """Sets the ``item_filter``."""
-        local_settings.setValue(
-            'widget/{}/filter'.format(self.__class__.__name__), val)
+        cls = self.__class__.__name__
+        local_settings.setValue('widget/{}/filter'.format(cls), val)
 
     def get_display_mode(self, mode):
         """Querries this widget's display mode."""
@@ -610,12 +641,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         return setting if setting else False
 
     def set_display_mode(self, mode, val):
-        """Sets this widget's display mode."""
+        cls = self.__class__.__name__
         local_settings.setValue(
-            'widget/{widget}/mode:{mode}'.format(
-                widget=self.__class__.__name__,
-                mode=mode
-            ), val)
+            'widget/{widget}/mode:{mode}'.format(widget=cls, mode=mode), val)
 
     def get_item_sort_order(self):
         """Returns the saved sort order for this widget."""
@@ -624,8 +652,9 @@ class BaseListWidget(QtWidgets.QListWidget):
         return int(val) if val else common.SortByName
 
     def set_item_sort_order(self, val):
+        cls = self.__class__.__name__
         local_settings.setValue(
-            'widget/{}/sort_order'.format(self.__class__.__name__), val)
+            'widget/{}/sort_order'.format(cls), val)
 
     def is_item_sort_reversed(self):
         """Returns the order of the list."""
@@ -634,8 +663,20 @@ class BaseListWidget(QtWidgets.QListWidget):
         return int(val) if val else False
 
     def set_item_sort_reversed(self, val):
+        cls = self.__class__.__name__
         local_settings.setValue(
-            'widget/{}/sort_reversed'.format(self.__class__.__name__), val)
+            'widget/{}/sort_reversed'.format(cls), val)
+
+    def is_sequence_collapsed(self):
+        """Gathers sequences into a single file."""
+        val = local_settings.value(
+            'widget/{}/collapse_sequence'.format(self.__class__.__name__))
+        return int(val) if val else False
+
+    def set_collapse_sequence(self, val):
+        cls = self.__class__.__name__
+        local_settings.setValue(
+            'widget/{}/collapse_sequence'.format(cls), val)
 
     def toggle_favourite(self, item=None, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -969,23 +1010,27 @@ class BaseListWidget(QtWidgets.QListWidget):
         """Sets the current item item as ``active``.
 
         Note:
-            This doesn't alter the local config file only sets, the flags.
-            Make sure to implement that in the subclass.
+            The method doesn't alter the config files or emits signals,
+            merely sets the item flags. Make sure to implement that in the subclass.
 
         """
         item = self.currentItem()
         if not item:
-            return
-
+            return False
+        if item.flags() == QtCore.Qt.NoItemFlags:
+            return False
+        if self.active_item() is self.currentItem():
+            return False
         archived = item.flags() & configparser.MarkedAsArchived
         if archived:
-            return
+            return False
 
         # Set flags
         if self.active_item():
             self.active_item().setFlags(item.flags() & ~
                                         configparser.MarkedAsActive)
         item.setFlags(item.flags() | configparser.MarkedAsActive)
+        return item
 
     def select_active_item(self):
         """Selects the active item."""
@@ -1043,7 +1088,24 @@ class BaseListWidget(QtWidgets.QListWidget):
     def showEvent(self, event):
         """Show event will set the size of the widget."""
         self.select_active_item()
+
+        idx = local_settings.value(
+            'widget/{}/selected_row'.format(self.__class__.__name__),
+        )
+        if not idx:
+            idx = 0
+        item = self.item(idx)
+        if item:
+            self.setCurrentItem(item)
+
         super(BaseListWidget, self).showEvent(event)
+
+    def hideEvent(self, event):
+        """We're saving the selection upon hiding the widget."""
+        local_settings.setValue(
+            'widget/{}/selected_row'.format(self.__class__.__name__),
+            self.currentRow()
+        )
 
     def resizeEvent(self, event):
         """Custom resize event will emit the ``sizeChanged`` signal."""

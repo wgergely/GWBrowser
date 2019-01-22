@@ -11,6 +11,7 @@ Methods:
 """
 
 import functools
+import re
 from PySide2 import QtCore
 
 import mayabrowser.common as common
@@ -45,11 +46,49 @@ class BaseCollector(QtCore.QObject):
             tuple:  A tuple of QFileInfo instances.
 
         """
-        items = [k for k in self.item_generator() if path_filter in k.filePath()]
+        if not self.parent().is_sequence_collapsed():  # We're collapsing sequence
+            items = []
+            r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
+
+            d = {}
+            for item in self.item_generator():
+                match = r.search(item.fileName())
+                if not match:
+                    items.append(item)
+                    continue
+                if match.group(1) not in d:
+                    d[match.group(1)] = {
+                        'path': item.path(),
+                        'frames': [],
+                        'size': 0,
+                        'padding': len(match.group(2)),
+                        'modified': item.lastModified(),
+                        'ext': match.group(3)
+                    }
+                d[match.group(1)]['frames'].append(int(match.group(2)))
+                d[match.group(1)]['size'] += item.size()
+                d[match.group(1)]['modified'] = (
+                    d[match.group(1)]['modified'] if item.lastModified() <
+                    d[match.group(1)]['modified'] else item.lastModified())
+
+            for k in d:
+                path = '{}/{}[{}].{}'.format(
+                    d[k]['path'],
+                    k,
+                    common.get_ranges(d[k]['frames'], d[k]['padding']),
+                    d[k]['ext']
+                )
+                file_info = QtCore.QFileInfo(path)
+                file_info.size = lambda: d[k]['size']
+                file_info.lastModified = lambda: d[k]['modified']
+                items.append(file_info)
+        else:
+            items = [k for k in self.item_generator(
+            ) if path_filter in k.filePath()]
 
         if not items:
             return []
-
+        #
         if not reverse:
             return sorted(items, key=common.sort_keys[key])
         return list(reversed(sorted(items, key=common.sort_keys[key])))
@@ -82,7 +121,7 @@ class BookmarksCollector(BaseCollector):
             # This is a bit hackish
             file_info.server = bookmarks[k]['server']
             file_info.job = bookmarks[k]['job']
-            file_info.root = bookmarks[k]['root']
+            file_info.location = bookmarks[k]['root']
 
             file_info.size = functools.partial(size, file_info)
             self._count += 1
@@ -158,20 +197,21 @@ class FileCollector(BaseCollector):
         The list of subfolders noting a ``mode``.
 
     """
+
     def __init__(self, path, root, parent=None):
         super(FileCollector, self).__init__(parent=parent)
         self.path = path
-        self.root = root
+        self.location = root
         self.modes = self._get_modes()
 
     def _get_modes(self):
-        file_info = QtCore.QFileInfo('{}/{}'.format(self.path, self.root))
+        file_info = QtCore.QFileInfo('{}/{}'.format(self.path, self.location))
         if not file_info.exists():
             return []
 
         dir_ = QtCore.QDir(file_info.filePath())
         return dir_.entryList(
-            filters=QtCore.QDir.Dirs |QtCore.QDir.NoDotAndDotDot,
+            filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
         )
 
     def item_generator(self):
@@ -181,7 +221,7 @@ class FileCollector(BaseCollector):
         Yields: A QFileInfo instance.
 
         """
-        path = '{}/{}'.format(self.path, self.root)
+        path = '{}/{}'.format(self.path, self.location)
         file_info = QtCore.QFileInfo(path)
 
         if not file_info.exists():
@@ -189,22 +229,14 @@ class FileCollector(BaseCollector):
 
         self._count = 0  # Resetting the count
         it = QtCore.QDirIterator(
-            file_info.filePath(),
-            common.NameFilters[self.root],
+            path,
+            common.NameFilters[self.location],
             flags=QtCore.QDirIterator.Subdirectories
         )
 
         while it.hasNext():
-            path = it.next()
-            file_info = QtCore.QFileInfo(path)
-
-            if file_info.fileName()[0] == '.':
-                continue
-            if file_info.isDir():
-                continue
-
             self._count += 1
-            yield file_info
+            yield QtCore.QFileInfo(it.next())
 
 
 if __name__ == '__main__':

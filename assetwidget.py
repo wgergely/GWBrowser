@@ -50,7 +50,7 @@ class AssetWidget(BaseListWidget):
     """
 
     def __init__(self, bookmark, parent=None):
-        self.bookmark = bookmark
+        self._bookmark = bookmark
 
         super(AssetWidget, self).__init__(parent=parent)
 
@@ -60,17 +60,24 @@ class AssetWidget(BaseListWidget):
         # Select the active item
         self.setCurrentItem(self.active_item())
 
+    def set_bookmark(self, bookmark):
+        self._bookmark = bookmark
+        self.refresh()
+
     def set_current_item_as_active(self):
         """Sets the current item item as ``active`` and
         emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
 
         """
-        super(AssetWidget, self).set_current_item_as_active()
-        file_info = QtCore.QFileInfo(self.currentItem().data(common.PathRole))
-        local_settings.setValue('activepath/asset', file_info.baseName())
-        local_settings.setValue('activepath/file', None)
+        item = super(AssetWidget, self).set_current_item_as_active()
+        if not item:
+            return
 
+        file_info = QtCore.QFileInfo(item.data(common.PathRole))
+        local_settings.setValue('activepath/asset', file_info.baseName())
         self.activeAssetChanged.emit(file_info.baseName())
+
+        local_settings.setValue('activepath/file', None)
         self.activeFileChanged.emit(None)
 
     def add_items(self):
@@ -89,13 +96,13 @@ class AssetWidget(BaseListWidget):
 
         # Creating the folder for the settings if needed
         config_dir_path = '{}/.browser/'.format(
-            '/'.join(self.bookmark))
+            '/'.join(self._bookmark))
         config_dir_path = QtCore.QFileInfo(config_dir_path)
         if not config_dir_path.exists():
             QtCore.QDir().mkpath(config_dir_path.filePath())
 
 
-        server, job, root = self.bookmark
+        server, job, root = self._bookmark
         if not any((server, job, root)):
             return
 

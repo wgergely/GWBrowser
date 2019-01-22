@@ -58,47 +58,33 @@ class BookmarksWidget(BaseListWidget):
         ``activeFileChanged`` signals.
 
         """
-        item = self.currentItem()
+        item = super(BookmarksWidget, self).set_current_item_as_active()
         if not item:
             return
-        if item.flags() == QtCore.Qt.NoItemFlags:
-            return
 
-        if self.active_item() is self.currentItem():
-            return
-
-        server, job, root, _, _ = item.data(common.ParentRole)
+        server, job, root = item.data(common.ParentRole)
+        asset = None
 
         # Updating the local config file
         active_paths = path_monitor.get_active_paths()
         local_settings.setValue('activepath/server', server)
         local_settings.setValue('activepath/job', job)
         local_settings.setValue('activepath/root', root)
-        path = item.data(common.PathRole)
+        self.activeBookmarkChanged.emit((server, job, root))
 
-        # Keeping the asset selection if it exists inside the newly set bookmark
+        # Keeping the asset selection if it exists inside the activated bookmark
         if active_paths['asset']:
-            path += '/{}'.format(active_paths['asset'])
-            if not QtCore.QFileInfo(path).exists():
-                local_settings.setValue('activepath/asset', None)
+            path = '{}/{}'.format(
+                item.data(common.PathRole),
+                active_paths['asset'],
+            )
+            if QtCore.QFileInfo(path).exists():
+                asset = active_paths['asset']
+                local_settings.setValue('activepath/asset', asset)
+                self.activeAssetChanged.emit(asset)
 
         # Resetting
         local_settings.setValue('activepath/file', None)
-
-        archived = item.flags() & configparser.MarkedAsArchived
-        if archived:
-            return
-
-        # Set flags
-        active_item = self.active_item()
-        if active_item:
-            active_item.setFlags(active_item.flags() & ~
-                                 configparser.MarkedAsActive)
-        item.setFlags(item.flags() | configparser.MarkedAsActive)
-
-        # Emiting active changed signals
-        self.activeBookmarkChanged.emit((server, job, root))
-        self.activeAssetChanged.emit(None)
         self.activeFileChanged.emit(None)
 
     def toggle_archived(self, item=None, state=None):
@@ -167,9 +153,7 @@ class BookmarksWidget(BaseListWidget):
             item.setData(common.ParentRole, (
                 file_info.server,
                 file_info.job,
-                file_info.root,
-                None,
-                None))
+                file_info.root))
             item.setData(common.DescriptionRole,
                          u'{}  |  {}  |  {}'.format(
                              file_info.server,
@@ -686,5 +670,13 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     app.w = BookmarksWidget()
+
+    def _print1(arg):
+        print '#1', arg
+    def _print2(arg):
+        print '#2', arg
+
+    app.w.activeBookmarkChanged.connect(_print1)
+    app.w.activeBookmarkChanged.connect(_print2)
     app.w.show()
     app.exec_()

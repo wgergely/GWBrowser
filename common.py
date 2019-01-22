@@ -63,7 +63,15 @@ NameFilters = {
         '*.ma',
         '*.mb',
     ),
-    RendersFolder: (),
+    RendersFolder: (
+        '*.exr',
+        '*.png',
+        '*.tiff',
+        '*.tff',
+        '*.jpg',
+        '*.jpeg',
+        '*.psd',
+    ),
 }
 """A list of expected file-formats associated with the location."""
 
@@ -276,6 +284,10 @@ def cache_image(path, height, overwrite=False):
         type: Description of returned object.
 
     """
+    height = int(height)
+    path = QtCore.QFileInfo(path)
+    path = path.filePath()
+
     k = '{path}:{height}'.format(
         path=path,
         height=height
@@ -285,9 +297,44 @@ def cache_image(path, height, overwrite=False):
 
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
-        file_info = QtCore.QFileInfo(
-            '{}/../rsc/placeholder.png'.format(__file__))
+        ppath = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+        ppath = ppath.filePath()
+        placeholder_k = '{path}:{height}'.format(
+            path=ppath,
+            height=height
+        )
+        if placeholder_k in IMAGE_CACHE:
+            IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
+            return IMAGE_CACHE[k]
 
+    image = QtGui.QImage()
+    image.load(file_info.filePath())
+
+    # If the load fails, use the placeholder image
+    image = resize_image(
+        image,
+        height
+    )
+
+    # Average colour
+    IMAGE_CACHE[k] = image
+    IMAGE_CACHE['{path}:BackgroundColor'.format(
+        path=path
+    )] = get_color_average(image)
+
+
+def cache_placeholder(height):
+    path = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+    path = path.filePath()
+    height = int(height)
+    k = '{path}:{height}'.format(
+        path=path,
+        height=height
+    )
+    if k in IMAGE_CACHE:
+        return IMAGE_CACHE[k]
+    file_info = QtCore.QFileInfo(
+        '{}/../rsc/placeholder.png'.format(__file__))
     image = QtGui.QImage()
     image.load(file_info.filePath())
 
@@ -554,6 +601,36 @@ HIGHLIGHT_RULES = {
 }
 
 
+def get_ranges(arr, padding):
+    """Examines a sequence of numbers and returnsa string representation."""
+    arr = list(set(sorted(arr)))
+    start = arr[0]
+    end = 0
+    block = []
+    for idx, n in enumerate(arr):
+        zfill = '{}'.format(n).zfill(padding)
+
+        start = n if n < start else start
+        end = end if n < end else n
+
+        if len(arr) > (idx + 1):
+            if arr[idx + 1] != n + 1:
+                if zfill not in block:
+                    block.append(zfill)
+                    block.append(',')
+
+        if idx > 0:
+            if arr[idx - 1] != n - 1:
+                if zfill not in block:
+                    block.append(zfill)
+                    block.append('-')
+
+    block.insert(0, '{}'.format(start).zfill(padding))
+    block.insert(1, '-')
+    block.append('{}'.format(end).zfill(padding))
+    return ''.join(block)
+
+
 # Label LABEL_COLORS
 ASSIGNED_LABELS = {}
 # Thumbnail cache
@@ -561,3 +638,7 @@ IMAGE_CACHE = {}
 
 # Property contains all the saVed label LABEL_COLORS
 LABEL_COLORS = label_generator()
+#
+cache_placeholder(FILE_ROW_HEIGHT)
+cache_placeholder(ASSET_ROW_HEIGHT)
+cache_placeholder(BOOKMARK_ROW_HEIGHT)
