@@ -156,8 +156,7 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             self.current_paths['server'],
             self.current_paths['job'],
             self.current_paths['root'],
-            self.current_paths['asset']),
-            common.ScenesFolder
+            self.current_paths['asset'])
         )
 
         self.stacked_widget.addWidget(self.bookmarks_widget)

@@ -60,16 +60,16 @@ class BaseCollector(QtCore.QObject):
                     d[match.group(1)] = {
                         'path': item.path(),
                         'frames': [],
-                        'size': 0,
+                        'size': item.size(),
                         'padding': len(match.group(2)),
                         'modified': item.lastModified(),
                         'ext': match.group(3)
                     }
                 d[match.group(1)]['frames'].append(int(match.group(2)))
-                d[match.group(1)]['size'] += item.size()
-                d[match.group(1)]['modified'] = (
-                    d[match.group(1)]['modified'] if item.lastModified() <
-                    d[match.group(1)]['modified'] else item.lastModified())
+                # d[match.group(1)]['size'] += item.size()
+                # d[match.group(1)]['modified'] = (
+                #     d[match.group(1)]['modified'] if item.lastModified() <
+                #     d[match.group(1)]['modified'] else item.lastModified())
 
             for k in d:
                 path = '{}/{}[{}].{}'.format(
@@ -78,13 +78,19 @@ class BaseCollector(QtCore.QObject):
                     common.get_ranges(d[k]['frames'], d[k]['padding']),
                     d[k]['ext']
                 )
+                def _size(item):
+                    return item['size']
+                def _modified(item):
+                    return item['modified']
                 file_info = QtCore.QFileInfo(path)
-                file_info.size = lambda: d[k]['size']
-                file_info.lastModified = lambda: d[k]['modified']
+                file_info.size = functools.partial(_size, d[k])
+                file_info.lastModified = functools.partial(_modified, d[k])
                 items.append(file_info)
         else:
             items = [k for k in self.item_generator(
             ) if path_filter in k.filePath()]
+        # items = [k for k in self.item_generator(
+        # ) if path_filter in k.filePath()]
 
         if not items:
             return []
@@ -106,27 +112,33 @@ class BookmarksCollector(BaseCollector):
         if not bookmarks:
             return
 
-        def size(file_info):
-            """Custom size method for bookmarks."""
-            return common.count_assets(file_info.filePath())
+        class Bookmark(object):
+            def __init__(self):
+                self.server = None
+                self.job = None
+                self.root = None
+                self.size = None
+                self.fileName = None
+                self.filePath = None
+                self.exists = None
 
         for k in bookmarks:
+            bookmark = Bookmark()
             path = u'{}/{}/{}'.format(
                 bookmarks[k]['server'],
                 bookmarks[k]['job'],
                 bookmarks[k]['root']
             )
-            file_info = QtCore.QFileInfo(path)
-
-            # This is a bit hackish
-            file_info.server = bookmarks[k]['server']
-            file_info.job = bookmarks[k]['job']
-            file_info.location = bookmarks[k]['root']
-
-            file_info.size = functools.partial(size, file_info)
+            bookmark.server = bookmarks[k]['server']
+            bookmark.job = bookmarks[k]['job']
+            bookmark.root = bookmarks[k]['root']
+            bookmark.size = lambda: common.count_assets(path)
+            bookmark.fileName = lambda: QtCore.QFileInfo(path).fileName()
+            bookmark.filePath = lambda: QtCore.QFileInfo(path).filePath()
+            bookmark.exists = lambda: QtCore.QFileInfo(path).exists()
             self._count += 1
 
-            yield file_info
+            yield bookmark
 
 
 class AssetCollector(BaseCollector):
@@ -162,11 +174,6 @@ class AssetCollector(BaseCollector):
             path = it.next()
             file_info = QtCore.QFileInfo(path)
 
-            if file_info.fileName()[0] == '.':
-                continue
-            if not file_info.isDir():
-                continue
-
             # Validate assets by skipping folders without the identifier file
             identifier = QtCore.QDir(path).entryList(
                 (common.ASSET_IDENTIFIER, ),
@@ -182,21 +189,7 @@ class AssetCollector(BaseCollector):
 
 
 class FileCollector(BaseCollector):
-    """Collects the files needed to populate the Files Widget.
-
-    Parameters
-    ----------
-    path : str
-        The path to an asset.
-    root : str
-        The root folder to querry. See the common module for options.
-
-    Attributes
-    ----------
-    modes : list
-        The list of subfolders noting a ``mode``.
-
-    """
+    """Collects the files needed to populate the Files Widget."""
 
     def __init__(self, path, root, parent=None):
         super(FileCollector, self).__init__(parent=parent)
@@ -221,19 +214,13 @@ class FileCollector(BaseCollector):
         Yields: A QFileInfo instance.
 
         """
-        path = '{}/{}'.format(self.path, self.location)
-        file_info = QtCore.QFileInfo(path)
-
-        if not file_info.exists():
-            return
-
-        self._count = 0  # Resetting the count
         it = QtCore.QDirIterator(
-            path,
+            '{}/{}'.format(self.path, self.location),
             common.NameFilters[self.location],
+            filters=QtCore.QDir.NoDotAndDotDot | QtCore.QDir.Files,
             flags=QtCore.QDirIterator.Subdirectories
         )
-
+        self._count = 0  # Resetting the count
         while it.hasNext():
             self._count += 1
             yield QtCore.QFileInfo(it.next())

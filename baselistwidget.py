@@ -220,8 +220,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             if not file_info.isDir():
                 continue
 
-            menu_set[key][file_info.baseName()] = {
-                'text': file_info.baseName().upper(),
+            menu_set[key][file_info.completeBaseName()] = {
+                'text': file_info.completeBaseName().upper(),
                 'icon': folder_icon,
                 'action': functools.partial(
                     common.reveal,
@@ -306,6 +306,30 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
+    def add_collapse_sequence_menu(self):
+        """Adds the menu needed to change context"""
+        expand_pixmap = common.get_rsc_pixmap('expand', common.SECONDARY_TEXT, 18.0)
+        collapse_pixmap = common.get_rsc_pixmap('collapse', common.FAVOURITE, 18.0)
+
+        collapsed = not self.parent().is_sequence_collapsed()
+
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+
+        menu_set['collapse'] = {
+            'text': 'Show individual files' if collapsed else 'Group files together',
+            'icon': expand_pixmap if collapsed else collapse_pixmap,
+            'checkable': True,
+            'checked': collapsed,
+            'action': (functools.partial(
+                self.parent().set_collapse_sequence,
+                collapsed),
+                self.parent().refresh
+            )
+        }
+
+        self.create_menu(menu_set)
+
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap('location', common.TEXT_SELECTED, 18.0)
@@ -356,7 +380,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                     'favourite',
                     not favourite
                 ),
-                self.parent().refresh)
+                self.parent().set_item_visibility)
         }
         menu_set['toggle_archived'] = {
             'text': 'Show archived items',
@@ -369,7 +393,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                     'archived',
                     not archived
                 ),
-                self.parent().refresh)
+                self.parent().set_item_visibility)
         }
 
         self.create_menu(menu_set)

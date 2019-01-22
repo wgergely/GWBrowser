@@ -624,7 +624,8 @@ def get_ranges(arr, padding):
                 if zfill not in block:
                     block.append(zfill)
                     block.append('-')
-
+    if start == end:
+        return '{}'.format(start).zfill(padding)
     block.insert(0, '{}'.format(start).zfill(padding))
     block.insert(1, '-')
     block.append('{}'.format(end).zfill(padding))

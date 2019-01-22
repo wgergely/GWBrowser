@@ -74,8 +74,13 @@ class AssetWidget(BaseListWidget):
             return
 
         file_info = QtCore.QFileInfo(item.data(common.PathRole))
-        local_settings.setValue('activepath/asset', file_info.baseName())
-        self.activeAssetChanged.emit(file_info.baseName())
+        local_settings.setValue('activepath/asset', file_info.completeBaseName())
+        self.activeAssetChanged.emit((
+            self._bookmark[0],
+            self._bookmark[1],
+            self._bookmark[2],
+            file_info.completeBaseName()
+        ))
 
         local_settings.setValue('activepath/file', None)
         self.activeFileChanged.emit(None)

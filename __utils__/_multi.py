@@ -36,7 +36,7 @@ class Iterator(QtCore.QObject):
             tuple:  A tuple of QFileInfo instances.
 
         """
-        if self.parent().is_sequence_collapsed(): # We're collapsing sequence
+        if True: # We're collapsing sequence
             items = []
             r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
 
@@ -78,19 +78,17 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
 
 
-    path = r'\\gordo\jobs\audible_8100\build\gergely_test'
+    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_podcast\renders'
     start = time.time()
     it = Iterator(path)
     items = it.get_items()
     end = time.time()
     print '# Found {} items in {} seconds'.format(it.count, end - start)
 
-    for item in items:
-        print item.filePath()
-
     #
-    # start = time.time()
-    # it = FileCollector(path, common.RendersFolder)
-    # it.get_items(reverse=True)
-    # end = time.time()
-    # print '# Found {} items in {} milliseconds'.format(it.count, end - start)
+    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_podcast'
+    start = time.time()
+    it = FileCollector(path, common.RendersFolder)
+    it.get_items(reverse=True)
+    end = time.time()
+    print '# Found {} items in {} milliseconds'.format(it.count, end - start)

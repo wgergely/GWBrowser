@@ -266,7 +266,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = QtGui.QColor(49, 107, 218)
 
         painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(option.rect)
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
+        painter.drawRect(rect)
 
         painter.restore()
 
@@ -284,7 +286,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+        color = QtGui.QColor(common.SEPARATOR)
+        # color.setAlpha(66)
+        painter.setBrush(QtGui.QBrush(color))
 
         if not selected:
             THICKNESS = 0.5
@@ -293,7 +297,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Bottom
         rect = QtCore.QRectF(
-            option.rect.left(),
+            option.rect.left() + common.INDICATOR_WIDTH + option.rect.height(),
             option.rect.top() + option.rect.height() - THICKNESS,
             option.rect.width(),
             (THICKNESS)
@@ -302,7 +306,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Top
         rect = QtCore.QRectF(
-            option.rect.left(),
+            option.rect.left() + common.INDICATOR_WIDTH + option.rect.height(),
             option.rect.top(),
             option.rect.width(),
             (THICKNESS)
@@ -323,7 +327,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if selected:
             color = self.get_state_color(option, index, common.SELECTION)
         else:
-            color = self.get_state_color(option, index, common.SEPARATOR)
+            color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(150)
+            color = self.get_state_color(option, index, color)
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
@@ -1153,7 +1159,7 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_focus(*args)
 
     def paint_description(self, *args):
-        """Paints the item description inside the ``AssetWidget``."""
+        """Paints the item description inside the ``FilesWidget``."""
         painter, option, index, _, _, _, _, _ = args
         favourite = index.flags() & configparser.MarkedAsFavourite
         archived = index.flags() & configparser.MarkedAsArchived
@@ -1162,8 +1168,15 @@ class FilesWidgetDelegate(BaseDelegate):
 
         painter.save()
 
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
         rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
+            option.rect, common.SECONDARY_FONT)
 
         font.setPointSizeF(8.0)
         metrics = QtGui.QFontMetrics(font)
@@ -1180,52 +1193,48 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.setRight(icon_rect.left() -
                           (common.INLINE_ICON_SIZE) - common.MARGIN)
 
-        color = self.get_state_color(option, index, common.TEXT_NOTE)
-
-        if not index.data(common.DescriptionRole) and hover:
-            text = '{}  |  {}'.format(
-                'Double-click to add description...',
-                index.data(common.FileDetailsRole)
-            )
-            color.setAlpha(200)
-        if not index.data(common.DescriptionRole) and not hover:
-            text = '{}'.format(
-            index.data(common.FileDetailsRole)
-            )
-        elif index.data(common.DescriptionRole):
-            text = '{}  |  {}'.format(
-                index.data(common.DescriptionRole),
-                index.data(common.FileDetailsRole)
-            )
-
-        if option.rect.width() >= 360.0:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, 3)
-            rect.setRight(icon_rect.left())
-
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideRight,
-            rect.width()
-        )
+        color = self.get_state_color(option, index, common.TEXT_DISABLED)
 
         painter.setBrush(QtCore.Qt.NoBrush)
+
         painter.setPen(QtGui.QPen(color))
         painter.setFont(font)
-        if option.rect.width() > 360.0:
+        text = index.data(common.FileDetailsRole)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+            text
+        )
+        width = metrics.width(index.data(common.FileDetailsRole))
+
+        if index.data(common.DescriptionRole):
+            painter.setPen(QtGui.QPen(common.TEXT_NOTE))
+            rect.setRight(rect.right() - width)
+            text = metrics.elidedText(
+                '{}  |  '.format(
+                    index.data(common.DescriptionRole)
+                ),
+                QtCore.Qt.ElideRight,
+                rect.width()
+            )
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
                 text
             )
-        else:
+        elif not index.data(common.DescriptionRole) and hover:
+            painter.setPen(QtGui.QPen(common.TEXT_DISABLED))
+            rect.setRight(rect.right() - width)
+            text = metrics.elidedText(
+                'Double-click to add description...  |  ',
+                QtCore.Qt.ElideRight,
+                rect.width()
+            )
             painter.drawText(
                 rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
                 text
             )
-
-        painter.restore()
 
         return metrics.width(text)
 
@@ -1243,7 +1252,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
-        font.setPointSizeF(8)
+
+        font.setPointSizeF(7.5)
+        metrics = QtGui.QFontMetrics(font)
 
         # Resizing the height and Centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -1269,20 +1280,21 @@ class FilesWidgetDelegate(BaseDelegate):
             if n == 0:
                 bg_color = common.FAVOURITE
             else:
-                bg_color = QtGui.QColor(80, 80, 80)
+                bg_color = QtGui.QColor(75, 75, 75)
 
             pen = QtGui.QPen(bg_color)
-            pen.setWidth(padding)
+            pen.setWidth(padding * 3)
             painter.setPen(pen)
             painter.setBrush(QtGui.QBrush(bg_color))
 
             rect.setWidth(metrics.width(mode))
-            painter.drawRoundedRect(rect, 2.0, 2.0)
+            rect.moveLeft(rect.left() + (padding * 3))
+            painter.drawRoundedRect(rect, 1.0, 1.0)
 
             if n == 0:
-                color = common.TEXT
+                color = QtGui.QColor(common.TEXT)
             else:
-                color = common.SECONDARY_TEXT
+                color = QtGui.QColor(common.TEXT_DISABLED)
 
             painter.setPen(QtGui.QPen(color))
             painter.drawText(
@@ -1291,15 +1303,14 @@ class FilesWidgetDelegate(BaseDelegate):
                 mode
             )
 
-            if n >= 1:
+            if n >= 1: # Not painting folders deeper than the secondary
                 break
             rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
 
         return rect
 
     def paint_name(self, mode_rect, *args):
-        """Paints the ``FilesWidget``'s `QListWidgetItem` names, sub-directories and
-        file informations.
+        """Paints the ``FilesWidget``'s name.
 
         """
         painter, option, index, _, _, active, _, _ = args
@@ -1309,6 +1320,13 @@ class FilesWidgetDelegate(BaseDelegate):
         active = index.flags() & configparser.MarkedAsActive
 
         painter.save()
+
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
@@ -1321,11 +1339,18 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
-        rect.setLeft(mode_rect.right())
+        rect.setLeft(mode_rect.right() + common.MARGIN)
 
+
+        _, icon_rect = self.get_inline_icon_rect(
+            option.rect,
+            common.INLINE_ICON_SIZE, 2
+        )
+
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         if option.rect.width() >= 360.0:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, 2)
+            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+
             rect.setRight(icon_rect.left() -
                           (common.INLINE_ICON_SIZE) - common.MARGIN)
 
@@ -1333,51 +1358,95 @@ class FilesWidgetDelegate(BaseDelegate):
         text = index.data(QtCore.Qt.DisplayRole)
         text = text.split('.')
         ext = text.pop(-1)
+        ext = '.{}'.format(ext)
         text = '.'.join(text).upper()
-        text = '{}.{}'.format(text, ext)
-
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideMiddle,
-            rect.width()
-        )
-
-        color = self.get_state_color(option, index, common.TEXT)
-        if favourite or active:
-            color = common.TEXT_SELECTED
-        if archived:
-            color = common.SECONDARY_TEXT
 
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(color))
-        if option.rect.width() > 360.0:
-            painter.drawText(
-                rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-                text
+
+        match = re.match(r'^(.+?)(\[.*\])$', text)
+        if match: # sequence collapsed
+            if option.rect.width() >= 360.0:
+                # Ext
+                width = metrics.width(ext)
+                rect.setLeft(rect.right() - width)
+                if rect.left() > mode_rect.right():
+                    painter.setPen(common.TEXT)
+                    painter.drawText(
+                        rect,
+                        QtCore.Qt.AlignCenter,
+                        ext
+                    )
+
+                # Sequence
+                rect.moveRight(rect.right() - width)
+                width = metrics.width(match.group(2))
+                rect.setLeft(rect.right() - width)
+                if rect.left() > mode_rect.right():
+                    painter.setPen(common.TEXT_NOTE)
+                    painter.drawText(
+                        rect,
+                        QtCore.Qt.AlignCenter,
+                        match.group(2)
+                    )
+
+                # Name
+                rect.moveRight(rect.right() - width)
+                width = metrics.width(match.group(1))
+                rect.setLeft(mode_rect.right() + common.MARGIN)
+                painter.setPen(common.TEXT)
+                text = metrics.elidedText(
+                    match.group(1),
+                    QtCore.Qt.ElideLeft,
+                    rect.width()
+                )
+                painter.drawText(
+                    rect,
+                    align,
+                    text
+                )
+            else:
+                # Ext
+                width = metrics.width(match.group(1))
+                rect.setRight(option.rect.right() - common.MARGIN)
+                painter.setPen(common.TEXT)
+                text = metrics.elidedText(
+                    match.group(1),
+                    QtCore.Qt.ElideRight,
+                    rect.width()
+                )
+                painter.drawText(
+                    rect,
+                    align,
+                    text
+                )
+        else: # non-collapsed items
+            painter.setPen(common.TEXT)
+            text = metrics.elidedText(
+                '{}{}'.format(text, ext),
+                QtCore.Qt.ElideLeft,
+                rect.width()
             )
-        else:
             painter.drawText(
                 rect,
-                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                align,
                 text
             )
 
-        # Bg rectangle
-        rect.setLeft(rect.right())
+
+        if option.rect.width() < 360.0:
+            return
+        rect.setRight(option.rect.right())
+        rect.setLeft(icon_rect.left() - common.MARGIN)
         rect.setTop(option.rect.top())
         rect.setBottom(option.rect.bottom())
-        rect.moveLeft(rect.left() + (common.MARGIN))
+
         painter.setPen(QtCore.Qt.NoPen)
-
-        rect.setRight(option.rect.right())
         color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(100)
-
+        color.setAlpha(30)
         painter.setBrush(color)
-        painter.drawRect(rect)
 
+        painter.drawRect(rect)
         painter.restore()
 
     def sizeHint(self, option, index):

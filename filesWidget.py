@@ -25,6 +25,7 @@ class FilesWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_location_toggles_menu()
+        self.add_collapse_sequence_menu()
         if index.isValid():
             self.add_thumbnail_menu()
         self.add_refresh_menu()
@@ -87,6 +88,9 @@ class FilesWidget(BaseListWidget):
 
         self.fileSystemWatcher.addPath('/'.join(self._asset))
 
+        import time
+        start = time.time()
+
         location = self.get_location()
         collector = FileCollector('/'.join(self._asset), location, parent=self)
         items = collector.get_items(
@@ -95,6 +99,12 @@ class FilesWidget(BaseListWidget):
             path_filter=self.get_item_filter()
         )
         self.collector_count = collector.count
+
+
+        # return
+
+        favourites = local_settings.value('favourites')
+        active_value = local_settings.value('activepath/file')
         for file_info in items:
             item = QtWidgets.QListWidgetItem()
             settings = AssetSettings('/'.join(self._asset), file_info.filePath())
@@ -145,13 +155,14 @@ class FilesWidget(BaseListWidget):
                 'config/description'))
 
             # Todos
-            todos = settings.value('config/todos')
-            if todos:
-                count = len([k for k in todos if not todos[k]
-                             ['checked'] and todos[k]['text']])
-            else:
-                count = 0
-            item.setData(common.TodoCountRole, count)
+            # todos = settings.value('config/todos')
+            # if todos:
+            #     count = len([k for k in todos if not todos[k]
+            #                  ['checked'] and todos[k]['text']])
+            # else:
+            #     count = 0
+            # item.setData(common.TodoCountRole, count)
+            item.setData(common.TodoCountRole, 0)
 
             # File info
             info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
@@ -168,12 +179,11 @@ class FilesWidget(BaseListWidget):
             if settings.value('config/archived'):
                 item.setFlags(item.flags() | configparser.MarkedAsArchived)
             # Favourite
-            favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 item.setFlags(item.flags() | configparser.MarkedAsFavourite)
             # Active
-            if file_info.completeBaseName() == local_settings.value('activepath/file'):
+            if file_info.completeBaseName() == active_value:
                 item.setFlags(item.flags() | configparser.MarkedAsActive)
             item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
 
