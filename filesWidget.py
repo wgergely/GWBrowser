@@ -88,9 +88,6 @@ class FilesWidget(BaseListWidget):
 
         self.fileSystemWatcher.addPath('/'.join(self._asset))
 
-        import time
-        start = time.time()
-
         location = self.get_location()
         collector = FileCollector('/'.join(self._asset), location, parent=self)
         items = collector.get_items(
@@ -100,9 +97,7 @@ class FilesWidget(BaseListWidget):
         )
         self.collector_count = collector.count
 
-
         # return
-
         favourites = local_settings.value('favourites')
         active_value = local_settings.value('activepath/file')
         for file_info in items:
@@ -154,14 +149,6 @@ class FilesWidget(BaseListWidget):
             item.setData(common.DescriptionRole, settings.value(
                 'config/description'))
 
-            # Todos
-            # todos = settings.value('config/todos')
-            # if todos:
-            #     count = len([k for k in todos if not todos[k]
-            #                  ['checked'] and todos[k]['text']])
-            # else:
-            #     count = 0
-            # item.setData(common.TodoCountRole, count)
             item.setData(common.TodoCountRole, 0)
 
             # File info

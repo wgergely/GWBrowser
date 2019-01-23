@@ -25,6 +25,9 @@ class BaseCollector(QtCore.QObject):
         super(BaseCollector, self).__init__(parent=parent)
         self._count = 0
 
+        self._items = []
+        self._collapsed_items = []
+
     @property
     def count(self):
         """The number of assets found."""
@@ -34,7 +37,7 @@ class BaseCollector(QtCore.QObject):
         """Has to be overriden in the subclass."""
         raise NotImplementedError('generator is abstract.')
 
-    def get_items(self, key=common.SortByName, reverse=False, path_filter='/'):
+    def get_items(self, key=common.SortByName, reverse=False, path_filter='/', collapse=False, refresh=False):
         """Sorts, filters and returns the items collected by the item_generator.
 
         Args:
@@ -46,7 +49,11 @@ class BaseCollector(QtCore.QObject):
             tuple:  A tuple of QFileInfo instances.
 
         """
-        if not self.parent().is_sequence_collapsed():  # We're collapsing sequence
+        items = self._items if self._items else self.item_generator()
+        if refresh:
+            items = self.item_generator()
+
+        if refresh:
             items = []
             r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
 
@@ -66,11 +73,6 @@ class BaseCollector(QtCore.QObject):
                         'ext': match.group(3)
                     }
                 d[match.group(1)]['frames'].append(int(match.group(2)))
-                # d[match.group(1)]['size'] += item.size()
-                # d[match.group(1)]['modified'] = (
-                #     d[match.group(1)]['modified'] if item.lastModified() <
-                #     d[match.group(1)]['modified'] else item.lastModified())
-
             for k in d:
                 path = '{}/{}[{}].{}'.format(
                     d[k]['path'],
@@ -89,8 +91,6 @@ class BaseCollector(QtCore.QObject):
         else:
             items = [k for k in self.item_generator(
             ) if path_filter in k.filePath()]
-        # items = [k for k in self.item_generator(
-        # ) if path_filter in k.filePath()]
 
         if not items:
             return []
@@ -195,6 +195,7 @@ class FileCollector(BaseCollector):
         super(FileCollector, self).__init__(parent=parent)
         self.path = path
         self.location = root
+
         self.modes = self._get_modes()
 
     def _get_modes(self):

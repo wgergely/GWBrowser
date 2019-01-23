@@ -308,6 +308,9 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_collapse_sequence_menu(self):
         """Adds the menu needed to change context"""
+        if self.parent().get_location() == common.RendersFolder:
+            return # Render sequences are always collapsed
+
         expand_pixmap = common.get_rsc_pixmap('expand', common.SECONDARY_TEXT, 18.0)
         collapse_pixmap = common.get_rsc_pixmap('collapse', common.FAVOURITE, 18.0)
 
@@ -315,7 +318,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
-
         menu_set['collapse'] = {
             'text': 'Show individual files' if collapsed else 'Group files together',
             'icon': expand_pixmap if collapsed else collapse_pixmap,
@@ -693,9 +695,12 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def is_sequence_collapsed(self):
         """Gathers sequences into a single file."""
+        if self.get_location() == common.RendersFolder:
+            return False
+
         val = local_settings.value(
             'widget/{}/collapse_sequence'.format(self.__class__.__name__))
-        return int(val) if val else False
+        return int(val) if val else True
 
     def set_collapse_sequence(self, val):
         cls = self.__class__.__name__
