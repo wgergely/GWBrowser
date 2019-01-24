@@ -23,7 +23,7 @@ import collections
 from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
 from mayabrowser.baselistwidget import BaseModel
-import mayabrowser.settings as configparser
+import mayabrowser.settings as settings
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.delegate import BaseDelegate
@@ -91,15 +91,15 @@ class BookmarksModel(BaseModel):
                 file_info.job == local_settings.value('activepath/job') and
                 file_info.root == local_settings.value('activepath/root')
             ):
-                flags = flags | configparser.MarkedAsActive
+                flags = flags | settings.MarkedAsActive
 
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
-                flags = flags | configparser.MarkedAsFavourite
+                flags = flags | settings.MarkedAsFavourite
 
             if not file_info.exists():
-                flags = QtCore.Qt.ItemIsSelectable | configparser.MarkedAsArchived
+                flags = QtCore.Qt.ItemIsSelectable | settings.MarkedAsArchived
 
             self.internal_data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
@@ -206,7 +206,7 @@ class BookmarksWidget(BaseListWidget):
         if index == self.active_index():
             return
 
-        if index.flags() & configparser.MarkedAsArchived:
+        if index.flags() & settings.MarkedAsArchived:
             return
 
         self.activate_current_index()

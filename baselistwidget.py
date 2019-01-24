@@ -280,8 +280,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived_off_icon = common.get_rsc_pixmap(
             'archived', common.TEXT, 18.0)
 
-        favourite = self.index.flags() & settings.MarkedAsFavourite
-        archived = self.index.flags() & settings.MarkedAsArchived
+        favourite = self.index.data(common.FlagsRole) & settings.MarkedAsFavourite
+        archived = self.index.data(common.FlagsRole) & settings.MarkedAsArchived
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -610,12 +610,19 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self.sortkey = self.get_sortkey() # Alphabetical/Modified...etc.
         self.sortorder = self.get_sortorder() # Ascending/descending
-        self.show_favourites_only = self.get_filtermode('favourite')
-        self.show_archived_items = self.get_filtermode('archived')
+
+        self.filter_mode = {
+            'favourite': self.get_filtermode('favourite'),
+            'archived': self.get_filtermode('archived')
+        }
 
 
     def sort(self):
-        super(FilterProxyModel, self).sort(0, order=QtCore.Qt.AscendingOrder)
+        if self.sortorder:
+            super(FilterProxyModel, self).sort(0, order=QtCore.Qt.AscendingOrder)
+        else:
+            super(FilterProxyModel, self).sort(0, order=QtCore.Qt.DescendingOrder)
+
 
     def get_sortkey(self):
         val = local_settings.value(
@@ -635,22 +642,28 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return int(val) if val else False
 
     def set_sortorder(self, val):
+        self.sortorder = val
+
         cls = self.__class__.__name__
         local_settings.setValue(
             'widget/{}/sortorder'.format(cls), val)
 
     def get_filtermode(self, mode):
-        setting = local_settings.value(
+        val = local_settings.value(
             'widget/{widget}/mode:{mode}'.format(
                 widget=self.__class__.__name__,
                 mode=mode
             ))
-        return setting if setting else False
+        return val if val else False
 
     def set_filtermode(self, mode, val):
+        self.filter_mode[mode] = val
+
         cls = self.__class__.__name__
         local_settings.setValue(
             'widget/{widget}/mode:{mode}'.format(widget=cls, mode=mode), val)
+
+        self.invalidateFilter()
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True
@@ -658,17 +671,29 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
         """The main method used to filter the elements using the flags and the filter string."""
         index = self.sourceModel().index(source_row, 0, parent=QtCore.QModelIndex())
-        archived = index.flags() & settings.MarkedAsArchived
-        favourite = index.flags() & settings.MarkedAsFavourite
+        archived = index.data(common.FlagsRole) & settings.MarkedAsArchived
+        favourite = index.data(common.FlagsRole) & settings.MarkedAsFavourite
 
-        if archived and not self.show_archived_items:
+        if archived and not self.filter_mode['archived']:
             return False
-        if not favourite and self.show_favourites_only:
+        if not favourite and self.filter_mode['favourite']:
             return False
         return True
 
     def lessThan(self, source_left, source_right):
-        print source_left, source_right
+        left_info = QtCore.QFileInfo(source_left.data(QtCore.Qt.StatusTipRole))
+        right_info = QtCore.QFileInfo(source_right.data(QtCore.Qt.StatusTipRole))
+
+        if self.sortkey == common.SortByName:
+            return left_info.filePath() < right_info.filePath()
+        elif self.sortkey == common.SortByLastModified:
+            return left_info.lastModified() < right_info.lastModified()
+        elif self.sortkey == common.SortByLastCreated:
+            return left_info.lastModified() < right_info.lastModified()
+        elif self.sortkey == common.SortBySize:
+            return left_info.size() < right_info.size()
+        else:
+            return left_info.filePath() < right_info.filePath()
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -688,6 +713,7 @@ class BaseListWidget(QtWidgets.QListView):
         proxy_model = FilterProxyModel()
         proxy_model.setSourceModel(model)
         self.setModel(proxy_model)
+        self.model().sort()
 
         # The timer used to check for changes in the active path
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
@@ -793,7 +819,7 @@ class BaseListWidget(QtWidgets.QListView):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
         # Favouriting archived items are not allowed
-        archived = index.flags() & settings.MarkedAsArchived
+        archived = index.data(common.FlagsRole) & settings.MarkedAsArchived
         if archived:
             return
 
@@ -1098,7 +1124,7 @@ class BaseListWidget(QtWidgets.QListView):
         """
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-            if index.flags() & settings.MarkedAsActive:
+            if index.data(common.FlagsRole) & settings.MarkedAsActive:
                 return index
         return QtCore.QModelIndex()
 
@@ -1113,11 +1139,11 @@ class BaseListWidget(QtWidgets.QListView):
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return False
-        if index.flags() == QtCore.Qt.NoItemFlags:
+        if index.data(common.FlagsRole) == QtCore.Qt.NoItemFlags:
             return False
         if self.active_index() == index:
             return False
-        if index.flags() & settings.MarkedAsArchived:
+        if index.data(common.FlagsRole) & settings.MarkedAsArchived:
             return False
 
         source_index = self.model().mapToSource(self.active_index())
