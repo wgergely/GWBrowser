@@ -12,7 +12,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 import mayabrowser.editors as editors
-import mayabrowser.settings as configparser
+import mayabrowser.settings as settings
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
@@ -36,7 +36,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
-        self._index = index
+        self.index = index
         self.setToolTipsVisible(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
@@ -60,23 +60,23 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on_icon = common.get_rsc_pixmap(
             'item_on', common.TEXT_SELECTED, 18.0)
 
-        sort_by_name = self.parent().get_item_sort_order() == common.SortByName
-        sort_modified = self.parent().get_item_sort_order() == common.SortByLastModified
-        sort_created = self.parent().get_item_sort_order() == common.SortByLastCreated
-        sort_size = self.parent().get_item_sort_order() == common.SortBySize
+        sort_by_name = self.parent().model().sortkey == common.SortByName
+        sort_modified = self.parent().model().sortkey == common.SortByLastModified
+        sort_created = self.parent().model().sortkey == common.SortByLastCreated
+        sort_size = self.parent().model().sortkey == common.SortBySize
 
         menu_set = collections.OrderedDict()
         menu_set['Sort'] = collections.OrderedDict()
         menu_set['Sort:icon'] = sort_menu_icon
         menu_set['Sort']['Order'] = {
-            'text': 'Ascending' if self.parent().is_item_sort_reversed() else 'Descending',
+            'text': 'Ascending' if self.parent().model().sortorder else 'Descending',
             'ckeckable': True,
-            'checked': True if self.parent().is_item_sort_reversed() else False,
-            'icon': arrow_down_icon if self.parent().is_item_sort_reversed() else arrow_up_icon,
+            'checked': True if self.parent().model().sortorder else False,
+            'icon': arrow_down_icon if self.parent().model().sortorder else arrow_up_icon,
             'action': (
-                functools.partial(self.parent().set_item_sort_reversed,
-                                  not self.parent().is_item_sort_reversed()),
-                self.parent().refresh
+                functools.partial(self.parent().model().set_sortorder,
+                                  not self.parent().model().sortorder),
+                self.parent().model().sort
             )
         }
 
@@ -88,8 +88,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'checked': True if sort_by_name else False,
             'action': (
                 functools.partial(
-                    self.parent().set_item_sort_order, common.SortByName),
-                self.parent().refresh
+                    self.parent().model().set_sortkey, common.SortByName),
+                self.parent().model().sort
             )
         }
         menu_set['Sort']['Date modified'] = {
@@ -97,9 +97,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_modified else False,
             'action': (
-                functools.partial(self.parent().set_item_sort_order,
+                functools.partial(self.parent().model().set_sortkey,
                                   common.SortByLastModified),
-                self.parent().refresh
+                self.parent().model().sort
             )
         }
         menu_set['Sort']['Date created'] = {
@@ -107,9 +107,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if sort_created else False,
             'action': (
-                functools.partial(self.parent().set_item_sort_order,
+                functools.partial(self.parent().model().set_sortkey,
                                   common.SortByLastCreated),
-                self.parent().refresh
+                self.parent().model().sort
             )
         }
         menu_set['Sort']['Size'] = {
@@ -118,8 +118,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'checked': True if sort_size else False,
             'action': (
                 functools.partial(
-                    self.parent().set_item_sort_order, common.SortBySize),
-                self.parent().refresh
+                    self.parent().model().set_sortkey, common.SortBySize),
+                self.parent().model().sort
             )
         }
         menu_set['separator'] = {}
@@ -139,7 +139,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set['{}:icon'.format(key)] = folder_icon
 
         if len(self.index.data(common.ParentRole)) == 4:
-            file_info = QtCore.QFileInfo(self.index.data(common.PathRole))
+            file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
             menu_set[key]['file'] = {
                 'text': 'Show file',
                 'icon': folder_icon2,
@@ -166,7 +166,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
-                    self.index.data(common.PathRole))
+                    self.index.data(QtCore.Qt.StatusTipRole))
             }
         menu_set[key]['root'] = {
             'text': 'Show bookmark',
@@ -194,7 +194,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key]['separator'] = {}
 
         it = QtCore.QDirIterator(
-            self.index.data(common.PathRole),
+            self.index.data(QtCore.Qt.StatusTipRole),
             flags=QtCore.QDirIterator.NoIteratorFlags,
             filters=QtCore.QDir.NoDotAndDotDot |
             QtCore.QDir.Dirs |
@@ -207,12 +207,12 @@ class BaseContextMenu(QtWidgets.QMenu):
             file_info = QtCore.QFileInfo(path)
             items.append(file_info)
 
-        if not self.parent().is_item_sort_reversed():
+        if not self.parent().model().sortorder:
             items = sorted(
-                items, key=common.sort_keys[self.parent().get_item_sort_order()])
+                items, key=common.sort_keys[self.parent().model().sortkey])
         else:
             items = list(
-                reversed(sorted(items, key=common.sort_keys[self.parent().get_item_sort_order()])))
+                reversed(sorted(items, key=common.sort_keys[self.parent().model().sortkey])))
 
         for file_info in items:
             if file_info.fileName()[0] == '.':
@@ -236,7 +236,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set = collections.OrderedDict()
 
-        path = self.index.data(common.PathRole)
+        path = self.index.data(QtCore.Qt.StatusTipRole)
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
         key = 'Copy path'
@@ -280,8 +280,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived_off_icon = common.get_rsc_pixmap(
             'archived', common.TEXT, 18.0)
 
-        favourite = self.index.flags() & configparser.MarkedAsFavourite
-        archived = self.index.flags() & configparser.MarkedAsArchived
+        favourite = self.index.flags() & settings.MarkedAsFavourite
+        archived = self.index.flags() & settings.MarkedAsArchived
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -326,7 +326,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             'action': (functools.partial(
                 self.parent().set_collapse_sequence,
                 collapsed),
-                self.parent().refresh
+                self.parent().model().sort
             )
         }
 
@@ -358,7 +358,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
-
     def add_display_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
@@ -366,8 +365,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_off = common.get_rsc_pixmap(
             'item_off', common.SECONDARY_TEXT, 18.0)
 
-        favourite = self.parent().get_display_mode('favourite')
-        archived = self.parent().get_display_mode('archived')
+        favourite = self.parent().model().get_filtermode('favourite')
+        archived = self.parent().model().get_filtermode('archived')
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -376,26 +375,24 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': item_on if favourite else item_off,
             'checkable': True,
             'checked': favourite,
-            'action': (
+            'action':
                 functools.partial(
-                    self.parent().set_display_mode,
+                    self.parent().model().set_filtermode,
                     'favourite',
                     not favourite
                 ),
-                self.parent().set_item_visibility)
         }
         menu_set['toggle_archived'] = {
             'text': 'Show archived items',
             'icon': item_on if archived else item_off,
             'checkable': True,
             'checked': archived,
-            'action': (
+            'action':
                 functools.partial(
-                    self.parent().set_display_mode,
+                    self.parent().model().set_filtermode,
                     'archived',
                     not archived
                 ),
-                self.parent().set_item_visibility)
         }
 
         self.create_menu(menu_set)
@@ -406,9 +403,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set['Refresh'] = {
             'action': self.parent().refresh
         }
-        if self.index.isValid():
+        if self.index:
             menu_set['Activate'] = {
-                'action': self.parent().set_current_item_as_active
+                'action': self.parent().activate_current_index
             }
 
         self.create_menu(menu_set)
@@ -434,7 +431,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         settings = AssetSettings(
             '/'.join(self.index.data(common.ParentRole)),
-            self.index.data(common.PathRole)
+            self.index.data(QtCore.Qt.StatusTipRole)
         )
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
@@ -467,11 +464,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
-
-    @property
-    def index(self):
-        """The QModelIndex the context menu is associated with."""
-        return self._index
 
     def create_menu(self, menu_set, parent=None):
         """This action populates the menu using the action-set dictionaries,
@@ -571,7 +563,115 @@ class BaseContextMenu(QtWidgets.QMenu):
             action.setText(text)
 
 
-class BaseListWidget(QtWidgets.QListWidget):
+
+class BaseModel(QtCore.QAbstractItemModel):
+    """Flat base-model."""
+    def __init__(self, parent=None):
+        super(BaseModel, self).__init__(parent=parent)
+        self.internal_data = {}
+        self.collect_data()
+
+    def collect_data(self):
+        raise NotImplementedError('collect_data is abstract')
+
+
+    def columnCount(self, parent=QtCore.QModelIndex()):
+        return 1
+
+    def rowCount(self, parent=QtCore.QModelIndex()):
+        return len(list(self.internal_data))
+
+    def index(self, row, column, parent=QtCore.QModelIndex()):
+        return self.createIndex(row, 0, parent=parent)
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        if not index.isValid():
+            return None
+
+        if role in self.internal_data[index.row()]:
+            return self.internal_data[index.row()][role]
+
+    def flags(self, index):
+        return index.data(common.FlagsRole)
+
+    def parent(self, child):
+        return QtCore.QModelIndex()
+
+    def setData(self, index, data, role=QtCore.Qt.DisplayRole):
+        self.internal_data[index.row()][role] = data
+        self.dataChanged.emit(index, index)
+
+
+class FilterProxyModel(QtCore.QSortFilterProxyModel):
+    """Proxy model responsible for filtering and sorting data."""
+
+    def __init__(self, parent=None):
+        super(FilterProxyModel, self).__init__(parent=parent)
+
+        self.sortkey = self.get_sortkey() # Alphabetical/Modified...etc.
+        self.sortorder = self.get_sortorder() # Ascending/descending
+        self.show_favourites_only = self.get_filtermode('favourite')
+        self.show_archived_items = self.get_filtermode('archived')
+
+
+    def sort(self):
+        super(FilterProxyModel, self).sort(0, order=QtCore.Qt.AscendingOrder)
+
+    def get_sortkey(self):
+        val = local_settings.value(
+            'widget/{}/sortkey'.format(self.__class__.__name__))
+        return int(val) if val else common.SortByName
+
+    def set_sortkey(self, val):
+        self.sortkey = val
+
+        cls = self.__class__.__name__
+        local_settings.setValue(
+            'widget/{}/sortkey'.format(cls), val)
+
+    def get_sortorder(self):
+        val = local_settings.value(
+            'widget/{}/sortorder'.format(self.__class__.__name__))
+        return int(val) if val else False
+
+    def set_sortorder(self, val):
+        cls = self.__class__.__name__
+        local_settings.setValue(
+            'widget/{}/sortorder'.format(cls), val)
+
+    def get_filtermode(self, mode):
+        setting = local_settings.value(
+            'widget/{widget}/mode:{mode}'.format(
+                widget=self.__class__.__name__,
+                mode=mode
+            ))
+        return setting if setting else False
+
+    def set_filtermode(self, mode, val):
+        cls = self.__class__.__name__
+        local_settings.setValue(
+            'widget/{widget}/mode:{mode}'.format(widget=cls, mode=mode), val)
+
+    def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
+        return True
+
+    def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
+        """The main method used to filter the elements using the flags and the filter string."""
+        index = self.sourceModel().index(source_row, 0, parent=QtCore.QModelIndex())
+        archived = index.flags() & settings.MarkedAsArchived
+        favourite = index.flags() & settings.MarkedAsFavourite
+
+        if archived and not self.show_archived_items:
+            return False
+        if not favourite and self.show_favourites_only:
+            return False
+        return True
+
+    def lessThan(self, source_left, source_right):
+        print source_left, source_right
+
+
+class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
 
     # Signals
@@ -582,19 +682,24 @@ class BaseListWidget(QtWidgets.QListWidget):
     activeLocationChanged = QtCore.Signal(str)
     activeFileChanged = QtCore.Signal(str)
 
-    def __init__(self, parent=None):
+
+    def __init__(self, model, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
+        proxy_model = FilterProxyModel()
+        proxy_model.setSourceModel(model)
+        self.setModel(proxy_model)
+
         # The timer used to check for changes in the active path
         self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
         self.fileSystemWatcher.directoryChanged.connect(self.refresh)
 
         self._location = None
+
         self.activeLocationChanged.connect(self.refresh)
 
         self.collector_count = 0
         self._context_menu_cls = BaseContextMenu
 
-        self.setSortingEnabled(False)
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
@@ -627,9 +732,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         self.multi_toggle_item = None
         self.multi_toggle_items = {}
 
-        # Populating the
-        self.add_items()
-        self.set_item_visibility()
 
     def get_location(self):
         """Get's the current ``location``."""
@@ -657,42 +759,6 @@ class BaseListWidget(QtWidgets.QListWidget):
         cls = self.__class__.__name__
         local_settings.setValue('widget/{}/filter'.format(cls), val)
 
-    def get_display_mode(self, mode):
-        """Querries this widget's display mode."""
-        setting = local_settings.value(
-            'widget/{widget}/mode:{mode}'.format(
-                widget=self.__class__.__name__,
-                mode=mode
-            ))
-        return setting if setting else False
-
-    def set_display_mode(self, mode, val):
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{widget}/mode:{mode}'.format(widget=cls, mode=mode), val)
-
-    def get_item_sort_order(self):
-        """Returns the saved sort order for this widget."""
-        val = local_settings.value(
-            'widget/{}/sort_order'.format(self.__class__.__name__))
-        return int(val) if val else common.SortByName
-
-    def set_item_sort_order(self, val):
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{}/sort_order'.format(cls), val)
-
-    def is_item_sort_reversed(self):
-        """Returns the order of the list."""
-        val = local_settings.value(
-            'widget/{}/sort_reversed'.format(self.__class__.__name__))
-        return int(val) if val else False
-
-    def set_item_sort_reversed(self, val):
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{}/sort_reversed'.format(cls), val)
-
     def is_sequence_collapsed(self):
         """Gathers sequences into a single file."""
         if self.get_location() == common.RendersFolder:
@@ -707,7 +773,8 @@ class BaseListWidget(QtWidgets.QListWidget):
         local_settings.setValue(
             'widget/{}/collapse_sequence'.format(cls), val)
 
-    def toggle_favourite(self, item=None, state=None):
+
+    def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
         instead of the currentItem.
@@ -717,13 +784,16 @@ class BaseListWidget(QtWidgets.QListWidget):
             state (None or bool): The state to set.
 
         """
-        if not item:
-            item = self.currentItem()
+        if not index:
+            index = self.selectionModel().currentIndex()
 
-        file_info = QtCore.QFileInfo(item.data(common.PathRole))
+        if not index.isValid():
+            return
+
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
         # Favouriting archived items are not allowed
-        archived = item.flags() & configparser.MarkedAsArchived
+        archived = index.flags() & settings.MarkedAsArchived
         if archived:
             return
 
@@ -732,15 +802,14 @@ class BaseListWidget(QtWidgets.QListWidget):
 
         if file_info.filePath() in favourites:
             if state is None or state is False:  # clears flag
-                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite)
+                item.setFlags(item.flags() & ~settings.MarkedAsFavourite)
                 favourites.remove(file_info.filePath())
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(file_info.filePath())
-                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
+                item.setFlags(item.flags() | settings.MarkedAsFavourite)
 
         local_settings.setValue('favourites', favourites)
-        self.set_item_visibility()
 
     def toggle_archived(self, item=None, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -758,31 +827,30 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not item:
             item = self.currentItem()
 
-        archived = item.flags() & configparser.MarkedAsArchived
+        archived = item.flags() & settings.MarkedAsArchived
 
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         settings = AssetSettings(
-            '/'.join(item.data(common.ParentRole)),
-            item.data(common.PathRole)
+            '/'.join(index.data(common.ParentRole)),
+            file_info.filePath()
         )
 
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
-        file_info = QtCore.QFileInfo(item.data(common.PathRole))
 
         if archived:
             if state is None or state is False:  # clears flag
-                item.setFlags(item.flags() & ~configparser.MarkedAsArchived)
+                item.setFlags(item.flags() & ~settings.MarkedAsArchived)
                 settings.setValue('config/archived', False)
         else:
             if state is None or state is True:  # adds flag
                 settings.setValue('config/archived', True)
-                item.setFlags(item.flags() | configparser.MarkedAsArchived)
-                item.setFlags(item.flags() & ~configparser.MarkedAsFavourite)
+                item.setFlags(item.flags() | settings.MarkedAsArchived)
+                item.setFlags(item.flags() & ~settings.MarkedAsFavourite)
                 if file_info.filePath() in favourites:
                     favourites.remove(file_info.filePath())
                     local_settings.setValue('favourites', favourites)
 
-        self.set_item_visibility()
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item using ScreenGrabber."""
@@ -792,8 +860,8 @@ class BaseListWidget(QtWidgets.QListWidget):
             return
 
         settings = AssetSettings(
-            '/'.join(item.data(common.ParentRole)),
-            item.data(common.PathRole)
+            '/'.join(index.data(common.ParentRole)),
+            index.data(QtCore.Qt.StatusTipRole)
         )
 
         # Saving the image
@@ -805,10 +873,13 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def remove_thumbnail(self):
         """Deletes the given thumbnail."""
-        item = self.currentItem()
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
         settings = AssetSettings(
-            '/'.join(item.data(common.ParentRole)),
-            item.data(common.PathRole)
+            '/'.join(index.data(common.ParentRole)),
+            index.data(QtCore.Qt.StatusTipRole)
         )
 
         common.delete_image(settings.thumbnail_path())
@@ -816,84 +887,91 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def refresh(self):
         """Re-populates the list-widget with the collected items."""
-        item = self.currentItem()
-
-        path = None
-        if item:
-            if item.data(common.PathRole):
-                path = item.data(common.PathRole)
-
-        self.add_items()
-        self.set_item_visibility()
-
-        if not path:
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
             return
-        for n in xrange(self.count()):
-            if self.item(n).isHidden():
-                continue
-            if not self.item(n).data(common.PathRole):
-                continue
-            if self.item(n).data(common.PathRole) == path:
-                self.setCurrentItem(self.item(n))
+
+        path = index.data(QtCore.Qt.StatusTipRole)
+
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+            if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
+                self.selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
                 break
 
     def action_on_enter_key(self):
-        self.set_current_item_as_active()
+        self.activate_current_index()
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
         on the keyboard.
 
         """
-        visible_items = [self.item(n) for n in xrange(
-            self.count()) if not self.item(n).isHidden()]
-        if visible_items:  # jumping to the beginning of the list after the last item
-            if self.currentItem() is visible_items[-1]:
-                self.setCurrentItem(
-                    visible_items[0],
-                    QtCore.QItemSelectionModel.ClearAndSelect
-                )
-                return
-        for n in xrange(self.count()):
-            if self.item(n).isHidden():
-                continue
-            if self.currentRow() >= n:
-                continue
+        sel = self.selectionModel()
+        current_index = self.selectionModel().currentIndex()
+        first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
+        last_index = self.model().index(self.model().rowCount() - 1, 0, parent=QtCore.QModelIndex())
 
-            self.setCurrentItem(
-                self.item(n),
+        if first_index == last_index:
+            return
+
+        if not current_index.isValid(): # No selection
+            sel.setCurrentIndex(
+                first_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
-            break
+            return
+        if current_index == first_index: # First item is selected
+            for n in xrange(self.model().rowCount()):
+                if current_index.row() >= n:
+                    continue
+                sel.setCurrentIndex(
+                    self.model().index(n, 0, parent=QtCore.QModelIndex()),
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                break
+        if current_index == last_index: # Last item is selected
+            sel.setCurrentIndex(
+                first_index,
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            return
+
 
     def key_up(self):
         """Custom action to perform when the `up` arrow is pressed
         on the keyboard.
 
         """
-        visible_items = [self.item(n) for n in xrange(
-            self.count()) if not self.item(n).isHidden()]
-        if visible_items:  # jumping to the end of the list after the first item
-            if self.currentItem() is visible_items[0]:
-                self.setCurrentItem(
-                    visible_items[-1],
-                    QtCore.QItemSelectionModel.ClearAndSelect
-                )
-                return
-        if self.currentRow() == -1:
-            self.setCurrentItem(
-                visible_items[0],
+        sel = self.selectionModel()
+        current_index = self.selectionModel().currentIndex()
+        first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
+        last_index = self.model().index(self.model().rowCount() - 1, 0, parent=QtCore.QModelIndex())
+
+        if first_index == last_index:
+            return
+
+        if not current_index.isValid(): # No selection
+            sel.setCurrentIndex(
+                last_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             return
-        for n in reversed(xrange(self.count())):
-            if self.item(n).isHidden():
-                continue
-            if self.currentRow() <= n:
-                continue
+        if current_index == first_index: # First item is selected
+            sel.setCurrentIndex(
+                last_index,
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            return
 
-            self.setCurrentItem(
-                self.item(n),
+        for n in reversed(xrange(self.model().rowCount())): # Stepping back
+            if current_index.row() <= n:
+                continue
+            sel.setCurrentIndex(
+                self.model().index(n, 0, parent=QtCore.QModelIndex()),
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             break
@@ -904,7 +982,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         cursor = QtGui.QCursor()
         opos = cursor.pos()
         rect = self.visualRect(self.currentIndex())
-        rect, _, _ = self.itemDelegate().get_description_rect(rect)
+        rect, _, _ = self.indexDelegate().get_description_rect(rect)
         pos = self.mapToGlobal(rect.topLeft())
         cursor.setPos(pos)
         self.editItem(self.currentItem())
@@ -944,29 +1022,31 @@ class BaseListWidget(QtWidgets.QListWidget):
                 self.timed_search_string += event.text()
                 self.timer.start()  # restarting timer on input
 
-                visible_items = [self.item(n) for n in xrange(
-                    self.count()) if not self.item(n).isHidden()]
-                for item in visible_items:
+                sel = self.selectionModel()
+                for n in xrange(self.model().rowCount()):
+                    index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+
                     # When only one key is pressed we want to cycle through
                     # only items starting with that letter:
                     if len(self.timed_search_string) == 1:
-                        if self.row(item) <= self.row(self.currentItem()):
+                        if n <= sel.currentIndex().row():
                             continue
-                        if item.data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
-                            self.setCurrentItem(
-                                item,
+
+                        if index.data(QtCore.Qt.DisplayRole)[0].lower() == self.timed_search_string.lower():
+                            sel.setCurrentIndex(
+                                index,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
                             break
                     else:
                         match = re.search(
                             '{}'.format(self.timed_search_string),
-                            item.data(QtCore.Qt.DisplayRole),
+                            index.data(QtCore.Qt.DisplayRole),
                             flags=re.IGNORECASE
                         )
                         if match:
-                            self.setCurrentItem(
-                                item,
+                            sel.setCurrentIndex(
+                                index,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
                             break
@@ -981,19 +1061,6 @@ class BaseListWidget(QtWidgets.QListWidget):
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
-
-    def count_visible(self):
-        """Counts the visible list-items.
-
-        Returns:
-            int: The number of visible of items.
-
-        """
-        c = 0
-        for n in xrange(self.count()):
-            if not self.item(n).isHidden():
-                c += 1
-        return c
 
     def contextMenuEvent(self, event):
         """Custom context menu event."""
@@ -1022,77 +1089,58 @@ class BaseListWidget(QtWidgets.QListWidget):
         common.move_widget_to_available_geo(widget)
         widget.show()
 
-    def active_item(self):
+    def active_index(self):
         """Return the ``active`` item.
 
-        The active item is indicated by the ``configparser.MarkedAsActive`` flag.
+        The active item is indicated by the ``settings.MarkedAsActive`` flag.
         If no item has been flagged as `active`, returns ``None``.
 
         """
-        for n in xrange(self.count()):
-            item = self.item(n)
-            if item.flags() & configparser.MarkedAsActive:
-                return item
-        return None
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+            if index.flags() & settings.MarkedAsActive:
+                return index
+        return QtCore.QModelIndex()
 
-    def set_current_item_as_active(self):
-        """Sets the current item item as ``active``.
+    def activate_current_index(self):
+        """Sets the current index as ``active``.
 
         Note:
             The method doesn't alter the config files or emits signals,
             merely sets the item flags. Make sure to implement that in the subclass.
 
         """
-        item = self.currentItem()
-        if not item:
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
             return False
-        if item.flags() == QtCore.Qt.NoItemFlags:
+        if index.flags() == QtCore.Qt.NoItemFlags:
             return False
-        if self.active_item() is self.currentItem():
+        if self.active_index() == index:
             return False
-        archived = item.flags() & configparser.MarkedAsArchived
-        if archived:
+        if index.flags() & settings.MarkedAsArchived:
             return False
 
-        # Set flags
-        if self.active_item():
-            self.active_item().setFlags(item.flags() & ~
-                                        configparser.MarkedAsActive)
-        item.setFlags(item.flags() | configparser.MarkedAsActive)
-        return item
+        source_index = self.model().mapToSource(self.active_index())
+        self.model().sourceModel().setData(
+            source_index,
+            source_index.data(common.FlagsRole) & ~settings.MarkedAsActive,
+            role=common.FlagsRole
+        )
 
-    def select_active_item(self):
+        source_index = self.model().mapToSource(index)
+        self.model().sourceModel().setData(
+            source_index,
+            source_index.data(common.FlagsRole) | settings.MarkedAsActive,
+            role=common.FlagsRole
+        )
+        return True
+
+    def select_active_index(self):
         """Selects the active item."""
-        self.setCurrentItem(self.active_item())
-
-    def set_item_visibility(self):
-        """Sets the visibility of the list-items based on the item-flags."""
-        for n in xrange(self.count()):
-            item = self.item(n)
-
-            markedAsArchived = item.flags() & configparser.MarkedAsArchived
-            markedAsFavourite = item.flags() & configparser.MarkedAsFavourite
-
-            hide_archived = self.get_display_mode('archived')
-            isolate_favourites = self.get_display_mode('favourite')
-
-            if hide_archived and isolate_favourites:
-                if markedAsFavourite:
-                    item.setHidden(False)
-                    continue
-                item.setHidden(True)
-                continue
-            elif not hide_archived and isolate_favourites:
-                if markedAsFavourite:
-                    item.setHidden(False)
-                    continue
-                item.setHidden(True)
-                continue
-            elif hide_archived and not isolate_favourites:
-                item.setHidden(False)
-                continue
-            elif not hide_archived and not isolate_favourites:
-                item.setHidden(markedAsArchived)
+        self.selectionModel().setCurrentIndex(
+            self.active_index(),
+            QtCore.QItemSelectionModel.ClearAndSelect
+        )
 
     def paint_message(self, text):
         """Paints a custom message onto the list widget."""
@@ -1116,16 +1164,19 @@ class BaseListWidget(QtWidgets.QListWidget):
 
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-        self.select_active_item()
+
+        self.select_active_index()
 
         idx = local_settings.value(
             'widget/{}/selected_row'.format(self.__class__.__name__),
         )
         if not idx:
             idx = 0
-        item = self.item(idx)
-        if item:
-            self.setCurrentItem(item)
+        if self.model().rowCount():
+            self.selectionModel().setCurrentIndex(
+                self.model().index(idx, 0, parent=QtCore.QModelIndex()),
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
 
         super(BaseListWidget, self).showEvent(event)
 
@@ -1133,7 +1184,7 @@ class BaseListWidget(QtWidgets.QListWidget):
         """We're saving the selection upon hiding the widget."""
         local_settings.setValue(
             'widget/{}/selected_row'.format(self.__class__.__name__),
-            self.currentRow()
+            self.selectionModel().currentIndex().row()
         )
 
     def resizeEvent(self, event):
@@ -1145,7 +1196,10 @@ class BaseListWidget(QtWidgets.QListWidget):
         """Deselecting item when the index is invalid."""
         index = self.indexAt(event.pos())
         if not index.isValid():
-            self.setCurrentItem(None)
+            self.selectionModel().setCurrentIndex(
+                QtCore.QModelIndex(),
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
         super(BaseListWidget, self).mousePressEvent(event)
 
 
@@ -1170,12 +1224,12 @@ class BaseListWidget(QtWidgets.QListWidget):
         if not file_info.exists():
             return warning_three.format('/'.join((active_paths['server'], active_paths['job'], active_paths['root'])))
 
-        if not self.count():
+        if not self.model().rowCount():
             return warning_four.format(active_paths['server'], active_paths['job'], active_paths['root'])
 
-        if self.count() > self.count_visible():
+        if self.model().sourceModel().rowCount() > self.model().rowCount():
             return warning_five.format(
-                self.count() - self.count_visible())
+                self.model().sourceModel().rowCount() - self.model().rowCount())
 
         return ''
 

@@ -25,9 +25,6 @@ class BaseCollector(QtCore.QObject):
         super(BaseCollector, self).__init__(parent=parent)
         self._count = 0
 
-        self._items = []
-        self._collapsed_items = []
-
     @property
     def count(self):
         """The number of assets found."""
@@ -37,7 +34,7 @@ class BaseCollector(QtCore.QObject):
         """Has to be overriden in the subclass."""
         raise NotImplementedError('generator is abstract.')
 
-    def get_items(self, key=common.SortByName, reverse=False, path_filter='/', collapse=False, refresh=False):
+    def get_items(self):
         """Sorts, filters and returns the items collected by the item_generator.
 
         Args:
@@ -49,10 +46,9 @@ class BaseCollector(QtCore.QObject):
             tuple:  A tuple of QFileInfo instances.
 
         """
-        items = self._items if self._items else self.item_generator()
-        if refresh:
-            items = self.item_generator()
 
+        items = self.item_generator()
+        self.collapsed_items =
         if refresh:
             items = []
             r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
@@ -89,56 +85,15 @@ class BaseCollector(QtCore.QObject):
                 file_info.lastModified = functools.partial(_modified, d[k])
                 items.append(file_info)
         else:
-            items = [k for k in self.item_generator(
-            ) if path_filter in k.filePath()]
-
-        if not items:
-            return []
+        #     items = [k for k in self.item_generator(
+        #     ) if path_filter in k.filePath()]
         #
-        if not reverse:
-            return sorted(items, key=common.sort_keys[key])
-        return list(reversed(sorted(items, key=common.sort_keys[key])))
-
-
-class BookmarksCollector(BaseCollector):
-    """Collects the saved ``Bookmarks``. Bookmarks are virtual,
-    but the collector can take care of the filtering and sorting them like
-    with assets and files."""
-
-    def item_generator(self):
-        """Generator expression. Collects all the bookmarks found in the local configuration file."""
-        bookmarks = local_settings.value('bookmarks')
-
-        if not bookmarks:
-            return
-
-        class Bookmark(object):
-            def __init__(self):
-                self.server = None
-                self.job = None
-                self.root = None
-                self.size = None
-                self.fileName = None
-                self.filePath = None
-                self.exists = None
-
-        for k in bookmarks:
-            bookmark = Bookmark()
-            path = u'{}/{}/{}'.format(
-                bookmarks[k]['server'],
-                bookmarks[k]['job'],
-                bookmarks[k]['root']
-            )
-            bookmark.server = bookmarks[k]['server']
-            bookmark.job = bookmarks[k]['job']
-            bookmark.root = bookmarks[k]['root']
-            bookmark.size = lambda: common.count_assets(path)
-            bookmark.fileName = lambda: QtCore.QFileInfo(path).fileName()
-            bookmark.filePath = lambda: QtCore.QFileInfo(path).filePath()
-            bookmark.exists = lambda: QtCore.QFileInfo(path).exists()
-            self._count += 1
-
-            yield bookmark
+        # if not items:
+        #     return []
+        # #
+        # if not reverse:
+        #     return sorted(items, key=common.sort_keys[key])
+        # return list(reversed(sorted(items, key=common.sort_keys[key])))
 
 
 class AssetCollector(BaseCollector):
@@ -208,23 +163,7 @@ class FileCollector(BaseCollector):
             filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
         )
 
-    def item_generator(self):
-        """Generator expression. Collects files from the ``path/root`` and the subdirectories
-        within.
 
-        Yields: A QFileInfo instance.
-
-        """
-        it = QtCore.QDirIterator(
-            '{}/{}'.format(self.path, self.location),
-            common.NameFilters[self.location],
-            filters=QtCore.QDir.NoDotAndDotDot | QtCore.QDir.Files,
-            flags=QtCore.QDirIterator.Subdirectories
-        )
-        self._count = 0  # Resetting the count
-        while it.hasNext():
-            self._count += 1
-            yield QtCore.QFileInfo(it.next())
 
 
 if __name__ == '__main__':

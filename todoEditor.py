@@ -662,7 +662,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         settings = AssetSettings(
             '/'.join(index.data(common.ParentRole)),
-            index.data(common.PathRole)
+            index.data(QtCore.Qt.StatusTipRole)
         )
 
         items = settings.value('config/todos')
@@ -842,7 +842,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             return
         settings = AssetSettings(
             '/'.join(self.index.data(common.ParentRole)),
-            self.index.data(common.PathRole)
+            self.index.data(QtCore.Qt.StatusTipRole)
         )
         settings.setValue('config/todos', self._collect_data())
 

@@ -17,7 +17,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         super(ThumbnailViewer, self).__init__(parent=parent)
         settings = AssetSettings(
             '/'.join(index.data(common.ParentRole)),
-            index.data(common.PathRole)
+            index.data(QtCore.Qt.StatusTipRole)
         )
         file_info = QtCore.QFileInfo(settings.thumbnail_path())
 
@@ -106,7 +106,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         super(ThumbnailEditor, self).__init__(parent=parent)
         settings = AssetSettings(
             '/'.join(index.data(common.ParentRole)),
-            index.data(common.PathRole)
+            index.data(QtCore.Qt.StatusTipRole)
         )
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
@@ -114,7 +114,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         self.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         self.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
         self.setDirectory(QtCore.QDir(
-            index.data(common.PathRole)))
+            index.data(QtCore.Qt.StatusTipRole)))
         self.setOption(
             QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
@@ -144,7 +144,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self.editor = None
         self.settings = AssetSettings(
             '/'.join(index.data(common.ParentRole)),
-            index.data(common.PathRole)
+            index.data(QtCore.Qt.StatusTipRole)
         )
         self._createUI()
 

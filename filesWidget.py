@@ -92,7 +92,7 @@ class FilesWidget(BaseListWidget):
         collector = FileCollector('/'.join(self._asset), location, parent=self)
         items = collector.get_items(
             key=self.get_item_sort_order(),
-            reverse=self.is_item_sort_reversed(),
+            reverse=self.get_item_sort_order(),
             path_filter=self.get_item_filter()
         )
         self.collector_count = collector.count
@@ -139,7 +139,6 @@ class FilesWidget(BaseListWidget):
             item.setData(common.FileModeRole, mode)
 
 
-            item.setData(common.PathRole, file_info.filePath())
             item.setData(common.ParentRole, (
                 server,
                 job,
@@ -233,13 +232,13 @@ class FilesWidget(BaseListWidget):
                     rect, common.INLINE_ICON_SIZE, n)
                 if bg_rect.contains(event.pos()):
                     if n == 0:
-                        self.toggle_favourite(item=self.itemFromIndex(index))
+                        self.toggle_favourite(index=index)
                         break
                     elif n == 1:
-                        self.toggle_archived(item=self.itemFromIndex(index))
+                        self.toggle_archived(index=index)
                         break
                     elif n == 2:
-                        path = QtCore.QFileInfo(index.data(common.PathRole))
+                        path = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
                         common.reveal(path.dir().path())
 
         self.multi_toggle_pos = None
@@ -287,7 +286,7 @@ class FilesWidget(BaseListWidget):
                 self.multi_toggle_items[idx] = favourite
                 # Apply first state
                 self.toggle_favourite(
-                    item=self.itemFromIndex(index),
+                    index=index,
                     state=self.multi_toggle_state
                 )
             if self.multi_toggle_idx == 1:  # Archived button
@@ -295,7 +294,7 @@ class FilesWidget(BaseListWidget):
                 self.multi_toggle_items[idx] = archived
                 # Apply first state
                 self.toggle_archived(
-                    item=self.itemFromIndex(index),
+                    index=index,
                     state=self.multi_toggle_state
                 )
         else:  # Reset state
@@ -303,12 +302,12 @@ class FilesWidget(BaseListWidget):
                 return
             if self.multi_toggle_idx == 0:  # Favourite button
                 self.toggle_favourite(
-                    item=self.itemFromIndex(index),
+                    index=index,
                     state=self.multi_toggle_items.pop(idx)
                 )
             elif self.multi_toggle_idx == 1:  # Favourite button
                 self.toggle_archived(
-                    item=self.itemFromIndex(index),
+                    index=index,
                     state=self.multi_toggle_items.pop(idx)
                 )
 
@@ -349,7 +348,7 @@ class FilesWidget(BaseListWidget):
             editors.ThumbnailEditor(index)
             return
         else:
-            self.set_current_item_as_active()
+            self.activate_current_index()
             return
 
 

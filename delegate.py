@@ -22,9 +22,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         focused = option.state & QtWidgets.QStyle.State_HasFocus
 
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        archived = index.flags() & configparser.MarkedAsArchived
-        active = index.flags() & configparser.MarkedAsActive
+        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
+        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
+        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
 
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
@@ -96,10 +96,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        # Custom states
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        archived = index.flags() & configparser.MarkedAsArchived
-        active = index.flags() & configparser.MarkedAsActive
+        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
+        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
+        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
 
         color = QtGui.QColor(color)
 
@@ -413,7 +412,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         settings = AssetSettings(
             '/'.join(index.data(common.ParentRole)),
-            index.data(common.PathRole)
+            index.data(QtCore.Qt.StatusTipRole)
         )
         # Caching image
         common.cache_image(settings.thumbnail_path(), option.rect.height())
@@ -830,9 +829,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
-        if index.row() == (self.parent().count() - 1):
-            self.paint_add_button(*args)
-            return
 
         self.paint_selection_indicator(*args)
         self.paint_thumbnail(*args)
@@ -848,44 +844,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
         #
         self.paint_focus(*args)
 
-    def paint_add_button(self, *args):
-        """Paints the special add button."""
-        painter, option, _, _, _, _, _, _ = args
-
-        painter.save()
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
-        painter.drawRect(option.rect)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + common.INDICATOR_WIDTH)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter.setPen(QtCore.Qt.NoPen)
-
-        if hover:
-            pixmap = common.get_rsc_pixmap(
-                'bookmark_add', common.TEXT, option.rect.height())
-        else:
-            pixmap = common.get_rsc_pixmap(
-                'bookmark_add', common.SELECTION, option.rect.height())
-        painter.drawPixmap(
-            rect,
-            pixmap,
-            pixmap.rect()
-        )
-
-        painter.restore()
-
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
         painter, option, index, selected, _, active, _, _ = args
         painter.save()
 
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        active = index.flags() & configparser.MarkedAsActive
+        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
+        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
 
         rect = QtCore.QRect(option.rect)
         # Making the aspect ratio of the image 16/9
@@ -952,10 +917,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         painter.restore()
 
-    def _get_root_text(self, item, rect, metrics):
+    def _get_root_text(self, index, rect, metrics):
         """Gets the text for drawing the root."""
-        root = item.data(common.ParentRole)[2]
-        count = item.data(common.FileDetailsRole)
+        root = index.data(common.ParentRole)[2]
+        count = index.data(common.FileDetailsRole)
 
         text = re.sub(r'[_]+', ' ', root.upper())
         if count:
@@ -972,7 +937,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def _get_longest_root_width(self, rect, metrics):
         # Finding the longest root string
         width = [0, ]
-        for n in xrange(self.parent().count()):
+        for n in xrange(self.parent().model().rowCount()):
             try:
                 item = self.parent().item(n)
                 if item.isHidden():
@@ -1005,8 +970,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         width = self._get_longest_root_width(rect, metrics)
 
-        text = self._get_root_text(
-            self.parent().itemFromIndex(index), rect, metrics)
+        text = self._get_root_text(index, rect, metrics)
 
         rect.setLeft(rect.left() + (rect.width() - metrics.width(text)))
 
@@ -1161,9 +1125,9 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_description(self, *args):
         """Paints the item description inside the ``FilesWidget``."""
         painter, option, index, _, _, _, _, _ = args
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        archived = index.flags() & configparser.MarkedAsArchived
-        active = index.flags() & configparser.MarkedAsActive
+        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
+        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
+        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.save()
@@ -1315,9 +1279,9 @@ class FilesWidgetDelegate(BaseDelegate):
         """
         painter, option, index, _, _, active, _, _ = args
 
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        archived = index.flags() & configparser.MarkedAsArchived
-        active = index.flags() & configparser.MarkedAsActive
+        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
+        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
+        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
 
         painter.save()
 

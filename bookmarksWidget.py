@@ -16,15 +16,31 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
+import functools
 
 import mayabrowser.common as common
+import collections
 from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
-from mayabrowser.collector import BookmarksCollector
+from mayabrowser.baselistwidget import BaseModel
 import mayabrowser.settings as configparser
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.delegate import BaseDelegate
+
+
+
+class BookmarkInfo(QtCore.QFileInfo):
+    """QFileInfo for bookmarks."""
+    def __init__(self, bookmark, parent=None):
+        self.server = bookmark['server']
+        self.job = bookmark['job']
+        self.root = bookmark['root']
+
+        path = '{}/{}/{}'.format(self.server, self.job, self.root)
+        super(BookmarkInfo, self).__init__(path, parent=parent)
+
+        self.size = functools.partial(common.count_assets, path)
 
 
 class BookmarksWidgetContextMenu(BaseContextMenu):
@@ -38,31 +54,94 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
         self.add_refresh_menu()
+        self.add_add_bookmark_menu()
+
+    def add_add_bookmark_menu(self):
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+        menu_set['Add bookmark'] = {
+            'text': 'Add bookmark',
+            'action':self.parent().show_add_bookmark_widget
+        }
+
+        self.create_menu(menu_set)
+
+
+class BookmarksModel(BaseModel):
+    def __init__(self, parent=None):
+        super(BookmarksModel, self).__init__(parent=parent)
+
+    def collect_data(self):
+        """Collects the data needed to populate the bookmark views."""
+        self.internal_data = {} # reset
+
+        items = local_settings.value('bookmarks') if local_settings.value('bookmarks') else []
+        items = [BookmarkInfo(items[k]) for k in items]
+
+        for idx, file_info in enumerate(items):
+            flags = (
+                QtCore.Qt.ItemIsSelectable |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsEditable
+            )
+
+            # Active
+            if (
+                file_info.server == local_settings.value('activepath/server') and
+                file_info.job == local_settings.value('activepath/job') and
+                file_info.root == local_settings.value('activepath/root')
+            ):
+                flags = flags | configparser.MarkedAsActive
+
+            favourites = local_settings.value('favourites')
+            favourites = favourites if favourites else []
+            if file_info.filePath() in favourites:
+                flags = flags | configparser.MarkedAsFavourite
+
+            if not file_info.exists():
+                flags = QtCore.Qt.ItemIsSelectable | configparser.MarkedAsArchived
+
+            self.internal_data[idx] = {
+                QtCore.Qt.DisplayRole: file_info.job,
+                QtCore.Qt.EditRole: file_info.job,
+                QtCore.Qt.StatusTipRole: file_info.filePath(),
+                QtCore.Qt.ToolTipRole: file_info.filePath(),
+                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
+                common.FlagsRole: flags,
+                common.ParentRole: (file_info.server, file_info.job, file_info.root),
+                common.DescriptionRole: u'{}  |  {}  |  {}'.format(file_info.server, file_info.job, file_info.root),
+                common.TodoCountRole: 0,
+                common.FileDetailsRole: file_info.size(),
+                common.FileModeRole: None,
+            }
 
 
 class BookmarksWidget(BaseListWidget):
     """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
-        super(BookmarksWidget, self).__init__(parent=parent)
+        super(BookmarksWidget, self).__init__(BookmarksModel(), parent=parent)
+
         self.setWindowTitle('Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self._context_menu_cls = BookmarksWidgetContextMenu
         # Select the active item
-        self.setCurrentItem(self.active_item())
+        # self.setCurrentItem(self.active_index())
 
-    def set_current_item_as_active(self):
-        """Sets the current item as ``active_item``.
+    def activate_current_index(self):
+        """Sets the current item as ``active_index``.
 
         Emits the ``activeBookmarkChanged``, ``activeAssetChanged`` and
         ``activeFileChanged`` signals.
 
         """
-        item = super(BookmarksWidget, self).set_current_item_as_active()
-        if not item:
+        if not super(BookmarksWidget, self).activate_current_index():
             return
 
-        server, job, root = item.data(common.ParentRole)
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        server, job, root = index.data(common.ParentRole)
         asset = None
 
         # Updating the local config file
@@ -75,9 +154,7 @@ class BookmarksWidget(BaseListWidget):
         # Keeping the asset selection if it exists inside the activated bookmark
         if active_paths['asset']:
             path = '{}/{}'.format(
-                item.data(common.PathRole),
-                active_paths['asset'],
-            )
+                index.data(QtCore.Qt.StatusTipRole), active_paths['asset'])
             if QtCore.QFileInfo(path).exists():
                 asset = active_paths['asset']
                 local_settings.setValue('activepath/asset', asset)
@@ -101,7 +178,7 @@ class BookmarksWidget(BaseListWidget):
         if res == QtWidgets.QMessageBox.Cancel:
             return
 
-        k = self.currentItem().data(common.PathRole)
+        k = self.currentItem().data(QtCore.Qt.StatusTipRole)
         bookmarks = local_settings.value('bookmarks')
 
         k = bookmarks.pop(k, None)
@@ -121,111 +198,18 @@ class BookmarksWidget(BaseListWidget):
             (rect.height() / 2.0) - (self.height())
         )
 
-    def add_items(self):
-        """Adds the bookmarks saved in the local_settings file to the widget."""
-        self.clear()
-
-        # Collecting items
-        collector = BookmarksCollector(parent=self)
-        self.collector_count = collector.count
-        items = collector.get_items(
-            key=self.get_item_sort_order(),
-            reverse=self.is_item_sort_reversed(),
-            path_filter=self.get_item_filter()
-        )
-
-        for file_info in items:
-            item = QtWidgets.QListWidgetItem(parent=self)
-
-            # Qt Roles
-            item.setData(
-                QtCore.Qt.DisplayRole, file_info.job)
-            item.setData(QtCore.Qt.EditRole, item.data(QtCore.Qt.DisplayRole))
-            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
-            item.setData(QtCore.Qt.ToolTipRole,
-                         item.data(QtCore.Qt.StatusTipRole))
-            item.setData(
-                QtCore.Qt.SizeHintRole,
-                QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
-
-            # Custom roles
-            item.setData(common.PathRole, file_info.filePath())
-            item.setData(common.ParentRole, (
-                file_info.server,
-                file_info.job,
-                file_info.root))
-            item.setData(common.DescriptionRole,
-                         u'{}  |  {}  |  {}'.format(
-                             file_info.server,
-                             file_info.job,
-                             file_info.root))
-            item.setData(common.TodoCountRole, 0)
-            item.setData(common.FileDetailsRole, file_info.size())
-            item.setData(common.FileModeRole, None)
-
-            # Flags
-            if (
-                file_info.server == local_settings.value('activepath/server') and
-                file_info.job == local_settings.value('activepath/job') and
-                file_info.root == local_settings.value('activepath/root')
-            ):
-                item.setFlags(item.flags() | configparser.MarkedAsActive)
-            if not file_info.exists():
-                item.setFlags(item.flags() | configparser.MarkedAsArchived)
-            # Favourite
-            favourites = local_settings.value('favourites')
-            favourites = favourites if favourites else []
-            if file_info.filePath() in favourites:
-                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-
-            self.addItem(item)
-
-        # The 'Add location' button at the bottom of the list
-        item = QtWidgets.QListWidgetItem()
-        item.setFlags(QtCore.Qt.NoItemFlags)
-        item.setData(
-            QtCore.Qt.DisplayRole,
-            'Add location'
-        )
-        item.setData(
-            QtCore.Qt.EditRole,
-            'Add location'
-        )
-        item.setData(
-            QtCore.Qt.StatusTipRole,
-            'Add a new bookmark'
-        )
-        item.setData(
-            QtCore.Qt.ToolTipRole,
-            'Add a new bookmark'
-        )
-        item.setData(
-            common.PathRole,
-            None
-        )
-
-        self.addItem(item)
-
-    def mouseReleaseEvent(self, event):
-        """Custom mouse event handling the add button click."""
-        index = self.indexAt(event.pos())
-        if index.isValid() and index.row() == (self.count() - 1):
-            self.show_add_bookmark_widget()
-            return
-        super(BookmarksWidget, self).mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved.
         """
-        if self.currentItem() is self.active_item():
+        index = self.selectionModel().currentIndex()
+        if index == self.active_index():
             return
 
-        archived = self.currentItem().flags() & configparser.MarkedAsArchived
-        if archived:
+        if index.flags() & configparser.MarkedAsArchived:
             return
 
-        self.set_current_item_as_active()
+        self.activate_current_index()
 
 
 class ComboBoxItemDelegate(BaseDelegate):
@@ -497,13 +481,13 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         self.parent().refresh()
 
-        for n in xrange(self.parent().count()):
-            if self.parent().item(n).isHidden():
-                continue
-            if not self.parent().item(n).data(common.PathRole):
-                continue
-            if self.parent().item(n).data(common.PathRole) == path:
-                self.parent().setCurrentItem(self.parent().item(n))
+        for n in xrange(self.parent().model().rowCount()):
+            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
+            if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
+                self.parent().selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
                 break
 
     def _add_servers(self):
@@ -513,18 +497,17 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, server['nickname'])
             item.setData(QtCore.Qt.EditRole, server['nickname'])
-            item.setData(QtCore.Qt.StatusTipRole,
-                         '{}\n{}'.format(server['nickname'], server['path']))
+            item.setData(QtCore.Qt.StatusTipRole, QtCore.QFileInfo(server['path']).filePath())
             item.setData(QtCore.Qt.ToolTipRole,
                          '{}\n{}'.format(server['nickname'], server['path']))
             item.setData(common.DescriptionRole, server['path'])
-            item.setData(common.PathRole, QtCore.QFileInfo(server['path']))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 200, common.ROW_BUTTONS_HEIGHT))
 
             self.pick_server_widget.view().addItem(item)
 
-            if not item.data(common.PathRole).exists():
+            file_info = QtCore.QFileInfo(item.data(QtCore.Qt.StatusTipRole))
+            if not file_info.exists():
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
     def add_jobs(self, qdir):
@@ -553,7 +536,6 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.ToolTipRole, file_info.filePath())
             item.setData(common.DescriptionRole, file_info.fileName())
-            item.setData(common.PathRole, file_info)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
@@ -568,7 +550,9 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         dialog = QtWidgets.QFileDialog()
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
-        file_info = self.pick_job_widget.currentData(common.PathRole)
+
+        path = self.pick_job_widget.currentData(QtCore.Qt.StatusTipRole)
+        file_info = QtCore.QFileInfo(path)
 
         path = dialog.getExistingDirectory(
             self,
@@ -590,8 +574,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         count = common.count_assets(path)
 
         # Removing the server and job name from the selection
-        path = path.replace(self.pick_job_widget.currentData(
-            common.PathRole).filePath(), '')
+        path = path.replace(self.pick_job_widget.currentData(QtCore.Qt.StatusTipRole), '')
         path = path.lstrip('/').rstrip('/')
 
         # Setting the internal root variable
@@ -627,7 +610,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             return
 
         item = self.pick_server_widget.view().item(idx)
-        qdir = QtCore.QDir(item.data(common.PathRole).filePath())
+        qdir = QtCore.QDir(item.data(QtCore.Qt.StatusTipRole))
         self.add_jobs(qdir)
 
     def _set_initial_values(self):
@@ -670,13 +653,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     app.w = BookmarksWidget()
-
-    def _print1(arg):
-        print '#1', arg
-    def _print2(arg):
-        print '#2', arg
-
-    app.w.activeBookmarkChanged.connect(_print1)
-    app.w.activeBookmarkChanged.connect(_print2)
+    # app.w = QtWidgets.QListView()
+    # app.w.setModel(BookmarksModel())
     app.w.show()
     app.exec_()

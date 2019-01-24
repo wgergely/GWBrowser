@@ -58,22 +58,22 @@ class AssetWidget(BaseListWidget):
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self._context_menu_cls = AssetWidgetContextMenu
         # Select the active item
-        self.setCurrentItem(self.active_item())
+        self.setCurrentItem(self.active_index())
 
     def set_bookmark(self, bookmark):
         self._bookmark = bookmark
         self.refresh()
 
-    def set_current_item_as_active(self):
+    def activate_current_index(self):
         """Sets the current item item as ``active`` and
         emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
 
         """
-        item = super(AssetWidget, self).set_current_item_as_active()
+        item = super(AssetWidget, self).activate_current_index()
         if not item:
             return
 
-        file_info = QtCore.QFileInfo(item.data(common.PathRole))
+        file_info = QtCore.QFileInfo(item.data(QtCore.Qt.StatusTipRole))
         local_settings.setValue('activepath/asset', file_info.completeBaseName())
         self.activeAssetChanged.emit((
             self._bookmark[0],
@@ -118,7 +118,7 @@ class AssetWidget(BaseListWidget):
         self.collector_count = collector.count
         items = collector.get_items(
             key=self.get_item_sort_order(),
-            reverse=self.is_item_sort_reversed(),
+            reverse=self.get_item_sort_order(),
             path_filter=self.get_item_filter()
         )
 
@@ -141,7 +141,6 @@ class AssetWidget(BaseListWidget):
                 QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT))
 
             # Custom roles
-            item.setData(common.PathRole, file_info.filePath())
             item.setData(common.ParentRole, (server, job, root))
             item.setData(common.DescriptionRole, settings.value(
                 'config/description'))
@@ -230,7 +229,7 @@ class AssetWidget(BaseListWidget):
                         self.toggle_archived(item=self.itemFromIndex(index))
                         break
                     elif n == 2:
-                        common.reveal(index.data(common.PathRole))
+                        common.reveal(index.data(QtCore.Qt.StatusTipRole))
                     elif n == 3:
                         self.show_todos()
 
@@ -341,7 +340,7 @@ class AssetWidget(BaseListWidget):
             editors.ThumbnailEditor(index)
             return
         else:
-            self.set_current_item_as_active()
+            self.activate_current_index()
             return
 
 

@@ -229,9 +229,17 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-pa
 
 
 
-
-
 QListWidget {{
+		outline: none;
+		border: none;
+		margin: 0px;
+		padding: 0px;
+		background: rgba({SECONDARY_BACKGROUND});
+		font-family: "{fontFamily}";
+		font-size: 8pt;
+}}
+
+QListView {{
 		outline: none;
 		border: none;
 		margin: 0px;

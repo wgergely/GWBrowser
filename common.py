@@ -76,17 +76,17 @@ NameFilters = {
 """A list of expected file-formats associated with the location."""
 
 # Extending the
-PathRole = 1024
+FlagsRole = 1024
 """Role used to store the path of the item."""
-ParentRole = 1025
+ParentRole = 1026
 """Role used to store the paths the item is associated with."""
-DescriptionRole = 1026
+DescriptionRole = 1027
 """Role used to store the description of the item."""
-TodoCountRole = 1027
+TodoCountRole = 1028
 """Asset role used to store the number of todos."""
-FileDetailsRole = 1028
+FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
-FileModeRole = 1029
+FileModeRole = 1030
 """Role used to save the mode (subfolder) of the current file."""
 
 
@@ -554,7 +554,7 @@ def reveal(path):
         name (str): A relative path or the folder's name.
 
     """
-    url = QtCore.QUrl.fromLocalFile(path)
+    url = QtCore.QUrl.fromLocalFile(QtCore.QFileInfo(path).filePath())
     QtGui.QDesktopServices.openUrl(url)
 
 
