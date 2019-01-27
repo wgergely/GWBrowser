@@ -12,11 +12,10 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 import mayabrowser.editors as editors
-import mayabrowser.settings as settings
+from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
-
 
 
 class BaseContextMenu(QtWidgets.QMenu):
@@ -47,7 +46,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             self.add_reveal_folder_menu()
             self.add_copy_menu()
             self.add_mode_toggles_menu()
-
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
@@ -139,7 +137,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set['{}:icon'.format(key)] = folder_icon
 
         if len(self.index.data(common.ParentRole)) == 4:
-            file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
+            file_info = QtCore.QFileInfo(
+                self.index.data(QtCore.Qt.StatusTipRole))
             menu_set[key]['file'] = {
                 'text': 'Show file',
                 'icon': folder_icon2,
@@ -280,8 +279,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived_off_icon = common.get_rsc_pixmap(
             'archived', common.TEXT, 18.0)
 
-        favourite = self.index.data(common.FlagsRole) & settings.MarkedAsFavourite
-        archived = self.index.data(common.FlagsRole) & settings.MarkedAsArchived
+        favourite = self.index.flags() & MarkedAsFavourite
+        archived = self.index.flags() & MarkedAsArchived
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -309,10 +308,12 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_collapse_sequence_menu(self):
         """Adds the menu needed to change context"""
         if self.parent().get_location() == common.RendersFolder:
-            return # Render sequences are always collapsed
+            return  # Render sequences are always collapsed
 
-        expand_pixmap = common.get_rsc_pixmap('expand', common.SECONDARY_TEXT, 18.0)
-        collapse_pixmap = common.get_rsc_pixmap('collapse', common.FAVOURITE, 18.0)
+        expand_pixmap = common.get_rsc_pixmap(
+            'expand', common.SECONDARY_TEXT, 18.0)
+        collapse_pixmap = common.get_rsc_pixmap(
+            'collapse', common.FAVOURITE, 18.0)
 
         collapsed = not self.parent().is_sequence_collapsed()
 
@@ -334,9 +335,12 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
-        locations_icon_pixmap = common.get_rsc_pixmap('location', common.TEXT_SELECTED, 18.0)
-        item_on_pixmap = common.get_rsc_pixmap('item_on', common.TEXT_SELECTED, 18.0)
-        item_off_pixmap = common.get_rsc_pixmap('item_off', common.TEXT_SELECTED, 18.0)
+        locations_icon_pixmap = common.get_rsc_pixmap(
+            'location', common.TEXT_SELECTED, 18.0)
+        item_on_pixmap = common.get_rsc_pixmap(
+            'item_on', common.TEXT_SELECTED, 18.0)
+        item_off_pixmap = common.get_rsc_pixmap(
+            'item_off', common.TEXT_SELECTED, 18.0)
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -413,15 +417,15 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_thumbnail_menu(self):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
-                    'capture_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'capture_thumbnail', common.SECONDARY_TEXT, 18.0)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-                    'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-                    'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
         revomove_thumbnail_pixmap = common.get_rsc_pixmap(
-                    'todo_remove', common.FAVOURITE, 18.0)
+            'todo_remove', common.FAVOURITE, 18.0)
         show_thumbnail = common.get_rsc_pixmap(
-                    'active', common.FAVOURITE, 18.0)
+            'active', common.FAVOURITE, 18.0)
 
         menu_set = collections.OrderedDict()
         key = 'Thumbnail'
@@ -429,15 +433,12 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = capture_thumbnail_pixmap
 
-        settings = AssetSettings(
-            '/'.join(self.index.data(common.ParentRole)),
-            self.index.data(QtCore.Qt.StatusTipRole)
-        )
+        settings = AssetSettings(self.index)
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key]['Show thumbnail'] = {
-            'icon': show_thumbnail,
-            'action': functools.partial(
+                'icon': show_thumbnail,
+                'action': functools.partial(
                     editors.ThumbnailViewer,
                     self.index,
                     parent=self.parent()
@@ -463,7 +464,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
 
         self.create_menu(menu_set)
-
 
     def create_menu(self, menu_set, parent=None):
         """This action populates the menu using the action-set dictionaries,
@@ -563,17 +563,16 @@ class BaseContextMenu(QtWidgets.QMenu):
             action.setText(text)
 
 
-
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model."""
+
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self.internal_data = {}
-        self.collect_data()
+        self.__initdata__()
 
-    def collect_data(self):
-        raise NotImplementedError('collect_data is abstract')
-
+    def __initdata__(self):
+        raise NotImplementedError('__initdata__ is abstract')
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -608,21 +607,21 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
 
-        self.sortkey = self.get_sortkey() # Alphabetical/Modified...etc.
-        self.sortorder = self.get_sortorder() # Ascending/descending
+        self.sortkey = self.get_sortkey()  # Alphabetical/Modified...etc.
+        self.sortorder = self.get_sortorder()  # Ascending/descending
 
         self.filter_mode = {
             'favourite': self.get_filtermode('favourite'),
             'archived': self.get_filtermode('archived')
         }
 
-
     def sort(self):
         if self.sortorder:
-            super(FilterProxyModel, self).sort(0, order=QtCore.Qt.AscendingOrder)
+            super(FilterProxyModel, self).sort(
+                0, order=QtCore.Qt.AscendingOrder)
         else:
-            super(FilterProxyModel, self).sort(0, order=QtCore.Qt.DescendingOrder)
-
+            super(FilterProxyModel, self).sort(
+                0, order=QtCore.Qt.DescendingOrder)
 
     def get_sortkey(self):
         val = local_settings.value(
@@ -671,8 +670,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
         """The main method used to filter the elements using the flags and the filter string."""
         index = self.sourceModel().index(source_row, 0, parent=QtCore.QModelIndex())
-        archived = index.data(common.FlagsRole) & settings.MarkedAsArchived
-        favourite = index.data(common.FlagsRole) & settings.MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+        favourite = index.flags() & MarkedAsFavourite
 
         if archived and not self.filter_mode['archived']:
             return False
@@ -682,7 +681,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def lessThan(self, source_left, source_right):
         left_info = QtCore.QFileInfo(source_left.data(QtCore.Qt.StatusTipRole))
-        right_info = QtCore.QFileInfo(source_right.data(QtCore.Qt.StatusTipRole))
+        right_info = QtCore.QFileInfo(
+            source_right.data(QtCore.Qt.StatusTipRole))
 
         if self.sortkey == common.SortByName:
             return left_info.filePath() < right_info.filePath()
@@ -691,7 +691,15 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         elif self.sortkey == common.SortByLastCreated:
             return left_info.lastModified() < right_info.lastModified()
         elif self.sortkey == common.SortBySize:
-            return left_info.size() < right_info.size()
+            left = left_info.size()
+            right = right_info.size()
+            if not left_info.size():
+                left = source_left.data(common.TodoCountRole)
+                right = source_right.data(common.TodoCountRole)
+            if not any((left, right)):
+                left = left_info.filePath()
+                right = right_info.filePath()
+            return left < right
         else:
             return left_info.filePath() < right_info.filePath()
 
@@ -707,7 +715,6 @@ class BaseListWidget(QtWidgets.QListView):
     activeLocationChanged = QtCore.Signal(str)
     activeFileChanged = QtCore.Signal(str)
 
-
     def __init__(self, model, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
         proxy_model = FilterProxyModel()
@@ -716,9 +723,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sort()
 
         # The timer used to check for changes in the active path
-        self.fileSystemWatcher = QtCore.QFileSystemWatcher(parent=self)
-        self.fileSystemWatcher.directoryChanged.connect(self.refresh)
-
         self._location = None
 
         self.activeLocationChanged.connect(self.refresh)
@@ -750,31 +754,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = ''
 
-        # Properties needed to toggle multiple item's state while dragging
-        # the mouse
-        self.multi_toggle_pos = None
-        self.multi_toggle_state = None
-        self.multi_toggle_idx = None
-        self.multi_toggle_item = None
-        self.multi_toggle_items = {}
-
-
-    def get_location(self):
-        """Get's the current ``location``."""
-        val = local_settings.value('activepath/location')
-        return val if val else common.ScenesFolder
-
-    def set_location(self, val):
-        """Sets the location and emits the ``activeLocationChanged`` signal."""
-        key = 'activepath/location'
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        local_settings.setValue(key, val)
-        self.activeLocationChanged.emit(val)
-
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
         val = local_settings.value(
@@ -799,7 +778,6 @@ class BaseListWidget(QtWidgets.QListView):
         local_settings.setValue(
             'widget/{}/collapse_sequence'.format(cls), val)
 
-
     def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
@@ -819,7 +797,7 @@ class BaseListWidget(QtWidgets.QListView):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
         # Favouriting archived items are not allowed
-        archived = index.data(common.FlagsRole) & settings.MarkedAsArchived
+        archived = index.flags() & MarkedAsArchived
         if archived:
             return
 
@@ -828,16 +806,24 @@ class BaseListWidget(QtWidgets.QListView):
 
         if file_info.filePath() in favourites:
             if state is None or state is False:  # clears flag
-                item.setFlags(item.flags() & ~settings.MarkedAsFavourite)
+                self.model().sourceModel().setData(
+                    index,
+                    index.flags() & ~MarkedAsFavourite,
+                    role=common.FlagsRole
+                )
                 favourites.remove(file_info.filePath())
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(file_info.filePath())
-                item.setFlags(item.flags() | settings.MarkedAsFavourite)
+                self.model().sourceModel().setData(
+                    index,
+                    index.flags() | MarkedAsFavourite,
+                    role=common.FlagsRole
+                )
 
         local_settings.setValue('favourites', favourites)
 
-    def toggle_archived(self, item=None, state=None):
+    def toggle_archived(self, index=None, state=None):
         """Toggles the ``archived`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
         instead of the currentItem.
@@ -850,51 +836,66 @@ class BaseListWidget(QtWidgets.QListView):
             state (None or bool): The explicit state to set.
 
         """
-        if not item:
-            item = self.currentItem()
+        if not index:
+            index = self.selectionModel().currentIndex()
 
-        archived = item.flags() & settings.MarkedAsArchived
+        if not index.isValid():
+            return
+
+        archived = index.flags() & MarkedAsArchived
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            file_info.filePath()
-        )
+        settings = AssetSettings(index)
 
         favourites = local_settings.value('favourites')
         favourites = favourites if favourites else []
 
         if archived:
             if state is None or state is False:  # clears flag
-                item.setFlags(item.flags() & ~settings.MarkedAsArchived)
+                self.model().sourceModel().setData(
+                    index,
+                    index.flags() & ~MarkedAsArchived,
+                    role=common.FlagsRole
+                )
                 settings.setValue('config/archived', False)
         else:
             if state is None or state is True:  # adds flag
                 settings.setValue('config/archived', True)
-                item.setFlags(item.flags() | settings.MarkedAsArchived)
-                item.setFlags(item.flags() & ~settings.MarkedAsFavourite)
+                self.model().sourceModel().setData(
+                    index,
+                    index.flags() | MarkedAsArchived,
+                    role=common.FlagsRole
+                )
                 if file_info.filePath() in favourites:
+                    self.model().sourceModel().setData(
+                        index,
+                        index.flags() & ~MarkedAsFavourite,
+                        role=common.FlagsRole
+                    )
                     favourites.remove(file_info.filePath())
                     local_settings.setValue('favourites', favourites)
 
-
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item using ScreenGrabber."""
-        item = self.currentItem()
+        index = self.selectionModel().currentIndex()
 
-        if not item:
+        if not index.isValid():
             return
 
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
+        # Disabling updates
+        self.setUpdatesEnabled(False)
 
-        # Saving the image
-        common.delete_image(settings.thumbnail_path())
-        ScreenGrabber.screen_capture_file(
+        settings = AssetSettings(index)
+        path = ScreenGrabber.capture(
             output_path=settings.thumbnail_path())
+        if not path:
+            return
+
         common.delete_image(settings.thumbnail_path(), delete_file=False)
+        height = self.visualRect(index).height() - 2
+        common.cache_image(settings.thumbnail_path(), height)
+
+        self.setUpdatesEnabled(True)
         self.repaint()
 
     def remove_thumbnail(self):
@@ -903,12 +904,11 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.isValid():
             return
 
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
-
+        settings = AssetSettings(index)
         common.delete_image(settings.thumbnail_path())
+        height = self.visualRect(index).height() - 2
+        common.cache_image(settings.thumbnail_path(), height)
+
         self.repaint()
 
     def refresh(self):
@@ -918,7 +918,6 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         path = index.data(QtCore.Qt.StatusTipRole)
-
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
             if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
@@ -939,33 +938,32 @@ class BaseListWidget(QtWidgets.QListView):
         sel = self.selectionModel()
         current_index = self.selectionModel().currentIndex()
         first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
-        last_index = self.model().index(self.model().rowCount() - 1, 0, parent=QtCore.QModelIndex())
+        last_index = self.model().index(self.model().rowCount() -
+                                        1, 0, parent=QtCore.QModelIndex())
 
         if first_index == last_index:
             return
 
-        if not current_index.isValid(): # No selection
+        if not current_index.isValid():  # No selection
             sel.setCurrentIndex(
                 first_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             return
-        if current_index == first_index: # First item is selected
-            for n in xrange(self.model().rowCount()):
-                if current_index.row() >= n:
-                    continue
-                sel.setCurrentIndex(
-                    self.model().index(n, 0, parent=QtCore.QModelIndex()),
-                    QtCore.QItemSelectionModel.ClearAndSelect
-                )
-                break
-        if current_index == last_index: # Last item is selected
+        if current_index == last_index:  # Last item is selected
             sel.setCurrentIndex(
                 first_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             return
-
+        for n in xrange(self.model().rowCount()):
+            if current_index.row() >= n:
+                continue
+            sel.setCurrentIndex(
+                self.model().index(n, 0, parent=QtCore.QModelIndex()),
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            break
 
     def key_up(self):
         """Custom action to perform when the `up` arrow is pressed
@@ -975,25 +973,26 @@ class BaseListWidget(QtWidgets.QListView):
         sel = self.selectionModel()
         current_index = self.selectionModel().currentIndex()
         first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
-        last_index = self.model().index(self.model().rowCount() - 1, 0, parent=QtCore.QModelIndex())
+        last_index = self.model().index(self.model().rowCount() -
+                                        1, 0, parent=QtCore.QModelIndex())
 
         if first_index == last_index:
             return
 
-        if not current_index.isValid(): # No selection
+        if not current_index.isValid():  # No selection
             sel.setCurrentIndex(
                 last_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             return
-        if current_index == first_index: # First item is selected
+        if current_index == first_index:  # First item is selected
             sel.setCurrentIndex(
                 last_index,
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
             return
 
-        for n in reversed(xrange(self.model().rowCount())): # Stepping back
+        for n in reversed(xrange(self.model().rowCount())):  # Stepping back
             if current_index.row() <= n:
                 continue
             sel.setCurrentIndex(
@@ -1003,18 +1002,12 @@ class BaseListWidget(QtWidgets.QListView):
             break
 
     def key_tab(self):
-        self.setUpdatesEnabled(False)
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            index = self.model().index(0, 0, parent=QtCore.QModelIndex())
 
-        cursor = QtGui.QCursor()
-        opos = cursor.pos()
-        rect = self.visualRect(self.currentIndex())
-        rect, _, _ = self.indexDelegate().get_description_rect(rect)
-        pos = self.mapToGlobal(rect.topLeft())
-        cursor.setPos(pos)
-        self.editItem(self.currentItem())
-        cursor.setPos(opos)
-
-        self.setUpdatesEnabled(True)
+        widget = editors.DescriptionEditorWidget(index, parent=self)
+        widget.show()
 
     def keyPressEvent(self, event):
         """Customized key actions.
@@ -1118,13 +1111,13 @@ class BaseListWidget(QtWidgets.QListView):
     def active_index(self):
         """Return the ``active`` item.
 
-        The active item is indicated by the ``settings.MarkedAsActive`` flag.
+        The active item is indicated by the ``MarkedAsActive`` flag.
         If no item has been flagged as `active`, returns ``None``.
 
         """
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-            if index.data(common.FlagsRole) & settings.MarkedAsActive:
+            if index.flags() & MarkedAsActive:
                 return index
         return QtCore.QModelIndex()
 
@@ -1139,24 +1132,25 @@ class BaseListWidget(QtWidgets.QListView):
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return False
-        if index.data(common.FlagsRole) == QtCore.Qt.NoItemFlags:
+        if index.flags() == QtCore.Qt.NoItemFlags:
             return False
-        if self.active_index() == index:
+        if index.flags() & MarkedAsActive:
             return False
-        if index.data(common.FlagsRole) & settings.MarkedAsArchived:
+        if index.flags() & MarkedAsArchived:
             return False
 
         source_index = self.model().mapToSource(self.active_index())
-        self.model().sourceModel().setData(
-            source_index,
-            source_index.data(common.FlagsRole) & ~settings.MarkedAsActive,
-            role=common.FlagsRole
-        )
+        if source_index.isValid():
+            self.model().sourceModel().setData(
+                source_index,
+                source_index.flags() & ~MarkedAsActive,
+                role=common.FlagsRole
+            )
 
         source_index = self.model().mapToSource(index)
         self.model().sourceModel().setData(
             source_index,
-            source_index.data(common.FlagsRole) | settings.MarkedAsActive,
+            source_index.flags() | MarkedAsActive,
             role=common.FlagsRole
         )
         return True
@@ -1228,7 +1222,6 @@ class BaseListWidget(QtWidgets.QListView):
             )
         super(BaseListWidget, self).mousePressEvent(event)
 
-
     def _warning_strings(self):
         """Custom warning strings to paint."""
         active_paths = path_monitor.get_active_paths()
@@ -1260,7 +1253,7 @@ class BaseListWidget(QtWidgets.QListView):
         return ''
 
     def eventFilter(self, widget, event):
-        """AssetWidget's custom paint is triggered here.
+        """BaseInlineIconWidget's custom paint is triggered here.
 
         I'm using the custom paint event to display a user message when no
         asset or files can be found.
@@ -1269,3 +1262,159 @@ class BaseListWidget(QtWidgets.QListView):
         if event.type() == QtCore.QEvent.Paint:
             self.paint_message(self._warning_strings())
         return False
+
+
+class BaseInlineIconWidget(BaseListWidget):
+    """Multi-toggle capable widget with clickable in-line icons."""
+
+    def __init__(self, model, parent=None):
+        super(BaseInlineIconWidget, self).__init__(model, parent=parent)
+        self.multi_toggle_pos = None
+        self.multi_toggle_state = None
+        self.multi_toggle_idx = None
+        self.multi_toggle_item = None
+        self.multi_toggle_items = {}
+
+    def inline_icons_count(self):
+        """The numberof inline icons."""
+        raise NotImplementedError('method is abstract.')
+
+    def _reset_multitoggle(self):
+        self.multi_toggle_pos = None
+        self.multi_toggle_state = None
+        self.multi_toggle_idx = None
+        self.multi_toggle_item = None
+        self.multi_toggle_items = {}
+
+    def mousePressEvent(self, event):
+        """The custom mousePressEvent initiates the multi-toggle operation.
+        Only the `favourite` and `archived` buttons are multi-toggle capable."""
+        index = self.indexAt(event.pos())
+        rect = self.visualRect(index)
+
+        if self.viewport().width() < 360.0:
+            return super(BaseInlineIconWidget, self).mousePressEvent(event)
+
+        self._reset_multitoggle()
+
+        for n in xrange(self.inline_icons_count()):
+            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
+                rect, common.INLINE_ICON_SIZE, n)
+
+            # Beginning multi-toggle operation
+            if not bg_rect.contains(event.pos()):
+                continue
+
+            self.multi_toggle_pos = event.pos()
+            if n == 0:  # Favourite button
+                self.multi_toggle_state = not index.flags() & MarkedAsFavourite
+            elif n == 1:  # Archive button
+                self.multi_toggle_state = not index.flags() & MarkedAsArchived
+            elif n == 2:  # Reveal button
+                continue
+            elif n == 3:  # Todo button
+                continue
+
+            self.multi_toggle_idx = n
+            return True
+
+        return super(BaseInlineIconWidget, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Inline-button methods are triggered here."""
+        index = self.indexAt(event.pos())
+        source_index = self.model().mapToSource(index)
+        rect = self.visualRect(index)
+        idx = index.row()
+
+        if self.viewport().width() < 360.0:
+            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+
+        # Cheking the button
+        if idx in self.multi_toggle_items:
+            self._reset_multitoggle()
+            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+
+        for n in xrange(self.inline_icons_count()):
+            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
+                rect, common.INLINE_ICON_SIZE, n)
+
+            if not bg_rect.contains(event.pos()):
+                continue
+
+            if n == 0:
+                self.toggle_favourite(index=source_index)
+                break
+            elif n == 1:
+                self.toggle_archived(index=source_index)
+                break
+            elif n == 2:
+                common.reveal(index.data(QtCore.Qt.StatusTipRole))
+                break
+            elif n == 3:
+                self.show_todos()
+                break
+
+        self._reset_multitoggle()
+        super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Multi-toggle is handled here."""
+        if self.viewport().width() < 360.0:
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+
+        if self.multi_toggle_pos is None:
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+
+        app_ = QtWidgets.QApplication.instance()
+        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+
+        pos = event.pos()
+        pos.setX(0)
+        index = self.indexAt(pos)
+        source_index = self.model().mapToSource(index)
+        initial_index = self.indexAt(self.multi_toggle_pos)
+        idx = index.row()
+
+        favourite = index.flags() & MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+
+        # Filter the current item
+        if index == self.multi_toggle_item:
+            return
+
+        self.multi_toggle_item = index
+
+        # Before toggling the item, we're saving it's state
+
+        if idx not in self.multi_toggle_items:
+            if self.multi_toggle_idx == 0:  # Favourite button
+                # A state
+                self.multi_toggle_items[idx] = favourite
+                # Apply first state
+                self.toggle_favourite(
+                    index=source_index,
+                    state=self.multi_toggle_state
+                )
+            if self.multi_toggle_idx == 1:  # Archived button
+                # A state
+                self.multi_toggle_items[idx] = archived
+                # Apply first state
+                self.toggle_archived(
+                    index=source_index,
+                    state=self.multi_toggle_state
+                )
+        else:  # Reset state
+            if index == initial_index:
+                return
+            if self.multi_toggle_idx == 0:  # Favourite button
+                self.toggle_favourite(
+                    index=source_index,
+                    state=self.multi_toggle_items.pop(idx)
+                )
+            elif self.multi_toggle_idx == 1:  # Favourite button
+                self.toggle_archived(
+                    index=source_index,
+                    state=self.multi_toggle_items.pop(idx)
+                )

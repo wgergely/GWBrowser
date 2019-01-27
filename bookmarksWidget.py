@@ -15,16 +15,16 @@ The actual name of these folders can be customized in the ``common.py`` module.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import re
-from PySide2 import QtWidgets, QtGui, QtCore
 import functools
+import collections
+from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-import collections
 from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.baselistwidget import BaseListWidget
 from mayabrowser.baselistwidget import BaseModel
-import mayabrowser.settings as settings
 from mayabrowser.settings import local_settings, path_monitor
+from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from mayabrowser.delegate import BookmarksWidgetDelegate
 from mayabrowser.delegate import BaseDelegate
 
@@ -71,7 +71,7 @@ class BookmarksModel(BaseModel):
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
 
-    def collect_data(self):
+    def __initdata__(self):
         """Collects the data needed to populate the bookmark views."""
         self.internal_data = {} # reset
 
@@ -91,15 +91,15 @@ class BookmarksModel(BaseModel):
                 file_info.job == local_settings.value('activepath/job') and
                 file_info.root == local_settings.value('activepath/root')
             ):
-                flags = flags | settings.MarkedAsActive
+                flags = flags | MarkedAsActive
 
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
-                flags = flags | settings.MarkedAsFavourite
+                flags = flags | MarkedAsFavourite
 
             if not file_info.exists():
-                flags = QtCore.Qt.ItemIsSelectable | settings.MarkedAsArchived
+                flags = QtCore.Qt.ItemIsSelectable | MarkedAsArchived
 
             self.internal_data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
@@ -110,9 +110,8 @@ class BookmarksModel(BaseModel):
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: u'{}  |  {}  |  {}'.format(file_info.server, file_info.job, file_info.root),
-                common.TodoCountRole: 0,
+                common.TodoCountRole: common.count_assets(file_info.filePath()),
                 common.FileDetailsRole: file_info.size(),
-                common.FileModeRole: None,
             }
 
 
@@ -126,7 +125,10 @@ class BookmarksWidget(BaseListWidget):
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self._context_menu_cls = BookmarksWidgetContextMenu
         # Select the active item
-        # self.setCurrentItem(self.active_index())
+        self.selectionModel().setCurrentIndex(
+            self.active_index(),
+            QtCore.QItemSelectionModel.ClearAndSelect
+        )
 
     def activate_current_index(self):
         """Sets the current item as ``active_index``.
@@ -200,15 +202,12 @@ class BookmarksWidget(BaseListWidget):
 
 
     def mouseDoubleClickEvent(self, event):
-        """When the bookmark item is double-clicked the the item will be actiaved.
-        """
+        """When the bookmark item is double-clicked the the item will be actiaved."""
         index = self.selectionModel().currentIndex()
-        if index == self.active_index():
+        if index.flags() & MarkedAsArchived:
             return
-
-        if index.flags() & settings.MarkedAsArchived:
+        if index.flags() & MarkedAsActive:
             return
-
         self.activate_current_index()
 
 
@@ -223,7 +222,6 @@ class ComboBoxItemDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
-        self.paint_separators(*args)
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
         self.paint_focus(*args)
@@ -510,6 +508,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             if not file_info.exists():
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
+            item.setData(common.FlagsRole, item.flags())
+
     def add_jobs(self, qdir):
         """Querries the given folder and return all readable folder within.
 
@@ -541,7 +541,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
             if not file_info.isReadable():
                 item.setFlags(QtCore.Qt.NoItemFlags)
-
+            item.setData(common.FlagsRole, item.flags())
             self.pick_job_widget.view().addItem(item)
 
     def _pick_root(self):

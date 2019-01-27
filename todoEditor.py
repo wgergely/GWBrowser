@@ -654,19 +654,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint
         )
+        self.setMinimumWidth(640)
+        self.setMinimumHeight(800)
+
         self._createUI()
         self.installEventFilter(self)
 
         if not index.isValid():
             return
 
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
-
+        settings = AssetSettings(index)
         items = settings.value('config/todos')
-
         if not items:
             return
 
@@ -675,6 +673,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 text=items[k]['text'],
                 checked=items[k]['checked']
             )
+
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
     def eventFilter(self, widget, event):
@@ -840,10 +839,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
-        settings = AssetSettings(
-            '/'.join(self.index.data(common.ParentRole)),
-            self.index.data(QtCore.Qt.StatusTipRole)
-        )
+        settings = AssetSettings(self.index)
         settings.setValue('config/todos', self._collect_data())
 
     def _createUI(self):
@@ -947,6 +943,22 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def sizeHint(self):
         return QtCore.QSize(800, 600)
 
+    def showEvent(self, event):
+        animation = QtCore.QPropertyAnimation(
+            self, 'windowOpacity', parent=self)
+        animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
+        animation.setDuration(150)
+        animation.setStartValue(0.01)
+        animation.setEndValue(1)
+        animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
+
+        app = QtWidgets.QApplication.instance()
+        geo = app.desktop().availableGeometry(self.parent())
+        if geo:
+            self.move(
+                (geo.width() / 2) - (self.width() / 2),
+                (geo.height() / 2) - (self.height() / 2)
+            )
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

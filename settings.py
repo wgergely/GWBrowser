@@ -19,6 +19,8 @@ import re
 import collections
 from PySide2 import QtCore
 
+import mayabrowser.common as common
+
 
 # Flags
 MarkedAsArchived = 0b100000000
@@ -148,35 +150,45 @@ class AssetSettings(QtCore.QSettings):
 
     """
 
-    def __init__(self, root, filepath, parent=None):
-        self.root = root
-        self.filepath = filepath
+    def __init__(self, index, parent=None):
+        """Init accepts either a model index or a tuple."""
+        if isinstance(index, QtCore.QModelIndex):
+            self._root = '{server}/{job}/{root}'.format(
+                server=index.data(common.ParentRole)[0],
+                job=index.data(common.ParentRole)[1],
+                root=index.data(common.ParentRole)[2],
+            )
+            self._filepath = index.data(QtCore.Qt.StatusTipRole)
+        else:
+            self._root = '{server}/{job}/{root}'.format(
+                server=index[0],
+                job=index[1],
+                root=index[2],
+            )
+            self._filepath = index[3]
+
         super(AssetSettings, self).__init__(
             self.conf_path(),
             QtCore.QSettings.IniFormat,
             parent=parent
         )
-        self.setFallbacksEnabled(False)
 
+        self.setFallbacksEnabled(False)
 
     def conf_path(self):
         """Returns the path to the Asset's configuration file.
-        If the parent folder doesn't exists we will automatically create it here.
 
         Returns:
             str: The path to the configuration file as a string.
 
         """
-        def _name(text):
+        def beautify(text):
             return re.sub(r'[^a-zA-Z0-9/]+', '_', text)
-        path = self.filepath.replace(self.root, '').strip('/')
-        return '{}/.browser/{}.conf'.format(
-            self.root,
-            _name(path)
-        )
 
+        path = self._filepath.replace(self._root, '').strip('/')
+        return '{}/.browser/{}.conf'.format(self._root, beautify(path))
 
-    def thumbnail_path(self):#
+    def thumbnail_path(self):
         return self.conf_path().replace('.conf', '.png')
 
     def value(self, *args, **kwargs):

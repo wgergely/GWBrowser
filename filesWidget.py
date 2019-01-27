@@ -8,13 +8,13 @@ found by the collector classes.
 from PySide2 import QtWidgets, QtCore
 
 from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseListWidget
+from mayabrowser.baselistwidget import BaseInlineIconWidget
+from mayabrowser.baselistwidget import BaseModel
 
 import mayabrowser.common as common
-import mayabrowser.settings as configparser
+from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from mayabrowser.settings import AssetSettings
 from mayabrowser.settings import local_settings
-from mayabrowser.collector import FileCollector
 from mayabrowser.delegate import FilesWidgetDelegate
 import mayabrowser.editors as editors
 
@@ -31,7 +31,164 @@ class FilesWidgetContextMenu(BaseContextMenu):
         self.add_refresh_menu()
 
 
-class FilesWidget(BaseListWidget):
+class FilesModel(BaseModel):
+    def __init__(self, asset, parent=None):
+        self.asset = asset
+        self.mode = None
+        self.collapsed_data = {}
+
+        super(FilesModel, self).__init__(parent=parent)
+
+    def __initdata__(self):
+        """To get the files, we will have to decide what extensions to take
+        into consideration and what location to get the files from.
+
+        Each asset should be made up of an `scenes`, `renders`, `textures` and
+        `exports` folder. See the ``common`` module for definitions.
+
+        """
+        self.internal_data = {}  # reset
+        self.collapsed_data = {}  # reset
+        self.modes = None
+
+        server, job, root, asset = self.asset
+        if not all(self.asset):
+            return
+
+        location = self.get_location()
+        file_info = QtCore.QFileInfo('{asset}/{location}'.format(
+            asset='/'.join(self.asset),
+            location=location
+        ))
+
+        if not file_info.exists():
+            return
+
+        self.modes = self.get_modes(self.asset, location)
+
+        it = QtCore.QDirIterator(
+            file_info.filePath(),
+            common.NameFilters[location],
+            flags=QtCore.QDirIterator.Subdirectories,
+            filters=QtCore.QDir.NoDotAndDotDot |
+            QtCore.QDir.Files |
+            QtCore.QDir.NoSymLinks
+        )
+
+        idx = 0
+        config_dir_paths = {}
+        while it.hasNext():
+            file_info = QtCore.QFileInfo(it.next())
+            settings = AssetSettings((server, job, root, file_info.filePath()))
+            if file_info.path() not in config_dir_paths:
+                config_dir_paths[file_info.path()] = QtCore.QFileInfo(
+                    settings.conf_path()).path()
+
+
+            # Flags
+            flags = (
+                QtCore.Qt.ItemIsSelectable |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsEditable
+            )
+
+            # Active
+            if file_info.completeBaseName() == local_settings.value('activepath/file'):
+                flags = flags | MarkedAsActive
+
+            # Archived
+            if settings.value('config/archived'):
+                flags = flags | MarkedAsArchived
+
+            # Favourite
+            favourites = local_settings.value('favourites')
+            favourites = favourites if favourites else []
+            if file_info.filePath() in favourites:
+                flags = flags | MarkedAsFavourite
+
+
+            # Todos
+            count = 0
+
+            tooltip = u'{}\n'.format(file_info.completeBaseName().upper())
+            tooltip += u'{}\n'.format(server.upper())
+            tooltip += u'{}\n'.format(job.upper())
+            tooltip += u'{}'.format(file_info.filePath())
+
+            # Modes
+            mode = file_info.path()  # parent folder
+            mode = mode.replace('/'.join((server, job, root, asset, location)), '')
+            mode = mode.strip('/')
+
+            # File info
+            info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                day=file_info.lastModified().toString('dd'),
+                month=file_info.lastModified().toString('MM'),
+                year=file_info.lastModified().toString('yyyy'),
+                hour=file_info.lastModified().toString('hh'),
+                minute=file_info.lastModified().toString('mm'),
+                size=common.byte_to_string(file_info.size())
+            )
+
+            self.internal_data[idx] = {
+                QtCore.Qt.DisplayRole: file_info.completeBaseName(),
+                QtCore.Qt.EditRole: file_info.completeBaseName(),
+                QtCore.Qt.StatusTipRole: file_info.filePath(),
+                QtCore.Qt.ToolTipRole: tooltip,
+                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT),
+                common.FlagsRole: flags,
+                common.ParentRole: (server, job, root, asset, location, mode),
+                common.DescriptionRole: settings.value('config/description'),
+                common.TodoCountRole: count,
+                common.FileDetailsRole: info_string,
+            }
+
+            common.cache_image(
+                settings.thumbnail_path(),
+                common.ROW_HEIGHT - 2
+            )
+
+            idx += 1
+
+        # Creating directories for the settings
+        for k in config_dir_paths:
+            if QtCore.QFileInfo(config_dir_paths[k]).exists():
+                continue
+            QtCore.QDir().mkpath(config_dir_paths[k])
+
+
+    def get_modes(self, asset, location):
+        file_info = QtCore.QFileInfo('{asset}/{location}'.format(
+            asset='/'.join(asset),
+            location=location))
+        if not file_info.exists():
+            return []
+
+        d = QtCore.QDir(file_info.filePath())
+        d = d.entryList(
+            filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
+        )
+        d.append('')
+        return sorted(d)
+
+    def get_location(self):
+        """Get's the current ``location``."""
+        val = local_settings.value('activepath/location')
+        return val if val else common.ScenesFolder
+
+    def set_location(self, val):
+        """Sets the location and emits the ``activeLocationChanged`` signal."""
+        key = 'activepath/location'
+        cval = local_settings.value(key)
+
+        if cval == val:
+            return
+
+        local_settings.setValue(key, val)
+        self.activeLocationChanged.emit(val)
+
+
+class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing scene and project files of an asset.
 
     It relies on a custom collector class to gether the files requested.
@@ -49,267 +206,44 @@ class FilesWidget(BaseListWidget):
     fileReferenced = QtCore.Signal(str)
 
     def __init__(self, asset, parent=None):
-        self._asset = asset # tuple(server,job,root,asset)
-
-        super(FilesWidget, self).__init__(parent=parent)
+        super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
+        self.asset = asset  # tuple(server,job,root,asset)
 
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
 
+    def inline_icons_count(self):
+        return 3
+
     def set_asset(self, asset):
-        self._asset = asset
+        self.asset = asset
         self.refresh()
 
     def refresh(self):
         """Refreshes the list if files."""
-        for path in self.fileSystemWatcher.directories():
-            self.fileSystemWatcher.removePath(path)
-
         super(FilesWidget, self).refresh()
 
-    def add_items(self):
-        """Retrieves the files found by the ``FilesCollector`` and adds them as
-        QListWidgetItems.
+    def get_location(self):
+        """Get's the current file ``location``.
 
-        Note:
-            The method adds the files' parent folder to the QFileSystemWatcher to monitor
-            file changes. Any directory change should trigger a refresh. This might
-            have some performance implications. Needs testing!
+        See the ``common`` module forpossible values but generally this refers
+        to either to `scenes`, `textures`, `renders` or `exports folder.`
 
         """
-        self.clear()
-        for path in self.fileSystemWatcher.directories():
-            self.fileSystemWatcher.removePath(path)
+        val = local_settings.value('activepath/location')
+        return val if val else common.ScenesFolder
 
-        server, job, root, asset = self._asset
-        if not all(self._asset):
+    def set_location(self, val):
+        """Sets the location and emits the ``activeLocationChanged`` signal."""
+        key = 'activepath/location'
+        cval = local_settings.value(key)
+
+        if cval == val:
             return
 
-        self.fileSystemWatcher.addPath('/'.join(self._asset))
-
-        location = self.get_location()
-        collector = FileCollector('/'.join(self._asset), location, parent=self)
-        items = collector.get_items(
-            key=self.get_item_sort_order(),
-            reverse=self.get_item_sort_order(),
-            path_filter=self.get_item_filter()
-        )
-        self.collector_count = collector.count
-
-        # return
-        favourites = local_settings.value('favourites')
-        active_value = local_settings.value('activepath/file')
-        for file_info in items:
-            item = QtWidgets.QListWidgetItem()
-            settings = AssetSettings('/'.join(self._asset), file_info.filePath())
-
-            # Creating the folder for the settings if needed
-            config_dir_path = '{}/.browser/{}'.format(
-                '/'.join(self._asset),
-                file_info.filePath().replace('/'.join(self._asset), '').strip('/')
-            )
-            config_dir_path = QtCore.QFileInfo(config_dir_path)
-            if not config_dir_path.exists():
-                QtCore.QDir().mkpath(config_dir_path.filePath())
-
-            self.fileSystemWatcher.addPath(file_info.dir().path())
-            path = '{}/{}'.format('/'.join(self._asset), location)
-
-            # Qt Roles
-            item.setData(QtCore.Qt.DisplayRole, file_info.fileName())
-            item.setData(QtCore.Qt.EditRole, item.data(QtCore.Qt.DisplayRole))
-            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
-
-            tooltip = u'{}\n\n'.format(file_info.filePath())
-            tooltip += u'{} | {}\n'.format(job.upper(), root.upper())
-            item.setData(QtCore.Qt.ToolTipRole, tooltip)
-            item.setData(
-                QtCore.Qt.SizeHintRole,
-                QtCore.QSize(common.WIDTH, common.ROW_HEIGHT))
-
-            # Custom roles
-
-            # Modes
-            mode = file_info.path() # parent folder
-            mode = mode.replace('{}/{}/{}/{}/{}'.format(
-                server, job, root, asset, location
-            ), '')
-            mode = mode.strip('/').split('/')
-            item.setData(common.FileModeRole, mode)
-
-
-            item.setData(common.ParentRole, (
-                server,
-                job,
-                root,
-                asset)
-            )
-            item.setData(common.DescriptionRole, settings.value(
-                'config/description'))
-
-            item.setData(common.TodoCountRole, 0)
-
-            # File info
-            info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=file_info.lastModified().toString('dd'),
-                month=file_info.lastModified().toString('MM'),
-                year=file_info.lastModified().toString('yyyy'),
-                hour=file_info.lastModified().toString('hh'),
-                minute=file_info.lastModified().toString('mm'),
-                size=common.byte_to_string(file_info.size())
-            )
-            item.setData(common.FileDetailsRole, info_string)
-
-            # Flags
-            if settings.value('config/archived'):
-                item.setFlags(item.flags() | configparser.MarkedAsArchived)
-            # Favourite
-            favourites = favourites if favourites else []
-            if file_info.filePath() in favourites:
-                item.setFlags(item.flags() | configparser.MarkedAsFavourite)
-            # Active
-            if file_info.completeBaseName() == active_value:
-                item.setFlags(item.flags() | configparser.MarkedAsActive)
-            item.setFlags(item.flags() | QtCore.Qt.ItemIsEditable)
-
-            self.addItem(item)
-
-    def _warning_strings(self):
-        server, job, root, asset = self._asset
-        path_err = '{} has not yet been set.'
-        if not server:
-            return str(path_err).format('Server')
-        if not job:
-            return str(path_err).format('Job')
-        if not root:
-            return str(path_err).format('Root')
-        if not asset:
-            return str(path_err).format('Asset')
-
-        if not self.collector_count:
-            path = '/'.join(self._asset)
-            return '{} contains no valid items.'.format(path)
-        if self.count() > self.count_visible():
-            return '{} items hidden by filters.'.format(self.count() - self.count_visible())
-
-    def mousePressEvent(self, event):
-        """In-line buttons are triggered here."""
-        index = self.indexAt(event.pos())
-        rect = self.visualRect(index)
-
-        if self.viewport().width() < 360.0:
-            return super(FilesWidget, self).mousePressEvent(event)
-
-        for n in xrange(2):
-            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
-                rect, common.INLINE_ICON_SIZE, n)
-            # Beginning multi-toggle operation
-            if bg_rect.contains(event.pos()):
-                self.multi_toggle_pos = event.pos()
-                if n == 0:
-                    self.multi_toggle_state = not index.flags() & configparser.MarkedAsFavourite
-                elif n == 1:
-                    self.multi_toggle_state = not index.flags() & configparser.MarkedAsArchived
-                self.multi_toggle_idx = n
-                return True
-
-        return super(FilesWidget, self).mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        """In-line buttons are triggered here."""
-        index = self.indexAt(event.pos())
-        rect = self.visualRect(index)
-        idx = index.row()
-
-        if self.viewport().width() < 360.0:
-            return super(FilesWidget, self).mouseReleaseEvent(event)
-
-        # Cheking the button
-        if idx not in self.multi_toggle_items:
-            for n in xrange(3):
-                _, bg_rect = self.itemDelegate().get_inline_icon_rect(
-                    rect, common.INLINE_ICON_SIZE, n)
-                if bg_rect.contains(event.pos()):
-                    if n == 0:
-                        self.toggle_favourite(index=index)
-                        break
-                    elif n == 1:
-                        self.toggle_archived(index=index)
-                        break
-                    elif n == 2:
-                        path = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-                        common.reveal(path.dir().path())
-
-        self.multi_toggle_pos = None
-        self.multi_toggle_state = None
-        self.multi_toggle_idx = None
-        self.multi_toggle_item = None
-        self.multi_toggle_items = {}
-
-        super(FilesWidget, self).mouseReleaseEvent(event)
-
-    def mouseMoveEvent(self, event):
-        """Multi-toggle is handled here."""
-        if self.viewport().width() < 360.0:
-            return super(FilesWidget, self).mouseMoveEvent(event)
-
-        if self.multi_toggle_pos is None:
-            super(FilesWidget, self).mouseMoveEvent(event)
-            return
-
-        app_ = QtWidgets.QApplication.instance()
-        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
-            super(FilesWidget, self).mouseMoveEvent(event)
-            return
-
-        pos = event.pos()
-        pos.setX(0)
-        index = self.indexAt(pos)
-        initial_index = self.indexAt(self.multi_toggle_pos)
-        idx = index.row()
-
-        favourite = index.flags() & configparser.MarkedAsFavourite
-        archived = index.flags() & configparser.MarkedAsArchived
-
-        # Filter the current item
-        if index == self.multi_toggle_item:
-            return
-
-        self.multi_toggle_item = index
-
-        # Before toggling the item, we're saving it's state
-
-        if idx not in self.multi_toggle_items:
-            if self.multi_toggle_idx == 0:  # Favourite button
-                # A state
-                self.multi_toggle_items[idx] = favourite
-                # Apply first state
-                self.toggle_favourite(
-                    index=index,
-                    state=self.multi_toggle_state
-                )
-            if self.multi_toggle_idx == 1:  # Archived button
-                # A state
-                self.multi_toggle_items[idx] = archived
-                # Apply first state
-                self.toggle_archived(
-                    index=index,
-                    state=self.multi_toggle_state
-                )
-        else:  # Reset state
-            if index == initial_index:
-                return
-            if self.multi_toggle_idx == 0:  # Favourite button
-                self.toggle_favourite(
-                    index=index,
-                    state=self.multi_toggle_items.pop(idx)
-                )
-            elif self.multi_toggle_idx == 1:  # Favourite button
-                self.toggle_archived(
-                    index=index,
-                    state=self.multi_toggle_items.pop(idx)
-                )
+        local_settings.setValue(key, val)
+        self.activeLocationChanged.emit(val)
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
@@ -345,12 +279,11 @@ class FilesWidget(BaseListWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            editors.ThumbnailEditor(index)
+            editors.ThumbnailEditor(index, parent=self)
             return
         else:
             self.activate_current_index()
             return
-
 
 
 if __name__ == '__main__':

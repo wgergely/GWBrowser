@@ -39,13 +39,14 @@ class ScreenGrabber(QtWidgets.QDialog):
 
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.CustomizeWindowHint |
-            QtCore.Qt.Tool
+            QtCore.Qt.WindowStaysOnTopHint
+            # QtCore.Qt.CustomizeWindowHint |
+            # QtCore.Qt.Tool
         )
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setCursor(QtCore.Qt.CrossCursor)
         self.setMouseTracking(True)
+        self.installEventFilter(self)
 
         app = QtCore.QCoreApplication.instance()
         app.desktop().resized.connect(self._fit_screen_geometry)
@@ -98,24 +99,12 @@ class ScreenGrabber(QtWidgets.QDialog):
         painter.drawLine(mouse_pos.x(), event.rect().top(),
                          mouse_pos.x(), event.rect().bottom())
 
-    # def keyPressEvent(self, event):
-    #     """
-    #     Key press event
-    #     """
-    #     # for some reason I am not totally sure about, it looks like
-    #     # pressing escape while this dialog is active crashes Maya.
-    #     # I tried subclassing closeEvent, but it looks like the crashing
-    #     # is triggered before the code reaches this point.
-    #     # by sealing the keypress event and not allowing any further processing
-    #     # of the escape key (or any other key for that matter), the
-    #     # behaviour can be successfully avoided.
-    #
-    #     # TODO: See if we can get the behacior with hitting escape back
-    #     # maybe by manually handling the closing of the window? I tried
-    #     # some obvious things and weren't successful, but didn't dig very
-    #     # deep as it felt like a nice-to-have and not a massive priority.
-    #
-    #     pass
+    def keyPressEvent(self, event):
+        """
+        Key press event
+        """
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.reject()
 
     def mousePressEvent(self, event):
         """
@@ -124,6 +113,9 @@ class ScreenGrabber(QtWidgets.QDialog):
         if event.button() == QtCore.Qt.LeftButton:
             # Begin click drag operation
             self._click_pos = event.globalPos()
+        if event.button() == QtCore.Qt.RightButton:
+            # Cancel capture
+            self.reject()
 
     def mouseReleaseEvent(self, event):
         """
@@ -137,7 +129,8 @@ class ScreenGrabber(QtWidgets.QDialog):
             ).normalized()
             self._click_pos = None
             self._offset_pos = None
-        self.close()
+
+        self.accept()
 
     def mouseMoveEvent(self, event):
         """
@@ -195,8 +188,9 @@ class ScreenGrabber(QtWidgets.QDialog):
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
         tool = cls()
-        tool.exec_()
-        return cls.get_desktop_pixmap(tool.capture_rect)
+        if tool.exec_():
+            return cls.get_desktop_pixmap(tool.capture_rect)
+        return None
 
     def showEvent(self, event):
         """
@@ -255,7 +249,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         )
 
     @classmethod
-    def screen_capture_file(cls, output_path=None):
+    def capture(cls, output_path=None):
         """
         Modally display the screen capture tool, saving to a file.
 
@@ -271,9 +265,12 @@ class ScreenGrabber(QtWidgets.QDialog):
                 delete=False
             ).name
         pixmap = cls.screen_capture()
-        pixmap.save(output_path)
-        return output_path
+        if pixmap:
+            pixmap.save(output_path)
+            return output_path
+        return None
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    app.w = ScreenGrabber.screen_capture()
+    pixmap = ScreenGrabber.capture(output_path=r'c:/temp/temp.png')
+    print pixmap

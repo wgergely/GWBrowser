@@ -116,31 +116,7 @@ class AssetCollector(BaseCollector):
             QFileInfo:  The QFileInfo object representing the found folder.
 
         """
-        self._count = 0  # Resetting the count
-        it = QtCore.QDirIterator(
-            self.path,
-            flags=QtCore.QDirIterator.NoIteratorFlags,
-            filters=QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks |
-            QtCore.QDir.Readable
-        )
-        while it.hasNext():
-            path = it.next()
-            file_info = QtCore.QFileInfo(path)
 
-            # Validate assets by skipping folders without the identifier file
-            identifier = QtCore.QDir(path).entryList(
-                (common.ASSET_IDENTIFIER, ),
-                filters=QtCore.QDir.Files |
-                QtCore.QDir.NoDotAndDotDot |
-                QtCore.QDir.NoSymLinks
-            )
-            if not identifier:
-                continue
-
-            self._count += 1
-            yield file_info
 
 
 class FileCollector(BaseCollector):
@@ -148,21 +124,6 @@ class FileCollector(BaseCollector):
 
     def __init__(self, path, root, parent=None):
         super(FileCollector, self).__init__(parent=parent)
-        self.path = path
-        self.location = root
-
-        self.modes = self._get_modes()
-
-    def _get_modes(self):
-        file_info = QtCore.QFileInfo('{}/{}'.format(self.path, self.location))
-        if not file_info.exists():
-            return []
-
-        dir_ = QtCore.QDir(file_info.filePath())
-        return dir_.entryList(
-            filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
-        )
-
 
 
 

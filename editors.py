@@ -15,10 +15,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def __init__(self, index, parent=None):
         super(ThumbnailViewer, self).__init__(parent=parent)
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
+        settings = AssetSettings(index)
         file_info = QtCore.QFileInfo(settings.thumbnail_path())
 
         if not file_info.exists():
@@ -104,10 +101,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
 
     def __init__(self, index, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
+        settings = AssetSettings(index)
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
@@ -123,15 +117,16 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         if not self.selectedFiles():
             return
 
-        # Deleting old image
-        common.delete_image(settings.thumbnail_path())
-
         # Saving the thumbnail
         image = QtGui.QImage()
         image.load(next(f for f in self.selectedFiles()))
         image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         image.save(settings.thumbnail_path())
+
+        # Re-cache
         common.delete_image(settings.thumbnail_path(), delete_file=False)
+        height = self.parent().visualRect(index).height() - 2
+        common.cache_image(settings.thumbnail_path(), height)
 
 
 class DescriptionEditorWidget(QtWidgets.QWidget):
@@ -142,10 +137,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self._index = index
 
         self.editor = None
-        self.settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
+        self.settings = AssetSettings(index)
         self._createUI()
 
         self.editor.focusOutEvent = self.focusOutEvent
@@ -296,7 +288,11 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.close()
             return
 
-        item = self.parent().itemFromIndex(self._index)
-        item.setData(common.DescriptionRole, self.editor.text())
+        source_index = self.parent().mode().mapToSource(self._index)
+        self.parent().model().sourceModel().setData(
+            source_index,
+            self.editor.text(),
+            role=common.DescriptionRole
+        )
         self.settings.setValue('config/description', self.editor.text())
         self.close()

@@ -7,8 +7,8 @@ import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
-import mayabrowser.settings as configparser
 from mayabrowser.settings import AssetSettings
+from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -22,9 +22,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         focused = option.state & QtWidgets.QStyle.State_HasFocus
 
-        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
-        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
-        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
+        favourite = index.flags() & MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+        active = index.flags() & MarkedAsActive
 
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
@@ -96,9 +96,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
-        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
-        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
+        favourite = index.flags() & MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+        active = index.flags() & MarkedAsActive
 
         color = QtGui.QColor(color)
 
@@ -118,10 +118,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color.setGreen(color.green() / 1.96)
             color.setBlue(color.blue() / 1.96)
 
-        if hover:
-            color.setRed(color.red() + 15)
-            color.setGreen(color.green() + 15)
-            color.setBlue(color.blue() + 15)
+        # if hover:
+        #     color.setRed(color.red() + 15)
+        #     color.setGreen(color.green() + 15)
+        #     color.setBlue(color.blue() + 15)
 
         return color
 
@@ -150,7 +150,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setLeft(rect.left())
         rect.setTop(rect.top() + 1)
         rect.setRight(rect.right() - 1)
-        rect.setBottom(rect.bottom() - 1)
+        rect.setBottom(rect.bottom() - 2)
 
         path = QtGui.QPainterPath()
         path.addRect(rect)
@@ -266,52 +266,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.setBrush(QtGui.QBrush(color))
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
         painter.drawRect(rect)
 
         painter.restore()
 
-    def paint_separators(self, *args):
-        """Paints horizontal separators."""
-        painter, option, _, selected, _, _, _, _ = args
-
-        painter.save()
-
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=False
-        )
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        color = QtGui.QColor(common.SEPARATOR)
-        # color.setAlpha(66)
-        painter.setBrush(QtGui.QBrush(color))
-
-        if not selected:
-            THICKNESS = 0.5
-        else:
-            THICKNESS = 0.5
-
-        # Bottom
-        rect = QtCore.QRectF(
-            option.rect.left() + common.INDICATOR_WIDTH + option.rect.height(),
-            option.rect.top() + option.rect.height() - THICKNESS,
-            option.rect.width(),
-            (THICKNESS)
-        )
-        painter.drawRect(rect)
-
-        # Top
-        rect = QtCore.QRectF(
-            option.rect.left() + common.INDICATOR_WIDTH + option.rect.height(),
-            option.rect.top(),
-            option.rect.width(),
-            (THICKNESS)
-        )
-        painter.drawRect(rect)
-        painter.save()
 
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
@@ -322,6 +282,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
         rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
 
         if selected:
             color = self.get_state_color(option, index, common.SELECTION)
@@ -347,6 +308,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
 
         color = self.get_state_color(option, index, common.SELECTION)
 
@@ -372,12 +334,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             common.INDICATOR_WIDTH +
             option.rect.height()
         )
-        rect.setWidth(option.rect.height())
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setRight(option.rect.left() + common.INDICATOR_WIDTH + rect.height())
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
         gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
         gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
+        painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
 
@@ -393,14 +358,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _, _, _ = args
-
         painter.save()
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
-        rect.setWidth(rect.height())
-
         # Background rectangle
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setRight(option.rect.left() + common.INDICATOR_WIDTH + rect.height())
+
         if selected:
             color = common.THUMBNAIL_BACKGROUND_SELECTED
         else:
@@ -410,45 +375,33 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        settings = AssetSettings(
-            '/'.join(index.data(common.ParentRole)),
-            index.data(QtCore.Qt.StatusTipRole)
-        )
-        # Caching image
-        common.cache_image(settings.thumbnail_path(), option.rect.height())
-
-        # Painting background rectangle when the image exists
-        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            bg_rect = QtCore.QRect(option.rect)
-            bg_rect.setLeft(bg_rect.left() + common.INDICATOR_WIDTH)
-            bg_rect.setWidth(bg_rect.height())
-            bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
-                path=settings.thumbnail_path(),
-            )]
-            painter.setBrush(QtGui.QBrush(bg_color))
-            painter.drawRect(bg_rect)
-
-        # Getting the thumbnail from the cache
-        k = '{path}:{height}'.format(
+        settings = AssetSettings(index)
+        bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
             path=settings.thumbnail_path(),
-            height=option.rect.height()
-        )
-        image = common.IMAGE_CACHE[k]
+        )]
+
+        painter.setBrush(QtGui.QBrush(bg_color))
+        painter.drawRect(rect)
 
         # Resizing the rectangle to accommodate the image's aspect ration
+        image = common.IMAGE_CACHE['{path}:{size}'.format(
+            path=settings.thumbnail_path(),
+            size=rect.height()
+        )]
         longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / longer)
+        factor = float(rect.width() / float(longer))
 
+        height = rect.height()
         if image.rect().width() < image.rect().height():
-            rect.setWidth(float(image.rect().width()) * factor)
+            rect.setWidth(int(image.rect().width() * factor) - 2)
         else:
-            rect.setHeight(float(image.rect().height()) * factor)
+            rect.setHeight(int(image.rect().height() * factor) - 2)
 
         rect.moveLeft(
-            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
+            rect.left() + int(((option.rect.height() - 2) - rect.width()) * 0.5)
         )
         rect.moveTop(
-            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
+            rect.top() + int(((option.rect.height() - 2) - rect.height()) * 0.5)
         )
 
         painter.drawImage(
@@ -643,39 +596,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         bg_rect.setBottom(bg_rect.bottom() + offset)
 
         return rect, bg_rect
-    #
-    # def paint_favourite_icon(self, *args):
-    #     """Paints the icon for indicating the item is a favourite."""
-    #     painter, option, _, _, _, _, _, favourite = args
-    #     if option.rect.width() < 360.0:
-    #         return
-    #
-    #     painter.save()
-    #     painter.setRenderHints(
-    #         QtGui.QPainter.TextAntialiasing |
-    #         QtGui.QPainter.Antialiasing |
-    #         QtGui.QPainter.SmoothPixmapTransform,
-    #         on=True
-    #     )
-    #     rect, bg_rect = self.get_inline_icon_rect(
-    #         option.rect, common.INLINE_ICON_SIZE, 0)
-    #
-    #     if favourite:
-    #         color = QtGui.QColor(common.FAVOURITE)
-    #     else:
-    #         color = QtGui.QColor(common.SECONDARY_TEXT)
-    #
-    #     pixmap = common.get_rsc_pixmap(
-    #         'favourite', color, common.INLINE_ICON_SIZE)
-    #     painter.setPen(QtCore.Qt.NoPen)
-    #
-    #     if favourite:
-    #         color = QtGui.QColor(common.SEPARATOR)
-    #         color.setAlpha(60)
-    #         painter.setBrush(QtGui.QBrush(color))
-    #         painter.drawRoundedRect(bg_rect, 2.0, 2.0)
-    #     painter.drawPixmap(rect, pixmap)
-    #     painter.restore()
 
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
@@ -825,14 +745,12 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
-
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
 
         self.paint_selection_indicator(*args)
         self.paint_thumbnail(*args)
-        self.paint_separators(*args)
         self.paint_thumbnail_shadow(*args)
 
         self.paint_active_indicator(*args)
@@ -846,21 +764,23 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
-        painter, option, index, selected, _, active, _, _ = args
+        painter, option, index, _, _, active, _, _ = args
         painter.save()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
 
-        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
-        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
+        favourite = index.flags() & MarkedAsFavourite
+        active = index.flags() & MarkedAsActive
 
         rect = QtCore.QRect(option.rect)
-        # Making the aspect ratio of the image 16/9
-        rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + common.INDICATOR_WIDTH)
-
-        color = common.BACKGROUND
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
+        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setRight(option.rect.left() + common.INDICATOR_WIDTH + rect.height())
 
         if active:
             pixmap = common.get_rsc_pixmap(
@@ -938,14 +858,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         # Finding the longest root string
         width = [0, ]
         for n in xrange(self.parent().model().rowCount()):
-            try:
-                item = self.parent().item(n)
-                if item.isHidden():
-                    continue
-                text = self._get_root_text(item, rect, metrics)
-                width.append(metrics.width(text))
-            except:
-                break
+            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
+            text = self._get_root_text(index, rect, metrics)
+            width.append(metrics.width(text))
         return max(width)
 
     def paint_root(self, *args):
@@ -969,7 +884,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         width = self._get_longest_root_width(rect, metrics)
-
         text = self._get_root_text(index, rect, metrics)
 
         rect.setLeft(rect.left() + (rect.width() - metrics.width(text)))
@@ -978,6 +892,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         bg_rect.setWidth(rect.width() - (rect.width() - width) + common.MARGIN)
         bg_rect.moveRight(rect.right())
         bg_rect.setRight(option.rect.right())
+        bg_rect.setTop(bg_rect.top() + 1)
+        bg_rect.setBottom(bg_rect.bottom() - 1)
 
         if option.rect.width() < 360.0:
             return
@@ -1035,7 +951,6 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
-        self.paint_separators(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
         #
@@ -1107,7 +1022,6 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
-        self.paint_separators(*args)
         self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
         self.paint_active_indicator(*args)
@@ -1125,9 +1039,9 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_description(self, *args):
         """Paints the item description inside the ``FilesWidget``."""
         painter, option, index, _, _, _, _, _ = args
-        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
-        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
-        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
+        favourite = index.flags() & MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+        active = index.flags() & MarkedAsActive
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.save()
@@ -1226,7 +1140,8 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         painter.setFont(font)
-        modes = index.data(common.FileModeRole)
+        modes = index.data(common.ParentRole)[-1]
+        modes = modes.split('/')
 
         if not modes[0]:
             rect.setWidth(0)
@@ -1279,9 +1194,9 @@ class FilesWidgetDelegate(BaseDelegate):
         """
         painter, option, index, _, _, active, _, _ = args
 
-        favourite = index.data(common.FlagsRole) & configparser.MarkedAsFavourite
-        archived = index.data(common.FlagsRole) & configparser.MarkedAsArchived
-        active = index.data(common.FlagsRole) & configparser.MarkedAsActive
+        favourite = index.flags() & MarkedAsFavourite
+        archived = index.flags() & MarkedAsArchived
+        active = index.flags() & MarkedAsActive
 
         painter.save()
 

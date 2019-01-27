@@ -52,18 +52,28 @@ considered an ``assets``."""
 ExportsFolder = 'exports'
 ScenesFolder = 'scenes'
 RendersFolder = 'renders'
+TexturesFolder = 'textures'
 
 NameFilters = {
     ExportsFolder: (
-        '*.abc', # Alembic
+        '*.abc',  # Alembic
         '*.obj',
-        '*.ass', # Arnold cache
+        '*.ass',  # Arnold cache
     ),
     ScenesFolder: (
         '*.ma',
         '*.mb',
     ),
     RendersFolder: (
+        '*.exr',
+        '*.png',
+        '*.tiff',
+        '*.tff',
+        '*.jpg',
+        '*.jpeg',
+        '*.psd',
+    ),
+    TexturesFolder: (
         '*.exr',
         '*.png',
         '*.tiff',
@@ -86,8 +96,6 @@ TodoCountRole = 1028
 """Asset role used to store the number of todos."""
 FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
-FileModeRole = 1030
-"""Role used to save the mode (subfolder) of the current file."""
 
 
 SortByName = 0
@@ -298,15 +306,19 @@ def cache_image(path, height, overwrite=False):
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
         ppath = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
-        ppath = ppath.filePath()
+        ppath = ppath.absoluteFilePath()
         placeholder_k = '{path}:{height}'.format(
             path=ppath,
             height=height
         )
         if placeholder_k in IMAGE_CACHE:
             IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
-            return IMAGE_CACHE[k]
-
+        else:
+            IMAGE_CACHE[k] = cache_placeholder(height)
+        IMAGE_CACHE['{}:BackgroundColor'.format(
+            path)] = IMAGE_CACHE['{}:BackgroundColor'.format(ppath)]
+        return IMAGE_CACHE[k]
+        
     image = QtGui.QImage()
     image.load(file_info.filePath())
 
@@ -317,22 +329,26 @@ def cache_image(path, height, overwrite=False):
     )
 
     # Average colour
-    IMAGE_CACHE[k] = image
     IMAGE_CACHE['{path}:BackgroundColor'.format(
         path=path
     )] = get_color_average(image)
+    IMAGE_CACHE[k] = image
+    return IMAGE_CACHE[k]
 
 
 def cache_placeholder(height):
-    path = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
-    path = path.filePath()
     height = int(height)
+    path = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+    path = path.absoluteFilePath()
+
     k = '{path}:{height}'.format(
         path=path,
         height=height
     )
+
     if k in IMAGE_CACHE:
         return IMAGE_CACHE[k]
+
     file_info = QtCore.QFileInfo(
         '{}/../rsc/placeholder.png'.format(__file__))
     image = QtGui.QImage()
@@ -348,7 +364,8 @@ def cache_placeholder(height):
     IMAGE_CACHE[k] = image
     IMAGE_CACHE['{path}:BackgroundColor'.format(
         path=path
-    )] = get_color_average(image)
+    )] = QtGui.QColor(0, 0, 0, 0)
+    return IMAGE_CACHE[k]
 
 
 def delete_image(path, delete_file=True):
@@ -640,6 +657,3 @@ IMAGE_CACHE = {}
 # Property contains all the saVed label LABEL_COLORS
 LABEL_COLORS = label_generator()
 #
-cache_placeholder(FILE_ROW_HEIGHT)
-cache_placeholder(ASSET_ROW_HEIGHT)
-cache_placeholder(BOOKMARK_ROW_HEIGHT)
