@@ -318,7 +318,7 @@ def cache_image(path, height, overwrite=False):
         IMAGE_CACHE['{}:BackgroundColor'.format(
             path)] = IMAGE_CACHE['{}:BackgroundColor'.format(ppath)]
         return IMAGE_CACHE[k]
-        
+
     image = QtGui.QImage()
     image.load(file_info.filePath())
 
@@ -571,7 +571,10 @@ def reveal(path):
         name (str): A relative path or the folder's name.
 
     """
-    url = QtCore.QUrl.fromLocalFile(QtCore.QFileInfo(path).filePath())
+    file_info = QtCore.QFileInfo(path)
+    if file_info.isFile():
+        path = file_info.path()
+    url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)
 
 

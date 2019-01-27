@@ -110,15 +110,15 @@ class FilesModel(BaseModel):
             # Todos
             count = 0
 
-            tooltip = u'{}\n'.format(file_info.completeBaseName().upper())
-            tooltip += u'{}\n'.format(server.upper())
-            tooltip += u'{}\n'.format(job.upper())
-            tooltip += u'{}'.format(file_info.filePath())
 
             # Modes
             mode = file_info.path()  # parent folder
             mode = mode.replace('/'.join((server, job, root, asset, location)), '')
             mode = mode.strip('/')
+
+            tooltip = u'{} | {} | {}\n'.format(job, root, mode)
+            tooltip += u'{}'.format(file_info.filePath())
+
 
             # File info
             info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
@@ -131,8 +131,8 @@ class FilesModel(BaseModel):
             )
 
             self.internal_data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.completeBaseName(),
-                QtCore.Qt.EditRole: file_info.completeBaseName(),
+                QtCore.Qt.DisplayRole: file_info.fileName(),
+                QtCore.Qt.EditRole: file_info.fileName(),
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT),

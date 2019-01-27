@@ -136,7 +136,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = folder_icon
 
-        if len(self.index.data(common.ParentRole)) == 4:
+        if len(self.index.data(common.ParentRole)) >= 4:
             file_info = QtCore.QFileInfo(
                 self.index.data(QtCore.Qt.StatusTipRole))
             menu_set[key]['file'] = {
@@ -144,27 +144,25 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'icon': folder_icon2,
                 'action': functools.partial(
                     common.reveal,
-                    file_info.dir().path()
-                )
+                    '/'.join(self.index.data(common.ParentRole)))
             }
+            path = '{}/{}/{}/{}'.format(
+                self.index.data(common.ParentRole)[0],
+                self.index.data(common.ParentRole)[1],
+                self.index.data(common.ParentRole)[2],
+                self.index.data(common.ParentRole)[3],
+            )
             menu_set[key]['asset'] = {
                 'text': 'Show asset',
                 'icon': folder_icon2,
                 'action': functools.partial(
-                    common.reveal,
-                    QtCore.QFileInfo('{}/{}/{}/{}'.format(
-                        self.index.data(common.ParentRole)[0],
-                        self.index.data(common.ParentRole)[1],
-                        self.index.data(common.ParentRole)[2],
-                        self.index.data(common.ParentRole)[3]
-                    )).filePath())
+                    common.reveal, path)
             }
         elif len(self.index.data(common.ParentRole)) == 3:
             menu_set[key]['asset'] = {
                 'text': 'Show asset',
                 'icon': folder_icon2,
-                'action': functools.partial(
-                    common.reveal,
+                'action': functools.partial(common.reveal,
                     self.index.data(QtCore.Qt.StatusTipRole))
             }
         menu_set[key]['root'] = {
@@ -350,10 +348,10 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set['{}:icon'.format(key)] = locations_icon_pixmap
 
-        for k in common.NameFilters:
+        for k in sorted(list(common.NameFilters)):
             checked = self.parent().get_location() == k
             menu_set[key][k] = {
-                'text': k.upper(),
+                'text': 'Switch to  > {} <'.format(k.upper()),
                 'checkable': True,
                 'checked': checked,
                 'icon': item_on_pixmap if checked else item_off_pixmap,
@@ -914,10 +912,14 @@ class BaseListWidget(QtWidgets.QListView):
     def refresh(self):
         """Re-populates the list-widget with the collected items."""
         index = self.selectionModel().currentIndex()
+        path = index.data(QtCore.Qt.StatusTipRole)
+
+        self.model().sourceModel().beginResetModel()
+        self.model().sourceModel().__initdata__()
+        self.model().sourceModel().endResetModel()
+
         if not index.isValid():
             return
-
-        path = index.data(QtCore.Qt.StatusTipRole)
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
             if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
@@ -926,6 +928,8 @@ class BaseListWidget(QtWidgets.QListView):
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
                 break
+
+
 
     def action_on_enter_key(self):
         self.activate_current_index()

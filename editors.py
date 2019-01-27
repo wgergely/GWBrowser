@@ -288,7 +288,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.close()
             return
 
-        source_index = self.parent().mode().mapToSource(self._index)
+        source_index = self.parent().model().mapToSource(self._index)
         self.parent().model().sourceModel().setData(
             source_index,
             self.editor.text(),
