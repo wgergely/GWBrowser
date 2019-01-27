@@ -572,7 +572,7 @@ def reveal(path):
 
     """
     file_info = QtCore.QFileInfo(path)
-    if file_info.isFile():
+    if not file_info.isDir():
         path = file_info.path()
     url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)

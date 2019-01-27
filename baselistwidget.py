@@ -37,7 +37,14 @@ class BaseContextMenu(QtWidgets.QMenu):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
         self.setToolTipsVisible(True)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(
+            QtCore.Qt.NoDropShadowWindowHint |
+            QtCore.Qt.Popup |
+            QtCore.Qt.FramelessWindowHint
+        )
 
         # Adding persistent actions
         self.add_sort_menu()
@@ -300,63 +307,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             'checked': favourite,
             'action': self.parent().toggle_favourite
         }
-
-        self.create_menu(menu_set)
-
-    def add_collapse_sequence_menu(self):
-        """Adds the menu needed to change context"""
-        if self.parent().get_location() == common.RendersFolder:
-            return  # Render sequences are always collapsed
-
-        expand_pixmap = common.get_rsc_pixmap(
-            'expand', common.SECONDARY_TEXT, 18.0)
-        collapse_pixmap = common.get_rsc_pixmap(
-            'collapse', common.FAVOURITE, 18.0)
-
-        collapsed = not self.parent().is_sequence_collapsed()
-
-        menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['collapse'] = {
-            'text': 'Show individual files' if collapsed else 'Group files together',
-            'icon': expand_pixmap if collapsed else collapse_pixmap,
-            'checkable': True,
-            'checked': collapsed,
-            'action': (functools.partial(
-                self.parent().set_collapse_sequence,
-                collapsed),
-                self.parent().model().sort
-            )
-        }
-
-        self.create_menu(menu_set)
-
-    def add_location_toggles_menu(self):
-        """Adds the menu needed to change context"""
-        locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, 18.0)
-        item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
-        item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, 18.0)
-
-        menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-
-        key = 'Locations'
-
-        menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = locations_icon_pixmap
-
-        for k in sorted(list(common.NameFilters)):
-            checked = self.parent().get_location() == k
-            menu_set[key][k] = {
-                'text': 'Switch to  > {} <'.format(k.upper()),
-                'checkable': True,
-                'checked': checked,
-                'icon': item_on_pixmap if checked else item_off_pixmap,
-                'action': functools.partial(self.parent().set_location, k)
-            }
 
         self.create_menu(menu_set)
 
@@ -762,20 +712,6 @@ class BaseListWidget(QtWidgets.QListView):
         cls = self.__class__.__name__
         local_settings.setValue('widget/{}/filter'.format(cls), val)
 
-    def is_sequence_collapsed(self):
-        """Gathers sequences into a single file."""
-        if self.get_location() == common.RendersFolder:
-            return False
-
-        val = local_settings.value(
-            'widget/{}/collapse_sequence'.format(self.__class__.__name__))
-        return int(val) if val else True
-
-    def set_collapse_sequence(self, val):
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{}/collapse_sequence'.format(cls), val)
-
     def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
@@ -917,6 +853,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().endResetModel()
+        self.model().sort()
 
         if not index.isValid():
             return

@@ -142,6 +142,11 @@ class AssetModel(BaseModel):
 
             idx += 1
 
+    def set_bookmark(self, bookmark):
+        self.bookmark = bookmark
+        self.beginResetModel()
+        self.__initdata__()
+        self.endResetModel()
 
 class AssetWidget(BaseInlineIconWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
@@ -153,8 +158,6 @@ class AssetWidget(BaseInlineIconWidget):
 
     def __init__(self, bookmark, parent=None):
         super(AssetWidget, self).__init__(AssetModel(bookmark), parent=parent)
-        self.bookmark = bookmark
-
         self.setWindowTitle('Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self._context_menu_cls = AssetWidgetContextMenu
@@ -163,10 +166,6 @@ class AssetWidget(BaseInlineIconWidget):
             self.active_index(),
             QtCore.QItemSelectionModel.ClearAndSelect
         )
-
-    def set_bookmark(self, bookmark):
-        self.bookmark = bookmark
-        self.refresh()
 
     def inline_icons_count(self):
         """The number of icons on the right-hand side."""
@@ -188,9 +187,9 @@ class AssetWidget(BaseInlineIconWidget):
         local_settings.setValue(
             'activepath/asset', file_info.completeBaseName())
         self.activeAssetChanged.emit((
-            self.bookmark[0],
-            self.bookmark[1],
-            self.bookmark[2],
+            self.model().sourceModel().bookmark[0],
+            self.model().sourceModel().bookmark[1],
+            self.model().sourceModel().bookmark[2],
             file_info.completeBaseName()
         ))
 

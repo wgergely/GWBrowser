@@ -296,15 +296,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.save()
 
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            rect.left() +
-            common.INDICATOR_WIDTH +
-            option.rect.height()
-        )
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
-        rect.setRight(option.rect.left() +
-                      common.INDICATOR_WIDTH + rect.height())
+        rect.setLeft(
+            option.rect.left() +
+            common.INDICATOR_WIDTH +
+            rect.height() + 1
+        )
+        rect.setRight(rect.left() + rect.height())
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
@@ -863,25 +862,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         rect.setLeft(rect.left() + (rect.width() - metrics.width(text)))
 
-        bg_rect = QtCore.QRect(option.rect)
-        bg_rect.setWidth(rect.width() - (rect.width() - width) + common.MARGIN)
-        bg_rect.moveRight(rect.right())
-        bg_rect.setRight(option.rect.right())
-        bg_rect.setTop(bg_rect.top() + 1)
-        bg_rect.setBottom(bg_rect.bottom() - 1)
-
-        if option.rect.width() < 360.0:
-            return
-
-        painter.setPen(QtCore.Qt.NoPen)
-        color = QtGui.QColor(common.SEPARATOR)
-        if not active:
-            color.setAlpha(230)
-        else:
-            color.setAlpha(30)
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(bg_rect)
-
         font = QtGui.QFont('Roboto Black')
         font.setPointSizeF(8.5)
         painter.setFont(font)
@@ -1080,7 +1060,9 @@ class FilesWidgetDelegate(BaseDelegate):
                 text
             )
         elif not index.data(common.DescriptionRole) and hover:
-            painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
+            color = QtGui.QColor(common.SECONDARY_TEXT)
+            color.setAlpha(150)
+            painter.setPen(QtGui.QPen(color))
             rect.setRight(rect.right() - width)
             text = metrics.elidedText(
                 'Double-click to add description...  |  ',
@@ -1122,17 +1104,19 @@ class FilesWidgetDelegate(BaseDelegate):
         modes = index.data(common.ParentRole)[-1]
         modes = modes.split('/')
 
-        if not modes[0]:
-            rect.setWidth(0)
-            return rect
-
-        padding = 2.0
         rect.setWidth(0)
 
+        if not modes[0]:
+            return rect
         if option.rect.width() < 440.0:
             return rect
 
+        padding = 2.0
+
         for n, mode in enumerate(modes):
+            if n > 2:  # Not painting folders deeper than this...
+                break
+
             if n == 2:
                 mode = '...'
             else:
@@ -1164,20 +1148,14 @@ class FilesWidgetDelegate(BaseDelegate):
                 mode
             )
 
-            if n >= 2:  # Not painting folders deeper than the secondary
-                break
             rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
-
         return rect
 
     def paint_name(self, mode_rect, *args):
         """Paints the ``FilesWidget``'s name.
 
         """
-        painter, option, index, _, _, active, _, _ = args
-
-        favourite = index.flags() & MarkedAsFavourite
-        archived = index.flags() & MarkedAsArchived
+        painter, option, index, _, _, _, _, _ = args
         active = index.flags() & MarkedAsActive
 
         painter.save()
@@ -1201,7 +1179,6 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         if option.rect.width() >= 360.0:
-            rect.setLeft(mode_rect.right() + common.MARGIN)
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count()
@@ -1210,7 +1187,6 @@ class FilesWidgetDelegate(BaseDelegate):
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         else:
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
-            rect.setRight(rect.right())
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
@@ -1228,30 +1204,27 @@ class FilesWidgetDelegate(BaseDelegate):
                 # Ext
                 width = metrics.width(ext)
                 rect.setLeft(rect.right() - width)
-                if rect.left() > mode_rect.right():
-                    painter.setPen(common.TEXT)
-                    painter.drawText(
-                        rect,
-                        QtCore.Qt.AlignCenter,
-                        ext
-                    )
+                painter.setPen(common.TEXT)
+                painter.drawText(
+                    rect,
+                    QtCore.Qt.AlignCenter,
+                    ext
+                )
 
                 # Sequence
                 rect.moveRight(rect.right() - width)
                 width = metrics.width(match.group(2))
                 rect.setLeft(rect.right() - width)
-                if rect.left() > mode_rect.right():
-                    painter.setPen(common.TEXT_NOTE)
-                    painter.drawText(
-                        rect,
-                        QtCore.Qt.AlignCenter,
-                        match.group(2)
-                    )
+                painter.setPen(common.TEXT_NOTE)
+                painter.drawText(
+                    rect,
+                    QtCore.Qt.AlignCenter,
+                    match.group(2)
+                )
 
                 # Name
                 rect.moveRight(rect.right() - width)
-                width = metrics.width(match.group(1))
-                rect.setLeft(mode_rect.right() + common.MARGIN)
+                rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
                 painter.setPen(common.TEXT)
                 text = metrics.elidedText(
                     match.group(1),
@@ -1269,7 +1242,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 rect.setRight(option.rect.right() - common.MARGIN)
                 painter.setPen(common.TEXT)
                 text = metrics.elidedText(
-                    match.group(1),
+                    '{}{}{}'.format(match.group(1), match.group(2), ext),
                     QtCore.Qt.ElideRight,
                     rect.width()
                 )

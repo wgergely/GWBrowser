@@ -324,11 +324,11 @@ QLabel:disabled {{
 
 
 QMenu {{
-		padding: 0;
-		margin: 0;
+		padding: 0px;
+		margin: 0px;
 		color: rgba({TEXT});
-		font-size: 8.5pt;
-    background-color: rgba({BACKGROUND}); /* sets background of the menu */
+		font-size: 8pt;
+    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
     border: none;
 		outline: none;
 }}

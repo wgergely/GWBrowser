@@ -183,6 +183,9 @@ class AssetSettings(QtCore.QSettings):
 
         """
         def beautify(text):
+            match = re.search(r'(\[.*\])', text)
+            if match:
+                text = text.replace(match.group(1), 'SEQ')
             return re.sub(r'[^a-zA-Z0-9/]+', '_', text)
 
         path = self._filepath.replace(self._root, '').strip('/')

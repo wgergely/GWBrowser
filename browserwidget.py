@@ -254,25 +254,25 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
 
         # Bookmark
         self.bookmarks_widget.activeBookmarkChanged.connect(
-            self.assets_widget.set_bookmark)
+            self.assets_widget.model().sourceModel().set_bookmark)
         self.bookmarks_widget.activeBookmarkChanged.connect(
             functools.partial(self.mode_changed, 1)
         )
         # Asset
         self.assets_widget.activeAssetChanged.connect(
-            self.files_widget.set_asset)
+            self.files_widget.model().sourceModel().set_asset)
         self.assets_widget.activeAssetChanged.connect(
             functools.partial(self.mode_changed, 2)
         )
 
         # Statusbar
-        self.bookmarks_widget.itemEntered.connect(self.itemEntered)
-        self.assets_widget.itemEntered.connect(self.itemEntered)
-        self.files_widget.itemEntered.connect(self.itemEntered)
+        self.bookmarks_widget.entered.connect(self.entered)
+        self.assets_widget.entered.connect(self.entered)
+        self.files_widget.entered.connect(self.entered)
 
-    def itemEntered(self, item):
+    def entered(self, index):
         """Custom itemEntered signal."""
-        message = item.data(QtCore.Qt.StatusTipRole)
+        message = index.data(QtCore.Qt.StatusTipRole)
         self.status_bar.showMessage(message, timeout=1500)
 
     def mode_changed(self, idx, *args, **kwargs):

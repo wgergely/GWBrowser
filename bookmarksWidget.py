@@ -110,7 +110,7 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
-                common.DescriptionRole: u'{}  |  {}  |  {}'.format(file_info.server.strip('/'), file_info.job, file_info.root).upper(),
+                common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
                 common.TodoCountRole: common.count_assets(file_info.filePath()),
                 common.FileDetailsRole: file_info.size(),
             }
