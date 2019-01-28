@@ -14,15 +14,27 @@ QWidget:disabled {{
 	color: rgba({SECONDARY_TEXT});
 }}
 
-QWidget:focus {{
+/* QWidget:focus {{
 	border: solid;
 	border-width: 1px;
 	border-color: rgba({SELECTION});
-}}
+}} */
 QWidget:window {{
 	border: solid;
 	border-width: 1px;
 	border-color: rgba({SELECTION});
+}}
+
+BrowserWidget {{
+	background-color: rgba({SEPARATOR});
+	color: rgba({SECONDARY_TEXT});
+	border-width: 1px;
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	outline: 0;
+	font-family: "{fontFamily}";
+	font-size: {fontSize}pt;
 }}
 
 
@@ -48,12 +60,13 @@ QStackedWidget:focus {{
 
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
-	background-color: rgba({SECONDARY_BACKGROUND});
+	background-color: rgba({SEPARATOR});
 	font-family: "{fontFamily}";
 	font-size: 7pt;
 	margin: 0px;
-	padding: 0px;
-	height: 24px;
+	padding: 6px;
+	height: 18px;
+
 }}
 
 
@@ -136,10 +149,12 @@ QPushButton:pressed {{
 		background-color: rgba(130, 130, 130, 255);
 }}
 
+
+
+
 QComboBox {{
 	text-align: left;
 	height: 24px;
-	border-left: 4px solid rgba({BACKGROUND_SELECTED});
 	padding-left: 10px;
 	padding-right: 10px;
 	border-style: solid;
@@ -149,14 +164,8 @@ QComboBox {{
 	font-size: 8pt;
 }}
 QComboBox:hover {{
-		border-left: 4px solid rgb({SELECTION});
 		color: rgb({TEXT_SELECTED});
 		background-color: rgba(150, 150, 150, 255);
-}}
-QComboBox:focus {{
-		border: solid;
-		border-width: 1px 1px 1px 4px;
-		border-color: rgba({SELECTION});
 }}
 QComboBox:disabled {{
 	color: rgba({TEXT_DISABLED});
@@ -180,6 +189,23 @@ QComboBox::drop-down {{
 QComboBox::drop-down:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
+
+DropdownWidget {{
+	text-align: left;
+	height: 24px;
+	padding-left: 10px;
+	padding-right: 10px;
+	border-style: solid;
+	color: rgba({TEXT});
+	background-color: rgba({BACKGROUND});
+	font-family: "Roboto Black";
+	font-size: 10pt;
+}}
+DropdownWidget:hover {{
+	color: rgb({TEXT_SELECTED});
+	background-color: rgba({BACKGROUND});
+}}
+
 
 
 QLineEdit {{

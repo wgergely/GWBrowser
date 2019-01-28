@@ -26,7 +26,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 
-from mayabrowser.bookmarksWidget import BookmarksWidget
+from mayabrowser.bookmarkswidget import BookmarksWidget
 from mayabrowser.assetwidget import AssetWidget
 from mayabrowser.fileswidget import FilesWidget
 from mayabrowser.settings import local_settings, path_monitor
@@ -135,6 +135,10 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint
+        )
         self.instances[self.objectName()] = self
 
         # Applying the initial config settings.
@@ -195,11 +199,10 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
 
         # Main layout
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        self.layout().setContentsMargins(0, common.INDICATOR_WIDTH, 0, 0)
+        self.layout().setSpacing(8)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
         self.setMinimumWidth(200.0)
-        # self.setPreferredWidth(common.WIDTH)
         self.setMaximumWidth(common.WIDTH * 2)
 
         self.setSizePolicy(
@@ -209,9 +212,9 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
 
         self.row_buttons = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(self.row_buttons)
-
         self.row_buttons.layout().setContentsMargins(0, 0, 0, 0)
         self.row_buttons.layout().setSpacing(0)
+        self.row_buttons.layout().setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
         self.row_buttons.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         self.row_buttons.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -235,17 +238,29 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             QtWidgets.QSizePolicy.Minimum
         )
 
+
         self.layout().addWidget(self.row_buttons)
         self.layout().addWidget(self.stacked_widget)
         self.layout().addWidget(self.status_bar)
 
         self.mode_select_widget = DropdownWidget(parent=self)
-        for idx, data in enumerate((('Bookmarks', 'Alt+1'), ('Assets', 'Alt+2'), ('Files', 'Alt+3'))):
-            self.mode_select_widget.addItem(data[0])
-            self.mode_select_widget.setItemData(
-                idx, data[1], QtCore.Qt.UserRole)
+        for data in ('Bookmarks', 'Assets', 'Files'):
+            pixmap = common.get_rsc_pixmap('bookmark', common.TEXT, common.ROW_BUTTONS_HEIGHT)
+            self.mode_select_widget.addItem(data)
 
-        self.row_buttons.layout().addWidget(self.mode_select_widget, 1)
+        pixmap = common.get_rsc_pixmap('modes_toggle', common.TEXT_SELECTED, common.ROW_HEIGHT)
+        label = ClickableLabel()
+        label.setStyleSheet("""
+            QLabel {{
+                background-color: rgba({});
+            }}
+        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
+        label.clicked.connect(self.mode_select_widget.showPopup)
+        label.setPixmap(pixmap)
+
+        self.row_buttons.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.row_buttons.layout().addWidget(self.mode_select_widget)
+        self.row_buttons.layout().addWidget(label)
 
     def _connectSignals(self):
         self.mode_select_widget.currentIndexChanged.connect(self.mode_changed)
@@ -293,6 +308,13 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
 
+class ClickableLabel(QtWidgets.QLabel):
+    clicked = QtCore.Signal()
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+
+
 class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         super(DropdownWidgetDelegate, self).__init__(parent=parent)
@@ -313,21 +335,8 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
         self.paint_background(*args)
         self.paint_thumbnail(*args)
-        self.paint_selection_indicator(*args)
         self.paint_name(*args)
 
-    def paint_selection_indicator(self, *args):
-        """Paints the blue leading rectangle to indicate the current selection."""
-        painter, option, _, selected = args
-
-        if not selected:
-            return
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(common.SELECTION))
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(4)
-        painter.drawRect(rect)
 
     def paint_name(self, *args):
         painter, option, index, _ = args
@@ -340,7 +349,7 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter.setFont(font)
 
         rect = QtCore.QRect(option.rect)
-        rect.moveLeft(rect.left() + 4 + rect.height() + common.MARGIN)
+        rect.moveLeft(rect.left() + rect.height() + common.MARGIN)
         rect.setRight(rect.width() - (common.MARGIN * 2))
         painter.setPen(QtGui.QPen(common.TEXT))
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
@@ -350,17 +359,6 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             index.data(QtCore.Qt.DisplayRole).upper()
         )
-        font = QtGui.QFont('Roboto Medium')
-        font.setPointSize(8)
-        painter.setFont(font)
-
-        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-            index.data(QtCore.Qt.UserRole)
-        )
-
         painter.restore()
 
     def paint_background(self, *args):
@@ -390,7 +388,6 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         rect = QtCore.QRect(option.rect)
         # Making the aspect ratio of the image 16/9
         rect.setWidth(rect.height())
-        rect.moveLeft(rect.left() + 4)  # Accounting for the leading indicator
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
@@ -469,16 +466,18 @@ class DropdownWidget(QtWidgets.QComboBox):
         super(DropdownWidget, self).__init__(parent=parent)
         self.setItemDelegate(DropdownWidgetDelegate(parent=self))
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Fixed,
             QtWidgets.QSizePolicy.Expanding
         )
-
+        self.setFixedWidth(0)
         self.overlayWidget = None
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
         self.overlayWidget = OverlayWidget(
             self.parent().parent().stacked_widget)
+        self.view().setFixedWidth(200)
+        popup = self.findChild(QtWidgets.QFrame)
         super(DropdownWidget, self).showPopup()
 
     def hidePopup(self):

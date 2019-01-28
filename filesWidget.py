@@ -95,8 +95,6 @@ class FilesModel(BaseModel):
     def __init__(self, asset, parent=None):
         self.asset = asset
         self.mode = None
-        self._internal_data = {}
-        self.collapsed_data = {}
         super(FilesModel, self).__init__(parent=parent)
         self.switch_dataset()
 
@@ -108,61 +106,62 @@ class FilesModel(BaseModel):
         `exports` folder. See the ``common`` module for definitions.
 
         """
-        self.internal_data = {}
-        self._internal_data = {}  # reset
-        self.collapsed_data = {}  # reset
-        self.modes = None
-
+        location = self.get_location()
+        self._internal_data[location] = {True: {}, False: {}}
         server, job, root, asset = self.asset
+
         if not all(self.asset):
             return
 
-        location = self.get_location()
-        file_info = QtCore.QFileInfo('{asset}/{location}'.format(
+        self.modes = self.get_modes(self.asset, location)
+        # Iterator
+        dir_ = QtCore.QDir('{asset}/{location}'.format(
             asset='/'.join(self.asset),
             location=location
         ))
-
-        if not file_info.exists():
+        if not dir_.exists():
             return
-
-        self.modes = self.get_modes(self.asset, location)
-
+        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dir_.setSorting(QtCore.QDir.Unsorted)
+        dir_.setNameFilters(common.NameFilters[location])
         it = QtCore.QDirIterator(
-            file_info.filePath(),
-            common.NameFilters[location],
+            dir_,
             flags=QtCore.QDirIterator.Subdirectories,
-            filters=QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Files |
-            QtCore.QDir.NoSymLinks
         )
 
         idx = 0
         config_dir_paths = {}
+
         while it.hasNext():
             path = it.next()
+            mode = it.fileInfo().path().replace(
+                '/'.join((server, job, root, asset, location)), '')
+            mode = mode.strip('/')
+
+            # Flags
+            flags = (
+                QtCore.Qt.ItemNeverHasChildren |
+                QtCore.Qt.ItemIsSelectable |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsEditable |
+                QtCore.Qt.ItemIsDragEnabled
+            )
+            # We're not going to set more data if looking inside the renders
+            # folder as the number of files querried can be huge.
             if location == common.RendersFolder:
-                self._internal_data[idx] = {
-                    QtCore.Qt.StatusTipRole: path
+                self._internal_data[location][False][idx] = {
+                    int(QtCore.Qt.StatusTipRole): path
                 }
                 idx += 1
                 continue
 
-            file_info = QtCore.QFileInfo(path)
-            settings = AssetSettings((server, job, root, file_info.filePath()))
-            if file_info.path() not in config_dir_paths:
-                config_dir_paths[file_info.path()] = QtCore.QFileInfo(
+            settings = AssetSettings((server, job, root, it.filePath()))
+            if it.path() not in config_dir_paths:
+                config_dir_paths[it.path()] = QtCore.QFileInfo(
                     settings.conf_path()).path()
 
-            # Flags
-            flags = (
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable
-            )
-
             # Active
-            if file_info.fileName() == local_settings.value('activepath/file'):
+            if it.fileName() == local_settings.value('activepath/file'):
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -172,35 +171,29 @@ class FilesModel(BaseModel):
             # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
-            if file_info.filePath() in favourites:
+            if it.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
 
             # Todos
             count = 0
 
-            # Modes
-            mode = file_info.path()  # parent folder
-            mode = mode.replace(
-                '/'.join((server, job, root, asset, location)), '')
-            mode = mode.strip('/')
-
             tooltip = u'{} | {} | {}\n'.format(job, root, mode)
-            tooltip += u'{}'.format(file_info.filePath())
+            tooltip += u'{}'.format(it.filePath())
 
             # File info
             info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=file_info.lastModified().toString('dd'),
-                month=file_info.lastModified().toString('MM'),
-                year=file_info.lastModified().toString('yyyy'),
-                hour=file_info.lastModified().toString('hh'),
-                minute=file_info.lastModified().toString('mm'),
-                size=common.byte_to_string(file_info.size())
+                day=it.fileInfo().lastModified().toString('dd'),
+                month=it.fileInfo().lastModified().toString('MM'),
+                year=it.fileInfo().lastModified().toString('yyyy'),
+                hour=it.fileInfo().lastModified().toString('hh'),
+                minute=it.fileInfo().lastModified().toString('mm'),
+                size=common.byte_to_string(it.fileInfo().size())
             )
 
-            self._internal_data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.fileName(),
-                QtCore.Qt.EditRole: file_info.fileName(),
-                QtCore.Qt.StatusTipRole: file_info.filePath(),
+            self._internal_data[location][False][idx] = {
+                QtCore.Qt.DisplayRole: it.fileName(),
+                QtCore.Qt.EditRole: it.fileName(),
+                QtCore.Qt.StatusTipRole: it.filePath(),
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
@@ -223,23 +216,18 @@ class FilesModel(BaseModel):
                 continue
             QtCore.QDir().mkpath(config_dir_paths[k])
 
-        self.__init_collapseddata__()
 
-    def __init_collapseddata__(self):
-        self.collapsed_data = {}
+        # Regex responsible for identifying sequences
         r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
-
-        server, job, root, asset = self.asset
-        location = self.get_location()
 
         # Getting unique sequence groups
         groups = {}
         idx = 0
-        for k in self._internal_data:
-            path = self._internal_data[k][QtCore.Qt.StatusTipRole]
+        for k in self._internal_data[location][False]:
+            path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
             match = r.search(path)
             if not match:
-                self.collapsed_data[idx] = self._internal_data[k]
+                self._internal_data[location][True][idx] = self._internal_data[location][False][k]
                 idx += 1
                 continue
             k = '{}|{}'.format(match.group(1), match.group(3))
@@ -267,7 +255,6 @@ class FilesModel(BaseModel):
 
             file_info = QtCore.QFileInfo(path)
             settings = AssetSettings((server, job, root, file_info.filePath()))
-            # print settings.conf_path()
 
             # Flags
             flags = (
@@ -305,7 +292,7 @@ class FilesModel(BaseModel):
             tooltip = u'{} | {} | {}\n'.format(job, root, mode)
             tooltip += u'{}  (sequence)'.format(file_info.filePath())
 
-            self.collapsed_data[idx] = {
+            self._internal_data[location][True][idx] = {
                 QtCore.Qt.DisplayRole: file_info.fileName(),
                 QtCore.Qt.EditRole: file_info.fileName(),
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -325,22 +312,23 @@ class FilesModel(BaseModel):
 
             idx += 1
 
+
     def switch_dataset(self):
         """Swaps the dataset."""
         self.beginResetModel()
-        if self.is_grouped():
-            self.internal_data = self.collapsed_data
-        else:
-            self.internal_data = self._internal_data
+        self.internal_data = self._internal_data[self.get_location()][self.is_grouped()]
         self.endResetModel()
 
-
     def set_asset(self, asset):
+        if asset == self.asset:
+            return
+
         self.asset = asset
         self.beginResetModel()
         self.__initdata__()
-        self.endResetModel()
         self.switch_dataset()
+        self.endResetModel()
+
 
     def is_grouped(self):
         """Gathers sequences into a single file."""
@@ -356,7 +344,6 @@ class FilesModel(BaseModel):
         cls = self.__class__.__name__
         key = 'widget/{}/groupfiles'.format(cls)
         local_settings.setValue(key, val)
-
         self.switch_dataset()
 
     def get_modes(self, asset, location):
@@ -392,7 +379,6 @@ class FilesModel(BaseModel):
         self.beginResetModel()
         self.__initdata__()
         self.endResetModel()
-        self.switch_dataset()
 
 
 class FilesWidget(BaseInlineIconWidget):
@@ -417,10 +403,6 @@ class FilesWidget(BaseInlineIconWidget):
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
-
-    def refresh(self):
-        super(FilesWidget, self).refresh()
-        self.model().sourceModel().switch_dataset()
 
     def inline_icons_count(self):
         return 3
@@ -482,19 +464,17 @@ class FilesWidget(BaseInlineIconWidget):
         elif thumbnail_rect.contains(event.pos()):
             editors.ThumbnailEditor(index, parent=self)
             return
-        else:
-            self.activate_current_index()
-            return
+
+        self.activate_current_index()
+        return
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    path = (local_settings.value('activepath/server'),
+    asset = (local_settings.value('activepath/server'),
             local_settings.value('activepath/job'),
             local_settings.value('activepath/root'),
             local_settings.value('activepath/asset'))
-
-    widget = FilesWidget(path)
-
+    widget = FilesWidget(asset)
     widget.show()
     app.exec_()

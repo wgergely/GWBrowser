@@ -125,7 +125,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         return color
 
-
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
@@ -232,10 +231,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif not selected and active:
             color = QtGui.QColor(49, 107, 218)
 
-        painter.setBrush(QtGui.QBrush(color))
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
+
+        painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
         painter.restore()
@@ -255,7 +255,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = self.get_state_color(option, index, common.SELECTION)
         else:
             color = QtGui.QColor(common.SEPARATOR)
-            color.setAlpha(150)
+            # color.setAlpha(150)
             color = self.get_state_color(option, index, color)
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
@@ -613,7 +613,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtCore.Qt.NoPen)
         bg_rect.setRight(option.rect.right())
         color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(100)
+        color.setAlpha(50)
         painter.setBrush(color)
         painter.drawRect(bg_rect)
 
@@ -725,7 +725,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_archived(*args)
         #
         self.paint_name(*args)
-        self.paint_description(*args)
+        # self.paint_description(*args)
         self.paint_root(*args)
         #
 
@@ -772,8 +772,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         painter, option, index, _, _, _, _, _ = args
-        favourite = index.flags() & MarkedAsFavourite
-        archived = index.flags() & MarkedAsArchived
         active = index.flags() & MarkedAsActive
 
         painter.save()
@@ -984,8 +982,8 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
         #
-        rect = self.paint_mode(*args)
-        self.paint_name(rect, *args)
+        left = self.paint_mode(*args)
+        self.paint_name(*args, left=left)
         self.paint_description(*args)
         #
 
@@ -1103,16 +1101,14 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setFont(font)
         modes = index.data(common.ParentRole)[-1]
         modes = modes.split('/')
-
         rect.setWidth(0)
 
         if not modes[0]:
-            return rect
+            return rect.right()
         if option.rect.width() < 440.0:
-            return rect
+            return rect.right()
 
         padding = 2.0
-
         for n, mode in enumerate(modes):
             if n > 2:  # Not painting folders deeper than this...
                 break
@@ -1147,16 +1143,13 @@ class FilesWidgetDelegate(BaseDelegate):
                 QtCore.Qt.AlignCenter,
                 mode
             )
-
+            if len(modes) - 1 == n:
+                return rect.right()
             rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
-        return rect
 
-    def paint_name(self, mode_rect, *args):
-        """Paints the ``FilesWidget``'s name.
-
-        """
+    def paint_name(self, *args, **kwargs):
+        """Paints the ``FilesWidget``'s name."""
         painter, option, index, _, _, _, _, _ = args
-        active = index.flags() & MarkedAsActive
 
         painter.save()
         painter.setRenderHints(
@@ -1204,6 +1197,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 # Ext
                 width = metrics.width(ext)
                 rect.setLeft(rect.right() - width)
+                if rect.left() <= kwargs['left']:
+                    rect.setLeft(kwargs['left'])
                 painter.setPen(common.TEXT)
                 painter.drawText(
                     rect,
@@ -1215,16 +1210,25 @@ class FilesWidgetDelegate(BaseDelegate):
                 rect.moveRight(rect.right() - width)
                 width = metrics.width(match.group(2))
                 rect.setLeft(rect.right() - width)
+                if rect.left() <= kwargs['left']:
+                    rect.setLeft(kwargs['left'])
+                text = metrics.elidedText(
+                    match.group(2),
+                    QtCore.Qt.ElideLeft,
+                    rect.width()
+                )
                 painter.setPen(common.TEXT_NOTE)
                 painter.drawText(
                     rect,
-                    QtCore.Qt.AlignCenter,
-                    match.group(2)
+                    align,
+                    text
                 )
 
                 # Name
                 rect.moveRight(rect.right() - width)
                 rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
+                if rect.left() <= kwargs['left']:
+                    rect.setLeft(kwargs['left'])
                 painter.setPen(common.TEXT)
                 text = metrics.elidedText(
                     match.group(1),
@@ -1253,6 +1257,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 )
         else:  # non-collapsed items
             painter.setPen(common.TEXT)
+            if rect.left() <= kwargs['left']:
+                rect.setLeft(kwargs['left'] + common.MARGIN)
             text = metrics.elidedText(
                 '{}{}'.format(text, ext),
                 QtCore.Qt.ElideLeft,
@@ -1278,6 +1284,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setBrush(color)
 
         painter.drawRect(rect)
+
         painter.restore()
 
     def sizeHint(self, option, index):

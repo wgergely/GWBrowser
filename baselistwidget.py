@@ -170,7 +170,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 'text': 'Show asset',
                 'icon': folder_icon2,
                 'action': functools.partial(common.reveal,
-                    self.index.data(QtCore.Qt.StatusTipRole))
+                                            self.index.data(QtCore.Qt.StatusTipRole))
             }
         menu_set[key]['root'] = {
             'text': 'Show bookmark',
@@ -198,7 +198,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key]['separator'] = {}
 
         it = QtCore.QDirIterator(
-            self.index.data(QtCore.Qt.StatusTipRole),
+            '/'.join(self.index.data(common.ParentRole)),
             flags=QtCore.QDirIterator.NoIteratorFlags,
             filters=QtCore.QDir.NoDotAndDotDot |
             QtCore.QDir.Dirs |
@@ -516,6 +516,12 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
+        self._internal_data = {
+            common.RendersFolder: {True: {}, False: {}},
+            common.ScenesFolder: {True: {}, False: {}},
+            common.TexturesFolder: {True: {}, False: {}},
+            common.ExportsFolder: {True: {}, False: {}},
+        }
         self.internal_data = {}
         self.__initdata__()
 
@@ -548,6 +554,9 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.internal_data[index.row()][role] = data
         self.dataChanged.emit(index, index)
 
+    def switch_dataset(self):
+        pass
+
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting data."""
@@ -563,14 +572,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             'archived': self.get_filtermode('archived')
         }
 
-    def sort(self):
-        if self.sortorder:
-            super(FilterProxyModel, self).sort(
-                0, order=QtCore.Qt.AscendingOrder)
-        else:
-            super(FilterProxyModel, self).sort(
-                0, order=QtCore.Qt.DescendingOrder)
-
     def get_sortkey(self):
         val = local_settings.value(
             'widget/{}/sortkey'.format(self.__class__.__name__))
@@ -578,6 +579,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def set_sortkey(self, val):
         self.sortkey = val
+        self.sort()
 
         cls = self.__class__.__name__
         local_settings.setValue(
@@ -590,6 +592,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def set_sortorder(self, val):
         self.sortorder = val
+        self.sort()
 
         cls = self.__class__.__name__
         local_settings.setValue(
@@ -627,29 +630,40 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return False
         return True
 
+    def sort(self, column=0):
+        if self.sortorder:
+            super(FilterProxyModel, self).sort(
+                column, order=QtCore.Qt.AscendingOrder)
+        else:
+            super(FilterProxyModel, self).sort(
+                column, order=QtCore.Qt.DescendingOrder)
+
     def lessThan(self, source_left, source_right):
+        """The main method responsible for sorting the items."""
         left_info = QtCore.QFileInfo(source_left.data(QtCore.Qt.StatusTipRole))
         right_info = QtCore.QFileInfo(
             source_right.data(QtCore.Qt.StatusTipRole))
 
-        if self.sortkey == common.SortByName:
-            return left_info.filePath() < right_info.filePath()
-        elif self.sortkey == common.SortByLastModified:
-            return left_info.lastModified() < right_info.lastModified()
-        elif self.sortkey == common.SortByLastCreated:
-            return left_info.lastModified() < right_info.lastModified()
-        elif self.sortkey == common.SortBySize:
-            left = left_info.size()
-            right = right_info.size()
-            if not left_info.size():
-                left = source_left.data(common.TodoCountRole)
-                right = source_right.data(common.TodoCountRole)
-            if not any((left, right)):
-                left = left_info.filePath()
-                right = right_info.filePath()
-            return left < right
-        else:
-            return left_info.filePath() < right_info.filePath()
+        return common.sort_keys[self.sortkey](left_info) < common.sort_keys[self.sortkey](right_info)
+
+        # if self.sortkey == common.SortByName:
+        #     return left_info.filePath() < right_info.filePath()
+        # elif self.sortkey == common.SortByLastModified:
+        #     return left_info.lastModified() < right_info.lastModified()
+        # elif self.sortkey == common.SortByLastCreated:
+        #     return left_info.lastModified() < right_info.lastModified()
+        # elif self.sortkey == common.SortBySize:
+        #     left = left_info.size()
+        #     right = right_info.size()
+        #     if not left_info.size():
+        #         left = source_left.data(common.TodoCountRole)
+        #         right = source_right.data(common.TodoCountRole)
+        #     if not any((left, right)):
+        #         left = left_info.filePath()
+        #         right = right_info.filePath()
+        #     return left < right
+        # else:
+        #     return left_info.filePath() < right_info.filePath()
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -852,10 +866,11 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
+        self.model().sourceModel().switch_dataset()
         self.model().sourceModel().endResetModel()
         self.model().sort()
 
-        if not index.isValid():
+        if not path:
             return
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
@@ -864,9 +879,8 @@ class BaseListWidget(QtWidgets.QListView):
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
+                self.scrollTo(index)
                 break
-
-
 
     def action_on_enter_key(self):
         self.activate_current_index()
