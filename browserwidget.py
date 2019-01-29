@@ -111,7 +111,6 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.end()
 
 
-
 class ListStackWidget(QtWidgets.QStackedWidget):
     """Stacked widget to switch between the Bookmark-, Asset - and File lists."""
 
@@ -147,7 +146,7 @@ class ClickableLabel(QtWidgets.QLabel):
             }}
         """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
         self.setFixedSize(QtCore.QSize(
-        common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
+            common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
         self.setAlignment(QtCore.Qt.AlignCenter)
 
     def mousePressEvent(self, event):
@@ -173,17 +172,20 @@ class AddBookmarkButton(ClickableLabel):
 
 class CloseButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
+
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-        'todo_remove', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 1.5)
+            'todo_remove', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
+
 class SortButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
+
     def __init__(self, parent=None):
         super(SortButton, self).__init__(parent=parent)
 
@@ -206,16 +208,17 @@ class HeaderWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(255,255,255,150)))
         rect = event.rect()
         rect.setTop(rect.bottom())
-        # painter.drawRect(rect)
+        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
         painter.drawRect(event.rect())
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 0, 0, 30)))
+        painter.drawRect(rect)
         painter.end()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
@@ -231,7 +234,7 @@ class HeaderWidget(QtWidgets.QWidget):
         QLabel {\
             color: rgb(30,30,30);\
             font-family: "Roboto Medium";\
-            font-size: 11pt;\
+            font-size: 9pt;\
         }\
         """)
 
@@ -248,10 +251,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         if active_paths['asset']:
             text = '{} | {}'.format(text, active_paths['asset'])
-
         return text
-
-
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
@@ -262,9 +262,9 @@ class HeaderWidget(QtWidgets.QWidget):
     def mouseMoveEvent(self, event):
         if event.buttons() == QtCore.Qt.NoButton:
             return
-        # if self.move_start_widget_pos:
-        #     offset = (event.pos() - self.move_start_event_pos)
-        #     self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
+        if self.move_start_widget_pos:
+            offset = (event.pos() - self.move_start_event_pos)
+            self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def activeIndexChanged(self, index):
@@ -281,7 +281,6 @@ class HeaderWidget(QtWidgets.QWidget):
             )
         else:
             text = 'Notes and Tasks'
-
 
 
 class ListControlWidget(QtWidgets.QWidget):
@@ -303,7 +302,6 @@ class ListControlWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
-
 
         # Mode indicator button
         label = ModePickButton()
@@ -532,7 +530,6 @@ class ChangeListWidget(QtWidgets.QComboBox):
         self.parent().findChild(AddBookmarkButton).show()
 
 
-
 class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
 
@@ -573,7 +570,6 @@ class BrowserWidget(QtWidgets.QWidget):
         idx = local_settings.value('widget/current_index')
         idx = idx if idx else 0
         self.activate_widget(idx)
-
 
     def _createUI(self):
         """Creates the layout.
@@ -655,7 +651,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
-
 
 
 if __name__ == '__main__':
