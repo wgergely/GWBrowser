@@ -122,7 +122,6 @@ QRadioButton::SELECTION:checked  {{
 
 QPushButton {{
 		text-align: left;
-		border-left: 1px solid rgba(0, 0, 0, 50);
 		padding-left: 10px;
 		padding-right: 10px;
 		border-style: solid;
@@ -138,12 +137,10 @@ QPushButton:disabled {{
 }}
 QPushButton:hover {{
 	padding-left: 8px;
-		border-left: 3px solid rgba({SELECTION});
 		color: rgba({TEXT_SELECTED});
 		background-color: rgba(150, 150, 150, 255);
 }}
 QPushButton:pressed {{
-		border-left: 4px solid rgba({SELECTION});
 		padding-left: 7px;
 		color: rgba({TEXT_SELECTED});
 		background-color: rgba(130, 130, 130, 255);
@@ -190,20 +187,19 @@ QComboBox::drop-down:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 
-DropdownWidget {{
+ChangeListWidget {{
 	text-align: left;
-	height: 24px;
 	padding-left: 10px;
 	padding-right: 10px;
 	border-style: solid;
 	color: rgba({TEXT});
-	background-color: rgba({BACKGROUND});
+	background-color: rgba({SEPARATOR});
 	font-family: "Roboto Black";
 	font-size: 10pt;
 }}
-DropdownWidget:hover {{
+ChangeListWidget:hover {{
 	color: rgb({TEXT_SELECTED});
-	background-color: rgba({BACKGROUND});
+	background-color: rgba({SEPARATOR});
 }}
 
 

@@ -719,26 +719,22 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         self.paint_selection_indicator(*args)
         self.paint_thumbnail(*args)
-        self.paint_thumbnail_shadow(*args)
+        # self.paint_thumbnail_shadow(*args)
 
         self.paint_active_indicator(*args)
         self.paint_archived(*args)
         #
         self.paint_name(*args)
+        self.paint_folder_icon(*args)
+        self.paint_archived_icon(*args)
+        self.paint_favourite_icon(*args)
         # self.paint_description(*args)
-        self.paint_root(*args)
         #
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the bookmark item."""
         painter, option, index, _, _, active, _, _ = args
         painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         favourite = index.flags() & MarkedAsFavourite
         active = index.flags() & MarkedAsActive
@@ -750,16 +746,14 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setRight(option.rect.left() +
                       common.INDICATOR_WIDTH + rect.height())
 
+        pixmap = common.get_rsc_pixmap(
+            'bookmark', common.SECONDARY_TEXT, rect.height())
+        if favourite:
+            pixmap = common.get_rsc_pixmap(
+                'bookmark', common.FAVOURITE, rect.height())
         if active:
             pixmap = common.get_rsc_pixmap(
                 'bookmark', common.SELECTION, rect.height())
-        else:
-            if favourite:
-                pixmap = common.get_rsc_pixmap(
-                    'bookmark', common.FAVOURITE, rect.height())
-            else:
-                pixmap = common.get_rsc_pixmap(
-                    'bookmark', common.SECONDARY_TEXT, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -771,8 +765,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
+
         active = index.flags() & MarkedAsActive
+        count = index.data(common.FileDetailsRole)
 
         painter.save()
         rect, font, metrics = self.get_text_area(
@@ -782,32 +778,85 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        # Count
-        if not index.data(common.FileDetailsRole):
-            color = self.get_state_color(option, index, common.TEXT)
-        else:
-            color = self.get_state_color(option, index, common.TEXT_SELECTED)
-
-        if active:
-            color = common.TEXT_SELECTED
-
         text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub(r'[\W\d\_]+', ' ', text.upper())
+        width = metrics.width(text)
+        rect.setWidth(width)
         text = metrics.elidedText(
-            re.sub(r'[\W\d\_]+', ' ', text.upper()),
+            text,
             QtCore.Qt.ElideLeft,
             rect.width()
         )
+        name = str(text)
+        name_rect = QtCore.QRect(rect)
 
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSizeF(8.5)
+        painter.setFont(font)
+
+        rect.setLeft(rect.right() + common.INDICATOR_WIDTH)
+        rect.setRight(option.rect.right() - common.MARGIN)
+        text = self._get_root_text(index, rect, metrics)
+        rect.setWidth(metrics.width(text))
+
+        if count:
+            color = QtGui.QColor(common.FAVOURITE)
+            color.setHsl(
+                color.hue(),
+                color.saturation() - 50,
+                color.lightness() - 20
+            )
+        else:
+            color = QtGui.QColor(common.SEPARATOR)
+
+        _rect = QtCore.QRect(rect)
+        _rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH +
+                      (option.rect.height() - 2) + common.MARGIN)
+        pen = QtGui.QPen(common.SEPARATOR)
+
+        offset = 6.0
+        pen.setWidth(offset)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+        painter.drawRoundedRect(_rect, 0.5, 0.5)
+
+        pen = QtGui.QPen(color)
+        pen.setWidth(offset)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRoundedRect(rect, 0.5, 0.5)
+
+        _rect = QtCore.QRect(
+            rect.left() - (offset * 0.5),
+            rect.top() - (offset * 0.5),
+            offset,
+            rect.height() + offset
+        )
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(_rect)
+
+        # Name
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(color))
+        painter.setPen(QtGui.QPen(common.FAVOURITE))
         painter.drawText(
-            rect,
+            name_rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
+            name
         )
 
+        color.setRed(color.red() + 100)
+        color.setGreen(color.green() + 100)
+        color.setBlue(color.blue() + 100)
+        painter.setPen(QtGui.QPen(color))
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignCenter,
+            text
+        )
         painter.restore()
+        return
 
     def _get_root_text(self, index, rect, metrics):
         """Gets the text for drawing the root."""
@@ -817,9 +866,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         text = re.sub(r'[_]+', ' ', root.upper())
         if count:
             if count == 1:
-                text = '{}  |  {} asset'.format(text, count)
+                text = u'{}  |  {} asset'.format(text, count)
             else:
-                text = '{}  |  {} assets'.format(text, count)
+                text = u'{}  |  {} assets'.format(text, count)
         return metrics.elidedText(
             text,
             QtCore.Qt.ElideLeft,
@@ -834,64 +883,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             text = self._get_root_text(index, rect, metrics)
             width.append(metrics.width(text))
         return max(width)
-
-    def paint_root(self, *args):
-        """Paints the ``Bookmark``'s root information."""
-        painter, option, index, _, _, active, _, _ = args
-        painter.save()
-
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
-        count = index.data(common.FileDetailsRole)
-
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-
-        width = self._get_longest_root_width(rect, metrics)
-        text = self._get_root_text(index, rect, metrics)
-
-        rect.setLeft(rect.left() + (rect.width() - metrics.width(text)))
-
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSizeF(8.5)
-        painter.setFont(font)
-
-        if count:
-            color = QtGui.QColor(common.FAVOURITE)
-            color.setHsl(
-                color.hue(),
-                color.saturation() - 50,
-                color.lightness() - 20
-            )
-        else:
-            color = QtGui.QColor(common.SEPARATOR)
-        pen = QtGui.QPen(color)
-        pen.setWidth(4.0)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(color))
-
-        painter.drawRoundedRect(rect, 2.0, 2.0)
-
-        color.setRed(color.red() + 100)
-        color.setGreen(color.green() + 100)
-        color.setBlue(color.blue() + 100)
-        painter.setPen(QtGui.QPen(color))
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignCenter,
-            text
-        )
-        painter.restore()
-        return
 
 
 class AssetWidgetDelegate(BaseDelegate):

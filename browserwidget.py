@@ -20,7 +20,6 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 
 """
 
-from collections import OrderedDict
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -32,41 +31,20 @@ from mayabrowser.fileswidget import FilesWidget
 from mayabrowser.settings import local_settings, path_monitor
 
 
-SingletonType = type(QtWidgets.QWidget)
-
-
-class Singleton(SingletonType):
-    """Singleton metaclass for the BrowserWidget widget.
-
-    Note:
-        We have to supply an appropiate type object as the base class,
-        'object' won't work. Creating type(QtWidgets.QWidget) seems to function.
-
-    """
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):  # pylint: disable=E0213
-        if cls not in cls._instances:
-            cls._instances[cls] = super(
-                Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class FaderWidget(QtWidgets.QWidget):
-    """Overlaywidget responsible for the `stacked_widget` cross-fade effect."""
+class StackFaderWidget(QtWidgets.QWidget):
+    """Overlay widget responsible for the `stackedwidget` cross-fade effect."""
 
     def __init__(self, old_widget, new_widget):
-        super(FaderWidget, self).__init__(parent=new_widget)
+        super(StackFaderWidget, self).__init__(parent=new_widget)
 
         self.old_pixmap = QtGui.QPixmap(new_widget.size())
-        self.old_pixmap.fill(QtGui.QColor(50, 50, 50))
-        # old_widget.render(self.old_pixmap)
+        self.old_pixmap.fill(common.SEPARATOR)
         self.pixmap_opacity = 1.0
 
         self.timeline = QtCore.QTimeLine()
         self.timeline.valueChanged.connect(self.animate)
         self.timeline.finished.connect(self.close)
-        self.timeline.setDuration(200)
+        self.timeline.setDuration(150)
         self.timeline.start()
 
         self.resize(new_widget.size())
@@ -85,7 +63,7 @@ class FaderWidget(QtWidgets.QWidget):
 
 
 class OverlayWidget(QtWidgets.QWidget):
-    """Widget shown over the stacked_widget when mode_select_widget is active."""
+    """Widget shown over the stackedwidget when picking the current list."""
 
     def __init__(self, new_widget):
         super(OverlayWidget, self).__init__(parent=new_widget)
@@ -116,22 +94,109 @@ class OverlayWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
-    """Singleton MayaQWidgetDockable widget containing the lists of locations, assets and scenes.
+class ListStackWidget(QtWidgets.QStackedWidget):
+    """Stacked widget to switch between the Bookmark-, Asset - and File lists."""
 
-    Attributes:
-        instances (dict):               Class instances.
-        assets_widget (QListWidget):   List of the collected Maya assets.
-        files_widget (QListWidget):      List of files found associated with the asset.
+    def __init__(self, parent=None):
+        super(ListStackWidget, self).__init__(parent=parent)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
 
-        configChanged (QtCore.QSignal): Custom signal emitted when the configuration file changes.
+        self.setMinimumHeight(common.ROW_HEIGHT)
+        self.setMinimumWidth(200)
 
-    """
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
 
-    __metaclass__ = Singleton
-    # """Singleton metaclass."""
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
-    instances = {}
+
+class ListControlWidget(QtWidgets.QWidget):
+    """The bar above the list to control the mode, filters and sorting."""
+
+    modeChanged = QtCore.Signal(int)
+
+    def __init__(self, parent=None):
+        super(ListControlWidget, self).__init__(parent=parent)
+        self._createUI()
+        self._connectSignals()
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Minimum
+        )
+
+
+        # Mode indicator button
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        label = ModePickButton()
+        label.setStyleSheet("""
+            QLabel {{
+                background-color: rgba({});
+            }}
+        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
+        label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.layout().addWidget(label)  # QComboBox
+
+        # Listwidget
+        self.layout().addWidget(ChangeListWidget(), 1)
+
+        self.layout().addStretch(1)
+
+        # Add bookmarks
+        label = AddBookmarkButton()
+        label.setStyleSheet("""
+            QLabel {{
+                background-color: rgba({});
+            }}
+        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
+        label.setFixedSize(QtCore.QSize(common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
+        pixmap = common.get_rsc_pixmap('todo_add', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
+        label.setPixmap(pixmap)
+        self.layout().addWidget(label)
+
+
+    def _connectSignals(self):
+        modepickbutton = self.findChild(ModePickButton)
+        addbookmarkbutton = self.findChild(AddBookmarkButton)
+
+        combobox = self.findChild(ChangeListWidget)
+        bookmarkswidget = self.parent().findChild(BookmarksWidget)
+
+        modepickbutton.clicked.connect(combobox.showPopup)
+        combobox.currentIndexChanged.connect(self.setCurrentMode)
+        addbookmarkbutton.clicked.connect(bookmarkswidget.show_add_bookmark_widget)
+
+    @QtCore.Slot(int)
+    def setCurrentMode(self, idx):
+        """Sets the current mode of ``ListControlWidget``."""
+        combobox = self.findChild(ChangeListWidget)
+        label = self.findChild(ModePickButton)
+
+        if idx == 0:  # Bookmarks
+            pixmap = common.get_rsc_pixmap(
+                'bookmarks', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
+        elif idx == 1:  # Assets
+            pixmap = common.get_rsc_pixmap(
+                'assets', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
+        elif idx == 2:  # Files
+            pixmap = common.get_rsc_pixmap(
+                'files', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
+
+        label.setPixmap(pixmap)
+        combobox.setCurrentIndex(idx)
+
+
+class BrowserWidget(QtWidgets.QWidget):
+    """Main widget to browse pipline data."""
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
@@ -139,33 +204,34 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint
         )
-        self.instances[self.objectName()] = self
-
-        # Applying the initial config settings.
-        self.current_paths = OrderedDict(path_monitor.get_active_paths())
 
         self._contextMenu = None
-        self.fader_widget = None
+
+        self.stackedfaderwidget = None
+        self.stackedwidget = None
+        self.bookmarkswidget = None
+        self.assetswidget = None
+        self.fileswidget = None
+
+
+
+        # Applying the initial config settings.
+        active_paths = path_monitor.get_active_paths()
+        self.bookmarkswidget = BookmarksWidget()
+        self.assetswidget = AssetWidget((
+            active_paths['server'],
+            active_paths['job'],
+            active_paths['root']
+        ))
+        self.fileswidget = FilesWidget((
+            active_paths['server'],
+            active_paths['job'],
+            active_paths['root'],
+            active_paths['asset'])
+        )
 
         # Create layout
         self._createUI()
-
-        self.bookmarks_widget = BookmarksWidget()
-        self.assets_widget = AssetWidget((
-            self.current_paths['server'],
-            self.current_paths['job'],
-            self.current_paths['root']
-        ))
-        self.files_widget = FilesWidget((
-            self.current_paths['server'],
-            self.current_paths['job'],
-            self.current_paths['root'],
-            self.current_paths['asset'])
-        )
-
-        self.stacked_widget.addWidget(self.bookmarks_widget)
-        self.stacked_widget.addWidget(self.assets_widget)
-        self.stacked_widget.addWidget(self.files_widget)
 
         self._init_saved_state()
         self._connectSignals()
@@ -176,18 +242,20 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             'widget/{}/current_index'.format(self.__class__.__name__))
         if not idx:
             idx = 0
-        self.stacked_widget.setCurrentIndex(idx)
-        self.mode_select_widget.setCurrentIndex(idx)
+        self.stackedwidget.setCurrentIndex(idx)
+        self.listcontrolwidget.setCurrentMode(idx)
 
     def _createUI(self):
         """Creates the layout.
 
         +-----------------+
-        |   row_buttons   |     A row of buttons to toggle filters and views.
+        | header          |
+        +-----------------+
+        |listcontrolwidget|     A row of buttons to toggle filters and views.
         +-----------------+
         |                 |
         |                 |
-        | stacked_widget  |     This a the widget containing the lists widgets of `assets`, `assets` and `files`.
+        |  stackedwidget  |     This a the widget containing the lists widgets of `assets`, `assets` and `files`.
         |                 |
         |                 |
         +-----------------+
@@ -200,36 +268,20 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
         # Main layout
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, common.INDICATOR_WIDTH, 0, 0)
-        self.layout().setSpacing(8)
+        self.layout().setSpacing(0)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.setMinimumWidth(200.0)
-        self.setMaximumWidth(common.WIDTH * 2)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred
         )
 
-        self.row_buttons = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(self.row_buttons)
-        self.row_buttons.layout().setContentsMargins(0, 0, 0, 0)
-        self.row_buttons.layout().setSpacing(0)
-        self.row_buttons.layout().setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignLeft)
-        self.row_buttons.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-        self.row_buttons.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum
-        )
+        self.stackedwidget = ListStackWidget(parent=self)
+        self.stackedwidget.addWidget(self.bookmarkswidget)
+        self.stackedwidget.addWidget(self.assetswidget)
+        self.stackedwidget.addWidget(self.fileswidget)
 
-        self.stacked_widget = QtWidgets.QStackedWidget()
-        self.stacked_widget.layout().setContentsMargins(0, 0, 0, 0)
-        self.stacked_widget.layout().setSpacing(0)
-        self.stacked_widget.setMinimumHeight(common.ROW_HEIGHT)
-        self.stacked_widget.sizeHint = self.sizeHint
-        self.stacked_widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
+        self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.status_bar = QtWidgets.QStatusBar()
         self.status_bar.setFixedHeight(common.ROW_FOOTER_HEIGHT)
@@ -238,52 +290,31 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             QtWidgets.QSizePolicy.Minimum
         )
 
-
-        self.layout().addWidget(self.row_buttons)
-        self.layout().addWidget(self.stacked_widget)
+        self.layout().addWidget(self.listcontrolwidget)
+        self.layout().addWidget(self.stackedwidget)
         self.layout().addWidget(self.status_bar)
 
-        self.mode_select_widget = DropdownWidget(parent=self)
-        for data in ('Bookmarks', 'Assets', 'Files'):
-            pixmap = common.get_rsc_pixmap('bookmark', common.TEXT, common.ROW_BUTTONS_HEIGHT)
-            self.mode_select_widget.addItem(data)
-
-        pixmap = common.get_rsc_pixmap('modes_toggle', common.TEXT_SELECTED, common.ROW_HEIGHT)
-        label = ClickableLabel()
-        label.setStyleSheet("""
-            QLabel {{
-                background-color: rgba({});
-            }}
-        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
-        label.clicked.connect(self.mode_select_widget.showPopup)
-        label.setPixmap(pixmap)
-
-        self.row_buttons.layout().addSpacing(common.INDICATOR_WIDTH)
-        self.row_buttons.layout().addWidget(self.mode_select_widget)
-        self.row_buttons.layout().addWidget(label)
-
     def _connectSignals(self):
-        self.mode_select_widget.currentIndexChanged.connect(self.mode_changed)
-        self.stacked_widget.currentChanged.connect(
-            self.mode_select_widget.setCurrentIndex)
+        self.stackedwidget.currentChanged.connect(
+            self.listcontrolwidget.setCurrentMode)
 
         # Bookmark
-        self.bookmarks_widget.activeBookmarkChanged.connect(
-            self.assets_widget.model().sourceModel().set_bookmark)
-        self.bookmarks_widget.activeBookmarkChanged.connect(
+        self.bookmarkswidget.activeBookmarkChanged.connect(
+            self.assetswidget.model().sourceModel().set_bookmark)
+        self.bookmarkswidget.activeBookmarkChanged.connect(
             functools.partial(self.mode_changed, 1)
         )
         # Asset
-        self.assets_widget.activeAssetChanged.connect(
-            self.files_widget.model().sourceModel().set_asset)
-        self.assets_widget.activeAssetChanged.connect(
+        self.assetswidget.activeAssetChanged.connect(
+            self.fileswidget.model().sourceModel().set_asset)
+        self.assetswidget.activeAssetChanged.connect(
             functools.partial(self.mode_changed, 2)
         )
 
         # Statusbar
-        self.bookmarks_widget.entered.connect(self.entered)
-        self.assets_widget.entered.connect(self.entered)
-        self.files_widget.entered.connect(self.entered)
+        self.bookmarkswidget.entered.connect(self.entered)
+        self.assetswidget.entered.connect(self.entered)
+        self.fileswidget.entered.connect(self.entered)
 
     def entered(self, index):
         """Custom itemEntered signal."""
@@ -296,28 +327,36 @@ class BrowserWidget(QtWidgets.QWidget):  # pylint: disable=E1139
             'widget/{}/current_index'.format(self.__class__.__name__),
             idx
         )
-        self.activate_widget(self.stacked_widget.widget(idx))
+        self.activate_widget(self.stackedwidget.widget(idx))
 
     def activate_widget(self, widget):
         """Method to change between views."""
-        self.fader_widget = FaderWidget(
-            self.stacked_widget.currentWidget(), widget)
-        self.stacked_widget.setCurrentWidget(widget)
+        self.stackedfaderwidget = StackFaderWidget(
+            self.stackedwidget.currentWidget(), widget)
+        self.stackedwidget.setCurrentWidget(widget)
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
 
-class ClickableLabel(QtWidgets.QLabel):
+class ModePickButton(QtWidgets.QLabel):
+    """Custom QLabel with a `clicked` signal."""
+    clicked = QtCore.Signal()
+
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+
+class AddBookmarkButton(QtWidgets.QLabel):
+    """Custom QLabel with a `clicked` signal."""
     clicked = QtCore.Signal()
 
     def mousePressEvent(self, event):
         self.clicked.emit()
 
 
-class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
+class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
-        super(DropdownWidgetDelegate, self).__init__(parent=parent)
+        super(ChangeListWidgetDelegate, self).__init__(parent=parent)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().parent().width(), common.ROW_HEIGHT)
@@ -337,9 +376,10 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         self.paint_thumbnail(*args)
         self.paint_name(*args)
 
-
     def paint_name(self, *args):
         painter, option, index, _ = args
+        active = self.parent().currentIndex() == index.row()
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.save()
 
@@ -351,20 +391,29 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         rect = QtCore.QRect(option.rect)
         rect.moveLeft(rect.left() + rect.height() + common.MARGIN)
         rect.setRight(rect.width() - (common.MARGIN * 2))
-        painter.setPen(QtGui.QPen(common.TEXT))
+
+        if active:
+            painter.setPen(QtGui.QPen(common.FAVOURITE))
+        else:
+            painter.setPen(QtGui.QPen(common.TEXT))
+
+        if hover and not active:
+            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
 
+        text = index.data(QtCore.Qt.DisplayRole).upper()
+        text = '{}  |  Current'.format(text) if active else text
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            index.data(QtCore.Qt.DisplayRole).upper()
+            text
         )
         painter.restore()
 
     def paint_background(self, *args):
         """Paints the background."""
         painter, option, _, selected = args
-
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
         if selected:
@@ -377,7 +426,8 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected = args
-
+        active = self.parent().currentIndex() == index.row()
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
         painter.save()
 
         if selected:
@@ -386,7 +436,6 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
             color = common.THUMBNAIL_BACKGROUND
 
         rect = QtCore.QRect(option.rect)
-        # Making the aspect ratio of the image 16/9
         rect.setWidth(rect.height())
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
@@ -411,80 +460,72 @@ class DropdownWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(shd_rect)
 
+        color = common.TEXT
+        if active:
+            color = common.FAVOURITE
+
         if index.row() == 0:
-            path = '{}/rsc/bookmark.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
+            pixmap = common.get_rsc_pixmap('bookmark', color, rect.height())
         if index.row() == 1:
-            path = '{}/rsc/package.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
+            pixmap = common.get_rsc_pixmap('package', color, rect.height())
         if index.row() == 2:
-            path = '{}/rsc/file.png'.format(
-                QtCore.QFileInfo(__file__).dir().path()
-            )
+            pixmap = common.get_rsc_pixmap('file', color, rect.height())
 
-        # Thumbnail image
-        if path in common.IMAGE_CACHE:
-            image = common.IMAGE_CACHE[path]
-        else:
-            image = QtGui.QImage()
-            image.load(path)
-            image = common.resize_image(
-                image,
-                option.rect.height()
-            )
-            common.IMAGE_CACHE[path] = image
 
-        # Factoring aspect ratio in
-        longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / longer)
-        if image.rect().width() < image.rect().height():
-            rect.setWidth(float(image.rect().width()) * factor)
-        else:
-            rect.setHeight(float(image.rect().height()) * factor)
-
-        rect.moveLeft(
-            rect.left() + ((option.rect.height() - rect.width()) * 0.5)
-        )
-        rect.moveTop(
-            rect.top() + ((option.rect.height() - rect.height()) * 0.5)
-        )
-
-        painter.drawImage(
+        painter.drawPixmap(
             rect,
-            image,
-            image.rect()
+            pixmap,
+            pixmap.rect()
         )
         painter.restore()
 
 
-class DropdownWidget(QtWidgets.QComboBox):
-    """Custom dropdown widget to select the current mode."""
+class ChangeListWidget(QtWidgets.QComboBox):
+    """Drop-down widget to switch between the list"""
 
     def __init__(self, parent=None):
-        super(DropdownWidget, self).__init__(parent=parent)
-        self.setItemDelegate(DropdownWidgetDelegate(parent=self))
+        super(ChangeListWidget, self).__init__(parent=parent)
+        self.setItemDelegate(ChangeListWidgetDelegate(parent=self))
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Fixed,
-            QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
         )
-        self.setFixedWidth(0)
         self.overlayWidget = None
+
+        self.addItem('Bookmarks')
+        self.addItem('Assets')
+        self.addItem('Files')
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
         self.overlayWidget = OverlayWidget(
-            self.parent().parent().stacked_widget)
-        self.view().setFixedWidth(200)
+            self.parent().parent().stackedwidget)
         popup = self.findChild(QtWidgets.QFrame)
-        super(DropdownWidget, self).showPopup()
+        popup.show()
+
+        pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
+        popup.move(pos)
+        popup.setFixedWidth(self.parent().rect().width())
+        popup.setFixedHeight(common.ROW_HEIGHT * 3)
+
+        # Selecting the current item
+        index = self.view().model().index(self.currentIndex(), 0)
+        self.view().selectionModel().setCurrentIndex(
+            index,
+            QtCore.QItemSelectionModel.ClearAndSelect
+        )
+
+        # Hiding the AddBookmarkButton
+        self.parent().findChild(AddBookmarkButton).hide()
 
     def hidePopup(self):
         """Toggling overlay widget when combobox is shown."""
         if self.overlayWidget:
             self.overlayWidget.close()
-        super(DropdownWidget, self).hidePopup()
+        super(ChangeListWidget, self).hidePopup()
+
+        # Showing the AddBookmarkButton
+        self.parent().findChild(AddBookmarkButton).show()
 
 
 if __name__ == '__main__':

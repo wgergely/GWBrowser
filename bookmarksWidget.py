@@ -198,12 +198,13 @@ class BookmarksWidget(BaseListWidget):
         widget = AddBookmarkWidget(parent=self)
 
         app = QtCore.QCoreApplication.instance()
-        rect = app.desktop().availableGeometry(self)
-
         widget.show()
+
+        pos = self.parent().rect().center()
+        pos = self.parent().mapToGlobal(pos)
         widget.move(
-            (rect.width() / 2.0) - (self.width() / 2.0),
-            (rect.height() / 2.0) - (self.height())
+            pos.x() - (widget.width() / 2.0),
+            pos.y() - (widget.height() / 2.0),
         )
 
     def mouseDoubleClickEvent(self, event):
