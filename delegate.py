@@ -201,15 +201,25 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             'favourite', color, common.INLINE_ICON_SIZE)
 
         painter.setPen(QtCore.Qt.NoPen)
+
         if favourite:
             color = QtGui.QColor(common.SEPARATOR)
-            color.setAlpha(60)
+            color.setAlpha(150)
             painter.setBrush(QtGui.QBrush(color))
             painter.drawRoundedRect(bg_rect, 2.0, 2.0)
 
+            rect2 = QtCore.QRect(option.rect)
+            rect2.setTop(rect2.top() + 1)
+            rect2.setBottom(rect2.bottom() - 1)
+            rect2.setWidth(common.INDICATOR_WIDTH)
+            rect2.moveRight(option.rect.right())
+
+            painter.setBrush(common.FAVOURITE)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRect(rect2)
+
         # Icon
         painter.drawPixmap(rect, pixmap)
-
         painter.restore()
 
     def paint_background(self, *args):
@@ -220,9 +230,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
         if selected and not active:
-            color = common.BACKGROUND_SELECTED
+            color = QtGui.QColor(common.BACKGROUND_SELECTED)
         elif not selected and not active:
-            color = common.BACKGROUND
+            color = QtGui.QColor(common.BACKGROUND)
         elif selected and active:
             color = QtGui.QColor(common.SELECTION)
             color.setRed(color.red() - 20)
@@ -238,11 +248,25 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setWidth(option.rect.height() - 1)
+
+        color.setHsl(
+            color.hue(),
+            color.saturation(),
+            color.lightness() - 10
+        )
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
         painter.restore()
 
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, active, _, _, _ = args
 
         painter.save()
 
@@ -252,11 +276,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setBottom(rect.bottom() - 1)
 
         if selected:
-            color = self.get_state_color(option, index, common.SELECTION)
+            color = common.SELECTION
         else:
-            color = QtGui.QColor(common.SEPARATOR)
-            # color.setAlpha(150)
-            color = self.get_state_color(option, index, color)
+            color = common.SEPARATOR
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
@@ -276,15 +298,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
+        rect.setWidth(common.INDICATOR_WIDTH)
+        rect.moveRight(option.rect.right())
 
         color = self.get_state_color(option, index, common.SELECTION)
 
-        rect.setWidth(common.INDICATOR_WIDTH)
         painter.setBrush(color)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(rect)
-
-        rect.moveRight(option.rect.right())
         painter.drawRect(rect)
 
         painter.restore()
@@ -303,11 +323,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             common.INDICATOR_WIDTH +
             rect.height() + 1
         )
-        rect.setRight(rect.left() + rect.height())
+        rect.setRight(rect.left() + common.ROW_HEIGHT)
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
         gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(gradient))
@@ -315,8 +335,43 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
         gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(rect)
+
+        painter.restore()
+
+    def paint_inline_icons_shadow(self, *args):
+        """Paints a drop-shadow"""
+        painter, option, _, _, _, _, _, _ = args
+
+        if option.rect.width() < 360.0:
+            return
+
+        painter.save()
+        rect = QtCore.QRect(option.rect)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+
+        _rect, _ = self.get_inline_icon_rect(
+            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+
+        rect.setRight(_rect.left() - common.MARGIN - 1)
+        rect.setLeft(_rect.left() - common.ROW_HEIGHT)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        gradient = QtGui.QLinearGradient(
+            rect.topLeft(), rect.topRight())
+        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 30))
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 0))
+        painter.setBrush(QtGui.QBrush(gradient))
+        painter.drawRect(rect)
+
+        gradient = QtGui.QLinearGradient(
+            rect.topLeft(), rect.topRight())
+        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 30))
+        gradient.setColorAt(0.7, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
 
@@ -326,6 +381,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _, _, _ = args
         painter.save()
+
         # Background rectangle
         rect = QtCore.QRect(option.rect)
         rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
@@ -334,20 +390,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setRight(option.rect.left() +
                       common.INDICATOR_WIDTH + rect.height())
 
-        if selected:
-            color = common.THUMBNAIL_BACKGROUND_SELECTED
-        else:
-            color = common.THUMBNAIL_BACKGROUND
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
-
         settings = AssetSettings(index)
         bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
             path=settings.thumbnail_path(),
         )]
 
+        painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(bg_color))
         painter.drawRect(rect)
 
@@ -359,7 +407,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / float(longer))
 
-        height = rect.height()
         if image.rect().width() < image.rect().height():
             rect.setWidth(int(image.rect().width() * factor) - 2)
         else:
@@ -588,6 +635,44 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawPixmap(rect, pixmap)
         painter.restore()
 
+    def paint_inline_icons_background(self, *args):
+        painter, option, _, selected, _, active, _, _ = args
+
+        if option.rect.width() < 360.0:
+            return
+
+        painter.save()
+        rect, _ = self.get_inline_icon_rect(
+            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+
+        # Background rectangle
+        bg_rect = QtCore.QRect(option.rect)
+        bg_rect.setLeft(rect.left() - common.MARGIN)
+        bg_rect.setTop(bg_rect.top() + 1)
+        bg_rect.setBottom(bg_rect.bottom() - 1)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        if selected and not active:
+            color = QtGui.QColor(common.BACKGROUND_SELECTED)
+        elif not selected and not active:
+            color = QtGui.QColor(common.BACKGROUND)
+        elif selected and active:
+            color = QtGui.QColor(common.SELECTION)
+            color.setRed(color.red() - 20)
+            color.setGreen(color.green() - 20)
+            color.setBlue(color.blue())
+        elif not selected and active:
+            color = QtGui.QColor(49, 107, 218)
+
+        color.setHsl(
+            color.hue(),
+            color.saturation(),
+            color.lightness() - 20
+        )
+        painter.setBrush(color)
+        painter.drawRect(bg_rect)
+        painter.restore()
+
     def paint_todo_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, index, _, _, _, _, _ = args
@@ -604,18 +689,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 3)
-
-        # Background rectangle
-        bg_rect = QtCore.QRect(rect)
-        bg_rect.setTop(option.rect.top())
-        bg_rect.setBottom(option.rect.bottom())
-        bg_rect.moveLeft(bg_rect.left() - (common.MARGIN))
-        painter.setPen(QtCore.Qt.NoPen)
-        bg_rect.setRight(option.rect.right())
-        color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(50)
-        painter.setBrush(color)
-        painter.drawRect(bg_rect)
 
         color = QtGui.QColor(common.TEXT)
         pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
@@ -679,7 +752,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, 3)
+                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
 
         text = metrics.elidedText(
@@ -716,23 +789,25 @@ class BookmarksWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
-
-        self.paint_selection_indicator(*args)
+        #
         self.paint_thumbnail(*args)
-        # self.paint_thumbnail_shadow(*args)
-
-        self.paint_active_indicator(*args)
         self.paint_archived(*args)
+        # self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
+        # self.paint_description(*args)
+        #
+        self.paint_inline_icons_background(*args)
+        self.paint_inline_icons_shadow(*args)
         self.paint_folder_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
-        # self.paint_description(*args)
         #
+        self.paint_selection_indicator(*args)
+        self.paint_active_indicator(*args)
 
     def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the bookmark item."""
+        """Paints the thumbnail of the ``BookmarkWidget`` item."""
         painter, option, index, _, _, active, _, _ = args
         painter.save()
 
@@ -773,13 +848,14 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.save()
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
+        painter.setFont(font)
 
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[\W\d\_]+', ' ', text.upper())
+        text = re.sub(r'[\W\d\_]+', ' ', text)
         width = metrics.width(text)
         rect.setWidth(width)
         text = metrics.elidedText(
@@ -790,73 +866,56 @@ class BookmarksWidgetDelegate(BaseDelegate):
         name = str(text)
         name_rect = QtCore.QRect(rect)
 
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSizeF(8.5)
-        painter.setFont(font)
-
         rect.setLeft(rect.right() + common.INDICATOR_WIDTH)
         rect.setRight(option.rect.right() - common.MARGIN)
         text = self._get_root_text(index, rect, metrics)
         rect.setWidth(metrics.width(text))
 
         if count:
-            color = QtGui.QColor(common.FAVOURITE)
-            color.setHsl(
-                color.hue(),
-                color.saturation() - 50,
-                color.lightness() - 20
-            )
+            color = QtGui.QColor(common.TEXT)
         else:
-            color = QtGui.QColor(common.SEPARATOR)
-
-        _rect = QtCore.QRect(rect)
-        _rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH +
-                      (option.rect.height() - 2) + common.MARGIN)
-        pen = QtGui.QPen(common.SEPARATOR)
+            color = QtGui.QColor(common.TEXT_DISABLED)
+            if selected:
+                color = QtGui.QColor(common.TEXT)
 
         offset = 6.0
+
+        # Name background
+        pen = QtGui.QPen(common.FAVOURITE)
         pen.setWidth(offset)
         painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
-        painter.drawRoundedRect(_rect, 0.5, 0.5)
+        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
+        painter.drawRoundedRect(name_rect, 2, 2)
 
-        pen = QtGui.QPen(color)
-        pen.setWidth(offset)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRoundedRect(rect, 0.5, 0.5)
+        if option.rect.width() < 360.0:
+            pass
+        else:
+            _, icon_rect = self.get_inline_icon_rect(
+                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
 
-        _rect = QtCore.QRect(
-            rect.left() - (offset * 0.5),
-            rect.top() - (offset * 0.5),
-            offset,
-            rect.height() + offset
-        )
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(_rect)
-
-        # Name
-        painter.setFont(font)
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(common.FAVOURITE))
-        painter.drawText(
-            name_rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            name
-        )
-
-        color.setRed(color.red() + 100)
-        color.setGreen(color.green() + 100)
-        color.setBlue(color.blue() + 100)
+        # Root
         painter.setPen(QtGui.QPen(color))
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.drawText(
             rect,
-            QtCore.Qt.AlignCenter,
+            QtCore.Qt.AlignRight,
             text
         )
+
+        # Name
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSizeF(8)
+        painter.setFont(font)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(common.TEXT))
+        painter.drawText(
+            name_rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+            name
+        )
+
         painter.restore()
-        return
 
     def _get_root_text(self, index, rect, metrics):
         """Gets the text for drawing the root."""
@@ -869,6 +928,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 text = u'{}  |  {} asset'.format(text, count)
             else:
                 text = u'{}  |  {} assets'.format(text, count)
+        else:
+            text = u'{}  |  No assets'.format(text)
+
         return metrics.elidedText(
             text,
             QtCore.Qt.ElideLeft,
@@ -893,21 +955,23 @@ class AssetWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
+        #
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
-        self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
         #
+        self.paint_name(*args)
+        self.paint_description(*args)
+        #
+        self.paint_inline_icons_background(*args)
+        self.paint_inline_icons_shadow(*args)
         self.paint_todo_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_folder_icon(*args)
         #
+        self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
-        #
-        self.paint_name(*args)
-        self.paint_description(*args)
-        #
 
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetWidget``."""
@@ -924,7 +988,7 @@ class AssetWidgetDelegate(BaseDelegate):
 
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, 3)
+                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left())
 
         # Asset name
@@ -963,20 +1027,23 @@ class FilesWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
+        #
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
-        self.paint_selection_indicator(*args)
         self.paint_thumbnail_shadow(*args)
-        self.paint_active_indicator(*args)
-        #
-        self.paint_folder_icon(*args)
-        self.paint_favourite_icon(*args)
-        self.paint_archived_icon(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
         self.paint_description(*args)
         #
+        self.paint_inline_icons_background(*args)
+        self.paint_inline_icons_shadow(*args)
+        self.paint_folder_icon(*args)
+        self.paint_favourite_icon(*args)
+        self.paint_archived_icon(*args)
+        #
+        self.paint_selection_indicator(*args)
+        self.paint_active_indicator(*args)
 
     def paint_description(self, *args):
         """Paints the item description inside the ``FilesWidget``."""
@@ -1008,9 +1075,8 @@ class FilesWidgetDelegate(BaseDelegate):
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
-                common.INLINE_ICON_SIZE, self.parent().inline_icons_count()
-            )
-            rect.setRight(icon_rect.left())
+                common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         else:
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
@@ -1165,9 +1231,8 @@ class FilesWidgetDelegate(BaseDelegate):
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
-                common.INLINE_ICON_SIZE, self.parent().inline_icons_count()
-            )
-            rect.setRight(icon_rect.left())
+                common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         else:
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft

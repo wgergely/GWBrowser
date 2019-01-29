@@ -39,16 +39,13 @@ class ActivePathMonitor(QtCore.QObject):
     # Signals
     activeChanged = QtCore.Signal(collections.OrderedDict)
 
+    keys = ('server', 'job', 'root', 'asset', 'location', 'fileroot', 'file')
+
     def __init__(self, parent=None):
         super(ActivePathMonitor, self).__init__(parent=parent)
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(2000)
-        self.timer.timeout.connect(self.update_path)
 
-        self.active_path = ActivePathMonitor.get_active_path()
-
-    @staticmethod
-    def get_active_paths():
+    @classmethod
+    def get_active_paths(cls):
         """Returns the currently set ``active`` paths as a dictionary.
         Before returning the values we validate wheather the
         saved path refers to an existing folder. The invalid items will be unset.
@@ -62,14 +59,11 @@ class ActivePathMonitor(QtCore.QObject):
 
         """
         d = collections.OrderedDict()
-        d['server'] = local_settings.value('activepath/server')
-        d['job'] = local_settings.value('activepath/job')
-        d['root'] = local_settings.value('activepath/root')
-        d['asset'] = local_settings.value('activepath/asset')
-        d['fileroot'] = local_settings.value('activepath/fileroot')
-        d['file'] = local_settings.value('activepath/file')
+        for k in cls.keys:
+            d[k] = local_settings.value('activepath/{}'.format(k))
 
-        # Checking whether the active-path actually exists
+        # Checking whether the active-path actually exists and unsetting
+        # the invalid components
         path = ''
         for k in d:
             path += '{}/'.format(d[k])
@@ -93,15 +87,6 @@ class ActivePathMonitor(QtCore.QObject):
                 break
             path += '{}/'.format(active_path[k])
         return path if path else None
-
-    def update_path(self):
-        active_path = ActivePathMonitor.get_active_paths()
-        for k in active_path:
-            if self.active_path[k] == active_path[k]:
-                continue
-            self.active_path = active_path
-            self.activeChanged.emit(active_path)
-            print '# update_path()'
 
 
 class LocalSettings(QtCore.QSettings):

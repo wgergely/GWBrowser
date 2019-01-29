@@ -189,8 +189,8 @@ QComboBox::drop-down:disabled {{
 
 ChangeListWidget {{
 	text-align: left;
-	padding-left: 10px;
-	padding-right: 10px;
+	margin: 0;
+	padding: 0;
 	border-style: solid;
 	color: rgba({TEXT});
 	background-color: rgba({SEPARATOR});
@@ -383,87 +383,87 @@ QMenu::SEPARATOR {{
 
 
 QToolTip {{
-		padding: 0;
-		margin: 0;
-		color: rgba({TEXT});
-    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
-    border: none;
-		outline: none;
-		font-size: 9pt;
+	padding: 0;
+	margin: 0;
+	color: rgba({TEXT});
+  background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+  border: none;
+	outline: none;
+	font-size: 9pt;
 }}
 
 
 
 TodoEditorWidget {{
-		background-color: rgba(230,230,230,255);
-		color: rgba({SECONDARY_TEXT});
-		border-width: 0px;
-		border: none;
-		margin: 0px;
-		padding: 0px;
-		outline: 0;
-		font-family: "{fontFamily}";
-		font-size: {fontSize}pt;
-	}}
+	background-color: rgba(230,230,230,255);
+	color: rgba({SECONDARY_TEXT});
+	border-width: 0px;
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	outline: 0;
+	font-family: "{fontFamily}";
+	font-size: {fontSize}pt;
+}}
 
-	TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
-		background: rgba(230,230,230,255);
-		border: none;
-	}}
-	TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
-		background: rgba(100,100,100,255);
-		border: 0px solid;
-		border-radius: 3px;
-		max-height: 250px;
-		min-height: 24;
-	}}
-	TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
-		background: rgba(230,230,230,255);
-	}}
+TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
+	background: rgba(230,230,230,255);
+	border: none;
+}}
+TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
+	background: rgba(100,100,100,255);
+	border: 0px solid;
+	border-radius: 3px;
+	max-height: 250px;
+	min-height: 24;
+}}
+TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
+	background: rgba(230,230,230,255);
+}}
 
-	TodoItemEditor {{
-		background-color: rgba(235,235,235,255);
-		border-width: 0px;
-		border: solid;
-		border-color: rgba(180,180,180,255);
-		margin: 0px 0px 0px 0px;
-		padding: 0px;
-		outline: 0;
-		color: rgba(0,0,0,255);
-		font-size: 10pt;
-	}}
+TodoItemEditor {{
+	background-color: rgba(235,235,235,255);
+	border-width: 0px;
+	border: solid;
+	border-color: rgba(180,180,180,255);
+	margin: 0px 0px 0px 0px;
+	padding: 0px;
+	outline: 0;
+	color: rgba(0,0,0,255);
+	font-size: 10pt;
+}}
 
-	CheckBoxButton, DragIndicatorButton{{
-		background-color: rgba(235,235,235,255);
-		margin: 0px;
-		padding-left: 10px;
-	}}
+CheckBoxButton, DragIndicatorButton{{
+	background-color: rgba(235,235,235,255);
+	margin: 0px;
+	padding-left: 10px;
+}}
 
-	TodoItemEditor:focus {{
-		color: rgba(30,30,30,255);
-		background-color: rgba(255,255,255,255);
-		border-width: 0px;
-		border: none;
-		outline: 0;
-	}}
-	TodoItemEditor:disabled {{
-		border: none;
-		border-width: 1px;
-		border-color: rgba(180,180,180,255);
-		color: rgba({FAVOURITE});
-		background-color: rgba(230,230,230,255);
-	}}
+TodoItemEditor:focus {{
+	color: rgba(30,30,30,255);
+	background-color: rgba(255,255,255,255);
+	border-width: 0px;
+	border: none;
+	outline: 0;
+}}
+TodoItemEditor:disabled {{
+	border: none;
+	border-width: 1px;
+	border-color: rgba(180,180,180,255);
+	color: rgba({FAVOURITE});
+	background-color: rgba(230,230,230,255);
+}}
 
 
 
-	AddBookmarkWidget {{
-			background-color: rgba(150,150,150,255);
-			color: rgba({SECONDARY_TEXT});
-			border-width: 1px;
-			border: none;
-			margin: 0px;
-			padding: 0px;
-			outline: 0;
-			font-family: "{fontFamily}";
-			font-size: {fontSize}pt;
-		}}
+AddBookmarkWidget {{
+	background-color: rgba(150,150,150,255);
+	color: rgba({SECONDARY_TEXT});
+	border-width: 1px;
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	outline: 0;
+	font-family: "{fontFamily}";
+	font-size: {fontSize}pt;
+}}

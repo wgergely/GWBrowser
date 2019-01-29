@@ -24,7 +24,8 @@ from mayabrowser.baselistwidget import BaseModel
 import mayabrowser.editors as editors
 from mayabrowser.delegate import AssetWidgetDelegate
 
-from mayabrowser.settings import AssetSettings, local_settings
+from mayabrowser.settings import AssetSettings
+from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
@@ -54,6 +55,7 @@ class AssetModel(BaseModel):
 
         """
         self.internal_data = {}  # reset
+        active_paths = path_monitor.get_active_paths()
 
         # Creating folders
         config_dir_path = '{}/.browser/'.format(
@@ -98,7 +100,7 @@ class AssetModel(BaseModel):
             )
 
             # Active
-            if file_info.completeBaseName() == local_settings.value('activepath/asset'):
+            if file_info.completeBaseName() == active_paths['asset']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -245,10 +247,11 @@ class AssetWidget(BaseInlineIconWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
+    active_paths = path_monitor.get_active_paths()
 
-    bookmark = (local_settings.value('activepath/server'),
-                local_settings.value('activepath/job'),
-                local_settings.value('activepath/root')
+    bookmark = (active_paths['server'],
+                active_paths['job'],
+                active_paths['root']
                 )
     app.w = AssetWidget(bookmark)
     app.w.show()

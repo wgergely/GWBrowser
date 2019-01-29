@@ -17,7 +17,7 @@ from mayabrowser.baselistwidget import BaseModel
 import mayabrowser.common as common
 from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import local_settings
+from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.delegate import FilesWidgetDelegate
 import mayabrowser.editors as editors
 
@@ -107,6 +107,7 @@ class FilesModel(BaseModel):
 
         """
         location = self.get_location()
+        active_paths = path_monitor.get_active_paths()
         self._internal_data[location] = {True: {}, False: {}}
         server, job, root, asset = self.asset
 
@@ -161,7 +162,7 @@ class FilesModel(BaseModel):
                     settings.conf_path()).path()
 
             # Active
-            if it.fileName() == local_settings.value('activepath/file'):
+            if it.fileName() == active_paths['file']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -264,7 +265,7 @@ class FilesModel(BaseModel):
             )
 
             # Active
-            if file_info.fileName() == local_settings.value('activepath/file'):
+            if file_info.fileName() == active_paths['file']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -471,10 +472,12 @@ class FilesWidget(BaseInlineIconWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    asset = (local_settings.value('activepath/server'),
-            local_settings.value('activepath/job'),
-            local_settings.value('activepath/root'),
-            local_settings.value('activepath/asset'))
+    active_paths = path_monitor.get_active_paths()
+    asset = (active_paths['server'],
+            active_paths['job'],
+            active_paths['root'],
+            active_paths['asset'],
+            )
     widget = FilesWidget(asset)
     widget.show()
     app.exec_()

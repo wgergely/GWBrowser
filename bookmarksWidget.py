@@ -21,7 +21,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import mayabrowser.common as common
 from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseListWidget
+from mayabrowser.baselistwidget import BaseInlineIconWidget
 from mayabrowser.baselistwidget import BaseModel
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
@@ -74,6 +74,7 @@ class BookmarksModel(BaseModel):
     def __initdata__(self):
         """Collects the data needed to populate the bookmark views."""
         self.internal_data = {}  # reset
+        active_paths = path_monitor.get_active_paths()
 
         items = local_settings.value(
             'bookmarks') if local_settings.value('bookmarks') else []
@@ -88,9 +89,9 @@ class BookmarksModel(BaseModel):
 
             # Active
             if (
-                file_info.server == local_settings.value('activepath/server') and
-                file_info.job == local_settings.value('activepath/job') and
-                file_info.root == local_settings.value('activepath/root')
+                file_info.server == active_paths['server'] and
+                file_info.job == active_paths['job'] and
+                file_info.root == active_paths['root']
             ):
                 flags = flags | MarkedAsActive
 
@@ -116,7 +117,7 @@ class BookmarksModel(BaseModel):
             }
 
 
-class BookmarksWidget(BaseListWidget):
+class BookmarksWidget(BaseInlineIconWidget):
     """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
@@ -131,6 +132,9 @@ class BookmarksWidget(BaseListWidget):
             QtCore.QItemSelectionModel.ClearAndSelect
         )
 
+    def inline_icons_count(self):
+        return 3
+
     def activate_current_index(self):
         """Sets the current item as ``active_index``.
 
@@ -138,11 +142,14 @@ class BookmarksWidget(BaseListWidget):
         ``activeFileChanged`` signals.
 
         """
-        if not super(BookmarksWidget, self).activate_current_index():
-            return
+
 
         index = self.selectionModel().currentIndex()
         if not index.isValid():
+            return
+        if not index.data(common.TodoCountRole):
+            return
+        if not super(BookmarksWidget, self).activate_current_index():
             return
         server, job, root = index.data(common.ParentRole)
         asset = None
@@ -181,7 +188,9 @@ class BookmarksWidget(BaseListWidget):
         if res == QtWidgets.QMessageBox.Cancel:
             return
 
-        index = self.selectionModel().currentIndex()
+        if not index:
+            index = self.selectionModel().currentIndex()
+            index = self.model().mapToSource(index)
         if not index.isValid():
             return
 
