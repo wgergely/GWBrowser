@@ -201,8 +201,8 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-
         self._createUI()
+        self.itemActivated()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -224,13 +224,13 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
-        label = QtWidgets.QLabel(self.get_text())
-        label.setSizePolicy(
+        self.label = QtWidgets.QLabel()
+        self.label.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum
         )
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setStyleSheet("""\
+        self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.label.setStyleSheet("""\
         QLabel {\
             color: rgb(30,30,30);\
             font-family: "Roboto Medium";\
@@ -238,20 +238,9 @@ class HeaderWidget(QtWidgets.QWidget):
         }\
         """)
 
-        self.layout().addSpacing(common.ROW_BUTTONS_HEIGHT)
-        self.layout().addWidget(label, 1)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addWidget(self.label, 1)
         self.layout().addWidget(CloseButton())
-
-    def get_text(self):
-        active_paths = path_monitor.get_active_paths()
-        text = 'Bookmark not set yet'
-
-        if all((active_paths['server'], active_paths['job'], active_paths['root'])):
-            text = '{} | {}'.format(active_paths['job'], active_paths['root'])
-
-        if active_paths['asset']:
-            text = '{} | {}'.format(text, active_paths['asset'])
-        return text
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
@@ -266,22 +255,17 @@ class HeaderWidget(QtWidgets.QWidget):
             offset = (event.pos() - self.move_start_event_pos)
             self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def activeIndexChanged(self, index):
-        if not index.isValid():
-            return
-
-        server, job, root = index.data(common.ParentRole)
-
-        if self.index.isValid():
-            job = self.index.data(common.ParentRole)[1]
-            text = '{}: {}  |  Notes and Tasks'.format(
-                job.upper(),
-                self.index.data(QtCore.Qt.DisplayRole).upper()
-            )
-        else:
-            text = 'Notes and Tasks'
-
+    def itemActivated(self, *args, **kwargs):
+        """Slot responsible for setting the header text."""
+        active_paths = path_monitor.get_active_paths()
+        text = 'Bookmark not activated'
+        if all((active_paths['server'], active_paths['job'], active_paths['root'])):
+            text = '{} | {}'.format(active_paths['job'], active_paths['root'])
+        if active_paths['asset']:
+            text = '{} | {}'.format(text, active_paths['asset'])
+        if active_paths['location']:
+            text = '{} | {}'.format(text, active_paths['location'])
+        self.label.setText(text.upper())
 
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the list to control the mode, filters and sorting."""
@@ -329,8 +313,7 @@ class ListControlWidget(QtWidgets.QWidget):
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
-    @QtCore.Slot(int)
-    def setCurrentMode(self, idx):
+    def setCurrentMode(self, idx, *args, **kwargs):
         """Sets the current mode of ``ListControlWidget``."""
         combobox = self.findChild(ChangeListWidget)
         label = self.findChild(ModePickButton)
@@ -347,6 +330,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
         label.setPixmap(pixmap)
         combobox.setCurrentIndex(idx)
+        combobox.apply_flags()
 
 
 class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
@@ -375,6 +359,7 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter, option, index, _ = args
         active = self.parent().currentIndex() == index.row()
         hover = option.state & QtWidgets.QStyle.State_MouseOver
+        disabled = index.flags() == QtCore.Qt.NoItemFlags
 
         painter.save()
 
@@ -387,18 +372,22 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         rect.moveLeft(rect.left() + rect.height() + common.MARGIN)
         rect.setRight(rect.width() - (common.MARGIN * 2))
 
+        painter.setPen(QtGui.QPen(common.TEXT))
+        if hover:
+            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            painter.setPen(QtGui.QPen(common.TEXT_DISABLED))
         if active:
             painter.setPen(QtGui.QPen(common.FAVOURITE))
-        else:
-            painter.setPen(QtGui.QPen(common.TEXT))
-
-        if hover and not active:
-            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
 
-        text = index.data(QtCore.Qt.DisplayRole).upper()
-        text = '{}  |  Current'.format(text) if active else text
+        text = index.data(QtCore.Qt.DisplayRole)
+        if index.row() == 1:
+            text = 'Assets (bookmark not activated)' if disabled else text
+        elif index.row() == 2:
+            text = 'Files (asset not activated)' if disabled else text
+
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -408,13 +397,13 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected = args
+        painter, option, index, selected = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-
+        color = common.BACKGROUND
         if selected:
             color = common.BACKGROUND_SELECTED
-        else:
-            color = common.BACKGROUND
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            color = common.SECONDARY_BACKGROUND
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
@@ -425,17 +414,10 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         painter.save()
 
-        if selected:
-            color = common.THUMBNAIL_BACKGROUND_SELECTED
-        else:
-            color = common.THUMBNAIL_BACKGROUND
-
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
 
         # Shadow next to the thumbnail
         shd_rect = QtCore.QRect(option.rect)
@@ -458,6 +440,8 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         color = common.TEXT
         if active:
             color = common.FAVOURITE
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            color = common.TEXT_DISABLED
 
         if index.row() == 0:
             pixmap = common.get_rsc_pixmap('bookmark', color, rect.height())
@@ -493,9 +477,27 @@ class ChangeListWidget(QtWidgets.QComboBox):
         idx = local_settings.value('widget/current_index')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
+        self.apply_flags()
+
+    def apply_flags(self):
+        """Sets the item flags based on the set active paths."""
+        active_paths = path_monitor.get_active_paths()
+        flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        bookmark = (active_paths['server'], active_paths['job'], active_paths['root'])
+        for n in xrange(self.model().rowCount()):
+            item = self.model().item(n)
+            if n == 1 and not all(bookmark):
+                item.setFlags(QtCore.Qt.NoItemFlags)
+                continue
+            if n == 2 and not active_paths['asset']:
+                item.setFlags(QtCore.Qt.NoItemFlags)
+                continue
+            item.setFlags(flags)
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
+
+
         self.overlay = OverlayWidget(
             self.parent().parent().stackedwidget)
         popup = self.findChild(QtWidgets.QFrame)
@@ -628,14 +630,27 @@ class BrowserWidget(QtWidgets.QWidget):
         # Bookmark
         self.bookmarkswidget.activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().set_bookmark)
+
+        combobox = self.listcontrolwidget.findChild(ChangeListWidget)
+        setCurrentMode = functools.partial(self.listcontrolwidget.setCurrentMode, 1)
+        self.bookmarkswidget.activeBookmarkChanged.connect(setCurrentMode)
+        self.bookmarkswidget.activeBookmarkChanged.connect(combobox.apply_flags)
+        self.bookmarkswidget.activeBookmarkChanged.connect(self.headerwidget.itemActivated)
+
         # Asset
+        setCurrentMode = functools.partial(self.listcontrolwidget.setCurrentMode, 2)
         self.assetswidget.activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
+        self.assetswidget.activeAssetChanged.connect(setCurrentMode)
+        self.assetswidget.activeAssetChanged.connect(combobox.apply_flags)
+        self.assetswidget.activeAssetChanged.connect(self.headerwidget.itemActivated)
 
         # Statusbar
         self.bookmarkswidget.entered.connect(self.entered)
         self.assetswidget.entered.connect(self.entered)
         self.fileswidget.entered.connect(self.entered)
+
+        self.fileswidget.activeLocationChanged.connect(self.headerwidget.itemActivated)
 
     def entered(self, index):
         """Custom itemEntered signal."""

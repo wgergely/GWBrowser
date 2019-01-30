@@ -142,8 +142,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         ``activeFileChanged`` signals.
 
         """
-
-
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
@@ -151,28 +149,14 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
         if not super(BookmarksWidget, self).activate_current_index():
             return
-        server, job, root = index.data(common.ParentRole)
-        asset = None
 
-        # Updating the local config file
-        active_paths = path_monitor.get_active_paths()
+        server, job, root = index.data(common.ParentRole)
         local_settings.setValue('activepath/server', server)
         local_settings.setValue('activepath/job', job)
         local_settings.setValue('activepath/root', root)
-        self.activeBookmarkChanged.emit((server, job, root))
 
-        # Keeping the asset selection if it exists inside the activated bookmark
-        if active_paths['asset']:
-            path = '{}/{}'.format(
-                index.data(QtCore.Qt.StatusTipRole), active_paths['asset'])
-            if QtCore.QFileInfo(path).exists():
-                asset = active_paths['asset']
-                local_settings.setValue('activepath/asset', asset)
-                self.activeAssetChanged.emit(asset)
-
-        # Resetting
-        local_settings.setValue('activepath/file', None)
-        self.activeFileChanged.emit(None)
+        path_monitor.get_active_paths() # Resetting invalid paths
+        self.activeBookmarkChanged.emit(index.data(common.ParentRole))
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from

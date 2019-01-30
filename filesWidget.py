@@ -47,16 +47,14 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
+
         menu_set['collapse'] = {
             'text': 'Show individual files' if collapsed else 'Group sequences together',
             'icon': expand_pixmap if collapsed else collapse_pixmap,
             'checkable': True,
             'checked': collapsed,
-            'action': (functools.partial(
-                self.parent().model().sourceModel().set_grouped,
-                not collapsed),
-                self.parent().model().sort,
-            )
+            'action': functools.partial(
+                self.parent().model().sourceModel().set_grouped, not collapsed)
         }
 
         self.create_menu(menu_set)
@@ -92,11 +90,15 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
 
 class FilesModel(BaseModel):
+    """The model to collect files."""
+
     def __init__(self, asset, parent=None):
         self.asset = asset
         self.mode = None
         super(FilesModel, self).__init__(parent=parent)
         self.switch_dataset()
+
+        self.grouppingChanged.connect(self.switch_dataset)
 
     def __initdata__(self):
         """To get the files, we will have to decide what extensions to take
@@ -115,6 +117,7 @@ class FilesModel(BaseModel):
             return
 
         self.modes = self.get_modes(self.asset, location)
+
         # Iterator
         dir_ = QtCore.QDir('{asset}/{location}'.format(
             asset='/'.join(self.asset),
@@ -135,9 +138,9 @@ class FilesModel(BaseModel):
 
         while it.hasNext():
             path = it.next()
-            mode = it.fileInfo().path().replace(
-                '/'.join((server, job, root, asset, location)), '')
-            mode = mode.strip('/')
+            fileroot = '/'.join((server, job, root, asset, location))
+            fileroot = it.fileInfo().path().replace(fileroot, '')
+            fileroot = fileroot.strip('/')
 
             # Flags
             flags = (
@@ -162,7 +165,8 @@ class FilesModel(BaseModel):
                     settings.conf_path()).path()
 
             # Active
-            if it.fileName() == active_paths['file']:
+            activefilepath = '{}/{}'.format(fileroot, it.fileName())
+            if activefilepath == active_paths['file']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -178,7 +182,7 @@ class FilesModel(BaseModel):
             # Todos
             count = 0
 
-            tooltip = u'{} | {} | {}\n'.format(job, root, mode)
+            tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}'.format(it.filePath())
 
             # File info
@@ -198,7 +202,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, asset, location, mode),
+                common.ParentRole: (server, job, root, asset, location, fileroot),
                 common.DescriptionRole: settings.value('config/description'),
                 common.TodoCountRole: count,
                 common.FileDetailsRole: info_string,
@@ -265,7 +269,8 @@ class FilesModel(BaseModel):
             )
 
             # Active
-            if file_info.fileName() == active_paths['file']:
+            activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
+            if activefilepath == active_paths['file']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -279,18 +284,17 @@ class FilesModel(BaseModel):
                 flags = flags | MarkedAsFavourite
 
             # Modes
-            mode = file_info.path()  # parent folder
-            mode = mode.replace(
-                '/'.join((server, job, root, asset, location)), '')
-            mode = mode.strip('/')
+            fileroot = '/'.join((server, job, root, asset, location))
+            fileroot = file_info.path().replace(fileroot, '')
+            fileroot = fileroot.strip('/')
 
-            tooltip = u'{} | {} | {}\n'.format(job, root, mode)
+            tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}'.format(file_info.filePath())
 
             # File info
             info_string = 'Sequence of {} files'.format(len(frames))
 
-            tooltip = u'{} | {} | {}\n'.format(job, root, mode)
+            tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}  (sequence)'.format(file_info.filePath())
 
             self._internal_data[location][True][idx] = {
@@ -300,7 +304,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, asset, location, mode),
+                common.ParentRole: (server, job, root, asset, location, fileroot),
                 common.DescriptionRole: settings.value('config/description'),
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: info_string,
@@ -313,7 +317,6 @@ class FilesModel(BaseModel):
 
             idx += 1
 
-
     def switch_dataset(self):
         """Swaps the dataset."""
         self.beginResetModel()
@@ -323,13 +326,11 @@ class FilesModel(BaseModel):
     def set_asset(self, asset):
         if asset == self.asset:
             return
-
         self.asset = asset
         self.beginResetModel()
         self.__initdata__()
         self.switch_dataset()
         self.endResetModel()
-
 
     def is_grouped(self):
         """Gathers sequences into a single file."""
@@ -342,10 +343,14 @@ class FilesModel(BaseModel):
         return val if val else False
 
     def set_grouped(self, val):
+        """Sets the groupping mode."""
+        self.aboutToChange.emit()
+
         cls = self.__class__.__name__
         key = 'widget/{}/groupfiles'.format(cls)
         local_settings.setValue(key, val)
-        self.switch_dataset()
+
+        self.grouppingChanged.emit()
 
     def get_modes(self, asset, location):
         file_info = QtCore.QFileInfo('{asset}/{location}'.format(
@@ -364,6 +369,9 @@ class FilesModel(BaseModel):
     def get_location(self):
         """Get's the current ``location``."""
         val = local_settings.value('activepath/location')
+        if not val:
+            local_settings.setValue('activepath/location', common.ScenesFolder)
+
         return val if val else common.ScenesFolder
 
     def set_location(self, val):
@@ -401,12 +409,32 @@ class FilesWidget(BaseInlineIconWidget):
 
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
+        self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
 
     def inline_icons_count(self):
         return 3
+
+    def activate_current_index(self):
+        """Sets the current item item as ``active`` and
+        emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
+
+        """
+        if not super(FilesWidget, self).activate_current_index():
+            return
+
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+        fileroot = index.data(common.ParentRole)[5]
+        activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
+
+        local_settings.setValue('activepath/file', activefilepath)
+        self.activeFileChanged.emit(activefilepath)
 
     def get_location(self):
         """Get's the current file ``location``.

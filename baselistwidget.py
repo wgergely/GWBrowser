@@ -78,11 +78,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             'ckeckable': True,
             'checked': True if self.parent().model().sortorder else False,
             'icon': arrow_down_icon if self.parent().model().sortorder else arrow_up_icon,
-            'action': (
-                functools.partial(self.parent().model().set_sortorder,
-                                  not self.parent().model().sortorder),
-                self.parent().model().sort
-            )
+            'action': functools.partial(self.parent().model().set_sortorder,
+                                        not self.parent().model().sortorder)
         }
 
         menu_set['Sort']['separator'] = {}
@@ -91,41 +88,29 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': item_on_icon if sort_by_name else item_off_icon,
             'ckeckable': True,
             'checked': True if sort_by_name else False,
-            'action': (
-                functools.partial(
-                    self.parent().model().set_sortkey, common.SortByName),
-                self.parent().model().sort
-            )
+            'action': functools.partial(
+                self.parent().model().set_sortkey, common.SortByName)
         }
         menu_set['Sort']['Date modified'] = {
             'icon': item_on_icon if sort_modified else item_off_icon,
             'ckeckable': True,
             'checked': True if sort_modified else False,
-            'action': (
-                functools.partial(self.parent().model().set_sortkey,
-                                  common.SortByLastModified),
-                self.parent().model().sort
-            )
+            'action': functools.partial(self.parent().model().set_sortkey,
+                                        common.SortByLastModified)
         }
         menu_set['Sort']['Date created'] = {
             'icon': item_on_icon if sort_created else item_off_icon,
             'ckeckable': True,
             'checked': True if sort_created else False,
-            'action': (
-                functools.partial(self.parent().model().set_sortkey,
-                                  common.SortByLastCreated),
-                self.parent().model().sort
-            )
+            'action': functools.partial(self.parent().model().set_sortkey,
+                                        common.SortByLastCreated)
         }
         menu_set['Sort']['Size'] = {
             'icon': item_on_icon if sort_size else item_off_icon,
             'ckeckable': True,
             'checked': True if sort_size else False,
-            'action': (
-                functools.partial(
-                    self.parent().model().set_sortkey, common.SortBySize),
-                self.parent().model().sort
-            )
+            'action': functools.partial(self.parent().model().set_sortkey,
+                                        common.SortBySize)
         }
         menu_set['separator'] = {}
         self.create_menu(menu_set)
@@ -224,8 +209,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             if not file_info.isDir():
                 continue
 
-            menu_set[key][file_info.completeBaseName()] = {
-                'text': file_info.completeBaseName().upper(),
+            menu_set[key][file_info.fileName()] = {
+                'text': file_info.fileName().upper(),
                 'icon': folder_icon,
                 'action': functools.partial(
                     common.reveal,
@@ -339,6 +324,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': item_on if archived else item_off,
             'checkable': True,
             'checked': archived,
+            'disabled': favourite,
             'action':
                 functools.partial(
                     self.parent().model().set_filtermode,
@@ -512,7 +498,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
 
 class BaseModel(QtCore.QAbstractItemModel):
-    """Flat base-model."""
+    """Flat base-model for storing items."""
+
+    aboutToChange = QtCore.Signal()  # Emit before the model is about to change
+    grouppingChanged = QtCore.Signal()  # The sequence view mode
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -573,46 +562,41 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         }
 
     def get_sortkey(self):
-        val = local_settings.value(
-            'widget/{}/sortkey'.format(self.__class__.__name__))
+        """The sort-key used to determine the order of the list."""
+        cls = self.parent().__class__.__name__
+        val = local_settings.value('widget/{}/sortkey'.format(cls))
         return int(val) if val else common.SortByName
 
     def set_sortkey(self, val):
+        """Sets and saves the sort-key."""
+        cls = self.parent().__class__.__name__
         self.sortkey = val
-        self.sort()
+        local_settings.setValue('widget/{}/sortkey'.format(cls), val)
 
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{}/sortkey'.format(cls), val)
+        self.invalidate()
 
     def get_sortorder(self):
+        cls = self.parent().__class__.__name__
         val = local_settings.value(
-            'widget/{}/sortorder'.format(self.__class__.__name__))
+            'widget/{}/sortorder'.format(cls))
         return int(val) if val else False
 
     def set_sortorder(self, val):
+        cls = self.parent().__class__.__name__
         self.sortorder = val
+        local_settings.setValue('widget/{}/sortorder'.format(cls), val)
+        self.invalidate()
         self.sort()
 
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{}/sortorder'.format(cls), val)
-
     def get_filtermode(self, mode):
-        val = local_settings.value(
-            'widget/{widget}/mode:{mode}'.format(
-                widget=self.__class__.__name__,
-                mode=mode
-            ))
+        cls = self.parent().__class__.__name__
+        val = local_settings.value('widget/{}/mode:{}'.format(cls, mode))
         return val if val else False
 
     def set_filtermode(self, mode, val):
+        cls = self.parent().__class__.__name__
         self.filter_mode[mode] = val
-
-        cls = self.__class__.__name__
-        local_settings.setValue(
-            'widget/{widget}/mode:{mode}'.format(widget=cls, mode=mode), val)
-
+        local_settings.setValue('widget/{}/mode:{}'.format(cls, mode), val)
         self.invalidateFilter()
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
@@ -646,25 +630,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         return common.sort_keys[self.sortkey](left_info) < common.sort_keys[self.sortkey](right_info)
 
-        # if self.sortkey == common.SortByName:
-        #     return left_info.filePath() < right_info.filePath()
-        # elif self.sortkey == common.SortByLastModified:
-        #     return left_info.lastModified() < right_info.lastModified()
-        # elif self.sortkey == common.SortByLastCreated:
-        #     return left_info.lastModified() < right_info.lastModified()
-        # elif self.sortkey == common.SortBySize:
-        #     left = left_info.size()
-        #     right = right_info.size()
-        #     if not left_info.size():
-        #         left = source_left.data(common.TodoCountRole)
-        #         right = source_right.data(common.TodoCountRole)
-        #     if not any((left, right)):
-        #         left = left_info.filePath()
-        #         right = right_info.filePath()
-        #     return left < right
-        # else:
-        #     return left_info.filePath() < right_info.filePath()
-
 
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
@@ -679,15 +644,16 @@ class BaseListWidget(QtWidgets.QListView):
 
     def __init__(self, model, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
-        proxy_model = FilterProxyModel()
+        proxy_model = FilterProxyModel(parent=self)
         proxy_model.setSourceModel(model)
         self.setModel(proxy_model)
         self.model().sort()
 
-        # The timer used to check for changes in the active path
-        self._location = None
+        self._previouspathtoselect = None
+        self.model().sourceModel().aboutToChange.connect(self.store_previous_path)
+        self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
 
-        self.activeLocationChanged.connect(self.refresh)
+        self._location = None
 
         self.collector_count = 0
         self._context_menu_cls = BaseContextMenu
@@ -695,15 +661,15 @@ class BaseListWidget(QtWidgets.QListView):
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
-        self.installEventFilter(self)
-        self.viewport().installEventFilter(self)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        self.installEventFilter(self)
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -715,6 +681,14 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = ''
+
+    def store_previous_path(self):
+        """Saves the currently selected path."""
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            self._previouspathtoselect = None
+            return
+        self._previouspathtoselect = index.data(QtCore.Qt.StatusTipRole)
 
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
@@ -830,9 +804,6 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.isValid():
             return
 
-        # Disabling updates
-        self.setUpdatesEnabled(False)
-
         settings = AssetSettings(index)
         path = ScreenGrabber.capture(
             output_path=settings.thumbnail_path())
@@ -843,7 +814,6 @@ class BaseListWidget(QtWidgets.QListView):
         height = self.visualRect(index).height() - 2
         common.cache_image(settings.thumbnail_path(), height)
 
-        self.setUpdatesEnabled(True)
         self.repaint()
 
     def remove_thumbnail(self):
@@ -860,21 +830,29 @@ class BaseListWidget(QtWidgets.QListView):
         self.repaint()
 
     def refresh(self):
-        """Re-populates the list-widget with the collected items."""
+        """Refreshes the underlaying source model and resets the sorting."""
         index = self.selectionModel().currentIndex()
-        path = index.data(QtCore.Qt.StatusTipRole)
+        opath = index.data(QtCore.Qt.StatusTipRole)
 
+        self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().switch_dataset()
         self.model().sourceModel().endResetModel()
+        self.model().invalidate()
         self.model().sort()
+        self.reselect_index(opath)
 
-        if not path:
+    def reselect_previous_path(self):
+        """Reselects the index based on the path given."""
+        if not self._previouspathtoselect:
             return
+        path = common.get_sequence_startpath(self._previouspathtoselect)
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-            if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
+            _path = index.data(QtCore.Qt.StatusTipRole)
+            _path = common.get_sequence_startpath(_path)
+            if path == _path:
                 self.selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
@@ -1117,26 +1095,6 @@ class BaseListWidget(QtWidgets.QListView):
             QtCore.QItemSelectionModel.ClearAndSelect
         )
 
-    def paint_message(self, text):
-        """Paints a custom message onto the list widget."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        rect = QtCore.QRect(self.viewport().rect())
-        rect.setLeft(rect.left() + common.MARGIN)
-        rect.setRight(rect.right() - common.MARGIN)
-        rect.setBottom(rect.bottom() - common.MARGIN)
-
-        painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
-        painter.setPen(QtGui.QPen(common.SECONDARY_TEXT))
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignHCenter | QtCore.Qt.AlignBottom | QtCore.Qt.TextWordWrap,
-            text
-        )
-
-        painter.end()
-
     def showEvent(self, event):
         """Show event will set the size of the widget."""
 
@@ -1177,45 +1135,74 @@ class BaseListWidget(QtWidgets.QListView):
             )
         super(BaseListWidget, self).mousePressEvent(event)
 
-    def _warning_strings(self):
-        """Custom warning strings to paint."""
-        active_paths = path_monitor.get_active_paths()
-        file_info = QtCore.QFileInfo(
-            '{}/{}/{}'.format(active_paths['server'], active_paths['job'], active_paths['root']))
-
-        warning_one = 'No Bookmark has been set yet.\nAssets will be shown here after activating a Bookmark.'
-        warning_two = 'Invalid Bookmark set.\nServer: {}\nJob: {}\nRoot: {}'
-        warning_three = 'The active bookmark does not exist.\nBookmark: {}'
-        warning_four = 'The active bookmark ({}/{}/{}) does not contain any assets...yet.'
-        warning_five = '{} items are hidden by filters'
-
-        if not all((active_paths['server'], active_paths['job'], active_paths['root'])):
-            return warning_one
-        if not any((active_paths['server'], active_paths['job'], active_paths['root'])):
-            return warning_two.format(
-                active_paths['server'], active_paths['job'], active_paths['root']
-            )
-        if not file_info.exists():
-            return warning_three.format('/'.join((active_paths['server'], active_paths['job'], active_paths['root'])))
-
-        if not self.model().rowCount():
-            return warning_four.format(active_paths['server'], active_paths['job'], active_paths['root'])
-
-        if self.model().sourceModel().rowCount() > self.model().rowCount():
-            return warning_five.format(
-                self.model().sourceModel().rowCount() - self.model().rowCount())
-
-        return ''
-
     def eventFilter(self, widget, event):
-        """BaseInlineIconWidget's custom paint is triggered here.
+        """Custom paint event used to paint the background of the list."""
+        if widget is not self:
+            return False
 
-        I'm using the custom paint event to display a user message when no
-        asset or files can be found.
+        if event.type() is not QtCore.QEvent.Paint:
+            return False
 
-        """
-        if event.type() == QtCore.QEvent.Paint:
-            self.paint_message(self._warning_strings())
+        sizehint = self.itemDelegate().sizeHint(
+            self.viewOptions(), QtCore.QModelIndex())
+        rect = QtCore.QRect(common.INDICATOR_WIDTH, 2, event.rect(
+        ).width() - (common.INDICATOR_WIDTH * 2), sizehint.height() - 4)
+        favourite_mode = self.model().filter_mode['favourite']
+        text_rect = QtCore.QRect(rect)
+        text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
+        text_rect.setRight(rect.right() - common.MARGIN)
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSize(8)
+        painter.setFont(font)
+
+        for n in xrange((self.height() / sizehint.height()) + 1):
+            if n >= self.model().rowCount():  # Empty items
+                rect_ = QtCore.QRect(rect)
+                rect_.setWidth(sizehint.height() - 2)
+                painter.drawRect(rect_)
+                painter.drawRect(rect)
+            if n == 0 and not favourite_mode:  # Empty model
+                painter.setPen(common.TEXT_DISABLED)
+                painter.drawText(
+                    text_rect,
+                    QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                    '  No items to show.'
+                )
+                painter.setPen(QtCore.Qt.NoPen)
+            elif n == self.model().rowCount():  # filter mode
+                if favourite_mode:
+                    painter.setPen(common.FAVOURITE)
+                    painter.drawText(
+                        text_rect,
+                        QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                        '(Showing favourites only)'
+                    )
+                    painter.setPen(QtCore.Qt.NoPen)
+
+            text_rect.moveTop(text_rect.top() + sizehint.height())
+            rect.moveTop(rect.top() + sizehint.height())
+
+        if self.model().filter_mode['favourite']:
+            rect.setRight(self.viewport().rect().width())
+            rect.setLeft(rect.right() - common.INDICATOR_WIDTH)
+            rect.setTop(0)
+            rect.setBottom(event.rect().bottom())
+            painter.setBrush(common.FAVOURITE)
+            painter.drawRect(rect)
+
+        painter.end()
         return False
 
 

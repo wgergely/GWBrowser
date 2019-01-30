@@ -154,7 +154,7 @@ STACKED_WIDGET_HEIGHT = 640.0
 ROW_FOOTER_HEIGHT = 18.0
 THUMBNAIL_IMAGE_SIZE = 1024.0
 
-BACKGROUND_SELECTED = QtGui.QColor(128, 128, 128)
+BACKGROUND_SELECTED = QtGui.QColor(125, 125, 125)
 SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
 BACKGROUND = QtGui.QColor(98, 98, 98)
 
@@ -163,8 +163,8 @@ THUMBNAIL_BACKGROUND = QtGui.QColor(80, 80, 80)
 THUMBNAIL_IMAGE_BACKGROUND = QtGui.QColor(30, 30, 30)
 
 TEXT = QtGui.QColor(220, 220, 220)
-TEXT_SELECTED = QtGui.QColor(255, 255, 255)
-TEXT_DISABLED = QtGui.QColor(130, 130, 130)
+TEXT_SELECTED = QtGui.QColor(250, 250, 250)
+TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
@@ -623,33 +623,34 @@ HIGHLIGHT_RULES = {
 
 def get_ranges(arr, padding):
     """Examines a sequence of numbers and returnsa string representation."""
-    arr = list(set(sorted(arr)))
-    start = arr[0]
-    end = 0
-    block = []
-    for idx, n in enumerate(arr):
+    print '####'
+    arr = sorted(list(set(arr)))
+    res = []
+
+    blocks = {}
+    k = 0
+    for idx, n in enumerate(arr): # blocks
         zfill = '{}'.format(n).zfill(padding)
 
-        start = n if n < start else start
-        end = end if n < end else n
+        if k not in blocks:
+            blocks[k] = []
+        blocks[k].append(zfill)
 
-        if len(arr) > (idx + 1):
-            if arr[idx + 1] != n + 1:
-                if zfill not in block:
-                    block.append(zfill)
-                    block.append(',')
+        if idx + 1 != len(arr):
+            if arr[idx + 1] != n + 1: # break coming up
+                k += 1
 
-        if idx > 0:
-            if arr[idx - 1] != n - 1:
-                if zfill not in block:
-                    block.append(zfill)
-                    block.append('-')
-    if start == end:
-        return '{}'.format(start).zfill(padding)
-    block.insert(0, '{}'.format(start).zfill(padding))
-    block.insert(1, '-')
-    block.append('{}'.format(end).zfill(padding))
-    return ''.join(block)
+    return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
+
+def get_sequence_startpath(path):
+    """Checks the given string and if it denotes a seuqence returns the path for
+    the first item.
+    """
+    regex = re.compile(r'^(.*)\[([0-9]+).*\](.*)$', re.IGNORECASE) #sequence
+    match = regex.search(path)
+    if match:
+        path = regex.sub(r'\1\2\3', path)
+    return path
 
 
 # Label LABEL_COLORS

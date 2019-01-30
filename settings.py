@@ -39,7 +39,7 @@ class ActivePathMonitor(QtCore.QObject):
     # Signals
     activeChanged = QtCore.Signal(collections.OrderedDict)
 
-    keys = ('server', 'job', 'root', 'asset', 'location', 'fileroot', 'file')
+    keys = ('server', 'job', 'root', 'asset', 'location', 'file')
 
     def __init__(self, parent=None):
         super(ActivePathMonitor, self).__init__(parent=parent)
@@ -62,14 +62,17 @@ class ActivePathMonitor(QtCore.QObject):
         for k in cls.keys:
             d[k] = local_settings.value('activepath/{}'.format(k))
 
-        # Checking whether the active-path actually exists and unsetting
-        # the invalid components
+        # Checking active-path and unsetting invalid parts
         path = ''
-        for k in d:
-            path += '{}/'.format(d[k])
+        for idx, k in enumerate(d):
+            if d[k]:
+                path += '/{}'.format(common.get_sequence_startpath(d[k]))
+                if idx == 0:
+                    path = d[k]
             if not QtCore.QFileInfo(path).exists():
                 local_settings.setValue('activepath/{}'.format(k), None)
                 d[k] = None
+
         return d
 
     @staticmethod
@@ -96,11 +99,12 @@ class LocalSettings(QtCore.QSettings):
     The current path settings are stored under the ``activepath`` section.
 
     Activepath keys:
-        activepath/server:  Path of the `active` server.
-        activepath/job:     Name of the `active` job folder.
-        activepath/root:    The name of the relative location of the active bookmark.
-        activepath/asset:   The name of the `active` asset folder
-        activepath/file:    The relative path of the `active` file.
+        activepath/server: `Active` server (eg. '//server/data')
+        activepath/job: `Active` job folder inside the server (eg. 'audible_0001')
+        activepath/root: `Active` bookmark folder inside the job folder (eg. 'seq_010/shots').
+        activepath/asset: `Active` asset folder in side the root folder (eg. 'shot_010').
+        activepath/location:  `Active` location inside the asset folder (eg. ``common.RendersFolder``).
+        activepath/file:    The relative path to the `active` file (eg. 'subfolder/mayascene_v001.ma').
 
     """
 

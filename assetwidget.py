@@ -57,6 +57,10 @@ class AssetModel(BaseModel):
         self.internal_data = {}  # reset
         active_paths = path_monitor.get_active_paths()
 
+        server, job, root = self.bookmark
+        if not all((server, job, root)):
+            return
+
         # Creating folders
         config_dir_path = '{}/.browser/'.format(
             '/'.join(self.bookmark))
@@ -64,9 +68,6 @@ class AssetModel(BaseModel):
         if not config_dir_path.exists():
             QtCore.QDir().mkpath(config_dir_path.filePath())
 
-        server, job, root = self.bookmark
-        if not any((server, job, root)):
-            return
 
         it = QtCore.QDirIterator(
             '/'.join(self.bookmark),
@@ -100,7 +101,7 @@ class AssetModel(BaseModel):
             )
 
             # Active
-            if file_info.completeBaseName() == active_paths['asset']:
+            if file_info.fileName() == active_paths['asset']:
                 flags = flags | MarkedAsActive
 
             # Archived
@@ -121,18 +122,18 @@ class AssetModel(BaseModel):
             else:
                 count = 0
 
-            tooltip = u'{}\n'.format(file_info.completeBaseName().upper())
+            tooltip = u'{}\n'.format(file_info.fileName().upper())
             tooltip += u'{}\n'.format(server.upper())
             tooltip += u'{}\n'.format(job.upper())
             tooltip += u'{}'.format(file_info.filePath())
             self.internal_data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.completeBaseName(),
-                QtCore.Qt.EditRole: file_info.completeBaseName(),
+                QtCore.Qt.DisplayRole: file_info.fileName(),
+                QtCore.Qt.EditRole: file_info.fileName(),
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT),
                 common.FlagsRole: flags,
-                common.ParentRole: self.bookmark,
+                common.ParentRole: (server, job, root, file_info.fileName()), # parent includes the asset
                 common.DescriptionRole: settings.value('config/description'),
                 common.TodoCountRole: count,
                 common.FileDetailsRole: file_info.size(),
@@ -186,17 +187,10 @@ class AssetWidget(BaseInlineIconWidget):
             return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        local_settings.setValue(
-            'activepath/asset', file_info.completeBaseName())
-        self.activeAssetChanged.emit((
-            self.model().sourceModel().bookmark[0],
-            self.model().sourceModel().bookmark[1],
-            self.model().sourceModel().bookmark[2],
-            file_info.completeBaseName()
-        ))
+        local_settings.setValue('activepath/asset', file_info.fileName())
 
-        local_settings.setValue('activepath/file', None)
-        self.activeFileChanged.emit(None)
+        path_monitor.get_active_paths() # Resetting invalid paths
+        self.activeAssetChanged.emit(index.data(common.ParentRole))
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

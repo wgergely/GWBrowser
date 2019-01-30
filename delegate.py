@@ -234,12 +234,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif not selected and not active:
             color = QtGui.QColor(common.BACKGROUND)
         elif selected and active:
-            color = QtGui.QColor(common.SELECTION)
-            color.setRed(color.red() - 20)
-            color.setGreen(color.green() - 20)
-            color.setBlue(color.blue())
-        elif not selected and active:
             color = QtGui.QColor(49, 107, 218)
+        elif not selected and active:
+            color = QtGui.QColor(29, 87, 198)
 
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
@@ -877,7 +874,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
             color = QtGui.QColor(common.TEXT_DISABLED)
             if selected:
                 color = QtGui.QColor(common.TEXT)
-
+        if active:
+            color = common.SELECTION
         offset = 6.0
 
         # Name background
