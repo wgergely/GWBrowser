@@ -42,7 +42,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def paintEvent(self, event):
         """Custom paint event"""
-        painter = QtGui.QPainter(self)
+        painter = QtGui.QPainter()
+        painter.begin(self)
 
         # Draw background. Aside from aesthetics, this makes the full
         # tool region accept mouse events.

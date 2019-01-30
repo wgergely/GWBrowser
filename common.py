@@ -321,6 +321,7 @@ def cache_image(path, height, overwrite=False):
 
     image = QtGui.QImage()
     image.load(file_info.filePath())
+    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
 
     # If the load fails, use the placeholder image
     image = resize_image(
@@ -353,6 +354,7 @@ def cache_placeholder(height):
         '{}/../rsc/placeholder.png'.format(__file__))
     image = QtGui.QImage()
     image.load(file_info.filePath())
+    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
 
     # If the load fails, use the placeholder image
     image = resize_image(
@@ -507,6 +509,7 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
     if image.isNull():
         return QtGui.QPixmap()
 
+    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
     painter = QtGui.QPainter()
     painter.begin(image)
     painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
@@ -523,12 +526,16 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
         image = QtGui.QImage(
             pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
         image.fill(QtCore.Qt.transparent)
-        painter = QtGui.QPainter(image)
+
+        painter = QtGui.QPainter()
+        painter.begin(image)
         painter.setOpacity(opacity)
         painter.drawPixmap(0, 0, pixmap)
         painter.end()
+
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
+
 
     IMAGE_CACHE[k] = pixmap
     return IMAGE_CACHE[k]

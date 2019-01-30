@@ -118,12 +118,47 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color.setGreen(color.green() / 1.96)
             color.setBlue(color.blue() / 1.96)
 
-        # if hover:
-        #     color.setRed(color.red() + 15)
-        #     color.setGreen(color.green() + 15)
-        #     color.setBlue(color.blue() + 15)
-
         return color
+
+    @staticmethod
+    def get_inline_icon_rect(rect, size, idx):
+        """Returns the rectangle needed to draw an in-line item icon.
+
+        Args:
+            rect (QRect): The original item rectangle.
+            size (int): The size of the rectangle.
+            idx (int): The id number of the rectangle.
+
+        Returns:
+            Tuple: The pixmap and the icon's background rectangle.
+
+        """
+        rect = QtCore.QRect(rect)
+
+        # Vertical
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(size)
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        # Horizontal
+        rect.setLeft(rect.right() - size)
+        rect.moveRight(rect.right() - common.MARGIN)
+
+        offset = 4.0
+        for _ in xrange(idx):
+            rect.moveRight(
+                rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
+
+        # Background
+        size = max(rect.width(), rect.height())
+        bg_rect = QtCore.QRect(rect)
+        bg_rect.setWidth(size)
+        bg_rect.setHeight(size)
+        bg_rect.setLeft(bg_rect.left() - offset)
+        bg_rect.setTop(bg_rect.top() - offset)
+        bg_rect.setRight(bg_rect.right() + offset)
+        bg_rect.setBottom(bg_rect.bottom() + offset)
+
+        return rect, bg_rect
 
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
@@ -167,17 +202,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Icon
         painter.drawPixmap(rect, pixmap)
-
         painter.restore()
 
     def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
+
         if option.rect.width() < 360.0:
             return
 
         painter.save()
-
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
@@ -264,7 +298,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
         painter, option, index, selected, active, _, _, _ = args
-
         painter.save()
 
         rect = QtCore.QRect(option.rect)
@@ -280,7 +313,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
-
         painter.restore()
 
     def paint_active_indicator(self, *args):
@@ -291,7 +323,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         painter.save()
-
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
@@ -303,13 +334,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(color)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
-
         painter.restore()
 
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
         painter, option, _, _, _, _, _, _ = args
-
         painter.save()
 
         rect = QtCore.QRect(option.rect)
@@ -336,13 +365,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
-
         painter.restore()
 
     def paint_inline_icons_shadow(self, *args):
         """Paints a drop-shadow"""
         painter, option, _, _, _, _, _, _ = args
-
         if option.rect.width() < 360.0:
             return
 
@@ -371,7 +398,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         gradient.setColorAt(0.7, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
-
         painter.restore()
 
     def paint_thumbnail(self, *args):
@@ -421,7 +447,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             image,
             image.rect()
         )
-
         painter.restore()
 
     def paint_data(self, *args):
@@ -450,13 +475,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
-
         painter.restore()
 
     def paint_filter_indicator(self, *args):
         """Paints the leading color-bar if a filter is active."""
         painter, option, _, _, _, _, _, _ = args
-
         painter.save()
 
         _filter = self.parent().current_filter
@@ -468,18 +491,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
         painter.drawRect(rect)
-
         painter.restore()
 
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items flagged as `archived`."""
         painter, option, _, _, _, _, archived, _ = args
-
         if not archived:
             return
 
         painter.save()
-
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 150)))
         painter.drawRect(option.rect)
@@ -488,134 +508,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         brush.setStyle(QtCore.Qt.BDiagPattern)
         painter.setBrush(brush)
         painter.drawRect(option.rect)
-
         painter.restore()
-
-    def get_filename_rect(self, rect):
-        """Returns the rectangle containing the name.
-
-        Args:
-            rect (QtCore.QRect): The QListWidgetItem's visual rectangle.
-
-        Returns:            QtCore.QRect
-
-        """
-        painter = QtGui.QPainter()
-        font = QtGui.QFont('Roboto Black')
-        font.setBold(True)
-        font.setItalic(False)
-        font.setPointSize(7.0)
-        painter.setFont(font)
-        metrics = QtGui.QFontMetrics(painter.font())
-        editor_rect = QtCore.QRect(rect)
-
-        offset = rect.height() + common.INDICATOR_WIDTH + common.MARGIN
-        editor_rect.moveLeft(editor_rect.left() + offset)
-        editor_rect.setWidth(editor_rect.width() - offset - common.MARGIN)
-        editor_rect.setHeight(metrics.height())
-
-        # Center rectangle
-        editor_rect.moveTop(
-            rect.top() +
-            (rect.height() * 0.5) -
-            (editor_rect.height() * 0.5)
-        )
-        return editor_rect, font, metrics
-
-    def get_description_rect(self, rect):
-        """Returns the rectangle, font and the font metrics used to draw the note text.
-
-        Arguments:
-            rect (QtCore.QRect):  The visual rectangle of the current row.
-
-        Returns:
-            tuple: A tuple of QtCore.QRect, QtGui.QFont, QtGui.QFontMetrics instances.
-
-        """
-        painter = QtGui.QPainter()
-        font = QtGui.QFont(painter.font())
-        font = QtGui.QFont('Roboto Medium')
-        font.setBold(False)
-        font.setPointSize(8.0)
-        metrics = QtGui.QFontMetrics(font)
-        rect = QtCore.QRect(rect)
-
-        rect.setLeft(
-            rect.left() +
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            (common.MARGIN * 1.5)
-        )
-        rect.setRight(rect.right() - (common.MARGIN))
-
-        padding = 2.0
-
-        # Centering rectangle vertically
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height() + (padding * 2))
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        return rect, font, metrics
-
-    def get_thumbnail_rect(self, rect):
-        """Returns the rectangle for the thumbnail editor."""
-        rect = QtCore.QRect(rect)
-        rect.moveLeft(common.INDICATOR_WIDTH)
-        rect.setWidth(rect.height())
-        return rect
-
-    def get_location_editor_rect(self, rect):
-        rect = QtCore.QRect(rect)
-        rect.setLeft(rect.right() - rect.height())
-        rect.setWidth(rect.height())
-        return rect
-
-    @staticmethod
-    def get_inline_icon_rect(rect, size, idx):
-        """Returns the rectangle needed to draw an in-line item icon.
-
-        Args:
-            rect (QRect): The original item rectangle.
-            size (int): The size of the rectangle.
-            idx (int): The id number of the rectangle.
-
-        Returns:
-            Tuple: The pixmap and the icon's background rectangle.
-
-        """
-        rect = QtCore.QRect(rect)
-
-        # Vertical
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(size)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-        # Horizontal
-        rect.setLeft(rect.right() - size)
-        rect.moveRight(rect.right() - common.MARGIN)
-
-        offset = 4.0
-        for _ in xrange(idx):
-            rect.moveRight(
-                rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
-
-        # Background
-        size = max(rect.width(), rect.height())
-        bg_rect = QtCore.QRect(rect)
-        bg_rect.setWidth(size)
-        bg_rect.setHeight(size)
-        bg_rect.setLeft(bg_rect.left() - offset)
-        bg_rect.setTop(bg_rect.top() - offset)
-        bg_rect.setRight(bg_rect.right() + offset)
-        bg_rect.setBottom(bg_rect.bottom() + offset)
-
-        return rect, bg_rect
 
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
         if option.rect.width() < 360.0:
             return
-        painter.save()
 
+        painter.save()
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
@@ -634,7 +535,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     def paint_inline_icons_background(self, *args):
         painter, option, _, selected, _, active, _, _ = args
-
         if option.rect.width() < 360.0:
             return
 
@@ -717,7 +617,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtCore.Qt.AlignCenter,
             '{}'.format(index.data(common.TodoCountRole))
         )
-
         painter.restore()
 
     def paint_description(self, *args):
@@ -768,7 +667,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
 
         painter.restore()
-
         return metrics.width(text)
 
     def sizeHint(self, option, index):
@@ -780,6 +678,35 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
+
+    def _get_root_text(self, index, rect, metrics):
+        """Gets the text for drawing the root."""
+        root = index.data(common.ParentRole)[2]
+        count = index.data(common.FileDetailsRole)
+
+        text = re.sub(r'[_]+', ' ', root.upper())
+        if count:
+            if count == 1:
+                text = u'{}  |  {} asset'.format(text, count)
+            else:
+                text = u'{}  |  {} assets'.format(text, count)
+        else:
+            text = u'{}  |  No assets'.format(text)
+
+        return metrics.elidedText(
+            text,
+            QtCore.Qt.ElideLeft,
+            rect.width()
+        )
+
+    def _get_longest_root_width(self, rect, metrics):
+        # Finding the longest root string
+        width = [0, ]
+        for n in xrange(self.parent().model().rowCount()):
+            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
+            text = self._get_root_text(index, rect, metrics)
+            width.append(metrics.width(text))
+        return max(width)
 
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
@@ -832,17 +759,16 @@ class BookmarksWidgetDelegate(BaseDelegate):
             pixmap,
             pixmap.rect()
         )
-
         painter.restore()
 
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         painter, option, index, selected, _, _, _, _ = args
+        painter.save()
 
         active = index.flags() & MarkedAsActive
         count = index.data(common.FileDetailsRole)
 
-        painter.save()
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
         painter.setFont(font)
@@ -912,37 +838,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
             name
         )
-
         painter.restore()
-
-    def _get_root_text(self, index, rect, metrics):
-        """Gets the text for drawing the root."""
-        root = index.data(common.ParentRole)[2]
-        count = index.data(common.FileDetailsRole)
-
-        text = re.sub(r'[_]+', ' ', root.upper())
-        if count:
-            if count == 1:
-                text = u'{}  |  {} asset'.format(text, count)
-            else:
-                text = u'{}  |  {} assets'.format(text, count)
-        else:
-            text = u'{}  |  No assets'.format(text)
-
-        return metrics.elidedText(
-            text,
-            QtCore.Qt.ElideLeft,
-            rect.width()
-        )
-
-    def _get_longest_root_width(self, rect, metrics):
-        # Finding the longest root string
-        width = [0, ]
-        for n in xrange(self.parent().model().rowCount()):
-            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
-            text = self._get_root_text(index, rect, metrics)
-            width.append(metrics.width(text))
-        return max(width)
 
 
 class AssetWidgetDelegate(BaseDelegate):
@@ -1010,7 +906,6 @@ class AssetWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
-
         painter.restore()
 
     def sizeHint(self, option, index):
@@ -1046,10 +941,9 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_description(self, *args):
         """Paints the item description inside the ``FilesWidget``."""
         painter, option, index, _, _, _, _, _ = args
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
         painter.save()
 
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
@@ -1128,6 +1022,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 text
             )
 
+
+        painter.restore()
         return metrics.width(text)
 
     def paint_mode(self, *args):
@@ -1201,6 +1097,8 @@ class FilesWidgetDelegate(BaseDelegate):
             if len(modes) - 1 == n:
                 return rect.right()
             rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
+
+        painter.restore()
 
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
@@ -1338,7 +1236,6 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setBrush(color)
 
         painter.drawRect(rect)
-
         painter.restore()
 
     def sizeHint(self, option, index):

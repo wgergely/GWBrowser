@@ -1210,71 +1210,71 @@ class BaseListWidget(QtWidgets.QListView):
         if widget is not self:
             return False
 
-        if event.type() is not QtCore.QEvent.Paint:
-            return False
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(widget)
 
-        sizehint = self.itemDelegate().sizeHint(
-            self.viewOptions(), QtCore.QModelIndex())
-        rect = QtCore.QRect(common.INDICATOR_WIDTH, 2, event.rect(
-        ).width() - (common.INDICATOR_WIDTH * 2), sizehint.height() - 4)
-        favourite_mode = self.model().filter_mode['favourite']
-        text_rect = QtCore.QRect(rect)
-        text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
-        text_rect.setRight(rect.right() - common.MARGIN)
+            sizehint = self.itemDelegate().sizeHint(
+                self.viewOptions(), QtCore.QModelIndex())
+            rect = QtCore.QRect(common.INDICATOR_WIDTH, 2, event.rect(
+            ).width() - (common.INDICATOR_WIDTH * 2), sizehint.height() - 4)
+            favourite_mode = self.model().filter_mode['favourite']
+            text_rect = QtCore.QRect(rect)
+            text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
+            text_rect.setRight(rect.right() - common.MARGIN)
 
-        filter_rect = QtCore.QRect(event.rect())
-        filter_rect.setRight(event.rect().right())
-        filter_rect.setLeft(event.rect().right() - (common.INDICATOR_WIDTH))
-        filter_rect.setBottom(sizehint.height())
+            filter_rect = QtCore.QRect(event.rect())
+            filter_rect.setRight(event.rect().right())
+            filter_rect.setLeft(event.rect().right() - (common.INDICATOR_WIDTH))
+            filter_rect.setBottom(sizehint.height())
 
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
+            painter.setRenderHints(
+                QtGui.QPainter.TextAntialiasing |
+                QtGui.QPainter.Antialiasing |
+                QtGui.QPainter.SmoothPixmapTransform,
+                on=True
+            )
 
-        painter.setPen(QtCore.Qt.NoPen)
-        # painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSize(8)
-        painter.setFont(font)
+            painter.setPen(QtCore.Qt.NoPen)
+            # painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
+            font = QtGui.QFont('Roboto Black')
+            font.setPointSize(8)
+            painter.setFont(font)
 
-        for n in xrange((self.height() / sizehint.height()) + 1):
-            if n >= self.model().rowCount():  # Empty items
-                rect_ = QtCore.QRect(rect)
-                rect_.setWidth(sizehint.height() - 2)
-                painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
-                painter.drawRect(rect_)
-                painter.drawRect(rect)
-                if favourite_mode:
-                    painter.setBrush(common.FAVOURITE)
-                    painter.drawRect(filter_rect)
-            if n == 0 and not favourite_mode:  # Empty model
-                painter.setPen(common.TEXT_DISABLED)
-                painter.drawText(
-                    text_rect,
-                    QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                    '  No items to show.'
-                )
-                painter.setPen(QtCore.Qt.NoPen)
-            elif n == self.model().rowCount():  # filter mode
-                if favourite_mode:
-                    painter.setPen(common.FAVOURITE)
+            for n in xrange((self.height() / sizehint.height()) + 1):
+                if n >= self.model().rowCount():  # Empty items
+                    rect_ = QtCore.QRect(rect)
+                    rect_.setWidth(sizehint.height() - 2)
+                    painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
+                    painter.drawRect(rect_)
+                    painter.drawRect(rect)
+                    if favourite_mode:
+                        painter.setBrush(common.FAVOURITE)
+                        painter.drawRect(filter_rect)
+                if n == 0 and not favourite_mode:  # Empty model
+                    painter.setPen(common.TEXT_DISABLED)
                     painter.drawText(
                         text_rect,
                         QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                        '(Showing favourites only)'
+                        '  No items to show.'
                     )
                     painter.setPen(QtCore.Qt.NoPen)
+                elif n == self.model().rowCount():  # filter mode
+                    if favourite_mode:
+                        painter.setPen(common.FAVOURITE)
+                        painter.drawText(
+                            text_rect,
+                            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                            '(Showing favourites only)'
+                        )
+                        painter.setPen(QtCore.Qt.NoPen)
 
-            text_rect.moveTop(text_rect.top() + sizehint.height())
-            rect.moveTop(rect.top() + sizehint.height())
-            filter_rect.moveTop(filter_rect.top() + sizehint.height())
+                text_rect.moveTop(text_rect.top() + sizehint.height())
+                rect.moveTop(rect.top() + sizehint.height())
+                filter_rect.moveTop(filter_rect.top() + sizehint.height())
 
-        painter.end()
+            painter.end()
+            return True
         return False
 
 

@@ -67,7 +67,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         if self._click_pos is not None:
             click_pos = self.mapFromGlobal(self._click_pos)
 
-        painter = QtGui.QPainter(self)
+        painter = QtGui.QPainter()
+        painter.begin(self)
 
         # Draw background. Aside from aesthetics, this makes the full
         # tool region accept mouse events.
@@ -98,6 +99,8 @@ class ScreenGrabber(QtWidgets.QDialog):
                          event.rect().right(), mouse_pos.y())
         painter.drawLine(mouse_pos.x(), event.rect().top(),
                          mouse_pos.x(), event.rect().bottom())
+
+        painter.end()
 
     def keyPressEvent(self, event):
         """

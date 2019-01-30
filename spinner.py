@@ -76,9 +76,11 @@ class Spinner(QtWidgets.QWidget):
         """Paints and rotates the spinner pixmap."""
         rotated_spinner = QtGui.QPixmap(
             self.spinner_pixmap.width(), self.spinner_pixmap.height())
+
         rotated_spinner.fill(QtGui.QColor(255, 255, 255, 0))
 
-        painter = QtGui.QPainter(rotated_spinner)
+        painter = QtGui.QPainter()
+        painter.begin(rotated_spinner)
         painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
         painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceOut)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -91,13 +93,14 @@ class Spinner(QtWidgets.QWidget):
         painter.translate(-rotated_spinner.width() / 2.0, -
                           rotated_spinner.height() / 2.0)
         painter.drawPixmap(self.spinner_pixmap.rect(), self.spinner_pixmap)
-        painter.end()
 
         tinted_spinner = QtGui.QPixmap(
             self.spinner_pixmap.width(), self.spinner_pixmap.height())
         tinted_spinner.fill(QtGui.QColor(255, 255, 255, 255))
+        painter.end()
 
-        painter = QtGui.QPainter(tinted_spinner)
+        painter = QtGui.QPainter()
+        painter.begin(tinted_spinner)
         painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
         painter.setCompositionMode(
             QtGui.QPainter.CompositionMode_DestinationAtop)
