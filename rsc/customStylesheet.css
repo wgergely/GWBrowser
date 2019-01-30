@@ -44,7 +44,7 @@ QStackedWidget {{
 	color: rgba({SECONDARY_TEXT});
 	border-width: 1px;
 	border: none;
-	margin: 0px;
+	margin: 0px 12px 0px 12px;
 	padding: 0px;
 	outline: 0;
 	font-family: "{fontFamily}";
@@ -58,15 +58,14 @@ QStackedWidget:focus {{
 }}
 
 
-QStatusBar {{
+QStatusBar, QSizeGrip {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "{fontFamily}";
 	font-size: 7pt;
 	margin: 0px;
 	padding: 6px;
-	height: 18px;
-
+	height: 36px;
 }}
 
 

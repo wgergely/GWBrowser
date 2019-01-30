@@ -1245,7 +1245,7 @@ class BaseListWidget(QtWidgets.QListView):
                 if n >= self.model().rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
                     rect_.setWidth(sizehint.height() - 2)
-                    painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
+                    painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 5)))
                     painter.drawRect(rect_)
                     painter.drawRect(rect)
                     if favourite_mode:

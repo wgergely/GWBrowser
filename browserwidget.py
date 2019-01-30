@@ -348,8 +348,6 @@ class HeaderWidget(QtWidgets.QWidget):
         rect.setTop(rect.bottom())
         painter.setBrush(QtGui.QBrush(common.SEPARATOR))
         painter.drawRect(event.rect())
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 0, 0, 30)))
-        painter.drawRect(rect)
         painter.end()
 
     def _createUI(self):
@@ -367,10 +365,10 @@ class HeaderWidget(QtWidgets.QWidget):
         )
         self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.label.setStyleSheet("""\
-        QLabel {\
-            color: rgb(30,30,30);\
-            font-family: "Roboto Medium";\
-            font-size: 9pt;\
+        QLabel {
+            color: rgba(255,255,255,100);\
+            font-family: "Roboto Black";\
+            font-size: 8pt;\
         }\
         """)
 
@@ -747,23 +745,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.activate_widget(idx)
 
     def _createUI(self):
-        """Creates the layout.
-
-        +-----------------+
-        | header          |
-        +-----------------+
-        |listcontrolwidget|     A row of buttons to toggle filters and views.
-        +-----------------+
-        |                 |
-        |                 |
-        |  stackedwidget  |     This a the widget containing the lists widgets of `assets`, `assets` and `files`.
-        |                 |
-        |                 |
-        +-----------------+
-        |    status_bar   |     Infobar
-        +-----------------+
-
-        """
         common.set_custom_stylesheet(self)
 
         # Main layout
@@ -791,6 +772,7 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
+        self.status_bar.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
         self.layout().addWidget(self.headerwidget)
         self.layout().addWidget(self.listcontrolwidget)
