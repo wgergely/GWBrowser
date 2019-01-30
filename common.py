@@ -638,14 +638,24 @@ def get_ranges(arr, padding):
                 k += 1
     return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
+
+isequenceregex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
+sequencestartregex = re.compile(r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
+sequenceregex = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$', flags=re.IGNORECASE)
+
+def get_sequence(text):
+    return sequenceregex.search(text)
+
+def is_sequence(text):
+    return isequenceregex.match(text)
+
 def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
-    regex = re.compile(r'^(.*)\[([0-9]+).*\](.*)$', re.IGNORECASE) #sequence
-    match = regex.search(path)
+    match = sequencestartregex.search(path)
     if match:
-        path = regex.sub(r'\1\2\3', path)
+        path = sequencestartregex.sub(r'\1\2\3', path)
     return path
 
 

@@ -13,6 +13,7 @@ Example:
 
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
+import mayabrowser.common as common
 
 
 class Spinner(QtWidgets.QWidget):
@@ -26,19 +27,13 @@ class Spinner(QtWidgets.QWidget):
         self.animation = None
         self.setWindowOpacity(0)
 
-        self.spinner_pixmap = QtGui.QImage()
-        self.spinner_pixmap.load(self.get_thumbnail_path())
-        self.spinner_pixmap = self.spinner_pixmap.smoothScaled(
-            self.spinner_pixmap.width() / 3,
-            self.spinner_pixmap.height() / 3
-        )
-        self.spinner_pixmap = QtGui.QPixmap(self.spinner_pixmap)
+        self.spinner_pixmap = common.get_rsc_pixmap(
+            'spinner', common.TEXT, 24)
 
         self.worker = GUIUpdater()
         self._connectSignals()
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-
 
     def start(self):
         """Starts the widget-spin."""
@@ -55,7 +50,6 @@ class Spinner(QtWidgets.QWidget):
         self.worker.quit()
         self.worker.deleteLater()
         self.close()
-
 
     def update_label(self, degree):
         """Main method to update the spinner called by the waroker class."""
@@ -105,7 +99,8 @@ class Spinner(QtWidgets.QWidget):
 
         painter = QtGui.QPainter(tinted_spinner)
         painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 255, 255)))
-        painter.setCompositionMode(QtGui.QPainter.CompositionMode_DestinationAtop)
+        painter.setCompositionMode(
+            QtGui.QPainter.CompositionMode_DestinationAtop)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.TextAntialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
@@ -131,14 +126,13 @@ class Spinner(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
     def animate_opacity(self):
         """Animates the visibility of the widget."""
         self.animation = QtCore.QPropertyAnimation(self, 'windowOpacity')
         self.animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
-        self.animation.setDuration(300)
+        self.animation.setDuration(100)
         self.animation.setStartValue(0.01)
         self.animation.setEndValue(1)
         self.animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
@@ -165,6 +159,7 @@ class Spinner(QtWidgets.QWidget):
         """Custom show event."""
         self.move_to_center()
 
+
 class GUIUpdater(QtCore.QThread):
 
     updateLabel = QtCore.Signal(int)
@@ -177,10 +172,9 @@ class GUIUpdater(QtCore.QThread):
         self.degree = 0
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.increment)
-        self.timer.setInterval(40)
+        self.timer.setInterval(100)
         self.timer.setSingleShot(False)
         self.timer.start()
-
 
 
 if __name__ == '__main__':

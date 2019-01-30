@@ -20,6 +20,7 @@ from mayabrowser.settings import AssetSettings
 from mayabrowser.settings import local_settings, path_monitor
 from mayabrowser.delegate import FilesWidgetDelegate
 import mayabrowser.editors as editors
+from mayabrowser.spinner import Spinner
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -52,6 +53,7 @@ class FilesModel(BaseModel):
         self.switch_dataset()
 
         self.grouppingChanged.connect(self.switch_dataset)
+        self.activeLocationChanged.connect(self.switch_dataset)
 
     def __initdata__(self):
         """To get the files, we will have to decide what extensions to take
@@ -176,15 +178,12 @@ class FilesModel(BaseModel):
             QtCore.QDir().mkpath(config_dir_paths[k])
 
 
-        # Regex responsible for identifying sequences
-        r = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$')
-
         # Getting unique sequence groups
         groups = {}
         idx = 0
         for k in self._internal_data[location][False]:
             path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
-            match = r.search(path)
+            match = common.get_sequence(path)
             if not match:
                 self._internal_data[location][True][idx] = self._internal_data[location][False][k]
                 idx += 1
@@ -273,9 +272,14 @@ class FilesModel(BaseModel):
 
     def switch_dataset(self):
         """Swaps the dataset."""
-        self.beginResetModel()
+        if not self._internal_data[self.get_location()][self.is_grouped()]:
+            spinner = Spinner()
+            spinner.start()
+            self.beginResetModel()
+            self.__initdata__()
+            self.endResetModel()
+            spinner.stop()
         self.internal_data = self._internal_data[self.get_location()][self.is_grouped()]
-        self.endResetModel()
 
     def set_asset(self, asset):
         if asset == self.asset:
@@ -360,7 +364,7 @@ class FilesWidget(BaseInlineIconWidget):
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
-        self.model().sourceModel().activeLocationChanged.connect(self.refresh)
+        self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
 
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))

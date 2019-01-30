@@ -843,5 +843,6 @@ class BrowserWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = BrowserWidget()
+    widget.show()
     # widget.move(50, 50)
     app.exec_()

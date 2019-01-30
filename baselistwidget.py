@@ -16,7 +16,7 @@ from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavou
 from mayabrowser.settings import local_settings
 from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
-
+from mayabrowser.spinner import Spinner
 
 class BaseContextMenu(QtWidgets.QMenu):
     """Custom context menu associated with the BaseListWidget.
@@ -360,6 +360,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         favourite = self.index.flags() & MarkedAsFavourite
         archived = self.index.flags() & MarkedAsArchived
+        source_index = self.parent().model().mapToSource(self.index)
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -372,14 +373,14 @@ class BaseContextMenu(QtWidgets.QMenu):
             'icon': archived_off_icon if archived else archived_on_icon,
             'checkable': True,
             'checked': archived,
-            'action': self.parent().toggle_archived
+            'action': functools.partial(self.parent().toggle_archived, index=source_index, state=not archived)
         }
         menu_set['favourite'] = {
             'text': 'Remove from favourites' if favourite else 'Mark as favourite',
             'icon': favourite_off_icon if favourite else favourite_on_icon,
             'checkable': True,
             'checked': favourite,
-            'action': self.parent().toggle_favourite
+            'action': functools.partial(self.parent().toggle_favourite, index=source_index, state=not favourite)
         }
 
         self.create_menu(menu_set)
@@ -570,7 +571,10 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: {True: {}, False: {}},
         }
         self.internal_data = {}
+        spinner = Spinner()
+        spinner.start()
         self.__initdata__()
+        spinner.stop()
 
     def __initdata__(self):
         raise NotImplementedError('__initdata__ is abstract')
@@ -586,6 +590,9 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
         if not index.isValid():
+            return None
+
+        if index.row() not in self.internal_data:
             return None
 
         if role in self.internal_data[index.row()]:
@@ -770,6 +777,7 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index:
             index = self.selectionModel().currentIndex()
+            index = self.model().mapToSource(index)
 
         if not index.isValid():
             return
@@ -818,6 +826,7 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index:
             index = self.selectionModel().currentIndex()
+            index = self.model().mapToSource(index)
 
         if not index.isValid():
             return
@@ -893,10 +902,13 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
+        spinner = Spinner()
+        spinner.start()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().switch_dataset()
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
+        spinner.stop()
         self.model().sort()
 
         self.reselect_previous_path()
@@ -1210,6 +1222,11 @@ class BaseListWidget(QtWidgets.QListView):
         text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
         text_rect.setRight(rect.right() - common.MARGIN)
 
+        filter_rect = QtCore.QRect(event.rect())
+        filter_rect.setRight(event.rect().right())
+        filter_rect.setLeft(event.rect().right() - (common.INDICATOR_WIDTH))
+        filter_rect.setBottom(sizehint.height())
+
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setRenderHints(
@@ -1220,7 +1237,7 @@ class BaseListWidget(QtWidgets.QListView):
         )
 
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
+        # painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
         font = QtGui.QFont('Roboto Black')
         font.setPointSize(8)
         painter.setFont(font)
@@ -1229,8 +1246,12 @@ class BaseListWidget(QtWidgets.QListView):
             if n >= self.model().rowCount():  # Empty items
                 rect_ = QtCore.QRect(rect)
                 rect_.setWidth(sizehint.height() - 2)
+                painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
                 painter.drawRect(rect_)
                 painter.drawRect(rect)
+                if favourite_mode:
+                    painter.setBrush(common.FAVOURITE)
+                    painter.drawRect(filter_rect)
             if n == 0 and not favourite_mode:  # Empty model
                 painter.setPen(common.TEXT_DISABLED)
                 painter.drawText(
@@ -1251,14 +1272,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             text_rect.moveTop(text_rect.top() + sizehint.height())
             rect.moveTop(rect.top() + sizehint.height())
-
-        if self.model().filter_mode['favourite']:
-            rect.setRight(self.viewport().rect().width())
-            rect.setLeft(rect.right() - common.INDICATOR_WIDTH)
-            rect.setTop(0)
-            rect.setBottom(event.rect().bottom())
-            painter.setBrush(common.FAVOURITE)
-            painter.drawRect(rect)
+            filter_rect.moveTop(filter_rect.top() + sizehint.height())
 
         painter.end()
         return False

@@ -1245,7 +1245,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
 
-        match = re.match(r'^(.+?)(\[.*\])$', text)
+        match = common.is_sequence(text)
         if match:  # sequence collapsed
             if option.rect.width() >= 360.0:
                 # Ext
@@ -1268,7 +1268,7 @@ class FilesWidgetDelegate(BaseDelegate):
                     rect.setLeft(kwargs['left'])
                 text = metrics.elidedText(
                     match.group(2),
-                    QtCore.Qt.ElideLeft,
+                    QtCore.Qt.ElideMiddle,
                     rect.width()
                 )
                 painter.setPen(common.TEXT_NOTE)
@@ -1287,7 +1287,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 text = metrics.elidedText(
                     match.group(1),
                     QtCore.Qt.ElideLeft,
-                    rect.width()
+                    rect.width() - common.MARGIN
                 )
                 painter.drawText(
                     rect,
