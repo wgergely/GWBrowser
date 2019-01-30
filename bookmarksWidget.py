@@ -53,18 +53,15 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_refresh_menu()
+        # Adding persistent actions
+        self.add_sort_menu()
+        self.add_display_toggles_menu()
+        if index.isValid():
+            self.add_reveal_folder_menu()
+            self.add_copy_menu()
+            self.add_mode_toggles_menu()
         self.add_add_bookmark_menu()
-
-    def add_add_bookmark_menu(self):
-        menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['Add bookmark'] = {
-            'text': 'Add bookmark',
-            'action': self.parent().show_add_bookmark_widget
-        }
-
-        self.create_menu(menu_set)
+        self.add_refresh_menu()
 
 
 class BookmarksModel(BaseModel):

@@ -623,10 +623,7 @@ HIGHLIGHT_RULES = {
 
 def get_ranges(arr, padding):
     """Examines a sequence of numbers and returnsa string representation."""
-    print '####'
     arr = sorted(list(set(arr)))
-    res = []
-
     blocks = {}
     k = 0
     for idx, n in enumerate(arr): # blocks
@@ -639,7 +636,6 @@ def get_ranges(arr, padding):
         if idx + 1 != len(arr):
             if arr[idx + 1] != n + 1: # break coming up
                 k += 1
-
     return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 def get_sequence_startpath(path):

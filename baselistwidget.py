@@ -13,7 +13,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import mayabrowser.common as common
 import mayabrowser.editors as editors
 from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.settings import local_settings, path_monitor
+from mayabrowser.settings import local_settings
 from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
 
@@ -46,13 +46,102 @@ class BaseContextMenu(QtWidgets.QMenu):
             QtCore.Qt.FramelessWindowHint
         )
 
-        # Adding persistent actions
-        self.add_sort_menu()
-        self.add_display_toggles_menu()
-        if index.isValid():
-            self.add_reveal_folder_menu()
-            self.add_copy_menu()
-            self.add_mode_toggles_menu()
+    def create_menu(self, menu_set, parent=None):
+        """This action populates the menu using the action-set dictionaries,
+        and it automatically connects the action with a corresponding method based
+        on the key/method-name.
+
+        Args:
+            menu_set (OrderedDict):    The set of menu items. See keys below.
+            parent (QMenu):
+
+        Implemented keys:
+            action_set[k]['action'] (bool): The action to execute when the item is clicked.
+            action_set[k]['text'] (str): The action's text
+            action_set[k]['data'] (object): User data stored in the action
+            action_set[k]['disabled'] (bool): Sets wheter the item is disabled.
+            action_set[k]['tool_tip'] (str):The description of the action.
+            action_set[k]['status_tip'] (str): The description of the action.
+            action_set[k]['icon'] (QPixmap): The action's icon.
+            action_set[k]['shortcut'] (QKeySequence): The action's icon.
+            action_set[k]['checkable'] (bool): Sets wheter the item is checkable.
+            action_set[k]['checked'] (bool): The state of the checkbox.
+            action_set[k]['visible'] (bool): The visibility of the action.
+
+        """
+        if not parent:
+            parent = self
+
+        for k in menu_set:
+            if ':' in k:  # Skipping `speudo` keys
+                continue
+
+            # Recursive menu creation
+            if isinstance(menu_set[k], collections.OrderedDict):
+                parent = QtWidgets.QMenu(k, parent=self)
+
+                # width = self.parent().viewport().geometry().width()
+                # width = (width * 0.5) if width > 400 else width
+                # parent.setFixedWidth(width)
+
+                if '{}:icon'.format(k) in menu_set:
+                    icon = QtGui.QIcon(menu_set['{}:icon'.format(k)])
+                    parent.setIcon(icon)
+                self.addMenu(parent)
+                self.create_menu(menu_set[k], parent=parent)
+                continue
+
+            if 'separator' in k:
+                parent.addSeparator()
+                continue
+
+            action = parent.addAction(k)
+
+            if 'data' in menu_set[k]:  # Skipping disabled items
+                action.setData(menu_set[k]['data'])
+            if 'disabled' in menu_set[k]:  # Skipping disabled items
+                action.setDisabled(menu_set[k]['disabled'])
+            if 'action' in menu_set[k]:
+                if isinstance(menu_set[k]['action'], collections.Iterable):
+                    for func in menu_set[k]['action']:
+                        action.triggered.connect(func)
+                else:
+                    action.triggered.connect(menu_set[k]['action'])
+            if 'text' in menu_set[k]:
+                action.setText(menu_set[k]['text'])
+            else:
+                action.setText(k)
+            if 'status_tip' in menu_set[k]:
+                action.setStatusTip(menu_set[k]['status_tip'])
+            if 'tool_tip' in menu_set[k]:
+                action.setToolTip(menu_set[k]['tool_tip'])
+            if 'checkable' in menu_set[k]:
+                action.setCheckable(menu_set[k]['checkable'])
+            if 'checked' in menu_set[k]:
+                action.setChecked(menu_set[k]['checked'])
+            if 'icon' in menu_set[k]:
+                action.setIconVisibleInMenu(True)
+                action.setIcon(menu_set[k]['icon'])
+            if 'shortcut' in menu_set[k]:
+                action.setShortcut(menu_set[k]['shortcut'])
+            if 'visible' in menu_set[k]:
+                action.setVisible(menu_set[k]['visible'])
+            else:
+                action.setVisible(True)
+
+    def showEvent(self, event):
+        """Elides the action text to fit the size of the widget upon showing."""
+        for action in self.actions():
+            if not action.text():
+                continue
+
+            metrics = QtGui.QFontMetrics(self.font())
+            text = metrics.elidedText(
+                action.text(),
+                QtCore.Qt.ElideMiddle,
+                self.width() - 32 - 10  # padding set in the stylesheet
+            )
+            action.setText(text)
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
@@ -399,102 +488,71 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         self.create_menu(menu_set)
 
-    def create_menu(self, menu_set, parent=None):
-        """This action populates the menu using the action-set dictionaries,
-        and it automatically connects the action with a corresponding method based
-        on the key/method-name.
+    def add_add_bookmark_menu(self):
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
+        menu_set['Add bookmark'] = {
+            'text': 'Add bookmark',
+            'action': self.parent().show_add_bookmark_widget
+        }
 
-        Args:
-            menu_set (OrderedDict):    The set of menu items. See keys below.
-            parent (QMenu):
+        self.create_menu(menu_set)
 
-        Implemented keys:
-            action_set[k]['action'] (bool): The action to execute when the item is clicked.
-            action_set[k]['text'] (str): The action's text
-            action_set[k]['data'] (object): User data stored in the action
-            action_set[k]['disabled'] (bool): Sets wheter the item is disabled.
-            action_set[k]['tool_tip'] (str):The description of the action.
-            action_set[k]['status_tip'] (str): The description of the action.
-            action_set[k]['icon'] (QPixmap): The action's icon.
-            action_set[k]['shortcut'] (QKeySequence): The action's icon.
-            action_set[k]['checkable'] (bool): Sets wheter the item is checkable.
-            action_set[k]['checked'] (bool): The state of the checkbox.
-            action_set[k]['visible'] (bool): The visibility of the action.
+    def add_collapse_sequence_menu(self):
+        """Adds the menu needed to change context"""
+        if self.parent().model().sourceModel().get_location() == common.RendersFolder:
+            return  # Render sequences are always collapsed
 
-        """
-        if not parent:
-            parent = self
+        expand_pixmap = common.get_rsc_pixmap(
+            'expand', common.SECONDARY_TEXT, 18.0)
+        collapse_pixmap = common.get_rsc_pixmap(
+            'collapse', common.FAVOURITE, 18.0)
 
-        for k in menu_set:
-            if ':' in k:  # Skipping `speudo` keys
-                continue
+        collapsed = self.parent().model().sourceModel().is_grouped()
 
-            # Recursive menu creation
-            if isinstance(menu_set[k], collections.OrderedDict):
-                parent = QtWidgets.QMenu(k, parent=self)
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
 
-                # width = self.parent().viewport().geometry().width()
-                # width = (width * 0.5) if width > 400 else width
-                # parent.setFixedWidth(width)
+        menu_set['collapse'] = {
+            'text': 'Show individual files' if collapsed else 'Group sequences together',
+            'icon': expand_pixmap if collapsed else collapse_pixmap,
+            'checkable': True,
+            'checked': collapsed,
+            'action': functools.partial(
+                self.parent().model().sourceModel().set_grouped, not collapsed)
+        }
 
-                if '{}:icon'.format(k) in menu_set:
-                    icon = QtGui.QIcon(menu_set['{}:icon'.format(k)])
-                    parent.setIcon(icon)
-                self.addMenu(parent)
-                self.create_menu(menu_set[k], parent=parent)
-                continue
+        self.create_menu(menu_set)
 
-            if 'separator' in k:
-                parent.addSeparator()
-                continue
+    def add_location_toggles_menu(self):
+        """Adds the menu needed to change context"""
+        locations_icon_pixmap = common.get_rsc_pixmap(
+            'location', common.TEXT_SELECTED, 18.0)
+        item_on_pixmap = common.get_rsc_pixmap(
+            'item_on', common.TEXT_SELECTED, 18.0)
+        item_off_pixmap = common.get_rsc_pixmap(
+            'item_off', common.TEXT_SELECTED, 18.0)
 
-            action = parent.addAction(k)
+        menu_set = collections.OrderedDict()
+        menu_set['separator'] = {}
 
-            if 'data' in menu_set[k]:  # Skipping disabled items
-                action.setData(menu_set[k]['data'])
-            if 'disabled' in menu_set[k]:  # Skipping disabled items
-                action.setDisabled(menu_set[k]['disabled'])
-            if 'action' in menu_set[k]:
-                if isinstance(menu_set[k]['action'], collections.Iterable):
-                    for func in menu_set[k]['action']:
-                        action.triggered.connect(func)
-                else:
-                    action.triggered.connect(menu_set[k]['action'])
-            if 'text' in menu_set[k]:
-                action.setText(menu_set[k]['text'])
-            else:
-                action.setText(k)
-            if 'status_tip' in menu_set[k]:
-                action.setStatusTip(menu_set[k]['status_tip'])
-            if 'tool_tip' in menu_set[k]:
-                action.setToolTip(menu_set[k]['tool_tip'])
-            if 'checkable' in menu_set[k]:
-                action.setCheckable(menu_set[k]['checkable'])
-            if 'checked' in menu_set[k]:
-                action.setChecked(menu_set[k]['checked'])
-            if 'icon' in menu_set[k]:
-                action.setIconVisibleInMenu(True)
-                action.setIcon(menu_set[k]['icon'])
-            if 'shortcut' in menu_set[k]:
-                action.setShortcut(menu_set[k]['shortcut'])
-            if 'visible' in menu_set[k]:
-                action.setVisible(menu_set[k]['visible'])
-            else:
-                action.setVisible(True)
+        key = 'Switch location'
 
-    def showEvent(self, event):
-        """Elides the action text to fit the size of the widget upon showing."""
-        for action in self.actions():
-            if not action.text():
-                continue
+        menu_set[key] = collections.OrderedDict()
+        menu_set['{}:icon'.format(key)] = locations_icon_pixmap
 
-            metrics = QtGui.QFontMetrics(self.font())
-            text = metrics.elidedText(
-                action.text(),
-                QtCore.Qt.ElideMiddle,
-                self.width() - 32 - 10  # padding set in the stylesheet
-            )
-            action.setText(text)
+        for k in sorted(list(common.NameFilters)):
+            checked = self.parent().model().sourceModel().get_location() == k
+            menu_set[key][k] = {
+                'text': k.title(),
+                'checkable': True,
+                'checked': checked,
+                'icon': item_on_pixmap if checked else item_off_pixmap,
+                'action': functools.partial(self.parent().model().sourceModel().set_location, k)
+            }
+
+        self.create_menu(menu_set)
+
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -832,7 +890,6 @@ class BaseListWidget(QtWidgets.QListView):
     def refresh(self):
         """Refreshes the underlaying source model and resets the sorting."""
         index = self.selectionModel().currentIndex()
-        opath = index.data(QtCore.Qt.StatusTipRole)
 
         self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
@@ -841,7 +898,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
         self.model().sort()
-        self.reselect_index(opath)
+
+        self.reselect_previous_path()
 
     def reselect_previous_path(self):
         """Reselects the index based on the path given."""

@@ -27,70 +27,23 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
+        # Adding persistent actions
+        self.add_sort_menu()
+        self.add_display_toggles_menu()
+        if index.isValid():
+            self.add_reveal_folder_menu()
+            self.add_copy_menu()
+            self.add_mode_toggles_menu()
+            self.add_thumbnail_menu()
         self.add_location_toggles_menu()
         self.add_collapse_sequence_menu()
-        if index.isValid():
-            self.add_thumbnail_menu()
         self.add_refresh_menu()
-
-    def add_collapse_sequence_menu(self):
-        """Adds the menu needed to change context"""
-        if self.parent().model().sourceModel().get_location() == common.RendersFolder:
-            return  # Render sequences are always collapsed
-
-        expand_pixmap = common.get_rsc_pixmap(
-            'expand', common.SECONDARY_TEXT, 18.0)
-        collapse_pixmap = common.get_rsc_pixmap(
-            'collapse', common.FAVOURITE, 18.0)
-
-        collapsed = self.parent().model().sourceModel().is_grouped()
-
-        menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-
-        menu_set['collapse'] = {
-            'text': 'Show individual files' if collapsed else 'Group sequences together',
-            'icon': expand_pixmap if collapsed else collapse_pixmap,
-            'checkable': True,
-            'checked': collapsed,
-            'action': functools.partial(
-                self.parent().model().sourceModel().set_grouped, not collapsed)
-        }
-
-        self.create_menu(menu_set)
-
-    def add_location_toggles_menu(self):
-        """Adds the menu needed to change context"""
-        locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, 18.0)
-        item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
-        item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, 18.0)
-
-        menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-
-        key = 'Locations'
-
-        menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = locations_icon_pixmap
-
-        for k in sorted(list(common.NameFilters)):
-            checked = self.parent().get_location() == k
-            menu_set[key][k] = {
-                'text': 'Switch to  > {} <'.format(k.upper()),
-                'checkable': True,
-                'checked': checked,
-                'icon': item_on_pixmap if checked else item_off_pixmap,
-                'action': functools.partial(self.parent().set_location, k)
-            }
-
-        self.create_menu(menu_set)
 
 
 class FilesModel(BaseModel):
     """The model to collect files."""
+
+    activeLocationChanged = QtCore.Signal(str)
 
     def __init__(self, asset, parent=None):
         self.asset = asset
@@ -137,6 +90,7 @@ class FilesModel(BaseModel):
         config_dir_paths = {}
 
         while it.hasNext():
+            QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
             path = it.next()
             fileroot = '/'.join((server, job, root, asset, location))
             fileroot = it.fileInfo().path().replace(fileroot, '')
@@ -385,10 +339,6 @@ class FilesModel(BaseModel):
         local_settings.setValue(key, val)
         self.activeLocationChanged.emit(val)
 
-        self.beginResetModel()
-        self.__initdata__()
-        self.endResetModel()
-
 
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing scene and project files of an asset.
@@ -410,6 +360,8 @@ class FilesWidget(BaseInlineIconWidget):
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
+        self.model().sourceModel().activeLocationChanged.connect(self.refresh)
+
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self._context_menu_cls = FilesWidgetContextMenu
@@ -435,27 +387,6 @@ class FilesWidget(BaseInlineIconWidget):
 
         local_settings.setValue('activepath/file', activefilepath)
         self.activeFileChanged.emit(activefilepath)
-
-    def get_location(self):
-        """Get's the current file ``location``.
-
-        See the ``common`` module forpossible values but generally this refers
-        to either to `scenes`, `textures`, `renders` or `exports folder.`
-
-        """
-        val = local_settings.value('activepath/location')
-        return val if val else common.ScenesFolder
-
-    def set_location(self, val):
-        """Sets the location and emits the ``activeLocationChanged`` signal."""
-        key = 'activepath/location'
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        local_settings.setValue(key, val)
-        self.activeLocationChanged.emit(val)
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
