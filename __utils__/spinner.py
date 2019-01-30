@@ -34,28 +34,28 @@ class Spinner(QtWidgets.QWidget):
         )
         self.spinner_pixmap = QtGui.QPixmap(self.spinner_pixmap)
 
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.worker = GUIUpdater()
+        self._connectSignals()
 
-        app = QtCore.QCoreApplication.instance()
-        app.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.animate_opacity()
-        self.show()
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
 
     def start(self):
         """Starts the widget-spin."""
-        self.degree = 0
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.increment)
-        self.timer.setInterval(40)
-        self.timer.setSingleShot(False)
-        self.timer.start()
+        app = QtCore.QCoreApplication.instance()
+        app.setOverrideCursor(QtCore.Qt.WaitCursor)
+        self.animate_opacity()
+        self.show()
+        self.worker.run()
 
     def stop(self):
         """Stops the widget-spin."""
         app = QtCore.QCoreApplication.instance()
         app.restoreOverrideCursor()
+        self.worker.quit()
+        self.worker.deleteLater()
         self.close()
+
 
     def update_label(self, degree):
         """Main method to update the spinner called by the waroker class."""
@@ -131,6 +131,7 @@ class Spinner(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
+
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
     def animate_opacity(self):
@@ -151,6 +152,8 @@ class Spinner(QtWidgets.QWidget):
             return info.absoluteFilePath()
         return None
 
+    def _connectSignals(self):
+        self.worker.updateLabel.connect(self.update_label)
 
     def move_to_center(self):
         """Moves the widget to the center of the dektop."""
@@ -162,9 +165,21 @@ class Spinner(QtWidgets.QWidget):
         """Custom show event."""
         self.move_to_center()
 
+class GUIUpdater(QtCore.QThread):
+
+    updateLabel = QtCore.Signal(int)
+
     def increment(self):
         self.degree += 1
-        self.update_label(self.degree)
+        self.updateLabel.emit(self.degree)
+
+    def run(self):
+        self.degree = 0
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.increment)
+        self.timer.setInterval(40)
+        self.timer.setSingleShot(False)
+        self.timer.start()
 
 
 
