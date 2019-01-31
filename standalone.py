@@ -5,8 +5,8 @@
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from mayabrowser.browserwidget import BrowserWidget
-import mayabrowser.common as common
+from browser.browserwidget import BrowserWidget
+import browser.common as common
 
 
 

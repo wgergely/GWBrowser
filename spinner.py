@@ -14,7 +14,7 @@ Example:
 import sys
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
-import mayabrowser.common as common
+import browser.common as common
 
 
 def longprocess(func):
@@ -115,7 +115,7 @@ class Spinner(QtWidgets.QWidget):
         self.setPixmap(self.get_pixmap(degree * 20))
 
     def move_to_center(self):
-        from mayabrowser.browserwidget import BrowserWidget
+        from browser.browserwidget import BrowserWidget
         app = QtWidgets.QApplication.instance()
         widget = next((f for f in app.allWidgets() if f.objectName() == 'BrowserWidget'), None)
 

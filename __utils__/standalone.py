@@ -8,7 +8,7 @@ import os
 
 from PySide2 import QtWidgets, QtCore
 
-from mayabrowser.toolbar import MayaBrowserWidget
+from browser.toolbar import browserWidget
 
 
 class SingleInstanceException(BaseException):
@@ -97,7 +97,7 @@ class StandaloneApp(QtWidgets.QApplication):
             sys.exit(-1)
 
     def exec_(self):
-        widget = MayaBrowserWidget()
+        widget = browserWidget()
         widget.move(50, 50)
         widget.show()
         super(StandaloneApp, self).exec_()

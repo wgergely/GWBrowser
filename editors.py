@@ -7,8 +7,8 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.settings import AssetSettings
+import browser.common as common
+from browser.settings import AssetSettings
 
 
 class ClickableLabel(QtWidgets.QLabel):

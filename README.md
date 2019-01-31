@@ -12,7 +12,7 @@ The application-wide shortcut to show the panel is 'Ctrl + Shift + O'.
 
 ##  Plug-in Installation
 
-Place `mayaBrowserPlugin.py` into one of the Maya plug-in directories.
+Place `browserPlugin.py` into one of the Maya plug-in directories.
 The list of plug-in directories can be retrieved by running the following in
 the Maya Script Editor:
 
@@ -25,7 +25,7 @@ for path in os.environ['MAYA_PLUG_IN_PATH'].split(';'):
 By default, on windows, the default user plug-in paths are `C:/Users/[user name]/Documents/maya/[version]/plug-ins` and  `C:/Users/[user name]/Documents/maya/plug-ins`
 
 Sometimes, these directories don't exists so make sure you create them if so.
-Finally, you have to load the plug-in via the *Plug-in Manager*, it should be listed as `mayaBrowserPlugin.py`.
+Finally, you have to load the plug-in via the *Plug-in Manager*, it should be listed as `browserPlugin.py`.
 
 ## Python package installation
 Before loading the plug-in make sure the main 'Browser' module location is either added to the python path or placed in one of the python script directories. You can get them by running:

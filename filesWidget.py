@@ -7,17 +7,17 @@ found by the collector classes.
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseInlineIconWidget
-from mayabrowser.baselistwidget import BaseModel
+from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import BaseInlineIconWidget
+from browser.baselistwidget import BaseModel
 
-import mayabrowser.common as common
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import local_settings, path_monitor
-from mayabrowser.delegate import FilesWidgetDelegate
-import mayabrowser.editors as editors
-from mayabrowser.spinner import longprocess
+import browser.common as common
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import AssetSettings
+from browser.settings import local_settings, path_monitor
+from browser.delegate import FilesWidgetDelegate
+import browser.editors as editors
+from browser.spinner import longprocess
 
 
 class FilesWidgetContextMenu(BaseContextMenu):

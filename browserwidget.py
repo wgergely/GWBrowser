@@ -10,7 +10,7 @@ Example:
 .. code-block:: python
     :linenos:
 
-    from mayabrowser.toolbar import BrowserWidget
+    from browser.toolbar import BrowserWidget
     widget = BrowserWidget()
     widget.show()
 
@@ -24,14 +24,14 @@ import functools
 import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.bookmarkswidget import BookmarksWidget
-from mayabrowser.assetwidget import AssetWidget
-from mayabrowser.fileswidget import FilesWidget
-from mayabrowser.editors import FilterEditor
-from mayabrowser.editors import ClickableLabel
-from mayabrowser.settings import local_settings, path_monitor
+import browser.common as common
+from browser.baselistwidget import BaseContextMenu
+from browser.bookmarkswidget import BookmarksWidget
+from browser.assetwidget import AssetWidget
+from browser.fileswidget import FilesWidget
+from browser.editors import FilterEditor
+from browser.editors import ClickableLabel
+from browser.settings import local_settings, path_monitor
 
 
 class StackFaderWidget(QtWidgets.QWidget):

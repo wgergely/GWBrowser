@@ -15,8 +15,8 @@ Methods:
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from mayabrowser import common
-from mayabrowser.settings import AssetSettings
+from browser import common
+from browser.settings import AssetSettings
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):

@@ -10,12 +10,12 @@ import functools
 import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-import mayabrowser.editors as editors
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.settings import local_settings
-from mayabrowser.settings import AssetSettings
-from mayabrowser.capture import ScreenGrabber
+import browser.common as common
+import browser.editors as editors
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import local_settings
+from browser.settings import AssetSettings
+from browser.capture import ScreenGrabber
 
 
 class BaseContextMenu(QtWidgets.QMenu):

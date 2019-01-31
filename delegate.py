@@ -7,9 +7,9 @@ import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+import browser.common as common
+from browser.settings import AssetSettings
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 def paintmethod(func):

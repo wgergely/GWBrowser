@@ -31,4 +31,4 @@
 ::
 ::
 ::978f952a14a936cc963da21a135fa983
-E:\GW_ASSETS\git\mayabrowser\standalone.py
+E:\GW_ASSETS\git\browser\standalone.py

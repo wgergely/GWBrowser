@@ -4,21 +4,21 @@ Browser Python Modules Documentation
 Widgets
 -------
 
-.. automodule:: mayabrowser.toolbar
+.. automodule:: browser.toolbar
 
 
 -----------------
-MayaBrowserWidget
+browserWidget
 -----------------
 
-.. autoclass:: mayabrowser.toolbar.MayaBrowserWidget
+.. autoclass:: browser.toolbar.browserWidget
 
 
 ----------------------
-MayaBrowserContextMenu
+browserContextMenu
 ----------------------
 
-.. autoclass:: mayabrowser.toolbar.MayaBrowserContextMenu
+.. autoclass:: browser.toolbar.browserContextMenu
 
 
 ----------------
@@ -26,10 +26,10 @@ Base list widget
 ----------------
 
 
-.. automodule:: mayabrowser.baselistwidget.BaseContextMenu
+.. automodule:: browser.baselistwidget.BaseContextMenu
 
 
-.. automodule:: mayabrowser.baselistwidget.BaseListWidget
+.. automodule:: browser.baselistwidget.BaseListWidget
   :members:
 
 
@@ -37,10 +37,10 @@ Base list widget
 Projects
 -------------
 
-.. autoclass:: mayabrowser.listproject.ProjectWidgetContextMenu
+.. autoclass:: browser.listproject.ProjectWidgetContextMenu
 
 
-.. autoclass:: mayabrowser.listproject.ProjectWidget
+.. autoclass:: browser.listproject.ProjectWidget
   :members:
 
 
@@ -49,10 +49,10 @@ Maya
 -------------
 
 
-.. autoclass:: mayabrowser.listmaya.FilesWidgetContextMenu
+.. autoclass:: browser.listmaya.FilesWidgetContextMenu
 
 
-.. autoclass:: mayabrowser.listmaya.FilesWidget
+.. autoclass:: browser.listmaya.FilesWidget
   :members:
 
 
@@ -60,18 +60,18 @@ Configuration
 -------------
 
 
-.. automodule:: mayabrowser.settings
+.. automodule:: browser.settings
 
 
-.. autoclass:: mayabrowser.settings.LocalSettings
+.. autoclass:: browser.settings.LocalSettings
   :members:
 
 
-.. autoclass:: mayabrowser.settings.ProjectConfig
+.. autoclass:: browser.settings.ProjectConfig
   :members:
 
 
-.. autoclass:: mayabrowser.settings.FileConfig
+.. autoclass:: browser.settings.FileConfig
   :members:
 
 
@@ -79,38 +79,38 @@ Configuration
 LocalSettings
 -----------
 
-.. autoclass:: mayabrowser.settings.LocalSettings
+.. autoclass:: browser.settings.LocalSettings
   :members:
 
 ----------
 FileConfig
 ----------
 
-.. autoclass:: mayabrowser.settings.FileConfig
+.. autoclass:: browser.settings.FileConfig
   :members:
 
 -------------
 ProjectConfig
 -------------
 
-.. autoclass:: mayabrowser.settings.ProjectConfig
+.. autoclass:: browser.settings.ProjectConfig
   :members:
 
 
 Collectors
 ----------
-.. automodule:: mayabrowser.collector
+.. automodule:: browser.collector
 
 ----------------
 ProjectCollector
 ----------------
-.. autoclass:: mayabrowser.collector.ProjectCollector
+.. autoclass:: browser.collector.ProjectCollector
   :members:
 
 -------------
 FileCollector
 -------------
-.. autoclass:: mayabrowser.collector.FileCollector
+.. autoclass:: browser.collector.FileCollector
   :members:
 
 Common
@@ -119,12 +119,12 @@ Common
 --------------
 ScreenGrabber
 --------------
-.. automodule:: mayabrowser.capture
-.. autoclass:: mayabrowser.capture.ScreenGrabber
+.. automodule:: browser.capture
+.. autoclass:: browser.capture.ScreenGrabber
   :members:
 
 --------------
 Common
 --------------
-.. automodule:: mayabrowser.common
+.. automodule:: browser.common
   :members:

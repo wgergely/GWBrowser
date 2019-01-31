@@ -17,16 +17,16 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseInlineIconWidget
-from mayabrowser.baselistwidget import BaseModel
-import mayabrowser.editors as editors
-from mayabrowser.delegate import AssetWidgetDelegate
+import browser.common as common
+from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import BaseInlineIconWidget
+from browser.baselistwidget import BaseModel
+import browser.editors as editors
+from browser.delegate import AssetWidgetDelegate
 
-from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import local_settings, path_monitor
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import AssetSettings
+from browser.settings import local_settings, path_monitor
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class AssetWidgetContextMenu(BaseContextMenu):
@@ -200,7 +200,7 @@ class AssetWidget(BaseInlineIconWidget):
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""
-        from mayabrowser.todoEditor import TodoEditorWidget
+        from browser.todoEditor import TodoEditorWidget
         widget = TodoEditorWidget(self.currentIndex(), parent=self)
         widget.show()
 
