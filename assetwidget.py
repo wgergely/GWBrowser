@@ -74,30 +74,24 @@ class AssetModel(BaseModel):
         if not config_dir_path.exists():
             QtCore.QDir().mkpath(config_dir_path.filePath())
 
-
-        it = QtCore.QDirIterator(
-            '/'.join(self.bookmark),
-            flags=QtCore.QDirIterator.NoIteratorFlags,
-            filters=QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks |
-            QtCore.QDir.Readable
-        )
+        dir_ = QtCore.QDir('/'.join(self.bookmark))
+        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
+                       QtCore.QDir.Dirs |
+                       QtCore.QDir.Readable)
+        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
 
         idx = 0
         while it.hasNext():
             # Validate assets by skipping folders without the identifier file
-            file_info = QtCore.QFileInfo(it.next())
-            identifier = QtCore.QDir(file_info.filePath()).entryList(
+            it.next()
+            identifier = QtCore.QDir(it.filePath()).entryList(
                 (common.ASSET_IDENTIFIER, ),
                 filters=QtCore.QDir.Files |
-                QtCore.QDir.NoDotAndDotDot |
-                QtCore.QDir.NoSymLinks
+                QtCore.QDir.NoDotAndDotDot
             )
             if not identifier:
                 continue
 
-            settings = AssetSettings((server, job, root, file_info.filePath()))
 
             # Flags
             flags = (
@@ -107,17 +101,18 @@ class AssetModel(BaseModel):
             )
 
             # Active
-            if file_info.fileName() == active_paths['asset']:
+            if it.fileName() == active_paths['asset']:
                 flags = flags | MarkedAsActive
 
             # Archived
+            settings = AssetSettings((server, job, root, it.filePath()))
             if settings.value('config/archived'):
                 flags = flags | MarkedAsArchived
 
             # Favourite
             favourites = local_settings.value('favourites')
             favourites = favourites if favourites else []
-            if file_info.filePath() in favourites:
+            if it.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
 
             # Todos
@@ -128,21 +123,22 @@ class AssetModel(BaseModel):
             else:
                 count = 0
 
-            tooltip = u'{}\n'.format(file_info.fileName().upper())
+            tooltip = u'{}\n'.format(it.fileName().upper())
             tooltip += u'{}\n'.format(server.upper())
             tooltip += u'{}\n'.format(job.upper())
-            tooltip += u'{}'.format(file_info.filePath())
+            tooltip += u'{}'.format(it.filePath())
             self.internal_data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.fileName(),
-                QtCore.Qt.EditRole: file_info.fileName(),
-                QtCore.Qt.StatusTipRole: file_info.filePath(),
+                QtCore.Qt.DisplayRole: it.fileName(),
+                QtCore.Qt.EditRole: it.fileName(),
+                QtCore.Qt.StatusTipRole: it.filePath(),
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT),
                 common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, file_info.fileName()), # parent includes the asset
+                # parent includes the asset
+                common.ParentRole: (server, job, root, it.fileName()),
                 common.DescriptionRole: settings.value('config/description'),
                 common.TodoCountRole: count,
-                common.FileDetailsRole: file_info.size(),
+                common.FileDetailsRole: it.fileInfo().size(),
             }
 
             common.cache_image(
@@ -156,6 +152,7 @@ class AssetModel(BaseModel):
         self.beginResetModel()
         self.__initdata__()
         self.endResetModel()
+
 
 class AssetWidget(BaseInlineIconWidget):
     """Custom QListWidget for displaying the found assets inside the set ``path``.
@@ -195,7 +192,7 @@ class AssetWidget(BaseInlineIconWidget):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         local_settings.setValue('activepath/asset', file_info.fileName())
 
-        path_monitor.get_active_paths() # Resetting invalid paths
+        path_monitor.get_active_paths()  # Resetting invalid paths
         self.activeAssetChanged.emit(index.data(common.ParentRole))
 
     def show_todos(self):
