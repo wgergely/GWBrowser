@@ -83,20 +83,22 @@ class FilesModel(BaseModel):
         dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dir_.setSorting(QtCore.QDir.Unsorted)
         dir_.setNameFilters(common.NameFilters[location])
-        it = QtCore.QDirIterator(
-            dir_,
-            flags=QtCore.QDirIterator.Subdirectories,
-        )
+        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.Subdirectories)
 
         idx = 0
-        config_dir_paths = {}
 
         while it.hasNext():
             QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
             path = it.next()
-            fileroot = '/'.join((server, job, root, asset, location))
-            fileroot = it.fileInfo().path().replace(fileroot, '')
-            fileroot = fileroot.strip('/')
+
+            # We're not going to set more data when looking inside the ``renders`` location.
+            # Things can slow down when querrying 10000+ files.
+            if location == common.RendersFolder:
+                self._internal_data[location][False][idx] = {
+                    int(QtCore.Qt.StatusTipRole): path
+                }
+                idx += 1
+                continue
 
             # Flags
             flags = (
@@ -106,26 +108,18 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ItemIsEditable |
                 QtCore.Qt.ItemIsDragEnabled
             )
-            # We're not going to set more data if looking inside the renders
-            # folder as the number of files querried can be huge.
-            if location == common.RendersFolder:
-                self._internal_data[location][False][idx] = {
-                    int(QtCore.Qt.StatusTipRole): path
-                }
-                idx += 1
-                continue
-
-            settings = AssetSettings((server, job, root, it.filePath()))
-            if it.path() not in config_dir_paths:
-                config_dir_paths[it.path()] = QtCore.QFileInfo(
-                    settings.conf_path()).path()
 
             # Active
+            fileroot = '/'.join((server, job, root, asset, location))
+            fileroot = it.fileInfo().path().replace(fileroot, '')
+            fileroot = fileroot.strip('/')
+
             activefilepath = '{}/{}'.format(fileroot, it.fileName())
             if activefilepath == active_paths['file']:
                 flags = flags | MarkedAsActive
 
             # Archived
+            settings = AssetSettings((server, job, root, it.filePath()))
             if settings.value('config/archived'):
                 flags = flags | MarkedAsArchived
 
@@ -171,13 +165,6 @@ class FilesModel(BaseModel):
 
             idx += 1
 
-        # Creating directories for the settings
-        for k in config_dir_paths:
-            if QtCore.QFileInfo(config_dir_paths[k]).exists():
-                continue
-            QtCore.QDir().mkpath(config_dir_paths[k])
-
-
         # Getting unique sequence groups
         groups = {}
         idx = 0
@@ -222,6 +209,9 @@ class FilesModel(BaseModel):
             )
 
             # Active
+            fileroot = '/'.join((server, job, root, asset, location))
+            fileroot = file_info.path().replace(fileroot, '')
+            fileroot = fileroot.strip('/')
             activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
             if activefilepath == active_paths['file']:
                 flags = flags | MarkedAsActive

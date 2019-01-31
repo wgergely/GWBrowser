@@ -103,6 +103,12 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
     def __init__(self, index, parent=None):
         super(ThumbnailEditor, self).__init__(parent=parent)
         settings = AssetSettings(index)
+
+        # Making config folder
+        conf_dir = QtCore.QFileInfo(settings.conf_path())
+        if not conf_dir.exists():
+            QtCore.QDir().mkpath(conf_dir.path())
+
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)

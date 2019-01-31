@@ -547,7 +547,6 @@ def count_assets(path):
     dir_.setFilter(
         QtCore.QDir.NoDotAndDotDot |
         QtCore.QDir.Dirs |
-        QtCore.QDir.NoSymLinks |
         QtCore.QDir.Readable
     )
 

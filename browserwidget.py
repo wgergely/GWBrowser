@@ -207,17 +207,17 @@ class CollapseSequenceButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(parent=parent)
-        self.update()
+        self.update_()
 
         self.clicked.connect(self.toggle)
-        self.clicked.connect(self.update)
+        self.clicked.connect(self.update_)
 
     def toggle(self):
         filewidget = self.parent().parent().findChild(FilesWidget)
         grouped = filewidget.model().sourceModel().is_grouped()
         filewidget.model().sourceModel().set_grouped(not grouped)
 
-    def update(self):
+    def update_(self):
         filewidget = self.parent().parent().findChild(FilesWidget)
         collapsed = filewidget.model().sourceModel().is_grouped()
         if collapsed:
@@ -233,9 +233,9 @@ class ToggleArchivedButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(parent=parent)
-        self.update()
+        self.update_()
         self.clicked.connect(self.toggle)
-        self.clicked.connect(self.update)
+        self.clicked.connect(self.update_)
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
@@ -243,7 +243,7 @@ class ToggleArchivedButton(ClickableLabel):
         archived = widget.model().get_filtermode('archived')
         widget.model().set_filtermode('archived', not archived)
 
-    def update(self):
+    def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
         widget = widget.currentWidget()
         archived = widget.model().get_filtermode('archived')
@@ -261,9 +261,9 @@ class ToggleFavouriteButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(parent=parent)
-        self.update()
+        self.update_()
         self.clicked.connect(self.toggle)
-        self.clicked.connect(self.update)
+        self.clicked.connect(self.update_)
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
@@ -271,7 +271,7 @@ class ToggleFavouriteButton(ClickableLabel):
         favourite = widget.model().get_filtermode('favourite')
         widget.model().set_filtermode('favourite', not favourite)
 
-    def update(self):
+    def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
         widget = widget.currentWidget()
         favourite = widget.model().get_filtermode('favourite')
@@ -446,9 +446,18 @@ class ListControlWidget(QtWidgets.QWidget):
         combobox = self.findChild(ChangeListWidget)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
-        modepickbutton.clicked.connect(combobox.showPopup)
+        collapsesequence = self.findChild(CollapseSequenceButton)
+        togglearchived = self.findChild(ToggleArchivedButton)
+        togglefavourite = self.findChild(ToggleFavouriteButton)
+
         combobox.currentIndexChanged.connect(self.setCurrentMode)
         combobox.currentIndexChanged.connect(self.modeChanged)
+
+        combobox.currentIndexChanged.connect(togglearchived.update_)
+        combobox.currentIndexChanged.connect(collapsesequence.update_)
+        combobox.currentIndexChanged.connect(togglefavourite.update_)
+
+        modepickbutton.clicked.connect(combobox.showPopup)
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
@@ -462,17 +471,17 @@ class ListControlWidget(QtWidgets.QWidget):
         togglearchived = self.findChild(ToggleArchivedButton)
         togglefavourite = self.findChild(ToggleFavouriteButton)
 
+        combobox.setCurrentIndex(idx)
+        combobox.apply_flags()
+
         if idx == 0:  # Bookmarks
             pixmap = common.get_rsc_pixmap(
                 'bookmarks', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(False)
             locations.setHidden(True)
             collapsesequence.setHidden(True)
-            collapsesequence.update()
             togglearchived.setHidden(False)
-            togglearchived.update()
             togglefavourite.setHidden(False)
-            togglefavourite.update()
         elif idx == 1:  # Assets
             pixmap = common.get_rsc_pixmap(
                 'assets', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
@@ -480,26 +489,22 @@ class ListControlWidget(QtWidgets.QWidget):
             togglearchived.setHidden(True)
             locations.setHidden(True)
             collapsesequence.setHidden(True)
-            collapsesequence.update()
             togglearchived.setHidden(False)
-            togglearchived.update()
             togglefavourite.setHidden(False)
-            togglefavourite.update()
         elif idx == 2:  # Files
             pixmap = common.get_rsc_pixmap(
                 'files', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(True)
             locations.setHidden(False)
             collapsesequence.setHidden(False)
-            collapsesequence.update()
             togglearchived.setHidden(False)
-            togglearchived.update()
             togglefavourite.setHidden(False)
-            togglefavourite.update()
 
         modepick.setPixmap(pixmap)
-        combobox.setCurrentIndex(idx)
-        combobox.apply_flags()
+        collapsesequence.update_()
+        togglearchived.update_()
+        togglefavourite.update_()
+
 
 
 
@@ -806,6 +811,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget.entered.connect(self.entered)
 
         self.fileswidget.activeLocationChanged.connect(self.headerwidget.itemActivated)
+
+        closebutton = self.headerwidget.findChild(CloseButton)
+        closebutton.clicked.connect(self.close)
 
     def entered(self, index):
         """Custom itemEntered signal."""

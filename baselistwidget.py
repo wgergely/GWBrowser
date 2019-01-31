@@ -18,6 +18,7 @@ from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
 from mayabrowser.spinner import Spinner
 
+
 class BaseContextMenu(QtWidgets.QMenu):
     """Custom context menu associated with the BaseListWidget.
     The menu and the actions are always associated with a ``QModelIndex``
@@ -271,19 +272,15 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[key]['separator'] = {}
 
-        it = QtCore.QDirIterator(
-            '/'.join(self.index.data(common.ParentRole)),
-            flags=QtCore.QDirIterator.NoIteratorFlags,
-            filters=QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks |
-            QtCore.QDir.Readable
-        )
+        dir_ = QtCore.QDir('/'.join(self.index.data(common.ParentRole)))
+        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
+                       QtCore.QDir.Dirs |
+                       QtCore.QDir.Readable)
+        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
         items = []
         while it.hasNext():
-            path = it.next()
-            file_info = QtCore.QFileInfo(path)
-            items.append(file_info)
+            it.next()
+            items.append(it.fileInfo())
 
         if not self.parent().model().sortorder:
             items = sorted(
@@ -553,7 +550,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
 
         self.create_menu(menu_set)
-
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -872,6 +868,12 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         settings = AssetSettings(index)
+        # Making config folder
+        conf_dir = QtCore.QFileInfo(settings.conf_path())
+        if not conf_dir.exists():
+            QtCore.QDir().mkpath(conf_dir.path())
+
+        # Saves the iamge
         path = ScreenGrabber.capture(
             output_path=settings.thumbnail_path())
         if not path:
@@ -927,7 +929,7 @@ class BaseListWidget(QtWidgets.QListView):
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
-                self.scrollTo(index)
+                # self.scrollTo(index)
                 break
 
     def action_on_enter_key(self):
@@ -1225,7 +1227,8 @@ class BaseListWidget(QtWidgets.QListView):
 
             filter_rect = QtCore.QRect(event.rect())
             filter_rect.setRight(event.rect().right())
-            filter_rect.setLeft(event.rect().right() - (common.INDICATOR_WIDTH))
+            filter_rect.setLeft(event.rect().right() -
+                                (common.INDICATOR_WIDTH))
             filter_rect.setBottom(sizehint.height())
 
             painter.setRenderHints(
@@ -1245,7 +1248,8 @@ class BaseListWidget(QtWidgets.QListView):
                 if n >= self.model().rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
                     rect_.setWidth(sizehint.height() - 2)
-                    painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 5)))
+                    painter.setBrush(QtGui.QBrush(
+                        QtGui.QColor(100, 100, 100, 5)))
                     painter.drawRect(rect_)
                     painter.drawRect(rect)
                     if favourite_mode:
