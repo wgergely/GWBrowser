@@ -36,7 +36,7 @@ class Spinner(QtWidgets.QWidget):
         super(Spinner, self).__init__(parent=parent)
         self._createUI()
         self.setText('Loading...')
-        
+
         pixmap = common.get_rsc_pixmap('custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
@@ -175,15 +175,6 @@ class Spinner(QtWidgets.QWidget):
         self.animation.setStartValue(0.01)
         self.animation.setEndValue(1)
         self.animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
-
-    @staticmethod
-    def get_thumbnail_path():
-        """The path to the spinner thumbnail."""
-        info = QtCore.QFileInfo(
-            '{}/../thumbnails/spinner.png'.format(__file__))
-        if info.exists():
-            return info.absoluteFilePath()
-        return None
 
     def _connectSignals(self):
         self.worker.updateLabel.connect(self.refresh)

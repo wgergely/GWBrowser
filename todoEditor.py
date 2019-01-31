@@ -212,10 +212,6 @@ class AddButton(QtWidgets.QLabel):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
 
-        path = '{}/rsc/todo_add.png'.format(
-            QtCore.QFileInfo(__file__).dir().path()
-        )
-
         pixmap = common.get_rsc_pixmap('todo_add', common.SEPARATOR, 18)
         self.setPixmap(pixmap)
 
