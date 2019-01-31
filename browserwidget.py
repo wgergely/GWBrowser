@@ -29,6 +29,8 @@ from mayabrowser.baselistwidget import BaseContextMenu
 from mayabrowser.bookmarkswidget import BookmarksWidget
 from mayabrowser.assetwidget import AssetWidget
 from mayabrowser.fileswidget import FilesWidget
+from mayabrowser.editors import FilterEditor
+from mayabrowser.editors import ClickableLabel
 from mayabrowser.settings import local_settings, path_monitor
 
 
@@ -137,24 +139,6 @@ class ListStackWidget(QtWidgets.QStackedWidget):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
 
-class ClickableLabel(QtWidgets.QLabel):
-    clicked = QtCore.Signal()
-
-    def __init__(self, parent=None):
-        super(ClickableLabel, self).__init__(parent=parent)
-        self.setStyleSheet("""
-            QLabel {{
-                background-color: rgba({});
-            }}
-        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
-        self.setFixedSize(QtCore.QSize(
-            common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
-        self.setAlignment(QtCore.Qt.AlignCenter)
-
-    def mouseReleaseEvent(self, event):
-        self.clicked.emit()
-
-
 class LocationsMenu(BaseContextMenu):
     def __init__(self, parent=None):
         super(LocationsMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
@@ -182,6 +166,39 @@ class LocationsMenu(BaseContextMenu):
                 'action': functools.partial(self.parent().model().sourceModel().set_location, k)
             }
         self.create_menu(menu_set)
+
+
+
+class FilterButton(ClickableLabel):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(FilterButton, self).__init__(parent=parent)
+        self.update_()
+
+        self.clicked.connect(self.action)
+        self.clicked.connect(self.update_)
+
+    def action(self):
+        widget = self.parent().parent().findChild(ListStackWidget)
+        filterstring = widget.currentWidget().model().get_filterstring()
+        editor = FilterEditor(filterstring, parent=widget)
+        editor.finished.connect(widget.currentWidget().model().set_filterstring)
+        editor.finished.connect(self.update_)
+        editor.editor.textChanged.connect(widget.currentWidget().model().invalidate)
+        editor.editor.textChanged.connect(widget.currentWidget().model().set_filterstring)
+        editor.show()
+
+    def update_(self):
+        widget = self.parent().parent().findChild(ListStackWidget)
+        filterstring = widget.currentWidget().model().get_filterstring()
+        if filterstring != '/':
+            pixmap = common.get_rsc_pixmap(
+            'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+        else:
+            pixmap = common.get_rsc_pixmap(
+            'filter', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+        self.setPixmap(pixmap)
 
 
 class LocationsButton(ClickableLabel):
@@ -240,14 +257,12 @@ class ToggleArchivedButton(ClickableLabel):
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        widget = widget.currentWidget()
-        archived = widget.model().get_filtermode('archived')
+        archived = widget.currentWidget().model().get_filtermode('archived')
         widget.model().set_filtermode('archived', not archived)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        widget = widget.currentWidget()
-        archived = widget.model().get_filtermode('archived')
+        archived = widget.currentWidget().model().get_filtermode('archived')
         if not archived:
             pixmap = common.get_rsc_pixmap(
             'archived', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
@@ -268,14 +283,12 @@ class ToggleFavouriteButton(ClickableLabel):
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        widget = widget.currentWidget()
-        favourite = widget.model().get_filtermode('favourite')
+        favourite = widget.currentWidget().model().get_filtermode('favourite')
         widget.model().set_filtermode('favourite', not favourite)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        widget = widget.currentWidget()
-        favourite = widget.model().get_filtermode('favourite')
+        favourite = widget.currentWidget().model().get_filtermode('favourite')
         if favourite:
             pixmap = common.get_rsc_pixmap(
             'favourite', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
@@ -431,6 +444,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(ChangeListWidget(parent=self))
         self.layout().addStretch(1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
+        self.layout().addWidget(FilterButton(parent=self))
         self.layout().addWidget(LocationsButton(parent=self))
         self.layout().addWidget(CollapseSequenceButton(parent=self))
         self.layout().addWidget(ToggleArchivedButton(parent=self))
@@ -447,6 +461,7 @@ class ListControlWidget(QtWidgets.QWidget):
         combobox = self.findChild(ChangeListWidget)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
+        filterbutton = self.findChild(FilterButton)
         collapsesequence = self.findChild(CollapseSequenceButton)
         togglearchived = self.findChild(ToggleArchivedButton)
         togglefavourite = self.findChild(ToggleFavouriteButton)
@@ -455,6 +470,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
         self.modeChanged.connect(self.setCurrentMode)
         self.modeChanged.connect(togglearchived.update_)
+        self.modeChanged.connect(filterbutton.update_)
         self.modeChanged.connect(collapsesequence.update_)
         self.modeChanged.connect(togglefavourite.update_)
 
@@ -468,6 +484,7 @@ class ListControlWidget(QtWidgets.QWidget):
         modepick = self.findChild(ModePickButton)
         addbookmark = self.findChild(AddBookmarkButton)
         locations = self.findChild(LocationsButton)
+        filterbutton = self.findChild(FilterButton)
         collapsesequence = self.findChild(CollapseSequenceButton)
         togglearchived = self.findChild(ToggleArchivedButton)
         togglefavourite = self.findChild(ToggleFavouriteButton)
@@ -480,6 +497,7 @@ class ListControlWidget(QtWidgets.QWidget):
                 'bookmarks', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(False)
             locations.setHidden(True)
+            filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
@@ -489,6 +507,7 @@ class ListControlWidget(QtWidgets.QWidget):
             addbookmark.setHidden(True)
             togglearchived.setHidden(True)
             locations.setHidden(True)
+            filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
@@ -497,11 +516,13 @@ class ListControlWidget(QtWidgets.QWidget):
                 'files', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(True)
             locations.setHidden(False)
+            filterbutton.setHidden(False)
             collapsesequence.setHidden(False)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
 
         modepick.setPixmap(pixmap)
+        filterbutton.update_()
         collapsesequence.update_()
         togglearchived.update_()
         togglefavourite.update_()
@@ -690,8 +711,6 @@ class ChangeListWidget(QtWidgets.QComboBox):
             index,
             QtCore.QItemSelectionModel.ClearAndSelect
         )
-        # Hiding the AddBookmarkButton
-        self.parent().findChild(AddBookmarkButton).hide()
 
         self.setUpdatesEnabled(True)
 
@@ -703,9 +722,6 @@ class ChangeListWidget(QtWidgets.QComboBox):
         if self.overlay:
             self.overlay.close()
         super(ChangeListWidget, self).hidePopup()
-
-        # Showing the AddBookmarkButton
-        self.parent().findChild(AddBookmarkButton).show()
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -861,8 +877,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.resize(size)
         self.move(pos)
-
-        # common.move_widget_to_available_geo(self)
 
 
     def sizeHint(self):

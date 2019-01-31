@@ -275,7 +275,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
                        QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
+        it = QtCore.QDirIterator(
+            dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
         items = []
         while it.hasNext():
             it.next()
@@ -612,11 +613,26 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self.sortkey = self.get_sortkey()  # Alphabetical/Modified...etc.
         self.sortorder = self.get_sortorder()  # Ascending/descending
+        self.filterstring = self.get_filterstring()  # Ascending/descending
 
         self.filter_mode = {
             'favourite': self.get_filtermode('favourite'),
             'archived': self.get_filtermode('archived')
         }
+
+    def get_filterstring(self):
+        """Will only display items contaning this string."""
+        cls = self.parent().__class__.__name__
+        val = local_settings.value('widget/{}/filterstring'.format(cls))
+        return val if val else '/'
+
+    def set_filterstring(self, val):
+        """Sets and saves the sort-key."""
+        cls = self.parent().__class__.__name__
+        val = val if val else '/'
+        self.filterstring = val
+        local_settings.setValue('widget/{}/filterstring'.format(cls), val)
+        self.invalidate()
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
@@ -665,6 +681,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         archived = index.flags() & MarkedAsArchived
         favourite = index.flags() & MarkedAsFavourite
 
+        if self.filterstring.lower() not in index.data(QtCore.Qt.StatusTipRole).lower():
+            return False
         if archived and not self.filter_mode['archived']:
             return False
         if not favourite and self.filter_mode['favourite']:

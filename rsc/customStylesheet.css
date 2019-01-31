@@ -249,7 +249,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-pa
 }}
 
 
-
 QListWidget {{
 		outline: none;
 		border: none;
@@ -258,7 +257,33 @@ QListWidget {{
 		background: rgba({SECONDARY_BACKGROUND});
 		font-family: "{fontFamily}";
 		font-size: 8pt;
+		show-decoration-selected: 1; /* make the selection span the entire width of the view */
 }}
+QListWidget:active {{
+	outline: 0;
+  border: none;
+}}
+QListWidget:focus {{
+	outline: 0;
+  border: none;
+}}
+QListWidget::item:hover {{
+	outline: 0;
+  background: transparent;
+  border: none;
+}}
+QListWidget::item:focus {{
+	outline: 0;
+  background: transparent;
+  border: none;
+}}
+QListWidget::item:selected {{
+	outline: 0;
+	background: transparent;
+  border: none;
+}}
+
+
 
 QListView {{
 		outline: none;
