@@ -36,6 +36,9 @@ class Spinner(QtWidgets.QWidget):
         super(Spinner, self).__init__(parent=parent)
         self._createUI()
         self.setText('Loading...')
+        
+        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.animation = None
         self.spinner_pixmap = common.get_rsc_pixmap(

@@ -326,7 +326,19 @@ class CloseButton(ClickableLabel):
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'todo_remove', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 2)
+            'close', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 2)
+        self.setPixmap(pixmap)
+
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
+class MinimizeButton(ClickableLabel):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(MinimizeButton, self).__init__(parent=parent)
+        pixmap = common.get_rsc_pixmap(
+            'minimize', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -386,8 +398,17 @@ class HeaderWidget(QtWidgets.QWidget):
         }\
         """)
 
+        label = QtWidgets.QLabel()
+        pixmap = common.get_rsc_pixmap('custom', None, common.ROW_BUTTONS_HEIGHT / 1.5)
+        label.setPixmap(pixmap)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
+
+        self.layout().addWidget(label)
         self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.label, 1)
+        self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
 
     def mousePressEvent(self, event):
@@ -735,6 +756,8 @@ class BrowserWidget(QtWidgets.QWidget):
             QtCore.Qt.FramelessWindowHint
         )
 
+        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        self.setWindowIcon(QtGui.QIcon(pixmap))
         self._contextMenu = None
 
         self.stackedfaderwidget = None
@@ -834,7 +857,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget.model().sourceModel().activeLocationChanged.connect(func)
         self.fileswidget.model().sourceModel().grouppingChanged.connect(func)
 
+        minimizebutton = self.headerwidget.findChild(MinimizeButton)
         closebutton = self.headerwidget.findChild(CloseButton)
+        minimizebutton.clicked.connect(self.showMinimized)
         closebutton.clicked.connect(self.close)
 
     def entered(self, index):

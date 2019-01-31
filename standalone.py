@@ -3,12 +3,10 @@
 """Standalone runner."""
 
 import sys
-import logging
-import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from mayabrowser.browserwidget import BrowserWidget
-
+import mayabrowser.common as common
 
 
 
@@ -19,6 +17,8 @@ class StandaloneApp(QtWidgets.QApplication):
         super(StandaloneApp, self).__init__(args)
         self.setApplicationName('Browser')
         self.set_model_id()
+        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def exec_(self):
         widget = BrowserWidget()

@@ -493,8 +493,9 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
         QPixmap: The loaded image
 
     """
+
     k = '{name}:{size}:{color}'.format(
-        name=name, size=size, color=color.name())
+        name=name, size=size, color='null' if not color else color.name())
 
     if k in IMAGE_CACHE:
         return IMAGE_CACHE[k]
@@ -509,13 +510,15 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
     if image.isNull():
         return QtGui.QPixmap()
 
+
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-    painter = QtGui.QPainter()
-    painter.begin(image)
-    painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
-    painter.setBrush(QtGui.QBrush(color))
-    painter.drawRect(image.rect())
-    painter.end()
+    if color is not None:
+        painter = QtGui.QPainter()
+        painter.begin(image)
+        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(image.rect())
+        painter.end()
 
     image = resize_image(image, size)
     pixmap = QtGui.QPixmap()
