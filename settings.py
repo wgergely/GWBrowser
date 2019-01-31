@@ -19,7 +19,7 @@ import re
 import collections
 from PySide2 import QtCore
 
-import mayabrowser.common as common
+import browser.common as common
 
 
 # Flags

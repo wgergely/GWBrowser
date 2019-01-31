@@ -10,7 +10,7 @@ The application-wide shortcut to show the panel is ``Ctrl + Shift + O``.
 Installing the plugin
 ---------------------
 
-Place ``mayaBrowserPlugin.py`` into one of the Maya plug-in directories. The list of plug-in directories can be retrieved by running the following in the Maya Script Editor:
+Place ``browserPlugin.py`` into one of the Maya plug-in directories. The list of plug-in directories can be retrieved by running the following in the Maya Script Editor:
 
 .. code-block:: python
     :linenos:
@@ -50,5 +50,5 @@ To test your installation, try importing Browser in the Maya Script Editor. Afte
 
     import browser
 
-Finally, you have to load the plug-in via the `Plug-in Manager`, where the plug-in should be listed as `mayaBrowserPlugin.py`.
+Finally, you have to load the plug-in via the `Plug-in Manager`, where the plug-in should be listed as `browserPlugin.py`.
 Check ``load`` and ``auto-load``.

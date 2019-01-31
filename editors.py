@@ -7,8 +7,27 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.settings import AssetSettings
+import browser.common as common
+from browser.settings import AssetSettings
+
+
+class ClickableLabel(QtWidgets.QLabel):
+    clicked = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super(ClickableLabel, self).__init__(parent=parent)
+        self.setStyleSheet("""
+            QLabel {{
+                background-color: rgba({});
+            }}
+        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
+        self.setFixedSize(QtCore.QSize(
+            common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
+        self.setAlignment(QtCore.Qt.AlignCenter)
+
+    def mouseReleaseEvent(self, event):
+        self.clicked.emit()
+
 
 class ThumbnailViewer(QtWidgets.QLabel):
     """Widget used to view a thumbnail."""
@@ -36,7 +55,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
         self.setPixmap(pixmap)
 
-
         # print pixmap.isValid()
         self.show()
 
@@ -52,7 +70,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
         painter.drawRect(event.rect())
 
         rect = self.pixmap().rect()
-
 
         width = 2.0
         rect.moveTop((event.rect().height() / 2.0) - width)
@@ -80,7 +97,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
     def showEvent(self, event):
         self._fit_screen_geometry()
 
-
     def keyPressEvent(self, event):
         self.close()
 
@@ -91,6 +107,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.close()
+
 
 class ThumbnailEditor(QtWidgets.QFileDialog):
     """Editor widget used by the Asset- and FileWidget delegateself.
@@ -197,7 +214,6 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         return_ = event.key() == QtCore.Qt.Key_Return
         enter = event.key() == QtCore.Qt.Key_Enter
 
-
         if escape:
             self.close()
             return True
@@ -211,7 +227,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.action()
             self.parent().key_down()
             self.parent().key_tab()
-            widget = DescriptionEditorWidget(self.parent().currentIndex(), parent=self.parent())
+            widget = DescriptionEditorWidget(
+                self.parent().currentIndex(), parent=self.parent())
             widget.show()
             return True
 
@@ -219,7 +236,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.action()
             self.parent().key_up()
             self.parent().key_tab()
-            widget = DescriptionEditorWidget(self.parent().currentIndex(), parent=self.parent())
+            widget = DescriptionEditorWidget(
+                self.parent().currentIndex(), parent=self.parent())
             widget.show()
             return True
 
@@ -303,3 +321,118 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         )
         self.settings.setValue('config/description', self.editor.text())
         self.close()
+
+
+class FilterListButton(ClickableLabel):
+    pass
+
+
+class FilterEditor(QtWidgets.QWidget):
+    """Editor widget used to set the filter for the current view."""
+    finished = QtCore.Signal(str)
+
+    def __init__(self, text, parent=None):
+        super(FilterEditor, self).__init__(parent=parent)
+        self.editor = None
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.Window |
+                            QtCore.Qt.FramelessWindowHint)
+        self.setMinimumHeight(common.ROW_BUTTONS_HEIGHT)
+
+        self._createUI()
+        self._connectSignals()
+
+        self.setFocusProxy(self.editor)
+
+        if text == '/':
+            text = ''
+        self.editor.setText(text)
+        self.editor.selectAll()
+        self.editor.focusOutEvent = self.focusOutEvent
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(6, 6, 6, 6)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        self.setFixedWidth(300)
+        self.label = FilterListButton()
+        self.label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
+        pixmap = common.get_rsc_pixmap(
+            'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2.0)
+        self.label.setPixmap(pixmap)
+        self.label.setAlignment(QtCore.Qt.AlignCenter)
+        self.label.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        self.editor = QtWidgets.QLineEdit()
+        self.setStyleSheet("""
+            QLineEdit {
+                padding: 12px;
+                background-color: rgba(30,30,30, 255);
+                color: rgba(200,200,200,255);
+                font-family: "Roboto Black";
+                font-size: 10pt;
+            	border-width: 0px;
+            	border: none;
+            	outline: 0;
+                border-radius: 6px;
+            }
+            QLineEdit:active {
+            	border: none;
+            	outline: 0;
+            }
+            QLineEdit:focus {
+            	border: none;
+            	outline: 0;
+            }
+        """)
+        self.layout().addWidget(self.label, 0)
+        self.layout().addWidget(self.editor, 1)
+
+    def _connectSignals(self):
+        self.finished.connect(self.close)
+
+    def keyPressEvent(self, event):
+        return_ = event.key() == QtCore.Qt.Key_Return
+        enter = event.key() == QtCore.Qt.Key_Enter
+        escape = event.key() == QtCore.Qt.Key_Escape
+
+        if escape:
+            self.close()
+        if return_ or enter:
+            self.finished.emit(self.editor.text())
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.close()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRoundedRect(self.rect(), 6, 6)
+        painter.end()
+
+    def showEvent(self, event):
+        if not self.parent():
+            return
+
+        pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
+        self.move(
+            pos.x() + (self.parent().rect().width() / 2) - (self.width() / 2),
+            pos.y() + (common.ROW_HEIGHT / 2)
+        )
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    widget = FilterEditor('/')
+    widget.show()
+    app.exec_()

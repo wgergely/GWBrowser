@@ -1,8 +1,8 @@
 from PySide2 import QtCore, QtWidgets
 import time
 import re
-from mayabrowser.collector import FileCollector
-import mayabrowser.common as common
+from browser.collector import FileCollector
+import browser.common as common
 
 class Iterator(QtCore.QObject):
     # path = r'\\gordo\jobs\audible_8100\build\gergely_test\renders\forPS\glasses'

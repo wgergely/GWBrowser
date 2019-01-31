@@ -16,17 +16,16 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import re
 import functools
-import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseInlineIconWidget
-from mayabrowser.baselistwidget import BaseModel
-from mayabrowser.settings import local_settings, path_monitor
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.delegate import BookmarksWidgetDelegate
-from mayabrowser.delegate import BaseDelegate
+import browser.common as common
+from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import BaseInlineIconWidget
+from browser.baselistwidget import BaseModel
+from browser.settings import local_settings, path_monitor
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.delegate import BookmarksWidgetDelegate
+from browser.delegate import BaseDelegate
 
 
 class BookmarkInfo(QtCore.QFileInfo):

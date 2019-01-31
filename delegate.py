@@ -4,11 +4,23 @@
 
 
 import re
+from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+import browser.common as common
+from browser.settings import AssetSettings
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+
+
+def paintmethod(func):
+    """@Decorator to save the painter state."""
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        args[0].save()
+        res = func(self, *args, **kwargs)
+        args[0].restore()
+        return res
+    return func_wrapper
 
 
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
@@ -25,7 +37,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         favourite = index.flags() & MarkedAsFavourite
         archived = index.flags() & MarkedAsArchived
         active = index.flags() & MarkedAsActive
-
         painter.setRenderHints(
             QtGui.QPainter.TextAntialiasing |
             QtGui.QPainter.Antialiasing |
@@ -110,7 +121,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if selected:
             color.setRed(color.red() / 0.92)
             color.setGreen(color.green() / 0.92)
-            color.setBlue(color.blue() / 0.92)
+            # color.setBlue(color.blue() / 0.92)
             return color
 
         if archived:  # Disabled colour
@@ -160,20 +171,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         return rect, bg_rect
 
+    @paintmethod
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
+
         if option.rect.width() < 360.0:
             return
-
-        painter.save()
-
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 1)
@@ -202,22 +206,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Icon
         painter.drawPixmap(rect, pixmap)
-        painter.restore()
 
+    @paintmethod
     def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
 
         if option.rect.width() < 360.0:
             return
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 0)
@@ -254,13 +250,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Icon
         painter.drawPixmap(rect, pixmap)
-        painter.restore()
 
+    @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
         painter, option, _, selected, _, active, _, _ = args
 
-        painter.save()
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
         if selected and not active:
@@ -293,12 +288,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-        painter.restore()
-
+    @paintmethod
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
         painter, option, index, selected, active, _, _, _ = args
-        painter.save()
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
@@ -313,8 +306,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
-        painter.restore()
 
+    @paintmethod
     def paint_active_indicator(self, *args):
         """Paints the leading rectangle to indicate item is set as current."""
         painter, option, index, _, _, active, _, _ = args
@@ -322,7 +315,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not active:
             return
 
-        painter.save()
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
@@ -334,12 +326,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(color)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
-        painter.restore()
 
+    @paintmethod
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
         painter, option, _, _, _, _, _, _ = args
-        painter.save()
 
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
@@ -365,15 +356,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
-        painter.restore()
 
+    @paintmethod
     def paint_inline_icons_shadow(self, *args):
         """Paints a drop-shadow"""
         painter, option, _, _, _, _, _, _ = args
         if option.rect.width() < 360.0:
             return
 
-        painter.save()
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
@@ -398,12 +388,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         gradient.setColorAt(0.7, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
-        painter.restore()
 
+    @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected, _, _, _, _ = args
-        painter.save()
 
         # Background rectangle
         rect = QtCore.QRect(option.rect)
@@ -447,12 +436,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             image,
             image.rect()
         )
-        painter.restore()
 
+    @paintmethod
     def paint_data(self, *args):
         """Generic paint method to draw the name of an item."""
         painter, option, index, selected, _, _, _, _ = args
-        painter.save()
 
         if selected:
             color = QtGui.QColor(common.TEXT_SELECTED)
@@ -475,12 +463,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
-        painter.restore()
 
+    @paintmethod
     def paint_filter_indicator(self, *args):
         """Paints the leading color-bar if a filter is active."""
         painter, option, _, _, _, _, _, _ = args
-        painter.save()
 
         _filter = self.parent().current_filter
         if _filter == '/':
@@ -491,15 +478,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
         painter.drawRect(rect)
-        painter.restore()
 
+    @paintmethod
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items flagged as `archived`."""
         painter, option, _, _, _, _, archived, _ = args
         if not archived:
             return
 
-        painter.save()
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 150)))
         painter.drawRect(option.rect)
@@ -508,21 +494,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         brush.setStyle(QtCore.Qt.BDiagPattern)
         painter.setBrush(brush)
         painter.drawRect(option.rect)
-        painter.restore()
 
+    @paintmethod
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
         if option.rect.width() < 360.0:
             return
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 2)
@@ -531,14 +509,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             'folder', color, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
-        painter.restore()
 
+    @paintmethod
     def paint_inline_icons_background(self, *args):
         painter, option, _, selected, _, active, _, _ = args
         if option.rect.width() < 360.0:
             return
 
-        painter.save()
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
 
@@ -568,21 +545,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         painter.setBrush(color)
         painter.drawRect(bg_rect)
-        painter.restore()
 
+    @paintmethod
     def paint_todo_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
+
         painter, option, index, _, _, _, _, _ = args
+
         if option.rect.width() < 360.0:
             return
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 3)
@@ -617,12 +588,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtCore.Qt.AlignCenter,
             '{}'.format(index.data(common.TodoCountRole))
         )
-        painter.restore()
 
+    @paintmethod
     def paint_description(self, *args):
         """Paints the item description inside the ``AssetWidget``."""
         painter, option, index, _, _, _, _, _ = args
-        painter.save()
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.SECONDARY_FONT)
@@ -666,7 +636,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             text
         )
 
-        painter.restore()
         return metrics.width(text)
 
     def sizeHint(self, option, index):
@@ -711,7 +680,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
         args = self._get_paint_args(painter, option, index)
-
         self.paint_background(*args)
         #
         self.paint_thumbnail(*args)
@@ -730,10 +698,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
 
+    @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the ``BookmarkWidget`` item."""
         painter, option, index, _, _, active, _, _ = args
-        painter.save()
 
         favourite = index.flags() & MarkedAsFavourite
         active = index.flags() & MarkedAsActive
@@ -759,12 +727,11 @@ class BookmarksWidgetDelegate(BaseDelegate):
             pixmap,
             pixmap.rect()
         )
-        painter.restore()
 
+    @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         painter, option, index, selected, _, _, _, _ = args
-        painter.save()
 
         active = index.flags() & MarkedAsActive
         count = index.data(common.FileDetailsRole)
@@ -838,7 +805,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
             name
         )
-        painter.restore()
 
 
 class AssetWidgetDelegate(BaseDelegate):
@@ -867,10 +833,10 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
 
+    @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetWidget``."""
         painter, option, index, _, _, active, _, _ = args
-        painter.save()
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
@@ -906,7 +872,6 @@ class AssetWidgetDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
-        painter.restore()
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ASSET_ROW_HEIGHT)
@@ -938,18 +903,12 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
 
+    @paintmethod
     def paint_description(self, *args):
         """Paints the item description inside the ``FilesWidget``."""
         painter, option, index, _, _, _, _, _ = args
-        painter.save()
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
@@ -1022,21 +981,12 @@ class FilesWidgetDelegate(BaseDelegate):
                 text
             )
 
-
-        painter.restore()
         return metrics.width(text)
 
+    @paintmethod
     def paint_mode(self, *args):
         """Paints the mode and the subsequent subfolders."""
         painter, option, index, _, _, _, _, _ = args
-        painter.save()
-
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
@@ -1098,19 +1048,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 return rect.right()
             rect.moveLeft(rect.left() + metrics.width(mode) + padding + 2)
 
-        painter.restore()
-
+    @paintmethod
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
         painter, option, index, _, _, _, _, _ = args
-
-        painter.save()
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
 
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
@@ -1236,7 +1177,6 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setBrush(color)
 
         painter.drawRect(rect)
-        painter.restore()
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)

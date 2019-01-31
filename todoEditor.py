@@ -15,8 +15,8 @@ Methods:
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from mayabrowser import common
-from mayabrowser.settings import AssetSettings
+from browser import common
+from browser.settings import AssetSettings
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -211,10 +211,6 @@ class AddButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
-
-        path = '{}/rsc/todo_add.png'.format(
-            QtCore.QFileInfo(__file__).dir().path()
-        )
 
         pixmap = common.get_rsc_pixmap('todo_add', common.SEPARATOR, 18)
         self.setPixmap(pixmap)

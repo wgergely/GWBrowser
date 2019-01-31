@@ -10,13 +10,12 @@ import functools
 import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import mayabrowser.common as common
-import mayabrowser.editors as editors
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.settings import local_settings
-from mayabrowser.settings import AssetSettings
-from mayabrowser.capture import ScreenGrabber
-from mayabrowser.spinner import Spinner
+import browser.common as common
+import browser.editors as editors
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import local_settings
+from browser.settings import AssetSettings
+from browser.capture import ScreenGrabber
 
 
 class BaseContextMenu(QtWidgets.QMenu):
@@ -276,7 +275,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
                        QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
+        it = QtCore.QDirIterator(
+            dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
         items = []
         while it.hasNext():
             it.next()
@@ -567,10 +567,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: {True: {}, False: {}},
         }
         self.internal_data = {}
-        spinner = Spinner()
-        spinner.start()
         self.__initdata__()
-        spinner.stop()
 
     def __initdata__(self):
         raise NotImplementedError('__initdata__ is abstract')
@@ -616,11 +613,26 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self.sortkey = self.get_sortkey()  # Alphabetical/Modified...etc.
         self.sortorder = self.get_sortorder()  # Ascending/descending
+        self.filterstring = self.get_filterstring()  # Ascending/descending
 
         self.filter_mode = {
             'favourite': self.get_filtermode('favourite'),
             'archived': self.get_filtermode('archived')
         }
+
+    def get_filterstring(self):
+        """Will only display items contaning this string."""
+        cls = self.parent().__class__.__name__
+        val = local_settings.value('widget/{}/filterstring'.format(cls))
+        return val if val else '/'
+
+    def set_filterstring(self, val):
+        """Sets and saves the sort-key."""
+        cls = self.parent().__class__.__name__
+        val = val if val else '/'
+        self.filterstring = val
+        local_settings.setValue('widget/{}/filterstring'.format(cls), val)
+        self.invalidate()
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
@@ -669,6 +681,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         archived = index.flags() & MarkedAsArchived
         favourite = index.flags() & MarkedAsFavourite
 
+        if self.filterstring.lower() not in index.data(QtCore.Qt.StatusTipRole).lower():
+            return False
         if archived and not self.filter_mode['archived']:
             return False
         if not favourite and self.filter_mode['favourite']:
@@ -904,13 +918,10 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
-        spinner = Spinner()
-        spinner.start()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().switch_dataset()
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
-        spinner.stop()
         self.model().sort()
 
         self.reselect_previous_path()
@@ -1214,7 +1225,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
-            painter.begin(widget)
+            painter.begin(self)
 
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())
@@ -1385,8 +1396,8 @@ class BaseInlineIconWidget(BaseListWidget):
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         app_ = QtWidgets.QApplication.instance()
-        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+        # if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
+        #     return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()
         pos.setX(0)

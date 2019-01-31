@@ -12,8 +12,21 @@ Example:
 """
 
 import sys
+from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
-import mayabrowser.common as common
+import browser.common as common
+
+
+def longprocess(func):
+    """@Decorator to save the painter state."""
+    # @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        spinner = Spinner()
+        spinner.start()
+        res = func(self, *args, spinner=spinner, **kwargs)
+        spinner.stop()
+        return res
+    return func_wrapper
 
 
 class Spinner(QtWidgets.QWidget):
@@ -21,27 +34,70 @@ class Spinner(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(Spinner, self).__init__(parent=parent)
-        self.label = None
         self._createUI()
+        self.setText('Loading...')
+
+        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.animation = None
-        self.setWindowOpacity(0)
-
         self.spinner_pixmap = common.get_rsc_pixmap(
             'spinner', common.TEXT, 24)
+        self.setPixmap(self.get_pixmap(0))
 
+        self.setWindowOpacity(0)
+        self.setWindowFlags(
+            QtCore.Qt.Widget |
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.worker = GUIUpdater()
         self._connectSignals()
 
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setSpacing(12)
+        self.layout().setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+
+        self.label = QtWidgets.QLabel()
+        self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.description = QtWidgets.QLabel('')
+        self.description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.description.setStyleSheet("""
+            QLabel {
+                font-family: "Roboto Black";
+                font-size: 9pt;
+                color: rgba(200,200,200, 255);
+                background-color: rgba(50,50,50, 255);
+            	border: 0px solid;
+            	border-radius: 6px;
+                padding: 12px;
+            }
+        """)
+
+        self.layout().addWidget(self.label)
+        self.layout().addWidget(self.description)
+
+    def setText(self, text):
+        self.description.setText(text)
+
+    def setPixmap(self, pixmap):
+        self.label.setPixmap(pixmap)
 
     def start(self):
         """Starts the widget-spin."""
         app = QtCore.QCoreApplication.instance()
         app.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.animate_opacity()
-        self.show()
         self.worker.run()
+        self.show()
+        self.animate_opacity()
+        self.move_to_center()
 
     def stop(self):
         """Stops the widget-spin."""
@@ -51,28 +107,27 @@ class Spinner(QtWidgets.QWidget):
         self.worker.deleteLater()
         self.close()
 
-    def update_label(self, degree):
+    def refresh(self, degree):
         """Main method to update the spinner called by the waroker class."""
-        self.raise_()
-        self.move_to_center()
-
-        mayaWindow = None
-        for o in QtWidgets.QApplication.instance().topLevelWidgets():
-            if o.objectName() == 'MayaWindow':
-                mayaWindow = o
-                break
-
-        if mayaWindow:
-            mayaWindow.setUpdatesEnabled(True)
-
         degree += 14
-        pixmap = self.get_spinner(degree * 20)
-        self.label.setPixmap(pixmap)
+        # QtCore.QCoreApplication.instance().processEvents(
+        #     QtCore.QEventLoop.ExcludeUserInputEvents)
+        self.setPixmap(self.get_pixmap(degree * 20))
 
-        app = QtCore.QCoreApplication.instance()
-        app.processEvents()
+    def move_to_center(self):
+        from browser.browserwidget import BrowserWidget
+        app = QtWidgets.QApplication.instance()
+        widget = next((f for f in app.allWidgets() if f.objectName() == 'BrowserWidget'), None)
 
-    def get_spinner(self, angle):
+        if not widget:
+            geo = app.desktop().availableGeometry(0)
+        elif not widget.isVisible():
+            geo = app.desktop().availableGeometry(widget)
+        else:
+            geo = widget.geometry()
+        self.move(geo.center() - self.rect().center())
+
+    def get_pixmap(self, angle):
         """Paints and rotates the spinner pixmap."""
         rotated_spinner = QtGui.QPixmap(
             self.spinner_pixmap.width(), self.spinner_pixmap.height())
@@ -112,55 +167,17 @@ class Spinner(QtWidgets.QWidget):
 
         return tinted_spinner
 
-    def _createUI(self):
-        """Creates the ui layout of this widget."""
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-
-        self.label = QtWidgets.QLabel()
-        self.layout().addWidget(self.label)
-
-        self.setWindowFlags(
-            QtCore.Qt.Widget |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-
     def animate_opacity(self):
         """Animates the visibility of the widget."""
         self.animation = QtCore.QPropertyAnimation(self, 'windowOpacity')
         self.animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
-        self.animation.setDuration(100)
+        self.animation.setDuration(150)
         self.animation.setStartValue(0.01)
         self.animation.setEndValue(1)
         self.animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
 
-    @staticmethod
-    def get_thumbnail_path():
-        """The path to the spinner thumbnail."""
-        info = QtCore.QFileInfo(
-            '{}/../thumbnails/spinner.png'.format(__file__))
-        if info.exists():
-            return info.absoluteFilePath()
-        return None
-
     def _connectSignals(self):
-        self.worker.updateLabel.connect(self.update_label)
-
-    def move_to_center(self):
-        """Moves the widget to the center of the dektop."""
-        app = QtCore.QCoreApplication.instance()
-        geometry = app.desktop().availableGeometry()
-        self.move(geometry.center() - self.rect().center())
-
-    def showEvent(self, event):
-        """Custom show event."""
-        self.move_to_center()
+        self.worker.updateLabel.connect(self.refresh)
 
 
 class GUIUpdater(QtCore.QThread):
@@ -180,8 +197,8 @@ class GUIUpdater(QtCore.QThread):
         self.timer.start()
 
 
-if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    app.w = Spinner()
-    app.w.start()
-    app.exec_()
+# if __name__ == '__main__':
+#     app = QtWidgets.QApplication(sys.argv)
+#     app.w = Spinner()
+#     app.w.start()
+#     app.exec_()

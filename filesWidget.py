@@ -5,22 +5,19 @@ found by the collector classes.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import re
-import collections
-import functools
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 
-from mayabrowser.baselistwidget import BaseContextMenu
-from mayabrowser.baselistwidget import BaseInlineIconWidget
-from mayabrowser.baselistwidget import BaseModel
+from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import BaseInlineIconWidget
+from browser.baselistwidget import BaseModel
 
-import mayabrowser.common as common
-from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from mayabrowser.settings import AssetSettings
-from mayabrowser.settings import local_settings, path_monitor
-from mayabrowser.delegate import FilesWidgetDelegate
-import mayabrowser.editors as editors
-from mayabrowser.spinner import Spinner
+import browser.common as common
+from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import AssetSettings
+from browser.settings import local_settings, path_monitor
+from browser.delegate import FilesWidgetDelegate
+import browser.editors as editors
+from browser.spinner import longprocess
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -47,15 +44,19 @@ class FilesModel(BaseModel):
     activeLocationChanged = QtCore.Signal(str)
 
     def __init__(self, asset, parent=None):
+
         self.asset = asset
         self.mode = None
+        self._isgrouped = None
+
         super(FilesModel, self).__init__(parent=parent)
         self.switch_dataset()
 
         self.grouppingChanged.connect(self.switch_dataset)
         self.activeLocationChanged.connect(self.switch_dataset)
 
-    def __initdata__(self):
+    @longprocess
+    def __initdata__(self, spinner=None):
         """To get the files, we will have to decide what extensions to take
         into consideration and what location to get the files from.
 
@@ -72,7 +73,6 @@ class FilesModel(BaseModel):
             return
 
         self.modes = self.get_modes(self.asset, location)
-
         # Iterator
         dir_ = QtCore.QDir('{asset}/{location}'.format(
             asset='/'.join(self.asset),
@@ -86,16 +86,22 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.Subdirectories)
 
         idx = 0
-
+        __count = 0
+        __nth = 300
         while it.hasNext():
-            QtCore.QCoreApplication.processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
             path = it.next()
+
+            __count += 1 # Status update
+            if ((__count % __nth) + 1) == __nth:
+                spinner.setText(it.fileName())
+                QtCore.QCoreApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
 
             # We're not going to set more data when looking inside the ``renders`` location.
             # Things can slow down when querrying 10000+ files.
             if location == common.RendersFolder:
                 self._internal_data[location][False][idx] = {
-                    int(QtCore.Qt.StatusTipRole): path
+                    int(QtCore.Qt.StatusTipRole): path,
+                    int(common.FlagsRole): QtCore.Qt.NoItemFlags
                 }
                 idx += 1
                 continue
@@ -203,9 +209,11 @@ class FilesModel(BaseModel):
 
             # Flags
             flags = (
+                QtCore.Qt.ItemNeverHasChildren |
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable
+                QtCore.Qt.ItemIsEditable |
+                QtCore.Qt.ItemIsDragEnabled
             )
 
             # Active
@@ -260,15 +268,37 @@ class FilesModel(BaseModel):
 
             idx += 1
 
+    def canDropMimeData(self, data, action, row, column):
+        return False
+
+    def supportedDragActions(self):
+        # return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
+        return QtCore.Qt.CopyAction
+
+    def mimeData(self, indexes):
+        index = next((f for f in indexes), None)
+        mime =  QtCore.QMimeData()
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+        filepath = common.get_sequence_startpath(file_info.filePath())
+
+
+        url = QtCore.QUrl.fromLocalFile(filepath)
+        mime.setUrls((url,))
+        mime.setData(
+            'application/x-qt-windows-mime;value="FileName"',
+            QtCore.QDir.toNativeSeparators(filepath))
+
+        mime.setData(
+            'application/x-qt-windows-mime;value="FileNameW"',
+            QtCore.QDir.toNativeSeparators(filepath))
+        return mime
+
     def switch_dataset(self):
         """Swaps the dataset."""
         if not self._internal_data[self.get_location()][self.is_grouped()]:
-            spinner = Spinner()
-            spinner.start()
             self.beginResetModel()
             self.__initdata__()
             self.endResetModel()
-            spinner.stop()
         self.internal_data = self._internal_data[self.get_location()][self.is_grouped()]
 
     def set_asset(self, asset):
@@ -282,22 +312,33 @@ class FilesModel(BaseModel):
 
     def is_grouped(self):
         """Gathers sequences into a single file."""
-        if self.get_location() == common.RendersFolder:
+        location = self.get_location()
+        if location == common.RendersFolder:
             return True
 
-        cls = self.__class__.__name__
-        key = 'widget/{}/groupfiles'.format(cls)
-        val = local_settings.value(key)
-        return val if val else False
+        if self._isgrouped is None:
+            cls = self.__class__.__name__
+            key = 'widget/{}/{}/isgroupped'.format(cls, location)
+            val = local_settings.value(key)
+            if val is None:
+                self._isgrouped = False
+            else:
+                self._isgrouped = val
+        return self._isgrouped
 
     def set_grouped(self, val):
         """Sets the groupping mode."""
-        self.aboutToChange.emit()
-
+        location = self.get_location()
         cls = self.__class__.__name__
-        key = 'widget/{}/groupfiles'.format(cls)
-        local_settings.setValue(key, val)
+        key = 'widget/{}/{}/isgroupped'.format(cls, location)
+        cval = local_settings.value(key)
 
+        if cval == val:
+            return
+
+        self.aboutToChange.emit()
+        self._isgrouped = val
+        local_settings.setValue(key, val)
         self.grouppingChanged.emit()
 
     def get_modes(self, asset, location):
@@ -333,6 +374,19 @@ class FilesModel(BaseModel):
         local_settings.setValue(key, val)
         self.activeLocationChanged.emit(val)
 
+        # Updating the groupping
+        cval = self.is_grouped()
+        cls = self.__class__.__name__
+        key = 'widget/{}/{}/isgroupped'.format(cls, val)
+        val = local_settings.value(key)
+
+        if cval == val:
+            return
+
+        self.aboutToChange.emit()
+        self._isgrouped = val
+        self.grouppingChanged.emit()
+
 
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing scene and project files of an asset.
@@ -353,6 +407,11 @@ class FilesWidget(BaseInlineIconWidget):
 
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
+        self.setDragEnabled(True)
+        self.setDropIndicatorShown(False)
+        self.setAcceptDrops(False)
+
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
         self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
 
@@ -421,7 +480,6 @@ class FilesWidget(BaseInlineIconWidget):
 
         self.activate_current_index()
         return
-
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

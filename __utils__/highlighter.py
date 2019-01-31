@@ -5,7 +5,7 @@
 import re
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import mayabrowser.common as common
+import browser.common as common
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
