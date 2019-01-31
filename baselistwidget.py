@@ -16,7 +16,6 @@ from mayabrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavou
 from mayabrowser.settings import local_settings
 from mayabrowser.settings import AssetSettings
 from mayabrowser.capture import ScreenGrabber
-from mayabrowser.spinner import Spinner
 
 
 class BaseContextMenu(QtWidgets.QMenu):
@@ -567,10 +566,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: {True: {}, False: {}},
         }
         self.internal_data = {}
-        spinner = Spinner()
-        spinner.start()
         self.__initdata__()
-        spinner.stop()
 
     def __initdata__(self):
         raise NotImplementedError('__initdata__ is abstract')
@@ -904,13 +900,10 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
-        spinner = Spinner()
-        spinner.start()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().switch_dataset()
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
-        spinner.stop()
         self.model().sort()
 
         self.reselect_previous_path()
@@ -1214,7 +1207,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
-            painter.begin(widget)
+            painter.begin(self)
 
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())
@@ -1385,8 +1378,8 @@ class BaseInlineIconWidget(BaseListWidget):
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         app_ = QtWidgets.QApplication.instance()
-        if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+        # if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
+        #     return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()
         pos.setX(0)

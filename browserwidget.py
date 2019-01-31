@@ -37,6 +37,7 @@ class StackFaderWidget(QtWidgets.QWidget):
 
     def __init__(self, old_widget, new_widget):
         super(StackFaderWidget, self).__init__(parent=new_widget)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self.old_pixmap = QtGui.QPixmap(new_widget.size())
         self.old_pixmap.fill(common.SEPARATOR)
@@ -150,7 +151,7 @@ class ClickableLabel(QtWidgets.QLabel):
             common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
         self.setAlignment(QtCore.Qt.AlignCenter)
 
-    def mousePressEvent(self, event):
+    def mouseReleaseEvent(self, event):
         self.clicked.emit()
 
 
@@ -450,12 +451,12 @@ class ListControlWidget(QtWidgets.QWidget):
         togglearchived = self.findChild(ToggleArchivedButton)
         togglefavourite = self.findChild(ToggleFavouriteButton)
 
-        combobox.currentIndexChanged.connect(self.setCurrentMode)
         combobox.currentIndexChanged.connect(self.modeChanged)
 
-        combobox.currentIndexChanged.connect(togglearchived.update_)
-        combobox.currentIndexChanged.connect(collapsesequence.update_)
-        combobox.currentIndexChanged.connect(togglefavourite.update_)
+        self.modeChanged.connect(self.setCurrentMode)
+        self.modeChanged.connect(togglearchived.update_)
+        self.modeChanged.connect(collapsesequence.update_)
+        self.modeChanged.connect(togglefavourite.update_)
 
         modepickbutton.clicked.connect(combobox.showPopup)
         addbookmarkbutton.clicked.connect(
@@ -712,7 +713,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-
+        self.setObjectName('BrowserWidget')
         self.setWindowFlags(
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint
@@ -810,7 +811,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget.entered.connect(self.entered)
         self.fileswidget.entered.connect(self.entered)
 
-        self.fileswidget.activeLocationChanged.connect(self.headerwidget.itemActivated)
+        self.fileswidget.model().sourceModel().activeLocationChanged.connect(self.headerwidget.itemActivated)
+
+        def func(): # refreshing the listcontrol widget
+            self.listcontrolwidget.modeChanged.emit(combobox.currentIndex())
+        self.fileswidget.model().sourceModel().activeLocationChanged.connect(func)
+        self.fileswidget.model().sourceModel().grouppingChanged.connect(func)
 
         closebutton = self.headerwidget.findChild(CloseButton)
         closebutton.clicked.connect(self.close)
@@ -826,6 +832,38 @@ class BrowserWidget(QtWidgets.QWidget):
             self.stackedwidget.currentWidget(),
             self.stackedwidget.widget(idx))
         self.stackedwidget.setCurrentIndex(idx)
+
+
+    def hideEvent(self, event):
+        cls = self.__class__.__name__
+        local_settings.setValue('widget/{}/width'.format(cls), self.width())
+        local_settings.setValue('widget/{}/height'.format(cls), self.height())
+
+        pos = self.mapToGlobal(self.rect().topLeft())
+        local_settings.setValue('widget/{}/x'.format(cls), pos.x())
+        local_settings.setValue('widget/{}/y'.format(cls), pos.y())
+
+        super(BrowserWidget, self).hideEvent(event)
+
+
+    def showEvent(self, event):
+        super(BrowserWidget, self).showEvent(event)
+
+        cls = self.__class__.__name__
+
+        width = local_settings.value('widget/{}/width'.format(cls))
+        height = local_settings.value('widget/{}/height'.format(cls))
+        x = local_settings.value('widget/{}/x'.format(cls))
+        y = local_settings.value('widget/{}/y'.format(cls))
+
+        size = QtCore.QSize(width, height)
+        pos = QtCore.QPoint(x, y)
+
+        self.resize(size)
+        self.move(pos)
+
+        # common.move_widget_to_available_geo(self)
+
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
