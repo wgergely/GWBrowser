@@ -65,6 +65,8 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
 
 class BookmarksModel(BaseModel):
+    """Drop enabled model for storing bookmarks."""
+
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
 
@@ -81,6 +83,7 @@ class BookmarksModel(BaseModel):
             flags = (
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsDropEnabled |
                 QtCore.Qt.ItemIsEditable
             )
 
@@ -113,12 +116,57 @@ class BookmarksModel(BaseModel):
                 common.FileDetailsRole: file_info.size(),
             }
 
+    def canDropMimeData(self, data, action, row, column, parent):
+        if data.hasUrls():
+            return True
+
+    def dropMimeData(self, data, action, row, column, parent):
+        index = parent
+        if not parent.isValid():
+            return
+        if not data.hasUrls():
+            return
+
+        for url in data.urls():
+            source = QtCore.QFileInfo(url.toLocalFile())
+            destination = '{}/{}'.format(index.data(QtCore.Qt.StatusTipRole), source.fileName())
+            destination = QtCore.QFileInfo(destination)
+
+            if source.filePath() == destination.filePath():
+                continue
+
+            if destination.exists():
+                res = QtWidgets.QMessageBox(
+                    QtWidgets.QMessageBox.Warning,
+                    u'File already exist',
+                    u'{} already exists in the folder. Are you sure you want to override it with the new file?.'.format(destination.fileName()),
+                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
+                ).exec_()
+                if res == QtWidgets.QMessageBox.Cancel:
+                    continue
+
+            if action == QtCore.Qt.CopyAction:
+                QtCore.QFile.copy(source.filePath(), destination.filePath())
+                continue
+            if action == QtCore.Qt.MoveAction:
+                QtCore.QFile.rename(source.filePath(), destination.filePath())
+                continue
+            # return True
+        return True
+
+    def supportedDropActions(self):
+        return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
+
 
 class BookmarksWidget(BaseInlineIconWidget):
     """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(BookmarksModel(), parent=parent)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
+        self.setDragDropOverwriteMode(False)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
 
         self.setWindowTitle('Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
@@ -208,6 +256,8 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
         self.activate_current_index()
 
+    def dropAction(self, event):
+        print event
 
 class ComboBoxItemDelegate(BaseDelegate):
     """Delegate used to render simple list items."""

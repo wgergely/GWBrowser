@@ -23,9 +23,9 @@ import browser.common as common
 
 
 # Flags
-MarkedAsArchived = 0b100000000
-MarkedAsFavourite = 0b1000000000
-MarkedAsActive = 0b10000000000
+MarkedAsArchived = 0b1000000000
+MarkedAsFavourite = 0b10000000000
+MarkedAsActive = 0b100000000000
 
 COMPANY = 'Glassworks'
 APPLICATION = 'Browser'

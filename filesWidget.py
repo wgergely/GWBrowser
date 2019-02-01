@@ -340,8 +340,10 @@ class FilesModel(BaseModel):
     def canDropMimeData(self, data, action, row, column):
         return False
 
+    def supportedDropActions(self):
+        return QtCore.Qt.IgnoreAction
+
     def supportedDragActions(self):
-        # return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
         return QtCore.Qt.CopyAction
 
     def mimeData(self, indexes):
@@ -465,15 +467,7 @@ class FilesWidget(BaseInlineIconWidget):
     The first subfolder inside this folder will refer to the ``mode`` of the
     asset file.
 
-    Signals:
-
     """
-    # Signals
-    fileOpened = QtCore.Signal(str)
-    fileSaved = QtCore.Signal(str)
-    fileImported = QtCore.Signal(str)
-    fileReferenced = QtCore.Signal(str)
-
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
