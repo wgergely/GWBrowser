@@ -166,7 +166,7 @@ class AssetWidget(BaseInlineIconWidget):
         super(AssetWidget, self).__init__(AssetModel(bookmark), parent=parent)
         self.setWindowTitle('Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
-        self._context_menu_cls = AssetWidgetContextMenu
+        self.context_menu_cls = AssetWidgetContextMenu
         # Select the active item
         self.selectionModel().setCurrentIndex(
             self.active_index(),

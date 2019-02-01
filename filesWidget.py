@@ -486,7 +486,7 @@ class FilesWidget(BaseInlineIconWidget):
 
         self.setWindowTitle('Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
-        self._context_menu_cls = FilesWidgetContextMenu
+        self.context_menu_cls = FilesWidgetContextMenu
 
     def inline_icons_count(self):
         return 3

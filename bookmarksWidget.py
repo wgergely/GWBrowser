@@ -122,7 +122,7 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         self.setWindowTitle('Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
-        self._context_menu_cls = BookmarksWidgetContextMenu
+        self.context_menu_cls = BookmarksWidgetContextMenu
         # Select the active item
         self.selectionModel().setCurrentIndex(
             self.active_index(),

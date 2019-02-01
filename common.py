@@ -66,7 +66,7 @@ NameFilters = {
         '*.c4d', # Cinema 4D
         '*.hud', # Houdini
         '*.aep', # After-Effects
-        '*.nk', # Nuke 
+        '*.nk', # Nuke
     ),
     RendersFolder: (
         '*.exr',
@@ -654,6 +654,7 @@ def get_ranges(arr, padding):
 
 isequenceregex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
 sequencestartregex = re.compile(r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
+sequenceendregex = re.compile(r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
 sequenceregex = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$', flags=re.IGNORECASE)
 
 def get_sequence(text):
@@ -669,6 +670,15 @@ def get_sequence_startpath(path):
     match = sequencestartregex.search(path)
     if match:
         path = sequencestartregex.sub(r'\1\2\3', path)
+    return path
+
+def get_sequence_endpath(path):
+    """Checks the given string and if it denotes a seuqence returns the path for
+    the first item.
+    """
+    match = sequenceendregex.search(path)
+    if match:
+        path = sequenceendregex.sub(r'\1\2\3', path)
     return path
 
 

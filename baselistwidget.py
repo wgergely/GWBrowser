@@ -709,6 +709,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
 
+    customContextMenuRequested = QtCore.Signal(QtCore.QModelIndex, QtCore.QObject)
     # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
 
@@ -731,7 +732,7 @@ class BaseListWidget(QtWidgets.QListView):
         self._location = None
 
         self.collector_count = 0
-        self._context_menu_cls = BaseContextMenu
+        self.context_menu_cls = BaseContextMenu
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setMouseTracking(True)
@@ -934,6 +935,8 @@ class BaseListWidget(QtWidgets.QListView):
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
             _path = index.data(QtCore.Qt.StatusTipRole)
+            if not _path:
+                continue
             _path = common.get_sequence_startpath(_path)
             if path == _path:
                 self.selectionModel().setCurrentIndex(
@@ -1100,11 +1103,20 @@ class BaseListWidget(QtWidgets.QListView):
     def contextMenuEvent(self, event):
         """Custom context menu event."""
         index = self.indexAt(event.pos())
-        widget = self._context_menu_cls(index, parent=self)
 
         width = self.viewport().geometry().width()
         width = (width * 0.5) if width > 400 else width
         width = width - common.INDICATOR_WIDTH
+
+        # Custom context menu
+        shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
+        alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
+        control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
+        if shift_modifier or alt_modifier or control_modifier:
+            self.customContextMenuRequested.emit(index, self)
+            return
+
+        widget = self.context_menu_cls(index, parent=self)
 
         if index.isValid():
             rect = self.visualRect(index)

@@ -483,6 +483,14 @@ class ListControlWidget(QtWidgets.QWidget):
         idx = idx if idx else 0
         self.setCurrentMode(idx)
 
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRect(event.rect())
+        painter.end()
+
     def _connectSignals(self):
         modepickbutton = self.findChild(ModePickButton)
         addbookmarkbutton = self.findChild(AddBookmarkButton)
