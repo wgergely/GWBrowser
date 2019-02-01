@@ -132,6 +132,9 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
 
         self.setAutoFillBackground(True)
         self.setWindowTitle('Browser')
+        
+        self.browserwidget.showEvent = lambda event: None
+        self.browserwidget.hideEvent = lambda event: None
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)

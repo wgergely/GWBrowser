@@ -48,7 +48,7 @@ class StackFaderWidget(QtWidgets.QWidget):
         self.timeline = QtCore.QTimeLine()
         self.timeline.valueChanged.connect(self.animate)
         self.timeline.finished.connect(self.close)
-        self.timeline.setDuration(300)
+        self.timeline.setDuration(100)
         self.timeline.start()
 
         self.resize(new_widget.size())
