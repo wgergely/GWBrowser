@@ -91,7 +91,8 @@ class FilesModel(BaseModel):
         while it.hasNext():
             path = it.next()
 
-            __count += 1 # Status update
+             # Collecting files can take a long time. We're triggering ui updates inside loop here.
+            __count += 1
             if ((__count % __nth) + 1) == __nth:
                 spinner.setText(it.fileName())
                 QtCore.QCoreApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
@@ -177,10 +178,78 @@ class FilesModel(BaseModel):
         for k in self._internal_data[location][False]:
             path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
             match = common.get_sequence(path)
-            if not match:
-                self._internal_data[location][True][idx] = self._internal_data[location][False][k]
+            if not match: # Non-sequence items
+
+                # Previously skipped all this, have to re-add the data here.
+                if location == common.RendersFolder:
+                    file_info = QtCore.QFileInfo(self._internal_data[location][False][k][QtCore.Qt.StatusTipRole])
+
+                    # Active
+                    fileroot = '/'.join((server, job, root, asset, location))
+                    fileroot = file_info.path().replace(fileroot, '')
+                    fileroot = fileroot.strip('/')
+
+                    # Flags
+                    flags = (
+                        QtCore.Qt.ItemNeverHasChildren |
+                        QtCore.Qt.ItemIsSelectable |
+                        QtCore.Qt.ItemIsEnabled |
+                        QtCore.Qt.ItemIsEditable |
+                        QtCore.Qt.ItemIsDragEnabled
+                    )
+
+                    activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
+                    if activefilepath == active_paths['file']:
+                        flags = flags | MarkedAsActive
+
+                    # Archived
+                    settings = AssetSettings((server, job, root, file_info.filePath()))
+                    if settings.value('config/archived'):
+                        flags = flags | MarkedAsArchived
+
+                    # Favourite
+                    favourites = local_settings.value('favourites')
+                    favourites = favourites if favourites else []
+                    if file_info.filePath() in favourites:
+                        flags = flags | MarkedAsFavourite
+
+                    # Todos
+                    count = 0
+
+                    tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
+                    tooltip += u'{}'.format(file_info.filePath())
+
+                    # File info
+                    info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                        day=file_info.lastModified().toString('dd'),
+                        month=file_info.lastModified().toString('MM'),
+                        year=file_info.lastModified().toString('yyyy'),
+                        hour=file_info.lastModified().toString('hh'),
+                        minute=file_info.lastModified().toString('mm'),
+                        size=common.byte_to_string(file_info.size())
+                    )
+                    self._internal_data[location][True][idx] = {
+                        QtCore.Qt.DisplayRole: file_info.fileName(),
+                        QtCore.Qt.EditRole: file_info.fileName(),
+                        QtCore.Qt.StatusTipRole: file_info.filePath(),
+                        QtCore.Qt.ToolTipRole: 'Non-sequence item.',
+                        QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
+                        common.FlagsRole: flags,
+                        common.ParentRole: (server, job, root, asset, location, fileroot),
+                        common.DescriptionRole: settings.value('config/description'),
+                        common.TodoCountRole: count,
+                        common.FileDetailsRole: info_string,
+                    }
+                    common.cache_image(
+                        settings.thumbnail_path(),
+                        common.ROW_HEIGHT - 2
+                    )
+                else:
+                    # We can just use the previously collected data
+                    self._internal_data[location][True][idx] = self._internal_data[location][False][k]
                 idx += 1
                 continue
+
             k = '{}|{}'.format(match.group(1), match.group(3))
             if k not in groups:
                 file_info = QtCore.QFileInfo(path)
