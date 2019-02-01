@@ -276,6 +276,7 @@
    'DATA'),
   ('browser\\rsc\\custom.png', 'rsc\\custom.png', 'DATA'),
   ('browser\\rsc\\bookmark.png', 'rsc\\bookmark.png', 'DATA'),
+  ('browser\\rsc\\import.png', 'rsc\\import.png', 'DATA'),
   ('browser\\rsc\\minimize.png', 'rsc\\minimize.png', 'DATA'),
   ('browser\\rsc\\fonts\\Roboto-Regular.ttf',
    'rsc\\fonts\\Roboto-Regular.ttf',
@@ -335,7 +336,7 @@
  [],
  False,
  False,
- 1549015318L,
+ 1549042222L,
  [('runw.exe',
    'c:\\python27\\lib\\site-packages\\PyInstaller\\bootloader\\Windows-64bit\\runw.exe',
    'EXECUTABLE')])
