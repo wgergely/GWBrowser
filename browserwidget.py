@@ -258,7 +258,7 @@ class ToggleArchivedButton(ClickableLabel):
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
         archived = widget.currentWidget().model().get_filtermode('archived')
-        widget.model().set_filtermode('archived', not archived)
+        widget.currentWidget().model().set_filtermode('archived', not archived)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
@@ -284,7 +284,7 @@ class ToggleFavouriteButton(ClickableLabel):
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
         favourite = widget.currentWidget().model().get_filtermode('favourite')
-        widget.model().set_filtermode('favourite', not favourite)
+        widget.currentWidget().model().set_filtermode('favourite', not favourite)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
