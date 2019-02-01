@@ -61,8 +61,12 @@ NameFilters = {
         '*.ass',  # Arnold cache
     ),
     ScenesFolder: (
-        '*.ma',
-        '*.mb',
+        '*.ma', # Maya ASCII
+        '*.mb', # Maya Binary
+        '*.c4d', # Cinema 4D
+        '*.hud', # Houdini
+        '*.aep', # After-Effects
+        '*.nk', # Nuke 
     ),
     RendersFolder: (
         '*.exr',
