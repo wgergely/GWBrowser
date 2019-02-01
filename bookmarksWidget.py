@@ -26,6 +26,7 @@ from browser.settings import local_settings, path_monitor
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import BaseDelegate
+from browser.delegate import paintmethod
 
 
 class BookmarkInfo(QtCore.QFileInfo):
@@ -151,7 +152,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         local_settings.setValue('activepath/job', job)
         local_settings.setValue('activepath/root', root)
 
-        path_monitor.get_active_paths() # Resetting invalid paths
+        path_monitor.get_active_paths()  # Resetting invalid paths
         self.activeBookmarkChanged.emit(index.data(common.ParentRole))
 
     def toggle_archived(self, index=None, state=None):
@@ -215,19 +216,23 @@ class ComboBoxItemDelegate(BaseDelegate):
     def paint(self, painter, option, index):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
-
         self.paint_background(*args)
-        self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
-
         self.paint_name(*args)
 
+    @paintmethod
+    def paint_background(self, *args):
+        painter, option, index, selected, _, _, _, _ = args
+        rect = QtCore.QRect(option.rect)
+        rect.setTop(rect.top() + 1)
+        painter.setBrush(common.BACKGROUND)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(rect)
+
+    @paintmethod
     def paint_name(self, *args):
         """Paints the DisplayRole of the items."""
         painter, option, index, selected, _, _, _, _ = args
         disabled = (index.flags() == QtCore.Qt.NoItemFlags)
-
-        painter.save()
 
         font = QtGui.QFont('Roboto')
         font.setBold(True)
@@ -268,8 +273,6 @@ class ComboBoxItemDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
             text
         )
-
-        painter.restore()
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().view().width(), common.ROW_HEIGHT * 0.66)
@@ -332,7 +335,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # top label
         label = QtWidgets.QLabel()
-        label.setText('Add bookmarks')
+        label.setText('Add bookmark')
         self.layout().addWidget(label, 0)
         label.setStyleSheet("""
             QLabel {
@@ -344,7 +347,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pathsettings = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
-        self.pathsettings.layout().setSpacing(common.MARGIN * 0.33)
+        self.pathsettings.layout().setSpacing(common.INDICATOR_WIDTH)
 
         # Server
         self.pick_server_widget = QtWidgets.QComboBox()
@@ -381,39 +384,38 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap('bookmark', common.SECONDARY_TEXT, 128)
         self.label.setPixmap(pixmap)
-        main_widget.layout().addStretch(0.5)
         main_widget.layout().addWidget(self.label)
         main_widget.layout().addSpacing(common.MARGIN)
         main_widget.layout().addWidget(self.pathsettings)
-        main_widget.layout().addStretch(0.5)
-        self.layout().addWidget(main_widget, 1)
+        self.layout().addWidget(main_widget)
         self.layout().addWidget(row)
 
-        self.pathsettings.layout().addStretch(10)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'), 0.1)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'))
         label = QtWidgets.QLabel(
-            'Select the network path the job is located at:')
+            'The bookmark\'s server')
         label.setWordWrap(True)
-        label.setDisabled(True)
-        self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_server_widget, 0.1)
-        self.pathsettings.layout().addStretch(0.1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'), 0.1)
+        label.setStyleSheet(
+            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+        self.pathsettings.layout().addWidget(label)
+        self.pathsettings.layout().addWidget(self.pick_server_widget)
+        self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'))
         label = QtWidgets.QLabel(
-            'Select the job:')
+            'The bookmark\'s job')
         label.setWordWrap(True)
-        label.setDisabled(True)
-        self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_job_widget, 0.1)
-        self.pathsettings.layout().addStretch(0.1)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Bookmark folder'), 0.1)
+        label.setStyleSheet(
+            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+        self.pathsettings.layout().addWidget(label)
+        self.pathsettings.layout().addWidget(self.pick_job_widget)
+        self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Bookmark folder'))
         label = QtWidgets.QLabel(
-            'Select the folder inside the Job containing a list of shots and/or assets:')
+            'The folder to bookmark, found inside the job folder.')
         label.setWordWrap(True)
-        label.setDisabled(True)
-        self.pathsettings.layout().addWidget(label, 0)
-        self.pathsettings.layout().addWidget(self.pick_root_widget, 0.1)
-        self.pathsettings.layout().addStretch(3)
+        label.setStyleSheet(
+            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+        self.pathsettings.layout().addWidget(label)
+        self.pathsettings.layout().addWidget(self.pick_root_widget)
 
     def _connectSignals(self):
         self.pick_server_widget.currentIndexChanged.connect(self.serverChanged)
@@ -644,6 +646,11 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         if self.move_start_widget_pos:
             offset = (event.pos() - self.move_start_event_pos)
             self.move(self.mapToGlobal(self.rect().topLeft()) + offset)
+
+    def mouseReleaseEvent(self, event):
+        self.move_in_progress = False
+        self.move_start_event_pos = None
+        self.move_start_widget_pos = None
 
 
 if __name__ == '__main__':
