@@ -158,6 +158,8 @@ class BookmarksWidget(BaseInlineIconWidget):
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
         from the ``local_settings``."""
+
+        self._reset_multitoggle()
         res = QtWidgets.QMessageBox(
             QtWidgets.QMessageBox.NoIcon,
             'Remove bookmark?',
