@@ -129,7 +129,8 @@ class BookmarksModel(BaseModel):
 
         for url in data.urls():
             source = QtCore.QFileInfo(url.toLocalFile())
-            destination = '{}/{}'.format(index.data(QtCore.Qt.StatusTipRole), source.fileName())
+            destination = '{}/{}'.format(index.data(
+                QtCore.Qt.StatusTipRole), source.fileName())
             destination = QtCore.QFileInfo(destination)
 
             if source.filePath() == destination.filePath():
@@ -139,7 +140,8 @@ class BookmarksModel(BaseModel):
                 res = QtWidgets.QMessageBox(
                     QtWidgets.QMessageBox.Warning,
                     u'File already exist',
-                    u'{} already exists in the folder. Are you sure you want to override it with the new file?.'.format(destination.fileName()),
+                    u'{} already exists in the folder. Are you sure you want to override it with the new file?.'.format(
+                        destination.fileName()),
                     QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
                 ).exec_()
                 if res == QtWidgets.QMessageBox.Cancel:
@@ -189,8 +191,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         """
         index = self.selectionModel().currentIndex()
         if not index.isValid():
-            return
-        if not index.data(common.TodoCountRole):
             return
         if not super(BookmarksWidget, self).activate_current_index():
             return
@@ -252,12 +252,13 @@ class BookmarksWidget(BaseInlineIconWidget):
         index = self.selectionModel().currentIndex()
         if index.flags() & MarkedAsArchived:
             return
-        if index.flags() & MarkedAsActive:
-            return
+        if not index.data(common.TodoCountRole):
+            return common.reveal(index.data(QtCore.Qt.StatusTipRole))
         self.activate_current_index()
 
     def dropAction(self, event):
         print event
+
 
 class ComboBoxItemDelegate(BaseDelegate):
     """Delegate used to render simple list items."""
@@ -703,12 +704,3 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    app.w = BookmarksWidget()
-    # app.w = QtWidgets.QListView()
-    # app.w.setModel(BookmarksModel())
-    app.w.show()
-    app.exec_()

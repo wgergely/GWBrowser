@@ -61,12 +61,12 @@ NameFilters = {
         '*.ass',  # Arnold cache
     ),
     ScenesFolder: (
-        '*.ma', # Maya ASCII
-        '*.mb', # Maya Binary
-        '*.c4d', # Cinema 4D
-        '*.hud', # Houdini
-        '*.aep', # After-Effects
-        '*.nk', # Nuke
+        '*.ma',  # Maya ASCII
+        '*.mb',  # Maya Binary
+        '*.c4d',  # Cinema 4D
+        '*.hud',  # Houdini
+        '*.aep',  # After-Effects
+        '*.nk',  # Nuke
     ),
     RendersFolder: (
         '*.exr',
@@ -140,31 +140,23 @@ sort_keys = {
 """These are the methods/keys used to sort lists."""
 
 # Sizes
-MARGIN = 18.0
 ROW_HEIGHT = 54.0
-
-BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
-FILE_ROW_HEIGHT = 64.0
+
+MARGIN = 18.0
+
+INDICATOR_WIDTH = 4.0
+ROW_BUTTONS_HEIGHT = 36.0
 
 WIDTH = 640.0
 HEIGHT = 480.0
 
-INDICATOR_WIDTH = 6.0
-INLINE_ICON_SIZE = 18
-
-ROW_BUTTONS_HEIGHT = 36.0
-STACKED_WIDGET_HEIGHT = 640.0
-ROW_FOOTER_HEIGHT = 18.0
+INLINE_ICON_SIZE = 18.0
 THUMBNAIL_IMAGE_SIZE = 1024.0
 
 BACKGROUND_SELECTED = QtGui.QColor(125, 125, 125)
 SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
 BACKGROUND = QtGui.QColor(98, 98, 98)
-
-THUMBNAIL_BACKGROUND_SELECTED = QtGui.QColor(85, 85, 85)
-THUMBNAIL_BACKGROUND = QtGui.QColor(80, 80, 80)
-THUMBNAIL_IMAGE_BACKGROUND = QtGui.QColor(30, 30, 30)
 
 TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(250, 250, 250)
@@ -172,13 +164,11 @@ TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-TEXT_WARNING = SECONDARY_TEXT
+
 
 SEPARATOR = QtGui.QColor(50, 50, 50)
-
 SELECTION = QtGui.QColor(100, 161, 255)
 FAVOURITE = QtGui.QColor(140, 120, 233)
-ARCHIVED_OVERLAY = QtGui.QColor(68, 68, 68, 150)
 
 PRIMARY_FONT = 0
 SECONDARY_FONT = 1
@@ -514,7 +504,6 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
     if image.isNull():
         return QtGui.QPixmap()
 
-
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
     if color is not None:
         painter = QtGui.QPainter()
@@ -542,7 +531,6 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
 
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
-
 
     IMAGE_CACHE[k] = pixmap
     return IMAGE_CACHE[k]
@@ -639,7 +627,7 @@ def get_ranges(arr, padding):
     arr = sorted(list(set(arr)))
     blocks = {}
     k = 0
-    for idx, n in enumerate(arr): # blocks
+    for idx, n in enumerate(arr):  # blocks
         zfill = '{}'.format(n).zfill(padding)
 
         if k not in blocks:
@@ -647,21 +635,26 @@ def get_ranges(arr, padding):
         blocks[k].append(zfill)
 
         if idx + 1 != len(arr):
-            if arr[idx + 1] != n + 1: # break coming up
+            if arr[idx + 1] != n + 1:  # break coming up
                 k += 1
     return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
 isequenceregex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
-sequencestartregex = re.compile(r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
-sequenceendregex = re.compile(r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
+sequencestartregex = re.compile(
+    r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
+sequenceendregex = re.compile(
+    r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
 sequenceregex = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$', flags=re.IGNORECASE)
+
 
 def get_sequence(text):
     return sequenceregex.search(text)
 
+
 def is_sequence(text):
     return isequenceregex.match(text)
+
 
 def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
@@ -671,6 +664,7 @@ def get_sequence_startpath(path):
     if match:
         path = sequencestartregex.sub(r'\1\2\3', path)
     return path
+
 
 def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for

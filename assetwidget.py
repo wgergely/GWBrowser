@@ -15,7 +15,7 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 """
 
-from PySide2 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
@@ -78,7 +78,8 @@ class AssetModel(BaseModel):
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
                        QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
+        it = QtCore.QDirIterator(
+            dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
 
         idx = 0
         while it.hasNext():
@@ -91,7 +92,6 @@ class AssetModel(BaseModel):
             )
             if not identifier:
                 continue
-
 
             # Flags
             flags = (
@@ -240,16 +240,3 @@ class AssetWidget(BaseInlineIconWidget):
         else:
             self.activate_current_index()
             return
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    active_paths = path_monitor.get_active_paths()
-
-    bookmark = (active_paths['server'],
-                active_paths['job'],
-                active_paths['root']
-                )
-    app.w = AssetWidget(bookmark)
-    app.w.show()
-    app.exec_()

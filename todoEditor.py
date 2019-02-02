@@ -212,11 +212,11 @@ class AddButton(QtWidgets.QLabel):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
 
-        pixmap = common.get_rsc_pixmap('todo_add', common.SEPARATOR, 18)
+        pixmap = common.get_rsc_pixmap('todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setFixedHeight(18)
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
 
     def mouseReleaseEvent(self, event):
         self.pressed.emit()
@@ -274,20 +274,20 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         if self.isEnabled():
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.SEPARATOR, 18)
+                'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.FAVOURITE, 18)
+                'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
     def setDisabled(self, b):
         # super(DragIndicatorButton, self).setDisabled(b)
         if b:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.FAVOURITE, 18)
+                'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.SEPARATOR, 18)
+                'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
 
         self.setPixmap(pixmap)
 

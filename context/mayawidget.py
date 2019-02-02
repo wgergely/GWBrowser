@@ -48,9 +48,9 @@ class MayaWidgetContextMenu(BaseContextMenu):
 
     def add_alembic_menu(self):
         menu_set = collections.OrderedDict()
-        openpixmap = common.get_rsc_pixmap('files', common.TEXT, 18.0)
-        importpixmap = common.get_rsc_pixmap('import', common.TEXT, 18.0)
-        importrefpixmap = common.get_rsc_pixmap('import', common.FAVOURITE, 18.0)
+        openpixmap = common.get_rsc_pixmap('files', common.TEXT, common.INLINE_ICON_SIZE)
+        importpixmap = common.get_rsc_pixmap('import', common.TEXT, common.INLINE_ICON_SIZE)
+        importrefpixmap = common.get_rsc_pixmap('import', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
@@ -78,9 +78,9 @@ class MayaWidgetContextMenu(BaseContextMenu):
 
     def add_scenes_menu(self):
         menu_set = collections.OrderedDict()
-        openpixmap = common.get_rsc_pixmap('files', common.TEXT, 18.0)
-        importpixmap = common.get_rsc_pixmap('import', common.TEXT, 18.0)
-        importrefpixmap = common.get_rsc_pixmap('import', common.FAVOURITE, 18.0)
+        openpixmap = common.get_rsc_pixmap('files', common.TEXT, common.INLINE_ICON_SIZE)
+        importpixmap = common.get_rsc_pixmap('import', common.TEXT, common.INLINE_ICON_SIZE)
+        importrefpixmap = common.get_rsc_pixmap('import', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)

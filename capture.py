@@ -19,6 +19,7 @@ Example:
 import tempfile
 from PySide2 import QtCore, QtWidgets, QtGui
 
+
 class ScreenGrabber(QtWidgets.QDialog):
     """
     A transparent tool dialog for selecting an area (QRect) on the screen.
@@ -272,8 +273,3 @@ class ScreenGrabber(QtWidgets.QDialog):
             pixmap.save(output_path)
             return output_path
         return None
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    pixmap = ScreenGrabber.capture(output_path=r'c:/temp/temp.png')
-    print pixmap

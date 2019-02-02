@@ -113,8 +113,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         color = QtGui.QColor(color)
 
-        if favourite:
-            color = QtGui.QColor(common.FAVOURITE)
         if active:
             color = QtGui.QColor(common.SELECTION)
 

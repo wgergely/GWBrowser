@@ -145,14 +145,14 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
-        sort_menu_icon = common.get_rsc_pixmap('sort', common.FAVOURITE, 18.0)
+        sort_menu_icon = common.get_rsc_pixmap('sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_up_icon = common.get_rsc_pixmap(
-            'arrow_up', common.FAVOURITE, 18.0)
+            'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_down_icon = common.get_rsc_pixmap(
-            'arrow_down', common.FAVOURITE, 18.0)
-        item_off_icon = common.get_rsc_pixmap('item_off', common.TEXT, 18.0)
+            'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        item_off_icon = common.get_rsc_pixmap('item_off', common.TEXT, common.INLINE_ICON_SIZE)
         item_on_icon = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
+            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         sort_by_name = self.parent().model().sortkey == common.SortByName
         sort_modified = self.parent().model().sortkey == common.SortByLastModified
@@ -207,8 +207,8 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_reveal_folder_menu(self):
         """Creates a menu containing"""
         folder_icon = common.get_rsc_pixmap(
-            'folder', common.SECONDARY_TEXT, 18.0)
-        folder_icon2 = common.get_rsc_pixmap('folder', common.FAVOURITE, 18.0)
+            'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        folder_icon2 = common.get_rsc_pixmap('folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
@@ -306,8 +306,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_copy_menu(self):
         """Menu containing the subfolders of the selected item."""
-        copy_icon = common.get_rsc_pixmap('copy', common.SECONDARY_TEXT, 18.0)
-        copy_icon2 = common.get_rsc_pixmap('copy', common.FAVOURITE, 18.0)
+        copy_icon = common.get_rsc_pixmap('copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        copy_icon2 = common.get_rsc_pixmap('copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
@@ -347,13 +347,13 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_mode_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = common.get_rsc_pixmap(
-            'favourite', common.FAVOURITE, 18.0)
+            'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
         favourite_off_icon = common.get_rsc_pixmap(
-            'favourite', common.SECONDARY_TEXT, 18.0)
+            'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         archived_on_icon = common.get_rsc_pixmap(
-            'archived', common.FAVOURITE, 18.0)
+            'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
         archived_off_icon = common.get_rsc_pixmap(
-            'archived', common.TEXT, 18.0)
+            'archived', common.TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & MarkedAsFavourite
         archived = self.index.flags() & MarkedAsArchived
@@ -385,9 +385,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
+            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off = common.get_rsc_pixmap(
-            'item_off', common.SECONDARY_TEXT, 18.0)
+            'item_off', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.parent().model().get_filtermode('favourite')
         archived = self.parent().model().get_filtermode('archived')
@@ -438,15 +438,15 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_thumbnail_menu(self):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
-            'capture_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-            'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-            'pick_thumbnail', common.SECONDARY_TEXT, 18.0)
+            'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         revomove_thumbnail_pixmap = common.get_rsc_pixmap(
-            'todo_remove', common.FAVOURITE, 18.0)
+            'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
         show_thumbnail = common.get_rsc_pixmap(
-            'active', common.FAVOURITE, 18.0)
+            'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
         key = 'Thumbnail'
@@ -502,9 +502,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             return  # Render sequences are always collapsed
 
         expand_pixmap = common.get_rsc_pixmap(
-            'expand', common.SECONDARY_TEXT, 18.0)
+            'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = common.get_rsc_pixmap(
-            'collapse', common.FAVOURITE, 18.0)
+            'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         collapsed = self.parent().model().sourceModel().is_grouped()
 
@@ -525,11 +525,11 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, 18.0)
+            'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
+            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, 18.0)
+            'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -709,7 +709,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
 
-    customContextMenuRequested = QtCore.Signal(QtCore.QModelIndex, QtCore.QObject)
+    customContextMenuRequested = QtCore.Signal(
+        QtCore.QModelIndex, QtCore.QObject)
     # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
 
@@ -1161,8 +1162,6 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.isValid():
             return False
         if index.flags() == QtCore.Qt.NoItemFlags:
-            return False
-        if index.flags() & MarkedAsActive:
             return False
         if index.flags() & MarkedAsArchived:
             return False

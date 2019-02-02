@@ -122,10 +122,6 @@ class ListStackWidget(QtWidgets.QStackedWidget):
         super(ListStackWidget, self).__init__(parent=parent)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
-
-        self.setMinimumHeight(common.ROW_HEIGHT)
-        self.setMinimumWidth(200)
-
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
@@ -148,11 +144,11 @@ class LocationsMenu(BaseContextMenu):
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, 18.0)
+            'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, 18.0)
+            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, 18.0)
+            'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
         menu_set['separator'] = {}
@@ -322,7 +318,7 @@ class AddBookmarkButton(ClickableLabel):
     def __init__(self, parent=None):
         super(AddBookmarkButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'todo_add', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+            'todo_add', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -332,7 +328,7 @@ class CloseButton(ClickableLabel):
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'close', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 2)
+            'close', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -345,7 +341,7 @@ class MinimizeButton(ClickableLabel):
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'minimize', common.TEXT_WARNING, common.ROW_BUTTONS_HEIGHT / 2)
+            'minimize', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -407,14 +403,13 @@ class HeaderWidget(QtWidgets.QWidget):
 
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
-            'custom', None, common.ROW_BUTTONS_HEIGHT / 1.5)
+            'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.5)
         label.setPixmap(pixmap)
         label.setAlignment(QtCore.Qt.AlignCenter)
         label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
 
         self.layout().addWidget(label)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.label, 1)
         self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
@@ -459,7 +454,9 @@ class ListControlWidget(QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
@@ -850,31 +847,34 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Show bookmarks shortcut
         shortcut = QtWidgets.QShortcut(
-        QtGui.QKeySequence('Alt+1'), self)
+            QtGui.QKeySequence('Alt+1'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(lambda: self.listcontrolwidget.setCurrentMode(0))
+        shortcut.activated.connect(
+            lambda: self.listcontrolwidget.setCurrentMode(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
-        QtGui.QKeySequence('Alt+2'), self)
+            QtGui.QKeySequence('Alt+2'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(lambda: self.listcontrolwidget.setCurrentMode(1))
+        shortcut.activated.connect(
+            lambda: self.listcontrolwidget.setCurrentMode(1))
         # Show files shortcut
         shortcut = QtWidgets.QShortcut(
-        QtGui.QKeySequence('Alt+3'), self)
+            QtGui.QKeySequence('Alt+3'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(lambda: self.listcontrolwidget.setCurrentMode(2))
+        shortcut.activated.connect(
+            lambda: self.listcontrolwidget.setCurrentMode(2))
         # Search
         shortcut = QtWidgets.QShortcut(
-        QtGui.QKeySequence('Alf+F'), self)
+            QtGui.QKeySequence('Alf+f'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(filterbutton.clicked)
         # Search
         shortcut = QtWidgets.QShortcut(
-        QtGui.QKeySequence('Alt+L'), self)
+            QtGui.QKeySequence('Alt+l'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(locationsbutton.clicked)
@@ -958,11 +958,3 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    _widget = BrowserWidget()
-    _widget.show()
-    # widget.move(50, 50)
-    app.exec_()
