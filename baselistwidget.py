@@ -1135,7 +1135,7 @@ class BaseListWidget(QtWidgets.QListView):
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
         common.move_widget_to_available_geo(widget)
-        widget.show()
+        widget.exec_()
 
     def active_index(self):
         """Return the ``active`` item.
