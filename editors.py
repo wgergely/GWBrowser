@@ -26,7 +26,9 @@ class ClickableLabel(QtWidgets.QLabel):
         self.setAlignment(QtCore.Qt.AlignCenter)
 
     def mouseReleaseEvent(self, event):
-        self.clicked.emit()
+        """Only triggered when the left buttons is pressed."""
+        if event.button() == QtCore.Qt.LeftButton:
+            self.clicked.emit()
 
 
 class ThumbnailViewer(QtWidgets.QLabel):

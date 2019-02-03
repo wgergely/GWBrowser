@@ -16,17 +16,16 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-
 # -- Project information -----------------------------------------------------
 
-project = u'Browser - Maya'
-copyright = u'2018, Gergely Wootsch'
+project = u'Browser'
+copyright = u'2019, Gergely Wootsch'
 author = u'Gergely Wootsch'
 
 # The short X.Y version
-version = u'0.1'
+version = u'0.2'
 # The full version, including alpha/beta/rc tags
-release = u'0.1.0'
+release = u'0.2.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -48,7 +47,7 @@ extensions = [
     'rst2pdf.pdfbuilder',
 ]
 
-pdf_documents = [('index', u'browser_maya_docs', u'Browser - Maya Documentation', u'Gergely'),]
+pdf_documents = [('index', u'browser_docs', u'Browser - Documentation', u'Gergely'),]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -117,7 +116,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'Browser-Mayadoc'
+htmlhelp_basename = 'Browser-doc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -144,7 +143,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'Browser-Maya.tex', u'Browser - Maya Documentation',
+    (master_doc, 'Browser.tex', u'Browser - Documentation',
      u'Gergely Wootsch', 'manual'),
 ]
 
@@ -154,7 +153,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'browser-maya', u'Browser - Maya Documentation',
+    (master_doc, 'browser', u'Browser - Documentation',
      [author], 1)
 ]
 
@@ -165,8 +164,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'Browser-Maya', u'Browser - Maya Module Documentation',
-     author, 'Browser-Maya', 'Browser - Maya module.',
+    (master_doc, 'Browser', u'Browser - Module Documentation',
+     author, 'Browser', 'Browser - module.',
      'Miscellaneous'),
 ]
 
