@@ -610,7 +610,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
-
+        self.parentwidget = parent
         self.sortkey = self.get_sortkey()  # Alphabetical/Modified...etc.
         self.sortorder = self.get_sortorder()  # Ascending/descending
         self.filterstring = self.get_filterstring()  # Ascending/descending
@@ -622,13 +622,13 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def get_filterstring(self):
         """Will only display items contaning this string."""
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         val = local_settings.value('widget/{}/filterstring'.format(cls))
         return val if val else '/'
 
     def set_filterstring(self, val):
         """Sets and saves the sort-key."""
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         val = val if val else '/'
         self.filterstring = val
         local_settings.setValue('widget/{}/filterstring'.format(cls), val)
@@ -636,38 +636,38 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         val = local_settings.value('widget/{}/sortkey'.format(cls))
         return int(val) if val else common.SortByName
 
     def set_sortkey(self, val):
         """Sets and saves the sort-key."""
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         self.sortkey = val
         local_settings.setValue('widget/{}/sortkey'.format(cls), val)
 
         self.invalidate()
 
     def get_sortorder(self):
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         val = local_settings.value(
             'widget/{}/sortorder'.format(cls))
         return int(val) if val else False
 
     def set_sortorder(self, val):
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         self.sortorder = val
         local_settings.setValue('widget/{}/sortorder'.format(cls), val)
         self.invalidate()
         self.sort()
 
     def get_filtermode(self, mode):
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         val = local_settings.value('widget/{}/mode:{}'.format(cls, mode))
         return val if val else False
 
     def set_filtermode(self, mode, val):
-        cls = self.parent().__class__.__name__
+        cls = self.parentwidget.__class__.__name__
         self.filter_mode[mode] = val
         local_settings.setValue('widget/{}/mode:{}'.format(cls, mode), val)
         self.invalidateFilter()
