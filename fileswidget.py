@@ -83,7 +83,8 @@ class FilesModel(BaseModel):
         dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dir_.setSorting(QtCore.QDir.Unsorted)
         dir_.setNameFilters(common.NameFilters[location])
-        it = QtCore.QDirIterator(dir_, flags=QtCore.QDirIterator.Subdirectories)
+        it = QtCore.QDirIterator(
+            dir_, flags=QtCore.QDirIterator.Subdirectories)
 
         idx = 0
         __count = 0
@@ -91,11 +92,12 @@ class FilesModel(BaseModel):
         while it.hasNext():
             path = it.next()
 
-             # Collecting files can take a long time. We're triggering ui updates inside loop here.
+            # Collecting files can take a long time. We're triggering ui updates inside loop here.
             __count += 1
             if ((__count % __nth) + 1) == __nth:
                 spinner.setText(it.fileName())
-                QtCore.QCoreApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
+                QtCore.QCoreApplication.instance().processEvents(
+                    QtCore.QEventLoop.ExcludeUserInputEvents)
 
             # We're not going to set more data when looking inside the ``renders`` location.
             # Things can slow down when querrying 10000+ files.
@@ -178,11 +180,12 @@ class FilesModel(BaseModel):
         for k in self._internal_data[location][False]:
             path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
             match = common.get_sequence(path)
-            if not match: # Non-sequence items
+            if not match:  # Non-sequence items
 
                 # Previously skipped all this, have to re-add the data here.
                 if location == common.RendersFolder:
-                    file_info = QtCore.QFileInfo(self._internal_data[location][False][k][QtCore.Qt.StatusTipRole])
+                    file_info = QtCore.QFileInfo(
+                        self._internal_data[location][False][k][QtCore.Qt.StatusTipRole])
 
                     # Active
                     fileroot = '/'.join((server, job, root, asset, location))
@@ -198,12 +201,14 @@ class FilesModel(BaseModel):
                         QtCore.Qt.ItemIsDragEnabled
                     )
 
-                    activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
+                    activefilepath = '{}/{}'.format(fileroot,
+                                                    file_info.fileName())
                     if activefilepath == active_paths['file']:
                         flags = flags | MarkedAsActive
 
                     # Archived
-                    settings = AssetSettings((server, job, root, file_info.filePath()))
+                    settings = AssetSettings(
+                        (server, job, root, file_info.filePath()))
                     if settings.value('config/archived'):
                         flags = flags | MarkedAsArchived
 
@@ -348,10 +353,18 @@ class FilesModel(BaseModel):
 
     def mimeData(self, indexes):
         index = next((f for f in indexes), None)
-        mime =  QtCore.QMimeData()
+        mime = QtCore.QMimeData()
+        location = self.get_location()
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        filepath = common.get_sequence_startpath(file_info.filePath())
 
+        if location == common.RendersFolder:  # first file
+            filepath = common.get_sequence_startpath(file_info.filePath())
+        elif location == common.ScenesFolder:  # last file
+            filepath = common.get_sequence_endpath(file_info.filePath())
+        elif location == common.TexturesFolder:
+            filepath = common.get_sequence_endpath(file_info.filePath())
+        elif location == common.ExportsFolder:
+            filepath = common.get_sequence_endpath(file_info.filePath())
 
         url = QtCore.QUrl.fromLocalFile(filepath)
         mime.setUrls((url,))
@@ -370,7 +383,8 @@ class FilesModel(BaseModel):
             self.beginResetModel()
             self.__initdata__()
             self.endResetModel()
-        self.internal_data = self._internal_data[self.get_location()][self.is_grouped()]
+        self.internal_data = self._internal_data[self.get_location(
+        )][self.is_grouped()]
 
     def set_asset(self, asset):
         if asset == self.asset:
@@ -468,6 +482,7 @@ class FilesWidget(BaseInlineIconWidget):
     asset file.
 
     """
+
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
@@ -500,8 +515,13 @@ class FilesWidget(BaseInlineIconWidget):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         fileroot = index.data(common.ParentRole)[5]
         activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
-
         local_settings.setValue('activepath/file', activefilepath)
+
+        activefilepath = list(index.data(common.ParentRole)
+                              ) + [file_info.fileName(), ]
+        activefilepath = '/'.join(activefilepath)
+        activefilepath = common.get_sequence_endpath(activefilepath)
+        print activefilepath
         self.activeFileChanged.emit(activefilepath)
 
     def mouseDoubleClickEvent(self, event):
@@ -544,14 +564,15 @@ class FilesWidget(BaseInlineIconWidget):
         self.activate_current_index()
         return
 
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     active_paths = path_monitor.get_active_paths()
     asset = (active_paths['server'],
-            active_paths['job'],
-            active_paths['root'],
-            active_paths['asset'],
-            )
+             active_paths['job'],
+             active_paths['root'],
+             active_paths['asset'],
+             )
     widget = FilesWidget(asset)
     widget.show()
     app.exec_()

@@ -183,6 +183,8 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
+        fileswidget.activeFileChanged.connect(lambda path: open_scene(path))
+
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
         width = parent.viewport().geometry().width()
