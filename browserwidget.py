@@ -939,7 +939,6 @@ class BrowserWidget(QtWidgets.QWidget):
         local_settings.setValue('widget/{}/y'.format(cls), pos.y())
 
         super(BrowserWidget, self).hideEvent(event)
-        self.hideEventTriggered.emit()
 
     def showEvent(self, event):
         super(BrowserWidget, self).showEvent(event)
@@ -957,8 +956,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.resize(size)
         self.move(pos)
-
-        self.showEventTriggered.emit()
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
