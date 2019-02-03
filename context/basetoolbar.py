@@ -73,7 +73,6 @@ class ToolbarButton(ClickableLabel):
         color = common.FAVOURITE if state else common.TEXT
         pixmap = common.get_rsc_pixmap('bookmarks', color, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
-        print 'update'
 
 
 class BaseToolbarWidget(QtWidgets.QWidget):

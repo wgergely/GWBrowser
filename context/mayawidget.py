@@ -238,7 +238,6 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
             y = 'widget/{}/y'.format(cls)
             local_settings.setValue(x, self.geometry().x())
             local_settings.setValue(y, self.geometry().y())
-        print self.parent()
 
     def show(self, *args, **kwargs):
         """Initializes the Maya workspace control on show."""
