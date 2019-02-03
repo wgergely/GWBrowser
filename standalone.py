@@ -11,6 +11,7 @@ import browser.common as common
 
 
 class StandaloneApp(QtWidgets.QApplication):
+    """This is the app used to run the browser as a standalone widget."""
     MODEL_ID = u'browser_standalone'
 
     def __init__(self, args):

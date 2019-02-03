@@ -78,7 +78,7 @@ class OverlayWidget(QtWidgets.QWidget):
         self.opacity = 0.0
 
         self.timeline = QtCore.QTimeLine()
-        self.timeline.setDuration(300)
+        self.timeline.setDuration(150)
 
         self.resize(new_widget.size())
         self.show()
@@ -950,6 +950,8 @@ class BrowserWidget(QtWidgets.QWidget):
         x = local_settings.value('widget/{}/x'.format(cls))
         y = local_settings.value('widget/{}/y'.format(cls))
 
+        if not all((width, height, x, y)): # skip if not saved yet
+            return
         size = QtCore.QSize(width, height)
         pos = QtCore.QPoint(x, y)
 
