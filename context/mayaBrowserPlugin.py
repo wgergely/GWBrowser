@@ -1,30 +1,21 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101
 """Browser - Maya plug-in.
-
-This plug-in is a Maya front-end to 'Browser', a custom PyQt pipeline package.
-Please note, this is a development release, and I can take no warranty for any
-of the functionality.
-
-Description:
-    The plug-in is responsible for setting Maya projects and importing, opening and
-    referencing maya scenes.
-    Once installed and loaded, the browser window can be found in Maya's 'File'
-    menu. The application-wide shortcut to show the panel is 'Ctrl+Shift+O'.
 
 Installation:
     Place 'mayaBrowserPlugin.py' into one of the plug-in directories read by maya.
     The list of plug-in directories can be retrieved by running the following in
     the script editor:
 
-    import os
-    for path in os.environ['MAYA_PLUG_IN_PATH'].split(';'):
-        print path
+        import os
+        for path in os.environ['MAYA_PLUG_IN_PATH'].split(';'):
+            print path
 
     By default, on windows, the default user plug-in paths are:
         C:/Users/[user name]/Documents/maya/[version]/plug-ins
         C:/Users/[user name]/Documents/maya/plug-ins
 
-    Then, in Maya you have to load the plug-in via the Plug-in Manager.
+    In Maya load the plug-in via the Plug-in Manager.
 
 Important:
     Before loading the plug-in make sure the main 'Browser' module is placed in
@@ -41,19 +32,19 @@ Important:
     After copying, you can test by your setup by trying to import 'browser'
     by running in the script editor:
 
-    import browser
+        import browser
 
-    If you get any error messages something went south...
+    If you get any error messages something went south.
 
 Credits:
-    Gergely Wootsch, 2018, September.
+    Gergely Wootsch, 2019, February.
     hello@gergely-wootsch.com
     http://gergely-wootsch.com
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
+
 
 def maya_useNewAPI():
     """
@@ -71,7 +62,8 @@ def initializePlugin(plugin):
     import maya.api.OpenMaya as OpenMaya
     from browser.context.mayawidget import MayaToolbar
 
-    pluginFn = OpenMaya.MFnPlugin(plugin, vendor='Gergely Wootsch', version='0.2.0')
+    pluginFn = OpenMaya.MFnPlugin(
+        plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
         MayaToolbar()
@@ -97,7 +89,8 @@ def uninitializePlugin(plugin):
 
     from browser.context.mayawidget import MayaToolbar
 
-    pluginFn = OpenMaya.MFnPlugin(plugin, vendor='Gergely Wootsch', version='0.2.0')
+    pluginFn = OpenMaya.MFnPlugin(
+        plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
         ptr = OpenMayaUI.MQtUtil.findControl('ToolBox')
