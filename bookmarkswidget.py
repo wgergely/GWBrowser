@@ -237,7 +237,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         local_settings.setValue('activepath/root', root)
 
         path_monitor.get_active_paths()  # Resetting invalid paths
-        self.activeBookmarkChanged.emit(index.data(common.ParentRole))
+        self.model().sourceModel().activeBookmarkChanged.emit(index.data(common.ParentRole))
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from

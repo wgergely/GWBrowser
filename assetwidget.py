@@ -190,9 +190,9 @@ class AssetWidget(BaseInlineIconWidget):
         local_settings.setValue('activepath/asset', file_info.fileName())
 
         path_monitor.get_active_paths()  # Resetting invalid paths
-        self.activeAssetChanged.emit(index.data(common.ParentRole))
+        self.model().sourceModel().activeAssetChanged.emit(index.data(common.ParentRole))
         if needs_reset:
-            self.modelResetRequested.emit()  # resetting model
+            self.model().sourceModel().modelResetRequested.emit()  # resetting model
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

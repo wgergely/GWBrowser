@@ -787,6 +787,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setPen(common.TEXT)
         painter.drawText(rect, QtCore.Qt.AlignCenter, '{}'.format(count))
 
+
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
 
@@ -834,8 +835,7 @@ class AssetWidgetDelegate(BaseDelegate):
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub('[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub('[_]{1,}', ' ', text)
-        text = '{}*'.format(text) if active else text.strip()
+        text = re.sub('[_]{1,}', '_', text).strip('_')
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
@@ -1056,7 +1056,8 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)', r'\1\3', text, flags=re.IGNORECASE)
+        text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)',
+                      r'\1\3', text, flags=re.IGNORECASE)
         text = text.split('.')
         ext = text.pop(-1)
         text = '.'.join(text).upper()

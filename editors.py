@@ -331,7 +331,7 @@ class FilterListButton(ClickableLabel):
 
 class FilterEditor(QtWidgets.QWidget):
     """Editor widget used to set the filter for the current view."""
-    finished = QtCore.Signal(str)
+    finished = QtCore.Signal(basestring)
 
     def __init__(self, text, parent=None):
         super(FilterEditor, self).__init__(parent=parent)

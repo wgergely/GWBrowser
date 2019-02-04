@@ -1,34 +1,95 @@
 import re
 from PySide2 import QtCore, QtWidgets, QtGui
+
 import browser.common as common
-from browser.editors import ClickableLabel
-from browser.settings import path_monitor
-from browser.bookmarkswidget import BookmarksModel
+
 from browser.delegate import BaseDelegate
 from browser.delegate import paintmethod
+from browser.editors import ClickableLabel
+from browser.settings import path_monitor
+
+from browser.bookmarkswidget import BookmarksModel
+from browser.assetwidget import AssetModel
+
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class ThumbnailButton(ClickableLabel):
-    pass
+    """Button used to select the thumbnail for this item."""
+
+    def __init__(self, parent=None):
+        super(ThumbnailButton, self).__init__(parent=parent)
+        self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT, common.ROW_HEIGHT))
+        pixmap = common.get_rsc_pixmap(
+            'placeholder', common.TEXT, common.ROW_HEIGHT)
+        self.setPixmap(pixmap)
+
+class ParentButton(ClickableLabel):
+    def __init__(self, parent=None):
+        super(ParentButton, self).__init__(parent=parent)
+        self.setStyleSheet("""
+            QLabel {{
+                background-color: rgba({});
+            }}
+        """.format('{}/{}/{}/{}'.format(*common.BACKGROUND_SELECTED.getRgb())))
+        self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT / 2.0, common.ROW_HEIGHT / 2.0))
+        pixmap = common.get_rsc_pixmap(
+            'folder', common.TEXT, common.INLINE_ICON_SIZE)
+        self.setPixmap(pixmap)
+
+        self.clicked.connect(self.get_parent_folders)
+
+    def get_parent_folders(self):
+        """Collects the available parent folders."""
+        active_paths = path_monitor.get_active_paths()
+        parent = (
+            active_paths['server'],
+            active_paths['job'],
+            active_paths['root'],
+            active_paths['asset'],
+            common.ScenesFolder
+        )
+        if not all(parent):
+            return
+
+        path = '/'.join(parent)
+        dir_ = QtCore.QDir(path)
+        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
+                       QtCore.QDir.Dirs |
+                       QtCore.QDir.Readable)
+        it = QtCore.QDirIterator(
+            dir_, flags=QtCore.QDirIterator.Subdirectories)
+
+        # menus =
+        while it.hasNext():
+            filepath = it.next()
+            rootpath = filepath.replace(path, '')
+            print rootpath.strip('/')
+
 
 class BookmarksWidget(QtWidgets.QComboBox):
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
-        self.setFixedHeight(common.ROW_HEIGHT)
-        self.setModel(BookmarksModel())
+        self.setModel(BookmarksModel(parent=self))
+
+        self.setFixedHeight(common.ROW_HEIGHT / 2.0)
         self.view().setFixedWidth(common.WIDTH)
+        self.view().parent().setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.view().setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
         self.setItemDelegate(BookmarksListDelegate(parent=self))
 
-    def showPopup(self):
         # Selecting the active bookmark
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
             if index.flags() & MarkedAsActive:
                 self.setCurrentIndex(n)
+                self.view().scrollTo(index)
                 break
+        self.view().setDisabled(True)
+        self.view().parent().setDisabled(True)
 
-        super(BookmarksWidget, self).showPopup()
 
 class BookmarksListDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
@@ -40,7 +101,6 @@ class BookmarksListDelegate(BaseDelegate):
         active = index.flags() & MarkedAsActive
 
         text = re.sub(r'[_]+', ' ', root.upper())
-        text = '{} (active)'.format(text) if active else text
         text = '{} ({})'.format(text, count) if count else text
 
         return metrics.elidedText(
@@ -150,7 +210,96 @@ class BookmarksListDelegate(BaseDelegate):
         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
 
 
-class Saver(QtWidgets.QWidget):
+class AssetsWidget(QtWidgets.QComboBox):
+    def __init__(self, parent=None):
+        super(AssetsWidget, self).__init__(parent=parent)
+        active_paths = path_monitor.get_active_paths()
+        bookmark = (
+            active_paths['server'],
+            active_paths['job'],
+            active_paths['root']
+        )
+        self.setModel(AssetModel(bookmark, parent=self))
+
+
+        self.setFixedHeight(common.ROW_HEIGHT / 2.0)
+        self.view().setFixedWidth(common.WIDTH)
+        self.view().setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.view().parent().setFixedHeight(common.ASSET_ROW_HEIGHT)
+        self.setItemDelegate(AssetWidgetDelegate(parent=self))
+
+        # Selecting the active bookmark
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+            if index.flags() & MarkedAsActive:
+                self.setCurrentIndex(n)
+                self.view().scrollTo(index)
+                break
+        self.view().setDisabled(True)
+        self.view().parent().setDisabled(True)
+
+    def inline_icons_count(self):
+        return 0
+
+
+class AssetWidgetDelegate(BaseDelegate):
+    """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
+
+    def paint(self, painter, option, index):
+        """Defines how the ``AssetWidget``'s' items should be painted."""
+        args = self._get_paint_args(painter, option, index)
+
+        self.paint_background(*args)
+        #
+        self.paint_thumbnail(*args)
+        self.paint_archived(*args)
+        #
+        self.paint_name(*args)
+        self.paint_description(*args)
+        #
+        # self.paint_selection_indicator(*args)
+        self.paint_active_indicator(*args)
+
+    @paintmethod
+    def paint_name(self, *args):
+        """Paints the item names inside the ``AssetWidget``."""
+        painter, option, index, _, _, active, _, _ = args
+
+        rect, font, metrics = self.get_text_area(
+            option.rect, common.PRIMARY_FONT)
+
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+
+        # Asset name
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub('[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub('[_]{1,}', '_', text)
+        text = metrics.elidedText(
+            text.upper(),
+            QtCore.Qt.ElideRight,
+            rect.width()
+        )
+
+        color = self.get_state_color(option, index, common.TEXT)
+
+        painter.setFont(font)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text
+        )
+
+    def sizeHint(self, option, index):
+        return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
+
+
+class Saver(QtWidgets.QDialog):
     """Item used to save a new file."""
 
     def __init__(self, parent=None):
@@ -162,23 +311,48 @@ class Saver(QtWidgets.QWidget):
         self._connectSignals()
 
     def _createUI(self):
+        o = common.INDICATOR_WIDTH
+
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        self.layout().setContentsMargins(o * 2, o * 2, o * 2, o * 2)
+        self.layout().setSpacing(o)
 
         common.set_custom_stylesheet(self)
+        stylesheet = 'Saver {{background-color: rgba({});}}'.format('{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb()))
+        stylesheet = '{}\n{}'.format(self.styleSheet(), stylesheet)
+        self.setStyleSheet(stylesheet)
+
 
         label = ThumbnailButton()
-        label.setFixedSize(QtCore.QSize(common.ROW_HEIGHT, common.ROW_HEIGHT))
-        pixmap = common.get_rsc_pixmap(
-            'placeholder', common.TEXT, common.ROW_HEIGHT)
-        label.setPixmap(pixmap)
         self.layout().addWidget(label)
 
-        bookmarkswidget = BookmarksWidget()
-        self.layout().addWidget(bookmarkswidget)
+        stack = QtWidgets.QWidget()
+        QtWidgets.QVBoxLayout(stack)
+        stack.layout().setContentsMargins(0,0,0,0)
+        stack.layout().setSpacing(0)
 
+        row = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(row)
+        row.layout().setContentsMargins(o,o,o,o)
+        row.layout().setSpacing(o)
 
+        row.layout().addWidget(BookmarksWidget(parent=self))
+        row.layout().addWidget(AssetsWidget(parent=self))
+        row.layout().addWidget(ParentButton(parent=self))
+        stack.layout().addWidget(row)
+
+        row = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(row)
+        row.layout().setContentsMargins(o,o,o,o)
+        row.layout().setSpacing(o)
+
+        editor = QtWidgets.QLineEdit()
+        editor.setPlaceholderText('Add description here...')
+        editor.setFixedWidth(350)
+        row.layout().addWidget(editor)
+        stack.layout().addWidget(row)
+
+        self.layout().addWidget(stack)
 
 
     def select_thumbnail(self):
@@ -187,27 +361,31 @@ class Saver(QtWidgets.QWidget):
         bookmark = (
             active_paths['server'],
             active_paths['job'],
-            active_paths['server']
+            active_paths['root']
         )
-
-        self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        self.setViewMode(QtWidgets.QFileDialog.List)
-        self.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        self.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
-        self.setDirectory('/'.join(bookmark))
-        self.setOption(
+        dialog = QtWidgets.QFileDialog(parent=self)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
+        dialog.setDirectory('/'.join(bookmark))
+        dialog.setOption(
             QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
-        if not self.exec_():
+        if not dialog.exec_():
             return
-        if not self.selectedFiles():
+        if not dialog.selectedFiles():
             return
 
-        print file
+        print dialog.selectedFiles()
         # TODO: Implement this fucker
 
     def _connectSignals(self):
         self.findChild(ThumbnailButton).clicked.connect(self.select_thumbnail)
+
+        # bookmarksmodel = self.findChild(BookmarksModel)
+        # assetmodel = self.findChild(AssetModel)
+        # bookmarksmodel.activeBookmarkChanged.connect(assetmodel.set_bookmark)
 
 
 if __name__ == '__main__':

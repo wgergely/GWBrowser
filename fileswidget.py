@@ -41,8 +41,6 @@ class FilesWidgetContextMenu(BaseContextMenu):
 class FilesModel(BaseModel):
     """The model to collect files."""
 
-    activeLocationChanged = QtCore.Signal(str)
-
     def __init__(self, asset, parent=None):
 
         self.asset = asset
@@ -517,7 +515,7 @@ class FilesWidget(BaseInlineIconWidget):
         activefilepath = '/'.join(activefilepath)
         activefilepath = common.get_sequence_endpath(activefilepath)
         print activefilepath
-        self.activeFileChanged.emit(activefilepath)
+        self.model().sourceModel().activeFileChanged.emit(activefilepath)
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.

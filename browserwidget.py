@@ -838,7 +838,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget.modeChanged.connect(self.activate_widget)
 
         # Bookmark
-        self.bookmarkswidget.activeBookmarkChanged.connect(
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().set_bookmark)
 
         combobox = self.listcontrolwidget.findChild(ChangeListWidget)
@@ -881,23 +881,23 @@ class BrowserWidget(QtWidgets.QWidget):
 
         setCurrentMode = functools.partial(
             self.listcontrolwidget.setCurrentMode, 1)
-        self.bookmarkswidget.activeBookmarkChanged.connect(setCurrentMode)
-        self.bookmarkswidget.activeBookmarkChanged.connect(
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(setCurrentMode)
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             combobox.apply_flags)
-        self.bookmarkswidget.activeBookmarkChanged.connect(
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.headerwidget.itemActivated)
 
         # Asset
         setCurrentMode = functools.partial(
             self.listcontrolwidget.setCurrentMode, 2)
 
-        self.assetswidget.activeAssetChanged.connect(
+        self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
-        self.assetswidget.modelResetRequested.connect(self.fileswidget.refresh)
+        self.assetswidget.model().sourceModel().modelResetRequested.connect(self.fileswidget.refresh)
 
-        self.assetswidget.activeAssetChanged.connect(setCurrentMode)
-        self.assetswidget.activeAssetChanged.connect(combobox.apply_flags)
-        self.assetswidget.activeAssetChanged.connect(
+        self.assetswidget.model().sourceModel().activeAssetChanged.connect(setCurrentMode)
+        self.assetswidget.model().sourceModel().activeAssetChanged.connect(combobox.apply_flags)
+        self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.headerwidget.itemActivated)
 
         # Statusbar

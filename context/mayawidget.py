@@ -178,13 +178,13 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget = self.browserwidget.findChild(FilesWidget)
 
         # Asset/project
-        assetswidget.activeAssetChanged.connect(self.assetChanged)
+        assetswidget.model().sourceModel().activeAssetChanged.connect(self.assetChanged)
 
         # Context menu
         fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
-        fileswidget.activeFileChanged.connect(lambda path: open_scene(path))
+        fileswidget.model().sourceModel().activeFileChanged.connect(lambda path: open_scene(path))
 
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""

@@ -6,7 +6,7 @@ import time
 
 
 class ModelWorker(QtCore.QObject):
-    dataReady = QtCore.Signal(str)
+    dataReady = QtCore.Signal(basestring)
     finished = QtCore.Signal() # Telling the tread to quit
 
     @QtCore.Slot(str)
@@ -25,7 +25,7 @@ class ModelWorker(QtCore.QObject):
 
 
 class Threadworker(QtCore.QObject):
-    dataRequested = QtCore.Signal(str)
+    dataRequested = QtCore.Signal(basestring)
     finished = QtCore.Signal()
 
     def __init__(self, parent=None):

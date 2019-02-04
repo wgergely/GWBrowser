@@ -558,6 +558,12 @@ class BaseModel(QtCore.QAbstractItemModel):
     aboutToChange = QtCore.Signal()  # Emit before the model is about to change
     grouppingChanged = QtCore.Signal()  # The sequence view mode
 
+    modelResetRequested = QtCore.Signal()
+    activeBookmarkChanged = QtCore.Signal(tuple)
+    activeAssetChanged = QtCore.Signal(tuple)
+    activeLocationChanged = QtCore.Signal(basestring)
+    activeFileChanged = QtCore.Signal(basestring)
+
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self._internal_data = {
@@ -714,12 +720,6 @@ class BaseListWidget(QtWidgets.QListView):
 
     # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
-
-    modelResetRequested = QtCore.Signal()
-    activeBookmarkChanged = QtCore.Signal(tuple)
-    activeAssetChanged = QtCore.Signal(tuple)
-    activeLocationChanged = QtCore.Signal(str)
-    activeFileChanged = QtCore.Signal(str)
 
     def __init__(self, model, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
