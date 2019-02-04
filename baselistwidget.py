@@ -711,9 +711,11 @@ class BaseListWidget(QtWidgets.QListView):
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
+
     # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
 
+    modelResetRequested = QtCore.Signal()
     activeBookmarkChanged = QtCore.Signal(tuple)
     activeAssetChanged = QtCore.Signal(tuple)
     activeLocationChanged = QtCore.Signal(str)
@@ -917,7 +919,6 @@ class BaseListWidget(QtWidgets.QListView):
     def refresh(self):
         """Refreshes the underlaying source model and resets the sorting."""
         index = self.selectionModel().currentIndex()
-
         self.model().sourceModel().aboutToChange.emit()
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
@@ -925,7 +926,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
         self.model().sort()
-
         self.reselect_previous_path()
 
     def reselect_previous_path(self):

@@ -387,13 +387,8 @@ class FilesModel(BaseModel):
         )][self.is_grouped()]
 
     def set_asset(self, asset):
-        if asset == self.asset:
-            return
+        """Sets a new asset for the model."""
         self.asset = asset
-        self.beginResetModel()
-        self.__initdata__()
-        self.switch_dataset()
-        self.endResetModel()
 
     def is_grouped(self):
         """Gathers sequences into a single file."""

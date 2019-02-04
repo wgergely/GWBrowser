@@ -1,17 +1,14 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
 
-"""Module defines a ListWidget used to represent the assets found in the root
-of the `server/job/assets` folder.
+"""Definitions for the asset model/view classes.
 
-The asset collector expects a asset to contain an identifier file,
-in the case of the default implementation, a ``*.mel`` file in the root of the asset folder.
-If the identifier file is not found the folder will be ignored!
+An asset refers is a folder with a ``workspace.mel`` identifier file present, containing a
+`scenes`, `renders`, `textures` and `exports` folders. Both the identifier files
+and name of the above folders can be customized in the ``browser.commons`` module.
 
-Assets are based on maya's project structure and ``Browser`` expects a
-a ``renders``, ``textures``, ``exports`` and a ``scenes`` folder to be present.
-
-The actual name of these folders can be customized in the ``common.py`` module.
+Each asset can be annoted with a description, thumbnail, and todo items. These
+values are stored in the ``bookmark/.browser`` folder.
 
 """
 
@@ -30,7 +27,7 @@ from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class AssetWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with the AssetWidget."""
+    """The context menu associated with the AssetWidget."""
 
     def __init__(self, index, parent=None):
         super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
@@ -46,18 +43,18 @@ class AssetWidgetContextMenu(BaseContextMenu):
 
 
 class AssetModel(BaseModel):
+    """The model associated with the assets views."""
+
     def __init__(self, bookmark, parent=None):
         self.bookmark = bookmark
         super(AssetModel, self).__init__(parent=parent)
 
     def __initdata__(self):
-        """Retrieves the assets found by the AssetCollector and adds them as
-        QListWidgetItems.
+        """Querries the bookmark folder and collects the found asset items.
 
-        Note:
-            The method adds the assets' parent folder to the QFileSystemWatcher to monitor
-            file changes. Any directory change should trigger a refresh. This might
-            have some performance implications. Needs testing!
+        The model uses `self.internal_data (dict)` to read the values needed to
+        display the found items. Calling this method will reset / repopulate
+        the dictionary.
 
         """
         self.internal_data = {}  # reset
@@ -148,6 +145,7 @@ class AssetModel(BaseModel):
             idx += 1
 
     def set_bookmark(self, bookmark):
+        """Sets a new bookmark for the model and resets the internal_data object."""
         self.bookmark = bookmark
         self.beginResetModel()
         self.__initdata__()
@@ -155,18 +153,14 @@ class AssetModel(BaseModel):
 
 
 class AssetWidget(BaseInlineIconWidget):
-    """Custom QListWidget for displaying the found assets inside the set ``path``.
-
-    Args:
-        bookmark_path (tuple): A `Bookmark` made up of the server/job/root folders.
-
-    """
+    """View for displaying the model items."""
 
     def __init__(self, bookmark, parent=None):
         super(AssetWidget, self).__init__(AssetModel(bookmark), parent=parent)
         self.setWindowTitle('Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self.context_menu_cls = AssetWidgetContextMenu
+
         # Select the active item
         self.selectionModel().setCurrentIndex(
             self.active_index(),
@@ -182,11 +176,14 @@ class AssetWidget(BaseInlineIconWidget):
         emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
 
         """
-        if not super(AssetWidget, self).activate_current_index():
-            return
-
         index = self.selectionModel().currentIndex()
         if not index.isValid():
+            return
+
+        # Activating a new item will require the filesmodel to be updated
+        needs_reset = not index.flags() & MarkedAsActive
+
+        if not super(AssetWidget, self).activate_current_index():
             return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
@@ -194,6 +191,8 @@ class AssetWidget(BaseInlineIconWidget):
 
         path_monitor.get_active_paths()  # Resetting invalid paths
         self.activeAssetChanged.emit(index.data(common.ParentRole))
+        if needs_reset:
+            self.modelResetRequested.emit()  # resetting model
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

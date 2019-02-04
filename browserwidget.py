@@ -890,8 +890,11 @@ class BrowserWidget(QtWidgets.QWidget):
         # Asset
         setCurrentMode = functools.partial(
             self.listcontrolwidget.setCurrentMode, 2)
+
         self.assetswidget.activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
+        self.assetswidget.modelResetRequested.connect(self.fileswidget.refresh)
+
         self.assetswidget.activeAssetChanged.connect(setCurrentMode)
         self.assetswidget.activeAssetChanged.connect(combobox.apply_flags)
         self.assetswidget.activeAssetChanged.connect(
