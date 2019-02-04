@@ -640,29 +640,31 @@ def get_ranges(arr, padding):
     return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
-isequenceregex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
-sequencestartregex = re.compile(
+IsGetSequenceRegex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
+SequenceStartRegex = re.compile(
     r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
-sequenceendregex = re.compile(
+SequenceEndRegex = re.compile(
     r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
-sequenceregex = re.compile(r'^(.*?)([0-9]+)\.(.{2,5})$', flags=re.IGNORECASE)
+# If a string denotes a sequence the match should return 3 groups:
+# beginning_of_string, sequence_number, extension (without the '.')
+GetSequenceRegex = re.compile(r'^(.*?)([0-9]+)(?:[0-9]*|[^0-9]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
 
 
 def get_sequence(text):
-    return sequenceregex.search(text)
+    return GetSequenceRegex.search(text)
 
 
 def is_sequence(text):
-    return isequenceregex.match(text)
+    return IsGetSequenceRegex.match(text)
 
 
 def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
-    match = sequencestartregex.search(path)
+    match = SequenceStartRegex.search(path)
     if match:
-        path = sequencestartregex.sub(r'\1\2\3', path)
+        path = SequenceStartRegex.sub(r'\1\2\3', path)
     return path
 
 
@@ -670,9 +672,9 @@ def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
-    match = sequenceendregex.search(path)
+    match = SequenceEndRegex.search(path)
     if match:
-        path = sequenceendregex.sub(r'\1\2\3', path)
+        path = SequenceEndRegex.sub(r'\1\2\3', path)
     return path
 
 
