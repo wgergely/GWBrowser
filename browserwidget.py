@@ -849,34 +849,34 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence('Alt+1'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence('Alt+2'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(1))
         # Show files shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence('Alt+3'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(2))
         # Search
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence('Alf+f'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(filterbutton.clicked)
         # Search
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence('Alt+l'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(locationsbutton.clicked)
 
         setCurrentMode = functools.partial(

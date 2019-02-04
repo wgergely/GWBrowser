@@ -179,9 +179,9 @@ class FilesModel(BaseModel):
         idx = 0
         for k in self._internal_data[location][False]:
             path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
+
             match = common.get_sequence(path)
             if not match:  # Non-sequence items
-
                 # Previously skipped all this, have to re-add the data here.
                 if location == common.RendersFolder:
                     file_info = QtCore.QFileInfo(
@@ -255,7 +255,7 @@ class FilesModel(BaseModel):
                 idx += 1
                 continue
 
-            k = '{}|{}'.format(match.group(1), match.group(3))
+            k = '{}|{}.{}'.format(match.group(1), match.group(3), match.group(4))
             if k not in groups:
                 file_info = QtCore.QFileInfo(path)
                 groups[k] = {
@@ -264,7 +264,6 @@ class FilesModel(BaseModel):
                     'size': file_info.size(),
                     'padding': len(match.group(2)),
                     'modified': file_info.lastModified(),
-                    'ext': match.group(3)
                 }
             groups[k]['frames'].append(int(match.group(2)))
 
@@ -272,10 +271,11 @@ class FilesModel(BaseModel):
         for k in groups:
             frames = groups[k]['frames']
             frames = sorted(list(set(frames)))
-            path = '{}[{}].{}'.format(
-                k.split('|')[0],
+            sk = k.split('|')
+            path = '{}[{}]{}'.format(
+                sk[0],
                 common.get_ranges(frames, groups[k]['padding']),
-                groups[k]['ext']
+                sk[1]
             )
 
             file_info = QtCore.QFileInfo(path)

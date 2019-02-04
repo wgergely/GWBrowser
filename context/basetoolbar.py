@@ -70,8 +70,8 @@ class ToolbarButton(ClickableLabel):
         self.setState(False)
 
     def setState(self, state):
-        color = common.FAVOURITE if state else common.TEXT
-        pixmap = common.get_rsc_pixmap('bookmarks', color, common.ROW_BUTTONS_HEIGHT / 2)
+        opacity = 1.0 if state else 1.0
+        pixmap = common.get_rsc_pixmap('custom', None, common.ROW_BUTTONS_HEIGHT, opacity=opacity)
         self.setPixmap(pixmap)
 
 

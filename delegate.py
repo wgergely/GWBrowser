@@ -646,35 +646,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
 
-    def _get_root_text(self, index, rect, metrics):
-        """Gets the text for drawing the root."""
-        root = index.data(common.ParentRole)[2]
-        count = index.data(common.FileDetailsRole)
-
-        text = re.sub(r'[_]+', ' ', root.upper())
-        if count:
-            if count == 1:
-                text = u'{}  |  {} asset'.format(text, count)
-            else:
-                text = u'{}  |  {} assets'.format(text, count)
-        else:
-            text = u'{}  |  No assets'.format(text)
-
-        return metrics.elidedText(
-            text,
-            QtCore.Qt.ElideLeft,
-            rect.width()
-        )
-
-    def _get_longest_root_width(self, rect, metrics):
-        # Finding the longest root string
-        width = [0, ]
-        for n in xrange(self.parent().model().rowCount()):
-            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
-            text = self._get_root_text(index, rect, metrics)
-            width.append(metrics.width(text))
-        return max(width)
-
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
         args = self._get_paint_args(painter, option, index)
@@ -738,26 +709,33 @@ class BookmarksWidgetDelegate(BaseDelegate):
             option.rect, common.PRIMARY_FONT)
         painter.setFont(font)
 
+        # Centering rect
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[\W\d\_]+', ' ', text)
+        text = re.sub(r'[\W\d\_]+', '', text)
+        text = ' {} '.format(text)
         width = metrics.width(text)
         rect.setWidth(width)
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideLeft,
-            rect.width()
-        )
-        name = str(text)
-        name_rect = QtCore.QRect(rect)
 
-        rect.setLeft(rect.right() + common.INDICATOR_WIDTH)
-        rect.setRight(option.rect.right() - common.MARGIN)
-        text = self._get_root_text(index, rect, metrics)
-        rect.setWidth(metrics.width(text))
+        offset = common.INDICATOR_WIDTH
+
+        # Name background
+        pen = QtGui.QPen(common.FAVOURITE)
+        pen.setWidth(offset)
+        painter.setPen(pen)
+        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
+        painter.drawRoundedRect(rect, 2, 2)
+        # Name
+        painter.setPen(common.TEXT)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignCenter,
+            text
+        )
 
         if count:
             color = QtGui.QColor(common.TEXT)
@@ -767,43 +745,47 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 color = QtGui.QColor(common.TEXT)
         if active:
             color = common.SELECTION
-        offset = 6.0
 
-        # Name background
-        pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(offset)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-        painter.drawRoundedRect(name_rect, 2, 2)
-
+        rect.setLeft(rect.right() + common.MARGIN)
         if option.rect.width() < 360.0:
-            pass
+            rect.setRight(option.rect.right() - common.MARGIN)
         else:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - (common.MARGIN * 2))
 
-        # Root
-        painter.setPen(QtGui.QPen(color))
+        # Name
+        text = index.data(common.ParentRole)[2]
+        text = re.sub(r'[_]+', ' ', text.upper())
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideLeft,
+            rect.width()
+        )
+
         painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(color)
         painter.drawText(
             rect,
-            QtCore.Qt.AlignRight,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             text
         )
 
-        # Name
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSizeF(8)
-        painter.setFont(font)
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(common.TEXT))
-        painter.drawText(
-            name_rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-            name
-        )
+        # Count
+        count = index.data(common.TodoCountRole)
+        if not count:
+            return
 
+        _, rect = self.get_inline_icon_rect(
+            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() + 1)
+
+        pen = QtGui.QPen(common.FAVOURITE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.FAVOURITE)
+        painter.drawRoundedRect(rect, rect.width() / 2.0, rect.width() / 2.0)
+
+        painter.setPen(common.TEXT)
+        painter.drawText(rect, QtCore.Qt.AlignCenter, '{}'.format(count))
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
@@ -1074,9 +1056,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)', r'\1\3', text, flags=re.IGNORECASE)
         text = text.split('.')
         ext = text.pop(-1)
-        ext = '.{}'.format(ext)
         text = '.'.join(text).upper()
 
         painter.setFont(font)
@@ -1086,16 +1068,13 @@ class FilesWidgetDelegate(BaseDelegate):
         if match:  # sequence collapsed
             if option.rect.width() >= 360.0:
                 # Ext
-                width = metrics.width(ext)
+                tail = '{}.{}'.format(match.group(3), ext)
+                width = metrics.width(tail)
                 rect.setLeft(rect.right() - width)
                 if rect.left() <= kwargs['left']:
                     rect.setLeft(kwargs['left'])
                 painter.setPen(common.TEXT)
-                painter.drawText(
-                    rect,
-                    QtCore.Qt.AlignCenter,
-                    ext
-                )
+                painter.drawText(rect, align, tail)
 
                 # Sequence
                 rect.moveRight(rect.right() - width)

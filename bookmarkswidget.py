@@ -16,7 +16,7 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import re
 import functools
-from PySide2 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
@@ -28,6 +28,33 @@ from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import BaseDelegate
 from browser.delegate import paintmethod
 
+
+class ImageDownloader(QtCore.QObject):
+    """Utility class to download an image from a url. Used by the drag and drop operations."""
+    # Signals
+    downloaded = QtCore.Signal(QtCore.QByteArray, unicode)
+
+    def __init__(self, url, destination, parent=None):
+        super(ImageDownloader, self).__init__(parent=parent)
+        self.url = url
+        self.manager = QtNetwork.QNetworkAccessManager(parent=self)
+        self.request = QtNetwork.QNetworkRequest(self.url)
+        self.manager.finished.connect(lambda reply: self.downloaded.emit(reply.readAll(), destination))
+        self.downloaded.connect(self.save_image)
+
+    def get(self):
+        self.manager.get(self.request)
+
+    def save_image(self, data, path):
+        """Saves the downloaded data as an image."""
+        image = QtGui.QImage()
+        loaded = image.loadFromData(data)
+        print image, path
+        if not loaded:
+            return
+
+        image = image.convertToFormat(QtGui.QImage.Format_RGB32)
+        image.save(path)
 
 class BookmarkInfo(QtCore.QFileInfo):
     """QFileInfo for bookmarks."""
@@ -128,6 +155,13 @@ class BookmarksModel(BaseModel):
             return
 
         for url in data.urls():
+            if not url.isLocalFile(): # url is coming from the web!
+                destination = '{}/{}'.format(index.data(
+                    QtCore.Qt.StatusTipRole), url.fileName())
+                downloader = ImageDownloader(url, destination, parent=self)
+                downloader.get()
+                continue
+
             source = QtCore.QFileInfo(url.toLocalFile())
             destination = '{}/{}'.format(index.data(
                 QtCore.Qt.StatusTipRole), source.fileName())
@@ -145,7 +179,9 @@ class BookmarksModel(BaseModel):
                     QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
                 ).exec_()
                 if res == QtWidgets.QMessageBox.Cancel:
-                    continue
+                    break # Cancels the operation
+                if res == QtWidgets.QMessageBox.Ok:
+                    QtCore.QFile.remove(destination.filePath())
 
             if action == QtCore.Qt.CopyAction:
                 QtCore.QFile.copy(source.filePath(), destination.filePath())

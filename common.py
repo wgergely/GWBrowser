@@ -640,14 +640,14 @@ def get_ranges(arr, padding):
     return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
-IsGetSequenceRegex = re.compile(r'^(.+?)(\[.*\])$', flags=re.IGNORECASE)
+IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
 SequenceStartRegex = re.compile(
     r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
 SequenceEndRegex = re.compile(
     r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
-# If a string denotes a sequence the match should return 3 groups:
-# beginning_of_string, sequence_number, extension (without the '.')
-GetSequenceRegex = re.compile(r'^(.*?)([0-9]+)(?:[0-9]*|[^0-9]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
+# If a string denotes a sequence the match should return 4 groups:
+# $1[#]$3.$4  # beginning of string, sequence number, string following the sequence number, extension (without the '.')
+GetSequenceRegex = re.compile(r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
 
 
 def get_sequence(text):
@@ -655,7 +655,7 @@ def get_sequence(text):
 
 
 def is_sequence(text):
-    return IsGetSequenceRegex.match(text)
+    return IsSequenceRegex.match(text)
 
 
 def get_sequence_startpath(path):

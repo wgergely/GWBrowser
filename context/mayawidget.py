@@ -148,11 +148,11 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         self._workspacecontrol = None
         self.browserwidget = None
 
-        self._createUI()
-        self._connectSignals()
-
         self.setAutoFillBackground(True)
         self.setWindowTitle('Browser')
+
+        self._createUI()
+        self._connectSignals()
 
         self.browserwidget.showEvent = lambda event: None
         self.browserwidget.hideEvent = lambda event: None
@@ -164,12 +164,13 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         common.set_custom_stylesheet(self)
 
         self.browserwidget = BrowserWidget()
+        self.setFocusProxy(self.browserwidget)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         def func(*args, **kwargs):
             pass
         self.browserwidget.findChild(HeaderWidget).mouseMoveEvent = func
-        self.browserwidget.findChild(CloseButton).setHidden(True)
-        self.browserwidget.findChild(MinimizeButton).setHidden(True)
+        self.browserwidget.findChild(HeaderWidget).setHidden(True)
         self.layout().addWidget(self.browserwidget)
 
     def _connectSignals(self):
