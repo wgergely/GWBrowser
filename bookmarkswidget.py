@@ -39,7 +39,8 @@ class ImageDownloader(QtCore.QObject):
         self.url = url
         self.manager = QtNetwork.QNetworkAccessManager(parent=self)
         self.request = QtNetwork.QNetworkRequest(self.url)
-        self.manager.finished.connect(lambda reply: self.downloaded.emit(reply.readAll(), destination))
+        self.manager.finished.connect(
+            lambda reply: self.downloaded.emit(reply.readAll(), destination))
         self.downloaded.connect(self.save_image)
 
     def get(self):
@@ -49,12 +50,12 @@ class ImageDownloader(QtCore.QObject):
         """Saves the downloaded data as an image."""
         image = QtGui.QImage()
         loaded = image.loadFromData(data)
-        print image, path
         if not loaded:
             return
 
         image = image.convertToFormat(QtGui.QImage.Format_RGB32)
         image.save(path)
+
 
 class BookmarkInfo(QtCore.QFileInfo):
     """QFileInfo for bookmarks."""
@@ -99,7 +100,7 @@ class BookmarksModel(BaseModel):
 
     def __initdata__(self):
         """Collects the data needed to populate the bookmark views."""
-        self.internal_data = {}  # reset
+        self.model_data = {}  # reset
         active_paths = path_monitor.get_active_paths()
 
         items = local_settings.value(
@@ -130,7 +131,7 @@ class BookmarksModel(BaseModel):
             if not file_info.exists():
                 flags = QtCore.Qt.ItemIsSelectable | MarkedAsArchived
 
-            self.internal_data[idx] = {
+            self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -155,7 +156,7 @@ class BookmarksModel(BaseModel):
             return
 
         for url in data.urls():
-            if not url.isLocalFile(): # url is coming from the web!
+            if not url.isLocalFile():  # url is coming from the web!
                 destination = '{}/{}'.format(index.data(
                     QtCore.Qt.StatusTipRole), url.fileName())
                 downloader = ImageDownloader(url, destination, parent=self)
@@ -179,7 +180,7 @@ class BookmarksModel(BaseModel):
                     QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
                 ).exec_()
                 if res == QtWidgets.QMessageBox.Cancel:
-                    break # Cancels the operation
+                    break  # Cancels the operation
                 if res == QtWidgets.QMessageBox.Ok:
                     QtCore.QFile.remove(destination.filePath())
 
@@ -291,9 +292,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         if not index.data(common.TodoCountRole):
             return common.reveal(index.data(QtCore.Qt.StatusTipRole))
         self.activate_current_index()
-
-    def dropAction(self, event):
-        print event
 
 
 class ComboBoxItemDelegate(BaseDelegate):

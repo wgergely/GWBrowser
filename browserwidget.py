@@ -893,7 +893,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
-        self.assetswidget.model().sourceModel().modelResetRequested.connect(self.fileswidget.refresh)
+        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(self.fileswidget.refresh)
 
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(setCurrentMode)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(combobox.apply_flags)

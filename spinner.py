@@ -11,7 +11,6 @@ Example:
 
 """
 
-import sys
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 import browser.common as common
@@ -19,7 +18,7 @@ import browser.common as common
 
 def longprocess(func):
     """@Decorator to save the painter state."""
-    # @wraps(func)
+    @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         spinner = Spinner()
         spinner.start()

@@ -52,12 +52,12 @@ class AssetModel(BaseModel):
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset items.
 
-        The model uses `self.internal_data (dict)` to read the values needed to
+        The model uses `self.model_data (dict)` to read the values needed to
         display the found items. Calling this method will reset / repopulate
         the dictionary.
 
         """
-        self.internal_data = {}  # reset
+        self.model_data = {}  # reset
         active_paths = path_monitor.get_active_paths()
 
         server, job, root = self.bookmark
@@ -124,7 +124,7 @@ class AssetModel(BaseModel):
             tooltip += u'{}\n'.format(server.upper())
             tooltip += u'{}\n'.format(job.upper())
             tooltip += u'{}'.format(it.filePath())
-            self.internal_data[idx] = {
+            self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: it.fileName(),
                 QtCore.Qt.EditRole: it.fileName(),
                 QtCore.Qt.StatusTipRole: it.filePath(),
@@ -145,7 +145,7 @@ class AssetModel(BaseModel):
             idx += 1
 
     def set_bookmark(self, bookmark):
-        """Sets a new bookmark for the model and resets the internal_data object."""
+        """Sets a new bookmark for the model and resets the model_data object."""
         self.bookmark = bookmark
         self.beginResetModel()
         self.__initdata__()
@@ -192,7 +192,7 @@ class AssetWidget(BaseInlineIconWidget):
         path_monitor.get_active_paths()  # Resetting invalid paths
         self.model().sourceModel().activeAssetChanged.emit(index.data(common.ParentRole))
         if needs_reset:
-            self.model().sourceModel().modelResetRequested.emit()  # resetting model
+            self.model().sourceModel().modelDataResetRequested.emit()  # resetting model
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

@@ -57,7 +57,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
         self.setPixmap(pixmap)
 
-        # print pixmap.isValid()
         self.show()
 
     def paintEvent(self, event):

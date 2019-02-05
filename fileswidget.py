@@ -39,19 +39,27 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
 
 class FilesModel(BaseModel):
-    """The model to collect files."""
+    """Model with the file-data associated with asset `locations` and
+    groupping modes.
+
+    The model stores information in the private `_model_data` dictionary. The items
+    returned by the model are read from the `model_data`.
+
+    Example:
+        self.model_data = self._model_data[location][grouppingMode]
+
+    """
 
     def __init__(self, asset, parent=None):
-
         self.asset = asset
         self.mode = None
         self._isgrouped = None
 
         super(FilesModel, self).__init__(parent=parent)
-        self.switch_dataset()
+        self.switch_location_data()
 
-        self.grouppingChanged.connect(self.switch_dataset)
-        self.activeLocationChanged.connect(self.switch_dataset)
+        self.grouppingChanged.connect(self.switch_location_data)
+        self.activeLocationChanged.connect(self.switch_location_data)
 
     @longprocess
     def __initdata__(self, spinner=None):
@@ -64,7 +72,7 @@ class FilesModel(BaseModel):
         """
         location = self.get_location()
         active_paths = path_monitor.get_active_paths()
-        self._internal_data[location] = {True: {}, False: {}}
+        self._model_data[location] = {True: {}, False: {}}
         server, job, root, asset = self.asset
 
         if not all(self.asset):
@@ -100,7 +108,7 @@ class FilesModel(BaseModel):
             # We're not going to set more data when looking inside the ``renders`` location.
             # Things can slow down when querrying 10000+ files.
             if location == common.RendersFolder:
-                self._internal_data[location][False][idx] = {
+                self._model_data[location][False][idx] = {
                     int(QtCore.Qt.StatusTipRole): path,
                     int(common.FlagsRole): QtCore.Qt.NoItemFlags
                 }
@@ -152,7 +160,7 @@ class FilesModel(BaseModel):
                 size=common.byte_to_string(it.fileInfo().size())
             )
 
-            self._internal_data[location][False][idx] = {
+            self._model_data[location][False][idx] = {
                 QtCore.Qt.DisplayRole: it.fileName(),
                 QtCore.Qt.EditRole: it.fileName(),
                 QtCore.Qt.StatusTipRole: it.filePath(),
@@ -175,15 +183,15 @@ class FilesModel(BaseModel):
         # Getting unique sequence groups
         groups = {}
         idx = 0
-        for k in self._internal_data[location][False]:
-            path = self._internal_data[location][False][k][QtCore.Qt.StatusTipRole]
+        for k in self._model_data[location][False]:
+            path = self._model_data[location][False][k][QtCore.Qt.StatusTipRole]
 
             match = common.get_sequence(path)
             if not match:  # Non-sequence items
                 # Previously skipped all this, have to re-add the data here.
                 if location == common.RendersFolder:
                     file_info = QtCore.QFileInfo(
-                        self._internal_data[location][False][k][QtCore.Qt.StatusTipRole])
+                        self._model_data[location][False][k][QtCore.Qt.StatusTipRole])
 
                     # Active
                     fileroot = '/'.join((server, job, root, asset, location))
@@ -231,7 +239,7 @@ class FilesModel(BaseModel):
                         minute=file_info.lastModified().toString('mm'),
                         size=common.byte_to_string(file_info.size())
                     )
-                    self._internal_data[location][True][idx] = {
+                    self._model_data[location][True][idx] = {
                         QtCore.Qt.DisplayRole: file_info.fileName(),
                         QtCore.Qt.EditRole: file_info.fileName(),
                         QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -249,7 +257,7 @@ class FilesModel(BaseModel):
                     )
                 else:
                     # We can just use the previously collected data
-                    self._internal_data[location][True][idx] = self._internal_data[location][False][k]
+                    self._model_data[location][True][idx] = self._model_data[location][False][k]
                 idx += 1
                 continue
 
@@ -320,7 +328,7 @@ class FilesModel(BaseModel):
             tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}  (sequence)'.format(file_info.filePath())
 
-            self._internal_data[location][True][idx] = {
+            self._model_data[location][True][idx] = {
                 QtCore.Qt.DisplayRole: file_info.fileName(),
                 QtCore.Qt.EditRole: file_info.fileName(),
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -375,13 +383,18 @@ class FilesModel(BaseModel):
             QtCore.QDir.toNativeSeparators(filepath))
         return mime
 
-    def switch_dataset(self):
-        """Swaps the dataset."""
-        if not self._internal_data[self.get_location()][self.is_grouped()]:
+    def switch_location_data(self):
+        """Sets the location data stored in the private
+        ``_model_data`` dictionary as the active model_data.
+
+        """
+        # When the dataset is empty, calling __initdata__
+        if not self._model_data[self.get_location()][self.is_grouped()]:
             self.beginResetModel()
             self.__initdata__()
             self.endResetModel()
-        self.internal_data = self._internal_data[self.get_location(
+
+        self.model_data = self._model_data[self.get_location(
         )][self.is_grouped()]
 
     def set_asset(self, asset):
@@ -414,7 +427,7 @@ class FilesModel(BaseModel):
         if cval == val:
             return
 
-        self.aboutToChange.emit()
+        self.modelDataAboutToChange.emit()
         self._isgrouped = val
         local_settings.setValue(key, val)
         self.grouppingChanged.emit()
@@ -461,7 +474,7 @@ class FilesModel(BaseModel):
         if cval == val:
             return
 
-        self.aboutToChange.emit()
+        self.modelDataAboutToChange.emit()
         self._isgrouped = val
         self.grouppingChanged.emit()
 
@@ -514,7 +527,6 @@ class FilesWidget(BaseInlineIconWidget):
                               ) + [file_info.fileName(), ]
         activefilepath = '/'.join(activefilepath)
         activefilepath = common.get_sequence_endpath(activefilepath)
-        print activefilepath
         self.model().sourceModel().activeFileChanged.emit(activefilepath)
 
     def mouseDoubleClickEvent(self, event):

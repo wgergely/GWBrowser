@@ -741,10 +741,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         if shift_modifier:
             if event.key() == QtCore.Qt.Key_Tab:
-                print '#Key_Tab'
                 return True
             if event.key() == QtCore.Qt.Key_Backtab:
-                print '#Key_Backtab'
                 return True
 
         if control_modifier:

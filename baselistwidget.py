@@ -7,6 +7,7 @@ found by the collector classes.
 
 import re
 import functools
+from functools import wraps
 import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -552,13 +553,24 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.create_menu(menu_set)
 
 
+def flagsmethod(func):
+    """Decorator to make sure the ItemFlag values are always correct."""
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        res = func(self, *args, **kwargs)
+        if not res:
+            res = QtCore.Qt.NoItemFlags
+        return res
+    return func_wrapper
+
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
 
-    aboutToChange = QtCore.Signal()  # Emit before the model is about to change
     grouppingChanged = QtCore.Signal()  # The sequence view mode
 
-    modelResetRequested = QtCore.Signal()
+    modelDataAboutToChange = QtCore.Signal()  # Emit before the model is about to change
+    """Signal emited before the model data changes."""
+    modelDataResetRequested = QtCore.Signal()
     activeBookmarkChanged = QtCore.Signal(tuple)
     activeAssetChanged = QtCore.Signal(tuple)
     activeLocationChanged = QtCore.Signal(basestring)
@@ -566,14 +578,29 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
-        self._internal_data = {
+        self._model_data = {
             common.RendersFolder: {True: {}, False: {}},
             common.ScenesFolder: {True: {}, False: {}},
             common.TexturesFolder: {True: {}, False: {}},
             common.ExportsFolder: {True: {}, False: {}},
         }
-        self.internal_data = {}
+        self.model_data = {}
         self.__initdata__()
+
+        self.modelDataResetRequested.connect(self.__resetdata__)
+
+    def __resetdata__(self):
+        """Resets the internal data."""
+        self.modelDataAboutToChange.emit()
+        self.beginResetModel()
+        self._model_data = {
+            common.RendersFolder: {True: {}, False: {}},
+            common.ScenesFolder: {True: {}, False: {}},
+            common.TexturesFolder: {True: {}, False: {}},
+            common.ExportsFolder: {True: {}, False: {}},
+        }
+        self.model_data = {}
+        self.endResetModel()
 
     def __initdata__(self):
         raise NotImplementedError('__initdata__ is abstract')
@@ -582,7 +609,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         return 1
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return len(list(self.internal_data))
+        return len(list(self.model_data))
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
         return self.createIndex(row, 0, parent=parent)
@@ -591,12 +618,13 @@ class BaseModel(QtCore.QAbstractItemModel):
         if not index.isValid():
             return None
 
-        if index.row() not in self.internal_data:
+        if index.row() not in self.model_data:
             return None
 
-        if role in self.internal_data[index.row()]:
-            return self.internal_data[index.row()][role]
+        if role in self.model_data[index.row()]:
+            return self.model_data[index.row()][role]
 
+    @flagsmethod
     def flags(self, index):
         return index.data(common.FlagsRole)
 
@@ -604,10 +632,10 @@ class BaseModel(QtCore.QAbstractItemModel):
         return QtCore.QModelIndex()
 
     def setData(self, index, data, role=QtCore.Qt.DisplayRole):
-        self.internal_data[index.row()][role] = data
+        self.model_data[index.row()][role] = data
         self.dataChanged.emit(index, index)
 
-    def switch_dataset(self):
+    def switch_location_data(self):
         pass
 
 
@@ -729,7 +757,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sort()
 
         self._previouspathtoselect = None
-        self.model().sourceModel().aboutToChange.connect(self.store_previous_path)
+        self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
         self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
 
         self._location = None
@@ -917,12 +945,11 @@ class BaseListWidget(QtWidgets.QListView):
         self.repaint()
 
     def refresh(self):
-        """Refreshes the underlaying source model and resets the sorting."""
-        index = self.selectionModel().currentIndex()
-        self.model().sourceModel().aboutToChange.emit()
+        """Refreshes the model data, and the sorting."""
+        self.model().sourceModel().modelDataAboutToChange.emit()
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
-        self.model().sourceModel().switch_dataset()
+        self.model().sourceModel().switch_location_data()
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
         self.model().sort()
@@ -932,20 +959,24 @@ class BaseListWidget(QtWidgets.QListView):
         """Reselects the index based on the path given."""
         if not self._previouspathtoselect:
             return
-        path = common.get_sequence_startpath(self._previouspathtoselect)
+
+        path = common.get_sequence_endpath(self._previouspathtoselect)
+
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-            _path = index.data(QtCore.Qt.StatusTipRole)
-            if not _path:
+
+            data = index.data(QtCore.Qt.StatusTipRole)
+            if not data:
                 continue
-            _path = common.get_sequence_startpath(_path)
-            if path == _path:
-                self.selectionModel().setCurrentIndex(
-                    index,
-                    QtCore.QItemSelectionModel.ClearAndSelect
-                )
-                # self.scrollTo(index)
-                break
+
+            if path != common.get_sequence_endpath(data):
+                continue
+
+            self.selectionModel().setCurrentIndex(
+                index,
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+            self.scrollTo(index)
 
     def action_on_enter_key(self):
         self.activate_current_index()
