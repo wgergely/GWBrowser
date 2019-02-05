@@ -14,7 +14,7 @@ from browser.baselistwidget import BaseModel
 import browser.common as common
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.settings import AssetSettings
-from browser.settings import local_settings, path_monitor
+from browser.settings import local_settings, Active
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
 from browser.spinner import longprocess
@@ -60,6 +60,7 @@ class FilesModel(BaseModel):
 
         self.grouppingChanged.connect(self.switch_location_data)
         self.activeLocationChanged.connect(self.switch_location_data)
+        self.modelDataResetRequested.connect(self.__resetdata__)
 
     @longprocess
     def __initdata__(self, spinner=None):
@@ -71,7 +72,7 @@ class FilesModel(BaseModel):
 
         """
         location = self.get_location()
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         self._model_data[location] = {True: {}, False: {}}
         server, job, root, asset = self.asset
 
@@ -80,8 +81,8 @@ class FilesModel(BaseModel):
 
         self.modes = self.get_modes(self.asset, location)
         # Iterator
-        dir_ = QtCore.QDir('{asset}/{location}'.format(
-            asset='/'.join(self.asset),
+        dir_ = QtCore.QDir(u'{asset}/{location}'.format(
+            asset=u'/'.join(self.asset),
             location=location
         ))
         if not dir_.exists():
@@ -125,21 +126,21 @@ class FilesModel(BaseModel):
             )
 
             # Active
-            fileroot = '/'.join((server, job, root, asset, location))
-            fileroot = it.fileInfo().path().replace(fileroot, '')
-            fileroot = fileroot.strip('/')
+            fileroot = u'/'.join((server, job, root, asset, location))
+            fileroot = it.fileInfo().path().replace(fileroot, u'')
+            fileroot = fileroot.strip(u'/')
 
-            activefilepath = '{}/{}'.format(fileroot, it.fileName())
-            if activefilepath == active_paths['file']:
+            activefilepath = u'{}/{}'.format(fileroot, it.fileName())
+            if activefilepath == active_paths[u'file']:
                 flags = flags | MarkedAsActive
 
             # Archived
             settings = AssetSettings((server, job, root, it.filePath()))
-            if settings.value('config/archived'):
+            if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
 
             # Favourite
-            favourites = local_settings.value('favourites')
+            favourites = local_settings.value(u'favourites')
             favourites = favourites if favourites else []
             if it.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
@@ -151,12 +152,12 @@ class FilesModel(BaseModel):
             tooltip += u'{}'.format(it.filePath())
 
             # File info
-            info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=it.fileInfo().lastModified().toString('dd'),
-                month=it.fileInfo().lastModified().toString('MM'),
-                year=it.fileInfo().lastModified().toString('yyyy'),
-                hour=it.fileInfo().lastModified().toString('hh'),
-                minute=it.fileInfo().lastModified().toString('mm'),
+            info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                day=it.fileInfo().lastModified().toString(u'dd'),
+                month=it.fileInfo().lastModified().toString(u'MM'),
+                year=it.fileInfo().lastModified().toString(u'yyyy'),
+                hour=it.fileInfo().lastModified().toString(u'hh'),
+                minute=it.fileInfo().lastModified().toString(u'mm'),
                 size=common.byte_to_string(it.fileInfo().size())
             )
 
@@ -168,7 +169,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, asset, location, fileroot),
-                common.DescriptionRole: settings.value('config/description'),
+                common.DescriptionRole: settings.value(u'config/description'),
                 common.TodoCountRole: count,
                 common.FileDetailsRole: info_string,
             }
@@ -194,9 +195,9 @@ class FilesModel(BaseModel):
                         self._model_data[location][False][k][QtCore.Qt.StatusTipRole])
 
                     # Active
-                    fileroot = '/'.join((server, job, root, asset, location))
-                    fileroot = file_info.path().replace(fileroot, '')
-                    fileroot = fileroot.strip('/')
+                    fileroot = u'/'.join((server, job, root, asset, location))
+                    fileroot = file_info.path().replace(fileroot, u'')
+                    fileroot = fileroot.strip(u'/')
 
                     # Flags
                     flags = (
@@ -207,19 +208,19 @@ class FilesModel(BaseModel):
                         QtCore.Qt.ItemIsDragEnabled
                     )
 
-                    activefilepath = '{}/{}'.format(fileroot,
+                    activefilepath = u'{}/{}'.format(fileroot,
                                                     file_info.fileName())
-                    if activefilepath == active_paths['file']:
+                    if activefilepath == active_paths[u'file']:
                         flags = flags | MarkedAsActive
 
                     # Archived
                     settings = AssetSettings(
                         (server, job, root, file_info.filePath()))
-                    if settings.value('config/archived'):
+                    if settings.value(u'config/archived'):
                         flags = flags | MarkedAsArchived
 
                     # Favourite
-                    favourites = local_settings.value('favourites')
+                    favourites = local_settings.value(u'favourites')
                     favourites = favourites if favourites else []
                     if file_info.filePath() in favourites:
                         flags = flags | MarkedAsFavourite
@@ -231,23 +232,23 @@ class FilesModel(BaseModel):
                     tooltip += u'{}'.format(file_info.filePath())
 
                     # File info
-                    info_string = '{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                        day=file_info.lastModified().toString('dd'),
-                        month=file_info.lastModified().toString('MM'),
-                        year=file_info.lastModified().toString('yyyy'),
-                        hour=file_info.lastModified().toString('hh'),
-                        minute=file_info.lastModified().toString('mm'),
+                    info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                        day=file_info.lastModified().toString(u'dd'),
+                        month=file_info.lastModified().toString(u'MM'),
+                        year=file_info.lastModified().toString(u'yyyy'),
+                        hour=file_info.lastModified().toString(u'hh'),
+                        minute=file_info.lastModified().toString(u'mm'),
                         size=common.byte_to_string(file_info.size())
                     )
                     self._model_data[location][True][idx] = {
                         QtCore.Qt.DisplayRole: file_info.fileName(),
                         QtCore.Qt.EditRole: file_info.fileName(),
                         QtCore.Qt.StatusTipRole: file_info.filePath(),
-                        QtCore.Qt.ToolTipRole: 'Non-sequence item.',
+                        QtCore.Qt.ToolTipRole: u'Non-sequence item.',
                         QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                         common.FlagsRole: flags,
                         common.ParentRole: (server, job, root, asset, location, fileroot),
-                        common.DescriptionRole: settings.value('config/description'),
+                        common.DescriptionRole: settings.value(u'config/description'),
                         common.TodoCountRole: count,
                         common.FileDetailsRole: info_string,
                     }
@@ -261,26 +262,26 @@ class FilesModel(BaseModel):
                 idx += 1
                 continue
 
-            k = '{}|{}.{}'.format(match.group(1), match.group(3), match.group(4))
+            k = u'{}|{}.{}'.format(match.group(1), match.group(3), match.group(4))
             if k not in groups:
                 file_info = QtCore.QFileInfo(path)
                 groups[k] = {
-                    'path': path,
-                    'frames': [],
-                    'size': file_info.size(),
-                    'padding': len(match.group(2)),
-                    'modified': file_info.lastModified(),
+                    u'path': path,
+                    u'frames': [],
+                    u'size': file_info.size(),
+                    u'padding': len(match.group(2)),
+                    u'modified': file_info.lastModified(),
                 }
-            groups[k]['frames'].append(int(match.group(2)))
+            groups[k][u'frames'].append(int(match.group(2)))
 
         # Adding the collapsed sequence items
         for k in groups:
-            frames = groups[k]['frames']
+            frames = groups[k][u'frames']
             frames = sorted(list(set(frames)))
-            sk = k.split('|')
-            path = '{}[{}]{}'.format(
+            sk = k.split(u'|')
+            path = u'{}[{}]{}'.format(
                 sk[0],
-                common.get_ranges(frames, groups[k]['padding']),
+                common.get_ranges(frames, groups[k][u'padding']),
                 sk[1]
             )
 
@@ -297,33 +298,33 @@ class FilesModel(BaseModel):
             )
 
             # Active
-            fileroot = '/'.join((server, job, root, asset, location))
-            fileroot = file_info.path().replace(fileroot, '')
-            fileroot = fileroot.strip('/')
-            activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
-            if activefilepath == active_paths['file']:
+            fileroot = u'/'.join((server, job, root, asset, location))
+            fileroot = file_info.path().replace(fileroot, u'')
+            fileroot = fileroot.strip(u'/')
+            activefilepath = u'{}/{}'.format(fileroot, file_info.fileName())
+            if activefilepath == active_paths[u'file']:
                 flags = flags | MarkedAsActive
 
             # Archived
-            if settings.value('config/archived'):
+            if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
 
             # Favourite
-            favourites = local_settings.value('favourites')
+            favourites = local_settings.value(u'favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
 
             # Modes
-            fileroot = '/'.join((server, job, root, asset, location))
-            fileroot = file_info.path().replace(fileroot, '')
-            fileroot = fileroot.strip('/')
+            fileroot = u'/'.join((server, job, root, asset, location))
+            fileroot = file_info.path().replace(fileroot, u'')
+            fileroot = fileroot.strip(u'/')
 
             tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}'.format(file_info.filePath())
 
             # File info
-            info_string = 'Sequence of {} files'.format(len(frames))
+            info_string = u'Sequence of {} files'.format(len(frames))
 
             tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
             tooltip += u'{}  (sequence)'.format(file_info.filePath())
@@ -336,7 +337,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, asset, location, fileroot),
-                common.DescriptionRole: settings.value('config/description'),
+                common.DescriptionRole: settings.value(u'config/description'),
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: info_string,
             }
@@ -375,11 +376,11 @@ class FilesModel(BaseModel):
         url = QtCore.QUrl.fromLocalFile(filepath)
         mime.setUrls((url,))
         mime.setData(
-            'application/x-qt-windows-mime;value="FileName"',
+            u'application/x-qt-windows-mime;value="FileName"',
             QtCore.QDir.toNativeSeparators(filepath))
 
         mime.setData(
-            'application/x-qt-windows-mime;value="FileNameW"',
+            u'application/x-qt-windows-mime;value="FileNameW"',
             QtCore.QDir.toNativeSeparators(filepath))
         return mime
 
@@ -409,7 +410,7 @@ class FilesModel(BaseModel):
 
         if self._isgrouped is None:
             cls = self.__class__.__name__
-            key = 'widget/{}/{}/isgroupped'.format(cls, location)
+            key = u'widget/{}/{}/isgroupped'.format(cls, location)
             val = local_settings.value(key)
             if val is None:
                 self._isgrouped = False
@@ -421,7 +422,7 @@ class FilesModel(BaseModel):
         """Sets the groupping mode."""
         location = self.get_location()
         cls = self.__class__.__name__
-        key = 'widget/{}/{}/isgroupped'.format(cls, location)
+        key = u'widget/{}/{}/isgroupped'.format(cls, location)
         cval = local_settings.value(key)
 
         if cval == val:
@@ -433,8 +434,8 @@ class FilesModel(BaseModel):
         self.grouppingChanged.emit()
 
     def get_modes(self, asset, location):
-        file_info = QtCore.QFileInfo('{asset}/{location}'.format(
-            asset='/'.join(asset),
+        file_info = QtCore.QFileInfo(u'{asset}/{location}'.format(
+            asset=u'/'.join(asset),
             location=location))
         if not file_info.exists():
             return []
@@ -443,20 +444,20 @@ class FilesModel(BaseModel):
         d = d.entryList(
             filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
         )
-        d.append('')
+        d.append(u'')
         return sorted(d)
 
     def get_location(self):
         """Get's the current ``location``."""
-        val = local_settings.value('activepath/location')
+        val = local_settings.value(u'activepath/location')
         if not val:
-            local_settings.setValue('activepath/location', common.ScenesFolder)
+            local_settings.setValue(u'activepath/location', common.ScenesFolder)
 
         return val if val else common.ScenesFolder
 
     def set_location(self, val):
         """Sets the location and emits the ``activeLocationChanged`` signal."""
-        key = 'activepath/location'
+        key = u'activepath/location'
         cval = local_settings.value(key)
 
         if cval == val:
@@ -468,7 +469,7 @@ class FilesModel(BaseModel):
         # Updating the groupping
         cval = self.is_grouped()
         cls = self.__class__.__name__
-        key = 'widget/{}/{}/isgroupped'.format(cls, val)
+        key = u'widget/{}/{}/isgroupped'.format(cls, val)
         val = local_settings.value(key)
 
         if cval == val:
@@ -499,7 +500,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
         self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
 
-        self.setWindowTitle('Files')
+        self.setWindowTitle(u'Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
 
@@ -520,12 +521,12 @@ class FilesWidget(BaseInlineIconWidget):
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         fileroot = index.data(common.ParentRole)[5]
-        activefilepath = '{}/{}'.format(fileroot, file_info.fileName())
-        local_settings.setValue('activepath/file', activefilepath)
+        activefilepath = u'{}/{}'.format(fileroot, file_info.fileName())
+        local_settings.setValue(u'activepath/file', activefilepath)
 
         activefilepath = list(index.data(common.ParentRole)
                               ) + [file_info.fileName(), ]
-        activefilepath = '/'.join(activefilepath)
+        activefilepath = u'/'.join(activefilepath)
         activefilepath = common.get_sequence_endpath(activefilepath)
         self.model().sourceModel().activeFileChanged.emit(activefilepath)
 
@@ -572,11 +573,11 @@ class FilesWidget(BaseInlineIconWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    active_paths = path_monitor.get_active_paths()
-    asset = (active_paths['server'],
-             active_paths['job'],
-             active_paths['root'],
-             active_paths['asset'],
+    active_paths = Active.get_active_paths()
+    asset = (active_paths[u'server'],
+             active_paths[u'job'],
+             active_paths[u'root'],
+             active_paths[u'asset'],
              )
     widget = FilesWidget(asset)
     widget.show()

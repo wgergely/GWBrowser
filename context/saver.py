@@ -6,7 +6,7 @@ import browser.common as common
 from browser.delegate import BaseDelegate
 from browser.delegate import paintmethod
 from browser.editors import ClickableLabel
-from browser.settings import path_monitor
+from browser.settings import Active
 
 from browser.bookmarkswidget import BookmarksModel
 from browser.assetwidget import AssetModel
@@ -21,7 +21,7 @@ class ThumbnailButton(ClickableLabel):
         super(ThumbnailButton, self).__init__(parent=parent)
         self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT, common.ROW_HEIGHT))
         pixmap = common.get_rsc_pixmap(
-            'placeholder', common.TEXT, common.ROW_HEIGHT)
+            u'placeholder', common.TEXT, common.ROW_HEIGHT)
         self.setPixmap(pixmap)
 
 class ParentButton(ClickableLabel):
@@ -31,28 +31,28 @@ class ParentButton(ClickableLabel):
             QLabel {{
                 background-color: rgba({});
             }}
-        """.format('{}/{}/{}/{}'.format(*common.BACKGROUND_SELECTED.getRgb())))
+        """.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND_SELECTED.getRgb())))
         self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT / 2.0, common.ROW_HEIGHT / 2.0))
         pixmap = common.get_rsc_pixmap(
-            'folder', common.TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.clicked.connect(self.get_parent_folders)
 
     def get_parent_folders(self):
         """Collects the available parent folders."""
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         parent = (
-            active_paths['server'],
-            active_paths['job'],
-            active_paths['root'],
-            active_paths['asset'],
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root'],
+            active_paths[u'asset'],
             common.ScenesFolder
         )
         if not all(parent):
             return
 
-        path = '/'.join(parent)
+        path = u'/'.join(parent)
         dir_ = QtCore.QDir(path)
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
@@ -63,8 +63,8 @@ class ParentButton(ClickableLabel):
         # menus =
         while it.hasNext():
             filepath = it.next()
-            rootpath = filepath.replace(path, '')
-            print rootpath.strip('/')
+            rootpath = filepath.replace(path, u'')
+            print rootpath.strip(u'/')
 
 
 class BookmarksWidget(QtWidgets.QComboBox):
@@ -101,7 +101,7 @@ class BookmarksListDelegate(BaseDelegate):
         active = index.flags() & MarkedAsActive
 
         text = re.sub(r'[_]+', ' ', root.upper())
-        text = '{} ({})'.format(text, count) if count else text
+        text = u'{} ({})'.format(text, count) if count else text
 
         return metrics.elidedText(
             text,
@@ -162,7 +162,7 @@ class BookmarksListDelegate(BaseDelegate):
         # Job
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[\W\d\_]+', '', text)
-        text = ' {} '.format(text)
+        text = u' {} '.format(text)
         width = metrics.width(text)
         rect.setWidth(width)
 
@@ -213,11 +213,11 @@ class BookmarksListDelegate(BaseDelegate):
 class AssetsWidget(QtWidgets.QComboBox):
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         bookmark = (
-            active_paths['server'],
-            active_paths['job'],
-            active_paths['root']
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root']
         )
         self.setModel(AssetModel(bookmark, parent=self))
 
@@ -276,8 +276,8 @@ class AssetWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub('[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub('[_]{1,}', '_', text)
+        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub(r'[_]{1,}', '_', text)
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
@@ -305,7 +305,7 @@ class Saver(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super(Saver, self).__init__(parent=parent)
         self.data = {
-            'thumbnail': QtGui.QPixmap()
+            u'thumbnail': QtGui.QPixmap()
         }
         self._createUI()
         self._connectSignals()
@@ -318,8 +318,8 @@ class Saver(QtWidgets.QDialog):
         self.layout().setSpacing(o)
 
         common.set_custom_stylesheet(self)
-        stylesheet = 'Saver {{background-color: rgba({});}}'.format('{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb()))
-        stylesheet = '{}\n{}'.format(self.styleSheet(), stylesheet)
+        stylesheet = u'Saver {{background-color: rgba({});}}'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb()))
+        stylesheet = u'{}\n{}'.format(self.styleSheet(), stylesheet)
         self.setStyleSheet(stylesheet)
 
 
@@ -347,7 +347,7 @@ class Saver(QtWidgets.QDialog):
         row.layout().setSpacing(o)
 
         editor = QtWidgets.QLineEdit()
-        editor.setPlaceholderText('Add description here...')
+        editor.setPlaceholderText(u'Add description here...')
         editor.setFixedWidth(350)
         row.layout().addWidget(editor)
         stack.layout().addWidget(row)
@@ -357,18 +357,18 @@ class Saver(QtWidgets.QDialog):
 
     def select_thumbnail(self):
         """Prompts to select an image file."""
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         bookmark = (
-            active_paths['server'],
-            active_paths['job'],
-            active_paths['root']
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root']
         )
         dialog = QtWidgets.QFileDialog(parent=self)
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
-        dialog.setDirectory('/'.join(bookmark))
+        dialog.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
+        dialog.setDirectory(u'/'.join(bookmark))
         dialog.setOption(
             QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 

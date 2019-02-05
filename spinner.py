@@ -34,14 +34,14 @@ class Spinner(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(Spinner, self).__init__(parent=parent)
         self._createUI()
-        self.setText('Loading...')
+        self.setText(u'Loading...')
 
-        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        pixmap = common.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.animation = None
         self.spinner_pixmap = common.get_rsc_pixmap(
-            'spinner', common.TEXT, 24)
+            u'spinner', common.TEXT, 24)
         self.setPixmap(self.get_pixmap(0))
 
         self.setWindowOpacity(0)
@@ -66,7 +66,7 @@ class Spinner(QtWidgets.QWidget):
 
         self.label = QtWidgets.QLabel()
         self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-        self.description = QtWidgets.QLabel('')
+        self.description = QtWidgets.QLabel(u'')
         self.description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.description.setStyleSheet("""
             QLabel {
@@ -116,7 +116,7 @@ class Spinner(QtWidgets.QWidget):
     def move_to_center(self):
         from browser.browserwidget import BrowserWidget
         app = QtWidgets.QApplication.instance()
-        widget = next((f for f in app.allWidgets() if f.objectName() == 'BrowserWidget'), None)
+        widget = next((f for f in app.allWidgets() if f.objectName() == u'BrowserWidget'), None)
 
         if not widget:
             geo = app.desktop().availableGeometry(0)
@@ -168,7 +168,7 @@ class Spinner(QtWidgets.QWidget):
 
     def animate_opacity(self):
         """Animates the visibility of the widget."""
-        self.animation = QtCore.QPropertyAnimation(self, 'windowOpacity')
+        self.animation = QtCore.QPropertyAnimation(self, u'windowOpacity')
         self.animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
         self.animation.setDuration(150)
         self.animation.setStartValue(0.01)

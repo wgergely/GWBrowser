@@ -20,7 +20,7 @@ class ClickableLabel(QtWidgets.QLabel):
             QLabel {{
                 background-color: rgba({});
             }}
-        """.format('{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
+        """.format(u'{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
         self.setFixedSize(QtCore.QSize(
             common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
         self.setAlignment(QtCore.Qt.AlignCenter)
@@ -51,7 +51,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
-        self.setStyleSheet('background-color: rgba(50,50,50,50)')
+        self.setStyleSheet(u'background-color: rgba(50,50,50,50)')
         self.setAlignment(QtCore.Qt.AlignCenter)
         # pixmap = common.cache_image(settings.thumbnail_path(), common.THUMBNAIL_IMAGE_SIZE)
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
@@ -131,7 +131,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
         self.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        self.setNameFilter('Image files (*.png *.jpg  *.jpeg)')
+        self.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
         self.setDirectory(QtCore.QDir(
             index.data(QtCore.Qt.StatusTipRole)))
         self.setOption(
@@ -181,7 +181,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self.show()
         self.editor.setFocus()
 
-        self.editor.setText(self.settings.value('config/description'))
+        self.editor.setText(self.settings.value(u'config/description'))
         self.editor.selectAll()
 
     def sizeHint(self):
@@ -275,7 +275,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             font-family: "Roboto Medium"; font-size: 8pt;'.format(*common.TEXT_NOTE.getRgb())
         )
 
-        label = QtWidgets.QLabel('Edit description')
+        label = QtWidgets.QLabel(u'Edit description')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         label.setStyleSheet(
             'font-family: "Roboto Black";\
@@ -310,7 +310,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
     def action(self):
         """Main actions to run when the return key is pressed."""
-        if self.settings.value('config/description') == self.editor.text():
+        if self.settings.value(u'config/description') == self.editor.text():
             self.close()
             return
 
@@ -320,7 +320,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.editor.text(),
             role=common.DescriptionRole
         )
-        self.settings.setValue('config/description', self.editor.text())
+        self.settings.setValue(u'config/description', self.editor.text())
         self.close()
 
 
@@ -348,8 +348,8 @@ class FilterEditor(QtWidgets.QWidget):
 
         self.setFocusProxy(self.editor)
 
-        if text == '/':
-            text = ''
+        if text == u'/':
+            text = u''
         self.editor.setText(text)
         self.editor.selectAll()
         self.editor.focusOutEvent = self.focusOutEvent
@@ -365,7 +365,7 @@ class FilterEditor(QtWidgets.QWidget):
         self.label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         self.label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
         pixmap = common.get_rsc_pixmap(
-            'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2.0)
+            u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2.0)
         self.label.setPixmap(pixmap)
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setFocusPolicy(QtCore.Qt.NoFocus)

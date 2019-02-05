@@ -16,9 +16,9 @@ class StandaloneApp(QtWidgets.QApplication):
 
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
-        self.setApplicationName('Browser')
+        self.setApplicationName(u'Browser')
         self.set_model_id()
-        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        pixmap = common.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def exec_(self):

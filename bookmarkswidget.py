@@ -22,7 +22,7 @@ import browser.common as common
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
-from browser.settings import local_settings, path_monitor
+from browser.settings import local_settings, Active, active_monitor
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import BaseDelegate
@@ -61,11 +61,11 @@ class BookmarkInfo(QtCore.QFileInfo):
     """QFileInfo for bookmarks."""
 
     def __init__(self, bookmark, parent=None):
-        self.server = bookmark['server']
-        self.job = bookmark['job']
-        self.root = bookmark['root']
+        self.server = bookmark[u'server']
+        self.job = bookmark[u'job']
+        self.root = bookmark[u'root']
 
-        path = '{}/{}/{}'.format(self.server, self.job, self.root)
+        path = u'{}/{}/{}'.format(self.server, self.job, self.root)
         super(BookmarkInfo, self).__init__(path, parent=parent)
 
         self.size = functools.partial(common.count_assets, path)
@@ -101,10 +101,10 @@ class BookmarksModel(BaseModel):
     def __initdata__(self):
         """Collects the data needed to populate the bookmark views."""
         self.model_data = {}  # reset
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
 
         items = local_settings.value(
-            'bookmarks') if local_settings.value('bookmarks') else []
+            u'bookmarks') if local_settings.value(u'bookmarks') else []
         items = [BookmarkInfo(items[k]) for k in items]
 
         for idx, file_info in enumerate(items):
@@ -117,13 +117,13 @@ class BookmarksModel(BaseModel):
 
             # Active
             if (
-                file_info.server == active_paths['server'] and
-                file_info.job == active_paths['job'] and
-                file_info.root == active_paths['root']
+                file_info.server == active_paths[u'server'] and
+                file_info.job == active_paths[u'job'] and
+                file_info.root == active_paths[u'root']
             ):
                 flags = flags | MarkedAsActive
 
-            favourites = local_settings.value('favourites')
+            favourites = local_settings.value(u'favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
@@ -157,14 +157,14 @@ class BookmarksModel(BaseModel):
 
         for url in data.urls():
             if not url.isLocalFile():  # url is coming from the web!
-                destination = '{}/{}'.format(index.data(
+                destination = u'{}/{}'.format(index.data(
                     QtCore.Qt.StatusTipRole), url.fileName())
                 downloader = ImageDownloader(url, destination, parent=self)
                 downloader.get()
                 continue
 
             source = QtCore.QFileInfo(url.toLocalFile())
-            destination = '{}/{}'.format(index.data(
+            destination = u'{}/{}'.format(index.data(
                 QtCore.Qt.StatusTipRole), source.fileName())
             destination = QtCore.QFileInfo(destination)
 
@@ -207,7 +207,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
-        self.setWindowTitle('Bookmarks')
+        self.setWindowTitle(u'Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self.context_menu_cls = BookmarksWidgetContextMenu
         # Select the active item
@@ -233,11 +233,13 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
 
         server, job, root = index.data(common.ParentRole)
-        local_settings.setValue('activepath/server', server)
-        local_settings.setValue('activepath/job', job)
-        local_settings.setValue('activepath/root', root)
+        local_settings.setValue(u'activepath/server', server)
+        local_settings.setValue(u'activepath/job', job)
+        local_settings.setValue(u'activepath/root', root)
 
-        path_monitor.get_active_paths()  # Resetting invalid paths
+        active_monitor.update_saved_state(u'server', server)
+        active_monitor.update_saved_state(u'job', job)
+        active_monitor.update_saved_state(u'root', root)
         self.model().sourceModel().activeBookmarkChanged.emit(index.data(common.ParentRole))
 
     def toggle_archived(self, index=None, state=None):
@@ -247,8 +249,8 @@ class BookmarksWidget(BaseInlineIconWidget):
         self._reset_multitoggle()
         res = QtWidgets.QMessageBox(
             QtWidgets.QMessageBox.NoIcon,
-            'Remove bookmark?',
-            'Are you sure you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
+            u'Remove bookmark?',
+            u'Are you sure you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
             parent=self
         ).exec_()
@@ -264,9 +266,9 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         # Removing the bookmark
         k = index.data(QtCore.Qt.StatusTipRole)
-        bookmarks = local_settings.value('bookmarks')
+        bookmarks = local_settings.value(u'bookmarks')
         bookmarks.pop(k, None)
-        local_settings.setValue('bookmarks', bookmarks)
+        local_settings.setValue(u'bookmarks', bookmarks)
 
         self.refresh()
 
@@ -321,7 +323,7 @@ class ComboBoxItemDelegate(BaseDelegate):
         painter, option, index, selected, _, _, _, _ = args
         disabled = (index.flags() == QtCore.Qt.NoItemFlags)
 
-        font = QtGui.QFont('Roboto')
+        font = QtGui.QFont(u'Roboto')
         font.setBold(True)
         font.setPointSize(8)
         painter.setFont(font)
@@ -342,7 +344,7 @@ class ComboBoxItemDelegate(BaseDelegate):
         text = index.data(QtCore.Qt.DisplayRole)
 
         # Stripping the Glassworks-specific number suffix
-        text = re.sub(r'[\W\d\_]+', ' ', text.upper())
+        text = re.sub(r'[\W\d\_]+', u' ', text.upper())
         text = metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -350,7 +352,7 @@ class ComboBoxItemDelegate(BaseDelegate):
         )
         if disabled:
             text = metrics.elidedText(
-                '{}  |  Unavailable'.format(index.data(QtCore.Qt.DisplayRole)),
+                u'{}  |  Unavailable'.format(index.data(QtCore.Qt.DisplayRole)),
                 QtCore.Qt.ElideRight,
                 rect.width()
             )
@@ -388,7 +390,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         self._createUI()
         common.set_custom_stylesheet(self)
-        self.setWindowTitle('Add bookmark')
+        self.setWindowTitle(u'Add bookmark')
         self.installEventFilter(self)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
@@ -408,8 +410,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         server = self.pick_server_widget.currentData(common.DescriptionRole)
         job = self.pick_job_widget.currentData(common.DescriptionRole)
         root = self._root
-        key = '{}/{}/{}'.format(server, job, root)
-        return {key: {'server': server, 'job': job, 'root': root}}
+        key = u'{}/{}/{}'.format(server, job, root)
+        return {key: {u'server': server, u'job': job, u'root': root}}
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -422,7 +424,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # top label
         label = QtWidgets.QLabel()
-        label.setText('Add bookmark')
+        label.setText(u'Add bookmark')
         self.layout().addWidget(label, 0)
         label.setStyleSheet("""
             QLabel {
@@ -453,14 +455,14 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pick_job_widget.setItemDelegate(
             ComboBoxItemDelegate(self.pick_job_widget))
 
-        self.pick_root_widget = QtWidgets.QPushButton('Pick bookmark folder')
+        self.pick_root_widget = QtWidgets.QPushButton(u'Pick bookmark folder')
 
         row = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(row)
 
-        self.ok_button = QtWidgets.QPushButton('Add bookmark')
+        self.ok_button = QtWidgets.QPushButton(u'Add bookmark')
         self.ok_button.setDisabled(True)
-        self.cancel_button = QtWidgets.QPushButton('Cancel')
+        self.cancel_button = QtWidgets.QPushButton(u'Cancel')
 
         row.layout().addWidget(self.ok_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
@@ -469,7 +471,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         main_widget = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(main_widget)
         self.label = QtWidgets.QLabel()
-        pixmap = common.get_rsc_pixmap('bookmark', common.SECONDARY_TEXT, 128)
+        pixmap = common.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 128)
         self.label.setPixmap(pixmap)
         main_widget.layout().addWidget(self.label)
         main_widget.layout().addSpacing(common.MARGIN)
@@ -477,30 +479,30 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.layout().addWidget(main_widget)
         self.layout().addWidget(row)
 
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Server'))
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Server'))
         label = QtWidgets.QLabel(
-            'The bookmark\'s server')
+            u'The bookmark\'s server')
         label.setWordWrap(True)
         label.setStyleSheet(
-            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
         self.pathsettings.layout().addWidget(label)
         self.pathsettings.layout().addWidget(self.pick_server_widget)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Job'))
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Job'))
         label = QtWidgets.QLabel(
-            'The bookmark\'s job')
+            u'The bookmark\'s job')
         label.setWordWrap(True)
         label.setStyleSheet(
-            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
         self.pathsettings.layout().addWidget(label)
         self.pathsettings.layout().addWidget(self.pick_job_widget)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel('Bookmark folder'))
+        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Bookmark folder'))
         label = QtWidgets.QLabel(
-            'The folder to bookmark, found inside the job folder.')
+            u'The folder to bookmark, found inside the job folder.')
         label.setWordWrap(True)
         label.setStyleSheet(
-            'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
         self.pathsettings.layout().addWidget(label)
         self.pathsettings.layout().addWidget(self.pick_root_widget)
 
@@ -520,32 +522,32 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         key = next((k for k in bookmark), None)
 
         # Let's double-check the integrity of the choice.
-        path = ''
-        sequence = (bookmark[key]['server'], bookmark[key]
-                    ['job'], bookmark[key]['root'])
+        path = u''
+        sequence = (bookmark[key][u'server'], bookmark[key]
+                    [u'job'], bookmark[key][u'root'])
         for value in sequence:
-            path += '{}/'.format(value)
+            path += u'{}/'.format(value)
             dir_ = QtCore.QDir(path)
             if dir_.exists():
                 continue
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.Warning,
-                'Could not add bookmark',
-                'The selected folder could not be found:\n{}/{}/{}'.format(
-                    bookmark[key]['server'],
-                    bookmark[key]['job'],
-                    bookmark[key]['root'],
+                u'Could not add bookmark',
+                u'The selected folder could not be found:\n{}/{}/{}'.format(
+                    bookmark[key][u'server'],
+                    bookmark[key][u'job'],
+                    bookmark[key][u'root'],
                 ),
                 QtWidgets.QMessageBox.Ok,
                 parent=self
             ).exec_()
 
-        bookmarks = local_settings.value('bookmarks')
+        bookmarks = local_settings.value(u'bookmarks')
         if not bookmarks:
-            local_settings.setValue('bookmarks', bookmark)
+            local_settings.setValue(u'bookmarks', bookmark)
         else:
             bookmarks[key] = bookmark[key]
-            local_settings.setValue('bookmarks', bookmarks)
+            local_settings.setValue(u'bookmarks', bookmarks)
 
         self.refresh(key)
         self.close()
@@ -576,13 +578,13 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         for server in common.SERVERS:
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, server['nickname'])
-            item.setData(QtCore.Qt.EditRole, server['nickname'])
+            item.setData(QtCore.Qt.DisplayRole, server[u'nickname'])
+            item.setData(QtCore.Qt.EditRole, server[u'nickname'])
             item.setData(QtCore.Qt.StatusTipRole,
-                         QtCore.QFileInfo(server['path']).filePath())
+                         QtCore.QFileInfo(server[u'path']).filePath())
             item.setData(QtCore.Qt.ToolTipRole,
-                         '{}\n{}'.format(server['nickname'], server['path']))
-            item.setData(common.DescriptionRole, server['path'])
+                         u'{}\n{}'.format(server[u'nickname'], server[u'path']))
+            item.setData(common.DescriptionRole, server[u'path'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 200, common.ROW_BUTTONS_HEIGHT))
 
@@ -640,7 +642,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         path = dialog.getExistingDirectory(
             self,
-            'Pick the location of the assets folder',
+            u'Pick the location of the assets folder',
             file_info.filePath(),
             QtWidgets.QFileDialog.ShowDirsOnly |
             QtWidgets.QFileDialog.DontResolveSymlinks |
@@ -650,7 +652,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         )
         if not path:
             self.ok_button.setDisabled(True)
-            self.pick_root_widget.setText('Select folder')
+            self.pick_root_widget.setText(u'Select folder')
             self._root = None
             return
 
@@ -659,34 +661,34 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # Removing the server and job name from the selection
         path = path.replace(self.pick_job_widget.currentData(
-            QtCore.Qt.StatusTipRole), '')
-        path = path.lstrip('/').rstrip('/')
+            QtCore.Qt.StatusTipRole), u'')
+        path = path.lstrip(u'/').rstrip(u'/')
 
         # Setting the internal root variable
         self._root = path
 
         if count:
             self.pick_root_widget.setStyleSheet(
-                'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb()))
+                u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb()))
         else:
-            stylesheet = 'color: rgba({},{},{},{});'.format(
+            stylesheet = u'color: rgba({},{},{},{});'.format(
                 *common.TEXT.getRgb())
-            stylesheet += 'background-color: rgba({},{},{},{});'.format(
+            stylesheet += u'background-color: rgba({},{},{},{});'.format(
                 *common.FAVOURITE.getRgb())
             self.pick_root_widget.setStyleSheet(stylesheet)
 
-        path = '{}:  {} assets'.format(path, count)
+        path = u'{}:  {} assets'.format(path, count)
         self.pick_root_widget.setText(path)
 
     def jobChanged(self, idx):
         """Triggered when the pick_job_widget selection changes."""
         self._root = None
-        stylesheet = 'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
-        stylesheet += 'background-color: rgba({},{},{},{});'.format(
+        stylesheet = u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
+        stylesheet += u'background-color: rgba({},{},{},{});'.format(
             *common.FAVOURITE.getRgb())
 
         self.pick_root_widget.setStyleSheet(stylesheet)
-        self.pick_root_widget.setText('Pick bookmark folder')
+        self.pick_root_widget.setText(u'Pick bookmark folder')
 
     def serverChanged(self, idx):
         """Triggered when the pick_server_widget selection changes."""
@@ -702,21 +704,21 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         """Sets the initial values in the widget."""
         self._add_servers()
 
-        local_paths = path_monitor.get_active_paths()
+        local_paths = Active.get_active_paths()
 
         # Select the currently active server
-        if local_paths['server']:
+        if local_paths[u'server']:
             idx = self.pick_server_widget.findData(
-                local_paths['server'],
+                local_paths[u'server'],
                 role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )
             self.pick_server_widget.setCurrentIndex(idx)
 
         # Select the currently active server
-        if local_paths['job']:
+        if local_paths[u'job']:
             idx = self.pick_job_widget.findData(
-                local_paths['job'],
+                local_paths[u'job'],
                 role=common.DescriptionRole,
                 flags=QtCore.Qt.MatchFixedString
             )

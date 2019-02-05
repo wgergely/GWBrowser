@@ -60,32 +60,32 @@ class MayaWidgetContextMenu(BaseContextMenu):
     def add_alembic_menu(self):
         menu_set = collections.OrderedDict()
         openpixmap = common.get_rsc_pixmap(
-            'files', common.TEXT, common.INLINE_ICON_SIZE)
+            u'files', common.TEXT, common.INLINE_ICON_SIZE)
         importpixmap = common.get_rsc_pixmap(
-            'import', common.TEXT, common.INLINE_ICON_SIZE)
+            u'import', common.TEXT, common.INLINE_ICON_SIZE)
         importrefpixmap = common.get_rsc_pixmap(
-            'import', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'import', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        menu_set['separator'] = {}
-        menu_set['open'] = {
-            'text': 'Open {}...'.format(file_info.fileName()),
-            'icon': openpixmap,
-            'action': functools.partial(open_alembic, file_info.filePath())
+        menu_set[u'separator'] = {}
+        menu_set[u'open'] = {
+            u'text': u'Open {}...'.format(file_info.fileName()),
+            u'icon': openpixmap,
+            u'action': functools.partial(open_alembic, file_info.filePath())
         }
-        menu_set['separator2'] = {}
-        menu_set['import'] = {
-            'text': 'Import  {} as reference...'.format(file_info.fileName()),
-            'icon': importrefpixmap,
-            'action': functools.partial(import_referenced_scene, file_info.filePath())
+        menu_set[u'separator2'] = {}
+        menu_set[u'import'] = {
+            u'text': u'Import  {} as reference...'.format(file_info.fileName()),
+            u'icon': importrefpixmap,
+            u'action': functools.partial(import_referenced_scene, file_info.filePath())
         }
-        menu_set['importlocal'] = {
-            'text': 'Import  {}'.format(file_info.fileName()),
-            'icon': importpixmap,
-            'action': functools.partial(import_scene, file_info.filePath())
+        menu_set[u'importlocal'] = {
+            u'text': u'Import  {}'.format(file_info.fileName()),
+            u'icon': importpixmap,
+            u'action': functools.partial(import_scene, file_info.filePath())
         }
 
         self.create_menu(menu_set)
@@ -93,32 +93,32 @@ class MayaWidgetContextMenu(BaseContextMenu):
     def add_scenes_menu(self):
         menu_set = collections.OrderedDict()
         openpixmap = common.get_rsc_pixmap(
-            'files', common.TEXT, common.INLINE_ICON_SIZE)
+            u'files', common.TEXT, common.INLINE_ICON_SIZE)
         importpixmap = common.get_rsc_pixmap(
-            'import', common.TEXT, common.INLINE_ICON_SIZE)
+            u'import', common.TEXT, common.INLINE_ICON_SIZE)
         importrefpixmap = common.get_rsc_pixmap(
-            'import', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'import', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        menu_set['separator'] = {}
-        menu_set['open'] = {
-            'text': 'Open  {}...'.format(file_info.fileName()),
-            'icon': openpixmap,
-            'action': functools.partial(open_scene, file_info.filePath())
+        menu_set[u'separator'] = {}
+        menu_set[u'open'] = {
+            u'text': u'Open  {}...'.format(file_info.fileName()),
+            u'icon': openpixmap,
+            u'action': functools.partial(open_scene, file_info.filePath())
         }
-        menu_set['separator2'] = {}
-        menu_set['import'] = {
-            'text': 'Import  {} as reference...'.format(file_info.fileName()),
-            'icon': importrefpixmap,
-            'action': functools.partial(import_referenced_scene, file_info.filePath())
+        menu_set[u'separator2'] = {}
+        menu_set[u'import'] = {
+            u'text': u'Import  {} as reference...'.format(file_info.fileName()),
+            u'icon': importrefpixmap,
+            u'action': functools.partial(import_referenced_scene, file_info.filePath())
         }
-        menu_set['importlocal'] = {
-            'text': 'Import  {}'.format(file_info.fileName()),
-            'icon': importpixmap,
-            'action': functools.partial(import_scene, file_info.filePath())
+        menu_set[u'importlocal'] = {
+            u'text': u'Import  {}'.format(file_info.fileName()),
+            u'icon': importpixmap,
+            u'action': functools.partial(import_scene, file_info.filePath())
         }
 
         self.create_menu(menu_set)
@@ -141,15 +141,15 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
 
         # Overriding the default name-filters
         common.NameFilters[common.ScenesFolder] = (
-            '*.ma',  # Maya ASCII
-            '*.mb',  # Maya Binary
+            u'*.ma',  # Maya ASCII
+            u'*.mb',  # Maya Binary
         )
 
         self._workspacecontrol = None
         self.browserwidget = None
 
         self.setAutoFillBackground(True)
-        self.setWindowTitle('Browser')
+        self.setWindowTitle(u'Browser')
 
         self._createUI()
         self._connectSignals()
@@ -178,7 +178,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget = self.browserwidget.findChild(FilesWidget)
 
         # Asset/project
-        assetswidget.model().sourceModel().activeAssetChanged.connect(self.assetChanged)
+        assetswidget.model().sourceModel().activeAssetChanged.connect(self.set_workspace)
 
         # Context menu
         fileswidget.customContextMenuRequested.connect(
@@ -212,33 +212,33 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         common.move_widget_to_available_geo(widget)
         widget.show()
 
-    def assetChanged(self, asset):
+    def set_workspace(self, asset):
         """Slot responsible for updating the maya worspace."""
         if not all(asset):
             return
-        file_info = QtCore.QFileInfo('/'.join(asset))
+        file_info = QtCore.QFileInfo(u'/'.join(asset))
         cmds.workspace(file_info.filePath(), openWorkspace=True)
 
     def floatingChanged(self, isFloating):
-        '''Triggered when QDockWidget.topLevelChanged() signal is triggered.
+        """Triggered when QDockWidget.topLevelChanged() signal is triggered.
         Stub function.  Override to perform actions when this happens.
-        '''
+        """
         cls = self.__class__.__name__
-        key = 'widget/{}/isFloating'.format(cls)
+        key = u'widget/{}/isFloating'.format(cls)
         local_settings.setValue(key, isFloating)
 
-        wpcs = (f for f in mixinWorkspaceControls if 'MayaWidget' in f)
+        wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
         if isFloating == u'0':  # why'o'why, this is a unicode value
             pass  # I can't implement this shit.
 
     def dockCloseEventTriggered(self):
-        '''Triggered when QDockWidget.closeEventTriggered() signal is triggered.
+        """riggered when QDockWidget.closeEventTriggered() signal is triggered.
         Stub function.  Override to perform actions when this happens.
-        '''
+        """
         cls = self.__class__.__name__
         if self.isFloating():
-            x = 'widget/{}/x'.format(cls)
-            y = 'widget/{}/y'.format(cls)
+            x = u'widget/{}/x'.format(cls)
+            y = u'widget/{}/y'.format(cls)
             local_settings.setValue(x, self.geometry().x())
             local_settings.setValue(y, self.geometry().y())
 
@@ -246,19 +246,19 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         """Initializes the Maya workspace control on show."""
         cls = self.__class__.__name__
 
-        key = 'widget/{}/isFloating'.format(cls)
+        key = u'widget/{}/isFloating'.format(cls)
         isFloating = local_settings.value(key)
 
         kwargs = {
-            'dockable': True,
-            'floating': isFloating if isFloating else True,
-            'area': None,
-            'allowedArea': None,
-            'minWidth': 200,
-            'widthSizingProperty': None,
-            'heightSizingProperty': None,
-            'retain': True,
-            'closeCallback': None
+            u'dockable': True,
+            u'floating': isFloating if isFloating else True,
+            u'area': None,
+            u'allowedArea': None,
+            u'minWidth': 200,
+            u'widthSizingProperty': None,
+            u'heightSizingProperty': None,
+            u'retain': True,
+            u'closeCallback': None
         }
         super(MayaWidget, self).show(**kwargs)
 
@@ -274,12 +274,12 @@ class MayaToolbar(QtWidgets.QWidget):
         self._connectSignals()
         self.setFocusProxy(self.toolbar)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setWindowTitle('Browser')
+        self.setWindowTitle(u'Browser')
         # Hopefully deletes the workspaceControl
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         # Adds the button to the
-        ptr = OpenMayaUI.MQtUtil.findControl('ToolBox')
+        ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
         widget.layout().addWidget(self)
         cmds.evalDeferred(self.show_browser)
@@ -300,7 +300,7 @@ class MayaToolbar(QtWidgets.QWidget):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()
         widget = next((f for f in app.allWidgets()
-                       if 'MayaWidget' in f.objectName()), None)
+                       if u'MayaWidget' in f.objectName()), None)
 
         if not widget:  # browser has not been initiazed
             widget = MayaWidget()
@@ -310,7 +310,7 @@ class MayaToolbar(QtWidgets.QWidget):
             widget.show()  # showing with the default options
             button.setState(True)
 
-            wpcs = (f for f in mixinWorkspaceControls if 'MayaWidget' in f)
+            wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
             if not wpcs:  # Widget initialized
                 return
             k = next(wpcs)
@@ -318,13 +318,13 @@ class MayaToolbar(QtWidgets.QWidget):
 
             # Tabbing this to the attribute editor
             cmds.evalDeferred(
-                lambda *args: cmds.workspaceControl(k, e=True, tabToControl=('AttributeEditor', -1)))
+                lambda *args: cmds.workspaceControl(k, e=True, tabToControl=(u'AttributeEditor', -1)))
             cmds.evalDeferred(
                 lambda: widget.raise_())
 
             return
 
-        wpcs = (f for f in mixinWorkspaceControls if 'MayaWidget' in f)
+        wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
         if not wpcs:  # Widget initialized
             return
         widget = mixinWorkspaceControls[next(wpcs)]
@@ -365,7 +365,7 @@ def import_scene(path):
     cmds.file(
         file_info.filePath(),
         i=True,
-        ns='Reference_{}_#'.format(file_info.baseName()),
+        ns=u'Reference_{}_#'.format(file_info.baseName()),
     )
 
 
@@ -382,8 +382,8 @@ def import_referenced_scene(path):
     cmds.file(
         file_info.filePath(),
         reference=True,
-        ns='Reference_{}_#'.format(file_info.baseName()),
-        rfn='Reference_{}RN'.format(file_info.baseName()),
+        ns=u'Reference_{}_#'.format(file_info.baseName()),
+        rfn=u'Reference_{}RN'.format(file_info.baseName()),
     )
 
 
@@ -397,7 +397,7 @@ def open_alembic(path):
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
-    cmds.AbcImport(file_info.filePath(), mode='open')
+    cmds.AbcImport(file_info.filePath(), mode=u'open')
 
 
 def import_alembic(path):
@@ -410,17 +410,17 @@ def import_alembic(path):
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
-    group = 'Alembic_{}'.format(file_info.baseName())
+    group = u'Alembic_{}'.format(file_info.baseName())
     # Creating the root group
     if not cmds.objExist(group):
         cmds.group(empty=True, name=group)
-        cmds.setAttr('{}.useOutlinerColor'.format(group), True)
-        cmds.setAttr('{}.outlinerColor'.format(group),
-                     0.9, 0.68, 0.3, type='double3')
+        cmds.setAttr(u'{}.useOutlinerColor'.format(group), True)
+        cmds.setAttr(u'{}.outlinerColor'.format(group),
+                     0.9, 0.68, 0.3, type=u'double3')
 
     cmds.AbcImport(
         (file_info.filePath(),),
-        mode='import',
+        mode=u'import',
         filterObjects=".*Shape.*",
         reparent=group
     )
@@ -438,10 +438,10 @@ def import_referenced_alembic(path):
 
     cmds.file(
         file_info.filePath(),
-        type='Alembic',
+        type=u'Alembic',
         reference=True,
-        ns='Reference_{}_#'.format(file_info.baseName()),
-        rfn='Reference_{}RN'.format(file_info.baseName()),
+        ns=u'Reference_{}_#'.format(file_info.baseName()),
+        rfn=u'Reference_{}RN'.format(file_info.baseName()),
     )
 
 
@@ -452,9 +452,9 @@ def save_scene():
     if cmds.file(q=True, modified=True):
         mbox = QtWidgets.QMessageBox()
         mbox.setText(
-            'Current scene has unsaved changes.'
+            u'Current scene has unsaved changes.'
         )
-        mbox.setInformativeText('Save the scene now?')
+        mbox.setInformativeText(u'Save the scene now?')
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Save |
             QtWidgets.QMessageBox.Discard |

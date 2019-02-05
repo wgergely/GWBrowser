@@ -70,18 +70,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Primary font is used to draw item names
         if emphasis is common.PRIMARY_FONT:
-            font = QtGui.QFont('Roboto Black')
+            font = QtGui.QFont(u'Roboto Black')
             font.setPointSizeF(9)
             font.setBold(False)
             font.setItalic(False)
         # Secondary fonts are used to draw description and file information
         elif emphasis is common.SECONDARY_FONT:
-            font = QtGui.QFont('Roboto Medium')
+            font = QtGui.QFont(u'Roboto Medium')
             font.setPointSizeF(8.0)
             font.setBold(False)
             font.setItalic(False)
         elif emphasis is common.TERCIARY_FONT:
-            font = QtGui.QFont('Roboto')
+            font = QtGui.QFont(u'Roboto')
             font.setPointSizeF(8.0)
             font.setBold(False)
             font.setItalic(True)
@@ -193,14 +193,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         if archived:
             pixmap = common.get_rsc_pixmap(
-                'archived', color, common.INLINE_ICON_SIZE)
+                u'archived', color, common.INLINE_ICON_SIZE)
             color = QtGui.QColor(common.SEPARATOR)
             color.setAlpha(60)
             painter.setBrush(QtGui.QBrush(color))
             painter.drawRoundedRect(bg_rect, 2.0, 2.0)
         else:
             pixmap = common.get_rsc_pixmap(
-                'active', color, common.INLINE_ICON_SIZE)
+                u'active', color, common.INLINE_ICON_SIZE)
 
         # Icon
         painter.drawPixmap(rect, pixmap)
@@ -226,7 +226,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pos = self.parent().mapFromGlobal(pos)
 
         pixmap = common.get_rsc_pixmap(
-            'favourite', color, common.INLINE_ICON_SIZE)
+            u'favourite', color, common.INLINE_ICON_SIZE)
 
         painter.setPen(QtCore.Qt.NoPen)
 
@@ -401,7 +401,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                       common.INDICATOR_WIDTH + rect.height())
 
         settings = AssetSettings(index)
-        bg_color = common.IMAGE_CACHE['{path}:BackgroundColor'.format(
+        bg_color = common.IMAGE_CACHE[u'{path}:BackgroundColor'.format(
             path=settings.thumbnail_path(),
         )]
 
@@ -410,7 +410,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(rect)
 
         # Resizing the rectangle to accommodate the image's aspect ration
-        image = common.IMAGE_CACHE['{path}:{size}'.format(
+        image = common.IMAGE_CACHE[u'{path}:{size}'.format(
             path=settings.thumbnail_path(),
             size=rect.height()
         )]
@@ -468,7 +468,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, _, _, _, _, _, _ = args
 
         _filter = self.parent().current_filter
-        if _filter == '/':
+        if _filter == u'/':
             return
 
         rect = QtCore.QRect(option.rect)
@@ -504,7 +504,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             option.rect, common.INLINE_ICON_SIZE, 2)
         color = QtGui.QColor(common.SECONDARY_TEXT)
         pixmap = common.get_rsc_pixmap(
-            'folder', color, common.INLINE_ICON_SIZE)
+            u'folder', color, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
@@ -557,7 +557,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             option.rect, common.INLINE_ICON_SIZE, 3)
 
         color = QtGui.QColor(common.TEXT)
-        pixmap = common.get_rsc_pixmap('todo', color, common.INLINE_ICON_SIZE)
+        pixmap = common.get_rsc_pixmap(u'todo', color, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
@@ -569,7 +569,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         count_rect.setHeight(8)
 
         count_rect.moveCenter(rect.bottomRight())
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(u'Roboto Black')
         font.setPointSizeF(8.0)
         painter.setFont(font)
 
@@ -584,7 +584,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawText(
             count_rect,
             QtCore.Qt.AlignCenter,
-            '{}'.format(index.data(common.TodoCountRole))
+            u'{}'.format(index.data(common.TodoCountRole))
         )
 
     @paintmethod
@@ -609,7 +609,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not index.data(common.DescriptionRole):
             _, font, metrics = self.get_text_area(
                 option.rect, common.TERCIARY_FONT)
-            text = 'Double-click to add description...'
+            text = u'Double-click to add description...'
             color.setAlpha(100)
         elif index.data(common.DescriptionRole):
             text = index.data(common.DescriptionRole)
@@ -683,13 +683,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
                       common.INDICATOR_WIDTH + rect.height())
 
         pixmap = common.get_rsc_pixmap(
-            'bookmark', common.SECONDARY_TEXT, rect.height())
+            u'bookmark', common.SECONDARY_TEXT, rect.height())
         if favourite:
             pixmap = common.get_rsc_pixmap(
-                'bookmark', common.FAVOURITE, rect.height())
+                u'bookmark', common.FAVOURITE, rect.height())
         if active:
             pixmap = common.get_rsc_pixmap(
-                'bookmark', common.SELECTION, rect.height())
+                u'bookmark', common.SELECTION, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -716,7 +716,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[\W\d\_]+', '', text)
-        text = ' {} '.format(text)
+        text = u' {} '.format(text)
         width = metrics.width(text)
         rect.setWidth(width)
 
@@ -785,7 +785,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.drawRoundedRect(rect, rect.width() / 2.0, rect.width() / 2.0)
 
         painter.setPen(common.TEXT)
-        painter.drawText(rect, QtCore.Qt.AlignCenter, '{}'.format(count))
+        painter.drawText(rect, QtCore.Qt.AlignCenter, u'{}'.format(count))
 
 
 class AssetWidgetDelegate(BaseDelegate):
@@ -834,8 +834,8 @@ class AssetWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub('[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub('[_]{1,}', '_', text).strip('_')
+        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub(r'[_]{1,}', '_', text).strip('_')
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
@@ -934,7 +934,7 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.setPen(QtGui.QPen(common.TEXT_NOTE))
             rect.setRight(rect.right() - width)
             text = metrics.elidedText(
-                '{}  |  '.format(
+                u'{}  |  '.format(
                     index.data(common.DescriptionRole)
                 ),
                 QtCore.Qt.ElideRight,
@@ -951,7 +951,7 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.setPen(QtGui.QPen(color))
             rect.setRight(rect.right() - width)
             text = metrics.elidedText(
-                'Double-click to add description...  |  ',
+                u'Double-click to add description...  |  ',
                 QtCore.Qt.ElideRight,
                 rect.width()
             )
@@ -981,7 +981,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         painter.setFont(font)
         modes = index.data(common.ParentRole)[-1]
-        modes = modes.split('/')
+        modes = modes.split(u'/')
         rect.setWidth(0)
 
         if not modes[0]:
@@ -995,7 +995,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 break
 
             if n == 2:
-                mode = '...'
+                mode = u'...'
             else:
                 mode = mode.upper()
 
@@ -1058,9 +1058,9 @@ class FilesWidgetDelegate(BaseDelegate):
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)',
                       r'\1\3', text, flags=re.IGNORECASE)
-        text = text.split('.')
+        text = text.split(u'.')
         ext = text.pop(-1)
-        text = '.'.join(text).upper()
+        text = u'.'.join(text).upper()
 
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
@@ -1069,11 +1069,11 @@ class FilesWidgetDelegate(BaseDelegate):
         if match:  # sequence collapsed
             if option.rect.width() >= 360.0:
                 # Ext
-                tail = '{}.{}'.format(match.group(3), ext)
+                tail = u'{}.{}'.format(match.group(3), ext)
                 width = metrics.width(tail)
                 rect.setLeft(rect.right() - width)
-                if rect.left() <= kwargs['left']:
-                    rect.setLeft(kwargs['left'])
+                if rect.left() <= kwargs[u'left']:
+                    rect.setLeft(kwargs[u'left'])
                 painter.setPen(common.TEXT)
                 painter.drawText(rect, align, tail)
 
@@ -1081,8 +1081,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 rect.moveRight(rect.right() - width)
                 width = metrics.width(match.group(2))
                 rect.setLeft(rect.right() - width)
-                if rect.left() <= kwargs['left']:
-                    rect.setLeft(kwargs['left'])
+                if rect.left() <= kwargs[u'left']:
+                    rect.setLeft(kwargs[u'left'])
                 text = metrics.elidedText(
                     match.group(2),
                     QtCore.Qt.ElideMiddle,
@@ -1098,8 +1098,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 # Name
                 rect.moveRight(rect.right() - width)
                 rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
-                if rect.left() <= kwargs['left']:
-                    rect.setLeft(kwargs['left'])
+                if rect.left() <= kwargs[u'left']:
+                    rect.setLeft(kwargs[u'left'])
                 painter.setPen(common.TEXT)
                 text = metrics.elidedText(
                     match.group(1),
@@ -1117,7 +1117,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 rect.setRight(option.rect.right() - common.MARGIN)
                 painter.setPen(common.TEXT)
                 text = metrics.elidedText(
-                    '{}{}{}'.format(match.group(1), match.group(2), ext),
+                    u'{}{}{}'.format(match.group(1), match.group(2), ext),
                     QtCore.Qt.ElideRight,
                     rect.width()
                 )
@@ -1128,10 +1128,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 )
         else:  # non-collapsed items
             painter.setPen(common.TEXT)
-            if rect.left() <= kwargs['left']:
-                rect.setLeft(kwargs['left'] + common.MARGIN)
+            if rect.left() <= kwargs[u'left']:
+                rect.setLeft(kwargs[u'left'] + common.MARGIN)
             text = metrics.elidedText(
-                '{}{}'.format(text, ext),
+                u'{}.{}'.format(text, ext),
                 QtCore.Qt.ElideLeft,
                 rect.width()
             )

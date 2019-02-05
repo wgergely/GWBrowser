@@ -39,52 +39,52 @@ from PySide2 import QtGui, QtCore
 
 
 SERVERS = [
-    {'path': '//gordo/jobs', 'nickname': 'Gordo'},
-    {'path': '//sloth/jobs', 'nickname': 'Sloth'},
-    {'path': '//localhost/c$/temp', 'nickname': 'Local Drive'},
+    {u'path': u'//gordo/jobs', u'nickname': u'Gordo'},
+    {u'path': u'//sloth/jobs', u'nickname': u'Sloth'},
+    {u'path': u'//localhost/c$/temp', u'nickname': u'Local Drive'},
 ]
 
-ASSET_IDENTIFIER = 'workspace.mel'
+ASSET_IDENTIFIER = u'workspace.mel'
 """When with the given name is present in the root of a folder, it will be
 considered an ``assets``."""
 
 
-ExportsFolder = 'exports'
-ScenesFolder = 'scenes'
-RendersFolder = 'renders'
-TexturesFolder = 'textures'
+ExportsFolder = u'exports'
+ScenesFolder = u'scenes'
+RendersFolder = u'renders'
+TexturesFolder = u'textures'
 
 NameFilters = {
     ExportsFolder: (
-        '*.abc',  # Alembic
-        '*.obj',
-        '*.ass',  # Arnold cache
+        u'*.abc',  # Alembic
+        u'*.obj',
+        u'*.ass',  # Arnold cache
     ),
     ScenesFolder: (
-        '*.ma',  # Maya ASCII
-        '*.mb',  # Maya Binary
-        '*.c4d',  # Cinema 4D
-        '*.hud',  # Houdini
-        '*.aep',  # After-Effects
-        '*.nk',  # Nuke
+        u'*.ma',  # Maya ASCII
+        u'*.mb',  # Maya Binary
+        u'*.c4d',  # Cinema 4D
+        u'*.hud',  # Houdini
+        u'*.aep',  # After-Effects
+        u'*.nk',  # Nuke
     ),
     RendersFolder: (
-        '*.exr',
-        '*.png',
-        '*.tiff',
-        '*.tff',
-        '*.jpg',
-        '*.jpeg',
-        '*.psd',
+        u'*.exr',
+        u'*.png',
+        u'*.tiff',
+        u'*.tff',
+        u'*.jpg',
+        u'*.jpeg',
+        u'*.psd',
     ),
     TexturesFolder: (
-        '*.exr',
-        '*.png',
-        '*.tiff',
-        '*.tff',
-        '*.jpg',
-        '*.jpeg',
-        '*.psd',
+        u'*.exr',
+        u'*.png',
+        u'*.tiff',
+        u'*.tff',
+        u'*.jpg',
+        u'*.jpeg',
+        u'*.psd',
     ),
 }
 """A list of expected file-formats associated with the location."""
@@ -114,7 +114,7 @@ def sort_alphanum_key(key):
         return int(text) if text.isdigit() else text
 
     def _split(key):
-        return re.split('([0-9]+)', key.filePath())
+        return re.split(r'([0-9]+)', key.filePath())
 
     return [_convert(f) for f in _split(key)]
 
@@ -215,11 +215,11 @@ def _add_custom_fonts():
     """Adds custom fonts to the application."""
 
     d = QtCore.QDir(
-        '{}/rsc/fonts'.format(
+        u'{}/rsc/fonts'.format(
             QtCore.QFileInfo(__file__).dir().path()
         )
     )
-    d.setNameFilters(['*.ttf', ])
+    d.setNameFilters([u'*.ttf', ])
 
     font_families = []
     for f in d.entryInfoList(
@@ -240,8 +240,8 @@ def set_custom_stylesheet(widget):
             os.path.join(
                 __file__,
                 os.pardir,
-                'rsc',
-                'customStylesheet.css'
+                u'rsc',
+                u'customStylesheet.css'
             )
         )
     )
@@ -251,20 +251,20 @@ def set_custom_stylesheet(widget):
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
         qss = qss.format(
-            fontFamily='Roboto Medium',
+            fontFamily=u'Roboto Medium',
             fontSize=9,
-            BACKGROUND='{},{},{},{}'.format(*BACKGROUND.getRgb()),
-            BACKGROUND_SELECTED='{},{},{},{}'.format(
+            BACKGROUND=u'{},{},{},{}'.format(*BACKGROUND.getRgb()),
+            BACKGROUND_SELECTED=u'{},{},{},{}'.format(
                 *BACKGROUND_SELECTED.getRgb()),
-            SECONDARY_BACKGROUND='{},{},{},{}'.format(
+            SECONDARY_BACKGROUND=u'{},{},{},{}'.format(
                 *SECONDARY_BACKGROUND.getRgb()),
-            TEXT='{},{},{},{}'.format(*TEXT.getRgb()),
-            SECONDARY_TEXT='{},{},{},{}'.format(*SECONDARY_TEXT.getRgb()),
-            TEXT_DISABLED='{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
-            TEXT_SELECTED='{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
-            SEPARATOR='{},{},{},{}'.format(*SEPARATOR.getRgb()),
-            FAVOURITE='{},{},{},{}'.format(*FAVOURITE.getRgb()),
-            SELECTION='{},{},{},{}'.format(*SELECTION.getRgb())
+            TEXT=u'{},{},{},{}'.format(*TEXT.getRgb()),
+            SECONDARY_TEXT=u'{},{},{},{}'.format(*SECONDARY_TEXT.getRgb()),
+            TEXT_DISABLED=u'{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
+            TEXT_SELECTED=u'{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
+            SEPARATOR=u'{},{},{},{}'.format(*SEPARATOR.getRgb()),
+            FAVOURITE=u'{},{},{},{}'.format(*FAVOURITE.getRgb()),
+            SELECTION=u'{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
 
@@ -290,7 +290,7 @@ def cache_image(path, height, overwrite=False):
     path = QtCore.QFileInfo(path)
     path = path.filePath()
 
-    k = '{path}:{height}'.format(
+    k = u'{path}:{height}'.format(
         path=path,
         height=height
     )
@@ -299,9 +299,9 @@ def cache_image(path, height, overwrite=False):
 
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
-        ppath = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+        ppath = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
         ppath = ppath.absoluteFilePath()
-        placeholder_k = '{path}:{height}'.format(
+        placeholder_k = u'{path}:{height}'.format(
             path=ppath,
             height=height
         )
@@ -309,8 +309,8 @@ def cache_image(path, height, overwrite=False):
             IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
         else:
             IMAGE_CACHE[k] = cache_placeholder(height)
-        IMAGE_CACHE['{}:BackgroundColor'.format(
-            path)] = IMAGE_CACHE['{}:BackgroundColor'.format(ppath)]
+        IMAGE_CACHE[u'{}:BackgroundColor'.format(
+            path)] = IMAGE_CACHE[u'{}:BackgroundColor'.format(ppath)]
         return IMAGE_CACHE[k]
 
     image = QtGui.QImage()
@@ -324,7 +324,7 @@ def cache_image(path, height, overwrite=False):
     )
 
     # Average colour
-    IMAGE_CACHE['{path}:BackgroundColor'.format(
+    IMAGE_CACHE[u'{path}:BackgroundColor'.format(
         path=path
     )] = get_color_average(image)
     IMAGE_CACHE[k] = image
@@ -333,10 +333,10 @@ def cache_image(path, height, overwrite=False):
 
 def cache_placeholder(height):
     height = int(height)
-    path = QtCore.QFileInfo('{}/../rsc/placeholder.png'.format(__file__))
+    path = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
     path = path.absoluteFilePath()
 
-    k = '{path}:{height}'.format(
+    k = u'{path}:{height}'.format(
         path=path,
         height=height
     )
@@ -345,7 +345,7 @@ def cache_placeholder(height):
         return IMAGE_CACHE[k]
 
     file_info = QtCore.QFileInfo(
-        '{}/../rsc/placeholder.png'.format(__file__))
+        u'{}/../rsc/placeholder.png'.format(__file__))
     image = QtGui.QImage()
     image.load(file_info.filePath())
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
@@ -358,7 +358,7 @@ def cache_placeholder(height):
 
     # Average colour
     IMAGE_CACHE[k] = image
-    IMAGE_CACHE['{path}:BackgroundColor'.format(
+    IMAGE_CACHE[u'{path}:BackgroundColor'.format(
         path=path
     )] = QtGui.QColor(0, 0, 0, 0)
     return IMAGE_CACHE[k]
@@ -488,13 +488,13 @@ def get_rsc_pixmap(name, color, size, opacity=1.0):
 
     """
 
-    k = '{name}:{size}:{color}'.format(
-        name=name, size=size, color='null' if not color else color.name())
+    k = u'{name}:{size}:{color}'.format(
+        name=name, size=size, color=u'null' if not color else color.name())
 
     if k in IMAGE_CACHE:
         return IMAGE_CACHE[k]
 
-    file_info = QtCore.QFileInfo('{}/../rsc/{}.png'.format(__file__, name))
+    file_info = QtCore.QFileInfo(u'{}/../rsc/{}.png'.format(__file__, name))
     if not file_info.exists():
         return QtGui.QPixmap()
 
@@ -556,13 +556,13 @@ def count_assets(path):
     return count
 
 
-def byte_to_string(num, suffix='B'):
+def byte_to_string(num, suffix=u'B'):
     """Converts a numeric byte-value to a human readable string."""
-    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+    for unit in [u'', u'K', u'M', u'G', u'T', u'P', u'E', u'Z']:
         if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
+            return u"%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)
+    return u"%.1f%s%s" % (num, u'Yi', suffix)
 
 
 def reveal(path):
@@ -591,33 +591,33 @@ HIGHLIGHT_RULES = {
     # group 1 = the file:// prefix if exists,
     # group 2 = the //path or \\path
     # group 3 = trailing space
-    'file_path': {
-        're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
-        'flag': CodeHighlight
+    u'file_path': {
+        u're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
+        u'flag': CodeHighlight
     },
-    'folder_path': {
-        're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
-        'flag': CodeHighlight
+    u'folder_path': {
+        u're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
+        u'flag': CodeHighlight
     },
-    'quotes': {
-        're': re.compile(r'([\"\']+[^\"\']+[\'\"]+)', flags=re.IGNORECASE),
-        'flag': CodeHighlight
+    u'quotes': {
+        u're': re.compile(r'([\"\']+[^\"\']+[\'\"]+)', flags=re.IGNORECASE),
+        u'flag': CodeHighlight
     },
-    'bold': {
-        're': re.compile(r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})', flags=re.IGNORECASE),
-        'flag': BoldHighlight
+    u'bold': {
+        u're': re.compile(r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})', flags=re.IGNORECASE),
+        u'flag': BoldHighlight
     },
-    'italicized': {
-        're': re.compile(r'([\*_]{1})([^\*_]+)([\*_]{1})', flags=re.IGNORECASE),
-        'flag': ItalicHighlight
+    u'italicized': {
+        u're': re.compile(r'([\*_]{1})([^\*_]+)([\*_]{1})', flags=re.IGNORECASE),
+        u'flag': ItalicHighlight
     },
-    'heading': {
-        're': re.compile(r'^([#]{1,6})', flags=re.IGNORECASE),
-        'flag': HeadingHighlight
+    u'heading': {
+        u're': re.compile(r'^([#]{1,6})', flags=re.IGNORECASE),
+        u'flag': HeadingHighlight
     },
-    'quote': {
-        're': re.compile(r'^([>]{1})', flags=re.IGNORECASE),
-        'flag': QuoteHighlight
+    u'quote': {
+        u're': re.compile(r'^([>]{1})', flags=re.IGNORECASE),
+        u'flag': QuoteHighlight
     },
 }
 
@@ -628,7 +628,7 @@ def get_ranges(arr, padding):
     blocks = {}
     k = 0
     for idx, n in enumerate(arr):  # blocks
-        zfill = '{}'.format(n).zfill(padding)
+        zfill = u'{}'.format(n).zfill(padding)
 
         if k not in blocks:
             blocks[k] = []
@@ -637,7 +637,7 @@ def get_ranges(arr, padding):
         if idx + 1 != len(arr):
             if arr[idx + 1] != n + 1:  # break coming up
                 k += 1
-    return ','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
+    return u','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
@@ -662,6 +662,9 @@ def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
+    if not is_sequence(path):
+        return path
+
     match = SequenceStartRegex.search(path)
     if match:
         path = SequenceStartRegex.sub(r'\1\2\3', path)
@@ -672,6 +675,9 @@ def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
+    if not is_sequence(path):
+        return path
+
     match = SequenceEndRegex.search(path)
     if match:
         path = SequenceEndRegex.sub(r'\1\2\3', path)

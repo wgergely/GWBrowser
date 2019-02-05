@@ -22,7 +22,7 @@ import browser.editors as editors
 from browser.delegate import AssetWidgetDelegate
 
 from browser.settings import AssetSettings
-from browser.settings import local_settings, path_monitor
+from browser.settings import local_settings, Active, active_monitor
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
@@ -58,20 +58,20 @@ class AssetModel(BaseModel):
 
         """
         self.model_data = {}  # reset
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
 
         server, job, root = self.bookmark
         if not all((server, job, root)):
             return
 
         # Creating folders
-        config_dir_path = '{}/.browser/'.format(
-            '/'.join(self.bookmark))
+        config_dir_path = u'{}/.browser/'.format(
+            u'/'.join(self.bookmark))
         config_dir_path = QtCore.QFileInfo(config_dir_path)
         if not config_dir_path.exists():
             QtCore.QDir().mkpath(config_dir_path.filePath())
 
-        dir_ = QtCore.QDir('/'.join(self.bookmark))
+        dir_ = QtCore.QDir(u'/'.join(self.bookmark))
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
                        QtCore.QDir.Readable)
@@ -98,25 +98,25 @@ class AssetModel(BaseModel):
             )
 
             # Active
-            if it.fileName() == active_paths['asset']:
+            if it.fileName() == active_paths[u'asset']:
                 flags = flags | MarkedAsActive
 
             # Archived
             settings = AssetSettings((server, job, root, it.filePath()))
-            if settings.value('config/archived'):
+            if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
 
             # Favourite
-            favourites = local_settings.value('favourites')
+            favourites = local_settings.value(u'favourites')
             favourites = favourites if favourites else []
             if it.filePath() in favourites:
                 flags = flags | MarkedAsFavourite
 
             # Todos
-            todos = settings.value('config/todos')
+            todos = settings.value(u'config/todos')
             if todos:
                 count = len([k for k in todos if not todos[k]
-                             ['checked'] and todos[k]['text']])
+                             [u'checked'] and todos[k][u'text']])
             else:
                 count = 0
 
@@ -133,7 +133,7 @@ class AssetModel(BaseModel):
                 common.FlagsRole: flags,
                 # parent includes the asset
                 common.ParentRole: (server, job, root, it.fileName()),
-                common.DescriptionRole: settings.value('config/description'),
+                common.DescriptionRole: settings.value(u'config/description'),
                 common.TodoCountRole: count,
                 common.FileDetailsRole: it.fileInfo().size(),
             }
@@ -157,7 +157,7 @@ class AssetWidget(BaseInlineIconWidget):
 
     def __init__(self, bookmark, parent=None):
         super(AssetWidget, self).__init__(AssetModel(bookmark), parent=parent)
-        self.setWindowTitle('Assets')
+        self.setWindowTitle(u'Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self.context_menu_cls = AssetWidgetContextMenu
 
@@ -180,19 +180,23 @@ class AssetWidget(BaseInlineIconWidget):
         if not index.isValid():
             return
 
-        # Activating a new item will require the filesmodel to be updated
-        needs_reset = not index.flags() & MarkedAsActive
+        reset_needed = not index.flags() & MarkedAsActive
 
         if not super(AssetWidget, self).activate_current_index():
             return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        local_settings.setValue('activepath/asset', file_info.fileName())
+        local_settings.setValue(u'activepath/asset', file_info.fileName())
+        Active.get_active_paths()  # Resetting invalid paths
 
-        path_monitor.get_active_paths()  # Resetting invalid paths
+        # By updating the saved state we're making sure the active_monit doesn't emit the assetChangedSignal
+        # (we don't want to trigger two update model updates)
+        active_monitor.update_saved_state(u'asset', file_info.fileName())
         self.model().sourceModel().activeAssetChanged.emit(index.data(common.ParentRole))
-        if needs_reset:
-            self.model().sourceModel().modelDataResetRequested.emit()  # resetting model
+
+        # Activating a new item will require the filesmodel to be updated
+        if reset_needed:
+            self.model().sourceModel().modelDataResetRequested.emit()  # resetting the fileModel
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

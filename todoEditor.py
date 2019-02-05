@@ -41,16 +41,16 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         flags = common.NoHighlightFlag
         for case in common.HIGHLIGHT_RULES:
             match = u''
-            search = common.HIGHLIGHT_RULES[case]['re'].search(text)
+            search = common.HIGHLIGHT_RULES[case][u're'].search(text)
             if not search:
                 continue
 
-            flags = flags | common.HIGHLIGHT_RULES[case]['flag']
+            flags = flags | common.HIGHLIGHT_RULES[case][u'flag']
             for group in search.groups():
                 if not group:
                     continue
                 group = u'{}'.format(group)
-                group.encode('utf-8')
+                group.encode(u'utf-8')
                 match += group
 
             if not match:
@@ -117,10 +117,10 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         self.highlighter = Highlighter(self.document())
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        metrics.width('  ')
+        metrics.width(u'  ')
         self.setTabStopWidth(common.MARGIN)
 
-        font = QtGui.QFont('Roboto Medium')
+        font = QtGui.QFont(u'Roboto Medium')
         font.setPointSizeF(10.0)
         self.document().setDefaultFont(font)
 
@@ -141,7 +141,7 @@ class TodoItemEditor(QtWidgets.QTextEdit):
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
-        font = QtGui.QFont('Roboto Medium')
+        font = QtGui.QFont(u'Roboto Medium')
         font.setPointSizeF(10.0)
         if b:
             font.setStrikeOut(True)
@@ -212,7 +212,7 @@ class AddButton(QtWidgets.QLabel):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
 
-        pixmap = common.get_rsc_pixmap('todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
+        pixmap = common.get_rsc_pixmap(u'todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -228,7 +228,7 @@ class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
 
-        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 32)
+        pixmap = common.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -242,7 +242,7 @@ class RemoveButton(QtWidgets.QLabel):
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
-        if event.mimeData().hasFormat('browser/todo-drag'):
+        if event.mimeData().hasFormat(u'browser/todo-drag'):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
@@ -263,7 +263,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
     in the target drop widet.
     """
 
-    MIME_TYPE = 'browser/todo-drag'
+    MIME_TYPE = u'browser/todo-drag'
 
     def __init__(self, checked=False, parent=None):
 
@@ -274,20 +274,20 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         if self.isEnabled():
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
     def setDisabled(self, b):
         # super(DragIndicatorButton, self).setDisabled(b)
         if b:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
 
         self.setPixmap(pixmap)
 
@@ -351,7 +351,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Ugh, ugly code...
         add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
         pixmap = pixmap = common.get_rsc_pixmap(
-            'todo_remove_activated', QtGui.QColor(255, 0, 0), 24)
+            u'todo_remove_activated', QtGui.QColor(255, 0, 0), 24)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
         self.parent().parent().separator.setHidden(False)
@@ -363,7 +363,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Cleanup after drag has finished...
         overlay.close()
         self.parent().parent().separator.setHidden(True)
-        pixmap = common.get_rsc_pixmap('todo_remove', common.FAVOURITE, 32)
+        pixmap = common.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
 
@@ -397,11 +397,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = common.get_rsc_pixmap(
-                'checkbox_unchecked', common.SEPARATOR, 24)
+                u'checkbox_unchecked', common.SEPARATOR, 24)
             self.setPixmap(pixmap)
         else:
             pixmap = common.get_rsc_pixmap(
-                'checkbox_checked', common.FAVOURITE, 24)
+                u'checkbox_checked', common.FAVOURITE, 24)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -435,7 +435,7 @@ class Separator(QtWidgets.QLabel):
         self.setFixedWidth(1)
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat('browser/todo-drag'):
+        if event.mimeData().hasFormat(u'browser/todo-drag'):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
@@ -473,7 +473,7 @@ class TodoEditors(QtWidgets.QWidget):
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
-        if event.mimeData().hasFormat('browser/todo-drag'):
+        if event.mimeData().hasFormat(u'browser/todo-drag'):
             event.acceptProposedAction()
 
     def dragMoveEvent(self, event):
@@ -642,8 +642,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.editors = None
         self._index = index
 
-        self.setObjectName('todoitemswrapper')
-        self.setWindowTitle('Todo Editor')
+        self.setObjectName(u'todoitemswrapper')
+        self.setWindowTitle(u'Todo Editor')
         self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
@@ -660,14 +660,14 @@ class TodoEditorWidget(QtWidgets.QWidget):
             return
 
         settings = AssetSettings(index)
-        items = settings.value('config/todos')
+        items = settings.value(u'config/todos')
         if not items:
             return
 
         for k in items:
             self.add_item(
-                text=items[k]['text'],
-                checked=items[k]['checked']
+                text=items[k][u'text'],
+                checked=items[k][u'checked']
             )
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -678,15 +678,15 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             painter.setPen(common.FAVOURITE)
-            font = QtGui.QFont('Roboto Medium')
+            font = QtGui.QFont(u'Roboto Medium')
             font.setBold(False)
             font.setPointSize(10.0)
             painter.setFont(font)
             painter.drawText(
                 self.rect(),
                 QtCore.Qt.AlignCenter,
-                'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.' if not len(
-                    self.editors.items) else ''
+                u'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.' if not len(
+                    self.editors.items) else u''
             )
             painter.end()
         return False
@@ -806,7 +806,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         item.effect = QtWidgets.QGraphicsOpacityEffect(item)
         item.effect.setOpacity(1.0)
-        item.animation = QtCore.QPropertyAnimation(item.effect, 'opacity')
+        item.animation = QtCore.QPropertyAnimation(item.effect, u'opacity')
         item.animation.setDuration(1500)
         item.animation.setKeyValueAt(0, 0)
         item.animation.setKeyValueAt(0.5, 0.8)
@@ -834,7 +834,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if not self.index.isValid():
             return
         settings = AssetSettings(self.index)
-        settings.setValue('config/todos', self._collect_data())
+        settings.setValue(u'config/todos', self._collect_data())
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -842,7 +842,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
 
         def _pressed():
-            self.add_item(text='', idx=0)
+            self.add_item(text=u'', idx=0)
 
         self.remove_button = RemoveButton()
         self.remove_button.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -862,18 +862,18 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.add_button.setFixedWidth(32)
         self.add_button.setFixedHeight(32)
         self.add_button.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = common.get_rsc_pixmap('todo', common.FAVOURITE, 32)
+        pixmap = common.get_rsc_pixmap(u'todo', common.FAVOURITE, 32)
         self.add_button.setPixmap(pixmap)
         row.layout().addWidget(self.add_button, 0)
 
         if self.index.isValid():
             job = self.index.data(common.ParentRole)[1]
-            text = '{}: {}  |  Notes and Tasks'.format(
+            text = u'{}: {}  |  Notes and Tasks'.format(
                 job.upper(),
                 self.index.data(QtCore.Qt.DisplayRole).upper()
             )
         else:
-            text = 'Notes and Tasks'
+            text = u'Notes and Tasks'
 
         label = QtWidgets.QLabel(text)
         label.setSizePolicy(
@@ -919,8 +919,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             if not editor.document().toPlainText():
                 continue
             data[n] = {
-                'checked': not checkbox.checked,
-                'text': editor.document().toPlainText(),
+                u'checked': not checkbox.checked,
+                u'text': editor.document().toPlainText(),
             }
         return data
 
@@ -939,7 +939,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
     def showEvent(self, event):
         animation = QtCore.QPropertyAnimation(
-            self, 'windowOpacity', parent=self)
+            self, u'windowOpacity', parent=self)
         animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
         animation.setDuration(150)
         animation.setStartValue(0.01)
@@ -958,7 +958,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
-    item = widget.add_item(text='Test text')
+    item = widget.add_item(text=u'Test text')
     # print item.editor.document().setPlainText('Hullo')
     widget.show()
     app.exec_()

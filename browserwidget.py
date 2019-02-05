@@ -31,7 +31,7 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.editors import FilterEditor
 from browser.editors import ClickableLabel
-from browser.settings import local_settings, path_monitor
+from browser.settings import local_settings, Active, active_monitor
 
 
 class StackFaderWidget(QtWidgets.QWidget):
@@ -128,7 +128,7 @@ class ListStackWidget(QtWidgets.QStackedWidget):
         )
 
     def setCurrentIndex(self, idx):
-        local_settings.setValue('widget/current_index', idx)
+        local_settings.setValue(u'widget/current_index', idx)
         super(ListStackWidget, self).setCurrentIndex(idx)
 
     def sizeHint(self):
@@ -144,23 +144,23 @@ class LocationsMenu(BaseContextMenu):
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
+        menu_set[u'separator'] = {}
 
         for k in sorted(list(common.NameFilters)):
             checked = self.parent().model().sourceModel().get_location() == k
             menu_set[k] = {
-                'text': k.title(),
-                'checkable': True,
-                'checked': checked,
-                'icon': item_on_pixmap if checked else item_off_pixmap,
-                'action': functools.partial(self.parent().model().sourceModel().set_location, k)
+                u'text': k.title(),
+                u'checkable': True,
+                u'checked': checked,
+                u'icon': item_on_pixmap if checked else item_off_pixmap,
+                u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
             }
         self.create_menu(menu_set)
 
@@ -191,12 +191,12 @@ class FilterButton(ClickableLabel):
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
         filterstring = widget.currentWidget().model().get_filterstring()
-        if filterstring != '/':
+        if filterstring != u'/':
             pixmap = common.get_rsc_pixmap(
-                'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
         else:
             pixmap = common.get_rsc_pixmap(
-                'filter', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'filter', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -206,7 +206,7 @@ class LocationsButton(ClickableLabel):
     def __init__(self, parent=None):
         super(LocationsButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'location', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
         self.clicked.connect(self.labelClicked)
 
@@ -239,10 +239,10 @@ class CollapseSequenceButton(ClickableLabel):
         collapsed = filewidget.model().sourceModel().is_grouped()
         if collapsed:
             pixmap = common.get_rsc_pixmap(
-                'collapse', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'collapse', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
         else:
             pixmap = common.get_rsc_pixmap(
-                'expand', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'expand', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -257,18 +257,18 @@ class ToggleArchivedButton(ClickableLabel):
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        archived = widget.currentWidget().model().get_filtermode('archived')
-        widget.currentWidget().model().set_filtermode('archived', not archived)
+        archived = widget.currentWidget().model().get_filtermode(u'archived')
+        widget.currentWidget().model().set_filtermode(u'archived', not archived)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        archived = widget.currentWidget().model().get_filtermode('archived')
+        archived = widget.currentWidget().model().get_filtermode(u'archived')
         if not archived:
             pixmap = common.get_rsc_pixmap(
-                'archived', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'archived', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
         else:
             pixmap = common.get_rsc_pixmap(
-                'active', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'active', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -283,18 +283,18 @@ class ToggleFavouriteButton(ClickableLabel):
 
     def toggle(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        favourite = widget.currentWidget().model().get_filtermode('favourite')
-        widget.currentWidget().model().set_filtermode('favourite', not favourite)
+        favourite = widget.currentWidget().model().get_filtermode(u'favourite')
+        widget.currentWidget().model().set_filtermode(u'favourite', not favourite)
 
     def update_(self):
         widget = self.parent().parent().findChild(ListStackWidget)
-        favourite = widget.currentWidget().model().get_filtermode('favourite')
+        favourite = widget.currentWidget().model().get_filtermode(u'favourite')
         if favourite:
             pixmap = common.get_rsc_pixmap(
-                'favourite', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'favourite', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
         else:
             pixmap = common.get_rsc_pixmap(
-                'favourite', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'favourite', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -318,7 +318,7 @@ class AddBookmarkButton(ClickableLabel):
     def __init__(self, parent=None):
         super(AddBookmarkButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'todo_add', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'todo_add', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
 
@@ -328,7 +328,7 @@ class CloseButton(ClickableLabel):
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'close', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'close', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -341,7 +341,7 @@ class MinimizeButton(ClickableLabel):
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            'minimize', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'minimize', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -403,7 +403,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
-            'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.5)
+            u'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.5)
         label.setPixmap(pixmap)
         label.setAlignment(QtCore.Qt.AlignCenter)
         label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -429,14 +429,14 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def itemActivated(self, *args, **kwargs):
         """Slot responsible for setting the header text."""
-        active_paths = path_monitor.get_active_paths()
-        text = 'Bookmark not activated'
-        if all((active_paths['server'], active_paths['job'], active_paths['root'])):
-            text = '{} | {}'.format(active_paths['job'], active_paths['root'])
+        active_paths = Active.get_active_paths()
+        text = u'Bookmark not activated'
+        if all((active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])):
+            text = u'{} | {}'.format(active_paths[u'job'], active_paths[u'root'])
         if active_paths['asset']:
-            text = '{} | {}'.format(text, active_paths['asset'])
+            text = u'{} | {}'.format(text, active_paths[u'asset'])
         if active_paths['location']:
-            text = '{} | {}'.format(text, active_paths['location'])
+            text = u'{} | {}'.format(text, active_paths[u'location'])
         self.label.setText(text.upper())
 
 
@@ -476,7 +476,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(ToggleArchivedButton(parent=self))
         self.layout().addWidget(ToggleFavouriteButton(parent=self))
 
-        idx = local_settings.value('widget/current_index')
+        idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentMode(idx)
 
@@ -528,7 +528,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
         if idx == 0:  # Bookmarks
             pixmap = common.get_rsc_pixmap(
-                'bookmarks', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'bookmarks', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(False)
             locations.setHidden(True)
             filterbutton.setHidden(False)
@@ -537,7 +537,7 @@ class ListControlWidget(QtWidgets.QWidget):
             togglefavourite.setHidden(False)
         elif idx == 1:  # Assets
             pixmap = common.get_rsc_pixmap(
-                'assets', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'assets', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(True)
             togglearchived.setHidden(True)
             locations.setHidden(True)
@@ -547,7 +547,7 @@ class ListControlWidget(QtWidgets.QWidget):
             togglefavourite.setHidden(False)
         elif idx == 2:  # Files
             pixmap = common.get_rsc_pixmap(
-                'files', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'files', common.SECONDARY_TEXT, common.ROW_BUTTONS_HEIGHT / 2)
             addbookmark.setHidden(True)
             locations.setHidden(False)
             filterbutton.setHidden(False)
@@ -592,7 +592,7 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.save()
 
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(u'Roboto Black')
         font.setPointSize(9.0)
         font.setBold(True)
         painter.setFont(font)
@@ -613,9 +613,9 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         if index.row() == 1:
-            text = 'Assets (bookmark not activated)' if disabled else text
+            text = u'Assets (bookmark not activated)' if disabled else text
         elif index.row() == 2:
-            text = 'Files (asset not activated)' if disabled else text
+            text = u'Files (asset not activated)' if disabled else text
 
         painter.drawText(
             rect,
@@ -673,11 +673,11 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
             color = common.TEXT_DISABLED
 
         if index.row() == 0:
-            pixmap = common.get_rsc_pixmap('bookmark', color, rect.height())
+            pixmap = common.get_rsc_pixmap(u'bookmark', color, rect.height())
         if index.row() == 1:
-            pixmap = common.get_rsc_pixmap('package', color, rect.height())
+            pixmap = common.get_rsc_pixmap(u'package', color, rect.height())
         if index.row() == 2:
-            pixmap = common.get_rsc_pixmap('file', color, rect.height())
+            pixmap = common.get_rsc_pixmap(u'file', color, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -699,27 +699,27 @@ class ChangeListWidget(QtWidgets.QComboBox):
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum
         )
-        self.addItem('Bookmarks')
-        self.addItem('Assets')
-        self.addItem('Files')
+        self.addItem(u'Bookmarks')
+        self.addItem(u'Assets')
+        self.addItem(u'Files')
 
-        idx = local_settings.value('widget/current_index')
+        idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
         self.apply_flags()
 
     def apply_flags(self):
         """Sets the item flags based on the set active paths."""
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        bookmark = (active_paths['server'],
-                    active_paths['job'], active_paths['root'])
+        bookmark = (active_paths[u'server'],
+                    active_paths[u'job'], active_paths[u'root'])
         for n in xrange(self.model().rowCount()):
             item = self.model().item(n)
             if n == 1 and not all(bookmark):
                 item.setFlags(QtCore.Qt.NoItemFlags)
                 continue
-            if n == 2 and not active_paths['asset']:
+            if n == 2 and not active_paths[u'asset']:
                 item.setFlags(QtCore.Qt.NoItemFlags)
                 continue
             item.setFlags(flags)
@@ -761,13 +761,13 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-        self.setObjectName('BrowserWidget')
+        self.setObjectName(u'BrowserWidget')
         self.setWindowFlags(
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint
         )
 
-        pixmap = common.get_rsc_pixmap('custom', None, 64)
+        pixmap = common.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self._contextMenu = None
 
@@ -778,25 +778,25 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget = None
 
         # Applying the initial config settings.
-        active_paths = path_monitor.get_active_paths()
+        active_paths = Active.get_active_paths()
         self.bookmarkswidget = BookmarksWidget()
         self.assetswidget = AssetWidget((
-            active_paths['server'],
-            active_paths['job'],
-            active_paths['root']
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root']
         ))
         self.fileswidget = FilesWidget((
-            active_paths['server'],
-            active_paths['job'],
-            active_paths['root'],
-            active_paths['asset'])
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root'],
+            active_paths[u'asset'])
         )
 
         # Create layout
         self._createUI()
         self._connectSignals()
 
-        idx = local_settings.value('widget/current_index')
+        idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.activate_widget(idx)
 
@@ -840,6 +840,8 @@ class BrowserWidget(QtWidgets.QWidget):
         # Bookmark
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().set_bookmark)
+        active_monitor.activeBookmarkChanged.connect(
+            self.assetswidget.model().sourceModel().set_bookmark)
 
         combobox = self.listcontrolwidget.findChild(ChangeListWidget)
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
@@ -847,34 +849,34 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Show bookmarks shortcut
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence('Alt+1'), self)
+            QtGui.QKeySequence(u'Alt+1'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence('Alt+2'), self)
+            QtGui.QKeySequence(u'Alt+2'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(1))
         # Show files shortcut
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence('Alt+3'), self)
+            QtGui.QKeySequence(u'Alt+3'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(2))
         # Search
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence('Alf+f'), self)
+            QtGui.QKeySequence(u'Alf+f'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(filterbutton.clicked)
         # Search
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence('Alt+l'), self)
+            QtGui.QKeySequence(u'Alt+l'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetShortcut)
         shortcut.activated.connect(locationsbutton.clicked)
@@ -887,18 +889,32 @@ class BrowserWidget(QtWidgets.QWidget):
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.headerwidget.itemActivated)
 
-        # Asset
-        setCurrentMode = functools.partial(
-            self.listcontrolwidget.setCurrentMode, 2)
+        active_monitor.activeBookmarkChanged.connect(self.bookmarkswidget.refresh)
+        active_monitor.activeBookmarkChanged.connect(combobox.apply_flags)
+        active_monitor.activeBookmarkChanged.connect(self.headerwidget.itemActivated)
 
+        # Asset
+        # A new asset has been activated and all the data has to be re-initialized
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
+        # First, clear the data
+        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(self.fileswidget.model().sourceModel().modelDataResetRequested.emit)
+        # Re-populates the data for the current location
         self.assetswidget.model().sourceModel().modelDataResetRequested.connect(self.fileswidget.refresh)
 
-        self.assetswidget.model().sourceModel().activeAssetChanged.connect(setCurrentMode)
+        # Shows the FilesWidget
+        self.assetswidget.model().sourceModel().activeAssetChanged.connect(functools.partial(
+            self.listcontrolwidget.setCurrentMode, 2))
+        # Updates the controls above the list
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(combobox.apply_flags)
+        # Updates the display of the active path (bar is hidden in the context widgets)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.headerwidget.itemActivated)
+
+        active_monitor.activeAssetChanged.connect(self.assetswidget.refresh)
+        active_monitor.activeAssetChanged.connect(self.fileswidget.model().sourceModel().set_asset)
+        active_monitor.activeAssetChanged.connect(self.fileswidget.model().sourceModel().__resetdata__)
+        active_monitor.activeAssetChanged.connect(self.fileswidget.refresh)
 
         # Statusbar
         self.bookmarkswidget.entered.connect(self.entered)
@@ -934,12 +950,12 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def hideEvent(self, event):
         cls = self.__class__.__name__
-        local_settings.setValue('widget/{}/width'.format(cls), self.width())
-        local_settings.setValue('widget/{}/height'.format(cls), self.height())
+        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
+        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
 
         pos = self.mapToGlobal(self.rect().topLeft())
-        local_settings.setValue('widget/{}/x'.format(cls), pos.x())
-        local_settings.setValue('widget/{}/y'.format(cls), pos.y())
+        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
+        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
 
         super(BrowserWidget, self).hideEvent(event)
 
@@ -947,10 +963,10 @@ class BrowserWidget(QtWidgets.QWidget):
         super(BrowserWidget, self).showEvent(event)
         cls = self.__class__.__name__
 
-        width = local_settings.value('widget/{}/width'.format(cls))
-        height = local_settings.value('widget/{}/height'.format(cls))
-        x = local_settings.value('widget/{}/x'.format(cls))
-        y = local_settings.value('widget/{}/y'.format(cls))
+        width = local_settings.value(u'widget/{}/width'.format(cls))
+        height = local_settings.value(u'widget/{}/height'.format(cls))
+        x = local_settings.value(u'widget/{}/x'.format(cls))
+        y = local_settings.value(u'widget/{}/y'.format(cls))
 
         if not all((width, height, x, y)): # skip if not saved yet
             return

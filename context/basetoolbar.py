@@ -8,7 +8,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.baselistwidget import BaseContextMenu
 from browser.editors import ClickableLabel
-from browser.settings import path_monitor
+from browser.settings import Active
 import browser.common as common
 
 
@@ -24,39 +24,39 @@ class ToolbarContextMenuWidget(BaseContextMenu):
     def add_show_menu(self):
         widget = self.parent().findChild(ToolbarButton)
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['show'] = {
-            'icon': common.get_rsc_pixmap('custom', None, common.INLINE_ICON_SIZE),
-            'text': 'Show browser...',
-            'action': widget.clicked.emit
+        menu_set[u'separator'] = {}
+        menu_set[u'show'] = {
+            u'icon': common.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'text': u'Show browser...',
+            u'action': widget.clicked.emit
         }
         self.create_menu(menu_set)
 
     def add_toolbar_menu(self):
-        active_paths = path_monitor.get_active_paths()
-        bookmark = (active_paths['server'], active_paths['job'], active_paths['root'])
-        asset = bookmark + (active_paths['asset'],)
-        file_ = asset + (active_paths['location'],)
+        active_paths = Active.get_active_paths()
+        bookmark = (active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])
+        asset = bookmark + (active_paths[u'asset'],)
+        file_ = asset + (active_paths[u'location'],)
         menu_set = collections.OrderedDict()
 
-        menu_set['separator'] = {}
-        menu_set['bookmark'] = {
-            'icon': common.get_rsc_pixmap('bookmarks', common.TEXT, common.INLINE_ICON_SIZE),
-            'disabled': not all(bookmark),
-            'text': 'Show active bookmark in the file manager...',
-            'action': functools.partial(common.reveal, '/'.join(bookmark))
+        menu_set[u'separator'] = {}
+        menu_set[u'bookmark'] = {
+            u'icon': common.get_rsc_pixmap('bookmarks', common.TEXT, common.INLINE_ICON_SIZE),
+            u'disabled': not all(bookmark),
+            u'text': u'Show active bookmark in the file manager...',
+            u'action': functools.partial(common.reveal, u'/'.join(bookmark))
         }
-        menu_set['asset'] = {
-            'icon': common.get_rsc_pixmap('assets', common.TEXT, common.INLINE_ICON_SIZE),
-            'disabled': not all(asset),
-            'text': 'Show active asset in the file manager...',
-            'action': functools.partial(common.reveal, '/'.join(asset))
+        menu_set[u'asset'] = {
+            u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+            u'disabled': not all(asset),
+            u'text': u'Show active asset in the file manager...',
+            u'action': functools.partial(common.reveal, '/'.join(asset))
         }
-        menu_set['location'] = {
-            'icon': common.get_rsc_pixmap('location', common.TEXT, common.INLINE_ICON_SIZE),
-            'disabled': not all(file_),
-            'text': 'Show active location in the file manager...',
-            'action': functools.partial(common.reveal, '/'.join(file_))
+        menu_set[u'location'] = {
+            u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+            u'disabled': not all(file_),
+            u'text': u'Show active location in the file manager...',
+            u'action': functools.partial(common.reveal, '/'.join(file_))
         }
 
         self.create_menu(menu_set)
@@ -71,7 +71,7 @@ class ToolbarButton(ClickableLabel):
 
     def setState(self, state):
         opacity = 1.0 if state else 1.0
-        pixmap = common.get_rsc_pixmap('custom', None, common.ROW_BUTTONS_HEIGHT, opacity=opacity)
+        pixmap = common.get_rsc_pixmap(u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=opacity)
         self.setPixmap(pixmap)
 
 

@@ -57,24 +57,24 @@ class BaseContextMenu(QtWidgets.QMenu):
             parent (QMenu):
 
         Implemented keys:
-            action_set[k]['action'] (bool): The action to execute when the item is clicked.
-            action_set[k]['text'] (str): The action's text
-            action_set[k]['data'] (object): User data stored in the action
-            action_set[k]['disabled'] (bool): Sets wheter the item is disabled.
-            action_set[k]['tool_tip'] (str):The description of the action.
-            action_set[k]['status_tip'] (str): The description of the action.
-            action_set[k]['icon'] (QPixmap): The action's icon.
-            action_set[k]['shortcut'] (QKeySequence): The action's icon.
-            action_set[k]['checkable'] (bool): Sets wheter the item is checkable.
-            action_set[k]['checked'] (bool): The state of the checkbox.
-            action_set[k]['visible'] (bool): The visibility of the action.
+            action_set[k][u'action'] (bool): The action to execute when the item is clicked.
+            action_set[k][u'text'] (str): The action's text
+            action_set[k][u'data'] (object): User data stored in the action
+            action_set[k][u'disabled'] (bool): Sets wheter the item is disabled.
+            action_set[k][u'tool_tip'] (str):The description of the action.
+            action_set[k][u'status_tip'] (str): The description of the action.
+            action_set[k][u'icon'] (QPixmap): The action's icon.
+            action_set[k][u'shortcut'] (QKeySequence): The action's icon.
+            action_set[k][u'checkable'] (bool): Sets wheter the item is checkable.
+            action_set[k][u'checked'] (bool): The state of the checkbox.
+            action_set[k][u'visible'] (bool): The visibility of the action.
 
         """
         if not parent:
             parent = self
 
         for k in menu_set:
-            if ':' in k:  # Skipping `speudo` keys
+            if u':' in k:  # Skipping `speudo` keys
                 continue
 
             # Recursive menu creation
@@ -85,48 +85,48 @@ class BaseContextMenu(QtWidgets.QMenu):
                 # width = (width * 0.5) if width > 400 else width
                 # parent.setFixedWidth(width)
 
-                if '{}:icon'.format(k) in menu_set:
-                    icon = QtGui.QIcon(menu_set['{}:icon'.format(k)])
+                if u'{}:icon'.format(k) in menu_set:
+                    icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
                     parent.setIcon(icon)
                 self.addMenu(parent)
                 self.create_menu(menu_set[k], parent=parent)
                 continue
 
-            if 'separator' in k:
+            if u'separator' in k:
                 parent.addSeparator()
                 continue
 
             action = parent.addAction(k)
 
-            if 'data' in menu_set[k]:  # Skipping disabled items
-                action.setData(menu_set[k]['data'])
-            if 'disabled' in menu_set[k]:  # Skipping disabled items
-                action.setDisabled(menu_set[k]['disabled'])
-            if 'action' in menu_set[k]:
-                if isinstance(menu_set[k]['action'], collections.Iterable):
-                    for func in menu_set[k]['action']:
+            if u'data' in menu_set[k]:  # Skipping disabled items
+                action.setData(menu_set[k][u'data'])
+            if u'disabled' in menu_set[k]:  # Skipping disabled items
+                action.setDisabled(menu_set[k][u'disabled'])
+            if u'action' in menu_set[k]:
+                if isinstance(menu_set[k][u'action'], collections.Iterable):
+                    for func in menu_set[k][u'action']:
                         action.triggered.connect(func)
                 else:
-                    action.triggered.connect(menu_set[k]['action'])
-            if 'text' in menu_set[k]:
-                action.setText(menu_set[k]['text'])
+                    action.triggered.connect(menu_set[k][u'action'])
+            if u'text' in menu_set[k]:
+                action.setText(menu_set[k][u'text'])
             else:
                 action.setText(k)
-            if 'status_tip' in menu_set[k]:
-                action.setStatusTip(menu_set[k]['status_tip'])
-            if 'tool_tip' in menu_set[k]:
-                action.setToolTip(menu_set[k]['tool_tip'])
-            if 'checkable' in menu_set[k]:
-                action.setCheckable(menu_set[k]['checkable'])
-            if 'checked' in menu_set[k]:
-                action.setChecked(menu_set[k]['checked'])
-            if 'icon' in menu_set[k]:
+            if u'status_tip' in menu_set[k]:
+                action.setStatusTip(menu_set[k][u'status_tip'])
+            if u'tool_tip' in menu_set[k]:
+                action.setToolTip(menu_set[k][u'tool_tip'])
+            if u'checkable' in menu_set[k]:
+                action.setCheckable(menu_set[k][u'checkable'])
+            if u'checked' in menu_set[k]:
+                action.setChecked(menu_set[k][u'checked'])
+            if u'icon' in menu_set[k]:
                 action.setIconVisibleInMenu(True)
-                action.setIcon(menu_set[k]['icon'])
-            if 'shortcut' in menu_set[k]:
-                action.setShortcut(menu_set[k]['shortcut'])
-            if 'visible' in menu_set[k]:
-                action.setVisible(menu_set[k]['visible'])
+                action.setIcon(menu_set[k][u'icon'])
+            if u'shortcut' in menu_set[k]:
+                action.setShortcut(menu_set[k][u'shortcut'])
+            if u'visible' in menu_set[k]:
+                action.setVisible(menu_set[k][u'visible'])
             else:
                 action.setVisible(True)
 
@@ -146,14 +146,14 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
-        sort_menu_icon = common.get_rsc_pixmap('sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        sort_menu_icon = common.get_rsc_pixmap(u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_up_icon = common.get_rsc_pixmap(
-            'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_down_icon = common.get_rsc_pixmap(
-            'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        item_off_icon = common.get_rsc_pixmap('item_off', common.TEXT, common.INLINE_ICON_SIZE)
+            u'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        item_off_icon = common.get_rsc_pixmap(u'item_off', common.TEXT, common.INLINE_ICON_SIZE)
         item_on_icon = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         sort_by_name = self.parent().model().sortkey == common.SortByName
         sort_modified = self.parent().model().sortkey == common.SortByLastModified
@@ -161,118 +161,118 @@ class BaseContextMenu(QtWidgets.QMenu):
         sort_size = self.parent().model().sortkey == common.SortBySize
 
         menu_set = collections.OrderedDict()
-        menu_set['Sort'] = collections.OrderedDict()
-        menu_set['Sort:icon'] = sort_menu_icon
-        menu_set['Sort']['Order'] = {
-            'text': 'Ascending' if self.parent().model().sortorder else 'Descending',
-            'ckeckable': True,
-            'checked': True if self.parent().model().sortorder else False,
-            'icon': arrow_down_icon if self.parent().model().sortorder else arrow_up_icon,
-            'action': functools.partial(self.parent().model().set_sortorder,
+        menu_set[u'Sort'] = collections.OrderedDict()
+        menu_set[u'Sort:icon'] = sort_menu_icon
+        menu_set[u'Sort'][u'Order'] = {
+            u'text': u'Ascending' if self.parent().model().sortorder else u'Descending',
+            u'ckeckable': True,
+            u'checked': True if self.parent().model().sortorder else False,
+            u'icon': arrow_down_icon if self.parent().model().sortorder else arrow_up_icon,
+            u'action': functools.partial(self.parent().model().set_sortorder,
                                         not self.parent().model().sortorder)
         }
 
-        menu_set['Sort']['separator'] = {}
+        menu_set[u'Sort'][u'separator'] = {}
 
-        menu_set['Sort']['Name'] = {
-            'icon': item_on_icon if sort_by_name else item_off_icon,
-            'ckeckable': True,
-            'checked': True if sort_by_name else False,
-            'action': functools.partial(
+        menu_set[u'Sort'][u'Name'] = {
+            u'icon': item_on_icon if sort_by_name else item_off_icon,
+            u'ckeckable': True,
+            u'checked': True if sort_by_name else False,
+            u'action': functools.partial(
                 self.parent().model().set_sortkey, common.SortByName)
         }
-        menu_set['Sort']['Date modified'] = {
-            'icon': item_on_icon if sort_modified else item_off_icon,
-            'ckeckable': True,
-            'checked': True if sort_modified else False,
-            'action': functools.partial(self.parent().model().set_sortkey,
+        menu_set[u'Sort'][u'Date modified'] = {
+            u'icon': item_on_icon if sort_modified else item_off_icon,
+            u'ckeckable': True,
+            u'checked': True if sort_modified else False,
+            u'action': functools.partial(self.parent().model().set_sortkey,
                                         common.SortByLastModified)
         }
-        menu_set['Sort']['Date created'] = {
-            'icon': item_on_icon if sort_created else item_off_icon,
-            'ckeckable': True,
-            'checked': True if sort_created else False,
-            'action': functools.partial(self.parent().model().set_sortkey,
+        menu_set[u'Sort'][u'Date created'] = {
+            u'icon': item_on_icon if sort_created else item_off_icon,
+            u'ckeckable': True,
+            u'checked': True if sort_created else False,
+            u'action': functools.partial(self.parent().model().set_sortkey,
                                         common.SortByLastCreated)
         }
-        menu_set['Sort']['Size'] = {
-            'icon': item_on_icon if sort_size else item_off_icon,
-            'ckeckable': True,
-            'checked': True if sort_size else False,
-            'action': functools.partial(self.parent().model().set_sortkey,
+        menu_set[u'Sort'][u'Size'] = {
+            u'icon': item_on_icon if sort_size else item_off_icon,
+            u'ckeckable': True,
+            u'checked': True if sort_size else False,
+            u'action': functools.partial(self.parent().model().set_sortkey,
                                         common.SortBySize)
         }
-        menu_set['separator'] = {}
+        menu_set[u'separator'] = {}
         self.create_menu(menu_set)
 
     def add_reveal_folder_menu(self):
         """Creates a menu containing"""
         folder_icon = common.get_rsc_pixmap(
-            'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        folder_icon2 = common.get_rsc_pixmap('folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        folder_icon2 = common.get_rsc_pixmap(u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
-        key = 'Show in File Manager'
-        menu_set['separator>'] = {}
+        key = u'Show in File Manager'
+        menu_set[u'separator>'] = {}
         menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = folder_icon
+        menu_set[u'{}:icon'.format(key)] = folder_icon
 
         if len(self.index.data(common.ParentRole)) >= 4:
             file_info = QtCore.QFileInfo(
                 self.index.data(QtCore.Qt.StatusTipRole))
-            menu_set[key]['file'] = {
-                'text': 'Show file',
-                'icon': folder_icon2,
-                'action': functools.partial(
+            menu_set[key][u'file'] = {
+                u'text': 'Show file',
+                u'icon': folder_icon2,
+                u'action': functools.partial(
                     common.reveal,
-                    '/'.join(self.index.data(common.ParentRole)))
+                    u'/'.join(self.index.data(common.ParentRole)))
             }
-            path = '{}/{}/{}/{}'.format(
+            path = u'{}/{}/{}/{}'.format(
                 self.index.data(common.ParentRole)[0],
                 self.index.data(common.ParentRole)[1],
                 self.index.data(common.ParentRole)[2],
                 self.index.data(common.ParentRole)[3],
             )
-            menu_set[key]['asset'] = {
-                'text': 'Show asset',
-                'icon': folder_icon2,
-                'action': functools.partial(
+            menu_set[key][u'asset'] = {
+                u'text': 'Show asset',
+                u'icon': folder_icon2,
+                u'action': functools.partial(
                     common.reveal, path)
             }
         elif len(self.index.data(common.ParentRole)) == 3:
-            menu_set[key]['asset'] = {
-                'text': 'Show asset',
-                'icon': folder_icon2,
-                'action': functools.partial(common.reveal,
+            menu_set[key][u'asset'] = {
+                u'text': 'Show asset',
+                u'icon': folder_icon2,
+                u'action': functools.partial(common.reveal,
                                             self.index.data(QtCore.Qt.StatusTipRole))
             }
-        menu_set[key]['root'] = {
-            'text': 'Show bookmark',
-            'icon': folder_icon2,
-            'action': functools.partial(
+        menu_set[key][u'root'] = {
+            u'text': 'Show bookmark',
+            u'icon': folder_icon2,
+            u'action': functools.partial(
                 common.reveal,
-                QtCore.QFileInfo('{}/{}/{}'.format(
+                QtCore.QFileInfo(u'{}/{}/{}'.format(
                     self.index.data(common.ParentRole)[0],
                     self.index.data(common.ParentRole)[1],
                     self.index.data(common.ParentRole)[2]
                 )).filePath()),
         }
-        menu_set[key]['separator.'] = {}
-        menu_set[key]['job'] = {
-            'text': 'Show job folder',
-            'icon': folder_icon2,
-            'action': functools.partial(
+        menu_set[key][u'separator.'] = {}
+        menu_set[key][u'job'] = {
+            u'text': 'Show job folder',
+            u'icon': folder_icon2,
+            u'action': functools.partial(
                 common.reveal,
-                QtCore.QFileInfo('{}/{}'.format(
+                QtCore.QFileInfo(u'{}/{}'.format(
                     self.index.data(common.ParentRole)[0],
                     self.index.data(common.ParentRole)[1]
                 )).filePath())
         }
 
-        menu_set[key]['separator'] = {}
+        menu_set[key][u'separator'] = {}
 
-        dir_ = QtCore.QDir('/'.join(self.index.data(common.ParentRole)))
+        dir_ = QtCore.QDir(u'/'.join(self.index.data(common.ParentRole)))
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
                        QtCore.QDir.Dirs |
                        QtCore.QDir.Readable)
@@ -291,15 +291,15 @@ class BaseContextMenu(QtWidgets.QMenu):
                 reversed(sorted(items, key=common.sort_keys[self.parent().model().sortkey])))
 
         for file_info in items:
-            if file_info.fileName()[0] == '.':
+            if file_info.fileName()[0] == u'.':
                 continue
             if not file_info.isDir():
                 continue
 
             menu_set[key][file_info.fileName()] = {
-                'text': file_info.fileName().upper(),
-                'icon': folder_icon,
-                'action': functools.partial(
+                u'text': file_info.fileName().upper(),
+                u'icon': folder_icon,
+                u'action': functools.partial(
                     common.reveal,
                     file_info.filePath())
             }
@@ -307,78 +307,78 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_copy_menu(self):
         """Menu containing the subfolders of the selected item."""
-        copy_icon = common.get_rsc_pixmap('copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        copy_icon2 = common.get_rsc_pixmap('copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        copy_icon = common.get_rsc_pixmap(u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        copy_icon2 = common.get_rsc_pixmap(u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
-        key = 'Copy path'
+        key = u'Copy path'
         menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = copy_icon
+        menu_set[u'{}:icon'.format(key)] = copy_icon
 
-        menu_set[key]['windows1'] = {
-            'text': 'Windows  -  \\\\back\\slashes',
-            'icon': copy_icon2,
-            'action': functools.partial(
+        menu_set[key][u'windows1'] = {
+            u'text': 'Windows  -  \\\\back\\slashes',
+            u'icon': copy_icon2,
+            u'action': functools.partial(
                 QtGui.QClipboard().setText,
                 QtCore.QDir.toNativeSeparators(path))
         }
-        menu_set[key]['windows2'] = {
-            'text': 'Windows  -  //forward/slashes',
-            'icon': copy_icon2,
-            'action': functools.partial(QtGui.QClipboard().setText, path)
+        menu_set[key][u'windows2'] = {
+            u'text': 'Windows  -  //forward/slashes',
+            u'icon': copy_icon2,
+            u'action': functools.partial(QtGui.QClipboard().setText, path)
         }
-        menu_set[key]['slack'] = {
-            'text': 'URL  -  file://Slack/friendly',
-            'icon': copy_icon2,
-            'action': functools.partial(QtGui.QClipboard().setText, url)
+        menu_set[key][u'slack'] = {
+            u'text': 'URL  -  file://Slack/friendly',
+            u'icon': copy_icon2,
+            u'action': functools.partial(QtGui.QClipboard().setText, url)
         }
-        menu_set[key]['macos'] = {
-            'text': 'SMB  -  smb://MacOS/path',
-            'icon': copy_icon2,
-            'action': functools.partial(
+        menu_set[key][u'macos'] = {
+            u'text': 'SMB  -  smb://MacOS/path',
+            u'icon': copy_icon2,
+            u'action': functools.partial(
                 QtGui.QClipboard().setText,
-                url.replace('file://', 'smb://'))
+                url.replace(u'file://', 'smb://'))
         }
         self.create_menu(menu_set)
 
     def add_mode_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = common.get_rsc_pixmap(
-            'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
         favourite_off_icon = common.get_rsc_pixmap(
-            'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         archived_on_icon = common.get_rsc_pixmap(
-            'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
         archived_off_icon = common.get_rsc_pixmap(
-            'archived', common.TEXT, common.INLINE_ICON_SIZE)
+            u'archived', common.TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & MarkedAsFavourite
         archived = self.index.flags() & MarkedAsArchived
         source_index = self.parent().model().mapToSource(self.index)
 
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        if self.__class__.__name__ == 'BookmarksWidgetContextMenu':
-            text = 'Remove bookmark'
+        menu_set[u'separator'] = {}
+        if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
+            text = u'Remove bookmark'
         else:
-            text = 'Enable' if archived else 'Disable'
-        menu_set['archived'] = {
-            'text': text,
-            'icon': archived_off_icon if archived else archived_on_icon,
-            'checkable': True,
-            'checked': archived,
-            'action': functools.partial(self.parent().toggle_archived, index=source_index, state=not archived)
+            text = u'Enable' if archived else 'Disable'
+        menu_set[u'archived'] = {
+            u'text': text,
+            u'icon': archived_off_icon if archived else archived_on_icon,
+            u'checkable': True,
+            u'checked': archived,
+            u'action': functools.partial(self.parent().toggle_archived, index=source_index, state=not archived)
         }
-        menu_set['favourite'] = {
-            'text': 'Remove from favourites' if favourite else 'Mark as favourite',
-            'icon': favourite_off_icon if favourite else favourite_on_icon,
-            'checkable': True,
-            'checked': favourite,
-            'action': functools.partial(self.parent().toggle_favourite, index=source_index, state=not favourite)
+        menu_set[u'favourite'] = {
+            u'text': 'Remove from favourites' if favourite else 'Mark as favourite',
+            u'icon': favourite_off_icon if favourite else favourite_on_icon,
+            u'checkable': True,
+            u'checked': favourite,
+            u'action': functools.partial(self.parent().toggle_favourite, index=source_index, state=not favourite)
         }
 
         self.create_menu(menu_set)
@@ -386,37 +386,37 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off = common.get_rsc_pixmap(
-            'item_off', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'item_off', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        favourite = self.parent().model().get_filtermode('favourite')
-        archived = self.parent().model().get_filtermode('archived')
+        favourite = self.parent().model().get_filtermode(u'favourite')
+        archived = self.parent().model().get_filtermode(u'archived')
 
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['toggle_favoruites'] = {
-            'text': 'Show favourites only',
-            'icon': item_on if favourite else item_off,
-            'checkable': True,
-            'checked': favourite,
-            'action':
+        menu_set[u'separator'] = {}
+        menu_set[u'toggle_favoruites'] = {
+            u'text': 'Show favourites only',
+            u'icon': item_on if favourite else item_off,
+            u'checkable': True,
+            u'checked': favourite,
+            u'action':
                 functools.partial(
                     self.parent().model().set_filtermode,
-                    'favourite',
+                    u'favourite',
                     not favourite
                 ),
         }
-        menu_set['toggle_archived'] = {
-            'text': 'Show archived items',
-            'icon': item_on if archived else item_off,
-            'checkable': True,
-            'checked': archived,
-            'disabled': favourite,
-            'action':
+        menu_set[u'toggle_archived'] = {
+            u'text': 'Show archived items',
+            u'icon': item_on if archived else item_off,
+            u'checkable': True,
+            u'checked': archived,
+            u'disabled': favourite,
+            u'action':
                 functools.partial(
                     self.parent().model().set_filtermode,
-                    'archived',
+                    u'archived',
                     not archived
                 ),
         }
@@ -425,13 +425,13 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_refresh_menu(self):
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['Refresh'] = {
-            'action': self.parent().refresh
+        menu_set[u'separator'] = {}
+        menu_set[u'Refresh'] = {
+            u'action': self.parent().refresh
         }
         if self.index:
-            menu_set['Activate'] = {
-                'action': self.parent().activate_current_index
+            menu_set[u'Activate'] = {
+                u'action': self.parent().activate_current_index
             }
 
         self.create_menu(menu_set)
@@ -439,60 +439,60 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_thumbnail_menu(self):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
-            'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-            'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
-            'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         revomove_thumbnail_pixmap = common.get_rsc_pixmap(
-            'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
         show_thumbnail = common.get_rsc_pixmap(
-            'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
-        key = 'Thumbnail'
-        menu_set['separator'] = {}
+        key = u'Thumbnail'
+        menu_set[u'separator'] = {}
         menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = capture_thumbnail_pixmap
+        menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
 
         settings = AssetSettings(self.index)
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            menu_set[key]['Show thumbnail'] = {
-                'icon': show_thumbnail,
-                'action': functools.partial(
+            menu_set[key][u'Show thumbnail'] = {
+                u'icon': show_thumbnail,
+                u'action': functools.partial(
                     editors.ThumbnailViewer,
                     self.index,
                     parent=self.parent()
                 )
             }
-            menu_set[key]['separator'] = {}
-        menu_set[key]['Capture new'] = {
-            'icon': capture_thumbnail_pixmap,
-            'action': self.parent().capture_thumbnail
+            menu_set[key][u'separator'] = {}
+        menu_set[key][u'Capture new'] = {
+            u'icon': capture_thumbnail_pixmap,
+            u'action': self.parent().capture_thumbnail
         }
-        menu_set[key]['Pick new'] = {
-            'icon': pick_thumbnail_pixmap,
-            'action': functools.partial(
+        menu_set[key][u'Pick new'] = {
+            u'icon': pick_thumbnail_pixmap,
+            u'action': functools.partial(
                 editors.ThumbnailEditor,
                 self.index
             )
         }
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            menu_set[key]['separator.'] = {}
-            menu_set[key]['Remove'] = {
-                'action': self.parent().remove_thumbnail,
-                'icon': revomove_thumbnail_pixmap
+            menu_set[key][u'separator.'] = {}
+            menu_set[key][u'Remove'] = {
+                u'action': self.parent().remove_thumbnail,
+                u'icon': revomove_thumbnail_pixmap
             }
 
         self.create_menu(menu_set)
 
     def add_add_bookmark_menu(self):
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
-        menu_set['Add bookmark'] = {
-            'text': 'Add bookmark',
-            'action': self.parent().show_add_bookmark_widget
+        menu_set[u'separator'] = {}
+        menu_set[u'Add bookmark'] = {
+            u'text': 'Add bookmark',
+            u'action': self.parent().show_add_bookmark_widget
         }
 
         self.create_menu(menu_set)
@@ -503,21 +503,21 @@ class BaseContextMenu(QtWidgets.QMenu):
             return  # Render sequences are always collapsed
 
         expand_pixmap = common.get_rsc_pixmap(
-            'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = common.get_rsc_pixmap(
-            'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         collapsed = self.parent().model().sourceModel().is_grouped()
 
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
+        menu_set[u'separator'] = {}
 
-        menu_set['collapse'] = {
-            'text': 'Show individual files' if collapsed else 'Group sequences together',
-            'icon': expand_pixmap if collapsed else collapse_pixmap,
-            'checkable': True,
-            'checked': collapsed,
-            'action': functools.partial(
+        menu_set[u'collapse'] = {
+            u'text': 'Show individual files' if collapsed else 'Group sequences together',
+            u'icon': expand_pixmap if collapsed else collapse_pixmap,
+            u'checkable': True,
+            u'checked': collapsed,
+            u'action': functools.partial(
                 self.parent().model().sourceModel().set_grouped, not collapsed)
         }
 
@@ -526,28 +526,28 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_location_toggles_menu(self):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap(
-            'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
-            'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off_pixmap = common.get_rsc_pixmap(
-            'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
-        menu_set['separator'] = {}
+        menu_set[u'separator'] = {}
 
-        key = 'Switch location'
+        key = u'Switch location'
 
         menu_set[key] = collections.OrderedDict()
-        menu_set['{}:icon'.format(key)] = locations_icon_pixmap
+        menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 
         for k in sorted(list(common.NameFilters)):
             checked = self.parent().model().sourceModel().get_location() == k
             menu_set[key][k] = {
-                'text': k.title(),
-                'checkable': True,
-                'checked': checked,
-                'icon': item_on_pixmap if checked else item_off_pixmap,
-                'action': functools.partial(self.parent().model().sourceModel().set_location, k)
+                u'text': k.title(),
+                u'checkable': True,
+                u'checked': checked,
+                u'icon': item_on_pixmap if checked else item_off_pixmap,
+                u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
             }
 
         self.create_menu(menu_set)
@@ -587,8 +587,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.model_data = {}
         self.__initdata__()
 
-        self.modelDataResetRequested.connect(self.__resetdata__)
-
     def __resetdata__(self):
         """Resets the internal data."""
         self.modelDataAboutToChange.emit()
@@ -603,7 +601,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.endResetModel()
 
     def __initdata__(self):
-        raise NotImplementedError('__initdata__ is abstract')
+        raise NotImplementedError(u'__initdata__ is abstract')
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -650,60 +648,60 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.filterstring = self.get_filterstring()  # Ascending/descending
 
         self.filter_mode = {
-            'favourite': self.get_filtermode('favourite'),
-            'archived': self.get_filtermode('archived')
+            u'favourite': self.get_filtermode(u'favourite'),
+            u'archived': self.get_filtermode(u'archived')
         }
 
     def get_filterstring(self):
         """Will only display items contaning this string."""
         cls = self.parentwidget.__class__.__name__
-        val = local_settings.value('widget/{}/filterstring'.format(cls))
-        return val if val else '/'
+        val = local_settings.value(u'widget/{}/filterstring'.format(cls))
+        return val if val else u'/'
 
     def set_filterstring(self, val):
         """Sets and saves the sort-key."""
         cls = self.parentwidget.__class__.__name__
-        val = val if val else '/'
+        val = val if val else u'/'
         self.filterstring = val
-        local_settings.setValue('widget/{}/filterstring'.format(cls), val)
+        local_settings.setValue(u'widget/{}/filterstring'.format(cls), val)
         self.invalidate()
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
         cls = self.parentwidget.__class__.__name__
-        val = local_settings.value('widget/{}/sortkey'.format(cls))
+        val = local_settings.value(u'widget/{}/sortkey'.format(cls))
         return int(val) if val else common.SortByName
 
     def set_sortkey(self, val):
         """Sets and saves the sort-key."""
         cls = self.parentwidget.__class__.__name__
         self.sortkey = val
-        local_settings.setValue('widget/{}/sortkey'.format(cls), val)
+        local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
 
         self.invalidate()
 
     def get_sortorder(self):
         cls = self.parentwidget.__class__.__name__
         val = local_settings.value(
-            'widget/{}/sortorder'.format(cls))
+            u'widget/{}/sortorder'.format(cls))
         return int(val) if val else False
 
     def set_sortorder(self, val):
         cls = self.parentwidget.__class__.__name__
         self.sortorder = val
-        local_settings.setValue('widget/{}/sortorder'.format(cls), val)
+        local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
         self.invalidate()
         self.sort()
 
     def get_filtermode(self, mode):
         cls = self.parentwidget.__class__.__name__
-        val = local_settings.value('widget/{}/mode:{}'.format(cls, mode))
+        val = local_settings.value(u'widget/{}/mode:{}'.format(cls, mode))
         return val if val else False
 
     def set_filtermode(self, mode, val):
         cls = self.parentwidget.__class__.__name__
         self.filter_mode[mode] = val
-        local_settings.setValue('widget/{}/mode:{}'.format(cls, mode), val)
+        local_settings.setValue(u'widget/{}/mode:{}'.format(cls, mode), val)
         self.invalidateFilter()
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
@@ -717,9 +715,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         if self.filterstring.lower() not in index.data(QtCore.Qt.StatusTipRole).lower():
             return False
-        if archived and not self.filter_mode['archived']:
+        if archived and not self.filter_mode[u'archived']:
             return False
-        if not favourite and self.filter_mode['favourite']:
+        if not favourite and self.filter_mode[u'favourite']:
             return False
         return True
 
@@ -787,7 +785,7 @@ class BaseListWidget(QtWidgets.QListView):
         app = QtCore.QCoreApplication.instance()
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
-        self.timed_search_string = ''
+        self.timed_search_string = u''
 
     def store_previous_path(self):
         """Saves the currently selected path."""
@@ -800,12 +798,12 @@ class BaseListWidget(QtWidgets.QListView):
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
         val = local_settings.value(
-            'widget/{}/filter'.format(self.__class__.__name__))
-        return val if val else '/'
+            u'widget/{}/filter'.format(self.__class__.__name__))
+        return val if val else u'/'
 
     def set_item_filter(self, val):
         cls = self.__class__.__name__
-        local_settings.setValue('widget/{}/filter'.format(cls), val)
+        local_settings.setValue(u'widget/{}/filter'.format(cls), val)
 
     def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -831,7 +829,7 @@ class BaseListWidget(QtWidgets.QListView):
         if archived:
             return
 
-        favourites = local_settings.value('favourites')
+        favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
         if file_info.filePath() in favourites:
@@ -851,7 +849,7 @@ class BaseListWidget(QtWidgets.QListView):
                     role=common.FlagsRole
                 )
 
-        local_settings.setValue('favourites', favourites)
+        local_settings.setValue(u'favourites', favourites)
 
     def toggle_archived(self, index=None, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -878,7 +876,7 @@ class BaseListWidget(QtWidgets.QListView):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         settings = AssetSettings(index)
 
-        favourites = local_settings.value('favourites')
+        favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
         if archived:
@@ -888,10 +886,10 @@ class BaseListWidget(QtWidgets.QListView):
                     index.flags() & ~MarkedAsArchived,
                     role=common.FlagsRole
                 )
-                settings.setValue('config/archived', False)
+                settings.setValue(u'config/archived', False)
         else:
             if state is None or state is True:  # adds flag
-                settings.setValue('config/archived', True)
+                settings.setValue(u'config/archived', True)
                 self.model().sourceModel().setData(
                     index,
                     index.flags() | MarkedAsArchived,
@@ -904,7 +902,7 @@ class BaseListWidget(QtWidgets.QListView):
                         role=common.FlagsRole
                     )
                     favourites.remove(file_info.filePath())
-                    local_settings.setValue('favourites', favourites)
+                    local_settings.setValue(u'favourites', favourites)
 
     def capture_thumbnail(self):
         """Captures a thumbnail for the current item using ScreenGrabber."""
@@ -1086,7 +1084,7 @@ class BaseListWidget(QtWidgets.QListView):
                 self.key_tab()
             else:  # keyboard search and select
                 if not self.timer.isActive():
-                    self.timed_search_string = ''
+                    self.timed_search_string = u''
                     self.timer.start()
 
                 self.timed_search_string += event.text()
@@ -1110,7 +1108,7 @@ class BaseListWidget(QtWidgets.QListView):
                             break
                     else:
                         match = re.search(
-                            '{}'.format(self.timed_search_string),
+                            u'{}'.format(self.timed_search_string),
                             index.data(QtCore.Qt.DisplayRole),
                             flags=re.IGNORECASE
                         )
@@ -1226,7 +1224,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.select_active_index()
 
         idx = local_settings.value(
-            'widget/{}/selected_row'.format(self.__class__.__name__),
+            u'widget/{}/selected_row'.format(self.__class__.__name__),
         )
         if not idx:
             idx = 0
@@ -1241,7 +1239,7 @@ class BaseListWidget(QtWidgets.QListView):
     def hideEvent(self, event):
         """We're saving the selection upon hiding the widget."""
         local_settings.setValue(
-            'widget/{}/selected_row'.format(self.__class__.__name__),
+            u'widget/{}/selected_row'.format(self.__class__.__name__),
             self.selectionModel().currentIndex().row()
         )
 
@@ -1273,7 +1271,7 @@ class BaseListWidget(QtWidgets.QListView):
                 self.viewOptions(), QtCore.QModelIndex())
             rect = QtCore.QRect(common.INDICATOR_WIDTH, 2, event.rect(
             ).width() - (common.INDICATOR_WIDTH * 2), sizehint.height() - 4)
-            favourite_mode = self.model().filter_mode['favourite']
+            favourite_mode = self.model().filter_mode[u'favourite']
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
             text_rect.setRight(rect.right() - common.MARGIN)
@@ -1293,7 +1291,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             painter.setPen(QtCore.Qt.NoPen)
             # painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
-            font = QtGui.QFont('Roboto Black')
+            font = QtGui.QFont(u'Roboto Black')
             font.setPointSize(8)
             painter.setFont(font)
 
@@ -1313,7 +1311,7 @@ class BaseListWidget(QtWidgets.QListView):
                     painter.drawText(
                         text_rect,
                         QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                        '  No items to show.'
+                        u'  No items to show.'
                     )
                     painter.setPen(QtCore.Qt.NoPen)
                 elif n == self.model().rowCount():  # filter mode
@@ -1322,7 +1320,7 @@ class BaseListWidget(QtWidgets.QListView):
                         painter.drawText(
                             text_rect,
                             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                            '(Showing favourites only)'
+                            u'(Showing favourites only)'
                         )
                         painter.setPen(QtCore.Qt.NoPen)
 
@@ -1348,7 +1346,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def inline_icons_count(self):
         """The numberof inline icons."""
-        raise NotImplementedError('method is abstract.')
+        raise NotImplementedError(u'method is abstract.')
 
     def _reset_multitoggle(self):
         self.multi_toggle_pos = None
