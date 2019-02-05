@@ -19,6 +19,9 @@ QWidget:window {{
 	border-color: rgba({SELECTION});
 }}
 
+
+
+
 BrowserWidget  {{
 	background-color: rgba({SEPARATOR});
 }}
@@ -203,7 +206,6 @@ QLineEdit:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	color: rgba({TEXT_DISABLED});
 }}
-
 
 
 QScrollBar {{
@@ -465,4 +467,11 @@ AddBookmarkWidget {{
 	outline: 0;
 	font-family: "{fontFamily}";
 	font-size: {fontSize}pt;
+}}
+
+
+
+ThumbnailButton {{
+	background-color: rgba(BACKGROUND);
+	color: rgba({TEXT});
 }}

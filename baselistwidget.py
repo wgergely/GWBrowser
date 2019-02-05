@@ -81,13 +81,26 @@ class BaseContextMenu(QtWidgets.QMenu):
             if isinstance(menu_set[k], collections.OrderedDict):
                 parent = QtWidgets.QMenu(k, parent=self)
 
-                # width = self.parent().viewport().geometry().width()
-                # width = (width * 0.5) if width > 400 else width
-                # parent.setFixedWidth(width)
-
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
                     parent.setIcon(icon)
+                if u'{}:text'.format(k) in menu_set:
+                    parent.setTitle(menu_set[u'{}:text'.format(k)])
+                if u'{}:action'.format(k) in menu_set:
+                    name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(k) in menu_set else k
+                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(k) in menu_set else QtGui.QPixmap()
+                    action = parent.addAction(name)
+                    action.setIconVisibleInMenu(True)
+                    action.setIcon(icon)
+
+                    if isinstance(menu_set[u'{}:action'.format(k)], collections.Iterable):
+                        for func in menu_set[u'{}:action'.format(k)]:
+                            action.triggered.connect(func)
+                    else:
+                        action.triggered.connect(menu_set[u'{}:action'.format(k)])
+                    parent.addAction(action)
+                    parent.addSeparator()
+
                 self.addMenu(parent)
                 self.create_menu(menu_set[k], parent=parent)
                 continue
