@@ -225,7 +225,7 @@ class SubfoldersMenu(BaseContextMenu):
                         active = False
 
                     k = '{}/{}'.format(modedir, '/'.join(_arr))
-                    pk = '{} / {}'.format(modedir, ' / '.join(_arr).upper())
+                    pk = '{}  /  {}'.format(modedir, '  /  '.join(_arr))
                     menu_set[k] = {
                         'icon': active_pixmap if active else pixmap,
                         'text': pk.upper()
