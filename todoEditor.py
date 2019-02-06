@@ -70,13 +70,13 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             if flags & common.HeadingHighlight:
                 char_format.setFontWeight(QtGui.QFont.Bold)
                 char_format.setFontPointSize(
-                    self.document().defaultFont().pointSizeF() + 8 + (6 - len(match)))
+                    self.document().defaultFont().pointSizeF() + 0 + (6 - len(match)))
                 char_format.setFontCapitalization(QtGui.QFont.AllUppercase)
                 if len(match) > 1:
                     char_format.setUnderlineStyle(
                         QtGui.QTextCharFormat.SingleUnderline)
                     char_format.setFontPointSize(
-                        self.document().defaultFont().pointSizeF() + 4)
+                        self.document().defaultFont().pointSizeF() + 1)
                 self.setFormat(0, len(text), char_format)
                 break
             elif flags & common.QuoteHighlight:
@@ -99,7 +99,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         return
 
 
-class TodoItemEditor(QtWidgets.QTextEdit):
+class TodoItemEditor(QtWidgets.QTextBrowser):
     """Custom QTextEdit widget for writing `Todo`'s.
 
     The editor automatically sets its size to accommodate the contents of the document.
@@ -115,6 +115,11 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         self.document().setDocumentMargin(common.MARGIN)
 
         self.highlighter = Highlighter(self.document())
+        # self.label.setTextFormat(QtCore.Qt.RichText)
+        self.setOpenExternalLinks(True)
+        self.setOpenLinks(True)
+        self.setReadOnly(False)
+        # self.setTextInteractionFlags(QtCore.Qt.TextEditable)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
         metrics.width(u'  ')
@@ -123,7 +128,6 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         font = QtGui.QFont(u'Roboto Medium')
         font.setPointSizeF(10.0)
         self.document().setDefaultFont(font)
-
         self.setUndoRedoEnabled(True)
 
         self.setSizePolicy(
@@ -132,12 +136,11 @@ class TodoItemEditor(QtWidgets.QTextEdit):
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAlignment(QtCore.Qt.AlignJustify)
-
         self.setMouseTracking(True)
-
         self.document().setPlainText(text)
 
         self.document().contentsChanged.connect(self._contentChanged)
+        self.anchorClicked.connect(self._anchorClicked)
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
@@ -181,28 +184,30 @@ class TodoItemEditor(QtWidgets.QTextEdit):
             height = 300.0
 
         return height
-    #
-    # def keyPressEvent(self, event):
-    #     """I'm defining custom key events here, the default behaviour is pretty poor."""
-    #     cursor = self.textCursor()
-    #     cursor.setVisualNavigation(True)
-    #
-    #     no_modifier = event.modifiers() == QtCore.Qt.NoModifier
-    #     control_modifier = event.modifiers() == QtCore.Qt.ControlModifier
-    #     shift_modifier = event.modifiers() == QtCore.Qt.ShiftModifier
-    #
-    #     if event.key() == QtCore.Qt.Key_Backtab:
-    #         cursor.movePosition(
-    #             QtGui.QTextCursor.Start,
-    #             QtGui.QTextCursor.MoveAnchor,
-    #             cursor.position() - 4,
-    #         )
-    #         return
-    #     super(TodoItemEditor, self).keyPressEvent(event)
+
+    def keyPressEvent(self, event):
+        """I'm defining custom key events here, the default behaviour is pretty poor."""
+        cursor = self.textCursor()
+        cursor.setVisualNavigation(True)
+
+        no_modifier = event.modifiers() == QtCore.Qt.NoModifier
+        control_modifier = event.modifiers() == QtCore.Qt.ControlModifier
+        shift_modifier = event.modifiers() == QtCore.Qt.ShiftModifier
+
+        if event.key() == QtCore.Qt.Key_Backtab:
+            cursor.movePosition(
+                QtGui.QTextCursor.Start,
+                QtGui.QTextCursor.MoveAnchor,
+                cursor.position() - 4,
+            )
+            return
+        super(TodoItemEditor, self).keyPressEvent(event)
 
     def sizeHint(self):
         return QtCore.QSize(200, self.heightForWidth(200))
 
+    def _anchorClicked(self):
+        print 'click'
 
 class AddButton(QtWidgets.QLabel):
     """Custom icon button to add a new todo item."""
@@ -958,7 +963,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
-    item = widget.add_item(text=u'Test text')
+    item = widget.add_item(text=u'http://doc.qt.io/qt-5/qtextdocument-members.html')
     # print item.editor.document().setPlainText('Hullo')
     widget.show()
     app.exec_()
