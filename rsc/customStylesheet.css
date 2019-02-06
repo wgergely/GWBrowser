@@ -1,7 +1,7 @@
 QWidget {{
 	background-color: rgba({BACKGROUND});
 	color: rgba({SECONDARY_TEXT});
-	border-width: 1px;
+	border-width: 0px;
 	border: none;
 	margin: 0px;
 	padding: 0px;
@@ -15,10 +15,9 @@ QWidget:disabled {{
 }}
 QWidget:window {{
 	border: solid;
-	border-width: 1px;
+	border-width: 0px;
 	border-color: rgba({SELECTION});
 }}
-
 
 
 
@@ -33,7 +32,7 @@ QStackedWidget {{
 }}
 QStackedWidget:focus {{
 	border: solid;
-	border-width: 1px;
+	border-width: 0px;
 	border-color: rgba({SELECTION});
 }}
 
@@ -267,6 +266,7 @@ QListWidget::item:selected {{
 QListView {{
 		outline: none;
 		border: none;
+		border-width: 0px;
 		margin: 0px;
 		padding: 0px;
 		background: rgba({SECONDARY_BACKGROUND});
@@ -307,6 +307,7 @@ QHeaderView::section {{
 	text-align: left;
 }}
 
+
 QTreeView {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	color: rgba({TEXT});
@@ -319,22 +320,18 @@ QTreeView {{
 	selection-background-color: transparent;
 }}
 QTreeView::item:hover {{
-	outline: 0;
   background: transparent;
   border: none;
 }}
 QTreeView::item:focus {{
-	outline: 0;
   background: transparent;
   border: none;
 }}
 QTreeView::item:selected {{
-	outline: 0;
 	background: transparent;
   border: none;
 }}
 QTreeView::SELECTION {{
-	outline: 0;
 	background-color: rgba({SELECTION});
 }}
 
@@ -358,7 +355,7 @@ QMenu {{
 		outline: none;
 }}
 QMenu::item {{
-	padding: 8px 8px 8px 30px;
+	padding: 8px 30px 8px 30px;
 	margin: 0;
 }}
 QMenu::icon {{
