@@ -14,13 +14,12 @@ Note:
 
 
 import re
-import collections
+import functools
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import browser.common as common
 
 from browser.delegate import BaseDelegate
-from browser.baselistwidget import BaseContextMenu
 from browser.delegate import paintmethod
 from browser.editors import ClickableLabel
 from browser.settings import Active
@@ -29,7 +28,20 @@ from browser.bookmarkswidget import BookmarksModel
 from browser.assetwidget import AssetModel
 from browser.browserwidget import HeaderWidget, CloseButton, MinimizeButton
 
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from browser.settings import MarkedAsActive, MarkedAsArchived
+
+
+class ThumbnailButton(ClickableLabel):
+    """Button used to select the thumbnail for this item."""
+
+    def __init__(self, parent=None):
+        super(ThumbnailButton, self).__init__(parent=parent)
+        self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT + (common.INDICATOR_WIDTH * 2),
+                                       common.ROW_HEIGHT + (common.INDICATOR_WIDTH * 2)))
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        pixmap = common.get_rsc_pixmap(
+            u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
+        self.setPixmap(pixmap)
 
 
 class VersionIndicator(QtWidgets.QWidget):
@@ -40,6 +52,7 @@ class VersionIndicator(QtWidgets.QWidget):
 
     def get_current_version(self):
         """Retrun the current file's version."""
+        # Starts a new sequence when there's no current file given.
         if not self.window().currentfile:
             return u'001'
 
@@ -61,220 +74,267 @@ class VersionIndicator(QtWidgets.QWidget):
         painter.end()
 
 
-class ThumbnailButton(ClickableLabel):
-    """Button used to select the thumbnail for this item."""
-
+class BaseCombobox(QtWidgets.QComboBox):
     def __init__(self, parent=None):
-        super(ThumbnailButton, self).__init__(parent=parent)
-        self.setFixedSize(QtCore.QSize(common.ROW_HEIGHT + (common.INDICATOR_WIDTH * 2),
-                                       common.ROW_HEIGHT + (common.INDICATOR_WIDTH * 2)))
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = common.get_rsc_pixmap(
-            u'placeholder', common.TEXT, common.ROW_HEIGHT)
-        self.setPixmap(pixmap)
-
-
-class ParentButton(ClickableLabel):
-    """Button responsible for selecting the subfolder the new file should be saved to."""
-
-    # Signal
-    parentFolderChanged = QtCore.Signal(basestring)
-
-    def __init__(self, parent=None):
-        super(ParentButton, self).__init__(parent=parent)
-        self.selected_path = None
-
-        self._createUI()
-        self.clicked.connect(self.showPopup)
-
-    def _createUI(self):
-        self.setStyleSheet("""
-            QLabel {{
-                background-color: rgba({});}}
-        """.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND_SELECTED.getRgb())))
-
-        self.setFixedSize(QtCore.QSize(
-            common.ROW_HEIGHT / 2.0, common.ROW_HEIGHT / 2.0))
-        pixmap = common.get_rsc_pixmap(
-            u'folder', common.TEXT, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
-    def _get_subfolders(self, path):
-        """The distinct subfolder loaded into a dictionary."""
-        # Getting all the subfolders from the current location
-        dir_ = QtCore.QDir(path)
-        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
-                       QtCore.QDir.Dirs |
-                       QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(
-            dir_, flags=QtCore.QDirIterator.Subdirectories)
-
-        def _get(ks, d):
-            for k in ks:
-                if k not in d:
-                    d[k] = {}
-                ks.pop(0)
-                d = d[k]
-                _get(ks, d)
-
-        d = {}
-        while it.hasNext():
-            filepath = it.next()
-            rootpath = filepath.replace(path, u'')
-            folders = rootpath.strip(u'/').split(u'/')
-            _get(folders, d)
-
-        return d
-
-    def itemSelected(self, path):
-        """Slot connected to the popup menu, saves the path selection."""
-        print path
-        self.selected_path = path
+        super(BaseCombobox, self).__init__(parent=parent)
+        self.setFixedHeight(common.ROW_HEIGHT / 2.0)
+        self.setFixedWidth(100)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
+        )
 
     def showPopup(self):
-        """Collects the available parent folders."""
-        parent = self.parent().parent().parent().parent()
+        """Moves the popup to a custom position and sets the height."""
+        self.view().parent().setFrameShape(QtWidgets.QFrame.NoFrame)
+        parent = self.window()
+        right = parent.rect().topRight()
+        right = parent.mapToGlobal(right)
+        left = parent.rect().topLeft()
+        left = parent.mapToGlobal(left)
+        bottom = parent.rect().bottomLeft()
+        bottom = parent.mapToGlobal(bottom)
 
-        # Making sure bookmark and asset is set.
-        bookmarkswidget = parent.findChild(BookmarksWidget)
-        if not bookmarkswidget.active_index().isValid():
+        self.view().setFixedWidth(right.x() - left.x() - common.MARGIN)
+        self.view().window().move(left.x() + (common.MARGIN / 2.0),
+                                  bottom.y() - (common.MARGIN / 2.0) - 4)
+
+        height = 0
+        rows = self.model().rowCount(parent=self.rootModelIndex())
+        sizehint = self.itemDelegate().sizeHint(None, QtCore.QModelIndex()).height()
+
+        if not rows:
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setText(
+                u'No bookmarks or assets to work with...yet!')
+            mbox.setInformativeText(u'You have to add at least one valid Bookmark before using this saver. See the Browser\'s bookmark tab for more info.')
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            mbox.setWindowTitle('Oops')
+            return mbox.exec_()
+
+        for n in xrange(rows):
+            height += sizehint
+            if isinstance(self.view(), QtWidgets.QTreeView):
+                height = sizehint * 8
+                break
+            if n > 8:
+                break
+
+        self.view().setFixedHeight(height)
+        self.view().window().setFixedHeight(height)
+
+        self.view().window().show()
+
+
+class FoldersIconProvider(QtWidgets.QFileIconProvider):
+    def __init__(self, parent=None):
+        super(FoldersIconProvider, self).__init__(parent=parent)
+        self.FolderIcon = common.get_rsc_pixmap(
+            'folder', common.TEXT, common.ROW_BUTTONS_HEIGHT)
+
+    def icon(self, type):
+        return QtGui.QIcon(self.FolderIcon)
+
+
+class FoldersModelDelegate(BaseDelegate):
+    def __init__(self, parent=None):
+        super(FoldersModelDelegate, self).__init__(parent=parent)
+
+    def paint(self, painter, option, index):
+        """Defines how the BookmarksWidgetItems should be painted."""
+        args = self._get_paint_args(painter, option, index)
+        self.paint_background(*args)
+        self.paint_thumbnail(*args)
+        self.paint_name(*args)
+
+    @paintmethod
+    def paint_name(self, *args):
+        """Paints the item names inside the ``AssetWidget``."""
+        painter, option, index, _, _, active, _, _ = args
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + rect.height() + (common.MARGIN / 2.0))
+        rect.setRight(rect.right() - common.MARGIN)
+
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSize(9)
+        painter.setFont(font)
+        metrics = QtGui.QFontMetrics(font)
+
+        # Resizing the height and centering
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(metrics.height())
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
+
+        # Asset name
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub(r'[_]{1,}', '_', text).strip('_')
+        text = metrics.elidedText(
+            text.upper(),
+            QtCore.Qt.ElideRight,
+            rect.width()
+        )
+
+        color = self.get_state_color(option, index, common.TEXT)
+
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setPen(QtGui.QPen(color))
+        painter.drawText(
+            rect,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            text
+        )
+
+    @paintmethod
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnail of the ``BookmarkWidget`` item."""
+        painter, option, index, _, _, active, _, _ = args
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(option.rect.left())
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setRight(option.rect.left() + rect.height())
+
+        pixmap = index.data(QtCore.Qt.DecorationRole).pixmap(
+            option.rect.height(),
+            option.rect.height(),
+            QtGui.QIcon.Normal
+        )
+
+        center = rect.center()
+        rect.setWidth(rect.width() / 2.0)
+        rect.setHeight(rect.height() / 2.0)
+        rect.moveCenter(center)
+
+        painter.drawPixmap(
+            rect,
+            pixmap,
+            pixmap.rect()
+        )
+
+    @paintmethod
+    def paint_background(self, *args):
+        """Paints the background."""
+        painter, option, index, _, _, _, _, _ = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        active = self.parent().model().filePath(index) == self.parent().model().active_path
+
+        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        color = QtGui.QColor(common.BACKGROUND)
+        if hover:
+            color = QtGui.QColor(common.BACKGROUND_SELECTED)
+        if active:
+            color = QtGui.QColor(49, 107, 218)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setWidth(option.rect.height() - 1)
+
+        color.setHsl(
+            color.hue(),
+            color.saturation(),
+            color.lightness() - 10
+        )
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
+    def sizeHint(self, index, parent=QtCore.QModelIndex()):
+        return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
+
+
+class FoldersModel(QtWidgets.QFileSystemModel):
+    activeFolderChanged = QtCore.Signal()
+
+    def __init__(self, parent=None):
+        super(FoldersModel, self).__init__(parent=parent)
+        self.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
+        self.setIconProvider(FoldersIconProvider(parent=self))
+        self.active_path = None
+
+    def columnCount(self, index, parent=QtCore.QModelIndex()):
+        return 1
+
+
+class FoldersView(QtWidgets.QTreeView):
+    def __init__(self, parent=None):
+        super(FoldersView, self).__init__(parent=parent)
+        self.setHeaderHidden(True)
+        self.setItemDelegate(FoldersModelDelegate(parent=self))
+        self.setAnimated(True)
+
+class FoldersWidget(BaseCombobox):
+    def __init__(self, parent=None):
+        super(FoldersWidget, self).__init__(parent=parent)
+        view = FoldersView(parent=self)
+        self.setView(view)
+        self.setModel(FoldersModel(parent=self))
+        self.activated.connect(self.activate_current_index)
+
+    def select_index(self, index):
+        """Selects and activates the given index."""
+        parent = self.rootModelIndex()
+        self.setRootModelIndex(index.parent())
+        self.setCurrentIndex(index.row())
+        self.view().expand(index)
+        self.view().selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.activate_current_index()
+        self.setRootModelIndex(parent)
+
+    def active_index(self):
+        if not self.model().active_path:
+            return QtCore.QModelIndex()
+        return self.model().index(self.model().active_path)
+
+    def activate_current_index(self, *args):
+        """Sets the current index as ``active``."""
+        index = self.view().selectionModel().currentIndex()
+        if not index.isValid():
             return
-        server, job, root = bookmarkswidget.active_index().data(common.ParentRole)
+        self.model().active_path = self.model().filePath(index)
+        self.model().activeFolderChanged.emit()
 
-        assetswidget = parent.findChild(AssetsWidget)
-        if not assetswidget.active_index().isValid():
-            return
+    def set_asset(self, asset):
+        path = list(asset) + [self.window().location,]
+        path = u'/'.join(path)
 
-        # The location selection so far
-        server, job, root, asset = assetswidget.active_index().data(common.ParentRole)
-        location = parent.location
-        path = u'/'.join((server, job, root, asset, location))
+        # Sets the root to the location folder.
+        self.model().setRootPath(path)
+        index = self.model().index(path)
+        self.setRootModelIndex(self.model().index(path))
 
-        menus = self._get_subfolders(path)
-        menu = SubfoldersMenu(menus, parent=self)
-        menu.itemSelected.connect(self.itemSelected)
-        menu.exec_()
+        # When currentfile is set, we want to match a folder inside to root,
+        # based on the
+        self.select_index(index)
+        if self.diff(asset):
+            index = self.model().index('{}/{}'.format(path, self.diff(asset)))
+            self.select_index(index)
 
-
-class SubfoldersMenu(BaseContextMenu):
-    itemSelected = QtCore.Signal(basestring)
-
-    def __init__(self, menus, parent=None):
-        super(SubfoldersMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.setFixedWidth(350)
-
-        parent = self.parent().window()
-        assetswidget = parent.findChild(AssetsWidget)
-        server, job, root, asset = assetswidget.active_index().data(common.ParentRole)
-
-        # Getting the active
-        currentfolder = QtCore.QFileInfo(parent.currentfile).dir()
-        if not currentfolder.exists():
-            currentfolder = ''
-        else:
-            currentfolder = currentfolder.path()
-
-        matchpath = self.parent().selected_path if self.parent().selected_path else currentfolder
-
-        # Let's find the common basepath of the selection and the
-        rootpath = '/'.join((server, job, root, asset, parent.location))
-        currentsubpath = None
-        if rootpath in matchpath:
-            currentsubpath = matchpath.replace(rootpath, '')
-            currentsubpath = currentsubpath.split('/')
-            currentsubpath.pop()
-            currentsubpath = '/'.join(currentsubpath)
-            currentsubpath = currentsubpath.strip('/')
-
-        menus = self.build_folders_data(menus)
-        self.add_subfolders_menu(menus, currentsubpath)
-
-    def add_subfolders_menu(self, menus, matchpath):
-        pixmap = common.get_rsc_pixmap(
-            u'folder', common.TEXT_DISABLED, common.INLINE_ICON_SIZE)
-        active_pixmap = common.get_rsc_pixmap(
-            u'item_on', common.SELECTION, common.INLINE_ICON_SIZE)
-
-        menu_set = collections.OrderedDict()
-        for k in sorted(list(menus)):
-            if '/' in k:
-                kk = k.split('/')
-                modedir = kk.pop(0)
-                menu_set[modedir] = collections.OrderedDict()
-                menu_set['{}:text'.format(modedir)] = modedir.upper()
-
-                if matchpath:
-                    active = modedir in matchpath
-                else:
-                    active = False
-                menu_set['{}:icon'.format(
-                    modedir)] = active_pixmap if active else pixmap
-                def func(arg):
-                    print '!!!!!!'
-                menu_set['{}:action'.format(
-                    modedir)] = func
-
-                _arr = []
-                for subdir in kk:
-                    _arr.append(subdir)
-
-                    if matchpath:
-                        active = subdir == matchpath
-                    else:
-                        active = False
-
-                    k = '{}/{}'.format(modedir, '/'.join(_arr))
-                    pk = '{}  /  {}'.format(modedir, '  /  '.join(_arr))
-                    menu_set[k] = {
-                        'icon': active_pixmap if active else pixmap,
-                        'text': pk.upper()
-                    }
-            else:
-                if matchpath:
-                    active = k == matchpath
-                else:
-                    active = False
-                menu_set[k] = {
-                    'icon':  active_pixmap if active else pixmap,
-                    'text': k.upper(),
-                }
-        self.create_menu(menu_set)
-
-    def build_folders_data(self, dictionary):
-        """Returns the data needed to build the menus."""
-        keys = []
-        def _build_folders_menus(dictionary, path):
-            path = path.strip(u'/')
-            if not dictionary:
-                keys.append(path)
-                path = ''
-                return
-            for k in sorted(list(dictionary)):
-                pp = u'{}/{}'.format(path, k)
-                _build_folders_menus(dictionary[k], pp)
-
-        _build_folders_menus(dictionary, u'')
-        return keys
+    def diff(self, asset):
+        path = u'/'.join(list(asset) + [self.window().location, ])
+        currentfile = QtCore.QFileInfo(self.window().currentfile).path()
+        if path in currentfile:
+            return currentfile.replace(path, u'').strip(u'/')
+        return None
 
 
-    def showEvent(self, event):
-        pos = self.parent().rect().bottomLeft()
-        pos = self.parent().mapToGlobal(pos)
-        self.move(pos)
-
-        super(SubfoldersMenu, self).show()
-
-
-class BookmarksWidget(QtWidgets.QComboBox):
+class BookmarksWidget(BaseCombobox):
     """Combobox to view and select the destination bookmark."""
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
-        self.setModel(BookmarksModel(parent=self))
 
-        self.setFixedHeight(common.ROW_HEIGHT / 2.0)
-        self.view().setFixedWidth(common.WIDTH)
+        self.setModel(BookmarksModel(parent=self))
         self.setItemDelegate(BookmarksListDelegate(parent=self))
 
         self.activated.connect(self.activate_current_index)
@@ -316,15 +376,6 @@ class BookmarksWidget(QtWidgets.QComboBox):
             role=common.FlagsRole)
 
         self.model().activeBookmarkChanged.emit(index.data(common.ParentRole))
-
-    def showPopup(self):
-        parent = self.parent().parent().parent().parent()
-        left = parent.rect().topRight()
-        left = parent.mapToGlobal(left).x()
-        right = self.rect().topLeft()
-        right = self.mapToGlobal(right).x()
-        self.view().setFixedWidth(left - right + common.MARGIN)
-        super(BookmarksWidget, self).showPopup()
 
 
 class BookmarksListDelegate(BaseDelegate):
@@ -446,7 +497,7 @@ class BookmarksListDelegate(BaseDelegate):
         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
 
 
-class AssetsWidget(QtWidgets.QComboBox):
+class AssetsWidget(BaseCombobox):
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
         active_paths = Active.get_active_paths()
@@ -455,9 +506,8 @@ class AssetsWidget(QtWidgets.QComboBox):
             active_paths[u'job'],
             active_paths[u'root']
         )
-        self.setModel(AssetModel(bookmark, parent=self))
 
-        self.setFixedHeight(common.ROW_HEIGHT / 2.0)
+        self.setModel(AssetModel(bookmark, parent=self))
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
 
         self.activated.connect(self.activate_current_index)
@@ -469,15 +519,6 @@ class AssetsWidget(QtWidgets.QComboBox):
                 self.setCurrentIndex(n)
                 self.view().scrollTo(index)
                 break
-
-    def showPopup(self):
-        parent = self.parent().parent().parent().parent()
-        left = parent.rect().topRight()
-        left = parent.mapToGlobal(left).x()
-        right = self.rect().topLeft()
-        right = self.mapToGlobal(right).x()
-        self.view().setFixedWidth(left - right + common.MARGIN)
-        super(AssetsWidget, self).showPopup()
 
     def inline_icons_count(self):
         return 0
@@ -575,15 +616,12 @@ class Saver(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(Saver, self).__init__(parent=parent)
         self._createUI()
-        self._connectSignals()
 
     def _createUI(self):
-        o = common.INDICATOR_WIDTH
-
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(
             common.MARGIN, common.MARGIN, common.MARGIN, common.MARGIN)
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(2)
 
         self.setFixedHeight(common.ROW_HEIGHT * 2)
         self.setFixedWidth(common.WIDTH)
@@ -595,36 +633,17 @@ class Saver(QtWidgets.QWidget):
             u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
         self.layout().addWidget(label)
 
-        stack = QtWidgets.QWidget()
-        stack.setFocusPolicy(QtCore.Qt.NoFocus)
-        QtWidgets.QVBoxLayout(stack)
-        stack.layout().setContentsMargins(0, 0, 0, 0)
-        stack.layout().setSpacing(0)
-
-        row = QtWidgets.QWidget(parent=self)
-        QtWidgets.QHBoxLayout(row)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(1)
-
-        row.layout().addWidget(BookmarksWidget(parent=self))
-        row.layout().addWidget(AssetsWidget(parent=self))
-        row.layout().addWidget(ParentButton(parent=self))
-        stack.layout().addWidget(row)
-
-        row = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(row)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(0)
+        self.layout().addWidget(BookmarksWidget(parent=self))
+        self.layout().addWidget(AssetsWidget(parent=self))
+        self.layout().addWidget(FoldersWidget(parent=self))
 
         editor = QtWidgets.QLineEdit()
-        editor.setPlaceholderText(u'Add description here...')
+        editor.setPlaceholderText(u'Description...')
         editor.setStyleSheet("""
             QLineEdit {{background-color: rgba({});}}
         """.format(u'{}/{}/{}/{}'.format(*common.SECONDARY_BACKGROUND.getRgb())))
-        row.layout().addWidget(editor)
-        stack.layout().addWidget(row)
 
-        self.layout().addWidget(stack)
+        self.layout().addWidget(editor)
         self.layout().addStretch(1)
         self.layout().addWidget(VersionIndicator(parent=self))
 
@@ -638,16 +657,59 @@ class Saver(QtWidgets.QWidget):
         painter.drawRect(rect)
 
         center = rect.center()
-        rect.setWidth(rect.width() - (common.MARGIN * 1.5))
-        rect.setHeight(rect.height() - (common.MARGIN * 1.5))
+        rect.setWidth(rect.width() - (common.MARGIN))
+        rect.setHeight(rect.height() - (common.MARGIN))
         rect.moveCenter(center)
 
         painter.setBrush(common.BACKGROUND)
         painter.drawRoundedRect(rect, 4, 4)
         painter.end()
 
+
+class SaverHeaderWidget(HeaderWidget):
+    def __init__(self, parent=None):
+        super(SaverHeaderWidget, self).__init__(parent=parent)
+        self.label.setTextFormat(QtCore.Qt.RichText)
+        self.label.setOpenExternalLinks(False)
+        self.label.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
+        # self.setFocusPolicy(QtCore.Qt.NoFocus)
+        # self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+    def update_header_text(self, *args, **kwargs):
+        """Slot to update the header."""
+        paths = self.window().active_path()
+        text = '{jobroot} | {asset} | {location} | {folder}'.format(
+            jobroot='{} | {}'.format(paths['job'], paths['root']).upper() if paths['root'] else '<span style="color:rgba({});">bookmark not set</span>'.format('{},{},{},{}').format(*common.FAVOURITE.getRgb()),
+            asset=paths['asset'].upper() if paths['asset'] else '<span style="color:rgba({});">asset not set</span>'.format('{},{},{},{}').format(*common.FAVOURITE.getRgb()),
+            location=paths['location'].upper(),
+            folder=paths['folder'].upper() if paths['folder'] else '<span style="color:rgba({});">folder not set</span>'.format('{},{},{},{}').format(*common.FAVOURITE.getRgb())
+        )
+        self.label.setText(text)
+
+
+class SaverWidget(QtWidgets.QDialog):
+    """Contains the header and the saver widgets."""
+
+    fileSaveRequested = QtCore.Signal(basestring)
+
+    def __init__(self, location, currentfile=None, parent=None):
+        super(SaverWidget, self).__init__(parent=parent)
+        self.currentfile = currentfile
+        self.location = location
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint
+        )
+
+        self._createUI()
+        self._init_states()
+        self._connectSignals()
+
     def select_thumbnail(self):
-        """Prompts to select an image file."""
+        """Prompts to select an image file.
+
+        """
         active_paths = Active.get_active_paths()
         bookmark = (
             active_paths[u'server'],
@@ -668,64 +730,51 @@ class Saver(QtWidgets.QWidget):
         if not dialog.selectedFiles():
             return
 
-        print dialog.selectedFiles()
-        # TODO: Implement this fucker
+    def active_path(self):
+        """The new file's path."""
+        bookmarkswidget = self.findChild(BookmarksWidget)
+        assetswidget = self.findChild(AssetsWidget)
+        folderswidget = self.findChild(FoldersWidget)
 
-    def _connectSignals(self):
-        self.findChild(ThumbnailButton).clicked.connect(self.select_thumbnail)
-        bookmarksmodel = self.findChild(BookmarksModel)
-        assetsmodel = self.findChild(AssetModel)
-        bookmarksmodel.activeBookmarkChanged.connect(assetsmodel.set_bookmark)
-        parentbutton = self.findChild(ParentButton)
-
-
-class SaverHeaderWidget(HeaderWidget):
-    def __init__(self, parent=None):
-        super(SaverHeaderWidget, self).__init__(parent=parent)
-        self._connectSignals()
-
-    def _connectSignals(self):
-        bookmarkswidget = self.parent().findChild(BookmarksWidget)
-        assetswidget = self.parent().findChild(AssetsWidget)
-        bookmarkswidget.activated.connect(self.itemActivated)
-        assetswidget.activated.connect(self.itemActivated)
-
-    def itemActivated(self, *args, **kwargs):
-        """Slot to update the header."""
-        bookmarkswidget = self.parent().findChild(BookmarksWidget)
+        path = {
+            'server': None,
+            'job': None,
+            'root': None,
+            'asset': None,
+            'location': self.location, # We have initialized the saver with this
+            'folder': None,
+            'filename': None
+        }
 
         if not bookmarkswidget.active_index().isValid():
-            text = u'No bookmark set'
-        else:
-            _, job, root = bookmarkswidget.active_index().data(common.ParentRole)
-            text = u'{} | {}'.format(job, root)
+            return path
 
-        assetswidget = self.parent().findChild(AssetsWidget)
+        server, job, root = bookmarkswidget.active_index().data(common.ParentRole)
+        path['server'] = server
+        path['job'] = job
+        path['root'] = root
+
         if not assetswidget.active_index().isValid():
-            text = u'{} | No asset set'.format(text)
-        else:
-            _, _, _, asset = assetswidget.active_index().data(common.ParentRole)
-            text = u'{} | {}'.format(text, asset)
+            return path
 
-        self.label.setText(text)
+        _, _, _, asset = assetswidget.active_index().data(common.ParentRole)
+        path['asset'] = asset
 
+        if not folderswidget.active_index().isValid():
+            return path
 
-class SaverWidget(QtWidgets.QDialog):
-    fileSaveRequested = QtCore.Signal(basestring)
+        index = folderswidget.rootModelIndex()
+        # If the location is the same as the folder, we're not setting the folder
+        if folderswidget.model().filePath(index) != folderswidget.model().active_path:
+            path['folder'] = folderswidget.diff((
+                path['server'],
+                path['job'],
+                path['root'],
+                path['asset'],
+            ))
 
-    def __init__(self, currentfile='', location=common.ScenesFolder, parent=None):
-        super(SaverWidget, self).__init__(parent=parent)
-        self.currentfile = currentfile
-        self.location = location
+        return path
 
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint
-        )
-
-        self._createUI()
-        self._connectSignals()
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -738,16 +787,62 @@ class SaverWidget(QtWidgets.QDialog):
         minimizebutton = self.findChild(MinimizeButton)
         minimizebutton.setHidden(True)
 
+    def _init_states(self):
+        bookmarkswidget = self.findChild(BookmarksWidget)
+        assetswidget = self.findChild(AssetsWidget)
+        folderswidget = self.findChild(FoldersWidget)
+
+        # Valid asset selection
+        if assetswidget.active_index().isValid():
+            asset = assetswidget.active_index().data(common.ParentRole)
+            folderswidget.set_asset(asset)
+
+            if self.window().currentfile: # Selecting the currentfile folder
+                path = u'/'.join(list(asset) + [self.window().location, ])
+                currentfile = QtCore.QFileInfo(self.window().currentfile).path()
+                if path in currentfile:
+                    index = folderswidget.model().index(currentfile)
+                    folderswidget.select_index(index)
+        else:
+            index = folderswidget.model().index('.')
+            folderswidget.select_index(index)
+            folderswidget.setCurrentIndex(-1)
+
+        headerwidget = self.findChild(SaverHeaderWidget)
+        headerwidget.update_header_text()
+
+
     def _connectSignals(self):
+        headerwidget = self.findChild(SaverHeaderWidget)
         closebutton = self.findChild(CloseButton)
+        bookmarkswidget = self.findChild(BookmarksWidget)
+        assetswidget = self.findChild(AssetsWidget)
+        assetmodel = self.findChild(AssetModel)
+        folderswidget = self.findChild(FoldersWidget)
+        thumbnailbutton = self.findChild(ThumbnailButton)
+        bookmarksmodel = self.findChild(BookmarksModel)
+        assetsmodel = self.findChild(AssetModel)
+
+        # Closes the dialog
         closebutton.clicked.connect(self.close)
+        # Picks a thumbnail
+        thumbnailbutton.clicked.connect(self.select_thumbnail)
+
+        # Updates the assets model when the bookmark changes
+        bookmarksmodel.activeBookmarkChanged.connect(assetsmodel.set_bookmark)
+        assetmodel.activeAssetChanged.connect(folderswidget.set_asset)
+
+        # Update signals for the header display
+        bookmarkswidget.activated.connect(headerwidget.update_header_text)
+        assetswidget.activated.connect(headerwidget.update_header_text)
+        folderswidget.activated.connect(headerwidget.update_header_text)
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    currentfile = ''
-    # currentfile = '//gordo/jobs/tkwwbk_8077/films/prologue/shots/sh_210/scenes/fx/branches/sh_210_v004.ma'
-    location = common.ScenesFolder
-    widget = SaverWidget(currentfile=currentfile, location=location)
+
+    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/scene_001.ma'
+    widget = SaverWidget(common.ScenesFolder, currentfile=None)
+
     widget.show()
     app.exec_()
