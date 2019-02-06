@@ -177,7 +177,8 @@ class BookmarksModel(BaseModel):
                     u'File already exist',
                     u'{} already exists in the folder. Are you sure you want to override it with the new file?.'.format(
                         destination.fileName()),
-                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
+                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+                    parent=self
                 ).exec_()
                 if res == QtWidgets.QMessageBox.Cancel:
                     break  # Cancels the operation

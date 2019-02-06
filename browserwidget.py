@@ -403,7 +403,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
-            u'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.5)
+            u'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.8)
         label.setPixmap(pixmap)
         label.setAlignment(QtCore.Qt.AlignCenter)
         label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)

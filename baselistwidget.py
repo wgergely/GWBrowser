@@ -79,30 +79,30 @@ class BaseContextMenu(QtWidgets.QMenu):
 
             # Recursive menu creation
             if isinstance(menu_set[k], collections.OrderedDict):
-                parent = QtWidgets.QMenu(k, parent=self)
+                _parent = QtWidgets.QMenu(k, parent=self)
 
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
-                    parent.setIcon(icon)
+                    _parent.setIcon(icon)
                 if u'{}:text'.format(k) in menu_set:
-                    parent.setTitle(menu_set[u'{}:text'.format(k)])
+                    _parent.setTitle(menu_set[u'{}:text'.format(k)])
                 if u'{}:action'.format(k) in menu_set:
                     name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(k) in menu_set else k
-                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(k) in menu_set else QtGui.QPixmap()
-                    action = parent.addAction(name)
-                    action.setIconVisibleInMenu(True)
-                    action.setIcon(icon)
+                    icon = menu_set[u'{}:action:icon'.format(k)] if u'{}:action:icon'.format(k) in menu_set else QtGui.QPixmap()
+                    _action = _parent.addAction(name)
+                    _action.setIconVisibleInMenu(True)
+                    _action.setIcon(icon)
 
                     if isinstance(menu_set[u'{}:action'.format(k)], collections.Iterable):
                         for func in menu_set[u'{}:action'.format(k)]:
-                            action.triggered.connect(func)
+                            _action.triggered.connect(func)
                     else:
-                        action.triggered.connect(menu_set[u'{}:action'.format(k)])
-                    parent.addAction(action)
-                    parent.addSeparator()
+                        _action.triggered.connect(menu_set[u'{}:action'.format(k)])
+                    _parent.addAction(_action)
+                    _parent.addSeparator()
 
-                self.addMenu(parent)
-                self.create_menu(menu_set[k], parent=parent)
+                self.addMenu(_parent)
+                self.create_menu(menu_set[k], parent=_parent)
                 continue
 
             if u'separator' in k:
