@@ -587,16 +587,16 @@ BoldHighlight = 0b001000
 ItalicHighlight = 0b010000
 
 HIGHLIGHT_RULES = {
-    # Should yield 3 groups:
-    # group 1 = the file:// prefix if exists,
-    # group 2 = the //path or \\path
-    # group 3 = trailing space
+    u'spaces': {
+        u're': re.compile(r'([\s\t\n\r]*)', flags=re.IGNORECASE),
+        u'flag': CodeHighlight
+    },
     u'file_path': {
         u're': re.compile(r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'folder_path': {
-        u're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
+        u're': re.compile(r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'quotes': {
@@ -620,6 +620,8 @@ HIGHLIGHT_RULES = {
         u'flag': QuoteHighlight
     },
 }
+
+# def convertToHtml(text)
 
 
 def get_ranges(arr, padding):

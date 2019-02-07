@@ -98,7 +98,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
 
         return
 
-
 class TodoItemEditor(QtWidgets.QTextBrowser):
     """Custom QTextEdit widget for writing `Todo`'s.
 
@@ -113,7 +112,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
         self.document().setDocumentMargin(common.MARGIN)
-
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
         self.setOpenLinks(True)
@@ -973,7 +971,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
-    item = widget.add_item(text=u'http://doc.qt.io/qt-5/qtextdocument-members.html')
+    item = widget.add_item(text=u'This is a test link:\nClick this: file://gordo/jobs')
     # print item.editor.document().setPlainText('Hullo')
     widget.show()
     app.exec_()
