@@ -34,7 +34,8 @@ class ToolbarContextMenuWidget(BaseContextMenu):
 
     def add_toolbar_menu(self):
         active_paths = Active.get_active_paths()
-        bookmark = (active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])
+        bookmark = (active_paths[u'server'],
+                    active_paths[u'job'], active_paths[u'root'])
         asset = bookmark + (active_paths[u'asset'],)
         file_ = asset + (active_paths[u'location'],)
         menu_set = collections.OrderedDict()
@@ -71,7 +72,8 @@ class ToolbarButton(ClickableLabel):
 
     def setState(self, state):
         opacity = 1.0 if state else 1.0
-        pixmap = common.get_rsc_pixmap(u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=opacity)
+        pixmap = common.get_rsc_pixmap(
+            u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=opacity)
         self.setPixmap(pixmap)
 
 

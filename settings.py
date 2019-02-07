@@ -20,6 +20,7 @@ import collections
 from PySide2 import QtCore
 
 import browser.common as common
+from browser.common import QSingleton
 
 
 # Flags
@@ -41,6 +42,11 @@ class Active(QtCore.QObject):
     'location' and 'file' components.
 
     """
+    instances = {}
+
+    __metaclass__ = QSingleton
+    """Singleton metaclass."""
+
     # Signals
     activeBookmarkChanged = QtCore.Signal(tuple)
     activeAssetChanged = QtCore.Signal(tuple)
@@ -51,6 +57,8 @@ class Active(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(Active, self).__init__(parent=parent)
+        self.instances[self.objectName()] = self
+
         self._active_paths = self.get_active_paths()
 
         self.timer = QtCore.QTimer()

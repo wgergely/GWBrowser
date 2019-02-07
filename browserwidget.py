@@ -304,6 +304,7 @@ class CollapseSequenceMenu(BaseContextMenu):
             QtCore.QModelIndex(), parent=parent)
         self.add_collapse_sequence_menu()
 
+
 class AddBookmarkButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
 
@@ -425,7 +426,8 @@ class HeaderWidget(QtWidgets.QWidget):
         active_paths = Active.get_active_paths()
         text = u'Bookmark not activated'
         if all((active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])):
-            text = u'{}  |  {}'.format(active_paths[u'job'], active_paths[u'root'])
+            text = u'{}  |  {}'.format(
+                active_paths[u'job'], active_paths[u'root'])
         if active_paths['asset']:
             text = u'{}  |  {}'.format(text, active_paths[u'asset'])
         if active_paths['location']:
@@ -454,7 +456,6 @@ class ListControlWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
-
 
         # Listwidget
         self.layout().addSpacing(common.MARGIN)
@@ -595,7 +596,6 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
             painter.setPen(QtGui.QPen(common.TEXT))
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
 
-
         text = index.data(QtCore.Qt.DisplayRole)
         painter.drawText(
             rect,
@@ -695,7 +695,8 @@ class ChangeListWidget(QtWidgets.QComboBox):
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
         popup.move(pos)
         popup.setFixedWidth(self.parent().rect().width())
-        popup.setFixedHeight(self.itemDelegate().sizeHint(None, None).height() * self.model().rowCount() + 3)
+        popup.setFixedHeight(self.itemDelegate().sizeHint(
+            None, None).height() * self.model().rowCount() + 3)
         # Selecting the current item
         index = self.view().model().index(self.currentIndex(), 0)
         self.view().selectionModel().setCurrentIndex(
@@ -810,69 +811,77 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+1'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+2'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(1))
         # Show files shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+3'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
             lambda: self.listcontrolwidget.setCurrentMode(2))
         # Search
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alf+f'), self)
+            QtGui.QKeySequence(u'Alt+F'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(filterbutton.clicked)
         # Search
         shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+l'), self)
+            QtGui.QKeySequence(u'Alt+L'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetShortcut)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(locationsbutton.clicked)
 
         setCurrentMode = functools.partial(
             self.listcontrolwidget.setCurrentMode, 1)
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(setCurrentMode)
+        self.bookmarkswidget.model().sourceModel(
+        ).activeBookmarkChanged.connect(setCurrentMode)
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             combobox.apply_flags)
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.headerwidget.itemActivated)
 
-        active_monitor.activeBookmarkChanged.connect(self.bookmarkswidget.refresh)
+        active_monitor.activeBookmarkChanged.connect(
+            self.bookmarkswidget.refresh)
         active_monitor.activeBookmarkChanged.connect(combobox.apply_flags)
-        active_monitor.activeBookmarkChanged.connect(self.headerwidget.itemActivated)
+        active_monitor.activeBookmarkChanged.connect(
+            self.headerwidget.itemActivated)
 
         # Asset
         # A new asset has been activated and all the data has to be re-initialized
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
         # First, clear the data
-        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(self.fileswidget.model().sourceModel().modelDataResetRequested.emit)
+        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(
+            self.fileswidget.model().sourceModel().modelDataResetRequested.emit)
         # Re-populates the data for the current location
-        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(self.fileswidget.refresh)
+        self.assetswidget.model().sourceModel(
+        ).modelDataResetRequested.connect(self.fileswidget.refresh)
 
         # Shows the FilesWidget
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(functools.partial(
             self.listcontrolwidget.setCurrentMode, 2))
         # Updates the controls above the list
-        self.assetswidget.model().sourceModel().activeAssetChanged.connect(combobox.apply_flags)
+        self.assetswidget.model().sourceModel(
+        ).activeAssetChanged.connect(combobox.apply_flags)
         # Updates the display of the active path (bar is hidden in the context widgets)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.headerwidget.itemActivated)
 
         active_monitor.activeAssetChanged.connect(self.assetswidget.refresh)
-        active_monitor.activeAssetChanged.connect(self.fileswidget.model().sourceModel().set_asset)
-        active_monitor.activeAssetChanged.connect(self.fileswidget.model().sourceModel().__resetdata__)
+        active_monitor.activeAssetChanged.connect(
+            self.fileswidget.model().sourceModel().set_asset)
+        active_monitor.activeAssetChanged.connect(
+            self.fileswidget.model().sourceModel().__resetdata__)
         active_monitor.activeAssetChanged.connect(self.fileswidget.refresh)
 
         # Statusbar
@@ -927,7 +936,7 @@ class BrowserWidget(QtWidgets.QWidget):
         x = local_settings.value(u'widget/{}/x'.format(cls))
         y = local_settings.value(u'widget/{}/y'.format(cls))
 
-        if not all((width, height, x, y)): # skip if not saved yet
+        if not all((width, height, x, y)):  # skip if not saved yet
             return
         size = QtCore.QSize(width, height)
         pos = QtCore.QPoint(x, y)

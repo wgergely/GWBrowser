@@ -687,6 +687,24 @@ def get_sequence_endpath(path):
     return path
 
 
+class QSingleton(type(QtCore.QObject)):
+    """Singleton metaclass for QWidgets.
+
+    Note:
+        We have to supply an appropiate type object as the baseclass,
+        'type' won't work. Creating type(QtWidgets.QWidget) seems to function.
+
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):  # pylint: disable=E0213
+        if cls not in cls._instances:
+            cls._instances[cls] = super(
+                QSingleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+
 # Label LABEL_COLORS
 ASSIGNED_LABELS = {}
 # Thumbnail cache

@@ -739,7 +739,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - (common.MARGIN * 2))
 
-
         text = index.data(common.ParentRole)[2]
         text = re.sub(r'[_]+', ' ', text.upper())
         text = ' {} '.format(text)
@@ -789,6 +788,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         size = QtCore.QSize(
             self.parent().viewport().width(), common.BOOKMARK_ROW_HEIGHT)
         return size
+
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""

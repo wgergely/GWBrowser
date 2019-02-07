@@ -197,7 +197,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
     def set_size(self, size):
         """Sets the widget size."""
         rect = QtCore.QRect(self.parent().visualRect(self._index))
-        rect.setLeft(rect.left() + common.INDICATOR_WIDTH + (rect.height() - 2))
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH +
+                     (rect.height() - 2))
         self.move(rect.left(), rect.top())
         self.resize(size.width() - rect.left(), rect.height())
 

@@ -209,7 +209,7 @@ class FilesModel(BaseModel):
                     )
 
                     activefilepath = u'{}/{}'.format(fileroot,
-                                                    file_info.fileName())
+                                                     file_info.fileName())
                     if activefilepath == active_paths[u'file']:
                         flags = flags | MarkedAsActive
 
@@ -262,7 +262,8 @@ class FilesModel(BaseModel):
                 idx += 1
                 continue
 
-            k = u'{}|{}.{}'.format(match.group(1), match.group(3), match.group(4))
+            k = u'{}|{}.{}'.format(match.group(
+                1), match.group(3), match.group(4))
             if k not in groups:
                 file_info = QtCore.QFileInfo(path)
                 groups[k] = {
@@ -451,7 +452,8 @@ class FilesModel(BaseModel):
         """Get's the current ``location``."""
         val = local_settings.value(u'activepath/location')
         if not val:
-            local_settings.setValue(u'activepath/location', common.ScenesFolder)
+            local_settings.setValue(
+                u'activepath/location', common.ScenesFolder)
 
         return val if val else common.ScenesFolder
 

@@ -9,7 +9,6 @@ from browser.browserwidget import BrowserWidget
 import browser.common as common
 
 
-
 class StandaloneApp(QtWidgets.QApplication):
     """This is the app used to run the browser as a standalone widget."""
     MODEL_ID = u'browser_standalone'
@@ -41,5 +40,5 @@ class StandaloneApp(QtWidgets.QApplication):
 
 
 if __name__ == '__main__':
-    app =StandaloneApp(sys.argv)
+    app = StandaloneApp(sys.argv)
     app.exec_()

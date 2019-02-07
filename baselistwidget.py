@@ -87,8 +87,10 @@ class BaseContextMenu(QtWidgets.QMenu):
                 if u'{}:text'.format(k) in menu_set:
                     parent.setTitle(menu_set[u'{}:text'.format(k)])
                 if u'{}:action'.format(k) in menu_set:
-                    name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(k) in menu_set else k
-                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(k) in menu_set else QtGui.QPixmap()
+                    name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(
+                        k) in menu_set else k
+                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(
+                        k) in menu_set else QtGui.QPixmap()
                     action = parent.addAction(name)
                     action.setIconVisibleInMenu(True)
                     action.setIcon(icon)
@@ -97,7 +99,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                         for func in menu_set[u'{}:action'.format(k)]:
                             action.triggered.connect(func)
                     else:
-                        action.triggered.connect(menu_set[u'{}:action'.format(k)])
+                        action.triggered.connect(
+                            menu_set[u'{}:action'.format(k)])
                     parent.addAction(action)
                     parent.addSeparator()
 
@@ -159,12 +162,14 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_sort_menu(self):
         """Creates the menu needed to set the sort-order of the list."""
-        sort_menu_icon = common.get_rsc_pixmap(u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        sort_menu_icon = common.get_rsc_pixmap(
+            u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_up_icon = common.get_rsc_pixmap(
             u'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_down_icon = common.get_rsc_pixmap(
             u'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        item_off_icon = common.get_rsc_pixmap(u'item_off', common.TEXT, common.INLINE_ICON_SIZE)
+        item_off_icon = common.get_rsc_pixmap(
+            u'item_off', common.TEXT, common.INLINE_ICON_SIZE)
         item_on_icon = common.get_rsc_pixmap(
             u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
@@ -182,7 +187,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checked': True if self.parent().model().sortorder else False,
             u'icon': arrow_down_icon if self.parent().model().sortorder else arrow_up_icon,
             u'action': functools.partial(self.parent().model().set_sortorder,
-                                        not self.parent().model().sortorder)
+                                         not self.parent().model().sortorder)
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -199,21 +204,21 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'ckeckable': True,
             u'checked': True if sort_modified else False,
             u'action': functools.partial(self.parent().model().set_sortkey,
-                                        common.SortByLastModified)
+                                         common.SortByLastModified)
         }
         menu_set[u'Sort'][u'Date created'] = {
             u'icon': item_on_icon if sort_created else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_created else False,
             u'action': functools.partial(self.parent().model().set_sortkey,
-                                        common.SortByLastCreated)
+                                         common.SortByLastCreated)
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_size else False,
             u'action': functools.partial(self.parent().model().set_sortkey,
-                                        common.SortBySize)
+                                         common.SortBySize)
         }
         menu_set[u'separator'] = {}
         self.create_menu(menu_set)
@@ -222,7 +227,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Creates a menu containing"""
         folder_icon = common.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        folder_icon2 = common.get_rsc_pixmap(u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        folder_icon2 = common.get_rsc_pixmap(
+            u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
@@ -258,7 +264,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'text': 'Show asset',
                 u'icon': folder_icon2,
                 u'action': functools.partial(common.reveal,
-                                            self.index.data(QtCore.Qt.StatusTipRole))
+                                             self.index.data(QtCore.Qt.StatusTipRole))
             }
         menu_set[key][u'root'] = {
             u'text': 'Show bookmark',
@@ -320,8 +326,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def add_copy_menu(self):
         """Menu containing the subfolders of the selected item."""
-        copy_icon = common.get_rsc_pixmap(u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        copy_icon2 = common.get_rsc_pixmap(u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        copy_icon = common.get_rsc_pixmap(
+            u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        copy_icon2 = common.get_rsc_pixmap(
+            u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
 
@@ -576,12 +584,14 @@ def flagsmethod(func):
         return res
     return func_wrapper
 
+
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
 
     grouppingChanged = QtCore.Signal()  # The sequence view mode
 
-    modelDataAboutToChange = QtCore.Signal()  # Emit before the model is about to change
+    # Emit before the model is about to change
+    modelDataAboutToChange = QtCore.Signal()
     """Signal emited before the model data changes."""
     modelDataResetRequested = QtCore.Signal()
     activeBookmarkChanged = QtCore.Signal(tuple)
@@ -1330,7 +1340,8 @@ class BaseListWidget(QtWidgets.QListView):
                         painter.drawText(
                             text_rect,
                             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-                            u'{} items are hidden'.format(self.model().sourceModel().rowCount() - self.model().rowCount())
+                            u'{} items are hidden'.format(
+                                self.model().sourceModel().rowCount() - self.model().rowCount())
                         )
                         painter.setPen(QtCore.Qt.NoPen)
 

@@ -353,7 +353,8 @@ class ComboBoxItemDelegate(BaseDelegate):
         )
         if disabled:
             text = metrics.elidedText(
-                u'{}  |  Unavailable'.format(index.data(QtCore.Qt.DisplayRole)),
+                u'{}  |  Unavailable'.format(
+                    index.data(QtCore.Qt.DisplayRole)),
                 QtCore.Qt.ElideRight,
                 rect.width()
             )

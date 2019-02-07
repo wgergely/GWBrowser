@@ -46,12 +46,6 @@ QStatusBar, QSizeGrip {{
 }}
 
 
-QToolTip {{
-	margin: 0px;
-	padding: 0px;
-	height: 24px;
-}}
-
 QCheckBox {{
 	background-color: transparent;
 	margin: 0px;
@@ -337,8 +331,6 @@ QMenu::SEPARATOR {{
 
 
 QToolTip {{
-	padding: 8px;
-	margin: 8px;
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	font-size: 9pt;
 }}

@@ -2,8 +2,6 @@
 # pylint: disable=E1101, C0103, R0913, I1101, E0401
 """Maya wrapper for the BrowserWidget."""
 
-import shiboken2
-import collections
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -22,25 +20,8 @@ from browser.browserwidget import BrowserWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.browserwidget import HeaderWidget
-from browser.browserwidget import CloseButton, MinimizeButton
 from browser.settings import local_settings
-
-
-class Singleton(type(QtWidgets.QWidget)):
-    """Singleton metaclass for QWidgets.
-
-    Note:
-        We have to supply an appropiate type object as the baseclass,
-        'type' won't work. Creating type(QtWidgets.QWidget) seems to function.
-
-    """
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):  # pylint: disable=E0213
-        if cls not in cls._instances:
-            cls._instances[cls] = super(
-                Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+from browser.common import QSingleton
 
 
 class MayaWidgetContextMenu(BaseContextMenu):
@@ -128,7 +109,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
     """The main wrapper-widget to be used inside maya."""
 
     instances = {}
-    # __metaclass__ = Singleton
+    __metaclass__ = QSingleton
     """Singleton metaclass."""
 
     # Signals for signalling show/hide status changes
@@ -184,7 +165,8 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
-        fileswidget.model().sourceModel().activeFileChanged.connect(lambda path: open_scene(path))
+        fileswidget.model().sourceModel().activeFileChanged.connect(
+            lambda path: open_scene(path))
 
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
@@ -283,7 +265,6 @@ class MayaToolbar(QtWidgets.QWidget):
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
         widget.layout().addWidget(self)
         cmds.evalDeferred(self.show_browser)
-
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)

@@ -98,6 +98,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
 
         return
 
+
 class TodoItemEditor(QtWidgets.QTextBrowser):
     """Custom QTextEdit widget for writing `Todo`'s.
 
@@ -116,7 +117,8 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.setOpenExternalLinks(True)
         self.setOpenLinks(True)
         self.setReadOnly(False)
-        self.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
+        self.setTextInteractionFlags(
+            QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
         metrics.width(u'  ')
@@ -206,6 +208,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def _anchorClicked(self):
         print 'click'
 
+
 class AddButton(QtWidgets.QLabel):
     """Custom icon button to add a new todo item."""
     pressed = QtCore.Signal()
@@ -214,7 +217,8 @@ class AddButton(QtWidgets.QLabel):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
 
-        pixmap = common.get_rsc_pixmap(u'todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
+        pixmap = common.get_rsc_pixmap(
+            u'todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -967,11 +971,13 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 (geo.height() / 2) - (self.height() / 2)
             )
 
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
-    item = widget.add_item(text=u'This is a test link:\nClick this: file://gordo/jobs')
+    item = widget.add_item(
+        text=u'This is a test link:\nClick this: file://gordo/jobs')
     # print item.editor.document().setPlainText('Hullo')
     widget.show()
     app.exec_()
