@@ -145,6 +145,10 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         # Saving the thumbnail
         image = QtGui.QImage()
         image.load(next(f for f in self.selectedFiles()))
+
+        if image.isNull():
+            return
+
         image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         image.save(settings.thumbnail_path())
 
@@ -193,9 +197,9 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
     def set_size(self, size):
         """Sets the widget size."""
         rect = QtCore.QRect(self.parent().visualRect(self._index))
-        rect.setLeft(rect.left() + 4 + rect.height())
-        self.move(rect.left() + 1, rect.top() + 2)
-        self.resize(size.width() - rect.left(), rect.height() - 1)
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH + (rect.height() - 2))
+        self.move(rect.left(), rect.top())
+        self.resize(size.width() - rect.left(), rect.height())
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
