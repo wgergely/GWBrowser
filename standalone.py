@@ -3,11 +3,61 @@
 """Standalone runner."""
 
 import sys
+import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.browserwidget import BrowserWidget
+from browser.baselistwidget import BaseContextMenu
 import browser.common as common
-from browser.settings import active_monitor
+
+
+class StandaloneBrowserWidget(BrowserWidget):
+    def __init__(self, parent=None):
+        super(StandaloneBrowserWidget, self).__init__(parent=parent)
+
+        self.tray = QtWidgets.QSystemTrayIcon(self)
+        pixmap = common.get_rsc_pixmap('custom', None, 256)
+        icon = QtGui.QIcon(pixmap)
+        self.tray.setIcon(icon)
+        self.tray.setContextMenu(TrayMenu(parent=self))
+        self.tray.setToolTip('Glassworks pipeline Browser')
+        self.tray.show()
+        self.tray.activated.connect(self.trayActivated)
+
+
+    def trayActivated(self, reason):
+        if reason == QtWidgets.QSystemTrayIcon.Unknown:
+            return self.show()
+        if reason == QtWidgets.QSystemTrayIcon.Context:
+            return
+        if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
+            self.show()
+        if reason == QtWidgets.QSystemTrayIcon.Trigger:
+            return
+        if reason == QtWidgets.QSystemTrayIcon.MiddleClick:
+            return
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray.showMessage(
+            'Browser',
+            'Browser will continue running in the background',
+            QtWidgets.QSystemTrayIcon.Information,
+            2000
+        )
+
+class TrayMenu(BaseContextMenu):
+    def __init__(self, parent=None):
+        super(TrayMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+        menu_set = collections.OrderedDict()
+        menu_set['Show'] = {}
+        menu_set['separator1'] = {}
+        menu_set['Quit'] = {
+            'action': lambda: QtWidgets.QApplication.instance().quit()
+        }
+        self.create_menu(menu_set)
 
 
 class StandaloneApp(QtWidgets.QApplication):
@@ -17,15 +67,15 @@ class StandaloneApp(QtWidgets.QApplication):
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
         self.setApplicationName(u'Browser')
+        self.setApplicationVersion(u'0.2.0')
         self.set_model_id()
-        pixmap = common.get_rsc_pixmap(u'custom', None, 64)
+        pixmap = common.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
+
+
     def exec_(self):
-        widget = BrowserWidget()
-        def test():
-            print '!!!!'
-        active_monitor.timer.timeout.connect(test)
+        widget = StandaloneBrowserWidget()
         widget.show()
         super(StandaloneApp, self).exec_()
 
