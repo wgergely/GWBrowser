@@ -592,7 +592,7 @@ HIGHLIGHT_RULES = {
     # group 2 = the //path or \\path
     # group 3 = trailing space
     u'file_path': {
-        u're': re.compile(r'([a-z]{2,4}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
+        u're': re.compile(r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'folder_path': {
