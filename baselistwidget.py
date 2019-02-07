@@ -79,30 +79,30 @@ class BaseContextMenu(QtWidgets.QMenu):
 
             # Recursive menu creation
             if isinstance(menu_set[k], collections.OrderedDict):
-                _parent = QtWidgets.QMenu(k, parent=self)
+                parent = QtWidgets.QMenu(k, parent=self)
 
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
-                    _parent.setIcon(icon)
+                    parent.setIcon(icon)
                 if u'{}:text'.format(k) in menu_set:
-                    _parent.setTitle(menu_set[u'{}:text'.format(k)])
+                    parent.setTitle(menu_set[u'{}:text'.format(k)])
                 if u'{}:action'.format(k) in menu_set:
                     name = menu_set[u'{}:text'.format(k)] if u'{}:text'.format(k) in menu_set else k
-                    icon = menu_set[u'{}:action:icon'.format(k)] if u'{}:action:icon'.format(k) in menu_set else QtGui.QPixmap()
-                    _action = _parent.addAction(name)
-                    _action.setIconVisibleInMenu(True)
-                    _action.setIcon(icon)
+                    icon = menu_set[u'{}:icon'.format(k)] if u'{}:icon'.format(k) in menu_set else QtGui.QPixmap()
+                    action = parent.addAction(name)
+                    action.setIconVisibleInMenu(True)
+                    action.setIcon(icon)
 
                     if isinstance(menu_set[u'{}:action'.format(k)], collections.Iterable):
                         for func in menu_set[u'{}:action'.format(k)]:
-                            _action.triggered.connect(func)
+                            action.triggered.connect(func)
                     else:
-                        _action.triggered.connect(menu_set[u'{}:action'.format(k)])
-                    _parent.addAction(_action)
-                    _parent.addSeparator()
+                        action.triggered.connect(menu_set[u'{}:action'.format(k)])
+                    parent.addAction(action)
+                    parent.addSeparator()
 
-                self.addMenu(_parent)
-                self.create_menu(menu_set[k], parent=_parent)
+                self.addMenu(parent)
+                self.create_menu(menu_set[k], parent=parent)
                 continue
 
             if u'separator' in k:
@@ -1121,7 +1121,7 @@ class BaseListWidget(QtWidgets.QListView):
                             break
                     else:
                         match = re.search(
-                            u'{}'.format(self.timed_search_string),
+                            self.timed_search_string,
                             index.data(QtCore.Qt.DisplayRole),
                             flags=re.IGNORECASE
                         )
