@@ -105,17 +105,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         selected = option.state & QtWidgets.QStyle.State_Selected
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        favourite = index.flags() & MarkedAsFavourite
         archived = index.flags() & MarkedAsArchived
-        active = index.flags() & MarkedAsActive
-
         color = QtGui.QColor(color)
-
-        if active:
-            color = QtGui.QColor(common.SELECTION)
-
         if selected:
             color.setRed(color.red() / 0.92)
             color.setGreen(color.green() / 0.92)
@@ -674,11 +665,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
-        rect.setRight(option.rect.left() +
-                      common.INDICATOR_WIDTH + rect.height())
+        rect.setWidth(rect.height())
 
         pixmap = common.get_rsc_pixmap(
-            u'bookmark', common.SECONDARY_TEXT, rect.height())
+            u'bookmark', common.SECONDARY_BACKGROUND, rect.height())
         if favourite:
             pixmap = common.get_rsc_pixmap(
                 u'bookmark', common.FAVOURITE, rect.height())
@@ -720,6 +710,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         center = rect.center()
         rect.setHeight(common.INLINE_ICON_SIZE)
         rect.moveCenter(center)
+
         # Name background
         pen = QtGui.QPen(common.FAVOURITE)
         pen.setWidth(offset)
@@ -736,13 +727,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         )
 
         if count:
-            color = QtGui.QColor(common.TEXT)
+            color = self.get_state_color(option, index, common.TEXT)
         else:
-            color = QtGui.QColor(common.TEXT_DISABLED)
-            if selected:
-                color = QtGui.QColor(common.TEXT)
-        if active:
-            color = common.SELECTION
+            color = self.get_state_color(option, index, common.SECONDARY_TEXT)
 
         rect.setLeft(rect.right() + common.MARGIN)
         if option.rect.width() < 360.0:
@@ -752,14 +739,17 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - (common.MARGIN * 2))
 
-        # Name
+
         text = index.data(common.ParentRole)[2]
         text = re.sub(r'[_]+', ' ', text.upper())
+        text = ' {} '.format(text)
         text = metrics.elidedText(
             text,
             QtCore.Qt.ElideLeft,
             rect.width()
         )
+
+        rect.setWidth(metrics.width(text))
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(color)
@@ -782,18 +772,23 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setHeight(common.INLINE_ICON_SIZE)
         rect.moveCenter(center)
 
-        pen = QtGui.QPen(common.SECONDARY_TEXT)
+        pen = QtGui.QPen(common.FAVOURITE)
         pen.setWidth(2)
         painter.setPen(pen)
-        painter.setBrush(common.SECONDARY_TEXT)
+        painter.setBrush(common.FAVOURITE)
         painter.drawRoundedRect(rect, 4, 4)
 
         font = QtGui.QFont('Roboto Black')
         font.setPointSize(8)
         painter.setFont(font)
-        painter.setPen(common.SECONDARY_BACKGROUND)
+        painter.setPen(common.TEXT)
         painter.drawText(rect, QtCore.Qt.AlignCenter, u' {} '.format(count))
 
+    def sizeHint(self, option, index):
+        """Custom size-hint. Sets the size of the files and asset widget items."""
+        size = QtCore.QSize(
+            self.parent().viewport().width(), common.BOOKMARK_ROW_HEIGHT)
+        return size
 
 class AssetWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""

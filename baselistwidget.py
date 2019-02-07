@@ -1282,18 +1282,19 @@ class BaseListWidget(QtWidgets.QListView):
 
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())
-            rect = QtCore.QRect(common.INDICATOR_WIDTH, 2, event.rect(
-            ).width() - (common.INDICATOR_WIDTH * 2), sizehint.height() - 4)
+
+            rect = QtCore.QRect(
+                common.INDICATOR_WIDTH,
+                2,
+                self.viewport().rect().width() - (common.INDICATOR_WIDTH * 2),
+                sizehint.height() - common.INDICATOR_WIDTH
+            )
+
             favourite_mode = self.model().filter_mode[u'favourite']
+
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
             text_rect.setRight(rect.right() - common.MARGIN)
-
-            filter_rect = QtCore.QRect(event.rect())
-            filter_rect.setRight(event.rect().right())
-            filter_rect.setLeft(event.rect().right() -
-                                (common.INDICATOR_WIDTH))
-            filter_rect.setBottom(sizehint.height())
 
             painter.setRenderHints(
                 QtGui.QPainter.TextAntialiasing |
@@ -1303,7 +1304,6 @@ class BaseListWidget(QtWidgets.QListView):
             )
 
             painter.setPen(QtCore.Qt.NoPen)
-            # painter.setBrush(QtGui.QBrush(QtGui.QColor(100, 100, 100, 20)))
             font = QtGui.QFont(u'Roboto Black')
             font.setPointSize(8)
             painter.setFont(font)
@@ -1316,30 +1316,26 @@ class BaseListWidget(QtWidgets.QListView):
                         QtGui.QColor(100, 100, 100, 5)))
                     painter.drawRect(rect_)
                     painter.drawRect(rect)
-                    if favourite_mode:
-                        painter.setBrush(common.FAVOURITE)
-                        painter.drawRect(filter_rect)
                 if n == 0 and not favourite_mode:  # Empty model
                     painter.setPen(common.TEXT_DISABLED)
                     painter.drawText(
                         text_rect,
-                        QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                        QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
                         u'  No items to show.'
                     )
                     painter.setPen(QtCore.Qt.NoPen)
                 elif n == self.model().rowCount():  # filter mode
                     if favourite_mode:
-                        painter.setPen(common.FAVOURITE)
+                        painter.setPen(common.SECONDARY_TEXT)
                         painter.drawText(
                             text_rect,
-                            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-                            u'(Showing favourites only)'
+                            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+                            u'{} items are hidden'.format(self.model().sourceModel().rowCount() - self.model().rowCount())
                         )
                         painter.setPen(QtCore.Qt.NoPen)
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())
-                filter_rect.moveTop(filter_rect.top() + sizehint.height())
 
             painter.end()
             return True

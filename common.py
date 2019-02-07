@@ -141,6 +141,7 @@ sort_keys = {
 
 # Sizes
 ROW_HEIGHT = 54.0
+BOOKMARK_ROW_HEIGHT = 84.0
 ASSET_ROW_HEIGHT = 84.0
 
 MARGIN = 18.0

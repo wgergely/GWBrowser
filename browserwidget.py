@@ -695,7 +695,7 @@ class ChangeListWidget(QtWidgets.QComboBox):
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
         popup.move(pos)
         popup.setFixedWidth(self.parent().rect().width())
-        popup.setFixedHeight(self.itemDelegate().sizeHint(None, None).height() * self.model().rowCount())
+        popup.setFixedHeight(self.itemDelegate().sizeHint(None, None).height() * self.model().rowCount() + 3)
         # Selecting the current item
         index = self.view().model().index(self.currentIndex(), 0)
         self.view().selectionModel().setCurrentIndex(

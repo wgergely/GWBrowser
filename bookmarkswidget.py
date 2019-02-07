@@ -136,7 +136,7 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: file_info.filePath(),
-                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
+                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
