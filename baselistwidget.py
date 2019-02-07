@@ -38,8 +38,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
         self.setToolTipsVisible(True)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
             QtCore.Qt.NoDropShadowWindowHint |

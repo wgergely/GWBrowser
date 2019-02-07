@@ -15,7 +15,7 @@ class StandaloneBrowserWidget(BrowserWidget):
     def __init__(self, parent=None):
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
 
-        self.tray = QtWidgets.QSystemTrayIcon(self)
+        self.tray = QtWidgets.QSystemTrayIcon(parent=self)
         pixmap = common.get_rsc_pixmap('custom', None, 256)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
@@ -50,9 +50,41 @@ class StandaloneBrowserWidget(BrowserWidget):
 class TrayMenu(BaseContextMenu):
     def __init__(self, parent=None):
         super(TrayMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+
+        self.stayontop = False
+
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
         menu_set = collections.OrderedDict()
-        menu_set['Show'] = {}
+
+        def set_flag():
+            self.parent().hide()
+            if self.stayontop:
+                self.parent().setWindowFlags(
+                    QtCore.Qt.Window |
+                    QtCore.Qt.FramelessWindowHint)
+            else:
+                self.parent().setWindowFlags(
+                    QtCore.Qt.Window |
+                    QtCore.Qt.FramelessWindowHint |
+                    QtCore.Qt.WindowStaysOnTopHint |
+                    QtCore.Qt.X11BypassWindowManagerHint)
+            self.parent().show()
+            self.stayontop = not self.stayontop
+
+        menu_set['Always stays on top'] = {
+            'checkable': True,
+            'action': set_flag
+        }
+        menu_set['separator0'] = {}
+        menu_set['Show'] = {
+            'action': self.parent().showNormal
+        }
+        menu_set['Hide'] = {
+            'action': self.parent().close
+        }
+        menu_set['Minimize'] = {
+            'action': self.parent().showMinimized
+        }
         menu_set['separator1'] = {}
         menu_set['Quit'] = {
             'action': lambda: QtWidgets.QApplication.instance().quit()
