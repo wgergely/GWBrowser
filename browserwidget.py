@@ -760,6 +760,9 @@ class BrowserWidget(QtWidgets.QWidget):
         idx = idx if idx else 0
         self.activate_widget(idx)
 
+        # Let's start the monitor
+        active_monitor.timer.start()
+
     def _createUI(self):
         common.set_custom_stylesheet(self)
 

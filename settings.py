@@ -42,11 +42,6 @@ class Active(QtCore.QObject):
     'location' and 'file' components.
 
     """
-    instances = {}
-
-    __metaclass__ = QSingleton
-    """Singleton metaclass."""
-
     # Signals
     activeBookmarkChanged = QtCore.Signal(tuple)
     activeAssetChanged = QtCore.Signal(tuple)
@@ -57,15 +52,12 @@ class Active(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(Active, self).__init__(parent=parent)
-        self.instances[self.objectName()] = self
-
         self._active_paths = self.get_active_paths()
 
         self.timer = QtCore.QTimer()
-        self.timer.setInterval(250)
+        self.timer.setInterval(500)
         self.timer.setSingleShot(False)
         self.timer.timeout.connect(self._check_change)
-        self.timer.start()
 
     def update_saved_state(self, k, data):
         self._active_paths[k] = data

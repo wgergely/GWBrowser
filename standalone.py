@@ -7,6 +7,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.browserwidget import BrowserWidget
 import browser.common as common
+from browser.settings import active_monitor
 
 
 class StandaloneApp(QtWidgets.QApplication):
@@ -22,6 +23,9 @@ class StandaloneApp(QtWidgets.QApplication):
 
     def exec_(self):
         widget = BrowserWidget()
+        def test():
+            print '!!!!'
+        active_monitor.timer.timeout.connect(test)
         widget.show()
         super(StandaloneApp, self).exec_()
 
