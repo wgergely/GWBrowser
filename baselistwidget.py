@@ -332,6 +332,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set = collections.OrderedDict()
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
+        if self.parent().model().sourceModel().get_location() == common.RendersFolder:
+            path = common.get_sequence_startpath(path)
+        else:
+            path = common.get_sequence_endpath(path)
+
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
         key = u'Copy path'
