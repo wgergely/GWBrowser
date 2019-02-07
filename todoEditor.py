@@ -115,11 +115,10 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.document().setDocumentMargin(common.MARGIN)
 
         self.highlighter = Highlighter(self.document())
-        # self.label.setTextFormat(QtCore.Qt.RichText)
         self.setOpenExternalLinks(True)
         self.setOpenLinks(True)
         self.setReadOnly(False)
-        # self.setTextInteractionFlags(QtCore.Qt.TextEditable)
+        self.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
         metrics.width(u'  ')
@@ -697,6 +696,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
         return False
 
     def _get_next_enabled(self, n):
+        hasEnabled = False
+        for i in xrange(len(self.editors.items)):
+            item = self.editors.items[i]
+            editor = item.findChild(TodoItemEditor)
+            if editor.isEnabled():
+                hasEnabled = True
+                break
+
+        if not hasEnabled:
+            return -1
+
         # Finding the next enabled editor
         for _ in xrange(len(self.editors.items) - n):
             n += 1
