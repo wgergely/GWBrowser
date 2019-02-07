@@ -170,10 +170,10 @@ ChangeListWidget {{
 	margin: 0;
 	padding: 0;
 	border-style: solid;
-	color: rgba({TEXT});
+	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "Roboto Black";
-	font-size: 10pt;
+	font-size: 11pt;
 }}
 ChangeListWidget:hover {{
 	color: rgb({TEXT_SELECTED});

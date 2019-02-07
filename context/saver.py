@@ -118,15 +118,7 @@ class BaseCombobox(QtWidgets.QComboBox):
         sizehint = self.itemDelegate().sizeHint(None, QtCore.QModelIndex()).height()
 
         if not rows:
-            mbox = QtWidgets.QMessageBox(parent=self)
-            mbox.setText(
-                u'No items found.')
-            mbox.setInformativeText(
-                u'Items should show up here after updating the asset.')
-            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            mbox.setWindowTitle('No items')
-            return mbox.exec_()
+            return # no items
 
         for n in xrange(rows):
             height += sizehint

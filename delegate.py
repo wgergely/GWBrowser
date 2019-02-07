@@ -255,6 +255,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, _, selected, _, active, _, _ = args
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.drawRect(option.rect)
 
         if selected and not active:
             color = QtGui.QColor(common.BACKGROUND_SELECTED)
@@ -373,17 +374,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setLeft(_rect.left() - common.ROW_HEIGHT)
 
         painter.setPen(QtCore.Qt.NoPen)
-        gradient = QtGui.QLinearGradient(
-            rect.topLeft(), rect.topRight())
-        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 30))
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(rect)
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
         gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 30))
-        gradient.setColorAt(0.7, QtGui.QColor(0, 0, 0, 0))
+        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
 
@@ -722,6 +717,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         offset = common.INDICATOR_WIDTH
 
+        center = rect.center()
+        rect.setHeight(common.INLINE_ICON_SIZE)
+        rect.moveCenter(center)
         # Name background
         pen = QtGui.QPen(common.FAVOURITE)
         pen.setWidth(offset)
@@ -778,14 +776,23 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         _, rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() + 1)
+        rect.moveRight(rect.right())
+        center = rect.center()
+        rect.setWidth(common.INLINE_ICON_SIZE * 2)
+        rect.setHeight(common.INLINE_ICON_SIZE)
+        rect.moveCenter(center)
 
-        pen = QtGui.QPen(common.FAVOURITE)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.FAVOURITE)
-        painter.drawRoundedRect(rect, rect.width() / 2.0, rect.width() / 2.0)
+        pen = QtGui.QPen(common.SECONDARY_TEXT)
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.setBrush(common.SECONDARY_TEXT)
+        painter.drawRoundedRect(rect, 4, 4)
 
-        painter.setPen(common.TEXT)
-        painter.drawText(rect, QtCore.Qt.AlignCenter, u'{}'.format(count))
+        font = QtGui.QFont('Roboto Black')
+        font.setPointSize(8)
+        painter.setFont(font)
+        painter.setPen(common.SECONDARY_BACKGROUND)
+        painter.drawText(rect, QtCore.Qt.AlignCenter, u' {} '.format(count))
 
 
 class AssetWidgetDelegate(BaseDelegate):

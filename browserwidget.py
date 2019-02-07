@@ -304,14 +304,6 @@ class CollapseSequenceMenu(BaseContextMenu):
             QtCore.QModelIndex(), parent=parent)
         self.add_collapse_sequence_menu()
 
-
-class ModePickButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(ModePickButton, self).__init__(parent=parent)
-
-
 class AddBookmarkButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
 
@@ -394,25 +386,26 @@ class HeaderWidget(QtWidgets.QWidget):
         )
         self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.label.setStyleSheet("""\
-        QLabel {
-            color: rgba(255,255,255,100);\
-            font-family: "Roboto Black";\
-            font-size: 8pt;\
-        }\
-        """)
+        QLabel {{
+            color: rgba({});
+            font-family: "Roboto Black";
+            font-size: 9pt;
+        }}
+        """.format('{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb())))
 
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
-            u'custom', None, common.ROW_BUTTONS_HEIGHT / 2, opacity=0.8)
+            u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=1)
         label.setPixmap(pixmap)
         label.setAlignment(QtCore.Qt.AlignCenter)
         label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
 
-        self.layout().addWidget(label)
+        self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(self.label, 1)
         self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
+        self.layout().addWidget(label)
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
@@ -432,12 +425,12 @@ class HeaderWidget(QtWidgets.QWidget):
         active_paths = Active.get_active_paths()
         text = u'Bookmark not activated'
         if all((active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])):
-            text = u'{} | {}'.format(active_paths[u'job'], active_paths[u'root'])
+            text = u'{}  |  {}'.format(active_paths[u'job'], active_paths[u'root'])
         if active_paths['asset']:
-            text = u'{} | {}'.format(text, active_paths[u'asset'])
+            text = u'{}  |  {}'.format(text, active_paths[u'asset'])
         if active_paths['location']:
-            text = u'{} | {}'.format(text, active_paths[u'location'])
-        self.label.setText(text.upper())
+            text = u'{}  |  {}'.format(text, active_paths[u'location'])
+        self.label.setText(text.lower())
 
 
 class ListControlWidget(QtWidgets.QWidget):
@@ -462,11 +455,9 @@ class ListControlWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Minimum
         )
 
-        # Mode indicator button
-        label = ModePickButton()
 
         # Listwidget
-        self.layout().addWidget(label)  # QComboBox
+        self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ChangeListWidget(parent=self))
         self.layout().addStretch(1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
@@ -489,7 +480,6 @@ class ListControlWidget(QtWidgets.QWidget):
         painter.end()
 
     def _connectSignals(self):
-        modepickbutton = self.findChild(ModePickButton)
         addbookmarkbutton = self.findChild(AddBookmarkButton)
 
         combobox = self.findChild(ChangeListWidget)
@@ -508,14 +498,12 @@ class ListControlWidget(QtWidgets.QWidget):
         self.modeChanged.connect(collapsesequence.update_)
         self.modeChanged.connect(togglefavourite.update_)
 
-        modepickbutton.clicked.connect(combobox.showPopup)
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
     def setCurrentMode(self, idx, *args, **kwargs):
         """Sets the current mode of ``ListControlWidget``."""
         combobox = self.findChild(ChangeListWidget)
-        modepick = self.findChild(ModePickButton)
         addbookmark = self.findChild(AddBookmarkButton)
         locations = self.findChild(LocationsButton)
         filterbutton = self.findChild(FilterButton)
@@ -555,7 +543,6 @@ class ListControlWidget(QtWidgets.QWidget):
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
 
-        modepick.setPixmap(pixmap)
         filterbutton.update_()
         collapsesequence.update_()
         togglearchived.update_()
@@ -581,7 +568,6 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         args = (painter, option, index, selected)
 
         self.paint_background(*args)
-        self.paint_thumbnail(*args)
         self.paint_name(*args)
 
     def paint_name(self, *args):
@@ -593,13 +579,12 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter.save()
 
         font = QtGui.QFont(u'Roboto Black')
-        font.setPointSize(9.0)
+        font.setPointSize(11.0)
         font.setBold(True)
         painter.setFont(font)
 
         rect = QtCore.QRect(option.rect)
-        rect.moveLeft(rect.left() + rect.height() + common.MARGIN)
-        rect.setRight(rect.width() - (common.MARGIN * 2))
+        rect.setLeft(rect.left() + common.MARGIN)
 
         painter.setPen(QtGui.QPen(common.TEXT))
         if hover:
@@ -607,16 +592,11 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         if index.flags() == QtCore.Qt.NoItemFlags:
             painter.setPen(QtGui.QPen(common.TEXT_DISABLED))
         if active:
-            painter.setPen(QtGui.QPen(common.FAVOURITE))
-
+            painter.setPen(QtGui.QPen(common.TEXT))
         painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
 
-        text = index.data(QtCore.Qt.DisplayRole)
-        if index.row() == 1:
-            text = u'Assets (bookmark not activated)' if disabled else text
-        elif index.row() == 2:
-            text = u'Files (asset not activated)' if disabled else text
 
+        text = index.data(QtCore.Qt.DisplayRole)
         painter.drawText(
             rect,
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -631,10 +611,8 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         color = common.BACKGROUND
         if selected:
             color = common.BACKGROUND_SELECTED
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            color = common.SECONDARY_BACKGROUND
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(option.rect)
+            painter.setBrush(QtGui.QBrush(color))
+            painter.drawRect(option.rect)
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
@@ -647,25 +625,6 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         rect.setWidth(rect.height())
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-
-        # Shadow next to the thumbnail
-        shd_rect = QtCore.QRect(option.rect)
-        shd_rect.setLeft(rect.left() + rect.width())
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.2, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
-
-        gradient = QtGui.QLinearGradient(
-            shd_rect.topLeft(), shd_rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 50))
-        gradient.setColorAt(0.02, QtGui.QColor(68, 68, 68, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(shd_rect)
-
         color = common.TEXT
         if active:
             color = common.FAVOURITE
@@ -736,7 +695,7 @@ class ChangeListWidget(QtWidgets.QComboBox):
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
         popup.move(pos)
         popup.setFixedWidth(self.parent().rect().width())
-        popup.setFixedHeight(common.ROW_HEIGHT * 3)
+        popup.setFixedHeight(self.itemDelegate().sizeHint(None, None).height() * self.model().rowCount())
         # Selecting the current item
         index = self.view().model().index(self.currentIndex(), 0)
         self.view().selectionModel().setCurrentIndex(
@@ -806,7 +765,7 @@ class BrowserWidget(QtWidgets.QWidget):
         # Main layout
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
         self.setSizePolicy(
