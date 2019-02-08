@@ -144,6 +144,11 @@ class AssetModel(BaseModel):
 
             idx += 1
 
+    def get_location(self):
+        """There is no location associated with the asset widget,
+        Needed context menu functionality only."""
+        return None
+
     def set_bookmark(self, bookmark):
         """Sets a new bookmark for the model and resets the model_data object."""
         self.bookmark = bookmark

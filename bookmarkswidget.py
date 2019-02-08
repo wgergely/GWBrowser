@@ -197,6 +197,11 @@ class BookmarksModel(BaseModel):
     def supportedDropActions(self):
         return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
 
+    def get_location(self):
+        """There is no location associated with the asset widget,
+        Needed context menu functionality only."""
+        return None
+
 
 class BookmarksWidget(BaseInlineIconWidget):
     """Widget to list all saved ``Bookmarks``."""
