@@ -209,7 +209,7 @@ class FoldersWidgetDelegate(BaseDelegate):
         painter.setPen(QtGui.QPen(color))
         painter.drawText(
             rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            QtCore.Qt.AlignCenter,
             text
         )
 
@@ -726,10 +726,10 @@ class SaverWidget(QtWidgets.QDialog):
         )
 
         self._createUI()
-        self._set_initial_state()
         self._connectSignals()
 
         self.image = QtGui.QImage()
+        self._set_initial_state()
 
     def pick_thumbnail(self):
         """Prompts to select an image file.
@@ -926,31 +926,53 @@ class SaverWidget(QtWidgets.QDialog):
         self.layout().addWidget(statusbar, 1)
 
     def _set_initial_state(self):
+        bookmarkswidget = self.findChild(BookmarksWidget)
         assetswidget = self.findChild(AssetsWidget)
         folderswidget = self.findChild(FoldersWidget)
+
+        if not bookmarkswidget.active_index().isValid():
+            assetswidget.setCurrentIndex(-1)
 
         # Valid asset selection
         if assetswidget.active_index().isValid():
             asset = assetswidget.active_index().data(common.ParentRole)
             folderswidget.set_asset(asset)
 
-            if self.window().currentfile:  # Selecting the currentfile folder
-                path = u'/'.join(list(asset) + [self.window().location, ])
+            if self.currentfile:  # Selecting the currentfile folder
+                path = u'/'.join(list(asset) + [self.location, ])
                 currentfile = QtCore.QFileInfo(
-                    self.window().currentfile).path()
+                    self.currentfile).path()
                 if path in currentfile:
                     index = folderswidget.model().index(currentfile)
                     folderswidget.select_index(index)
         else:
+            assetswidget.setCurrentIndex(-1)
+
+            # Folderswidget needs it's root index set before being able to unset
+            # the selection
             index = folderswidget.model().index('/')
-            folderswidget.select_index(index)
+            folderswidget.setRootModelIndex(index)
+            folderswidget.select_index(QtCore.QModelIndex())
+            folderswidget.setCurrentText('')
             folderswidget.setCurrentIndex(-1)
+
+
+        if self.currentfile:
+            # Checking if the reference file has a valid pattern
+            match = common.get_valid_filename(self.currentfile)
+            self.findChild(Custom).setHidden(False)
+            if match:
+                self.findChild(Custom).setHidden(False)
+                self.findChild(Custom).setText(match.group(3))
+            else:
+                self.findChild(Custom).setHidden(True)
+        else:
+            self.findChild(Custom).setHidden(True)
 
         self.update_filename_display()
         self.update_filepath_display()
 
-    def update_filepath_display(self, *args, **kwargs):
-        """Slot responsible for updating the file-path display."""
+    def fileInfo(self):
         paths = self.active_paths()
         arr = []
         for k in paths:
@@ -960,7 +982,11 @@ class SaverWidget(QtWidgets.QDialog):
         path = u'/'.join(arr).rstrip('/')
 
         f = FileName(paths, parent=self)
-        file_info = QtCore.QFileInfo('{}/{}'.format(path, f.active_filename()))
+        return QtCore.QFileInfo('{}/{}'.format(path, f.active_filename()))
+
+    def update_filepath_display(self, *args, **kwargs):
+        """Slot responsible for updating the file-path display."""
+        file_info = self.fileInfo()
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
@@ -978,17 +1004,37 @@ class SaverWidget(QtWidgets.QDialog):
         name = f.active_filename(style=common.LowerCase)
         file_info = QtCore.QFileInfo(name)
 
-        if self.currentfile:
+        match = common.get_valid_filename(self.currentfile)
+        if self.currentfile and not match:
             self.findChild(Prefix).setText(file_info.completeBaseName())
-            self.findChild(Custom).setHidden(True)
             self.findChild(Suffix).setText(
                 '.{}'.format(file_info.completeSuffix()))
         else:
-            self.findChild(Custom).setHidden(False)
             prefix = name.split('_')[:3]
             suffix = name.split('_')[-2:]
             self.findChild(Prefix).setText('{}_'.format('_'.join(prefix)))
             self.findChild(Suffix).setText('_{}'.format('_'.join(suffix)))
+
+    def _done(self):
+        bookmarkswidget = self.findChild(BookmarksWidget)
+        assetswidget = self.findChild(AssetsWidget)
+        folderswidget = self.findChild(FoldersWidget)
+
+        if not bookmarkswidget.active_index().isValid():
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.NoIcon,
+                u'Bookmarks not selected.', u'', parent=self).exec_()
+        elif not assetswidget.active_index().isValid():
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.NoIcon,
+                u'', u'Asset not selected.', parent=self).exec_()
+        elif not folderswidget.active_index().isValid():
+            return QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.NoIcon,
+                u'', u'Asset not selected.', parent=self).exec_()
+
+        self.fileSaveRequested.emit(self.fileInfo().filePath())
+        self.close()
 
     def _connectSignals(self):
         headerwidget = self.findChild(SaverHeaderWidget)
@@ -1001,7 +1047,9 @@ class SaverWidget(QtWidgets.QDialog):
         bookmarksmodel = self.findChild(BookmarksModel)
         assetsmodel = self.findChild(AssetModel)
         custom = self.findChild(Custom)
+        check = self.findChild(Check)
 
+        check.clicked.connect(self._done)
         # Closes the dialog
         closebutton.clicked.connect(self.close)
         # Picks a thumbnail
@@ -1026,16 +1074,10 @@ class SaverWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    paths = {
-        'server': '//gordo/jobs',
-        'job': 'tkwwbk_8077',
-        'root': 'build2',
-        'asset': 'asset_one',
-        'location': common.ScenesFolder,  # We have initialized the saver with this
-        'folder': 'carlos/test'
-    }
-    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/test_scene_v001.ma'
-    widget = SaverWidget(common.ScenesFolder, currentfile=None)
-
+    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/job_asset_location_new-filename_001_gergely.ext.ma'
+    widget = SaverWidget(common.ScenesFolder, currentfile=currentfile)
+    def func(path):
+        print path
+    widget.fileSaveRequested.connect(func)
     widget.show()
     app.exec_()

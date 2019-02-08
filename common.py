@@ -645,7 +645,10 @@ def get_ranges(arr, padding):
                 k += 1
     return u','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
+def get_valid_filename(text):
+    return ValidFilenameRegex.search(text)
 
+ValidFilenameRegex = re.compile(r'([^]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$', flags=re.IGNORECASE)
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
 SequenceStartRegex = re.compile(
     r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)

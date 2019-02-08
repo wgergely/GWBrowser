@@ -117,19 +117,19 @@ class TrayMenu(BaseContextMenu):
             u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
             u'disabled': not all(file_),
             u'text': u'Show active location in the file manager...',
-            u'action': functools.partial(common.reveal, '/'.join(file_))
+            u'action': functools.partial(common.reveal, u'/'.join([f for f in file_ if f]))
         }
         menu_set[u'asset'] = {
             u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
             u'disabled': not all(asset),
             u'text': u'Show active asset in the file manager...',
-            u'action': functools.partial(common.reveal, '/'.join(asset))
+            u'action': functools.partial(common.reveal, u'/'.join([f for f in asset if f]))
         }
         menu_set[u'bookmark'] = {
             u'icon': common.get_rsc_pixmap('bookmarks', common.TEXT, common.INLINE_ICON_SIZE),
             u'disabled': not all(bookmark),
             u'text': u'Show active bookmark in the file manager...',
-            u'action': functools.partial(common.reveal, u'/'.join(bookmark))
+            u'action': functools.partial(common.reveal, u'/'.join([f for f in bookmark if f]))
         }
 
 
