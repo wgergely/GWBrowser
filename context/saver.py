@@ -156,7 +156,6 @@ class FoldersWidgetDelegate(BaseDelegate):
         """Defines how the BookmarksWidgetItems should be painted."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
-        self.paint_thumbnail(*args)
         self.paint_name(*args)
 
     @paintmethod
@@ -168,10 +167,9 @@ class FoldersWidgetDelegate(BaseDelegate):
 
         if root:
             color = self.get_state_color(option, index, common.TEXT)
-            rect.setLeft(rect.left() + rect.height() + (common.MARGIN / 2.0))
         else:
             color = self.get_state_color(option, index, common.SECONDARY_TEXT)
-            rect.setLeft(rect.left() + common.MARGIN / 2.0)
+        rect.setLeft(rect.left() + common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
 
         font = QtGui.QFont('Roboto Black')
@@ -263,6 +261,9 @@ class FoldersWidgetDelegate(BaseDelegate):
             color = QtGui.QColor(49, 107, 218)
 
         rect = QtCore.QRect(option.rect)
+        root = self.parent().model().parent(index) == self.parent().rootIndex()
+        if root:
+            rect.setTop(rect.top() + 2)
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
@@ -289,7 +290,7 @@ class FoldersView(QtWidgets.QTreeView):
         self.setHeaderHidden(True)
         self.setItemDelegate(FoldersWidgetDelegate(parent=self))
         self.setAnimated(True)
-        self.setIndentation(common.ROW_BUTTONS_HEIGHT)
+        self.setIndentation(common.MARGIN)
         self.setRootIsDecorated(False)
 
 
