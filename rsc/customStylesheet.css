@@ -293,6 +293,16 @@ QTreeView::item:selected {{
 QTreeView::SELECTION {{
 	background-color: rgba({SELECTION});
 }}
+QTreeView::branch {{
+	background-color: rgba({BACKGROUND});;
+}}
+/* QTreeView::branch:open {{
+    image: url(./rsc/chevron-right.png);
+}} */
+/* QTreeView::branch:closed:has-children {{ */
+QTreeView::branch {{
+    image: url(:/rsc/chevron-right.png);
+}}
 
 QLabel {{
 	background-color: transparent;

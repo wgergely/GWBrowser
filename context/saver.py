@@ -21,6 +21,8 @@ from PySide2 import QtCore, QtWidgets, QtGui
 import browser.common as common
 
 from browser.delegate import BaseDelegate
+from browser.delegate import BookmarksWidgetDelegate
+from browser.delegate import AssetWidgetDelegate
 from browser.delegate import paintmethod
 from browser.editors import ClickableLabel
 from browser.settings import Active
@@ -146,9 +148,9 @@ class FoldersIconProvider(QtWidgets.QFileIconProvider):
         return QtGui.QIcon(self.FolderIcon)
 
 
-class FoldersModelDelegate(BaseDelegate):
+class FoldersWidgetDelegate(BaseDelegate):
     def __init__(self, parent=None):
-        super(FoldersModelDelegate, self).__init__(parent=parent)
+        super(FoldersWidgetDelegate, self).__init__(parent=parent)
 
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
@@ -159,11 +161,17 @@ class FoldersModelDelegate(BaseDelegate):
 
     @paintmethod
     def paint_name(self, *args):
-        """Paints the item names inside the ``AssetWidget``."""
+        """Paints the item names inside the ``FoldersWidget``."""
         painter, option, index, _, _, active, _, _ = args
-
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + rect.height() + (common.MARGIN / 2.0))
+        root = self.parent().model().parent(index) == self.parent().rootIndex()
+
+        if root:
+            color = self.get_state_color(option, index, common.TEXT)
+            rect.setLeft(rect.left() + rect.height() + (common.MARGIN / 2.0))
+        else:
+            color = self.get_state_color(option, index, common.SECONDARY_TEXT)
+            rect.setLeft(rect.left() + common.MARGIN / 2.0)
         rect.setRight(rect.right() - common.MARGIN)
 
         font = QtGui.QFont('Roboto Black')
@@ -173,20 +181,32 @@ class FoldersModelDelegate(BaseDelegate):
 
         # Resizing the height and centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
+        rect.setHeight(common.INLINE_ICON_SIZE)
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
         text = re.sub(r'[_]{1,}', '_', text).strip('_')
+        text = ' {} '.format(text)
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
             rect.width()
         )
+        width = metrics.width(text)
+        rect.setWidth(width)
 
-        color = self.get_state_color(option, index, common.TEXT)
+        if root:
+            painter.setBrush(common.FAVOURITE)
+            pen = QtGui.QPen(common.FAVOURITE)
+        else:
+            painter.setBrush(common.SECONDARY_BACKGROUND)
+            pen = QtGui.QPen(common.SECONDARY_BACKGROUND)
+
+        pen.setWidth(common.INDICATOR_WIDTH)
+        painter.setPen(pen)
+        painter.drawRoundedRect(rect, 2, 2)
 
         painter.setBrush(QtCore.Qt.NoBrush)
         painter.setPen(QtGui.QPen(color))
@@ -201,23 +221,25 @@ class FoldersModelDelegate(BaseDelegate):
         """Paints the thumbnail of the ``BookmarkWidget`` item."""
         painter, option, index, _, _, active, _, _ = args
 
+        if self.parent().model().parent(index) != self.parent().rootIndex():
+            return
+
         rect = QtCore.QRect(option.rect)
         rect.setLeft(option.rect.left())
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setRight(option.rect.left() + rect.height())
+        rect.setTop(rect.top())
+        rect.setBottom(rect.bottom())
+        rect.setRight(option.rect.left() + option.rect.height())
+
+        center = rect.center()
+        rect.setWidth(rect.width() / 2)
+        rect.setHeight(rect.height() / 2)
+        rect.moveCenter(center)
 
         pixmap = index.data(QtCore.Qt.DecorationRole).pixmap(
             option.rect.height(),
             option.rect.height(),
             QtGui.QIcon.Normal
         )
-
-        center = rect.center()
-        rect.setWidth(rect.width() / 2.0)
-        rect.setHeight(rect.height() / 2.0)
-        rect.moveCenter(center)
-
         painter.drawPixmap(
             rect,
             pixmap,
@@ -241,21 +263,6 @@ class FoldersModelDelegate(BaseDelegate):
             color = QtGui.QColor(49, 107, 218)
 
         rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top())
-        rect.setBottom(rect.bottom())
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top())
-        rect.setBottom(rect.bottom())
-        rect.setWidth(option.rect.height())
-
-        color.setHsl(
-            color.hue(),
-            color.saturation(),
-            color.lightness() - 10
-        )
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
@@ -280,8 +287,10 @@ class FoldersView(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(FoldersView, self).__init__(parent=parent)
         self.setHeaderHidden(True)
-        self.setItemDelegate(FoldersModelDelegate(parent=self))
+        self.setItemDelegate(FoldersWidgetDelegate(parent=self))
         self.setAnimated(True)
+        self.setIndentation(common.ROW_BUTTONS_HEIGHT)
+        self.setRootIsDecorated(False)
 
 
 class FoldersWidget(BaseCombobox):
@@ -381,6 +390,9 @@ class BookmarksWidget(BaseCombobox):
                 self.view().scrollTo(index)
                 break
 
+    def inline_icons_count(self):
+        return 0
+
     def active_index(self):
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
@@ -416,120 +428,23 @@ class BookmarksWidget(BaseCombobox):
         self.model().activeBookmarkChanged.emit(index.data(common.ParentRole))
 
 
-class BookmarksListDelegate(BaseDelegate):
+class BookmarksListDelegate(BookmarksWidgetDelegate):
     """The delegate used to paint the bookmark items."""
-
-    def _get_root_text(self, index, rect, metrics):
-        """Gets the text for drawing the root."""
-        root = index.data(common.ParentRole)[2]
-        count = index.data(common.FileDetailsRole)
-        active = index.flags() & MarkedAsActive
-
-        text = re.sub(r'[_]+', ' ', root.upper())
-        text = u'{} ({})'.format(text, count) if count else text
-
-        return metrics.elidedText(
-            text,
-            QtCore.Qt.ElideLeft,
-            rect.width()
-        )
 
     def paint(self, painter, option, index):
         """Defines how the BookmarksWidgetItems should be painted."""
         args = self._get_paint_args(painter, option, index)
-
         self.paint_background(*args)
+        #
+        self.paint_thumbnail(*args)
         self.paint_archived(*args)
+        #
         self.paint_name(*args)
+        #
+        self.paint_count(*args)
+        #
+        self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
-
-    @paintmethod
-    def paint_background(self, *args):
-        """Paints the background."""
-        painter, option, _, selected, _, active, _, _ = args
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-
-        if selected and not active:
-            color = QtGui.QColor(common.BACKGROUND_SELECTED)
-        elif not selected and not active:
-            color = QtGui.QColor(common.BACKGROUND)
-        elif selected and active:
-            color = QtGui.QColor(49, 107, 218)
-        elif not selected and active:
-            color = QtGui.QColor(29, 87, 198)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
-
-    @paintmethod
-    def paint_name(self, *args):
-        """Paints name of the ``bookmarkswidget``'s items."""
-        painter, option, index, selected, _, _, _, _ = args
-
-        active = index.flags() & MarkedAsActive
-        count = index.data(common.FileDetailsRole)
-
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-        rect.setLeft(option.rect.left() + common.MARGIN)
-        painter.setFont(font)
-
-        # Centering rect
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-
-        # Job
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[\W\d\_]+', '', text)
-        text = u' {} '.format(text)
-        width = metrics.width(text)
-        rect.setWidth(width)
-
-        offset = common.INDICATOR_WIDTH
-
-        # Name background
-        pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(offset)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-        painter.drawRoundedRect(rect, 2, 2)
-        # Name
-        painter.setPen(common.TEXT)
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignCenter,
-            text
-        )
-
-        if count:
-            color = QtGui.QColor(common.TEXT)
-        else:
-            color = QtGui.QColor(common.TEXT_DISABLED)
-            if selected:
-                color = QtGui.QColor(common.TEXT)
-        if active:
-            color = common.SELECTION
-
-        rect.setLeft(rect.right() + common.MARGIN)
-        rect.setRight(option.rect.right() - common.MARGIN)
-        # Name
-        text = self._get_root_text(index, rect, metrics)
-
-        painter.setFont(font)
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(color)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
@@ -546,7 +461,7 @@ class AssetsWidget(BaseCombobox):
         )
 
         self.setModel(AssetModel(bookmark, parent=self))
-        self.setItemDelegate(AssetWidgetDelegate(parent=self))
+        self.setItemDelegate(AssetListDelegate(parent=self))
 
         self.activated.connect(self.activate_current_index)
 
@@ -594,7 +509,7 @@ class AssetsWidget(BaseCombobox):
         self.model().activeAssetChanged.emit(index.data(common.ParentRole))
 
 
-class AssetWidgetDelegate(BaseDelegate):
+class AssetListDelegate(AssetWidgetDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
 
     def paint(self, painter, option, index):
@@ -605,46 +520,13 @@ class AssetWidgetDelegate(BaseDelegate):
         #
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
+        self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
         self.paint_description(*args)
         #
-        # self.paint_selection_indicator(*args)
+        self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
-
-    @paintmethod
-    def paint_name(self, *args):
-        """Paints the item names inside the ``AssetWidget``."""
-        painter, option, index, _, _, active, _, _ = args
-
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-
-        # Resizing the height and centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-
-        # Asset name
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub(r'[_]{1,}', '_', text)
-        text = metrics.elidedText(
-            text.upper(),
-            QtCore.Qt.ElideRight,
-            rect.width()
-        )
-
-        color = self.get_state_color(option, index, common.TEXT)
-
-        painter.setFont(font)
-        painter.setBrush(QtCore.Qt.NoBrush)
-        painter.setPen(QtGui.QPen(color))
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
@@ -997,9 +879,9 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
-        row.layout().addWidget(Prefix(parent=self))
+        row.layout().addWidget(Prefix(parent=self), 1)
         row.layout().addWidget(Custom(parent=self))
-        row.layout().addWidget(Suffix(parent=self),1)
+        row.layout().addWidget(Suffix(parent=self))
         column.layout().addWidget(row, 1)
 
         mainrow.layout().addWidget(Check(parent=self))
@@ -1142,7 +1024,7 @@ if __name__ == '__main__':
         'folder': 'carlos/test'
     }
     currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/test_scene_v001.ma'
-    widget = SaverWidget(common.ScenesFolder, currentfile=currentfile)
+    widget = SaverWidget(common.ScenesFolder, currentfile=None)
 
     widget.show()
     app.exec_()
