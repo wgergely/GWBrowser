@@ -38,7 +38,8 @@ from browser.settings import MarkedAsActive, MarkedAsArchived
 
 class ThumbnailMenu(BaseContextMenu):
     def __init__(self, parent=None):
-        super(ThumbnailMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        super(ThumbnailMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
         self.add_thumbnail_menu()
 
     def add_thumbnail_menu(self):
@@ -54,8 +55,6 @@ class ThumbnailMenu(BaseContextMenu):
 
         menu_set = collections.OrderedDict()
         menu_set[u'separator'] = {}
-
-
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
@@ -97,6 +96,7 @@ class ThumbnailButton(ClickableLabel):
         menu.move(pos)
         menu.exec_()
 
+
 class BaseCombobox(QtWidgets.QComboBox):
     def __init__(self, parent=None):
         super(BaseCombobox, self).__init__(parent=parent)
@@ -121,7 +121,7 @@ class BaseCombobox(QtWidgets.QComboBox):
         sizehint = self.itemDelegate().sizeHint(None, QtCore.QModelIndex()).height()
 
         if not rows:
-            return # no items
+            return  # no items
 
         for n in xrange(rows):
             height += sizehint
@@ -172,8 +172,7 @@ class FoldersWidgetDelegate(BaseDelegate):
         rect.setLeft(rect.left() + common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
 
-        font = QtGui.QFont('Roboto Black')
-        font.setPointSize(9)
+        font = QtGui.QFont(common.PrimaryFont)
         painter.setFont(font)
         metrics = QtGui.QFontMetrics(font)
 
@@ -547,6 +546,7 @@ class SaverHeaderWidget(HeaderWidget):
         painter.drawRect(event.rect())
         painter.end()
 
+
 class FileName(QtCore.QObject):
     """Utility class responsible for creating the file's filename part."""
 
@@ -635,11 +635,13 @@ class FileNameWidget(QtWidgets.QLabel):
         self.setOpenExternalLinks(False)
         self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
 
-        self.setStyleSheet("""QLabel{
-            background-color: rgba(0,0,0,0);
-            font-family: "Roboto Black";
-            font-size: 11pt;
-        }""")
+        self.setStyleSheet(
+            """QLabel{{
+                background-color: rgba(0,0,0,0);
+                font-family: "{}";
+                font-size: 11pt;
+            }}""".format(common.PrimaryFont.family())
+        )
 
 
 class Prefix(FileNameWidget):
@@ -654,7 +656,7 @@ class Custom(QtWidgets.QLineEdit):
         self.setAlignment(QtCore.Qt.AlignCenter)
 
         self.setMaxLength(25)
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(11)
         metrics = QtGui.QFontMetrics(font)
 
@@ -665,10 +667,13 @@ class Custom(QtWidgets.QLineEdit):
             padding: 0px;
             margin: 0px;
             color: rgba({});
-            font-family: "Roboto Black";
+            font-family: "{}";
             font-size: 11pt;
-        }}""".format('{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb())))
-        font = QtGui.QFont('Roboto Black')
+        }}""".format(
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.PrimaryFont.family()))
+
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(12)
         metrics = QtGui.QFontMetrics(font)
         self.setFixedWidth(metrics.width('untitled'))
@@ -676,7 +681,7 @@ class Custom(QtWidgets.QLineEdit):
         self.textChanged.connect(self.resizeLineEditToContents)
 
     def resizeLineEditToContents(self, text):
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(12)
         metrics = QtGui.QFontMetrics(font)
         width = metrics.width(text)
@@ -867,9 +872,13 @@ class SaverWidget(QtWidgets.QDialog):
             padding: 0px;
             margin: 0px;
             color: rgba({});
-            font-family: "Roboto Black";
+            font-family: "{}";
             font-size: 11pt;
-        }}""".format('{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb())))
+        }}""".format(
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.PrimaryFont.family()
+        ))
+
         row.layout().addWidget(editor, 1)
         row.layout().addWidget(BookmarksWidget(parent=self))
         row.layout().addWidget(AssetsWidget(parent=self))
@@ -899,12 +908,14 @@ class SaverWidget(QtWidgets.QDialog):
         statusbar.setStyleSheet("""QStatusBar {{
             background-color: rgba(0,0,0,0);
             color: rgba({color});
-            font-family: "Roboto Black";
+            font-family: "{family}";
             font-size: 8pt;
         }}""".format(
-            color='{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb())
+            color='{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()),
+            family=common.PrimaryFont.family()
         ))
-        statusbar.layout().setContentsMargins(20,20,20,20)
+
+        statusbar.layout().setContentsMargins(20, 20, 20, 20)
 
         statusbar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -951,7 +962,7 @@ class SaverWidget(QtWidgets.QDialog):
         f = FileName(paths, parent=self)
         file_info = QtCore.QFileInfo('{}/{}'.format(path, f.active_filename()))
 
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)
         text = metrics.elidedText(
@@ -1011,7 +1022,6 @@ class SaverWidget(QtWidgets.QDialog):
         assetswidget.activated.connect(self.update_filepath_display)
         folderswidget.activated.connect(self.update_filepath_display)
         custom.textChanged.connect(self.update_filepath_display)
-
 
 
 if __name__ == '__main__':

@@ -95,7 +95,7 @@ QPushButton {{
 		padding-right: 10px;
 		border-style: solid;
 		background-color: rgba({BACKGROUND_SELECTED});
-		font-family: "Roboto Black";
+		font-family: "{fontFamily}";
 		font-size: 8pt;
 		height: 24px;
 }}
@@ -124,7 +124,7 @@ QComboBox {{
 	padding-right: 10px;
 	border-style: solid;
 	background-color: rgba({BACKGROUND_SELECTED});
-	font-family: "Roboto Black";
+	font-family: "{fontFamily}";
 	font-size: 8pt;
 }}
 QComboBox:hover {{
@@ -159,8 +159,8 @@ ChangeListWidget {{
 	border-style: solid;
 	color: rgba({TEXT});
 	background-color: rgba(0,0,0,0);
-	font-family: "Roboto Black";
-	font-size: 11pt;
+	font-family: "{fontFamily}";
+	font-size: 10pt;
 	border-left: 3px solid rgba(0,0,0,0);
 }}
 ChangeListWidget:active {{

@@ -12,7 +12,7 @@ values are stored in the ``bookmark/.browser`` folder.
 
 """
 
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
@@ -219,19 +219,30 @@ class AssetWidget(BaseInlineIconWidget):
         """
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
-
+        #
         thumbnail_rect = QtCore.QRect(rect)
         thumbnail_rect.setWidth(rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
+        #
+        name_rect = QtCore.QRect(rect)
+        name_rect.setLeft(
+            common.INDICATOR_WIDTH +
+            name_rect.height() +
+            common.MARGIN
+        )
+        name_rect.setRight(name_rect.right() - common.MARGIN)
 
-        name_rect, _, metrics = AssetWidgetDelegate.get_text_area(
-            rect, common.PRIMARY_FONT)
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
         name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
         name_rect.setHeight(metrics.height())
         name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
+        #
+        description_rect = QtCore.QRect(rect)
+        font = QtGui.QFont(common.SecondaryFont)
+        metrics = QtGui.QFontMetrics(font)
 
-        description_rect, _, metrics = AssetWidgetDelegate.get_text_area(
-            rect, common.SECONDARY_FONT)
         description_rect.moveTop(
             description_rect.top() + (description_rect.height() / 2.0))
         description_rect.setHeight(metrics.height())

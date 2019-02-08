@@ -559,7 +559,7 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         super(ChangeListWidgetDelegate, self).__init__(parent=parent)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().parent().width(), common.ROW_HEIGHT)
+        return QtCore.QSize(self.parent().parent().width(), common.ROW_BUTTONS_HEIGHT)
 
     def paint(self, painter, option, index):
         """The main paint method."""
@@ -583,9 +583,8 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.save()
 
-        font = QtGui.QFont(u'Roboto Black')
-        font.setPointSize(11.0)
-        font.setBold(True)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSize(10)
         painter.setFont(font)
 
         rect = QtCore.QRect(option.rect)
@@ -615,8 +614,8 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         color = common.BACKGROUND
         if selected:
             color = common.BACKGROUND_SELECTED
-            painter.setBrush(QtGui.QBrush(color))
-            painter.drawRect(option.rect)
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(option.rect)
 
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
@@ -700,7 +699,7 @@ class ChangeListWidget(QtWidgets.QComboBox):
         popup.move(pos)
         popup.setFixedWidth(self.parent().rect().width())
         popup.setFixedHeight(self.itemDelegate().sizeHint(
-            None, None).height() * self.model().rowCount() + 3)
+            None, None).height() * self.model().rowCount())
         # Selecting the current item
         index = self.view().model().index(self.currentIndex(), 0)
         self.view().selectionModel().setCurrentIndex(

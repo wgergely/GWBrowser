@@ -69,16 +69,16 @@ class Spinner(QtWidgets.QWidget):
         self.description = QtWidgets.QLabel(u'')
         self.description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.description.setStyleSheet("""
-            QLabel {
-                font-family: "Roboto Black";
+            QLabel {{
+                font-family: "{}";
                 font-size: 9pt;
                 color: rgba(200,200,200, 255);
                 background-color: rgba(50,50,50, 255);
             	border: 0px solid;
             	border-radius: 6px;
                 padding: 12px;
-            }
-        """)
+            }}
+        """.format(common.PrimaryFont.family()))
 
         self.layout().addWidget(self.label)
         self.layout().addWidget(self.description)

@@ -48,49 +48,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         return args
 
     @staticmethod
-    def get_text_area(rect, emphasis):
-        """Returns the elements needed to paint primary text elements.
-        Note that the returned rectangle covers the whole
-
-        Args:
-            rect (QRect): style option item.
-            section (int): The empasis of the font.
-
-        Returns:
-            Tuple: Tuple of [`QRect`, `QFont`, `QFontMetrics`]
-
-        """
-        rect = QtCore.QRect(rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Primary font is used to draw item names
-        if emphasis is common.PRIMARY_FONT:
-            font = QtGui.QFont(u'Roboto Black')
-            font.setPointSize(10)
-            font.setBold(False)
-            font.setItalic(False)
-        # Secondary fonts are used to draw description and file information
-        elif emphasis is common.SECONDARY_FONT:
-            font = QtGui.QFont(u'Roboto Medium')
-            font.setPointSize(8)
-            font.setBold(False)
-            font.setItalic(False)
-        elif emphasis is common.TERCIARY_FONT:
-            font = QtGui.QFont(u'Roboto')
-            font.setPointSize(8.0)
-            font.setBold(False)
-            font.setItalic(True)
-
-        # Metrics
-        metrics = QtGui.QFontMetrics(font)
-        return rect, font, metrics
-
-    @staticmethod
     def get_state_color(option, index, color):
         """Returns a modified colour taking the current item state into
         consideration.
@@ -411,8 +368,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif not selected:
             color = QtGui.QColor(common.TEXT)
 
-        rect, metrics, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
+
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
 
         text = metrics.elidedText(
             index.data(QtCore.Qt.DisplayRole),
@@ -526,7 +491,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         count_rect.setHeight(8)
 
         count_rect.moveCenter(rect.bottomRight())
-        font = QtGui.QFont(u'Roboto Black')
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8.0)
         painter.setFont(font)
 
@@ -549,23 +514,32 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the item description inside the ``AssetWidget``."""
         painter, option, index, _, _, _, _, _ = args
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.SECONDARY_FONT)
-
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         if not index.data(common.DescriptionRole) and not hover:
             return
 
         # Resizing the height and moving below the name
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
+
+        font = QtGui.QFont(common.SecondaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0) +
                      metrics.lineSpacing())
 
         color = self.get_state_color(option, index, common.TEXT_NOTE)
+
         if not index.data(common.DescriptionRole):
-            _, font, metrics = self.get_text_area(
-                option.rect, common.TERCIARY_FONT)
+            font = QtGui.QFont(common.SecondaryFont)
+            metrics = QtGui.QFontMetrics(font)
             text = u'Double-click to add description...'
             color.setAlpha(100)
         elif index.data(common.DescriptionRole):
@@ -659,9 +633,18 @@ class BookmarksWidgetDelegate(BaseDelegate):
         active = index.flags() & MarkedAsActive
         count = index.data(common.FileDetailsRole)
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
         painter.setFont(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
 
         # Centering rect
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -750,7 +733,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setBrush(common.FAVOURITE)
         painter.drawRoundedRect(rect, rect.height() / 2.0, rect.height() / 2.0)
 
-        font = QtGui.QFont('Roboto Black')
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
         painter.setFont(font)
         painter.setPen(common.TEXT)
@@ -793,8 +776,16 @@ class AssetWidgetDelegate(BaseDelegate):
         """Paints the item names inside the ``AssetWidget``."""
         painter, option, index, _, _, active, _, _ = args
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -863,12 +854,19 @@ class FilesWidgetDelegate(BaseDelegate):
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8.0)
-        painter.setFont(font)
         metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
+
+        painter.setFont(font)
 
         # Resizing the height and centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -941,11 +939,17 @@ class FilesWidgetDelegate(BaseDelegate):
         """Paints the mode and the subsequent subfolders."""
         painter, option, index, _, _, _, _, _ = args
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-
-        font.setPointSize(7.5)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and Centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -1006,12 +1010,17 @@ class FilesWidgetDelegate(BaseDelegate):
         """Paints the ``FilesWidget``'s name."""
         painter, option, index, _, _, _, _, _ = args
 
-        rect, font, metrics = self.get_text_area(
-            option.rect, common.PRIMARY_FONT)
-
+        font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8.0)
-        painter.setFont(font)
         metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))

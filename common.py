@@ -169,15 +169,15 @@ TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
-
 SEPARATOR = QtGui.QColor(50, 50, 50)
 SELECTION = QtGui.QColor(100, 161, 255)
 FAVOURITE = QtGui.QColor(140, 120, 233)
 
-PRIMARY_FONT = 0
-SECONDARY_FONT = 1
-TERCIARY_FONT = 2
 
+PrimaryFont = QtGui.QFont(u'Roboto Black')
+PrimaryFont.setPointSize(10)
+SecondaryFont = QtGui.QFont(u'Roboto Medium')
+SecondaryFont.setPointSize(8)
 
 def move_widget_to_available_geo(widget):
     """Moves the widget inside the available screen geomtery, if any of the edges
@@ -255,7 +255,7 @@ def set_custom_stylesheet(widget):
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
         qss = qss.format(
-            fontFamily=u'Roboto Medium',
+            fontFamily=PrimaryFont.family(),
             fontSize=9,
             BACKGROUND=u'{},{},{},{}'.format(*BACKGROUND.getRgb()),
             BACKGROUND_SELECTED=u'{},{},{},{}'.format(

@@ -124,7 +124,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         metrics.width(u'  ')
         self.setTabStopWidth(common.MARGIN)
 
-        font = QtGui.QFont(u'Roboto Medium')
+        font = QtGui.QFont(common.SecondaryFont)
         font.setPointSizeF(10.0)
         self.document().setDefaultFont(font)
         self.setUndoRedoEnabled(True)
@@ -143,7 +143,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
-        font = QtGui.QFont(u'Roboto Medium')
+        font = QtGui.QFont(common.SecondaryFont)
         font.setPointSizeF(10.0)
         if b:
             font.setStrikeOut(True)
@@ -684,8 +684,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             painter.setPen(common.FAVOURITE)
-            font = QtGui.QFont(u'Roboto Medium')
-            font.setBold(False)
+            font = QtGui.QFont(common.SecondaryFont)
             font.setPointSize(10.0)
             painter.setFont(font)
             painter.drawText(
@@ -898,13 +897,13 @@ class TodoEditorWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Minimum
         )
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setStyleSheet("""\
-        QLabel {\
-            color: rgb(30,30,30);\
-        	font-family: "Roboto Medium";\
-        	font-size: 11pt;\
-        }\
-        """)
+        label.setStyleSheet("""
+        QLabel {{
+            color: rgb(30,30,30);
+        	font-family: "{}";
+        	font-size: 11pt;
+        }}
+        """.format(common.SecondaryFont.family()))
         row.layout().addWidget(label, 1)
         row.layout().addWidget(self.remove_button, 0)
 

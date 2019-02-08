@@ -547,14 +547,23 @@ class FilesWidget(BaseInlineIconWidget):
         thumbnail_rect.setWidth(rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
 
-        name_rect, _, metrics = self.itemDelegate().get_text_area(
-            rect, common.PRIMARY_FONT)
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
+        name_rect = QtCore.QRect(rect)
+        name_rect.setLeft(
+            common.INDICATOR_WIDTH +
+            name_rect.height() +
+            common.MARGIN
+        )
+        name_rect.setRight(name_rect.right() - common.MARGIN)
+        #
+        description_rect = QtCore.QRect(name_rect)
+        #
         name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
         name_rect.setHeight(metrics.height())
         name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
-
-        description_rect, _, metrics = self.itemDelegate().get_text_area(
-            rect, common.SECONDARY_FONT)
+        #
         description_rect.moveTop(
             description_rect.top() + (description_rect.height() / 2.0))
         description_rect.setHeight(metrics.height())

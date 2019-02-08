@@ -1317,7 +1317,7 @@ class BaseListWidget(QtWidgets.QListView):
             )
 
             painter.setPen(QtCore.Qt.NoPen)
-            font = QtGui.QFont(u'Roboto Black')
+            font = QtGui.QFont(common.PrimaryFont)
             font.setPointSize(8)
             painter.setFont(font)
 

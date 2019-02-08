@@ -318,8 +318,10 @@ class ComboBoxItemDelegate(BaseDelegate):
     def paint_background(self, *args):
         painter, option, index, selected, _, _, _, _ = args
         rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        painter.setBrush(common.BACKGROUND)
+        if selected:
+            painter.setBrush(common.BACKGROUND_SELECTED)
+        else:
+            painter.setBrush(common.BACKGROUND)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
 
@@ -329,9 +331,7 @@ class ComboBoxItemDelegate(BaseDelegate):
         painter, option, index, selected, _, _, _, _ = args
         disabled = (index.flags() == QtCore.Qt.NoItemFlags)
 
-        font = QtGui.QFont(u'Roboto')
-        font.setBold(True)
-        font.setPointSize(8)
+        font = QtGui.QFont(common.PrimaryFont)
         painter.setFont(font)
 
         rect = QtCore.QRect(option.rect)
@@ -346,7 +346,7 @@ class ComboBoxItemDelegate(BaseDelegate):
         painter.setPen(QtGui.QPen(color))
         painter.setBrush(QtCore.Qt.NoBrush)
 
-        metrics = QtGui.QFontMetrics(painter.font())
+        metrics = QtGui.QFontMetrics(font)
         text = index.data(QtCore.Qt.DisplayRole)
 
         # Stripping the Glassworks-specific number suffix
@@ -434,11 +434,11 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         label.setText(u'Add bookmark')
         self.layout().addWidget(label, 0)
         label.setStyleSheet("""
-            QLabel {
-                font-family: "Roboto Black";
+            QLabel {{
+                font-family: "{}";
                 font-size: 12pt;
-            }
-        """)
+            }}
+        """.format(common.PrimaryFont.family()))
 
         self.pathsettings = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(self.pathsettings)

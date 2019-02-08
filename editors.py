@@ -271,17 +271,21 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
         self.editor.setStyleSheet(
             'background-color: rgb(50,50,50);\
-            color: rgba({},{},{},{});\
-            font-family: "Roboto Medium"; font-size: 8pt;'.format(*common.TEXT_NOTE.getRgb())
-        )
+            font-family: "{}"; font-size: 8pt;\
+            color: rgba({},{},{},{});'.format(
+                common.SecondaryFont.family(),
+                *common.TEXT_NOTE.getRgb()
+                ))
 
         label = QtWidgets.QLabel(u'Edit description')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         label.setStyleSheet(
-            'font-family: "Roboto Black";\
+            'font-family: "{}";\
             font-size: 8pt;\
-            color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
-        )
+            color: rgba({},{},{},{});'.format(
+                common.PrimaryFont.family(),
+                *common.TEXT.getRgb()
+            ))
 
         self.layout().addStretch(1)
         self.layout().addWidget(label, 1)
@@ -372,11 +376,11 @@ class FilterEditor(QtWidgets.QWidget):
 
         self.editor = QtWidgets.QLineEdit()
         self.setStyleSheet("""
-            QLineEdit {
+            QLineEdit {{
                 padding: 12px;
                 background-color: rgba(30,30,30, 255);
                 color: rgba(200,200,200,255);
-                font-family: "Roboto Black";
+                font-family: "{}";
                 font-size: 10pt;
             	border-width: 0px;
             	border: none;
@@ -390,8 +394,8 @@ class FilterEditor(QtWidgets.QWidget):
             QLineEdit:focus {
             	border: none;
             	outline: 0;
-            }
-        """)
+            }}
+        """.format(common.PrimaryFont.family()))
         self.layout().addWidget(self.label, 0)
         self.layout().addWidget(self.editor, 1)
 
