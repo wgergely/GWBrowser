@@ -108,6 +108,9 @@ SortByLastCreated = 2
 SortBySize = 3
 """Item sort flags"""
 
+LowerCase = 0
+UpperCase = 1
+"""Filename styles"""
 
 def sort_alphanum_key(key):
     def _convert(text):

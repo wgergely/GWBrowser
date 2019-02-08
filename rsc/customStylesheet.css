@@ -157,11 +157,11 @@ QComboBox::drop-down:disabled {{
 ChangeListWidget {{
 	text-align: left;
 	border-style: solid;
-	color: rgba({SECONDARY_TEXT});
+	color: rgba({TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "Roboto Black";
 	font-size: 11pt;
-	border-top: 3px solid rgba({SECONDARY_TEXT});
+	border-left: 3px solid rgba({SECONDARY_BACKGROUND});
 }}
 
 ChangeListWidget:hover {{
@@ -169,9 +169,8 @@ ChangeListWidget:hover {{
 	background-color: rgba({SEPARATOR});
 }}
 ChangeListWidget:focus {{
-	border-top: 3px solid rgba({SELECTION});
+	border-left: 3px solid rgba({SELECTION});
 }}
-
 
 
 QLineEdit {{

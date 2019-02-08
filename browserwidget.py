@@ -170,6 +170,11 @@ class FilterButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(FilterButton, self).__init__(parent=parent)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
+
         self.update_()
 
         self.clicked.connect(self.action)
@@ -193,10 +198,10 @@ class FilterButton(ClickableLabel):
         filterstring = widget.currentWidget().model().get_filterstring()
         if filterstring != u'/':
             pixmap = common.get_rsc_pixmap(
-                u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'filter', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                u'filter', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
 
@@ -206,8 +211,12 @@ class LocationsButton(ClickableLabel):
     def __init__(self, parent=None):
         super(LocationsButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            u'location', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'location', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
         self.clicked.connect(self.labelClicked)
 
     def labelClicked(self):
@@ -224,6 +233,10 @@ class CollapseSequenceButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(parent=parent)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
         self.update_()
 
         self.clicked.connect(self.toggle)
@@ -239,10 +252,10 @@ class CollapseSequenceButton(ClickableLabel):
         collapsed = filewidget.model().sourceModel().is_grouped()
         if collapsed:
             pixmap = common.get_rsc_pixmap(
-                u'collapse', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                u'expand', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'expand', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
 
@@ -251,6 +264,10 @@ class ToggleArchivedButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(parent=parent)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
         self.update_()
         self.clicked.connect(self.toggle)
         self.clicked.connect(self.update_)
@@ -265,10 +282,10 @@ class ToggleArchivedButton(ClickableLabel):
         archived = widget.currentWidget().model().get_filtermode(u'archived')
         if not archived:
             pixmap = common.get_rsc_pixmap(
-                u'archived', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                u'active', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'active', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
 
@@ -277,6 +294,10 @@ class ToggleFavouriteButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(parent=parent)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
         self.update_()
         self.clicked.connect(self.toggle)
         self.clicked.connect(self.update_)
@@ -291,10 +312,10 @@ class ToggleFavouriteButton(ClickableLabel):
         favourite = widget.currentWidget().model().get_filtermode(u'favourite')
         if favourite:
             pixmap = common.get_rsc_pixmap(
-                u'favourite', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2)
+                u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = common.get_rsc_pixmap(
-                u'favourite', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+                u'favourite', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
 
@@ -311,8 +332,12 @@ class AddBookmarkButton(ClickableLabel):
     def __init__(self, parent=None):
         super(AddBookmarkButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            u'todo_add', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'todo_add', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
+        self.setFixedSize(
+            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE,
+        )
 
 
 class CloseButton(ClickableLabel):
@@ -360,17 +385,14 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self._createUI()
-        self.itemActivated()
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
-        rect = event.rect()
-        rect.setTop(rect.bottom())
-        painter.setBrush(QtGui.QBrush(common.SEPARATOR))
-        painter.drawRect(event.rect())
-        painter.end()
+    # def paintEvent(self, event):
+    #     painter = QtGui.QPainter()
+    #     painter.begin(self)
+    #     painter.setPen(QtCore.Qt.NoPen)
+    #     painter.setBrush(QtGui.QBrush(common.SEPARATOR))
+    #     painter.drawRect(self.rect())
+    #     painter.end()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -379,21 +401,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-
-        self.label = QtWidgets.QLabel()
-        self.label.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        self.label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-        self.label.setStyleSheet("""\
-        QLabel {{
-            color: rgba({});
-            font-family: "Roboto Black";
-            font-size: 9pt;
-        }}
-        """.format('{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb())))
-
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
             u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=1)
@@ -402,8 +409,8 @@ class HeaderWidget(QtWidgets.QWidget):
         label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
 
-        self.layout().addSpacing(common.MARGIN)
-        self.layout().addWidget(self.label, 1)
+        self.layout().addStretch()
+
         self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
         self.layout().addWidget(label)
@@ -421,18 +428,6 @@ class HeaderWidget(QtWidgets.QWidget):
             offset = (event.pos() - self.move_start_event_pos)
             self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
 
-    def itemActivated(self, *args, **kwargs):
-        """Slot responsible for setting the header text."""
-        active_paths = Active.get_active_paths()
-        text = u'Bookmark not activated'
-        if all((active_paths[u'server'], active_paths[u'job'], active_paths[u'root'])):
-            text = u'{}  |  {}'.format(
-                active_paths[u'job'], active_paths[u'root'])
-        if active_paths['asset']:
-            text = u'{}  |  {}'.format(text, active_paths[u'asset'])
-        if active_paths['location']:
-            text = u'{}  |  {}'.format(text, active_paths[u'location'])
-        self.label.setText(text.lower())
 
 
 class ListControlWidget(QtWidgets.QWidget):
@@ -448,7 +443,7 @@ class ListControlWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
@@ -458,7 +453,7 @@ class ListControlWidget(QtWidgets.QWidget):
         )
 
         # Listwidget
-        self.layout().addSpacing(common.MARGIN)
+        # self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ChangeListWidget(parent=self))
         self.layout().addStretch(1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
@@ -467,18 +462,27 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(CollapseSequenceButton(parent=self))
         self.layout().addWidget(ToggleArchivedButton(parent=self))
         self.layout().addWidget(ToggleFavouriteButton(parent=self))
+        self.layout().addSpacing(common.MARGIN)
 
         idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentMode(idx)
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
-        painter.drawRect(event.rect())
-        painter.end()
+    # def paintEvent(self, event):
+    #     painter = QtGui.QPainter()
+    #     painter.begin(self)
+    #     painter.setPen(QtCore.Qt.NoPen)
+    #     painter.setBrush(common.SEPARATOR)
+    #     painter.drawRect(self.rect())
+    #
+    #     rect = QtCore.QRect(self.rect())
+    #     rect.moveTop(rect.top() + rect.height())
+    #     rect.setHeight(2)
+    #     rect.moveTop(rect.top() - rect.height())
+    #     painter.setBrush(QtGui.QColor(0,0,0,50))
+    #     painter.drawRect(rect)
+    #
+    #     painter.end()
 
     def _connectSignals(self):
         addbookmarkbutton = self.findChild(AddBookmarkButton)
@@ -785,9 +789,10 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget = ListControlWidget(parent=self)
         self.headerwidget = HeaderWidget(parent=self)
 
-        self.status_bar = QtWidgets.QStatusBar()
-        self.status_bar.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2)
-        self.status_bar.setSizePolicy(
+        self.statusbar = QtWidgets.QStatusBar()
+        self.statusbar.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2.0)
+        self.statusbar.setSizeGripEnabled(True)
+        self.statusbar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
@@ -795,7 +800,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.headerwidget)
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
-        self.layout().addWidget(self.status_bar)
+        self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
         self.listcontrolwidget.modeChanged.connect(self.activate_widget)
@@ -850,14 +855,10 @@ class BrowserWidget(QtWidgets.QWidget):
         ).activeBookmarkChanged.connect(setCurrentMode)
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             combobox.apply_flags)
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
-            self.headerwidget.itemActivated)
 
         active_monitor.activeBookmarkChanged.connect(
             self.bookmarkswidget.refresh)
         active_monitor.activeBookmarkChanged.connect(combobox.apply_flags)
-        active_monitor.activeBookmarkChanged.connect(
-            self.headerwidget.itemActivated)
 
         # Asset
         # A new asset has been activated and all the data has to be re-initialized
@@ -876,9 +877,6 @@ class BrowserWidget(QtWidgets.QWidget):
         # Updates the controls above the list
         self.assetswidget.model().sourceModel(
         ).activeAssetChanged.connect(combobox.apply_flags)
-        # Updates the display of the active path (bar is hidden in the context widgets)
-        self.assetswidget.model().sourceModel().activeAssetChanged.connect(
-            self.headerwidget.itemActivated)
 
         active_monitor.activeAssetChanged.connect(self.assetswidget.refresh)
         active_monitor.activeAssetChanged.connect(
@@ -891,9 +889,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.bookmarkswidget.entered.connect(self.entered)
         self.assetswidget.entered.connect(self.entered)
         self.fileswidget.entered.connect(self.entered)
-
-        self.fileswidget.model().sourceModel().activeLocationChanged.connect(
-            self.headerwidget.itemActivated)
 
         def func():  # refreshing the listcontrol widget
             self.listcontrolwidget.modeChanged.emit(combobox.currentIndex())
@@ -910,7 +905,7 @@ class BrowserWidget(QtWidgets.QWidget):
     def entered(self, index):
         """Custom itemEntered signal."""
         message = index.data(QtCore.Qt.StatusTipRole)
-        self.status_bar.showMessage(message, timeout=1500)
+        self.statusbar.showMessage(message, timeout=1500)
 
     def activate_widget(self, idx):
         """Method to change between views."""

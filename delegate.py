@@ -71,18 +71,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Primary font is used to draw item names
         if emphasis is common.PRIMARY_FONT:
             font = QtGui.QFont(u'Roboto Black')
-            font.setPointSizeF(9)
+            font.setPointSize(10)
             font.setBold(False)
             font.setItalic(False)
         # Secondary fonts are used to draw description and file information
         elif emphasis is common.SECONDARY_FONT:
             font = QtGui.QFont(u'Roboto Medium')
-            font.setPointSizeF(8.0)
+            font.setPointSize(8)
             font.setBold(False)
             font.setItalic(False)
         elif emphasis is common.TERCIARY_FONT:
             font = QtGui.QFont(u'Roboto')
-            font.setPointSizeF(8.0)
+            font.setPointSize(8.0)
             font.setBold(False)
             font.setItalic(True)
 
@@ -143,20 +143,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setLeft(rect.right() - size)
         rect.moveRight(rect.right() - common.MARGIN)
 
-        offset = 4.0
         for _ in xrange(idx):
             rect.moveRight(
-                rect.right() - common.INDICATOR_WIDTH - size - (offset * 2))
+                rect.right() - common.INDICATOR_WIDTH - size - (common.INDICATOR_WIDTH * 2))
 
         # Background
         size = max(rect.width(), rect.height())
         bg_rect = QtCore.QRect(rect)
         bg_rect.setWidth(size)
         bg_rect.setHeight(size)
-        bg_rect.setLeft(bg_rect.left() - offset)
-        bg_rect.setTop(bg_rect.top() - offset)
-        bg_rect.setRight(bg_rect.right() + offset)
-        bg_rect.setBottom(bg_rect.bottom() + offset)
+        bg_rect.setLeft(bg_rect.left() - common.INDICATOR_WIDTH)
+        bg_rect.setTop(bg_rect.top() - common.INDICATOR_WIDTH)
+        bg_rect.setRight(bg_rect.right() + common.INDICATOR_WIDTH)
+        bg_rect.setBottom(bg_rect.bottom() + common.INDICATOR_WIDTH)
 
         return rect, bg_rect
 
@@ -175,19 +174,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pos = self.parent().mapFromGlobal(pos)
 
         # Icon
-        if archived:
-            color = QtGui.QColor(common.FAVOURITE)
-        else:
-            color = QtGui.QColor(common.SECONDARY_TEXT)
-
+        color = common.FAVOURITE if archived else common.TEXT
         painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QBrush(color))
 
         if archived:
             pixmap = common.get_rsc_pixmap(
                 u'archived', color, common.INLINE_ICON_SIZE)
             color = QtGui.QColor(common.SEPARATOR)
             color.setAlpha(60)
-            painter.setBrush(QtGui.QBrush(color))
+            painter.setBrush(color)
             painter.drawRoundedRect(bg_rect, 2.0, 2.0)
         else:
             pixmap = common.get_rsc_pixmap(
@@ -211,7 +207,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if favourite:
             color = QtGui.QColor(common.FAVOURITE)
         else:
-            color = QtGui.QColor(common.SECONDARY_TEXT)
+            color = QtGui.QColor(common.TEXT)
 
         pos = QtGui.QCursor().pos()
         pos = self.parent().mapFromGlobal(pos)
@@ -248,14 +244,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.drawRect(option.rect)
 
-        if selected and not active:
+        if selected:
             color = QtGui.QColor(common.BACKGROUND_SELECTED)
-        elif not selected and not active:
+        else:
             color = QtGui.QColor(common.BACKGROUND)
-        elif selected and active:
-            color = QtGui.QColor(49, 107, 218)
-        elif not selected and active:
-            color = QtGui.QColor(29, 87, 198)
+
+        # elif selected and active:
+        #     color = QtGui.QColor(49, 107, 218)
+        # elif not selected and active:
+        #     color = QtGui.QColor(29, 87, 198)
 
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
@@ -305,17 +302,26 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not active:
             return
 
+        color = self.get_state_color(option, index, common.SELECTION)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(color)
+
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
         rect.setWidth(common.INDICATOR_WIDTH)
         rect.moveRight(option.rect.right())
 
-        color = self.get_state_color(option, index, common.SELECTION)
-
-        painter.setBrush(color)
-        painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
+        rect.moveLeft(option.rect.left() + common.INDICATOR_WIDTH + rect.height())
+        painter.drawRect(rect)
+
+        if active:
+            color = QtGui.QColor(common.FAVOURITE)
+            color.setAlpha(50)
+            painter.setBrush(color)
+            rect.setRight(option.rect.right())
+            painter.drawRect(rect)
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -344,32 +350,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             rect.topLeft(), rect.topRight())
         gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
         gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(rect)
-
-    @paintmethod
-    def paint_inline_icons_shadow(self, *args):
-        """Paints a drop-shadow"""
-        painter, option, _, _, _, _, _, _ = args
-        if option.rect.width() < 360.0:
-            return
-
-        rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-
-        _rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-
-        rect.setRight(_rect.left() - common.MARGIN - 1)
-        rect.setLeft(_rect.left() - common.ROW_HEIGHT)
-
-        painter.setPen(QtCore.Qt.NoPen)
-
-        gradient = QtGui.QLinearGradient(
-            rect.topLeft(), rect.topRight())
-        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 30))
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
 
@@ -488,15 +468,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 2)
-        color = QtGui.QColor(common.SECONDARY_TEXT)
         pixmap = common.get_rsc_pixmap(
-            u'folder', color, common.INLINE_ICON_SIZE)
+            u'folder', common.TEXT, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
     @paintmethod
     def paint_inline_icons_background(self, *args):
-        painter, option, _, selected, _, active, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
         if option.rect.width() < 360.0:
             return
 
@@ -510,22 +489,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         bg_rect.setBottom(bg_rect.bottom() - 1)
 
         painter.setPen(QtCore.Qt.NoPen)
-        if selected and not active:
+        if selected:
             color = QtGui.QColor(common.BACKGROUND_SELECTED)
-        elif not selected and not active:
+        else:
             color = QtGui.QColor(common.BACKGROUND)
-        elif selected and active:
-            color = QtGui.QColor(common.SELECTION)
-            color.setRed(color.red() - 20)
-            color.setGreen(color.green() - 20)
-            color.setBlue(color.blue())
-        elif not selected and active:
-            color = QtGui.QColor(49, 107, 218)
 
         color.setHsl(
             color.hue(),
             color.saturation(),
-            color.lightness() - 20
+            color.lightness() - 0
         )
         painter.setBrush(color)
         painter.drawRect(bg_rect)
@@ -542,8 +514,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 3)
 
-        color = QtGui.QColor(common.TEXT)
-        pixmap = common.get_rsc_pixmap(u'todo', color, common.INLINE_ICON_SIZE)
+        pixmap = common.get_rsc_pixmap(u'todo', common.TEXT, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
@@ -556,7 +527,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         count_rect.moveCenter(rect.bottomRight())
         font = QtGui.QFont(u'Roboto Black')
-        font.setPointSizeF(8.0)
+        font.setPointSize(8.0)
         painter.setFont(font)
 
         pen = QtGui.QPen(common.FAVOURITE)
@@ -645,7 +616,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         # self.paint_description(*args)
         #
         self.paint_inline_icons_background(*args)
-        self.paint_inline_icons_shadow(*args)
         self.paint_folder_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
@@ -685,7 +655,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
 
         active = index.flags() & MarkedAsActive
         count = index.data(common.FileDetailsRole)
@@ -807,7 +777,6 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_description(*args)
         #
         self.paint_inline_icons_background(*args)
-        self.paint_inline_icons_shadow(*args)
         self.paint_todo_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
@@ -877,7 +846,6 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_description(*args)
         #
         self.paint_inline_icons_background(*args)
-        self.paint_inline_icons_shadow(*args)
         self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
@@ -895,7 +863,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
 
-        font.setPointSizeF(8.0)
+        font.setPointSize(8.0)
         painter.setFont(font)
         metrics = QtGui.QFontMetrics(font)
 
@@ -973,7 +941,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect, font, metrics = self.get_text_area(
             option.rect, common.PRIMARY_FONT)
 
-        font.setPointSizeF(7.5)
+        font.setPointSize(7.5)
         metrics = QtGui.QFontMetrics(font)
 
         # Resizing the height and Centering

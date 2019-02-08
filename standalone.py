@@ -27,17 +27,20 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     def trayActivated(self, reason):
         if reason == QtWidgets.QSystemTrayIcon.Unknown:
-            return self.show()
+            self.show()
+            self.raise_()
         if reason == QtWidgets.QSystemTrayIcon.Context:
             return
         if reason == QtWidgets.QSystemTrayIcon.DoubleClick:
             self.show()
+            self.raise_()
         if reason == QtWidgets.QSystemTrayIcon.Trigger:
             return
         if reason == QtWidgets.QSystemTrayIcon.MiddleClick:
             return
 
     def closeEvent(self, event):
+        """Custom hide event."""
         event.ignore()
         self.hide()
         self.tray.showMessage(
@@ -48,6 +51,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         )
 
 class TrayMenu(BaseContextMenu):
+    """This is the tray menu."""
     def __init__(self, parent=None):
         super(TrayMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
 
