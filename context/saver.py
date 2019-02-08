@@ -889,9 +889,9 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
-        row.layout().addWidget(Prefix(parent=self), 1)
+        row.layout().addWidget(Prefix(parent=self))
         row.layout().addWidget(Custom(parent=self))
-        row.layout().addWidget(Suffix(parent=self))
+        row.layout().addWidget(Suffix(parent=self), 1)
         column.layout().addWidget(row, 1)
 
         mainrow.layout().addWidget(Check(parent=self))

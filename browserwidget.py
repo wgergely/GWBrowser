@@ -386,14 +386,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self._createUI()
 
-    # def paintEvent(self, event):
-    #     painter = QtGui.QPainter()
-    #     painter.begin(self)
-    #     painter.setPen(QtCore.Qt.NoPen)
-    #     painter.setBrush(QtGui.QBrush(common.SEPARATOR))
-    #     painter.drawRect(self.rect())
-    #     painter.end()
-
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -467,22 +459,6 @@ class ListControlWidget(QtWidgets.QWidget):
         idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentMode(idx)
-
-    # def paintEvent(self, event):
-    #     painter = QtGui.QPainter()
-    #     painter.begin(self)
-    #     painter.setPen(QtCore.Qt.NoPen)
-    #     painter.setBrush(common.SEPARATOR)
-    #     painter.drawRect(self.rect())
-    #
-    #     rect = QtCore.QRect(self.rect())
-    #     rect.moveTop(rect.top() + rect.height())
-    #     rect.setHeight(2)
-    #     rect.moveTop(rect.top() - rect.height())
-    #     painter.setBrush(QtGui.QColor(0,0,0,50))
-    #     painter.drawRect(rect)
-    #
-    #     painter.end()
 
     def _connectSignals(self):
         addbookmarkbutton = self.findChild(AddBookmarkButton)
