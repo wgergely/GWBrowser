@@ -158,17 +158,20 @@ ChangeListWidget {{
 	text-align: left;
 	border-style: solid;
 	color: rgba({TEXT});
-	background-color: rgba({SEPARATOR});
+	background-color: rgba(0,0,0,0);
 	font-family: "Roboto Black";
 	font-size: 11pt;
-	border-left: 3px solid rgba({SECONDARY_BACKGROUND});
+	border-left: 3px solid rgba(0,0,0,0);
 }}
-
+ChangeListWidget:active {{
+	background-color: rgba(0,0,0,0);
+}}
 ChangeListWidget:hover {{
+	background-color: rgba(0,0,0,0);
 	color: rgb({TEXT_SELECTED});
-	background-color: rgba({SEPARATOR});
 }}
 ChangeListWidget:focus {{
+	background-color: rgba(0,0,0,0);
 	border-left: 3px solid rgba({SELECTION});
 }}
 

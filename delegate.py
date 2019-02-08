@@ -610,15 +610,14 @@ class BookmarksWidgetDelegate(BaseDelegate):
         #
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
-        # self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
-        # self.paint_description(*args)
         #
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
+        self.paint_count(*args)
         #
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
@@ -707,7 +706,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         else:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
+            rect.setRight(icon_rect.left() - common.MARGIN)
 
         text = index.data(common.ParentRole)[2]
         text = re.sub(r'[_]+', ' ', text.upper())
@@ -728,16 +727,20 @@ class BookmarksWidgetDelegate(BaseDelegate):
             text
         )
 
+    @paintmethod
+    def paint_count(self, *args):
+        """Paints name of the ``BookmarkWidget``'s items."""
+        painter, option, index, _, _, _, _, _ = args
         # Count
         count = index.data(common.TodoCountRole)
         if not count:
             return
 
         _, rect = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() + 1)
+            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count())
         rect.moveRight(rect.right())
         center = rect.center()
-        rect.setWidth(common.INLINE_ICON_SIZE * 2)
+        rect.setWidth(common.INLINE_ICON_SIZE)
         rect.setHeight(common.INLINE_ICON_SIZE)
         rect.moveCenter(center)
 
@@ -745,7 +748,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         pen.setWidth(2)
         painter.setPen(pen)
         painter.setBrush(common.FAVOURITE)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, rect.height() / 2.0, rect.height() / 2.0)
 
         font = QtGui.QFont('Roboto Black')
         font.setPointSize(8)
@@ -877,7 +880,7 @@ class FilesWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
+            rect.setRight(icon_rect.left() - common.MARGIN)
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         else:
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
@@ -1019,7 +1022,7 @@ class FilesWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - (common.MARGIN * 2))
+            rect.setRight(icon_rect.left() - (common.MARGIN))
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         else:
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft

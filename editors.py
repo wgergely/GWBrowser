@@ -16,11 +16,6 @@ class ClickableLabel(QtWidgets.QLabel):
 
     def __init__(self, parent=None):
         super(ClickableLabel, self).__init__(parent=parent)
-        self.setStyleSheet("""
-            QLabel {{
-                background-color: rgba({});
-            }}
-        """.format(u'{},{},{},{}'.format(*common.SEPARATOR.getRgb())))
         self.setFixedSize(QtCore.QSize(
             common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
         self.setAlignment(QtCore.Qt.AlignCenter)
