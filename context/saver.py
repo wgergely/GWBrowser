@@ -116,8 +116,22 @@ class BaseCombobox(QtWidgets.QComboBox):
         self.view().setFixedWidth(right.x() - left.x())
         self.view().window().move(left.x(), bottom.y())
 
+        self.set_view_height()
+        self.view().window().show()
+
+    def set_view_height(self, *args, **kwargs):
+        """Resizes the view to fit the visible rows."""
+        def count_visible_rows(index, count=-1):
+            count += 1
+            below = self.view().indexBelow(index)
+            if not below.isValid():
+                return count
+            return count_visible_rows(below, count=count)
+
         height = 0
         rows = self.model().rowCount(parent=self.rootModelIndex())
+        rows = count_visible_rows(self.rootModelIndex()) if isinstance(
+            self.view(), QtWidgets.QTreeView) else rows
         sizehint = self.itemDelegate().sizeHint(None, QtCore.QModelIndex()).height()
 
         if not rows:
@@ -125,17 +139,12 @@ class BaseCombobox(QtWidgets.QComboBox):
 
         for n in xrange(rows):
             height += sizehint
-            if isinstance(self.view(), QtWidgets.QTreeView):
-                height = int(600 / sizehint) * sizehint
-                break
-            if height > 600:
-                height = int(600 / sizehint) * sizehint
+            if height > 600.0:
+                height = int(600.0 / sizehint) * sizehint
                 break
 
         self.view().setFixedHeight(height)
         self.view().window().setFixedHeight(height)
-
-        self.view().window().show()
 
 
 class FoldersIconProvider(QtWidgets.QFileIconProvider):
@@ -215,7 +224,7 @@ class FoldersWidgetDelegate(BaseDelegate):
 
     @paintmethod
     def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the ``BookmarkWidget`` item."""
+        """Paints the thumbnail of the ``FoldersWidget`` item."""
         painter, option, index, _, _, active, _, _ = args
 
         if self.parent().model().parent(index) != self.parent().rootIndex():
@@ -288,7 +297,7 @@ class FoldersView(QtWidgets.QTreeView):
         super(FoldersView, self).__init__(parent=parent)
         self.setHeaderHidden(True)
         self.setItemDelegate(FoldersWidgetDelegate(parent=self))
-        self.setAnimated(True)
+        # self.setAnimated(True)
         self.setIndentation(common.MARGIN)
         self.setRootIsDecorated(False)
 
@@ -300,26 +309,25 @@ class FoldersWidget(BaseCombobox):
         self.setView(view)
         self.setModel(FoldersModel(parent=self))
         self.override = False
-        self.firstrun = True
         # Active selections
         self.activated.connect(self.activate_current_index)
         # Signals the user made a folder selection
         self.activated.connect(lambda int: self.set_override(True))
 
         self.model().directoryLoaded.connect(self.expand_to_depth)
+        self.view().expanded.connect(self.set_view_height)
+        self.view().collapsed.connect(self.set_view_height)
 
         self.setFixedWidth(120)
 
     def expand_to_depth(self):
-        if self.firstrun:
-            self.view().expandToDepth(0)
-            self.firstrun = False
+        self.view().expandToDepth(0)
 
     def set_override(self, val):
         self.override = val
 
     def select_index(self, index):
-        """Selects and activates the given index."""
+        """Selects and activates the given index. A bit hackish..."""
         parent = self.rootModelIndex()
         self.setRootModelIndex(index.parent())
         self.setCurrentIndex(index.row())
@@ -339,26 +347,30 @@ class FoldersWidget(BaseCombobox):
         index = self.view().selectionModel().currentIndex()
         if not index.isValid():
             return
-        if self.model().filePath(index) == self.model().active_path:
-            return
 
         self.model().active_path = self.model().filePath(index)
         self.model().activeFolderChanged.emit()
 
     def set_asset(self, asset):
+        if len(asset) == 3:
+            self.model().setRootPath(u'.')
+            index = self.model().index(u'.')
+            self.setRootModelIndex(index)
+
+            self.select_index(QtCore.QModelIndex())
+            self.setCurrentIndex(-1)
+            return
         path = list(asset) + [self.window().location, ]
         path = u'/'.join(path)
-
         # Sets the root to the location folder.
         self.model().setRootPath(path)
         index = self.model().index(path)
         self.setRootModelIndex(self.model().index(path))
         self.override = False
+
         # When currentfile is set, we want to match a folder inside to root,
         if self.diff(asset):
             index = self.model().index('{}/{}'.format(path, self.diff(asset)))
-            return self.select_index(index)
-
         self.select_index(index)
 
     def diff(self, asset):
@@ -367,7 +379,7 @@ class FoldersWidget(BaseCombobox):
         if self.override:
             currentfile = self.model().active_path
         if path in currentfile:
-            return currentfile.replace(path, u'').lstrip(u'/')
+            return currentfile.replace(path, u'').strip(u'/')
         return None
 
 
@@ -405,12 +417,7 @@ class BookmarksWidget(BaseCombobox):
         index = self.view().selectionModel().currentIndex()
         if not index.isValid():
             return
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            return
         if index.flags() & MarkedAsArchived:
-            return
-
-        if index == self.active_index():
             return
 
         # Removing flag from previous active
@@ -488,10 +495,7 @@ class AssetsWidget(BaseCombobox):
         index = self.view().selectionModel().currentIndex()
         if not index.isValid():
             return
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            return
-
-        if index == self.active_index():
+        if index.flags() & MarkedAsArchived:
             return
 
         # Removing flag from previous active
@@ -547,48 +551,129 @@ class SaverHeaderWidget(HeaderWidget):
         painter.end()
 
 
-class FileName(QtCore.QObject):
-    """Utility class responsible for creating the file's filename part."""
+class SaverFileInfo(QtCore.QObject):
+    """Utility class responsible for getting the currently set path components."""
 
-    Extension = 'browser'
-    """Make sure to override this in the context."""
+    def __init__(self, parent):
+        super(SaverFileInfo, self).__init__(parent=parent)
 
-    def __init__(self, paths, parent=None):
-        super(FileName, self).__init__(parent=parent)
-        self.paths = paths
+    def fileInfo(self):
+        """Returns the path as a QFileInfo instance"""
+        return QtCore.QFileInfo('{}/{}'.format(self.path(), self.fileName()))
 
-    def _template_string(self):
-        """The template used to generate a new filename."""
-        return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'
+    def path(self):
+        """Returns the path() element of the set path."""
+        paths = self._paths()
+        arr = []
+        for k in paths:
+            if not paths[k]:
+                break
+            arr.append(paths[k])
+        return u'/'.join(arr).rstrip(u'/')
 
-    def active_filename(self, style=common.LowerCase):
+    def _paths(self):
+        """Private method querries the ui choices and constructs a valid path"""
+        bookmarkswidget = self.parent().window().findChild(BookmarksWidget)
+        assetswidget = self.parent().window().findChild(AssetsWidget)
+        folderswidget = self.parent().window().findChild(FoldersWidget)
+
+        paths = collections.OrderedDict()
+        paths['server'] = None
+        paths['job'] = None
+        paths['root'] = None
+        paths['asset'] = None
+        paths['location'] = None
+        paths['folder'] = None
+
+        if not bookmarkswidget.active_index().isValid() or bookmarkswidget.currentIndex() == -1:
+            return paths
+
+        server, job, root = bookmarkswidget.active_index().data(common.ParentRole)
+        paths['server'] = server
+        paths['job'] = job
+        paths['root'] = root
+
+        if not assetswidget.active_index().isValid() or assetswidget.currentIndex() == -1:
+            return paths
+
+        _, _, _, asset = assetswidget.active_index().data(common.ParentRole)
+        paths['asset'] = asset
+        paths['location'] = self.parent().window().location
+
+        if not folderswidget.active_index().isValid() or folderswidget.currentIndex() == -1:
+            return paths
+
+        # If the location is the same as the folder, we're not setting the folder
+        if folderswidget.model().filePath(folderswidget.rootModelIndex()) == folderswidget.model().active_path:
+            return paths
+
+        diff = folderswidget.diff((
+            paths['server'],
+            paths['job'],
+            paths['root'],
+            paths['asset'],
+        ))
+
+        if diff:
+            paths['folder'] = diff
+            return paths
+
+        if folderswidget.model().active_path:
+            loc = (
+                paths['server'],
+                paths['job'],
+                paths['root'],
+                paths['asset'],
+                paths['location'],
+            )
+            folder = folderswidget.model().active_path.replace(
+                u'/'.join(loc), u'').rstrip(u'/')
+            # There's no folder selected and
+            if folder.rstrip(u'/') == u'/'.join(loc).rstrip(u'/'):
+                folder = u'/'
+            paths[u'folder'] = folder
+
+        return paths
+
+    def fileName(self, style=common.LowerCase):
         """The main method to get the new file's filename."""
-        if not self.parent().window().currentfile:
-            n = self._get_new_filename()
+        currentfile = self.parent().window().currentfile
+
+        if currentfile:
+            match = common.get_valid_filename(currentfile)
+            if match:
+                custom = self.parent().window().findChild(Custom).text()
+                filename = match.expand(r'\1_\2_\3_{}_{}_\6.\7'.format(
+                    custom if custom else u'untitled',
+                    u'{}'.format(int(match.group(5)) +
+                                 1).zfill(len(match.group(5)))
+                ))
+            else:
+                filename = self._increment_sequence(currentfile)
         else:
-            n = self._get_incremented_filename()
+            filename = self._new()
 
         if style == common.LowerCase:
-            n = n.lower()
+            filename = filename.lower()
         elif style == common.UpperCase:
-            n = n.upper()
+            filename = filename.upper()
 
-        return n
+        return filename
 
-    def _get_new_filename(self):
-        """Creates a new filename string base don the path currently set."""
+    def _new(self):
+        """Creates a new filename based on the currently set properties."""
+        paths = self._paths()
+
         custom = self.parent().window().findChild(Custom).text()
-
         regex = re.compile(r'[^0-9a-z]+', flags=re.IGNORECASE)
+        job = regex.sub(u'', paths[u'job'])[
+            :3] if paths[u'job'] else u'gw'
 
-        job = regex.sub(u'', self.paths[u'job'])[
-            :3] if self.paths[u'job'] else u'gw'
+        asset = regex.sub(u'', paths[u'asset'])[
+            :12] if paths[u'asset'] else u'sandbox'
 
-        asset = regex.sub(u'', self.paths[u'asset'])[
-            :12] if self.paths[u'asset'] else u'sandbox'
-
-        folder = self.paths['folder'].split(
-            u'/')[0] if self.paths['folder'] else self.parent().window().location
+        folder = paths['folder'].split(
+            u'/')[0] if paths['folder'] else self.parent().window().location
         folder = regex.sub(u'', folder)[
             :12] if folder else self.parent().window().location
 
@@ -602,35 +687,33 @@ class FileName(QtCore.QObject):
         user = QtCore.QFileInfo(user).fileName()
         user = regex.sub(u'', user)
 
-        return self._template_string().format(
+        if self.parent().window().Extension == 'browser':
+            raise NotImplementedError(u'SaverWidget.Extension has not been set\nThis value has to be overriden when used in a context.')
+        return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
             job=job,
             asset=asset,
             folder=folder,
             custom=custom,
             version=version,
             user=user,
-            ext=self.Extension,
+            ext=self.parent().window().Extension,
         )
 
-    def _get_incremented_filename(self):
-        file_info = QtCore.QFileInfo(self.parent().window().currentfile)
+    def _increment_sequence(self, currentfile):
+        file_info = QtCore.QFileInfo(currentfile)
         match = common.get_sequence(file_info.fileName())
 
         if not match:
-            return '{} - copy.{}'.format(file_info.completeBaseName(), file_info.completeSuffix())
+            return currentfile
 
-        version = match.group(2)
-        version = int(version)
-        version += 1
-        version = '{}'.format(version).zfill(len(match.group(2)))
-        incremented = match.expand(r'\1{}\3.\4')
-        incremented = incremented.format(version)
-        return incremented
+        version = '{}'.format(int(match.group(2)) +
+                              1).zfill(len(match.group(2)))
+        return match.expand(r'\1{}\3.\4'.format(version).format(version))
 
 
-class FileNameWidget(QtWidgets.QLabel):
+class BaseNameLabel(QtWidgets.QLabel):
     def __init__(self, parent=None):
-        super(FileNameWidget, self).__init__(parent=parent)
+        super(BaseNameLabel, self).__init__(parent=parent)
         self.setTextFormat(QtCore.Qt.RichText)
         self.setOpenExternalLinks(False)
         self.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
@@ -644,13 +727,15 @@ class FileNameWidget(QtWidgets.QLabel):
         )
 
 
-class Prefix(FileNameWidget):
+class Prefix(BaseNameLabel):
     def __init__(self, parent=None):
         super(Prefix, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
 
 
 class Custom(QtWidgets.QLineEdit):
+    """Editor widget for editing the custom filename component."""
+
     def __init__(self, parent=None):
         super(Custom, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignCenter)
@@ -679,6 +764,14 @@ class Custom(QtWidgets.QLineEdit):
         self.setFixedWidth(metrics.width('untitled'))
 
         self.textChanged.connect(self.resizeLineEditToContents)
+        self.textChanged.connect(self.verify)
+
+    def verify(self, text):
+        cpos = self.cursorPosition()
+        text = re.sub(r'[^a-z0-9\-]+', '-', text, flags=re.IGNORECASE)
+        text = re.sub(r'-{2,}', '-', text, flags=re.IGNORECASE)
+        self.setText(text)
+        self.setCursorPosition(cpos)
 
     def resizeLineEditToContents(self, text):
         font = QtGui.QFont(common.PrimaryFont)
@@ -690,7 +783,7 @@ class Custom(QtWidgets.QLineEdit):
         self.setFixedSize(width, self.height())
 
 
-class Suffix(FileNameWidget):
+class Suffix(BaseNameLabel):
     def __init__(self, parent=None):
         super(Suffix, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
@@ -713,6 +806,7 @@ class SaverWidget(QtWidgets.QDialog):
     """Contains the header and the saver widgets."""
 
     fileSaveRequested = QtCore.Signal(basestring)
+    Extension = 'browser'
 
     def __init__(self, location, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
@@ -743,11 +837,11 @@ class SaverWidget(QtWidgets.QDialog):
         dialog.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
 
         paths = self.window().active_paths()
-        directory = (paths['server'], paths['job'], paths['root'],
-                     paths['asset'], self.window().location)
+        directory = (paths[u'server'], paths[u'job'], paths[u'root'],
+                     paths[u'asset'], self.window().location)
         directory = directory if all(directory) else (
-            paths['server'], paths['job'], paths['root'])
-        directory = directory if all(directory) else ('/',)
+            paths[u'server'], paths[u'job'], paths[u'root'])
+        directory = directory if all(directory) else (u'/',)
 
         dialog.setDirectory(u'/'.join(directory))
         dialog.setOption(
@@ -766,66 +860,6 @@ class SaverWidget(QtWidgets.QDialog):
         self.findChild(ThumbnailButton).setPixmap(pixmap)
         self.findChild(ThumbnailButton).setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
             '{},{},{},{}'.format(*common.IMAGE_CACHE[u'{}:BackgroundColor'.format(path)].getRgb())))
-
-    def active_paths(self):
-        """The curently set path elements, excluding the file, as a dictionary."""
-        bookmarkswidget = self.findChild(BookmarksWidget)
-        assetswidget = self.findChild(AssetsWidget)
-        folderswidget = self.findChild(FoldersWidget)
-
-        paths = collections.OrderedDict()
-        paths['server'] = None
-        paths['job'] = None
-        paths['root'] = None
-        paths['asset'] = None
-        paths['location'] = self.location
-        paths['folder'] = None
-
-        if not bookmarkswidget.active_index().isValid():
-            return paths
-
-        server, job, root = bookmarkswidget.active_index().data(common.ParentRole)
-        paths['server'] = server
-        paths['job'] = job
-        paths['root'] = root
-
-        if not assetswidget.active_index().isValid():
-            return paths
-
-        _, _, _, asset = assetswidget.active_index().data(common.ParentRole)
-        paths['asset'] = asset
-
-        if not folderswidget.active_index().isValid():
-            return paths
-
-        index = folderswidget.rootModelIndex()
-        # If the location is the same as the folder, we're not setting the folder
-        if folderswidget.model().filePath(index) != folderswidget.model().active_path:
-            diff = folderswidget.diff((
-                paths['server'],
-                paths['job'],
-                paths['root'],
-                paths['asset'],
-            ))
-            if diff:
-                paths['folder'] = diff
-            else:
-                if folderswidget.model().active_path:
-                    loc = (
-                        paths['server'],
-                        paths['job'],
-                        paths['root'],
-                        paths['asset'],
-                        paths['location'],
-                    )
-                    folder = folderswidget.model().active_path.replace(
-                        u'/'.join(loc), u'').lstrip(u'/')
-                    # There's no folder selected and
-                    if folder.lstrip('/') == u'/'.join(loc).lstrip(u'/'):
-                        folder = '/'
-                    paths['folder'] = folder
-
-        return paths
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -950,12 +984,12 @@ class SaverWidget(QtWidgets.QDialog):
 
             # Folderswidget needs it's root index set before being able to unset
             # the selection
-            index = folderswidget.model().index('/')
+            folderswidget.model().setRootPath(u'.')
+            index = folderswidget.model().index(u'.')
             folderswidget.setRootModelIndex(index)
-            folderswidget.select_index(QtCore.QModelIndex())
-            folderswidget.setCurrentText('')
-            folderswidget.setCurrentIndex(-1)
 
+            folderswidget.select_index(QtCore.QModelIndex())
+            folderswidget.setCurrentIndex(-1)
 
         if self.currentfile:
             # Checking if the reference file has a valid pattern
@@ -963,36 +997,22 @@ class SaverWidget(QtWidgets.QDialog):
             self.findChild(Custom).setHidden(False)
             if match:
                 self.findChild(Custom).setHidden(False)
-                self.findChild(Custom).setText(match.group(3))
+                self.findChild(Custom).setText(match.group(4))
             else:
                 self.findChild(Custom).setHidden(True)
         else:
-            self.findChild(Custom).setHidden(True)
+            self.findChild(Custom).setHidden(False)
 
         self.update_filename_display()
         self.update_filepath_display()
 
-    def fileInfo(self):
-        paths = self.active_paths()
-        arr = []
-        for k in paths:
-            if not paths[k]:
-                break
-            arr.append(paths[k])
-        path = u'/'.join(arr).rstrip('/')
-
-        f = FileName(paths, parent=self)
-        return QtCore.QFileInfo('{}/{}'.format(path, f.active_filename()))
-
     def update_filepath_display(self, *args, **kwargs):
         """Slot responsible for updating the file-path display."""
-        file_info = self.fileInfo()
-
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)
         text = metrics.elidedText(
-            file_info.filePath(),
+            SaverFileInfo(self).fileInfo().filePath(),
             QtCore.Qt.ElideLeft,
             self.window().rect().width() - common.MARGIN
         )
@@ -1000,20 +1020,34 @@ class SaverWidget(QtWidgets.QDialog):
 
     def update_filename_display(self, *args, **kwargs):
         """Slot responsible for updating the Prefix, Custom, and Suffix widgets."""
-        f = FileName(self.active_paths(), parent=self)
-        name = f.active_filename(style=common.LowerCase)
-        file_info = QtCore.QFileInfo(name)
+        f = SaverFileInfo(parent=self)
+        file_info = QtCore.QFileInfo(f.fileName(style=common.LowerCase))
 
-        match = common.get_valid_filename(self.currentfile)
+        match = common.get_valid_filename(
+            self.currentfile) if self.currentfile else None
         if self.currentfile and not match:
             self.findChild(Prefix).setText(file_info.completeBaseName())
             self.findChild(Suffix).setText(
                 '.{}'.format(file_info.completeSuffix()))
-        else:
-            prefix = name.split('_')[:3]
-            suffix = name.split('_')[-2:]
-            self.findChild(Prefix).setText('{}_'.format('_'.join(prefix)))
-            self.findChild(Suffix).setText('_{}'.format('_'.join(suffix)))
+        elif self.currentfile and match:
+            prefix, suffix = self.prefix_suffix(match, increment=True)
+            self.findChild(Prefix).setText(prefix)
+            self.findChild(Suffix).setText(suffix)
+        else:  # New name
+            match = common.get_valid_filename(
+                '/{}'.format(f.fileName(style=common.LowerCase)))
+            prefix, suffix = self.prefix_suffix(match, increment=False)
+            self.findChild(Prefix).setText(prefix)
+            self.findChild(Suffix).setText(suffix)
+
+    def prefix_suffix(self, match, increment=True):
+        prefix = match.expand(r'\1_\2_\3')
+        suffix = match.expand(r'<span style="color:rgba({});">{}</span>_\6.\7'.format(
+            u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
+            u'{}'.format(int(match.group(5)) + int(increment)
+                         ).zfill(len(match.group(5)))
+        ))
+        return prefix, suffix
 
     def _done(self):
         bookmarkswidget = self.findChild(BookmarksWidget)
@@ -1031,9 +1065,9 @@ class SaverWidget(QtWidgets.QDialog):
         elif not folderswidget.active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
-                u'', u'Asset not selected.', parent=self).exec_()
+                u'', u'Fodler not selected.', parent=self).exec_()
 
-        self.fileSaveRequested.emit(self.fileInfo().filePath())
+        self.fileSaveRequested.emit(SaverFileInfo(self).fileInfo().filePath())
         self.close()
 
     def _connectSignals(self):
@@ -1074,7 +1108,9 @@ class SaverWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/job_asset_location_new-filename_001_gergely.ext.ma'
+    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/job_asset_location_new__filename_002_gergely.ma'
+
+    SaverWidget.Extension = 'ma'
     widget = SaverWidget(common.ScenesFolder, currentfile=currentfile)
     def func(path):
         print path

@@ -3,6 +3,7 @@
 """Maya wrapper for the BrowserWidget."""
 
 import functools
+import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import maya.cmds as cmds
@@ -15,13 +16,17 @@ from shiboken2 import wrapInstance
 import browser.common as common
 from browser.context.basetoolbar import BaseToolbarWidget
 from browser.context.basetoolbar import ToolbarButton
+
 from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import contextmenu
+
 from browser.browserwidget import BrowserWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.browserwidget import HeaderWidget
 from browser.settings import local_settings
 from browser.common import QSingleton
+from browser.context.saver import SaverWidget
 
 
 class MayaWidgetContextMenu(BaseContextMenu):
@@ -30,16 +35,34 @@ class MayaWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(MayaWidgetContextMenu, self).__init__(index, parent=parent)
 
-        if not index.isValid():
-            return
+        self.add_save_as_menu()
+        if index.isValid():
+            if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
+                self.add_scenes_menu()
+            elif self.parent().model().sourceModel().get_location() == common.ExportsFolder:
+                self.add_alembic_menu()
 
-        if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
-            self.add_scenes_menu()
-        elif self.parent().model().sourceModel().get_location() == common.ExportsFolder:
-            self.add_alembic_menu()
+    @contextmenu
+    def add_save_as_menu(self, menu_set):
+        files = common.get_rsc_pixmap(
+        u'files', common.TEXT, common.INLINE_ICON_SIZE)
 
-    def add_alembic_menu(self):
-        menu_set = collections.OrderedDict()
+        menu_set[u'separator'] = {}
+        if common.get_sequence(cmds.file(query=True, expandName=True)):
+            menu_set[u'increment'] = {
+                u'text': u'Increment current version...',
+                u'icon': files,
+                u'action': lambda: self.parent().parent().parent().parent().save_scene(increment=True)
+            }
+        menu_set[u'new'] = {
+            u'text': u'New version...',
+            u'icon': files,
+            u'action': lambda: self.parent().parent().parent().parent().save_scene(increment=False)
+        }
+        return menu_set
+
+    @contextmenu
+    def add_alembic_menu(self, menu_set):
         openpixmap = common.get_rsc_pixmap(
             u'files', common.TEXT, common.INLINE_ICON_SIZE)
         importpixmap = common.get_rsc_pixmap(
@@ -68,11 +91,10 @@ class MayaWidgetContextMenu(BaseContextMenu):
             u'icon': importpixmap,
             u'action': functools.partial(import_scene, file_info.filePath())
         }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_scenes_menu(self):
-        menu_set = collections.OrderedDict()
+    @contextmenu
+    def add_scenes_menu(self, menu_set):
         openpixmap = common.get_rsc_pixmap(
             u'files', common.TEXT, common.INLINE_ICON_SIZE)
         importpixmap = common.get_rsc_pixmap(
@@ -101,8 +123,7 @@ class MayaWidgetContextMenu(BaseContextMenu):
             u'icon': importpixmap,
             u'action': functools.partial(import_scene, file_info.filePath())
         }
-
-        self.create_menu(menu_set)
+        return menu_set
 
 
 class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
@@ -168,6 +189,20 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget.model().sourceModel().activeFileChanged.connect(
             lambda path: open_scene(path))
 
+    def save_scene(self, increment=True):
+        """Launches the saver widget."""
+        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
+        currentfile = scene.filePath() if scene.exists() and increment else None
+
+        # Setting the file-extension
+        SaverWidget.Extension = u'ma'
+        saver = SaverWidget(common.ScenesFolder, currentfile=currentfile)
+
+        saver.fileSaveRequested.connect(save_as)
+        saver.exec_()
+
+        self.browserwidget.findChild(FilesWidget).refresh()
+
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
         width = parent.viewport().geometry().width()
@@ -175,7 +210,6 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         width = width - common.INDICATOR_WIDTH
 
         widget = MayaWidgetContextMenu(index, parent=parent)
-
         if index.isValid():
             rect = parent.visualRect(index)
             widget.move(
@@ -183,11 +217,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
                 parent.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
             )
         else:
-            cursor_pos = QtGui.QCursor().pos()
-            widget.move(
-                parent.mapToGlobal(parent.viewport().geometry().topLeft()).x(),
-                cursor_pos.y() + 1
-            )
+            widget.move(QtGui.QCursor().pos())
 
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
@@ -257,12 +287,14 @@ class MayaToolbar(QtWidgets.QWidget):
         self.setFocusProxy(self.toolbar)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setWindowTitle(u'Browser')
+
         # Hopefully deletes the workspaceControl
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        # Adds the button to the
+        # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+
         widget.layout().addWidget(self)
         cmds.evalDeferred(self.show_browser)
 
@@ -320,13 +352,36 @@ class MayaToolbar(QtWidgets.QWidget):
         button.clicked.connect(self.show_browser)
 
 
+def save_as(path):
+    """Saves the current scene as a new scene."""
+    file_info = QtCore.QFileInfo(path)
+    if file_info.exists():
+        mbox = QtWidgets.QMessageBox()
+        mbox.setText(
+            u'{} already exists.'
+        )
+        mbox.setInformativeText(u'If you select save the the existing file will be overriden. Are you sure you want to continue?')
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Save |
+            QtWidgets.QMessageBox.Cancel
+        )
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+        if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
+            return
+
+    cmds.file(rename=path)
+    path = cmds.file(force=True, save=True, type='mayaAscii')
+
+    print '# File saved to {}'.format(path)
+
+
 def open_scene(path):
     """Opens the given scene."""
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -339,7 +394,7 @@ def import_scene(path):
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -356,7 +411,7 @@ def import_referenced_scene(path):
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -374,7 +429,7 @@ def open_alembic(path):
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -387,7 +442,7 @@ def import_alembic(path):
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -413,7 +468,7 @@ def import_referenced_alembic(path):
     if not file_info.exists():
         return
 
-    result = save_scene()
+    result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -426,9 +481,10 @@ def import_referenced_alembic(path):
     )
 
 
-def save_scene():
-    """If the current scene needs changing prompts the user with
-    a pop - up message to save the scene.
+def is_scene_modified():
+    """If the current scene was modified since the last save, the user will be
+    prompted to save the scene.
+
     """
     if cmds.file(q=True, modified=True):
         mbox = QtWidgets.QMessageBox()

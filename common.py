@@ -112,6 +112,7 @@ LowerCase = 0
 UpperCase = 1
 """Filename styles"""
 
+
 def sort_alphanum_key(key):
     def _convert(text):
         return int(text) if text.isdigit() else text
@@ -144,7 +145,7 @@ sort_keys = {
 
 # Sizes
 ROW_HEIGHT = 54.0
-BOOKMARK_ROW_HEIGHT = 84.0
+BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
 
 MARGIN = 18.0
@@ -175,9 +176,10 @@ FAVOURITE = QtGui.QColor(140, 120, 233)
 
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
-PrimaryFont.setPointSize(10)
+PrimaryFont.setPointSize(9)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
 SecondaryFont.setPointSize(8)
+
 
 def move_widget_to_available_geo(widget):
     """Moves the widget inside the available screen geomtery, if any of the edges
@@ -645,10 +647,13 @@ def get_ranges(arr, padding):
                 k += 1
     return u','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
+
 def get_valid_filename(text):
     return ValidFilenameRegex.search(text)
 
-ValidFilenameRegex = re.compile(r'([^]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$', flags=re.IGNORECASE)
+
+ValidFilenameRegex = re.compile(
+    r'\/([^_]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$', flags=re.IGNORECASE)
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
 SequenceStartRegex = re.compile(
     r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
@@ -656,7 +661,8 @@ SequenceEndRegex = re.compile(
     r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
 # If a string denotes a sequence the match should return 4 groups:
 # $1[#]$3.$4  # beginning of string, sequence number, string following the sequence number, extension (without the '.')
-GetSequenceRegex = re.compile(r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
+GetSequenceRegex = re.compile(
+    r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
 
 
 def get_sequence(text):
@@ -664,7 +670,7 @@ def get_sequence(text):
 
 
 def is_sequence(text):
-    return IsSequenceRegex.match(text)
+    return IsSequenceRegex.search(text)
 
 
 def get_sequence_startpath(path):
@@ -708,7 +714,6 @@ class QSingleton(type(QtCore.QObject)):
             cls._instances[cls] = super(
                 QSingleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
 
 
 # Label LABEL_COLORS

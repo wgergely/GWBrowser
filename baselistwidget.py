@@ -19,6 +19,20 @@ from browser.settings import AssetSettings
 from browser.capture import ScreenGrabber
 
 
+def contextmenu(func):
+    """Decorator to create a menu set."""
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        menu_set = collections.OrderedDict()
+        menu_set = func(self, menu_set)
+        if not isinstance(menu_set, collections.OrderedDict):
+            raise ValueError(
+                'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
+        self.create_menu(menu_set)
+        return menu_set
+    return func_wrapper
+
+
 class BaseContextMenu(QtWidgets.QMenu):
     """Custom context menu associated with the BaseListWidget.
     The menu and the actions are always associated with a ``QModelIndex``
@@ -158,7 +172,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
             action.setText(text)
 
-    def add_sort_menu(self):
+    @contextmenu
+    def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
         sort_menu_icon = common.get_rsc_pixmap(
             u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
@@ -176,7 +191,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         sort_created = self.parent().model().sortkey == common.SortByLastCreated
         sort_size = self.parent().model().sortkey == common.SortBySize
 
-        menu_set = collections.OrderedDict()
         menu_set[u'Sort'] = collections.OrderedDict()
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
@@ -219,16 +233,15 @@ class BaseContextMenu(QtWidgets.QMenu):
                                          common.SortBySize)
         }
         menu_set[u'separator'] = {}
-        self.create_menu(menu_set)
+        return menu_set
 
-    def add_reveal_folder_menu(self):
+    @contextmenu
+    def add_reveal_folder_menu(self, menu_set):
         """Creates a menu containing"""
         folder_icon = common.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         folder_icon2 = common.get_rsc_pixmap(
             u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
-
-        menu_set = collections.OrderedDict()
 
         key = u'Show in File Manager'
         menu_set[u'separator>'] = {}
@@ -320,16 +333,15 @@ class BaseContextMenu(QtWidgets.QMenu):
                     common.reveal,
                     file_info.filePath())
             }
-        self.create_menu(menu_set)
+        return menu_set
 
-    def add_copy_menu(self):
+    @contextmenu
+    def add_copy_menu(self, menu_set):
         """Menu containing the subfolders of the selected item."""
         copy_icon = common.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         copy_icon2 = common.get_rsc_pixmap(
             u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
-
-        menu_set = collections.OrderedDict()
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         if self.parent().model().sourceModel().get_location() == common.RendersFolder:
@@ -367,9 +379,10 @@ class BaseContextMenu(QtWidgets.QMenu):
                 QtGui.QClipboard().setText,
                 url.replace(u'file://', 'smb://'))
         }
-        self.create_menu(menu_set)
+        return menu_set
 
-    def add_mode_toggles_menu(self):
+    @contextmenu
+    def add_mode_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = common.get_rsc_pixmap(
             u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
@@ -384,7 +397,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived = self.index.flags() & MarkedAsArchived
         source_index = self.parent().model().mapToSource(self.index)
 
-        menu_set = collections.OrderedDict()
         menu_set[u'separator'] = {}
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             text = u'Remove bookmark'
@@ -404,10 +416,10 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checked': favourite,
             u'action': functools.partial(self.parent().toggle_favourite, index=source_index, state=not favourite)
         }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_display_toggles_menu(self):
+    @contextmenu
+    def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
             u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
@@ -417,7 +429,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         favourite = self.parent().model().get_filtermode(u'favourite')
         archived = self.parent().model().get_filtermode(u'archived')
 
-        menu_set = collections.OrderedDict()
         menu_set[u'separator'] = {}
         menu_set[u'toggle_favoruites'] = {
             u'text': 'Show favourites only',
@@ -444,11 +455,10 @@ class BaseContextMenu(QtWidgets.QMenu):
                     not archived
                 ),
         }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_refresh_menu(self):
-        menu_set = collections.OrderedDict()
+    @contextmenu
+    def add_refresh_menu(self, menu_set):
         menu_set[u'separator'] = {}
         menu_set[u'Refresh'] = {
             u'action': self.parent().refresh
@@ -457,10 +467,10 @@ class BaseContextMenu(QtWidgets.QMenu):
             menu_set[u'Activate'] = {
                 u'action': self.parent().activate_current_index
             }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_thumbnail_menu(self):
+    @contextmenu
+    def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
@@ -468,12 +478,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        revomove_thumbnail_pixmap = common.get_rsc_pixmap(
+        remove_thumbnail_pixmap = common.get_rsc_pixmap(
             u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
         show_thumbnail = common.get_rsc_pixmap(
             u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        menu_set = collections.OrderedDict()
         key = u'Thumbnail'
         menu_set[u'separator'] = {}
         menu_set[key] = collections.OrderedDict()
@@ -506,36 +515,32 @@ class BaseContextMenu(QtWidgets.QMenu):
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
                 u'action': self.parent().remove_thumbnail,
-                u'icon': revomove_thumbnail_pixmap
+                u'icon': remove_thumbnail_pixmap
             }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_add_bookmark_menu(self):
-        menu_set = collections.OrderedDict()
+    @contextmenu
+    def add_add_bookmark_menu(self, menu_set):
         menu_set[u'separator'] = {}
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'action': self.parent().show_add_bookmark_widget
         }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_collapse_sequence_menu(self):
+    @contextmenu
+    def add_collapse_sequence_menu(self, menu_set):
         """Adds the menu needed to change context"""
         if self.parent().model().sourceModel().get_location() == common.RendersFolder:
-            return  # Render sequences are always collapsed
+            return menu_set # Render sequences are always collapsed
 
         expand_pixmap = common.get_rsc_pixmap(
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = common.get_rsc_pixmap(
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
-
         collapsed = self.parent().model().sourceModel().is_grouped()
 
-        menu_set = collections.OrderedDict()
         menu_set[u'separator'] = {}
-
         menu_set[u'collapse'] = {
             u'text': 'Show individual files' if collapsed else 'Group sequences together',
             u'icon': expand_pixmap if collapsed else collapse_pixmap,
@@ -544,10 +549,10 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(
                 self.parent().model().sourceModel().set_grouped, not collapsed)
         }
+        return menu_set
 
-        self.create_menu(menu_set)
-
-    def add_location_toggles_menu(self):
+    @contextmenu
+    def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = common.get_rsc_pixmap(
             u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
@@ -556,11 +561,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_off_pixmap = common.get_rsc_pixmap(
             u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
-        menu_set = collections.OrderedDict()
-        menu_set[u'separator'] = {}
-
         key = u'Switch location'
 
+        menu_set[u'separator'] = {}
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 
@@ -573,8 +576,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
                 u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
             }
-
-        self.create_menu(menu_set)
+        return menu_set
 
 
 def flagsmethod(func):
@@ -1181,11 +1183,7 @@ class BaseListWidget(QtWidgets.QListView):
                 self.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
             )
         else:
-            cursor_pos = QtGui.QCursor().pos()
-            widget.move(
-                self.mapToGlobal(self.viewport().geometry().topLeft()).x(),
-                cursor_pos.y() + 1
-            )
+            widget.move(QtGui.QCursor().pos())
 
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())

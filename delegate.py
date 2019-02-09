@@ -940,7 +940,8 @@ class FilesWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8)
+        font.setPointSize(7)
+        painter.setFont(font)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)
@@ -956,7 +957,6 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        painter.setFont(font)
         modes = index.data(common.ParentRole)[-1]
         modes = modes.split(u'/')
         rect.setWidth(0)
