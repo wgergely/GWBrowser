@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
 
-"""Custom saver widget.
+"""Browser's custom saver widget.
 
 Note:
     The widget itself will only return a filepath and is not performing any save
@@ -360,17 +360,23 @@ class FoldersWidget(BaseCombobox):
             self.select_index(QtCore.QModelIndex())
             self.setCurrentIndex(-1)
             return
-        path = list(asset) + [self.window().location, ]
-        path = u'/'.join(path)
+
+        path = u'/'.join(list(asset) + [self.window().location, ])
         # Sets the root to the location folder.
         self.model().setRootPath(path)
-        index = self.model().index(path)
         self.setRootModelIndex(self.model().index(path))
+
+        # location = '{}/abc'.format(self.window().location) if isexport else self.window().location
+        # path = u'/'.join(list(asset) + [location, ])
         self.override = False
 
+        if self.window().location == common.ExportsFolder:
+            path = u'/'.join(list(asset) + [self.window().location, 'abc'])
         # When currentfile is set, we want to match a folder inside to root,
         if self.diff(asset):
             index = self.model().index('{}/{}'.format(path, self.diff(asset)))
+        else:
+            index = self.model().index(path)
         self.select_index(index)
 
     def diff(self, asset):
@@ -643,6 +649,8 @@ class SaverFileInfo(QtCore.QObject):
             match = common.get_valid_filename(currentfile)
             if match:
                 custom = self.parent().window().findChild(Custom).text()
+
+                # Not including the username if the destination is the exports folder
                 filename = match.expand(r'\1_\2_\3_{}_{}_\6.\7'.format(
                     custom if custom else u'untitled',
                     u'{}'.format(int(match.group(5)) +
@@ -687,8 +695,8 @@ class SaverFileInfo(QtCore.QObject):
         user = QtCore.QFileInfo(user).fileName()
         user = regex.sub(u'', user)
 
-        if self.parent().window().Extension == 'browser':
-            raise NotImplementedError(u'SaverWidget.Extension has not been set\nThis value has to be overriden when used in a context.')
+        isexport = self.parent().window().location == common.ExportsFolder
+        folder = self.parent().window().extension if isexport else folder
         return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
             job=job,
             asset=asset,
@@ -696,7 +704,7 @@ class SaverFileInfo(QtCore.QObject):
             custom=custom,
             version=version,
             user=user,
-            ext=self.parent().window().Extension,
+            ext=self.parent().window().extension,
         )
 
     def _increment_sequence(self, currentfile):
@@ -708,7 +716,8 @@ class SaverFileInfo(QtCore.QObject):
 
         version = '{}'.format(int(match.group(2)) +
                               1).zfill(len(match.group(2)))
-        return match.expand(r'\1{}\3.\4'.format(version).format(version))
+        print match.groups()
+        return match.expand(r'\1{}\3.\4').format(version)
 
 
 class BaseNameLabel(QtWidgets.QLabel):
@@ -806,10 +815,10 @@ class SaverWidget(QtWidgets.QDialog):
     """Contains the header and the saver widgets."""
 
     fileSaveRequested = QtCore.Signal(basestring)
-    Extension = 'browser'
 
-    def __init__(self, location, currentfile=None, parent=None):
+    def __init__(self, extension, location, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
+        self.extension = extension
         self.currentfile = currentfile
         self.location = location
 
@@ -1041,8 +1050,8 @@ class SaverWidget(QtWidgets.QDialog):
             self.findChild(Suffix).setText(suffix)
 
     def prefix_suffix(self, match, increment=True):
-        prefix = match.expand(r'\1_\2_\3')
-        suffix = match.expand(r'<span style="color:rgba({});">{}</span>_\6.\7'.format(
+        prefix = match.expand(r'\1_\2_\3_')
+        suffix = match.expand(r'_<span style="color:rgba({});">{}</span>_\6.\7'.format(
             u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
             u'{}'.format(int(match.group(5)) + int(increment)
                          ).zfill(len(match.group(5)))
@@ -1110,8 +1119,8 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/job_asset_location_new__filename_002_gergely.ma'
 
-    SaverWidget.Extension = 'ma'
-    widget = SaverWidget(common.ScenesFolder, currentfile=currentfile)
+    widget = SaverWidget(u'ma', common.ExportsFolder, currentfile=None)
+
     def func(path):
         print path
     widget.fileSaveRequested.connect(func)

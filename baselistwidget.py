@@ -24,6 +24,7 @@ def contextmenu(func):
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         menu_set = collections.OrderedDict()
+        menu_set['__separator__'] = None
         menu_set = func(self, menu_set)
         if not isinstance(menu_set, collections.OrderedDict):
             raise ValueError(
@@ -232,7 +233,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(self.parent().model().set_sortkey,
                                          common.SortBySize)
         }
-        menu_set[u'separator'] = {}
         return menu_set
 
     @contextmenu
@@ -244,7 +244,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         key = u'Show in File Manager'
-        menu_set[u'separator>'] = {}
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = folder_icon
 
@@ -429,7 +428,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         favourite = self.parent().model().get_filtermode(u'favourite')
         archived = self.parent().model().get_filtermode(u'archived')
 
-        menu_set[u'separator'] = {}
         menu_set[u'toggle_favoruites'] = {
             u'text': 'Show favourites only',
             u'icon': item_on if favourite else item_off,
@@ -459,7 +457,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
-        menu_set[u'separator'] = {}
         menu_set[u'Refresh'] = {
             u'action': self.parent().refresh
         }
@@ -484,7 +481,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         key = u'Thumbnail'
-        menu_set[u'separator'] = {}
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
 
@@ -521,7 +517,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
-        menu_set[u'separator'] = {}
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'action': self.parent().show_add_bookmark_widget
@@ -540,7 +535,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
         collapsed = self.parent().model().sourceModel().is_grouped()
 
-        menu_set[u'separator'] = {}
         menu_set[u'collapse'] = {
             u'text': 'Show individual files' if collapsed else 'Group sequences together',
             u'icon': expand_pixmap if collapsed else collapse_pixmap,
@@ -562,8 +556,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         key = u'Switch location'
-
-        menu_set[u'separator'] = {}
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 

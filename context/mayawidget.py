@@ -26,7 +26,9 @@ from browser.fileswidget import FilesWidget
 from browser.browserwidget import HeaderWidget
 from browser.settings import local_settings
 from browser.common import QSingleton
-from browser.context.saver import SaverWidget
+from browser.context.saver import SaverWidget, SaverFileInfo, Custom
+
+
 
 
 class MayaWidgetContextMenu(BaseContextMenu):
@@ -36,6 +38,7 @@ class MayaWidgetContextMenu(BaseContextMenu):
         super(MayaWidgetContextMenu, self).__init__(index, parent=parent)
 
         self.add_save_as_menu()
+        self.add_alembic_export_menu()
         if index.isValid():
             if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
                 self.add_scenes_menu()
@@ -43,19 +46,38 @@ class MayaWidgetContextMenu(BaseContextMenu):
                 self.add_alembic_menu()
 
     @contextmenu
-    def add_save_as_menu(self, menu_set):
-        files = common.get_rsc_pixmap(
-        u'files', common.TEXT, common.INLINE_ICON_SIZE)
+    def add_alembic_export_menu(self, menu_set):
+        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        exporter = AbcExportCommand()            # saver.exec_()
 
-        menu_set[u'separator'] = {}
-        if common.get_sequence(cmds.file(query=True, expandName=True)):
+        key = 'sets'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = 'Export alembic...'
+
+        for k, value in exporter.get_dag_sets().iteritems():
+            menu_set[key][k.strip(':')] = {
+                'text': k.strip(':').upper(),
+                'icon': objectset_pixmap,
+                'action': functools.partial(self.parent().parent().parent().parent().init_alembic_export, k.strip(':'), value, exporter)
+            }
+
+        return menu_set
+
+    @contextmenu
+    def add_save_as_menu(self, menu_set):
+        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
+        files = common.get_rsc_pixmap(
+            u'files', common.TEXT, common.INLINE_ICON_SIZE)
+
+        if common.get_sequence(scene.fileName()):
             menu_set[u'increment'] = {
-                u'text': u'Increment current version...',
+                u'text': u'Save as incremented...',
                 u'icon': files,
                 u'action': lambda: self.parent().parent().parent().parent().save_scene(increment=True)
             }
         menu_set[u'new'] = {
-            u'text': u'New version...',
+            u'text': u'Save as new...',
             u'icon': files,
             u'action': lambda: self.parent().parent().parent().parent().save_scene(increment=False)
         }
@@ -74,20 +96,19 @@ class MayaWidgetContextMenu(BaseContextMenu):
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        menu_set[u'separator'] = {}
         menu_set[u'open'] = {
-            u'text': u'Open {}...'.format(file_info.fileName()),
+            u'text': u'Open alembic...',
             u'icon': openpixmap,
             u'action': functools.partial(open_alembic, file_info.filePath())
         }
-        menu_set[u'separator2'] = {}
+        menu_set[u'separator'] = {}
         menu_set[u'import'] = {
-            u'text': u'Import  {} as reference...'.format(file_info.fileName()),
+            u'text': u'Import alembic as reference...',
             u'icon': importrefpixmap,
             u'action': functools.partial(import_referenced_scene, file_info.filePath())
         }
         menu_set[u'importlocal'] = {
-            u'text': u'Import  {}'.format(file_info.fileName()),
+            u'text': u'Import alembic...',
             u'icon': importpixmap,
             u'action': functools.partial(import_scene, file_info.filePath())
         }
@@ -106,20 +127,19 @@ class MayaWidgetContextMenu(BaseContextMenu):
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        menu_set[u'separator'] = {}
         menu_set[u'open'] = {
-            u'text': u'Open  {}...'.format(file_info.fileName()),
+            u'text': u'Open...',
             u'icon': openpixmap,
             u'action': functools.partial(open_scene, file_info.filePath())
         }
-        menu_set[u'separator2'] = {}
+        menu_set[u'separator'] = {}
         menu_set[u'import'] = {
-            u'text': u'Import  {} as reference...'.format(file_info.fileName()),
+            u'text': u'Import as reference...',
             u'icon': importrefpixmap,
             u'action': functools.partial(import_referenced_scene, file_info.filePath())
         }
         menu_set[u'importlocal'] = {
-            u'text': u'Import  {}'.format(file_info.fileName()),
+            u'text': u'Import...',
             u'icon': importpixmap,
             u'action': functools.partial(import_scene, file_info.filePath())
         }
@@ -189,14 +209,58 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         fileswidget.model().sourceModel().activeFileChanged.connect(
             lambda path: open_scene(path))
 
+    def init_alembic_export(self, key, value, exporter):
+        # Creating the saver with no current file set will generate a new filename
+        # we can use to query the exports folder
+        saver = SaverWidget(u'abc', '{}'.format(common.ExportsFolder), currentfile=None)
+        saver.findChild(Custom).setText(key) # Setting the group name
+        file_info = SaverFileInfo(saver).fileInfo()
+
+        path = '{}/{}'.format(file_info.path(), file_info.fileName())
+        dir_ = QtCore.QFileInfo(path).dir()
+
+        if not dir_.exists():
+            raise RuntimeError('The export destination path {} does not exist.'.format(dir_.path()))
+
+        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dir_.setNameFilters(('*.abc',))
+
+        match2 = common.get_sequence(file_info.fileName())
+        versions = []
+        for entry in dir_.entryList():
+            # Checking if the entry is a sequence
+            match = common.get_sequence(entry)
+            if not all((match, match2)):
+                continue
+
+            # Comparing against the new version
+            if match.group(1) == match2.group(1):
+                versions.append(match.group(2))
+
+        if versions:
+            version = unicode(max([int(f) for f in versions])).zfill(len(versions[-1]))
+            path = match.expand(r'{}/\1{}\3.\4').format(file_info.path(), version)
+            saver = SaverWidget(u'abc', common.ExportsFolder, currentfile=path)
+
+
+        def _xport(file):
+            exporter.export(
+                file,
+                value,
+                cmds.playbackOptions(query=True, animationStartTime=True),
+                cmds.playbackOptions(query=True, animationEndTime=True))
+        saver.fileSaveRequested.connect(_xport)
+        saver.exec_()
+
+        self.browserwidget.findChild(FilesWidget).refresh()
+
     def save_scene(self, increment=True):
         """Launches the saver widget."""
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
 
         # Setting the file-extension
-        SaverWidget.Extension = u'ma'
-        saver = SaverWidget(common.ScenesFolder, currentfile=currentfile)
+        saver = SaverWidget(u'ma', common.ScenesFolder, currentfile=currentfile)
 
         saver.fileSaveRequested.connect(save_as)
         saver.exec_()
@@ -352,6 +416,67 @@ class MayaToolbar(QtWidgets.QWidget):
         button.clicked.connect(self.show_browser)
 
 
+class AbcExportCommand(QtCore.QObject):
+    """Wrapper class for getting the current eligible sets for export."""
+    def __init__(self, parent=None):
+        super(AbcExportCommand, self).__init__(parent=parent)
+
+    def get_dag_sets(self):
+        """Querries the scene for sets with dag objects inside."""
+        setData = {}
+        for s in cmds.ls(type=u'objectSet', absoluteName=True):
+            dagMembers = cmds.listConnections(u'{}.dagSetMembers'.format(s))
+            # Filters
+            if not dagMembers:
+                continue
+            if u'SG' in s:
+                continue
+            if u'initialShadingGroup' in s:
+                continue
+            if s not in setData:
+                setData[s] = u''
+            for dag in dagMembers:
+               setData[s] = u'{} {}'.format(setData[s], u'-root {}'.format([cmds.ls(dag, absoluteName=True)[-1] for f in dagMembers][-1])).strip()
+        return setData
+
+    def export(self, file, roots, startframe, endframe, step=1.0, preroll=100.0):
+        """Main Alembic exports method."""
+
+        kwargs = {
+            'jobArg':'{f} {fr} {ro} {s} {sn} {uv} {wcs} {wfs} {wfg} {ws} {wuvs} {rt} {ef} {df}'.format(
+                f='-file {}'.format(QtCore.QFileInfo(file).filePath()),
+                fr='-framerange {} {}'.format(startframe, endframe),
+                # frs='-framerelativesample {}'.format(1.0),
+                # no='-nonormals',
+                # uvo='-uvsonly',
+                # pr='-preroll {}'.format(bool(preroll)),
+                ro='-renderableonly',
+                s='-step {}'.format(step),
+                # sl='-selection {}'.format(False),
+                sn='-stripnamespaces',
+                uv='-uvwrite',
+                wcs='-writecolorsets',
+                wfs='-writefacesets',
+                wfg='-wholeframegeo',
+                ws='-worldspace',
+                wuvs='-writeuvsets',
+                # as_='-autosubd',
+                # mfc='-melperframecallback {}'.format(''),
+                # pfc='-pythonperframecallback {}'.format(''),
+                # mpc='-melpostjobcallback {}'.format(''),
+                # ppc='-pythonpostjobcallback {}'.format(''),
+                # atp='-attrprefix {}'.format(''),
+                # uatp='-userattrprefix {}'.format(''),
+                # u='-userattr {}'.format(''),
+                rt=roots,
+                ef='-eulerfilter',
+                df='-dataformat {}'.format('ogawa'),
+            ),
+            'preRollStartFrame': float(int(startframe - preroll)),
+            'dontSkipUnwrittenFrames': True,
+        }
+        cmds.AbcExport(**kwargs)
+
 def save_as(path):
     """Saves the current scene as a new scene."""
     file_info = QtCore.QFileInfo(path)
@@ -360,7 +485,8 @@ def save_as(path):
         mbox.setText(
             u'{} already exists.'
         )
-        mbox.setInformativeText(u'If you select save the the existing file will be overriden. Are you sure you want to continue?')
+        mbox.setInformativeText(
+            u'If you select save the the existing file will be overriden. Are you sure you want to continue?')
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Save |
             QtWidgets.QMessageBox.Cancel
@@ -398,10 +524,11 @@ def import_scene(path):
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
+    match = common.get_sequence(file_info.fileName())
     cmds.file(
         file_info.filePath(),
         i=True,
-        ns=u'Reference_{}_#'.format(file_info.baseName()),
+        ns=u'{}#'.format(match.group(1) if match else file_info.baseName())
     )
 
 
@@ -415,11 +542,12 @@ def import_referenced_scene(path):
     if result == QtWidgets.QMessageBox.Cancel:
         return
 
+    match = common.get_sequence(file_info.fileName())
     cmds.file(
         file_info.filePath(),
         reference=True,
-        ns=u'Reference_{}_#'.format(file_info.baseName()),
-        rfn=u'Reference_{}RN'.format(file_info.baseName()),
+        ns=u'{}#'.format(match.group(1) if match else file_info.baseName()),
+        rfn=u'{}RN#'.format(match.group(1) if match else file_info.baseName()),
     )
 
 
@@ -445,14 +573,6 @@ def import_alembic(path):
     result = is_scene_modified()
     if result == QtWidgets.QMessageBox.Cancel:
         return
-
-    group = u'Alembic_{}'.format(file_info.baseName())
-    # Creating the root group
-    if not cmds.objExist(group):
-        cmds.group(empty=True, name=group)
-        cmds.setAttr(u'{}.useOutlinerColor'.format(group), True)
-        cmds.setAttr(u'{}.outlinerColor'.format(group),
-                     0.9, 0.68, 0.3, type=u'double3')
 
     cmds.AbcImport(
         (file_info.filePath(),),
