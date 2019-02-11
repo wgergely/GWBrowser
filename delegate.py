@@ -610,14 +610,19 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setBottom(rect.bottom() - 1)
         rect.setWidth(rect.height())
 
+        center = rect.center()
+        rect.setWidth(option.rect.height() / 1.5)
+        rect.setHeight(option.rect.height() / 1.5)
+        rect.moveCenter(center)
+
         pixmap = common.get_rsc_pixmap(
-            u'bookmark', common.SECONDARY_BACKGROUND, rect.height())
+            u'bookmark', common.SECONDARY_BACKGROUND, option.rect.height() / 1.5)
         if favourite:
             pixmap = common.get_rsc_pixmap(
-                u'bookmark', common.FAVOURITE, rect.height())
+                u'bookmark', common.FAVOURITE, option.rect.height() / 1.5)
         if active:
             pixmap = common.get_rsc_pixmap(
-                u'bookmark', common.SELECTION, rect.height())
+                u'bookmark', common.SELECTION, option.rect.height() / 1.5)
 
         painter.drawPixmap(
             rect,

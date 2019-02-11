@@ -91,7 +91,7 @@ class TrayMenu(BaseContextMenu):
             u'action': functools.partial(common.reveal, u'/'.join([f for f in asset if f]))
         }
         menu_set[u'bookmark'] = {
-            u'icon': common.get_rsc_pixmap('bookmarks', common.TEXT, common.INLINE_ICON_SIZE),
+            u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
             u'disabled': not all(bookmark),
             u'text': u'Show active bookmark in the file manager...',
             u'action': functools.partial(common.reveal, u'/'.join([f for f in bookmark if f]))

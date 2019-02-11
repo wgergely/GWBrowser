@@ -42,7 +42,7 @@ class ToolbarContextMenuWidget(BaseContextMenu):
 
         menu_set[u'separator'] = {}
         menu_set[u'bookmark'] = {
-            u'icon': common.get_rsc_pixmap('bookmarks', common.TEXT, common.INLINE_ICON_SIZE),
+            u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
             u'disabled': not all(bookmark),
             u'text': u'Show active bookmark in the file manager...',
             u'action': functools.partial(common.reveal, u'/'.join(bookmark))
