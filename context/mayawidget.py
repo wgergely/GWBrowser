@@ -601,15 +601,6 @@ class MayaToolbar(QtWidgets.QWidget):
         self.toolbar.contextMenuEvent(event)
 
     @mayacommand
-    def showEvent(self, cmds, event):
-        # Unlocking showing widget
-        currentval = cmds.optionVar(q='workspacesLockDocking')
-        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
-        cmds.evalDeferred(self.show_browser)
-        cmds.evalDeferred(functools.partial(cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
-
-
-    @mayacommand
     def show_browser(self, cmds):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()

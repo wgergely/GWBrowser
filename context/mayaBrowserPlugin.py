@@ -44,6 +44,7 @@ Credits:
 """
 
 import sys
+import functools
 
 
 def maya_useNewAPI():
@@ -57,17 +58,22 @@ def maya_useNewAPI():
 
 def initializePlugin(plugin):
     """Method is called by Maya when initializing the plug-in."""
-    from PySide2 import QtWidgets
-
     import maya.api.OpenMaya as OpenMaya
+    import maya.cmds as cmds
     from browser.context.mayawidget import MayaToolbar
 
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
-        MayaToolbar()
-        sys.stdout.write('# Browser: Plugin loaded.\n')
+        widget = MayaToolbar()
+        # Disregarding the current user setting and docking the tool nonetheless
+        currentval = cmds.optionVar(q='workspacesLockDocking')
+        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
+        cmds.evalDeferred(widget.show_browser)
+        cmds.evalDeferred(functools.partial(cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
+
+        sys.stdout.write('\n\n# Browser: Plugin loaded.\n\n')
     except ImportError as err:
         sys.stderr.write(err)
         errStr = '# Browser:  Unable to import the "mayabrowser" from the "browser" module.\n'
