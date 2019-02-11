@@ -120,8 +120,6 @@ class ListStackWidget(QtWidgets.QStackedWidget):
 
     def __init__(self, parent=None):
         super(ListStackWidget, self).__init__(parent=parent)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
@@ -445,7 +443,6 @@ class ListControlWidget(QtWidgets.QWidget):
         )
 
         # Listwidget
-        # self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ChangeListWidget(parent=self))
         self.layout().addStretch(1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
@@ -796,7 +793,7 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
-            lambda: self.listcontrolwidget.setCurrentMode(0))
+            lambda: self.Frolwidget.setCurrentMode(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+2'), self)
@@ -888,34 +885,6 @@ class BrowserWidget(QtWidgets.QWidget):
             self.stackedwidget.currentWidget(),
             self.stackedwidget.widget(idx))
         self.stackedwidget.setCurrentIndex(idx)
-
-    def hideEvent(self, event):
-        cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
-
-        pos = self.mapToGlobal(self.rect().topLeft())
-        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
-
-        super(BrowserWidget, self).hideEvent(event)
-
-    def showEvent(self, event):
-        super(BrowserWidget, self).showEvent(event)
-        cls = self.__class__.__name__
-
-        width = local_settings.value(u'widget/{}/width'.format(cls))
-        height = local_settings.value(u'widget/{}/height'.format(cls))
-        x = local_settings.value(u'widget/{}/x'.format(cls))
-        y = local_settings.value(u'widget/{}/y'.format(cls))
-
-        if not all((width, height, x, y)):  # skip if not saved yet
-            return
-        size = QtCore.QSize(width, height)
-        pos = QtCore.QPoint(x, y)
-
-        self.resize(size)
-        self.move(pos)
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)

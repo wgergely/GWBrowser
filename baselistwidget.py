@@ -25,7 +25,7 @@ def contextmenu(func):
     def func_wrapper(self, *args, **kwargs):
         menu_set = collections.OrderedDict()
         menu_set['__separator__'] = None
-        menu_set = func(self, menu_set)
+        menu_set = func(self, menu_set, *args, **kwargs)
         if not isinstance(menu_set, collections.OrderedDict):
             raise ValueError(
                 'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
@@ -1195,6 +1195,18 @@ class BaseListWidget(QtWidgets.QListView):
                 return index
         return QtCore.QModelIndex()
 
+    def unmark_active_index(self):
+        """Unsets the active flag."""
+        source_index = self.model().mapToSource(self.active_index())
+        if not source_index.isValid():
+            return
+
+        self.model().sourceModel().setData(
+            source_index,
+            source_index.flags() & ~MarkedAsActive,
+            role=common.FlagsRole
+        )
+
     def activate_current_index(self):
         """Sets the current index as ``active``.
 
@@ -1211,13 +1223,7 @@ class BaseListWidget(QtWidgets.QListView):
         if index.flags() & MarkedAsArchived:
             return False
 
-        source_index = self.model().mapToSource(self.active_index())
-        if source_index.isValid():
-            self.model().sourceModel().setData(
-                source_index,
-                source_index.flags() & ~MarkedAsActive,
-                role=common.FlagsRole
-            )
+        self.unmark_active_index()
 
         source_index = self.model().mapToSource(index)
         self.model().sourceModel().setData(
