@@ -48,7 +48,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
         self.setStyleSheet(u'background-color: rgba(50,50,50,50)')
         self.setAlignment(QtCore.Qt.AlignCenter)
-        # pixmap = common.cache_image(settings.thumbnail_path(), common.THUMBNAIL_IMAGE_SIZE)
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
         self.setPixmap(pixmap)
 
@@ -386,12 +385,12 @@ class FilterEditor(QtWidgets.QWidget):
             	border: none;
             	outline: 0;
                 border-radius: 6px;
-            }
-            QLineEdit:active {
+            }}
+            QLineEdit:active {{
             	border: none;
             	outline: 0;
-            }
-            QLineEdit:focus {
+            }}
+            QLineEdit:focus {{
             	border: none;
             	outline: 0;
             }}
