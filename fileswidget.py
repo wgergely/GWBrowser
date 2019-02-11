@@ -492,6 +492,8 @@ class FilesWidget(BaseInlineIconWidget):
 
     """
 
+    itemDoubleClicked = QtCore.Signal(QtCore.QModelIndex)
+
     def __init__(self, asset, parent=None):
         super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
@@ -508,6 +510,10 @@ class FilesWidget(BaseInlineIconWidget):
 
     def inline_icons_count(self):
         return 3
+
+    def action_on_enter_key(self):
+        index = self.selectionModel().currentIndex()
+        self.itemDoubleClicked.emit(index)
 
     def activate_current_index(self):
         """Sets the current item item as ``active`` and
@@ -578,7 +584,8 @@ class FilesWidget(BaseInlineIconWidget):
             editors.ThumbnailEditor(index, parent=self)
             return
 
-        self.activate_current_index()
+        # self.activate_current_index()
+        self.itemDoubleClicked.emit(index)
         return
 
 
