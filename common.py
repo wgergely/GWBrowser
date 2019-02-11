@@ -578,11 +578,12 @@ def reveal(path):
         name (str): A relative path or the folder's name.
 
     """
-    file_info = QtCore.QFileInfo(path)
-    if not file_info.isDir():
-        path = file_info.path()
-    url = QtCore.QUrl.fromLocalFile(path)
-    QtGui.QDesktopServices.openUrl(url)
+    args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
+    QtCore.QProcess.startDetached(u'explorer', args)
+
+
+    # url = QtCore.QUrl.fromLocalFile(path)
+    # QtGui.QDesktopServices.openUrl(url)
 
 
 NoHighlightFlag = 0b000000
