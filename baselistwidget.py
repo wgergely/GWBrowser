@@ -1323,8 +1323,8 @@ class BaseListWidget(QtWidgets.QListView):
                     rect_.setWidth(sizehint.height() - 2)
                     painter.setBrush(QtGui.QBrush(
                         QtGui.QColor(100, 100, 100, 5)))
-                    painter.drawRect(rect_)
-                    painter.drawRect(rect)
+                    # painter.drawRect(rect_)
+                    # painter.drawRect(rect)
                 if n == 0 and not favourite_mode:  # Empty model
                     painter.setPen(common.TEXT_DISABLED)
                     painter.drawText(

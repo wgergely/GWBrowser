@@ -344,7 +344,8 @@ class CloseButton(ClickableLabel):
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            u'close', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -357,7 +358,8 @@ class MinimizeButton(ClickableLabel):
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
         pixmap = common.get_rsc_pixmap(
-            u'minimize', common.TEXT, common.ROW_BUTTONS_HEIGHT / 2)
+            u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -387,23 +389,23 @@ class HeaderWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
         label = QtWidgets.QLabel()
         pixmap = common.get_rsc_pixmap(
-            u'custom', None, common.ROW_BUTTONS_HEIGHT, opacity=1)
+            u'custom', None, common.ROW_BUTTONS_HEIGHT / 1.5, opacity=.9)
         label.setPixmap(pixmap)
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-        label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
+        label.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
+        label.setFixedWidth(common.ROW_BUTTONS_HEIGHT / 1.5)
 
+
+        self.layout().addWidget(label)
         self.layout().addStretch()
-
         self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
-        self.layout().addWidget(label)
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
