@@ -67,14 +67,14 @@ def initializePlugin(plugin):
 
     try:
         MayaToolbar()
-        sys.stdout.write('# Browser: Plugin loaded.')
+        sys.stdout.write('# Browser: Plugin loaded.\n')
     except ImportError as err:
         sys.stderr.write(err)
         errStr = '# Browser:  Unable to import the "mayabrowser" from the "browser" module.\n'
         errStr = '# Browser:  Make sure the "browser" python module has been added to Maya\'s python path.'
         raise ImportError(errStr)
-    except:
-        sys.stderr.write('# Borwser: Unkown error occured.')
+    except Exception as err:
+        sys.stderr.write('# Borwser plug-in load error:\n\n{}\n'.format(err))
         raise
 
 
@@ -100,16 +100,17 @@ def uninitializePlugin(plugin):
 
         # Deleting workspacecontrols
         for k in (f for f in mixinWorkspaceControls if 'MayaWidget' in f):
+            mixinWorkspaceControls[k].remove_context_callbacks()
             mixinWorkspaceControls[k].deleteLater()
             mixinWorkspaceControls[k].parent().deleteLater()
 
         del MayaToolbar
 
         # Deleting the python modules
-        for k, _ in sys.modules.items():
-            if 'browser' in k:
+        for k, v in sys.modules.iteritems():
+            if 'browser.' in k:
                 del sys.modules[k]
-
+        del sys.modules['browser']
         sys.stdout.write('# Browser: Plugin un-loaded.')
 
     except Exception as err:
