@@ -114,13 +114,45 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.tray.setToolTip('Browser')
         self.tray.show()
         self.tray.activated.connect(self.trayActivated)
-        self.findChild(FilesWidget).itemDoubleClicked.connect(self.itemDoubleClicked)
+        self.findChild(FilesWidget).itemDoubleClicked.connect(
+            self.itemDoubleClicked)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        shadow_offset = common.MARGIN / 2.0
+        self.layout().setContentsMargins(common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
+                                         common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)
+
+        self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.effect.setBlurRadius(shadow_offset)
+        self.effect.setXOffset(0)
+        self.effect.setYOffset(0)
+        self.effect.setColor(QtCore.Qt.black)
+        self.setGraphicsEffect(self.effect)
+
+    def paintEvent(self, event):
+        """Drawing a rounded background help to identify that the widget
+        is in standalone mode."""
+        rect = QtCore.QRect(self.rect())
+        center = rect.center()
+        rect.setWidth(rect.width() - common.MARGIN)
+        rect.setHeight(rect.height() - common.MARGIN)
+        rect.moveCenter(center)
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.setOpacity(.85)
+        painter.drawRoundedRect(rect, 8, 8)
+        painter.end()
 
     def itemDoubleClicked(self, index):
         """When in standalone mode, double-clicking an item will open that item."""
         if not index.isValid():
             return
-        location = self.findChild(FilesWidget).model().sourceModel().get_location()
+        location = self.findChild(
+            FilesWidget).model().sourceModel().get_location()
 
         data = index.data(QtCore.Qt.StatusTipRole)
         if location == common.RendersFolder:

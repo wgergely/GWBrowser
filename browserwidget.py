@@ -145,8 +145,6 @@ class LocationsMenu(BaseContextMenu):
             u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
             u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_off_pixmap = common.get_rsc_pixmap(
-            u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         menu_set = collections.OrderedDict()
         menu_set[u'separator'] = {}
@@ -157,7 +155,7 @@ class LocationsMenu(BaseContextMenu):
                 u'text': k.title(),
                 u'checkable': True,
                 u'checked': checked,
-                u'icon': item_on_pixmap if checked else item_off_pixmap,
+                u'icon': item_on_pixmap if checked else QtGui.QPixmap(),
                 u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
             }
         self.create_menu(menu_set)
@@ -220,10 +218,15 @@ class LocationsButton(ClickableLabel):
     def labelClicked(self):
         parent = self.parent().parent().findChild(FilesWidget)
         menu = LocationsMenu(parent=parent)
-        menu.setFixedWidth(120)
-        pos = self.mapToGlobal(self.rect().bottomLeft())
-        menu.move(pos)
-        menu.show()
+        # left =
+        left = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
+        menu.move(left)
+        right = self.parent().mapToGlobal(self.parent().rect().bottomRight())
+        menu.setFixedWidth((right - left).x())
+        overlay = OverlayWidget(
+            self.parent().parent().stackedwidget)
+        menu.exec_()
+        overlay.close()
 
 
 class CollapseSequenceButton(ClickableLabel):
@@ -402,10 +405,10 @@ class HeaderWidget(QtWidgets.QWidget):
         label.setFixedWidth(common.ROW_BUTTONS_HEIGHT / 1.5)
 
 
-        self.layout().addWidget(label)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton())
         self.layout().addWidget(CloseButton())
+        self.layout().addWidget(label)
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
@@ -417,8 +420,13 @@ class HeaderWidget(QtWidgets.QWidget):
         if event.buttons() == QtCore.Qt.NoButton:
             return
         if self.move_start_widget_pos:
+            margins = self.window().layout().contentsMargins()
             offset = (event.pos() - self.move_start_event_pos)
-            self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
+            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
+            self.parent().move(
+                pos.x() - margins.left(),
+                pos.y() - margins.top()
+            )
 
 
 
@@ -764,6 +772,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.headerwidget = HeaderWidget(parent=self)
 
         self.statusbar = QtWidgets.QStatusBar()
+        self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.statusbar.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2.0)
         self.statusbar.setSizeGripEnabled(True)
         self.statusbar.setSizePolicy(
