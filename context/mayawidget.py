@@ -587,7 +587,6 @@ class MayaToolbar(QtWidgets.QWidget):
         # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-
         widget.layout().addWidget(self)
 
     def _createUI(self):
@@ -603,7 +602,12 @@ class MayaToolbar(QtWidgets.QWidget):
 
     @mayacommand
     def showEvent(self, cmds, event):
+        # Unlocking showing widget
+        currentval = cmds.optionVar(q='workspacesLockDocking')
+        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
         cmds.evalDeferred(self.show_browser)
+        cmds.evalDeferred(functools.partial(cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
+
 
     @mayacommand
     def show_browser(self, cmds):
