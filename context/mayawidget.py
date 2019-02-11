@@ -574,7 +574,7 @@ class MayaToolbar(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(MayaToolbar, self).__init__(parent=parent)
-
+        self.firstshow = True
         self._createUI()
         self._connectSignals()
         self.setFocusProxy(self.toolbar)
@@ -599,6 +599,16 @@ class MayaToolbar(QtWidgets.QWidget):
 
     def contextMenuEvent(self, event):
         self.toolbar.contextMenuEvent(event)
+
+    @mayacommand
+    def showEvent(self, cmds, event):
+        # Unlocking showing widget
+        if self.firstshow:
+            currentval = cmds.optionVar(q='workspacesLockDocking')
+            cmds.optionVar(intValue=(u'workspacesLockDocking', False))
+            cmds.evalDeferred(self.show_browser)
+            cmds.evalDeferred(functools.partial(cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
+            self.firstshow = False
 
     @mayacommand
     def show_browser(self, cmds):
