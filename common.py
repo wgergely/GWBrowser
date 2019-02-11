@@ -575,15 +575,19 @@ def reveal(path):
     """Reveals the specified folder in the file explorer.
 
     Args:
-        name (str): A relative path or the folder's name.
+        name (str): A path to the file.
 
     """
-    args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
-    QtCore.QProcess.startDetached(u'explorer', args)
-
-
-    # url = QtCore.QUrl.fromLocalFile(path)
-    # QtGui.QDesktopServices.openUrl(url)
+    path = get_sequence_endpath(path)
+    if QtCore.QSysInfo().productType() in (u'windows', u'winrt'):
+        args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
+        return QtCore.QProcess.startDetached(u'explorer', args)
+    if QtCore.QSysInfo().productType() == u'osx':
+        args = [u'-e', u'tell application "Finder"', u'-e', u'activate', u'-e', u'select POSIX file "{}"'.format(
+                QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
+        return QtCore.QProcess.startDetached(u'osascript', args)
+    else:
+        raise NotImplementedError('{} os has not been implemented.'.format(QtCore.QSysInfo().productType()))
 
 
 NoHighlightFlag = 0b000000
