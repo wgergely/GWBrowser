@@ -14,12 +14,11 @@ Note:
 
 
 import re
-import functools
 import collections
+
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import browser.common as common
-
 from browser.delegate import BaseDelegate
 from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import AssetWidgetDelegate
@@ -27,52 +26,46 @@ from browser.delegate import paintmethod
 from browser.editors import ClickableLabel
 from browser.settings import Active
 
+from browser.baselistwidget import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksModel
-from browser.baselistwidget import BaseContextMenu
-from browser.capture import ScreenGrabber
 from browser.assetwidget import AssetModel
 from browser.browserwidget import HeaderWidget, CloseButton, MinimizeButton
 
+from browser.capture import ScreenGrabber
 from browser.settings import MarkedAsActive, MarkedAsArchived
 
 
-class ThumbnailMenu(BaseContextMenu):
+class ThumbnailContextMenu(BaseContextMenu):
+    """Context menu associated with the thumbnail."""
     def __init__(self, parent=None):
-        super(ThumbnailMenu, self).__init__(
+        super(ThumbnailContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
         self.add_thumbnail_menu()
 
-    def add_thumbnail_menu(self):
+    @contextmenu
+    def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        revomove_thumbnail_pixmap = common.get_rsc_pixmap(
+        remove_thumbnail_pixmap = common.get_rsc_pixmap(
             u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        show_thumbnail = common.get_rsc_pixmap(
-            u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
-
-        menu_set = collections.OrderedDict()
-        menu_set[u'separator'] = {}
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': self.capture
+            u'action': self.parent().window().capture_thumbnail
         }
         menu_set[u'Pick thumbnail'] = {
             u'icon': pick_thumbnail_pixmap,
             u'action': self.parent().window().pick_thumbnail
         }
-        self.create_menu(menu_set)
-
-    def capture(self):
-        path = ScreenGrabber.capture()
-        image = common.cache_image(path, common.ASSET_ROW_HEIGHT)
-        self.image = common.cache_image(path, common.THUMBNAIL_IMAGE_SIZE)
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-        self.parent().window().findChild(ThumbnailButton).setPixmap(pixmap)
+        menu_set[u'separator'] = {}
+        menu_set[u'Reset thumbnail'] = {
+            u'icon': remove_thumbnail_pixmap,
+            u'action': self.parent().reset
+        }
+        return menu_set
 
 
 class ThumbnailButton(ClickableLabel):
@@ -81,16 +74,21 @@ class ThumbnailButton(ClickableLabel):
     def __init__(self, parent=None):
         super(ThumbnailButton, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+        self.reset()
+
+    def reset(self):
         pixmap = common.get_rsc_pixmap(
             u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
         self.setPixmap(pixmap)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-
         self.setStyleSheet(
             u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
 
+        self.window().thumbnail_image = QtGui.QImage()
+
     def contextMenuEvent(self, event):
-        menu = ThumbnailMenu(parent=self)
+        menu = ThumbnailContextMenu(parent=self)
         pos = self.rect().center()
         pos = self.mapToGlobal(pos)
         menu.move(pos)
@@ -694,6 +692,8 @@ class SaverFileInfo(QtCore.QObject):
             QtCore.QStandardPaths.HomeLocation))
         user = QtCore.QFileInfo(user).fileName()
         user = regex.sub(u'', user)
+        # Numbers are not allowed in the username
+        user = re.sub(r'[0-9]+', u'', user)
 
         isexport = self.parent().window().location == common.ExportsFolder
         folder = self.parent().window().extension if isexport else folder
@@ -821,6 +821,7 @@ class SaverWidget(QtWidgets.QDialog):
         self.extension = extension
         self.currentfile = currentfile
         self.location = location
+        self.thumbnail_image = None
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
@@ -830,29 +831,18 @@ class SaverWidget(QtWidgets.QDialog):
 
         self._createUI()
         self._connectSignals()
-
-        self.image = QtGui.QImage()
         self._set_initial_state()
 
     def pick_thumbnail(self):
-        """Prompts to select an image file.
-
-        """
-        active_paths = Active.get_active_paths()
+        """Prompt to select an image file."""
         dialog = QtWidgets.QFileDialog(parent=self)
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         dialog.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
 
-        paths = self.window().active_paths()
-        directory = (paths[u'server'], paths[u'job'], paths[u'root'],
-                     paths[u'asset'], self.window().location)
-        directory = directory if all(directory) else (
-            paths[u'server'], paths[u'job'], paths[u'root'])
-        directory = directory if all(directory) else (u'/',)
-
-        dialog.setDirectory(u'/'.join(directory))
+        # Setting the dialog's root path
+        dialog.setDirectory(SaverFileInfo(self).path())
         dialog.setOption(
             QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
@@ -861,14 +851,43 @@ class SaverWidget(QtWidgets.QDialog):
         if not dialog.selectedFiles():
             return
 
-        path = next(f for f in dialog.selectedFiles())
-        image = common.cache_image(path, common.ASSET_ROW_HEIGHT)
-        self.image = common.cache_image(path, common.THUMBNAIL_IMAGE_SIZE)
+        # Saving the thumbnail
+        image = QtGui.QImage()
+        image.load(next(f for f in dialog.selectedFiles()))
+
+        if image.isNull():
+            return
+
+        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
+        self.set_image(image)
+
+    def capture_thumbnail(self):
+        pixmap = ScreenGrabber.capture()
+
+        if not pixmap:
+            return
+        if pixmap.isNull():
+            return
+
+        image = common.resize_image(pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+        self.set_image(image)
+
+    def set_image(self, image):
+        self.thumbnail_image = image
+
+        thumbnail = self.findChild(ThumbnailButton)
+        image = common.resize_image(image, thumbnail.height())
+
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
-        self.findChild(ThumbnailButton).setPixmap(pixmap)
-        self.findChild(ThumbnailButton).setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
-            '{},{},{},{}'.format(*common.IMAGE_CACHE[u'{}:BackgroundColor'.format(path)].getRgb())))
+        background = common.get_color_average(image)
+
+        thumbnail.setPixmap(pixmap)
+        thumbnail.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
+            '{},{},{},{}'.format(*background.getRgb())
+        ))
+
+
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
