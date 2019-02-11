@@ -255,21 +255,16 @@ class ScreenGrabber(QtWidgets.QDialog):
     @classmethod
     def capture(cls, output_path=None):
         """
-        Modally display the screen capture tool, saving to a file.
-
-        :param output_path: Path to save to. If no path is specified,
-                            a temp path is generated.
-        :returns: path where screenshot was saved.
+        Modally display the screen capture tool, saving to a file or if no file
+        is specified returns the captured pixmap.
         """
-
-        if output_path is None:
-            output_path = tempfile.NamedTemporaryFile(
-                suffix=".png",
-                prefix="screencapture_",
-                delete=False
-            ).name
         pixmap = cls.screen_capture()
-        if pixmap:
-            pixmap.save(output_path)
-            return output_path
-        return None
+
+        if not pixmap:
+            return None
+
+        if not output_path:
+            return pixmap
+
+        pixmap.save(output_path)
+        return output_path
