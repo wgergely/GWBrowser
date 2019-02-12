@@ -12,6 +12,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.browserwidget import BrowserWidget
 from browser.fileswidget import FilesWidget
+from browser.editors import ClickableLabel
 from browser.baselistwidget import BaseContextMenu, contextmenu
 import browser.common as common
 from browser.settings import Active, local_settings
@@ -99,6 +100,92 @@ class TrayMenu(BaseContextMenu):
         return menu_set
 
 
+
+class CloseButton(ClickableLabel):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(CloseButton, self).__init__(parent=parent)
+        pixmap = common.get_rsc_pixmap(
+            u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
+                          common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setPixmap(pixmap)
+
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
+
+class MinimizeButton(ClickableLabel):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(MinimizeButton, self).__init__(parent=parent)
+        pixmap = common.get_rsc_pixmap(
+            u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
+                          common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setPixmap(pixmap)
+
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
+
+class HeaderWidget(QtWidgets.QWidget):
+    """Horizontal widget for controlling the position of the widget active window."""
+
+    def __init__(self, parent=None):
+        super(HeaderWidget, self).__init__(parent=parent)
+        self.label = None
+        self.closebutton = None
+        self.move_in_progress = False
+        self.move_start_event_pos = None
+        self.move_start_widget_pos = None
+
+        self.setMouseTracking(True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self._createUI()
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
+        label = QtWidgets.QLabel()
+        pixmap = common.get_rsc_pixmap(
+            u'custom', None, common.ROW_BUTTONS_HEIGHT / 1.5, opacity=.9)
+        label.setPixmap(pixmap)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
+        label.setFixedWidth(common.ROW_BUTTONS_HEIGHT / 1.5)
+
+        self.layout().addStretch()
+        self.layout().addWidget(MinimizeButton())
+        self.layout().addWidget(CloseButton())
+        self.layout().addWidget(label)
+
+    def mousePressEvent(self, event):
+        self.move_in_progress = True
+        self.move_start_event_pos = event.pos()
+        self.move_start_widget_pos = self.mapToGlobal(
+            self.geometry().topLeft())
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == QtCore.Qt.NoButton:
+            return
+        if self.move_start_widget_pos:
+            margins = self.window().layout().contentsMargins()
+            offset = (event.pos() - self.move_start_event_pos)
+            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
+            self.parent().move(
+                pos.x() - margins.left(),
+                pos.y() - margins.top()
+            )
+
+
+
 class StandaloneBrowserWidget(BrowserWidget):
     """Browserwidget with added QSystemTrayIcon."""
 
@@ -129,6 +216,21 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.effect.setYOffset(0)
         self.effect.setColor(QtCore.Qt.black)
         self.setGraphicsEffect(self.effect)
+
+    def _createUI(self):
+        super(StandaloneBrowserWidget, self)._createUI()
+
+        self.headerwidget = HeaderWidget(parent=self)
+        self.layout().insertWidget(0, self.headerwidget)
+
+    def _connectSignals(self):
+        super(StandaloneBrowserWidget, self)._connectSignals()
+
+        minimizebutton = self.findChild(MinimizeButton)
+        closebutton = self.findChild(CloseButton)
+        minimizebutton.clicked.connect(self.showMinimized)
+        closebutton.clicked.connect(self.close)
+
 
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget

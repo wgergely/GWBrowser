@@ -39,14 +39,13 @@ class Spinner(QtWidgets.QWidget):
         pixmap = common.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
-        self.animation = None
         self.spinner_pixmap = common.get_rsc_pixmap(
             u'spinner', common.TEXT, 24)
         self.setPixmap(self.get_pixmap(0))
 
-        self.setWindowOpacity(0)
+        self.setWindowOpacity(1)
         self.setWindowFlags(
-            QtCore.Qt.Widget |
+            QtCore.Qt.Dialog |
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.WindowStaysOnTopHint
         )
@@ -55,6 +54,7 @@ class Spinner(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_PaintOnScreen)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
         self.worker = GUIUpdater()
         self._connectSignals()
 
@@ -91,17 +91,15 @@ class Spinner(QtWidgets.QWidget):
 
     def start(self):
         """Starts the widget-spin."""
-        app = QtCore.QCoreApplication.instance()
-        app.setOverrideCursor(QtCore.Qt.WaitCursor)
-        self.worker.run()
         self.show()
-        self.animate_opacity()
         self.move_to_center()
+        self.worker.run()
 
     def stop(self):
         """Stops the widget-spin."""
         app = QtCore.QCoreApplication.instance()
         app.restoreOverrideCursor()
+
         self.worker.quit()
         self.worker.deleteLater()
         self.close()
@@ -114,7 +112,6 @@ class Spinner(QtWidgets.QWidget):
         self.setPixmap(self.get_pixmap(degree * 20))
 
     def move_to_center(self):
-        from browser.browserwidget import BrowserWidget
         app = QtWidgets.QApplication.instance()
         widget = next((f for f in app.allWidgets() if f.objectName() == u'BrowserWidget'), None)
 
@@ -166,15 +163,6 @@ class Spinner(QtWidgets.QWidget):
 
         return tinted_spinner
 
-    def animate_opacity(self):
-        """Animates the visibility of the widget."""
-        self.animation = QtCore.QPropertyAnimation(self, u'windowOpacity')
-        self.animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
-        self.animation.setDuration(150)
-        self.animation.setStartValue(0.01)
-        self.animation.setEndValue(1)
-        self.animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
-
     def _connectSignals(self):
         self.worker.updateLabel.connect(self.refresh)
 
@@ -188,9 +176,12 @@ class GUIUpdater(QtCore.QThread):
         self.updateLabel.emit(self.degree)
 
     def run(self):
+        app = QtCore.QCoreApplication.instance()
+
         self.degree = 0
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.increment)
+        self.timer.timeout.connect(lambda: app.setOverrideCursor(QtCore.Qt.WaitCursor))
         self.timer.setInterval(100)
         self.timer.setSingleShot(False)
         self.timer.start()

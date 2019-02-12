@@ -99,7 +99,7 @@ def uninitializePlugin(plugin):
         widget.deleteLater()
 
         # Deleting workspacecontrols
-        for k in (f for f in mixinWorkspaceControls if 'MayaWidget' in f):
+        for k in (f for f in mixinWorkspaceControls if 'MayaBrowserWidget' in f):
             mixinWorkspaceControls[k].remove_context_callbacks()
             mixinWorkspaceControls[k].deleteLater()
             mixinWorkspaceControls[k].parent().deleteLater()

@@ -656,6 +656,9 @@ class BaseModel(QtCore.QAbstractItemModel):
     def switch_location_data(self):
         pass
 
+    def is_grouped(self):
+        return False
+
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting data."""

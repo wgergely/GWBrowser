@@ -344,7 +344,8 @@ class FilterEditor(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setWindowFlags(QtCore.Qt.Window |
                             QtCore.Qt.FramelessWindowHint)
-        self.setMinimumHeight(common.ROW_BUTTONS_HEIGHT)
+
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
         self._createUI()
         self._connectSignals()
@@ -359,8 +360,8 @@ class FilterEditor(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(6, 6, 6, 6)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setContentsMargins(0, 0, 4, 0)
+        self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
         self.setFixedWidth(300)
@@ -374,17 +375,20 @@ class FilterEditor(QtWidgets.QWidget):
         self.label.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.editor = QtWidgets.QLineEdit()
+        self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.editor.setPlaceholderText('Find...')
         self.setStyleSheet("""
             QLineEdit {{
-                padding: 12px;
+                margin: 0px;
+                padding: 5px;
                 background-color: rgba(30,30,30, 255);
                 color: rgba(200,200,200,255);
                 font-family: "{}";
-                font-size: 10pt;
+                font-size: 11pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;
-                border-radius: 6px;
+                border-radius: 4px;
             }}
             QLineEdit:active {{
             	border: none;
@@ -423,16 +427,6 @@ class FilterEditor(QtWidgets.QWidget):
         painter.setBrush(common.SEPARATOR)
         painter.drawRoundedRect(self.rect(), 6, 6)
         painter.end()
-
-    def showEvent(self, event):
-        if not self.parent():
-            return
-
-        pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
-        self.move(
-            pos.x() + (self.parent().rect().width() / 2) - (self.width() / 2),
-            pos.y() + (common.ROW_HEIGHT / 2)
-        )
 
 
 if __name__ == '__main__':

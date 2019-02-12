@@ -155,16 +155,16 @@ QComboBox::drop-down:disabled {{
 }}
 
 ChangeListWidget {{
+	font-size: 11pt;
 	text-align: left;
-	border-style: solid;
+	margin: 0px;
+	padding: 0px;
 	color: rgba({TEXT});
 	background-color: rgba(0,0,0,0);
-	font-family: "{fontFamily}";
-	font-size: 10pt;
-	border-left: 3px solid rgba(0,0,0,0);
 }}
 ChangeListWidget:active {{
 	background-color: rgba(0,0,0,0);
+	color: rgb({TEXT_SELECTED});
 }}
 ChangeListWidget:hover {{
 	background-color: rgba(0,0,0,0);
@@ -172,7 +172,26 @@ ChangeListWidget:hover {{
 }}
 ChangeListWidget:focus {{
 	background-color: rgba(0,0,0,0);
-	border-left: 3px solid rgba({SELECTION});
+}}
+
+LocationsButton QLabel {{
+	font-size: 11pt;
+	text-align: left;
+	margin: 0px;
+	padding: 0px;
+	color: rgba({TEXT});
+	background-color: rgba(0,0,0,0);
+}}
+LocationsButton QLabel:active {{
+	background-color: rgba(0,0,0,0);
+	color: rgb({TEXT_SELECTED});
+}}
+LocationsButton QLabel:hover {{
+	background-color: rgba(0,0,0,0);
+	color: rgb({TEXT_SELECTED});
+}}
+LocationsButton QLabel:focus {{
+	background-color: rgba(0,0,0,0);
 }}
 
 

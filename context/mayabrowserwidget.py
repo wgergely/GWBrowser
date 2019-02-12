@@ -21,14 +21,11 @@ except ImportError:
         ':( This widget can only be initiated from within Maya compiled with PySide2.')
 
 import browser.common as common
-from browser.context.basetoolbar import BaseToolbarWidget
-from browser.context.basetoolbar import ToolbarButton
 
 from browser.baselistwidget import BaseContextMenu
-from browser.browserwidget import BrowserWidget, ListControlWidget
+from browser.browserwidget import BrowserWidget, BrowserButton
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
-from browser.browserwidget import HeaderWidget
 from browser.settings import local_settings
 from browser.common import QSingleton
 from browser.context.saver import SaverWidget, SaverFileInfo, Custom
@@ -64,11 +61,11 @@ def contextmenu(func):
     return func_wrapper
 
 
-class MayaWidgetContextMenu(BaseContextMenu):
+class MayaBrowserWidgetContextMenu(BaseContextMenu):
     """The context holding the Maya specific actions."""
 
     def __init__(self, index, parent=None):
-        super(MayaWidgetContextMenu, self).__init__(index, parent=parent)
+        super(MayaBrowserWidgetContextMenu, self).__init__(index, parent=parent)
 
         self.add_alembic_export_menu()
         self.add_save_as_menu()
@@ -163,7 +160,7 @@ class MayaWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
+class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
     """The main wrapper-widget to be used inside maya."""
 
     instances = {}
@@ -176,7 +173,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
 
 
     def __init__(self, parent=None):
-        super(MayaWidget, self).__init__(parent=parent)
+        super(MayaBrowserWidget, self).__init__(parent=parent)
         self.instances[self.objectName()] = self
 
         # Overriding the default name-filters
@@ -205,7 +202,6 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         common.set_custom_stylesheet(self)
 
         widget = BrowserWidget()
-        widget.findChild(HeaderWidget).setHidden(True)
         self.layout().addWidget(widget)
 
     def unmark_active(self, *args):
@@ -347,7 +343,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         width = (width * 0.5) if width > 400 else width
         width = width - common.INDICATOR_WIDTH
 
-        widget = MayaWidgetContextMenu(index, parent=parent)
+        widget = MayaBrowserWidgetContextMenu(index, parent=parent)
         if index.isValid():
             rect = parent.visualRect(index)
             widget.move(
@@ -378,7 +374,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
         key = u'widget/{}/isFloating'.format(cls)
         local_settings.setValue(key, isFloating)
 
-        wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
+        wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
         if isFloating == u'0':  # why'o'why, this is a unicode value
             pass  # I can't implement this shit.
 
@@ -411,7 +407,7 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
             u'retain': True,
             # u'closeCallback': None
         }
-        super(MayaWidget, self).show(**kwargs)
+        super(MayaBrowserWidget, self).show(**kwargs)
 
     @mayacommand
     def save_as(self, cmds, path):
@@ -569,39 +565,30 @@ class MayaWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disabl
             return result
 
 
-class MayaToolbar(QtWidgets.QWidget):
+class MayaBrowserButton(BrowserButton):
     """A dockable tool bar for showing/hiding the browser window."""
 
     def __init__(self, parent=None):
-        super(MayaToolbar, self).__init__(parent=parent)
+        super(MayaBrowserButton, self).__init__(parent=parent)
         self.firstshow = True
-        self._createUI()
-        self._connectSignals()
-        self.setFocusProxy(self.toolbar)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setWindowTitle(u'Browser')
 
-        # Hopefully deletes the workspaceControl
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setToolTip(u'Browser')
 
         # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
         widget.layout().addWidget(self)
+        self.set_size(widget.width())
 
-    def _createUI(self):
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.toolbar = BaseToolbarWidget(parent=self)
-        self.layout().addWidget(self.toolbar)
-
-    def contextMenuEvent(self, event):
-        self.toolbar.contextMenuEvent(event)
+        self.clicked.connect(self.show_browser)
 
     @mayacommand
     def showEvent(self, cmds, event):
+        """The first time the widget is shown is when the main MayaBrowser widget
+        will be initialized.
+
+        """
         # Unlocking showing widget
         if self.firstshow:
             currentval = cmds.optionVar(q='workspacesLockDocking')
@@ -615,43 +602,34 @@ class MayaToolbar(QtWidgets.QWidget):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()
         widget = next((f for f in app.allWidgets()
-                       if u'MayaWidget' in f.objectName()), None)
+                       if u'MayaBrowserWidget' in f.objectName()), None)
 
         if not widget:  # browser has not been initiazed
-            widget = MayaWidget()
-            # Connecting the show/close signals to the button to indicate if
-            # the Browser is visible or not.
-            button = self.findChild(ToolbarButton)
-            widget.show()  # showing with the default options
-            button.setState(True)
+            widget = MayaBrowserWidget()
 
-            wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
+            wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
             if not wpcs:  # Widget initialized
                 return
             k = next(wpcs)
             widget = mixinWorkspaceControls[k]
 
             # Tabbing this to the attribute editor
+            cmds.evalDeferred(widget.show)
             cmds.evalDeferred(
                 lambda *args: cmds.workspaceControl(k, e=True, tabToControl=(u'AttributeEditor', -1)))
             cmds.evalDeferred(
                 lambda: widget.raise_())
-
-            return
-
-        wpcs = (f for f in mixinWorkspaceControls if u'MayaWidget' in f)
-        if not wpcs:  # Widget initialized
-            return
-        widget = mixinWorkspaceControls[next(wpcs)]
-
-        if widget.isFloating():
-            widget.raise_()
         else:
-            widget.show()
+            wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
+            if not wpcs:  # Widget initialized
+                return
+            widget = mixinWorkspaceControls[next(wpcs)]
 
-    def _connectSignals(self):
-        button = self.toolbar.findChild(ToolbarButton)
-        button.clicked.connect(self.show_browser)
+            if widget.isFloating():
+                widget.raise_()
+            else:
+                widget.show()
+
 
 
 class AbcExportCommand(QtCore.QObject):
