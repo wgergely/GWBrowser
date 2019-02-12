@@ -884,13 +884,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-        else:
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
             rect.setRight(rect.right())
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
 
         color = self.get_state_color(option, index, common.SECONDARY_TEXT)
-
         painter.setBrush(QtCore.Qt.NoBrush)
 
         painter.setPen(QtGui.QPen(color))
@@ -941,7 +938,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
     @paintmethod
     def paint_mode(self, *args):
-        """Paints the mode and the subsequent subfolders."""
+        """Paints the FilesWidget's mode and the subfolders."""
         painter, option, index, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -968,13 +965,13 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if not modes[0]:
             return rect.right()
-        if option.rect.width() < 440.0:
+        if option.rect.width() < 360.0:
             return rect.right()
 
         padding = 2.0
         for n, mode in enumerate(modes):
             if n > 2:  # Not painting folders deeper than this...
-                break
+                return rect.right() - common.MARGIN
 
             if n == 2:
                 mode = u'...'
@@ -1032,116 +1029,59 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
+        # Taking the control-icons into consideration
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - (common.MARGIN))
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-        else:
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+            rect.setRight(icon_rect.left() - common.MARGIN)
 
-        # Asset name
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+        # Name
         text = index.data(QtCore.Qt.DisplayRole)
+        # Removing the 'v' from 'v010' style version strings.
         text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)',
                       r'\1\3', text, flags=re.IGNORECASE)
-        text = text.split(u'.')
-        ext = text.pop(-1)
-        text = u'.'.join(text).upper()
 
         painter.setFont(font)
         painter.setBrush(QtCore.Qt.NoBrush)
 
-        match = common.is_sequence(text)
-        if match:  # sequence collapsed
-            if option.rect.width() >= 360.0:
-                # Ext
-                tail = u'{}.{}'.format(match.group(3), ext)
-                width = metrics.width(tail)
-                rect.setLeft(rect.right() - width)
-                if rect.left() <= kwargs[u'left']:
-                    rect.setLeft(kwargs[u'left'])
-                painter.setPen(common.TEXT)
-                painter.drawText(rect, align, tail)
+        def _draw(text, rect, margin=False, color=common.TEXT):
+            """Draws a sequence element."""
+            width = metrics.width(text)
+            rect.setLeft(rect.right() - width)
 
-                # Sequence
-                rect.moveRight(rect.right() - width)
-                width = metrics.width(match.group(2))
-                rect.setLeft(rect.right() - width)
-                if rect.left() <= kwargs[u'left']:
-                    rect.setLeft(kwargs[u'left'])
-                text = metrics.elidedText(
-                    match.group(2),
-                    QtCore.Qt.ElideMiddle,
-                    rect.width()
-                )
-                painter.setPen(common.TEXT_NOTE)
-                painter.drawText(
-                    rect,
-                    align,
-                    text
-                )
-
-                # Name
-                rect.moveRight(rect.right() - width)
-                rect.setLeft(common.INDICATOR_WIDTH + option.rect.height())
-                if rect.left() <= kwargs[u'left']:
-                    rect.setLeft(kwargs[u'left'])
-                painter.setPen(common.TEXT)
-                text = metrics.elidedText(
-                    match.group(1),
-                    QtCore.Qt.ElideLeft,
-                    rect.width() - common.MARGIN
-                )
-                painter.drawText(
-                    rect,
-                    align,
-                    text
-                )
-            else:
-                # Ext
-                width = metrics.width(match.group(1))
-                rect.setRight(option.rect.right() - common.MARGIN)
-                painter.setPen(common.TEXT)
-                text = metrics.elidedText(
-                    u'{}{}{}'.format(match.group(1), match.group(2), ext),
-                    QtCore.Qt.ElideRight,
-                    rect.width()
-                )
-                painter.drawText(
-                    rect,
-                    align,
-                    text
-                )
-        else:  # non-collapsed items
-            painter.setPen(common.TEXT)
-            if rect.left() <= kwargs[u'left']:
+            if rect.left() < (kwargs[u'left'] + common.MARGIN):
                 rect.setLeft(kwargs[u'left'] + common.MARGIN)
+                if option.rect.width() < 360.0:
+                    rect.setLeft(rect.left() - common.MARGIN)
             text = metrics.elidedText(
-                u'{}.{}'.format(text, ext),
+                text,
                 QtCore.Qt.ElideLeft,
                 rect.width()
             )
-            painter.drawText(
-                rect,
-                align,
-                text
-            )
+            painter.setPen(color)
+            painter.drawText(rect, align, text)
 
-        if option.rect.width() < 360.0:
+            rect.moveRight(rect.right() - width)
+            return rect
+
+        match = common.is_sequence(text)
+        if match:  # sequence collapsed
+            rect = _draw(match.group(3), rect)
+            rect = _draw(match.group(2), rect, color=common.FAVOURITE)
+            rect = _draw(match.group(1), rect)
             return
+        match = common.get_sequence(text)
+        if match:  # sequence collapsed
+            rect = _draw(u'{}.{}'.format(match.group(3), match.group(4)), rect)
+            rect = _draw(match.group(2), rect, color=common.FAVOURITE)
+            rect = _draw(match.group(1), rect)
+            return
+        _draw(text, rect)
 
-        rect.setRight(option.rect.right())
-        rect.setLeft(icon_rect.left() + common.MARGIN)
-        rect.setTop(option.rect.top())
-        rect.setBottom(option.rect.bottom())
 
-        painter.setPen(QtCore.Qt.NoPen)
-        color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(30)
-        painter.setBrush(color)
 
-        painter.drawRect(rect)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
