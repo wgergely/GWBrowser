@@ -365,8 +365,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if archived:
             pixmap = common.get_rsc_pixmap(
                 u'archived', color, common.INLINE_ICON_SIZE)
-            color = QtGui.QColor(common.SEPARATOR)
-            painter.setBrush(color)
+            painter.setBrush(common.SEPARATOR)
             painter.drawRoundedRect(bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
         else:
             pixmap = common.get_rsc_pixmap(
@@ -504,11 +503,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(bg_rect)
 
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
+        if selected:
+            painter.setBrush(common.SECONDARY_TEXT)
+        else:
+            painter.setBrush(common.SECONDARY_BACKGROUND)
         for n in xrange(self.parent().inline_icons_count()):
             rect, bg_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, n)
-            painter.setOpacity(0.30)
+            painter.setOpacity(0.3)
             painter.drawRoundedRect(
                 bg_rect, bg_rect.height() / 2, bg_rect.height() / 2)
 
@@ -901,7 +903,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if n == 2:
                 text = u'...'
             else:
-                text = u' {} '.format(text.upper())
+                text = u'{}'.format(text.upper())
 
             if n == 0:
                 bg_color = common.FAVOURITE
@@ -933,7 +935,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8.0)
+        font.setPointSizeF(8.5)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)
