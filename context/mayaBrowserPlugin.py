@@ -58,24 +58,27 @@ def maya_useNewAPI():
 def initializePlugin(plugin):
     """Method is called by Maya when initializing the plug-in."""
     from PySide2 import QtWidgets
-
     import maya.api.OpenMaya as OpenMaya
-    from browser.context.mayawidget import MayaToolbar
-
+    import maya.cmds as cmds
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
-        MayaToolbar()
+        from browser.context.mayabrowserwidget import MayaBrowserButton
+        cmds.evalDeferred(MayaBrowserButton)
         sys.stdout.write('\n\n# Browser: Plugin loaded.\n\n')
     except ImportError as err:
         sys.stderr.write(err)
-        errStr = '# Browser:  Unable to import the "mayabrowser" from the "browser" module.\n'
-        errStr = '# Browser:  Make sure the "browser" python module has been added to Maya\'s python path.'
+        errStr = '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
+        errStr += '# Browser: Make sure the "browser" python module has been added to Maya\'s python path.\n'
+        errStr += '# Browser: {}'.format(err)
         raise ImportError(errStr)
     except Exception as err:
-        sys.stderr.write('# Borwser plug-in load error:\n\n{}\n'.format(err))
-        raise
+        errStr = '# Borwser plug-in load error:\n\n{}\n'.format(err)
+        sys.stderr.write(errStr)
+        errStr += '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
+        errStr += '# Browser: {}\n'.format(err)
+        raise Exception(err)
 
 
 def uninitializePlugin(plugin):
@@ -83,37 +86,55 @@ def uninitializePlugin(plugin):
     import maya.OpenMayaUI as OpenMayaUI
     import maya.api.OpenMaya as OpenMaya
     from maya.app.general.mayaMixin import mixinWorkspaceControls
-
+    import re
     from PySide2 import QtWidgets
     from shiboken2 import wrapInstance
 
-    from browser.context.mayawidget import MayaToolbar
 
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
+        from browser.settings import active_monitor
+        active_monitor.timer.stop()
+    except Exception as err:
+        sys.stdout.write('# Browser: Failed stop timer.\n')
+
+    try:
+        from browser.context.mayabrowserwidget import MayaBrowserButton
         ptr = OpenMayaUI.MQtUtil.findControl('ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-        widget = widget.findChild(MayaToolbar)
+        widget = widget.findChild(MayaBrowserButton)
         widget.deleteLater()
+    except Exception as err:
+        sys.stdout.write('# Browser: Failed to delete the tool button.\n')
 
-        # Deleting workspacecontrols
-        for k in (f for f in mixinWorkspaceControls if 'MayaBrowserWidget' in f):
-            mixinWorkspaceControls[k].remove_context_callbacks()
-            mixinWorkspaceControls[k].deleteLater()
-            mixinWorkspaceControls[k].parent().deleteLater()
+    app = QtWidgets.QApplication.instance()
+    try:
+        for widget in app.allWidgets():
+            match = re.match(r'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+            if match:
+                widget.deleteLater()
+                continue
+            match = re.match(r'MayaBrowserWidget.*', widget.objectName())
+            if match:
+                widget.remove_context_callbacks()
+                widget.deleteLater()
+                continue
+    except Exception as err:
+        sys.stdout.write('# Browser: Failed to delete the Browser window.\n')
 
-        del MayaToolbar
+    try:
+        for k in mixinWorkspaceControls.items():
+            if u'MayaBrowserWidget' in k:
+                del mixinWorkspaceControls[k]
+    except Exception as err:
+        sys.stdout.write('# Browser: Failed to delete the workspace control.\n')
 
-        # Deleting the python modules
-        for k, v in sys.modules.iteritems():
+    try:
+        del sys.modules['browser']
+        for k in sys.modules.items():
             if 'browser.' in k:
                 del sys.modules[k]
-        del sys.modules['browser']
-        sys.stdout.write('# Browser: Plugin un-loaded.')
-
     except Exception as err:
-        sys.stderr.write(err)
-        sys.stderr.write('# Browser: Failed to unregister plugin.')
-        raise Exception()
+        sys.stdout.write('# Browser: Failed unload the python modules.\n')

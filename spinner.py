@@ -20,10 +20,13 @@ def longprocess(func):
     """@Decorator to save the painter state."""
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
+        app = QtCore.QCoreApplication.instance()
+        app.setOverrideCursor(QtCore.Qt.WaitCursor)
         spinner = Spinner()
         spinner.start()
         res = func(self, *args, spinner=spinner, **kwargs)
         spinner.stop()
+        app.restoreOverrideCursor()
         return res
     return func_wrapper
 
@@ -97,12 +100,12 @@ class Spinner(QtWidgets.QWidget):
 
     def stop(self):
         """Stops the widget-spin."""
-        app = QtCore.QCoreApplication.instance()
-        app.restoreOverrideCursor()
-
         self.worker.quit()
         self.worker.deleteLater()
         self.close()
+
+        app = QtCore.QCoreApplication.instance()
+        app.restoreOverrideCursor()
 
     def refresh(self, degree):
         """Main method to update the spinner called by the waroker class."""
@@ -176,12 +179,9 @@ class GUIUpdater(QtCore.QThread):
         self.updateLabel.emit(self.degree)
 
     def run(self):
-        app = QtCore.QCoreApplication.instance()
-
         self.degree = 0
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.increment)
-        self.timer.timeout.connect(lambda: app.setOverrideCursor(QtCore.Qt.WaitCursor))
         self.timer.setInterval(100)
         self.timer.setSingleShot(False)
         self.timer.start()

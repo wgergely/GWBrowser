@@ -2,6 +2,7 @@
 # pylint: disable=E1101, C0103, R0913, I1101, E0401
 """Maya wrapper for the BrowserWidget."""
 
+import re
 import sys
 import functools
 from functools import wraps
@@ -27,7 +28,6 @@ from browser.browserwidget import BrowserWidget, BrowserButton
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.settings import local_settings
-from browser.common import QSingleton
 from browser.context.saver import SaverWidget, SaverFileInfo, Custom
 
 
@@ -65,7 +65,8 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
     """The context holding the Maya specific actions."""
 
     def __init__(self, index, parent=None):
-        super(MayaBrowserWidgetContextMenu, self).__init__(index, parent=parent)
+        super(MayaBrowserWidgetContextMenu, self).__init__(
+            index, parent=parent)
 
         self.add_alembic_export_menu()
         self.add_save_as_menu()
@@ -163,19 +164,12 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
     """The main wrapper-widget to be used inside maya."""
 
-    instances = {}
-    __metaclass__ = QSingleton
-    """Singleton metaclass."""
-
     # Signals for signalling show/hide status changes
     showEventTriggered = QtCore.Signal()
     hideEventTriggered = QtCore.Signal()
 
-
     def __init__(self, parent=None):
         super(MayaBrowserWidget, self).__init__(parent=parent)
-        self.instances[self.objectName()] = self
-
         # Overriding the default name-filters
         common.NameFilters[common.ScenesFolder] = (
             u'*.ma',  # Maya ASCII
@@ -212,12 +206,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def mark_current_as_active(self, cmds, *args):
         """Callback responsible for keeping the active-file in the list updated."""
 
-        scene = common.get_sequence_endpath(cmds.file(query=True, expandName=True))
+        scene = common.get_sequence_endpath(
+            cmds.file(query=True, expandName=True))
         fileswidget = self.findChild(FilesWidget)
 
         for n in xrange(fileswidget.model().rowCount()):
             index = fileswidget.model().index(n, 0, parent=QtCore.QModelIndex())
-            data = common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
+            data = common.get_sequence_endpath(
+                index.data(QtCore.Qt.StatusTipRole))
 
             if data == scene:
                 fileswidget.selectionModel().setCurrentIndex(
@@ -247,6 +243,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         for callback in self._callbacks:
             res = OpenMaya.MMessage.removeCallback(callback)
             sys.stdout.write('# Callback status {}\n'.format(res))
+        self._callbacks = []
 
     def _connectSignals(self):
         browserwidget = self.findChild(BrowserWidget)
@@ -436,7 +433,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def open_scene(self, cmds, path):
         """Opens the given scene."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -449,7 +446,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def import_scene(self, cmds, path):
         """Imports the given scene locally."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -467,7 +464,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def import_referenced_scene(self, cmds, path):
         """Imports the given scene as a reference."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -488,7 +485,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def open_alembic(self, cmds, path):
         """Opens the given scene."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -501,7 +498,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def import_alembic(self, cmds, path):
         """Imports the given scene locally."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -518,7 +515,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @mayacommand
     def import_referenced_alembic(self, cmds, path):
         """Imports the given scene as a reference."""
-        file_info = QtCore.QFileInfo(path)
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
@@ -574,14 +571,14 @@ class MayaBrowserButton(BrowserButton):
 
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setToolTip(u'Browser')
+        self.clicked.connect(self.show_browser)
 
         # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
         widget.layout().addWidget(self)
         self.set_size(widget.width())
-
-        self.clicked.connect(self.show_browser)
+        self.update()
 
     @mayacommand
     def showEvent(self, cmds, event):
@@ -594,42 +591,44 @@ class MayaBrowserButton(BrowserButton):
             currentval = cmds.optionVar(q='workspacesLockDocking')
             cmds.optionVar(intValue=(u'workspacesLockDocking', False))
             cmds.evalDeferred(self.show_browser)
-            cmds.evalDeferred(functools.partial(cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
+            cmds.evalDeferred(functools.partial(
+                cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
             self.firstshow = False
 
     @mayacommand
     def show_browser(self, cmds):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()
-        widget = next((f for f in app.allWidgets()
-                       if u'MayaBrowserWidget' in f.objectName()), None)
+        try:
+            for widget in app.allWidgets():
+                match = re.match(
+                    r'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+                if match:
+                    continue
+                match = re.match(r'MayaBrowserWidget.*', widget.objectName())
+                if match:
+                    if widget.isFloating():
+                        widget.raise_()
+                    else:
+                        widget.show()
+                    return
+        except Exception as err:
+            sys.stdout.write('# Browser: Could not show widget:\n{}\n'.format(err))
 
-        if not widget:  # browser has not been initiazed
+        try:
             widget = MayaBrowserWidget()
+            widget.show()
 
-            wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
-            if not wpcs:  # Widget initialized
-                return
-            k = next(wpcs)
-            widget = mixinWorkspaceControls[k]
-
-            # Tabbing this to the attribute editor
-            cmds.evalDeferred(widget.show)
-            cmds.evalDeferred(
-                lambda *args: cmds.workspaceControl(k, e=True, tabToControl=(u'AttributeEditor', -1)))
-            cmds.evalDeferred(
-                lambda: widget.raise_())
-        else:
-            wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
-            if not wpcs:  # Widget initialized
-                return
-            widget = mixinWorkspaceControls[next(wpcs)]
-
-            if widget.isFloating():
-                widget.raise_()
-            else:
-                widget.show()
-
+            for widget in app.allWidgets():
+                match = re.match(
+                    r'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+                if match:
+                    cmds.evalDeferred(
+                        lambda *args: cmds.workspaceControl(widget.objectName(), e=True, tabToControl=(u'AttributeEditor', -1)))
+                    cmds.evalDeferred(lambda: widget.raise_())
+                    return
+        except Exception as err:
+            sys.stdout.write('# Browser: Could not show widget:\n{}\n'.format(err))
 
 
 class AbcExportCommand(QtCore.QObject):

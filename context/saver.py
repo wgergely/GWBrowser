@@ -29,7 +29,7 @@ from browser.settings import Active
 from browser.baselistwidget import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksModel
 from browser.assetwidget import AssetModel
-from browser.browserwidget import HeaderWidget, CloseButton, MinimizeButton
+from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
 
 from browser.capture import ScreenGrabber
 from browser.settings import MarkedAsActive, MarkedAsArchived

@@ -43,6 +43,8 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_show_menu(self, menu_set):
+        if not hasattr(self.parent(), 'clicked'):
+            return menu_set
         menu_set[u'show'] = {
             u'icon': common.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
             u'text': u'Show browser...',
@@ -129,11 +131,11 @@ class BrowserButton(ClickableLabel):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
-        painter.setOpacity(0.9)
+        painter.setOpacity(0.8)
         if option.state & QtWidgets.QStyle.State_MouseOver:
             painter.setOpacity(1)
 
-        painter.drawRoundedRect(self.rect(), 6, 6)
+        painter.drawRoundedRect(self.rect(), 4, 4)
         painter.end()
 
     def contextMenuEvent(self, event):

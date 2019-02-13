@@ -10,25 +10,26 @@ import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.browserwidget import BrowserWidget
+from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu
 from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
-from browser.baselistwidget import BaseContextMenu, contextmenu
+from browser.baselistwidget import contextmenu
 import browser.common as common
 from browser.settings import Active, local_settings
 
 
-class TrayMenu(BaseContextMenu):
+class TrayMenu(BrowserButtonContextMenu):
     """The context menu associated with the QSystemTrayIcon."""
 
     def __init__(self, parent=None):
-        super(TrayMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        super(TrayMenu, self).__init__(parent=parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
 
         self.stays_on_top = False
 
-        self.add_toolbar_menu()
         self.add_visibility_menu()
+        self.add_show_menu()
+        self.add_toolbar_menu()
 
     def show_(self):
         """Raises and shows the widget."""
@@ -69,36 +70,6 @@ class TrayMenu(BaseContextMenu):
             'action': lambda: QtWidgets.QApplication.instance().quit()
         }
         return menu_set
-
-    @contextmenu
-    def add_toolbar_menu(self, menu_set):
-        """Actions associated with the active paths."""
-        active_paths = Active.get_active_paths()
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        asset = bookmark + (active_paths[u'asset'],)
-        file_ = asset + (active_paths[u'location'],)
-
-        menu_set[u'location'] = {
-            u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(file_),
-            u'text': u'Show active location in the file manager...',
-            u'action': functools.partial(common.reveal, u'/'.join([f for f in file_ if f]))
-        }
-        menu_set[u'asset'] = {
-            u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(asset),
-            u'text': u'Show active asset in the file manager...',
-            u'action': functools.partial(common.reveal, u'/'.join([f for f in asset if f]))
-        }
-        menu_set[u'bookmark'] = {
-            u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(bookmark),
-            u'text': u'Show active bookmark in the file manager...',
-            u'action': functools.partial(common.reveal, u'/'.join([f for f in bookmark if f]))
-        }
-        return menu_set
-
 
 
 class CloseButton(ClickableLabel):
@@ -149,22 +120,14 @@ class HeaderWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
-        label = QtWidgets.QLabel()
-        pixmap = common.get_rsc_pixmap(
-            u'custom', None, common.ROW_BUTTONS_HEIGHT / 1.5, opacity=.9)
-        label.setPixmap(pixmap)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
-        label.setFixedWidth(common.ROW_BUTTONS_HEIGHT / 1.5)
 
+        self.layout().addWidget(BrowserButton(height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self))
         self.layout().addStretch()
-        self.layout().addWidget(MinimizeButton())
-        self.layout().addWidget(CloseButton())
-        self.layout().addWidget(label)
+        self.layout().addWidget(MinimizeButton(parent=self))
+        self.layout().addWidget(CloseButton(parent=self))
 
     def mousePressEvent(self, event):
         self.move_in_progress = True
@@ -183,7 +146,6 @@ class HeaderWidget(QtWidgets.QWidget):
                 pos.x() - margins.left(),
                 pos.y() - margins.top()
             )
-
 
 
 class StandaloneBrowserWidget(BrowserWidget):
@@ -230,7 +192,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         closebutton = self.findChild(CloseButton)
         minimizebutton.clicked.connect(self.showMinimized)
         closebutton.clicked.connect(self.close)
-
 
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget

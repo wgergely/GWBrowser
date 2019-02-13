@@ -941,10 +941,10 @@ class BaseListWidget(QtWidgets.QListView):
             QtCore.QDir().mkpath(conf_dir.path())
 
         # Saves the iamge
-        path = ScreenGrabber.capture(
-            output_path=settings.thumbnail_path())
-        if not path:
-            return
+        pixmap = ScreenGrabber.capture()
+        image = pixmap.toImage()
+        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
+        image.save(settings.thumbnail_path())
 
         common.delete_image(settings.thumbnail_path(), delete_file=False)
         height = self.visualRect(index).height() - 2
