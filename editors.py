@@ -420,14 +420,6 @@ class FilterEditor(QtWidgets.QWidget):
         if event.lostFocus():
             self.close()
 
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(self.rect(), 6, 6)
-        painter.end()
-
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

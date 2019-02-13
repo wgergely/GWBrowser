@@ -520,10 +520,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum)
-
         # Listwidget
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ChangeListWidget(parent=self))
@@ -806,7 +802,7 @@ class BrowserWidget(QtWidgets.QWidget):
         # Main layout
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(0)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
         self.setSizePolicy(
