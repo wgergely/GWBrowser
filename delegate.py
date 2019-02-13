@@ -868,7 +868,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(7.0)
+        font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)
