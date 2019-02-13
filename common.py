@@ -704,9 +704,57 @@ def get_sequence_endpath(path):
     return path
 
 
+def draw_aliased_text(painter, font, rect, text, align, color):
+    """Method to draw aliased text windows, where the default antialiasing fails."""
+    painter.save()
+
+    x, y = (rect.left(), rect.top())
+    elide = None
+    metrics = QtGui.QFontMetrics(font)
+
+    x = rect.left()
+    y = rect.center().y() + (metrics.ascent() / 2.0)
+    elide = QtCore.Qt.ElideLeft
+
+    if QtCore.Qt.AlignLeft & align:
+        elide = QtCore.Qt.ElideRight
+    if QtCore.Qt.AlignRight & align:
+        elide = QtCore.Qt.ElideLeft
+    if QtCore.Qt.AlignHCenter & align:
+        elide = QtCore.Qt.ElideMiddle
+
+    text = metrics.elidedText(
+        text,
+        elide,
+        rect.width())
+
+    if QtCore.Qt.AlignLeft & align:
+        x = rect.left()
+    if QtCore.Qt.AlignRight & align:
+        x = rect.right() - metrics.width(text)
+    if QtCore.Qt.AlignHCenter & align:
+        x = rect.left() + (rect.width() / 2.0) - (metrics.width(text) / 2.0)
+
+    if QtCore.Qt.AlignTop & align:
+        y = rect.top() + metrics.ascent()
+    if QtCore.Qt.AlignVCenter & align:
+        y = rect.center().y() + (metrics.ascent() / 2.0)
+    if QtCore.Qt.AlignBottom & align:
+        y = rect.bottom() - metrics.descent()
+
+    # Making sure text fits the rectangle
+    painter.setBrush(color)
+    painter.setPen(QtCore.Qt.NoPen)
+
+    path = QtGui.QPainterPath()
+    path.addText(x, y, font, text)
+    painter.drawPath(path)
+
+    painter.restore()
+
 class QSingleton(type(QtCore.QObject)):
     """Singleton metaclass for QWidgets.
-
+    # WARNING: DONT USE, kills plugin-reload in Maya.
     Note:
         We have to supply an appropiate type object as the baseclass,
         'type' won't work. Creating type(QtWidgets.QWidget) seems to function.
@@ -719,6 +767,7 @@ class QSingleton(type(QtCore.QObject)):
             cls._instances[cls] = super(
                 QSingleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
 
 
 # Label LABEL_COLORS

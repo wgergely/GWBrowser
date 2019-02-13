@@ -124,7 +124,9 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
 
-        self.layout().addWidget(BrowserButton(height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self))
+        button = BrowserButton(height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self)
+        button.clicked.connect(lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
+        self.layout().addWidget(button)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
@@ -206,7 +208,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.setOpacity(.85)
+        painter.setOpacity(0.8)
         painter.drawRoundedRect(rect, 8, 8)
         painter.end()
 

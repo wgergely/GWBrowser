@@ -24,6 +24,7 @@ import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
+from browser.delegate import paintmethod
 from browser.baselistwidget import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
@@ -47,7 +48,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
             return menu_set
         menu_set[u'show'] = {
             u'icon': common.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
-            u'text': u'Show browser...',
+            u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
         return menu_set
@@ -58,25 +59,29 @@ class BrowserButtonContextMenu(BaseContextMenu):
         bookmark = (active_paths[u'server'],
                     active_paths[u'job'], active_paths[u'root'])
         asset = bookmark + (active_paths[u'asset'],)
-        file_ = asset + (active_paths[u'location'],)
-        menu_set[u'bookmark'] = {
-            u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(bookmark),
-            u'text': u'Show active bookmark in the file manager...',
-            u'action': functools.partial(common.reveal, u'/'.join(bookmark))
-        }
-        menu_set[u'asset'] = {
-            u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(asset),
-            u'text': u'Show active asset in the file manager...',
-            u'action': functools.partial(common.reveal, '/'.join(asset))
-        }
-        menu_set[u'location'] = {
-            u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-            u'disabled': not all(file_),
-            u'text': u'Show active location in the file manager...',
-            u'action': functools.partial(common.reveal, '/'.join(file_))
-        }
+        location = asset + (active_paths[u'location'],)
+
+        if all(bookmark):
+            menu_set[u'bookmark'] = {
+                u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'disabled': not all(bookmark),
+                u'text': u'Show active bookmark in the file manager...',
+                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
+            }
+            if all(asset):
+                menu_set[u'asset'] = {
+                    u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+                    u'disabled': not all(asset),
+                    u'text': u'Show active asset in the file manager...',
+                    u'action': functools.partial(common.reveal, '/'.join(asset))
+                }
+                if all(location):
+                    menu_set[u'location'] = {
+                        u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+                        u'disabled': not all(location),
+                        u'text': u'Show active location in the file manager...',
+                        u'action': functools.partial(common.reveal, '/'.join(location))
+                    }
 
         return menu_set
 
@@ -135,7 +140,7 @@ class BrowserButton(ClickableLabel):
         if option.state & QtWidgets.QStyle.State_MouseOver:
             painter.setOpacity(1)
 
-        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.drawRoundedRect(self.rect(), 2, 2)
         painter.end()
 
     def contextMenuEvent(self, event):
@@ -604,38 +609,32 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         self.paint_background(*args)
         self.paint_name(*args)
 
+    @paintmethod
     def paint_name(self, *args):
         painter, option, index, _ = args
         active = self.parent().currentIndex() == index.row()
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         disabled = index.flags() == QtCore.Qt.NoItemFlags
 
-        painter.save()
-
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
-        painter.setFont(font)
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(rect.left() + common.MARGIN)
 
-        painter.setPen(QtGui.QPen(common.TEXT))
+        color = common.TEXT
         if hover:
-            painter.setPen(QtGui.QPen(common.TEXT_SELECTED))
+            color = common.TEXT_SELECTED
         if index.flags() == QtCore.Qt.NoItemFlags:
-            painter.setPen(QtGui.QPen(common.TEXT_DISABLED))
+            color = common.TEXT_DISABLED
         if active:
-            painter.setPen(QtGui.QPen(common.TEXT))
-        painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
+            color = common.TEXT
 
         text = index.data(QtCore.Qt.DisplayRole)
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
-            text
-        )
-        painter.restore()
+        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
+
+    @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
         painter, option, index, selected = args
@@ -646,12 +645,12 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
+    @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of the item."""
         painter, option, index, selected = args
         active = self.parent().currentIndex() == index.row()
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        painter.save()
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
@@ -675,7 +674,6 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
             pixmap,
             pixmap.rect()
         )
-        painter.restore()
 
 
 class ChangeListWidget(QtWidgets.QComboBox):

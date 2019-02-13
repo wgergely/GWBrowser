@@ -1318,34 +1318,20 @@ class BaseListWidget(QtWidgets.QListView):
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
             font.setPointSize(8)
-            painter.setFont(font)
 
+            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
             for n in xrange((self.height() / sizehint.height()) + 1):
                 if n >= self.model().rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
                     rect_.setWidth(sizehint.height() - 2)
-                    painter.setBrush(QtGui.QBrush(
-                        QtGui.QColor(100, 100, 100, 5)))
-                    # painter.drawRect(rect_)
-                    # painter.drawRect(rect)
                 if n == 0 and not favourite_mode:  # Empty model
-                    painter.setPen(common.TEXT_DISABLED)
-                    painter.drawText(
-                        text_rect,
-                        QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-                        u'  No items to show.'
-                    )
-                    painter.setPen(QtCore.Qt.NoPen)
+                    text = u'No items to show.'
+                    common.draw_aliased_text(painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 elif n == self.model().rowCount():  # filter mode
                     if favourite_mode:
-                        painter.setPen(common.SECONDARY_TEXT)
-                        painter.drawText(
-                            text_rect,
-                            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
-                            u'{} items are hidden'.format(
-                                self.model().sourceModel().rowCount() - self.model().rowCount())
-                        )
-                        painter.setPen(QtCore.Qt.NoPen)
+                        text = u'{} items are hidden'.format(
+                            self.model().sourceModel().rowCount() - self.model().rowCount())
+                        common.draw_aliased_text(painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())

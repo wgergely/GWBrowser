@@ -54,7 +54,7 @@ QCheckBox {{
 QCheckBox::SELECTION {{
 	height: 12px;
 	width: 12px;
-	border: 0px solid;
+	border: none;
 	border-radius: 6px;
 }}
 QCheckBox::SELECTION:unchecked {{
@@ -78,7 +78,7 @@ QRadioButton:disabled {{
 QRadioButton::SELECTION {{
 	height: 12px;
 	width: 12px;
-	border: 0px solid;
+	border: none;
 	border-radius: 2px;
 }}
 QRadioButton::SELECTION:unchecked {{
@@ -155,7 +155,7 @@ QComboBox::drop-down:disabled {{
 }}
 
 ChangeListWidget {{
-	font-size: 11pt;
+	font-size: 10pt;
 	text-align: left;
 	margin: 0px;
 	padding: 0px;
@@ -175,7 +175,7 @@ ChangeListWidget:focus {{
 }}
 
 LocationsButton QLabel {{
-	font-size: 11pt;
+	font-size: 10pt;
 	text-align: left;
 	margin: 0px;
 	padding: 0px;
@@ -197,7 +197,7 @@ LocationsButton QLabel:focus {{
 
 QLineEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
-	border: 0px solid;
+	border: none;
 	border-radius: 2px;
 	padding: 6px;
 }}
@@ -208,7 +208,7 @@ QLineEdit:disabled {{
 
 .QTextEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
-	border: 0px solid;
+	border: none;
 	border-radius: 2px;
 	padding: 6px;
 }}
@@ -219,21 +219,27 @@ QLineEdit:disabled {{
 
 
 QScrollBar {{
-	width:6px;
-	height:6px;
+	width:8px;
+	height:8px;
 }}
 QScrollBar:vertical, QScrollBar:horizontal {{
 	background: rgba({SEPARATOR});
 	border: none;
 }}
+QScrollBar::handle {{
+	background: rgba({SEPARATOR});
+	border: none;
+}}
 QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {{
-	background: rgba({BACKGROUND_SELECTED});
-	border: 0px solid;
-	border-radius: 3px;
+	background: rgba({SECONDARY_BACKGROUND});
+	border: none;
+	border-radius: 4px;
 	max-height: 250px;
 	min-height: 50px;
 }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+	background: rgba({SEPARATOR});
+	border: none;
 	background: rgba({SEPARATOR});
 }}
 
@@ -386,7 +392,7 @@ TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
 }}
 TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
 	background: rgba(100,100,100,255);
-	border: 0px solid;
+	border: none;
 	border-radius: 3px;
 	max-height: 250px;
 	min-height: 24;

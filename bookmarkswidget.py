@@ -223,7 +223,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         )
 
     def inline_icons_count(self):
-        return 3
+        return 4
 
     def activate_current_index(self):
         """Sets the current item as ``active_index``.
@@ -343,32 +343,12 @@ class ComboBoxItemDelegate(BaseDelegate):
         else:
             color = self.get_state_color(option, index, common.TEXT)
 
-        painter.setPen(QtGui.QPen(color))
-        painter.setBrush(QtCore.Qt.NoBrush)
-
-        metrics = QtGui.QFontMetrics(font)
         text = index.data(QtCore.Qt.DisplayRole)
-
-        # Stripping the Glassworks-specific number suffix
         text = re.sub(r'[\W\d\_]+', u' ', text.upper())
-        text = metrics.elidedText(
-            text,
-            QtCore.Qt.ElideRight,
-            rect.width()
-        )
-        if disabled:
-            text = metrics.elidedText(
-                u'{}  |  Unavailable'.format(
-                    index.data(QtCore.Qt.DisplayRole)),
-                QtCore.Qt.ElideRight,
-                rect.width()
-            )
 
-        painter.drawText(
-            rect,
-            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft | QtCore.Qt.TextWordWrap,
-            text
-        )
+        if disabled:
+            text = u'{}  |  Unavailable'.format(index.data(QtCore.Qt.DisplayRole))
+        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().view().width(), common.ROW_HEIGHT * 0.66)
