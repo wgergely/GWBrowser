@@ -614,7 +614,6 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
         painter, option, index, _ = args
         active = self.parent().currentIndex() == index.row()
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        disabled = index.flags() == QtCore.Qt.NoItemFlags
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
