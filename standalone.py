@@ -15,7 +15,7 @@ from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
 from browser.baselistwidget import contextmenu
 import browser.common as common
-from browser.settings import Active, local_settings
+from browser.settings import local_settings
 
 
 class TrayMenu(BrowserButtonContextMenu):
