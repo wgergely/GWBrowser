@@ -452,7 +452,7 @@ class BookmarksListDelegate(BookmarksWidgetDelegate):
         #
         self.paint_name(*args)
         #
-        self.paint_count(*args)
+        self.paint_count_icon(*args)
         #
         self.paint_selection_indicator(*args)
         self.paint_active_indicator(*args)
