@@ -86,7 +86,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         menu_set['obj'] = {
             'text': 'Export obj...',
             'icon': objectset_pixmap,
-            'action': lambda: browserwidget.init_obj_export
+            'action': lambda: browserwidget.init_obj_export()
         }
         return menu_set
 
