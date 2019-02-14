@@ -979,7 +979,7 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.moveRight(rect.right() - width)
             return rect
 
-        match = common.is_sequence(text)
+        match = common.is_collapsed(text)
         if match:  # sequence collapsed
             text = match.group(3).split(u'.')
             text = u'{suffix}.{ext}'.format(

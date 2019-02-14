@@ -4,10 +4,11 @@ found by the collector classes.
 
 """
 # pylint: disable=E1101, C0103, R0913, I1101
+import functools
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.baselistwidget import BaseContextMenu
+from browser.baselistwidget import BaseContextMenu, contextmenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 
@@ -17,7 +18,9 @@ from browser.settings import AssetSettings
 from browser.settings import local_settings, Active
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
+
 from browser.spinner import longprocess
+from browser.utils.utils import ThumbnailGenerator
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -32,10 +35,21 @@ class FilesWidgetContextMenu(BaseContextMenu):
             self.add_reveal_folder_menu()
             self.add_copy_menu()
             self.add_mode_toggles_menu()
+            self.add_extra_thumbnail_menu()
             self.add_thumbnail_menu()
         self.add_location_toggles_menu()
         self.add_collapse_sequence_menu()
         self.add_refresh_menu()
+
+    @contextmenu
+    def add_extra_thumbnail_menu(self, menu_set):
+        file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
+        if 'exr' in file_info.suffix():
+            menu_set[u'generate'] = {
+                'text': u'Make thumbnail',
+                'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+            }
+        return menu_set
 
 
 class FilesModel(BaseModel):
@@ -507,6 +521,9 @@ class FilesWidget(BaseInlineIconWidget):
         self.setWindowTitle(u'Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
+
+        self.thumbnail_generator = ThumbnailGenerator(parent=self)
+        self.thumbnail_generator.thumbnailUpdated.connect(self.repaint)
 
     def inline_icons_count(self):
         return 3

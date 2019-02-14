@@ -671,10 +671,12 @@ GetSequenceRegex = re.compile(
 
 
 def get_sequence(text):
+    """Returs the number to increment of a filename."""
     return GetSequenceRegex.search(text)
 
 
-def is_sequence(text):
+def is_collapsed(text):
+    """Checks if the given path is collapsed."""
     return IsSequenceRegex.search(text)
 
 
@@ -682,7 +684,7 @@ def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
-    if not is_sequence(path):
+    if not is_collapsed(path):
         return path
 
     match = SequenceStartRegex.search(path)
@@ -695,7 +697,7 @@ def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
     the first item.
     """
-    if not is_sequence(path):
+    if not is_collapsed(path):
         return path
 
     match = SequenceEndRegex.search(path)
