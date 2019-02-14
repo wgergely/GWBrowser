@@ -11,7 +11,9 @@ from browser.spinner import longprocess
 
 try:
     # To import OpenEXR, the Imath module needs to be added to the system path
-    sys.path.append('{}/../'.format(__file__))
+    import browser
+    sys.path.insert(0, QtCore.QDir.toNativeSeparators('{}/../utils/PIL/'.format(browser.__file__)))
+    sys.path.insert(0, QtCore.QDir.toNativeSeparators('{}/../utils/'.format(browser.__file__)))
     import browser.utils.OpenEXR as OpenEXR
 except ImportError as err:
     sys.stderr.write('# Browser: OpenEXR import error\n{}\n'.format(err))
