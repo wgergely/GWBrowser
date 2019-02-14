@@ -5,15 +5,15 @@ import Queue
 from contextlib import contextmanager
 
 from PySide2 import QtWidgets, QtGui, QtCore
-import browser.utils.pillow.Image as Image
 from browser.settings import AssetSettings
 from browser.spinner import longprocess
 
 try:
     # To import OpenEXR, the Imath module needs to be added to the system path
+    import browser.utils.pillow.Image as Image
     import browser.utils.OpenEXR as OpenEXR
 except ImportError as err:
-    sys.stderr.write('# Browser: OpenEXR import error\n{}\n'.format(err))
+    sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
 
 import browser.common as common
 
