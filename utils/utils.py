@@ -9,6 +9,7 @@ from browser.settings import AssetSettings
 from browser.spinner import longprocess
 
 try:
+    sys.path.insert(0, '{}\\..\\'.format(__file__))
     # To import OpenEXR, the Imath module needs to be added to the system path
     import browser.utils.pillow.Image as Image
     import browser.utils.OpenEXR as OpenEXR
