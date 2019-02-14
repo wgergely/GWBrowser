@@ -19,15 +19,17 @@ import browser.common as common
 
 @contextmanager
 def open_exr(s):
-    yield OpenEXR.InputFile(s)
+    exr = OpenEXR.InputFile(s)
+    yield exr
     exr.close()
 
 
 def encode_to_sRGB(v):
     if (v <= 0.0031308):
-        return (v * 12.92) * 255.0
+        return = (v * 12.92)s * 255
     else:
-        return (1.055 * (v**(1.0 / 2.4)) - 0.055) * 255.0
+        s = (1.055 * (v**(1.0 / 2.4)) - 0.055)
+
 
 
 def resize_Image(image, size):
@@ -68,7 +70,7 @@ def exr_to_thumbnail(path, outpaths):
             if 'float' in k.lower():
                 return 'F;32NF'
             elif 'half' in k.lower():
-                return 'F;16'
+                return 'F;16NS'
             elif 'uint' in k.lower():
                 return 'F;8'
 
@@ -104,13 +106,13 @@ def exr_to_thumbnail(path, outpaths):
             channels.append(image.convert('L'))  # converts to luminosity
 
         # Normalising
-        extrema = [im.getextrema() for im in channels]
-        darkest = min([lo for (lo,hi) in extrema])
-        lighest = max([hi for (lo,hi) in extrema])
-        scale = 255 / (lighest - darkest)
-        def normalize_0_255(v):
-            return (v * scale) + darkest
-        channels = [im.point(normalize_0_255).convert("L") for im in channels]
+        # extrema = [im.getextrema() for im in channels]
+        # darkest = min([lo for (lo,hi) in extrema])
+        # lighest = max([hi for (lo,hi) in extrema])
+        # scale = 255 / (lighest - darkest)
+        # def normalize_0_255(v):
+        #     return v /5
+        # channels = [im.point(normalize_0_255).convert("L") for im in channels]
 
         if 'RGB' in mode:
             image = Image.merge(mode, channels)
@@ -135,6 +137,7 @@ class ThumbnailGenerator(QtCore.QObject):
     def __init__(self, parent=None):
         super(ThumbnailGenerator, self).__init__(parent=parent)
         self.threadpool = QtCore.QThreadPool()
+        self.threadpool.setMaxThreadCount(2)
 
     def get_all(self, parent):
         for n in xrange(parent.model().rowCount()):
@@ -234,11 +237,7 @@ class Worker(QtCore.QRunnable):
 
 if __name__ == '__main__':
     pass
-    # app = QtWidgets.QApplication([])
-#
+
     # path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\helmet_formado\helmet_formado_01\vignettes_AU_dragon_lady_fx_helmet_formado_01_0351.exr'
-    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\layout\helmet_break\hemlet_0270.Z.exr'
-    with open_exr(path) as exr:
-#         # print exr.header()
-        print exr.header()['channels']
-        exr_to_thumbnail(path, ('C:/temp/temp3.png', ))
+    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\purpurina_test\AU_dragon_lady_purpurina_test_v05.0387.exr'
+    exr_to_thumbnail(path, ('C:/temp/temp3.png', ))

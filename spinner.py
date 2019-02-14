@@ -36,6 +36,12 @@ class Spinner(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(Spinner, self).__init__(parent=parent)
+        self.degree = 0
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.spin)
+        self.timer.setInterval(100)
+        self.timer.setSingleShot(False)
+
         self._createUI()
         self.setText(u'Loading...')
 
@@ -58,8 +64,6 @@ class Spinner(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        self.worker = GUIUpdater()
-        self._connectSignals()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -96,23 +100,20 @@ class Spinner(QtWidgets.QWidget):
         """Starts the widget-spin."""
         self.show()
         self.move_to_center()
-        self.worker.run()
+        self.timer.start()
 
     def stop(self):
         """Stops the widget-spin."""
-        self.worker.quit()
-        self.worker.deleteLater()
         self.close()
-
         app = QtCore.QCoreApplication.instance()
         app.restoreOverrideCursor()
 
-    def refresh(self, degree):
+    def spin(self):
         """Main method to update the spinner called by the waroker class."""
-        degree += 14
-        # QtCore.QCoreApplication.instance().processEvents(
-        #     QtCore.QEventLoop.ExcludeUserInputEvents)
-        self.setPixmap(self.get_pixmap(degree * 20))
+        self.degree += 25
+        QtCore.QCoreApplication.instance().processEvents(
+            QtCore.QEventLoop.ExcludeUserInputEvents)
+        self.setPixmap(self.get_pixmap(self.degree))
 
     def move_to_center(self):
         app = QtWidgets.QApplication.instance()
@@ -166,25 +167,7 @@ class Spinner(QtWidgets.QWidget):
 
         return tinted_spinner
 
-    def _connectSignals(self):
-        self.worker.updateLabel.connect(self.refresh)
 
-
-class GUIUpdater(QtCore.QThread):
-
-    updateLabel = QtCore.Signal(int)
-
-    def increment(self):
-        self.degree += 1
-        self.updateLabel.emit(self.degree)
-
-    def run(self):
-        self.degree = 0
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.increment)
-        self.timer.setInterval(100)
-        self.timer.setSingleShot(False)
-        self.timer.start()
 
 
 if __name__ == '__main__':

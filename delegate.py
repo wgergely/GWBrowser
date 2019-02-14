@@ -202,8 +202,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
-        painter, option, _, _, _, _, _, _ = args
-
+        painter, option, _, _, _, _, archived, _ = args
+        if archived:
+            return
+            
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
@@ -896,7 +898,7 @@ class FilesWidgetDelegate(BaseDelegate):
         if option.rect.width() < 360.0:
             return rect.right()
 
-        padding = 2.0
+        padding = common.INDICATOR_WIDTH
         for n, text in enumerate(modes):
             if n > 2:  # Not painting folders deeper than this...
                 return rect.right() - common.MARGIN
@@ -912,12 +914,12 @@ class FilesWidgetDelegate(BaseDelegate):
                 bg_color = QtGui.QColor(75, 75, 75)
 
             pen = QtGui.QPen(bg_color)
-            pen.setWidth(padding * 3)
+            pen.setWidth(padding)
             painter.setPen(pen)
             painter.setBrush(QtGui.QBrush(bg_color))
 
-            rect.setWidth(metrics.width(text))
-            rect.moveLeft(rect.left() + (padding * 3))
+            rect.setWidth(metrics.width(text) + (padding*2))
+            # rect.moveLeft(rect.left() + (padding * 3))
             painter.drawRoundedRect(rect, 1.0, 1.0)
 
             if n == 0:
@@ -926,9 +928,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 color = QtGui.QColor(common.TEXT_DISABLED)
 
             common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, color)
+
             if len(modes) - 1 == n:
                 return rect.right()
-            rect.moveLeft(rect.left() + metrics.width(text) + padding + 2)
+            rect.moveLeft(rect.right() + padding + common.INDICATOR_WIDTH)
 
     @paintmethod
     def paint_name(self, *args, **kwargs):
