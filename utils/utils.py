@@ -1,12 +1,9 @@
 import sys
-import functools
 import array
-import Queue
 from contextlib import contextmanager
 
 from PySide2 import QtWidgets, QtGui, QtCore
 from browser.settings import AssetSettings
-from browser.spinner import longprocess
 
 try:
     sys.path.insert(0, '{}\\..\\'.format(__file__))
@@ -16,13 +13,13 @@ try:
 except ImportError as err:
     sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
 
+
 import browser.common as common
 
 
 @contextmanager
 def open_exr(s):
-    exr = OpenEXR.InputFile(s)
-    yield exr
+    yield OpenEXR.InputFile(s)
     exr.close()
 
 
