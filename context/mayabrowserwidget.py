@@ -68,7 +68,8 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         super(MayaBrowserWidgetContextMenu, self).__init__(
             index, parent=parent)
 
-        self.add_alembic_export_menu()
+        self.add_alembicexport_menu()
+        self.add_objexport_menu()
         self.add_save_as_menu()
         if index.isValid():
             if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
@@ -77,20 +78,34 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
                 self.add_alembic_menu()
 
     @contextmenu
-    def add_alembic_export_menu(self, menu_set, browserwidget=None):
+    @mayacommand
+    def add_objexport_menu(self, cmds, menu_set, browserwidget=None):
+        if not cmds.ls(selection=True):
+            return menu_set
+        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        menu_set['obj'] = {
+            'text': 'Export obj...',
+            'icon': objectset_pixmap,
+            'action': lambda: browserwidget.init_obj_export
+        }
+        return menu_set
+
+    @contextmenu
+    @mayacommand
+    def add_alembicexport_menu(self, cmds, menu_set, browserwidget=None):
         objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
         exporter = AbcExportCommand()            # saver.exec_()
 
-        key = 'sets'
+        key = 'alembic'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = 'Export set as alembic...'
+        menu_set[u'{}:text'.format(key)] = 'Export alembic...'
 
         for k, value in exporter.get_dag_sets().iteritems():
             menu_set[key][k.strip(':')] = {
                 'text': k.strip(':').upper(),
                 'icon': objectset_pixmap,
-                'action': functools.partial(self.parent().parent().parent().parent().init_alembic_export, k.strip(':'), value, exporter)
+                'action': functools.partial(browserwidget.init_alembic_export, k.strip(':'), value, exporter)
             }
 
         return menu_set
@@ -262,6 +277,52 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 return
             self.open_scene(index.data(QtCore.Qt.StatusTipRole))
         fileswidget.itemDoubleClicked.connect(open_scene)
+
+    @mayacommand
+    def init_obj_export(self, cmds):
+
+        saver = SaverWidget(u'obj', '{}'.format(
+            common.ExportsFolder), currentfile=None)
+        saver.findChild(Custom).setText(key)  # Setting the group name
+        file_info = SaverFileInfo(saver).fileInfo()
+
+        path = '{}/{}'.format(file_info.path(), file_info.fileName())
+        dir_ = QtCore.QFileInfo(path).dir()
+
+        if not dir_.exists():
+            raise RuntimeError(
+                'The export destination path {} does not exist.'.format(dir_.path()))
+
+        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dir_.setNameFilters(('*.obj',))
+
+        match2 = common.get_sequence(file_info.fileName())
+        versions = []
+        for entry in dir_.entryList():
+            # Checking if the entry is a sequence
+            match = common.get_sequence(entry)
+            if not all((match, match2)):
+                continue
+
+            # Comparing against the new version
+            if match.group(1) == match2.group(1):
+                versions.append(match.group(2))
+
+        if versions:
+            version = unicode(max([int(f) for f in versions])).zfill(
+                len(versions[-1]))
+            path = match.expand(
+                r'{}/\1{}\3.\4').format(file_info.path(), version)
+            saver = SaverWidget(u'obj', common.ExportsFolder, currentfile=path)
+
+        # Start save
+        saver.fileSaveRequested.connect(lambda: cmds.file(path, force=True, option='groups=1;ptgroups=1;materials=1;smoothing=1;normals=1', type='OBJexport', preserveReferences=True, exportSelected=True))
+        saver.exec_()
+
+        # Refresh the view
+        fileswidget = self.findChild(FilesWidget)
+        if fileswidget.model().sourceModel().get_location() == common.ExportsFolder:
+            self.findChild(FilesWidget).refresh()
 
     @mayacommand
     def init_alembic_export(self, cmds, key, value, exporter):
