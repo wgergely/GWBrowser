@@ -274,7 +274,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             color: rgba({},{},{},{});'.format(
                 common.SecondaryFont.family(),
                 *common.TEXT_NOTE.getRgb()
-                ))
+            ))
 
         label = QtWidgets.QLabel(u'Edit description')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
@@ -404,6 +404,14 @@ class FilterEditor(QtWidgets.QWidget):
 
     def _connectSignals(self):
         self.finished.connect(self.close)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRoundRect(self.rect(), 4, 4)
+        painter.end()
 
     def keyPressEvent(self, event):
         return_ = event.key() == QtCore.Qt.Key_Return

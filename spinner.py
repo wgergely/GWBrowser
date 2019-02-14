@@ -187,8 +187,8 @@ class GUIUpdater(QtCore.QThread):
         self.timer.start()
 
 
-# if __name__ == '__main__':
-#     app = QtWidgets.QApplication(sys.argv)
-#     app.w = Spinner()
-#     app.w.start()
-#     app.exec_()
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    app.w = Spinner()
+    app.w.start()
+    app.exec_()
