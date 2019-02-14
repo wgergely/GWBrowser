@@ -1,11 +1,17 @@
-
+import sys
+import functools
 import array
+import Queue
 from contextlib import contextmanager
 
 from PySide2 import QtWidgets, QtGui, QtCore
-
-import browser.utils.OpenEXR as OpenEXR
 import browser.utils.PIL.Image as Image
+
+try:
+    import browser.utils.OpenEXR as OpenEXR
+except ImportError as err:
+    sys.stderr.write('# Browser: OpenEXR import error\n')
+
 import browser.common as common
 
 
@@ -77,7 +83,32 @@ def ConvertEXRToJPG(exr_path, png_path):
         image.save(png_path, 'PNG')
 
 
+
+class MakeThumbnail(QtCore.QObject):
+    thumbnailUpdated = QtCore.Signal(index)
+
+    def __init__(self, index, parent=None):
+        super(MakeThumbnail, self).__init__(parent=parent)
+        self.worker = ThumbnailWorker(parent=self)
+
+
+class ThumbnailWorker(QtCore.QObject):
+
+    imageReady = QtCore.Signal(QtGui.QPixmap)
+
+    def __init__(self, func, parent=None):
+        super(ThumbnailWorker, self).__init__(parent=parent)
+        self.func = func
+
+    def run(self):
+        data = func()
+        self.imageRead.emit(QtGui.QPixmap())
+
+
+
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\helmet_formado\helmet_formado_01\vignettes_AU_dragon_lady_fx_helmet_formado_01_0351.exr'
-    ConvertEXRToJPG(path, 'C:/temp/temp2.png')
+    pass
+    # app = QtWidgets.QApplication([])
+
+    # path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\helmet_formado\helmet_formado_01\vignettes_AU_dragon_lady_fx_helmet_formado_01_0351.exr'
+    # ConvertEXRToJPG(path, 'C:/temp/temp2.png')
