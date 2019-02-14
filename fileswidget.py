@@ -5,6 +5,7 @@ found by the collector classes.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 import functools
+import collections
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -35,19 +36,71 @@ class FilesWidgetContextMenu(BaseContextMenu):
             self.add_reveal_folder_menu()
             self.add_copy_menu()
             self.add_mode_toggles_menu()
-            self.add_extra_thumbnail_menu()
+            # self.add_extra_thumbnail_menu()
             self.add_thumbnail_menu()
         self.add_location_toggles_menu()
         self.add_collapse_sequence_menu()
         self.add_refresh_menu()
 
     @contextmenu
-    def add_extra_thumbnail_menu(self, menu_set):
+    def add_thumbnail_menu(self, menu_set):
+        """Menu for thumbnail operations."""
+        capture_thumbnail_pixmap = common.get_rsc_pixmap(
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        remove_thumbnail_pixmap = common.get_rsc_pixmap(
+            u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        show_thumbnail = common.get_rsc_pixmap(
+            u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
+
+        key = u'Thumbnail'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
+
+        settings = AssetSettings(self.index)
+
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+            menu_set[key][u'Show thumbnail'] = {
+                u'icon': show_thumbnail,
+                u'action': functools.partial(
+                    editors.ThumbnailViewer,
+                    self.index,
+                    parent=self.parent()
+                )
+            }
+            menu_set[key][u'separator'] = {}
+
+
+        menu_set[key]['__separator'] = {}
         file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
-        if 'exr' in file_info.suffix():
-            menu_set[u'generate'] = {
-                'text': u'Make thumbnail',
-                'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+        menu_set[key][u'generatethis'] = {
+            'text': u'Generate thumbnail for this item',
+            'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+        }
+        menu_set[key][u'generateall'] = {
+            'text': u'Generate all thumbnails',
+            'action': functools.partial(self.parent().thumbnail_generator.get_all, self.parent())
+        }
+
+        menu_set[key][u'Capture new'] = {
+            u'icon': capture_thumbnail_pixmap,
+            u'action': self.parent().capture_thumbnail
+        }
+        menu_set[key][u'Pick new'] = {
+            u'icon': pick_thumbnail_pixmap,
+            u'action': functools.partial(
+                editors.ThumbnailEditor,
+                self.index
+            )
+        }
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+            menu_set[key][u'separator.'] = {}
+            menu_set[key][u'Remove'] = {
+                u'action': self.parent().remove_thumbnail,
+                u'icon': remove_thumbnail_pixmap
             }
         return menu_set
 

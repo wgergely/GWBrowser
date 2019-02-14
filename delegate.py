@@ -243,19 +243,20 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                       common.INDICATOR_WIDTH + rect.height())
 
         settings = AssetSettings(index)
-        bg_color = common.IMAGE_CACHE[u'{path}:BackgroundColor'.format(
-            path=settings.thumbnail_path(),
-        )]
 
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(bg_color))
-        painter.drawRect(rect)
+        k = u'{}:BackgroundColor'.format(settings.thumbnail_path())
+        if k in common.IMAGE_CACHE:
+            bg_color = common.IMAGE_CACHE[k]
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QBrush(bg_color))
+            painter.drawRect(rect)
 
         # Resizing the rectangle to accommodate the image's aspect ration
-        image = common.IMAGE_CACHE[u'{path}:{size}'.format(
-            path=settings.thumbnail_path(),
-            size=rect.height()
-        )]
+        k = u'{path}:{size}'.format(path=settings.thumbnail_path(), size=rect.height())
+        if k not in common.IMAGE_CACHE:
+            return
+
+        image = common.IMAGE_CACHE[k]
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / float(longer))
 

@@ -322,12 +322,7 @@ def cache_image(path, height, overwrite=False):
     image = QtGui.QImage()
     image.load(file_info.filePath())
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-
-    # If the load fails, use the placeholder image
-    image = resize_image(
-        image,
-        height
-    )
+    image = resize_image(image, height)
 
     # Average colour
     IMAGE_CACHE[u'{path}:BackgroundColor'.format(
