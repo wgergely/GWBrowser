@@ -61,6 +61,7 @@ NameFilters = {
         u'*.ass',  # Arnold cache
     ),
     ScenesFolder: (
+        u'*.psd',  # 2D Animation
         u'*.ma',  # Maya ASCII
         u'*.mb',  # Maya Binary
         u'*.c4d',  # Cinema 4D
