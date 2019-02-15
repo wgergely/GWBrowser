@@ -3,36 +3,31 @@ import array
 from contextlib import contextmanager
 
 from PySide2 import QtWidgets, QtGui, QtCore
-from browser.settings import AssetSettings
 
-try:
-    sys.path.insert(0, '{}\\..\\'.format(__file__))
-    # To import OpenEXR, the Imath module needs to be added to the system path
-    import browser.utils.pillow.Image as Image
-    import browser.utils.OpenEXR as OpenEXR
-except ImportError as err:
-    sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
+from browser.settings import AssetSettings
 
 
 import browser.common as common
 
 
-@contextmanager
-def open_exr(s):
-    exr = OpenEXR.InputFile(s)
-    yield exr
-    exr.close()
-
-
 def encode_to_sRGB(v):
     if (v <= 0.0031308):
-        return = (v * 12.92)s * 255
+        return (v * 12.92) * 255.0
     else:
-        s = (1.055 * (v**(1.0 / 2.4)) - 0.055)
+        return (1.055 * (v**(1.0 / 2.4)) - 0.055) * 255.0
 
 
 
 def resize_Image(image, size):
+    try:
+        sys.path.insert(0, '{}\\..\\'.format(__file__))
+        import browser.utils.OpenEXR as OpenEXR
+        import browser.utils.pillow.Image as Image
+        import browser.utils.Imath as Imath
+    except ImportError as err:
+        sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
+        return
+
     longer = float(max(image.size[0], image.size[1]))
     factor = float(float(size) / float(longer))
     if image.size[0] < image.size[1]:
@@ -56,76 +51,66 @@ def get_size(currentsize, size):
 
 def exr_to_thumbnail(path, outpaths):
     """Saves an sRGB png thumbnail of the given exr."""
-    with open_exr(path) as exr:
-        if not exr.isComplete():
-            return
+    try:
+        sys.path.insert(0, '{}\\..\\'.format(__file__))
+        import browser.utils.OpenEXR as OpenEXR
+        import browser.utils.pillow.Image as Image
+        import browser.utils.Imath as Imath
+    except ImportError as err:
+        sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
+        return
 
-        dw = exr.header()['dataWindow']
-        size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-        exr_channels = exr.header()['channels']
+    exr = OpenEXR.InputFile(path)
+    if not exr.isComplete():
+        return
 
-        def get_rawmode(obj):
-            """https://pillow.readthedocs.io/en/3.1.x/handbook/writing-your-own-file-decoder.html"""
-            k = str(obj)
-            if 'float' in k.lower():
-                return 'F;32NF'
-            elif 'half' in k.lower():
-                return 'F;16NS'
-            elif 'uint' in k.lower():
-                return 'F;8'
+    ptype = Imath.PixelType(Imath.PixelType.FLOAT)
+    rawmode = 'F;32NF'
+    dw = exr.header()['dataWindow']
+    size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
+    exr_channels = exr.header()['channels']
 
-        def check_mode(cns):
-            rawmode = 'F;32NF'
-            for c in cns:
-                if c in exr_channels:
-                    rawmode = get_rawmode(exr_channels[c])
-                if c not in exr_channels:
-                    cns = cns.replace(c, '')
-            return cns, rawmode
+    def check_mode(cns):
+        for c in cns:
+            if c not in exr_channels:
+                cns = cns.replace(c, '')
+        return cns
 
-        mode, rawmode = check_mode('RGBA')
+    mode = check_mode('RGBA')
+    if not mode:
+        mode, rawmode = check_mode('Z')
         if not mode:
-            mode, rawmode = check_mode('Z')
+            mode, rawmode = check_mode('N')
             if not mode:
-                mode, rawmode = check_mode('N')
-                if not mode:
-                    mode, rawmode = check_mode('U')
+                mode, rawmode = check_mode('U')
 
-        channels = []
-        if not mode:
-            return
+    if not mode:
+        return
 
-        for channel in exr.channels(mode):
-            pixels = array.array('f', channel)
+    channels = []
+    for channel in mode:
+        channel = exr.channel(channel, ptype)
+        pixels = array.array('f', channel)
+        #
+        for idx in xrange(len(pixels)):
+            pixels[idx] = encode_to_sRGB(pixels[idx])
 
-            for idx in xrange(len(pixels)):
-                pixels[idx] = encode_to_sRGB(pixels[idx])
+        image = Image.frombytes(
+            'F', size, pixels.tostring(), "raw", 'F;16', 10, 1)
+        channels.append(image.convert('L'))  # converts to luminosity
 
-            image = Image.frombytes(
-                'F', size, pixels.tostring(), "raw", rawmode)
-            channels.append(image.convert('L'))  # converts to luminosity
+    if 'RGB' in mode:
+        image = Image.merge(mode, channels)
+    else:
+        image = Image.merge('RGB', [channels[0],] * 3)
 
-        # Normalising
-        # extrema = [im.getextrema() for im in channels]
-        # darkest = min([lo for (lo,hi) in extrema])
-        # lighest = max([hi for (lo,hi) in extrema])
-        # scale = 255 / (lighest - darkest)
-        # def normalize_0_255(v):
-        #     return v /5
-        # channels = [im.point(normalize_0_255).convert("L") for im in channels]
-
-        if 'RGB' in mode:
-            image = Image.merge(mode, channels)
-        else:
-            image = Image.merge('RGB', [channels[0],] * 3)
-
-        image = image.crop(image.getbbox())
-        image = resize_Image(image, common.THUMBNAIL_IMAGE_SIZE)
-        for outpath in outpaths:
-            conf_dir = QtCore.QFileInfo(outpath)
-            if not conf_dir.exists():
-                QtCore.QDir().mkpath(conf_dir.path())
-            image.save(outpath, format='PNG')
+    image = image.crop(image.getbbox())
+    image = resize_Image(image, common.THUMBNAIL_IMAGE_SIZE)
+    for outpath in outpaths:
+        conf_dir = QtCore.QFileInfo(outpath)
+        if not conf_dir.exists():
+            QtCore.QDir().mkpath(conf_dir.path())
+        image.save(outpath, format='PNG')
 
 
 class ThumbnailGenerator(QtCore.QObject):
@@ -154,6 +139,15 @@ class ThumbnailGenerator(QtCore.QObject):
 
     def action(self, index):
         """The action executed by the QRunnable."""
+        try:
+            sys.path.insert(0, '{}\\..\\'.format(__file__))
+            import browser.utils.OpenEXR as OpenEXR
+            import browser.utils.pillow.Image as Image
+            import browser.utils.Imath as Imath
+        except ImportError as err:
+            sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
+            return
+
         path = self.get_biggest_file(index)
         file_info = QtCore.QFileInfo(path)
         if u'exr' in file_info.suffix():
@@ -239,5 +233,9 @@ if __name__ == '__main__':
     pass
 
     # path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\helmet_formado\helmet_formado_01\vignettes_AU_dragon_lady_fx_helmet_formado_01_0351.exr'
-    path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\purpurina_test\AU_dragon_lady_purpurina_test_v05.0387.exr'
-    exr_to_thumbnail(path, ('C:/temp/temp3.png', ))
+    path = 'C:/temp/32L.exr'
+    exr_to_thumbnail(path, ('C:/temp/32L.png', ))
+    path = 'C:/temp/16L.exr'
+    exr_to_thumbnail(path, ('C:/temp/16L.png', ))
+    path = 'C:/temp/8L.exr'
+    exr_to_thumbnail(path, ('C:/temp/8L.png', ))
