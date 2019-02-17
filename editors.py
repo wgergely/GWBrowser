@@ -37,10 +37,10 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.deleteLater()
             return
 
-        self.opacity = 0.0
-        self.timeline = QtCore.QTimeLine()
-        self.timeline.setDuration(150)
-        self.timeline.valueChanged.connect(self.animate_show)
+        # self.opacity = 0.0
+        # self.timeline = QtCore.QTimeLine()
+        # self.timeline.setDuration(150)
+        # self.timeline.valueChanged.connect(self.animate_show)
 
         self.setWindowFlags(
             QtCore.Qt.Dialog |
@@ -57,18 +57,14 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.setPixmap(pixmap)
 
         self.show()
-        self.timeline.start()
+        # self.timeline.start()
 
-    def animate_show(self, value):
-        self.opacity = (0.0 + value) * 1.0
-        # self.setWindowOpacity(self.opacity)
-        self.repaint()
+
 
     def paintEvent(self, event):
         """Custom paint event"""
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setOpacity(self.opacity)
         # Draw background. Aside from aesthetics, this makes the full
         # tool region accept mouse events.
         painter.setBrush(QtGui.QColor(0, 0, 0, 150))

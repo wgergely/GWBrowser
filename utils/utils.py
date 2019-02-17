@@ -6,7 +6,8 @@ import browser.common as common
 
 
 def generate_thumbnail(source, dest):
-    """A fast thumbnailer method using OpenImageIO."""
+    """A fast thumbnail-builder using OpenImageIO."""
+    
     import browser.modules.oiio.OpenImageIO as oiio
     from browser.modules.oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
