@@ -1,39 +1,73 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
+
+"""OpenImageIO thumbnail operations."""
+
 import sys
-import os
 from PySide2 import QtCore
 
 import browser.common as common
 
 
-def add_bin_dir():
-    import browser
-    file_info = QtCore.QFileInfo(u'{}/../bin'.format(browser.__file__))
-    path = QtCore.QDir.toNativeSeparators(file_info.absoluteFilePath())
+def generate_thumbnail(source, dest):
+    """A fast thumbnailer method using OpenImageIO."""
+    import browser.modules.oiio.OpenImageIO as oiio
+    from browser.modules.oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
-    os.environ['PATH'] = '{};{}'.format(path, os.environ['PATH'])
-    return file_info
+    img = ImageBuf(source)
+
+    if img.has_error:
+        sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(source, img.geterror()))
+        return
+
+    size = int(common.THUMBNAIL_IMAGE_SIZE)
+    spec = ImageSpec(size, size, 4, "uint8")
+    spec.channelnames = ('R', 'G', 'B', 'A')
+    spec.alpha_channel = 3
+    spec.attribute('oiio:ColorSpace', 'Linear')
+    b = ImageBuf(spec)
+    b.set_write_format('uint8')
+
+    oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
+    ImageBufAlgo.fit(b, img)
+
+    file_info = QtCore.QFileInfo(dest)
+    if not file_info.dir().exists():
+        QtCore.QDir().mkpath(file_info.path())
+
+    b = ImageBufAlgo.flatten(b)
+
+    spec = b.spec()
+    if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+        roi = oiio.get_roi(b.spec())
+        roi.chbegin = 0
+        roi.chend = 3
+        ImageBufAlgo.pow(b, b, 1.0/2.2, roi)
+
+    if int(spec.nchannels) < 3:
+        b = ImageBufAlgo.channels(
+            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+    elif int(spec.nchannels) > 4:
+        if spec.channelindex('A') > -1:
+            b = ImageBufAlgo.channels(
+                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+        else:
+            b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+    if b.has_error:
+        sys.stderr.write(
+            '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
+
+    if not b.write(dest, dtype='uint8'):
+        sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n'.format(
+            file_info.fileName(), b.geterror()))
 
 
-def generate_thumbnail(path):
-    bin_dir = add_bin_dir()
-    program = '{}/vips.exe'.format(bin_dir.absoluteFilePath())
-    program = '"{}"'.format(QtCore.QDir.toNativeSeparators(program))
-
-    process = QtCore.QProcess()
-    process.setProcessChannelMode(QtCore.QProcess.MergedChannels)
-    process.setProgram(program)
-    process.setArguments(['im_printdesc', path])
-    # process.setArguments(['-help',])
-    process.start()
-
-    if process.waitForStarted():
-        sys.stdout.write('# Browser: Thumbnail process started\n')
-    process.waitForFinished(-1)
-    sys.stdout.write('# Browser: Thumbnail process finished\n')
-
-    print process.readAllStandardOutput()
-    return process
-
-
-exr = 'C:/temp/32L.exr'
-print generate_thumbnail(exr)
+dir_ = QtCore.QDir('C:/dev/oiio-images')
+dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+dir_.setNameFilters(('*.exr',))
+for entry in dir_.entryInfoList():
+    source = entry.filePath()
+    dest = '{}/__thumbnails/{}.png'.format(entry.path(),
+                                           entry.completeBaseName())
+    generate_thumbnail(source, dest)

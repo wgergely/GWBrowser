@@ -1,116 +1,64 @@
 import sys
-import array
-from contextlib import contextmanager
-
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.settings import AssetSettings
-
-
 import browser.common as common
 
 
-def encode_to_sRGB(v):
-    if (v <= 0.0031308):
-        return (v * 12.92) * 255.0
-    else:
-        return (1.055 * (v**(1.0 / 2.4)) - 0.055) * 255.0
+def generate_thumbnail(source, dest):
+    """A fast thumbnailer method using OpenImageIO."""
+    import browser.modules.oiio.OpenImageIO as oiio
+    from browser.modules.oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
+    img = ImageBuf(source)
 
-
-def resize_Image(image, size):
-    try:
-        sys.path.insert(0, '{}\\..\\'.format(__file__))
-        import browser.utils.OpenEXR as OpenEXR
-        import browser.utils.pillow.Image as Image
-        import browser.utils.Imath as Imath
-    except ImportError as err:
-        sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
+    if img.has_error:
+        sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(source, img.geterror()))
         return
 
-    longer = float(max(image.size[0], image.size[1]))
-    factor = float(float(size) / float(longer))
-    if image.size[0] < image.size[1]:
-        image = image.resize(
-            (int(image.size[0] * factor), int(size)),
-            Image.ANTIALIAS)
-        return image
-    image = image.resize(
-        (int(size), int(image.size[1] * factor)),
-        Image.ANTIALIAS)
-    return image
+    size = int(common.THUMBNAIL_IMAGE_SIZE)
+    spec = ImageSpec(size, size, 4, "uint8")
+    spec.channelnames = ('R', 'G', 'B', 'A')
+    spec.alpha_channel = 3
+    spec.attribute('oiio:ColorSpace', 'Linear')
+    b = ImageBuf(spec)
+    b.set_write_format('uint8')
+
+    oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
+    ImageBufAlgo.fit(b, img)
+
+    file_info = QtCore.QFileInfo(dest)
+    if not file_info.dir().exists():
+        QtCore.QDir().mkpath(file_info.path())
+
+    b = ImageBufAlgo.flatten(b)
+
+    spec = b.spec()
+    if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+        roi = oiio.get_roi(b.spec())
+        roi.chbegin = 0
+        roi.chend = 3
+        ImageBufAlgo.pow(b, b, 1.0/2.2, roi)
+
+    if int(spec.nchannels) < 3:
+        b = ImageBufAlgo.channels(
+            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+    elif int(spec.nchannels) > 4:
+        if spec.channelindex('A') > -1:
+            b = ImageBufAlgo.channels(
+                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+        else:
+            b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+    if b.has_error:
+        sys.stderr.write(
+            '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
+
+    if not b.write(dest, dtype='uint8'):
+        sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n'.format(
+            file_info.fileName(), b.geterror()))
 
 
-def get_size(currentsize, size):
-    longer = float(max(currentsize[0], currentsize[1]))
-    factor = float(float(size) / float(longer))
-    if currentsize[0] < currentsize[1]:
-        return (int(currentsize[0] * factor), int(size))
-    return (int(size), int(currentsize[1] * factor))
-
-
-def exr_to_thumbnail(path, outpaths):
-    """Saves an sRGB png thumbnail of the given exr."""
-    try:
-        sys.path.insert(0, '{}\\..\\'.format(__file__))
-        import browser.utils.OpenEXR as OpenEXR
-        import browser.utils.pillow.Image as Image
-        import browser.utils.Imath as Imath
-    except ImportError as err:
-        sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
-        return
-
-    exr = OpenEXR.InputFile(path)
-    if not exr.isComplete():
-        return
-
-    ptype = Imath.PixelType(Imath.PixelType.FLOAT)
-    rawmode = 'F;32NF'
-    dw = exr.header()['dataWindow']
-    size = (dw.max.x - dw.min.x + 1, dw.max.y - dw.min.y + 1)
-    exr_channels = exr.header()['channels']
-
-    def check_mode(cns):
-        for c in cns:
-            if c not in exr_channels:
-                cns = cns.replace(c, '')
-        return cns
-
-    mode = check_mode('RGBA')
-    if not mode:
-        mode, rawmode = check_mode('Z')
-        if not mode:
-            mode, rawmode = check_mode('N')
-            if not mode:
-                mode, rawmode = check_mode('U')
-
-    if not mode:
-        return
-
-    channels = []
-    for channel in mode:
-        channel = exr.channel(channel, ptype)
-        pixels = array.array('f', channel)
-        #
-        for idx in xrange(len(pixels)):
-            pixels[idx] = encode_to_sRGB(pixels[idx])
-
-        image = Image.frombytes(
-            'F', size, pixels.tostring(), "raw", 'F;16', 10, 1)
-        channels.append(image.convert('L'))  # converts to luminosity
-
-    if 'RGB' in mode:
-        image = Image.merge(mode, channels)
-    else:
-        image = Image.merge('RGB', [channels[0],] * 3)
-
-    image = image.crop(image.getbbox())
-    image = resize_Image(image, common.THUMBNAIL_IMAGE_SIZE)
-    for outpath in outpaths:
-        conf_dir = QtCore.QFileInfo(outpath)
-        if not conf_dir.exists():
-            QtCore.QDir().mkpath(conf_dir.path())
-        image.save(outpath, format='PNG')
 
 
 class ThumbnailGenerator(QtCore.QObject):
@@ -139,19 +87,9 @@ class ThumbnailGenerator(QtCore.QObject):
 
     def action(self, index):
         """The action executed by the QRunnable."""
-        try:
-            sys.path.insert(0, '{}\\..\\'.format(__file__))
-            import browser.utils.OpenEXR as OpenEXR
-            import browser.utils.pillow.Image as Image
-            import browser.utils.Imath as Imath
-        except ImportError as err:
-            sys.stderr.write('# Browser: OpenEXR, Pillow import error\n{}\n'.format(err))
-            return
-
         path = self.get_biggest_file(index)
         file_info = QtCore.QFileInfo(path)
-        if u'exr' in file_info.suffix():
-            exr_to_thumbnail(path, (AssetSettings(index).thumbnail_path(),))
+        generate_thumbnail(path, AssetSettings(index).thumbnail_path())
         self.cache_thumbnail(index)
 
     def cache_thumbnail(self, index):
@@ -227,15 +165,3 @@ class Worker(QtCore.QRunnable):
                 err)
             sys.stderr.write(errstr)
             self.signals.error.emit(errstr)
-
-
-if __name__ == '__main__':
-    pass
-
-    # path = r'\\gordo\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\renders\render\helmet_formado\helmet_formado_01\vignettes_AU_dragon_lady_fx_helmet_formado_01_0351.exr'
-    path = 'C:/temp/32L.exr'
-    exr_to_thumbnail(path, ('C:/temp/32L.png', ))
-    path = 'C:/temp/16L.exr'
-    exr_to_thumbnail(path, ('C:/temp/16L.png', ))
-    path = 'C:/temp/8L.exr'
-    exr_to_thumbnail(path, ('C:/temp/8L.png', ))

@@ -1091,6 +1091,10 @@ class BaseListWidget(QtWidgets.QListView):
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         if no_modifier or numpad_modifier:
+            if event.key() == QtCore.Qt.Key_Space:
+                index = self.selectionModel().currentIndex()
+                if index.isValid():
+                    editors.ThumbnailViewer(index)
             if event.key() == QtCore.Qt.Key_Escape:
                 pass
             elif event.key() == QtCore.Qt.Key_Down:
