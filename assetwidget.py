@@ -172,6 +172,22 @@ class AssetWidget(BaseInlineIconWidget):
             QtCore.QItemSelectionModel.ClearAndSelect
         )
 
+    def eventFilter(self, widget, event):
+        super(AssetWidget, self).eventFilter(widget, event)
+        if widget is not self:
+            return False
+        if event.type() == QtCore.QEvent.Paint:
+            #Let's paint the icon of the current mode
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            pixmap = common.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
+            rect = pixmap.rect()
+            rect.moveCenter(self.rect().center())
+            painter.drawPixmap(rect, pixmap, pixmap.rect())
+            painter.end()
+            return True
+        return False
+
     def inline_icons_count(self):
         """The number of icons on the right-hand side."""
         return 4

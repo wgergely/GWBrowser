@@ -578,6 +578,22 @@ class FilesWidget(BaseInlineIconWidget):
         self.thumbnail_generator = ThumbnailGenerator(parent=self)
         self.thumbnail_generator.thumbnailUpdated.connect(self.update)
 
+    def eventFilter(self, widget, event):
+        super(FilesWidget, self).eventFilter(widget, event)
+        if widget is not self:
+            return False
+        if event.type() == QtCore.QEvent.Paint:
+            #Let's paint the icon of the current mode
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            pixmap = common.get_rsc_pixmap('files', QtGui.QColor(0,0,0,10), 200)
+            rect = pixmap.rect()
+            rect.moveCenter(self.rect().center())
+            painter.drawPixmap(rect, pixmap, pixmap.rect())
+            painter.end()
+            return True
+        return False
+
     def inline_icons_count(self):
         return 3
 

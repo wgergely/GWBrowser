@@ -1343,8 +1343,6 @@ class BaseListWidget(QtWidgets.QListView):
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())
-
-            painter.end()
             return True
         return False
 
