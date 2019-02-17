@@ -38,11 +38,11 @@ class ThumbnailViewer(QtWidgets.QLabel):
             return
 
         self.setWindowFlags(
+            QtCore.Qt.Dialog |
             QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.CustomizeWindowHint |
-            QtCore.Qt.Tool
+            QtCore.Qt.WindowStaysOnTopHint
         )
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
@@ -66,22 +66,11 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
         rect = self.pixmap().rect()
 
-        width = 2.0
-        rect.moveTop((event.rect().height() / 2.0) - width)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-        rect.moveLeft((event.rect().width() / 2.0) - width)
-        rect.moveLeft(rect.left() - (rect.width() / 2.0))
-        rect.setWidth(rect.width() + (width * 1.5))
-        rect.setHeight(rect.height() + (width * 1.5))
-
-        painter.setBrush(QtCore.Qt.NoBrush)
-        pen = QtGui.QPen(common.SELECTION)
-        pen.setWidth(2.0)
-        painter.setPen(pen)
-        painter.drawRect(rect)
-
         painter.end()
         super(ThumbnailViewer, self).paintEvent(event)
+
+    def keyPressEvent(self, event):
+        self.close()
 
     def _fit_screen_geometry(self):
         # Compute the union of all screen geometries, and resize to fit.
@@ -90,7 +79,13 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.setGeometry(rect)
 
     def showEvent(self, event):
+        self.setFocus()
+        self.parent()._thumbnailvieweropen = self
+
         self._fit_screen_geometry()
+
+    def hideEvent(self, event):
+        self.parent()._thumbnailvieweropen = None
 
     def keyPressEvent(self, event):
         self.close()

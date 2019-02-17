@@ -54,11 +54,44 @@ def generate_thumbnail(source, dest):
         sys.stderr.write(
             '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
 
-    if not b.write(dest, dtype='uint8'):
-        sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n'.format(
-            file_info.fileName(), b.geterror()))
+    # There seems to be a problem with the ICC profile exported from Adobe
+    # applications and the PNG library. THe sRGB profile seems to be out of date
+    # and pnglib crashes when encounters an invalid profile.
+    # Removing the ICC profile seems to fix the issue. Annoying!
 
+    # First, rebuilding the attributes as a modified xml tree
+    modified = False
 
+    from xml.etree import ElementTree
+    root = ElementTree.fromstring(b.spec().to_xml())
+    for attrib in root.findall('attrib'):
+        if attrib.attrib['name'] == 'ICCProfile':
+            root.remove(attrib)
+            modified = True
+            break
+
+    if modified:
+        xml = ElementTree.tostring(root)
+        # Initiating a new spec with the modified xml
+        spec = oiio.ImageSpec()
+        spec.from_xml(xml)
+
+        # And lastly copying the pixels over from the old to the new buffer.
+        _b = ImageBuf(spec)
+        pixels = b.get_pixels()
+        print _b.spec().width
+        _b.set_write_format('uint8')
+        _b.set_pixels(oiio.get_roi(spec), pixels)
+        if _b.has_error:
+            sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
+                file_info.fileName(), _b.geterror(), oiio.geterror()))
+    else:
+        _b = b
+    # Ready to write
+    if not _b.write(dest, dtype='uint8'):
+        sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
+            file_info.fileName(), _b.geterror(), oiio.geterror()))
+        QtCore.QFile(dest).remove() # removing failed thumbnail save
 
 
 class ThumbnailGenerator(QtCore.QObject):
@@ -87,7 +120,11 @@ class ThumbnailGenerator(QtCore.QObject):
 
     def action(self, index):
         """The action executed by the QRunnable."""
-        path = self.get_biggest_file(index)
+        if self.parent().model().sourceModel().is_grouped():
+            path = self.get_biggest_file(index)
+        else:
+            path = index.data(QtCore.Qt.StatusTipRole)
+
         file_info = QtCore.QFileInfo(path)
         generate_thumbnail(path, AssetSettings(index).thumbnail_path())
         self.cache_thumbnail(index)
@@ -97,7 +134,6 @@ class ThumbnailGenerator(QtCore.QObject):
         if not index.isValid():
             return
 
-        self.parent().setUpdatesEnabled(False)
         settings = AssetSettings(index)
 
         common.delete_image(settings.thumbnail_path(), delete_file=False)
@@ -109,7 +145,6 @@ class ThumbnailGenerator(QtCore.QObject):
             height=height
         )
 
-        self.parent().setUpdatesEnabled(True)
 
     def get_biggest_file(self, index):
         """Finds the sequence's largest file from sequence filepath.
@@ -165,3 +200,8 @@ class Worker(QtCore.QRunnable):
                 err)
             sys.stderr.write(errstr)
             self.signals.error.emit(errstr)
+
+
+if __name__ == '__main__':
+    path = r'\\gordo\jobs\tkwwbk_8077\build\asset_one\renders\counter\Comp 1_0256.png'
+    generate_thumbnail(path, 'C:/temp/32bit.png')

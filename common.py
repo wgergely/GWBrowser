@@ -293,19 +293,7 @@ def cache_image(path, height, overwrite=False):
         type: Description of returned object.
 
     """
-    height = int(height)
-    path = QtCore.QFileInfo(path)
-    path = path.filePath()
-
-    k = u'{path}:{height}'.format(
-        path=path,
-        height=height
-    )
-    if k in IMAGE_CACHE and not overwrite:
-        return IMAGE_CACHE[k]
-
-    file_info = QtCore.QFileInfo(path)
-    if not file_info.exists():
+    def _load_placeholder(k, height):
         ppath = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
         ppath = ppath.absoluteFilePath()
         placeholder_k = u'{path}:{height}'.format(
@@ -320,8 +308,26 @@ def cache_image(path, height, overwrite=False):
             path)] = IMAGE_CACHE[u'{}:BackgroundColor'.format(ppath)]
         return IMAGE_CACHE[k]
 
+    height = int(height)
+    path = QtCore.QFileInfo(path)
+    path = path.filePath()
+
+    k = u'{path}:{height}'.format(
+        path=path,
+        height=height
+    )
+    if k in IMAGE_CACHE and not overwrite:
+        return IMAGE_CACHE[k]
+
+    file_info = QtCore.QFileInfo(path)
+    if not file_info.exists():
+        return _load_placeholder(k, height)
+
     image = QtGui.QImage()
     image.load(file_info.filePath())
+    if image.isNull():
+        return _load_placeholder(k, height)
+
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
     image = resize_image(image, height)
 

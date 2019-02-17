@@ -776,6 +776,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy_model)
         self.model().sort()
 
+        self._thumbnailvieweropen = None
+
         self._previouspathtoselect = None
         self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
         self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
@@ -1093,9 +1095,12 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_Space:
                 index = self.selectionModel().currentIndex()
                 if index.isValid():
-                    editors.ThumbnailViewer(index)
+                    if not self._thumbnailvieweropen:
+                        editors.ThumbnailViewer(index, parent=self).show()
+                    else:
+                        self._thumbnailvieweropen.close()
             if event.key() == QtCore.Qt.Key_Escape:
-                pass
+                self.selectionModel().setCurrentIndex(QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
             elif event.key() == QtCore.Qt.Key_Up:

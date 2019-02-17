@@ -576,7 +576,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.context_menu_cls = FilesWidgetContextMenu
 
         self.thumbnail_generator = ThumbnailGenerator(parent=self)
-        self.thumbnail_generator.thumbnailUpdated.connect(self.repaint)
+        self.thumbnail_generator.thumbnailUpdated.connect(self.update)
 
     def inline_icons_count(self):
         return 3
