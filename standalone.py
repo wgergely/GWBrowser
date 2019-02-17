@@ -6,8 +6,6 @@
 
 
 import sys
-import functools
-
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu
@@ -26,10 +24,7 @@ class TrayMenu(BrowserButtonContextMenu):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
 
         self.stays_on_top = False
-
         self.add_visibility_menu()
-        self.add_show_menu()
-        self.add_toolbar_menu()
 
     def show_(self):
         """Raises and shows the widget."""

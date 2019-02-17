@@ -24,7 +24,7 @@ def contextmenu(func):
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         menu_set = collections.OrderedDict()
-        menu_set['__separator__'] = None
+        # menu_set['__separator__'] = None
         menu_set = func(self, menu_set, *args, **kwargs)
         if not isinstance(menu_set, collections.OrderedDict):
             raise ValueError(
@@ -243,7 +243,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         folder_icon2 = common.get_rsc_pixmap(
             u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        key = u'Show in File Manager'
+        key = u'Reveal'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = folder_icon
 
@@ -350,7 +350,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
-        key = u'Copy path'
+        key = u'Copy'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = copy_icon
 
@@ -396,7 +396,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived = self.index.flags() & MarkedAsArchived
         source_index = self.parent().model().mapToSource(self.index)
 
-        menu_set[u'separator'] = {}
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             text = u'Remove bookmark'
         else:
@@ -460,7 +459,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Refresh'] = {
             u'action': self.parent().refresh
         }
-        if self.index:
+        if self.index.isValid():
             menu_set[u'Activate'] = {
                 u'action': self.parent().activate_current_index
             }
