@@ -201,8 +201,8 @@ class OverlayWidget(QtWidgets.QWidget):
 
         self.old_pixmap = QtGui.QPixmap(new_widget.size())
         self.old_pixmap.fill(common.SEPARATOR)
+        
         self.opacity = 0.0
-
         self.timeline = QtCore.QTimeLine()
         self.timeline.setDuration(150)
 
@@ -223,12 +223,10 @@ class OverlayWidget(QtWidgets.QWidget):
         self.timeline.finished.connect(super(OverlayWidget, self).close)
         self.timeline.start()
 
-    @QtCore.Slot(float)
     def animate_show(self, value):
         self.opacity = (0.0 + value) * 0.8
         self.repaint()
 
-    @QtCore.Slot(float)
     def animate_hide(self, value):
         self.opacity = 0.8 - (value * 0.8)
         self.repaint()

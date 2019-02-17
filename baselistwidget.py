@@ -1096,7 +1096,7 @@ class BaseListWidget(QtWidgets.QListView):
                 index = self.selectionModel().currentIndex()
                 if index.isValid():
                     if not self._thumbnailvieweropen:
-                        editors.ThumbnailViewer(index, parent=self).show()
+                        editors.ThumbnailViewer(index, parent=self)
                     else:
                         self._thumbnailvieweropen.close()
             if event.key() == QtCore.Qt.Key_Escape:
