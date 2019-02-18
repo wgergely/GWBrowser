@@ -60,6 +60,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             QtCore.Qt.FramelessWindowHint
         )
 
+    @contextmenu
+    def add_separator(self, menu_set):
+        menu_set[u'separator'] = None
+        return menu_set
+
     def create_menu(self, menu_set, parent=None):
         """This action populates the menu using the action-set dictionaries,
         and it automatically connects the action with a corresponding method based
@@ -182,10 +187,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
         arrow_down_icon = common.get_rsc_pixmap(
             u'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        item_off_icon = common.get_rsc_pixmap(
-            u'item_off', common.TEXT, common.INLINE_ICON_SIZE)
+        item_off_icon = QtGui.QPixmap()
         item_on_icon = common.get_rsc_pixmap(
-            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         sort_by_name = self.parent().model().sortkey == common.SortByName
         sort_modified = self.parent().model().sortkey == common.SortByLastModified
@@ -350,7 +354,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         url = QtCore.QUrl().fromLocalFile(path).toString()
 
-        key = u'Copy'
+        key = u'Copy path'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = copy_icon
 
@@ -408,7 +412,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(self.parent().toggle_archived, index=source_index, state=not archived)
         }
         menu_set[u'favourite'] = {
-            u'text': 'Remove from favourites' if favourite else 'Mark as favourite',
+            u'text': 'Remove from favourites' if favourite else 'Favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
             u'checkable': True,
             u'checked': favourite,
@@ -420,9 +424,8 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = common.get_rsc_pixmap(
-            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_off = common.get_rsc_pixmap(
-            u'item_off', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+        item_off = QtGui.QPixmap()
 
         favourite = self.parent().model().get_filtermode(u'favourite')
         archived = self.parent().model().get_filtermode(u'archived')
@@ -440,7 +443,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 ),
         }
         menu_set[u'toggle_archived'] = {
-            u'text': 'Show archived items',
+            u'text': 'Show disabled',
             u'icon': item_on if archived else item_off,
             u'checkable': True,
             u'checked': archived,
@@ -456,20 +459,23 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
-        menu_set[u'Refresh'] = {
-            u'action': self.parent().refresh
-        }
+        refresh_pixmap = common.get_rsc_pixmap(u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         if self.index.isValid():
             menu_set[u'Activate'] = {
                 u'action': self.parent().activate_current_index
             }
+        menu_set[u'Refresh'] = {
+            u'action': self.parent().refresh,
+            u'icon': refresh_pixmap
+        }
+
         return menu_set
 
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = common.get_rsc_pixmap(
-            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'capture_thumbnail', common.FAVOURITE, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = common.get_rsc_pixmap(
@@ -486,7 +492,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         settings = AssetSettings(self.index)
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            menu_set[key][u'Show thumbnail'] = {
+            menu_set[key][u'Show'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
@@ -506,6 +512,20 @@ class BaseContextMenu(QtWidgets.QMenu):
                 self.index
             )
         }
+
+        if len(QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole)).suffix()):
+            menu_set[key]['_separator_'] = {}
+            file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
+            menu_set[key][u'generatethis'] = {
+                'text': u'Make thumbnail',
+                'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+            }
+            menu_set[key][u'generateall'] = {
+                'text': u'Remake all thumbnails',
+                'action': functools.partial(self.parent().thumbnail_generator.get_all, self.parent())
+            }
+            menu_set[key][u'separator_'] = {}
+
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
@@ -516,8 +536,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
+        pixmap = common.get_rsc_pixmap('todo_add', common.FAVOURITE, common.INLINE_ICON_SIZE)
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
+            u'icon': pixmap,
             u'action': self.parent().show_add_bookmark_widget
         }
         return menu_set
@@ -550,11 +572,10 @@ class BaseContextMenu(QtWidgets.QMenu):
         locations_icon_pixmap = common.get_rsc_pixmap(
             u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_on_pixmap = common.get_rsc_pixmap(
-            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_off_pixmap = common.get_rsc_pixmap(
-            u'item_off', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+        item_off_pixmap = QtGui.QPixmap()
 
-        key = u'Switch location'
+        key = u'Change file folder'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 
@@ -661,6 +682,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting data."""
+    filterModeChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
@@ -688,6 +710,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         local_settings.setValue(u'widget/{}/filterstring'.format(cls), val)
         self.invalidate()
 
+        self.filterModeChanged.emit()
+
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
         cls = self.parentwidget.__class__.__name__
@@ -699,8 +723,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         cls = self.parentwidget.__class__.__name__
         self.sortkey = val
         local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
-
         self.invalidate()
+
+        self.filterModeChanged.emit()
 
     def get_sortorder(self):
         cls = self.parentwidget.__class__.__name__
@@ -715,6 +740,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.invalidate()
         self.sort()
 
+        self.filterModeChanged.emit()
+
     def get_filtermode(self, mode):
         cls = self.parentwidget.__class__.__name__
         val = local_settings.value(u'widget/{}/mode:{}'.format(cls, mode))
@@ -725,6 +752,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.filter_mode[mode] = val
         local_settings.setValue(u'widget/{}/mode:{}'.format(cls, mode), val)
         self.invalidateFilter()
+
+        self.filterModeChanged.emit()
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True

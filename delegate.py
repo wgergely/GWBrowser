@@ -205,7 +205,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, _, _, _, _, archived, _ = args
         if archived:
             return
-            
+
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)

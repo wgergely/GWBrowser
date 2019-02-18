@@ -201,7 +201,7 @@ class OverlayWidget(QtWidgets.QWidget):
 
         self.old_pixmap = QtGui.QPixmap(new_widget.size())
         self.old_pixmap.fill(common.SEPARATOR)
-        
+
         self.opacity = 0.0
         self.timeline = QtCore.QTimeLine()
         self.timeline.setDuration(150)
@@ -374,8 +374,10 @@ class LocationsButton(QtWidgets.QWidget):
         parent = self.parent().parent().findChild(FilesWidget)
         menu = LocationsMenu(parent=parent)
         # left =
-        left = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
-        menu.move(left)
+        bottom = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
+        left = self.icon.mapToGlobal(self.icon.rect().bottomLeft())
+        menu.move(left.x(), bottom.y())
+
         right = self.parent().mapToGlobal(self.parent().rect().bottomRight())
         menu.setFixedWidth((right - left).x())
         overlay = OverlayWidget(
@@ -834,9 +836,16 @@ class BrowserWidget(QtWidgets.QWidget):
         active_monitor.activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().set_bookmark)
 
-        combobox = self.listcontrolwidget.findChild(ChangeListWidget)
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
         locationsbutton = self.listcontrolwidget.findChild(LocationsButton)
+
+        func = lambda text: locationsbutton.text.setText(text.title())
+        self.fileswidget.model().sourceModel().activeLocationChanged.connect(func)
+        # Filter proxy model
+        func = lambda: self.listcontrolwidget.setCurrentMode(self.stackedwidget.currentIndex())
+        self.fileswidget.model().filterModeChanged.connect(func)
+        self.assetswidget.model().filterModeChanged.connect(func)
+        self.bookmarkswidget.model().filterModeChanged.connect(func)
 
         # Show bookmarks shortcut
         shortcut = QtWidgets.QShortcut(

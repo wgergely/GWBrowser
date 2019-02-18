@@ -83,12 +83,22 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
         # Adding persistent actions
         self.add_add_bookmark_menu()
-        self.add_sort_menu()
         if index.isValid():
             self.add_mode_toggles_menu()
+
+        self.add_separator()
+
+        if index.isValid():
             self.add_reveal_folder_menu()
             self.add_copy_menu()
+
+        self.add_separator()
+
+        self.add_sort_menu()
         self.add_display_toggles_menu()
+
+        self.add_separator()
+        
         self.add_refresh_menu()
 
 
