@@ -31,17 +31,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def __init__(self, index, parent=None):
         super(ThumbnailViewer, self).__init__(parent=parent)
-        settings = AssetSettings(index)
-        file_info = QtCore.QFileInfo(settings.thumbnail_path())
-        if not file_info.exists():
-            self.deleteLater()
-            return
-
-        # self.opacity = 0.0
-        # self.timeline = QtCore.QTimeLine()
-        # self.timeline.setDuration(150)
-        # self.timeline.valueChanged.connect(self.animate_show)
-
         self.setWindowFlags(
             QtCore.Qt.Dialog |
             QtCore.Qt.FramelessWindowHint |
@@ -49,35 +38,90 @@ class ThumbnailViewer(QtWidgets.QLabel):
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
-        self.setStyleSheet(u'background-color: rgba(50,50,50,50)')
         self.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = QtGui.QPixmap(settings.thumbnail_path())
-        self.setPixmap(pixmap)
 
+        # self.setFocusProxy(self.parent())
+        self.reset_pixmap()
         self.show()
-        # self.timeline.start()
 
+    def reset_pixmap(self):
+        self.setStyleSheet(
+            u'QLabel {background-color: rgba(50,50,50,50); color:rgba(200,200,200,255);}')
+        index = self.parent().selectionModel().currentIndex()
+        settings = AssetSettings(index)
+        file_info = QtCore.QFileInfo(settings.thumbnail_path())
 
+        if not index.isValid():
+            self.clear()
+            self.setText('Invalid selection.')
+            return
+
+        if not file_info.exists():
+            self.clear()
+            self.setText('No thumbnail found.')
+            return
+
+        pixmap = QtGui.QPixmap(settings.thumbnail_path())
+        if pixmap.isNull():
+            self.clear()
+            self.setText('Unable to load pixmap.')
+            return
+
+        self.clear()
+        self.setPixmap(pixmap)
 
     def paintEvent(self, event):
         """Custom paint event"""
         painter = QtGui.QPainter()
         painter.begin(self)
-        # Draw background. Aside from aesthetics, this makes the full
-        # tool region accept mouse events.
-        painter.setBrush(QtGui.QColor(0, 0, 0, 150))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(event.rect())
 
-        rect = self.pixmap().rect()
+        painter.setRenderHints(
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
+            on=True
+        )
+
+        painter.setBrush(QtGui.QColor(0, 0, 0, 170))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+
+        # Let's paint extra information:
+        index = self.parent().selectionModel().currentIndex()
+        if index.isValid():
+            font = QtGui.QFont(common.PrimaryFont)
+            metrics = QtGui.QFontMetrics(font)
+            if self.pixmap():
+                rect = self.rect()
+                center = rect.center()
+                rect.setHeight(metrics.height())
+                rect.setWidth(rect.width() - (common.MARGIN * 4))
+                rect.moveCenter(center)
+
+                # Aligned to the bottom of the pixmap
+                rect.moveTop(
+                    rect.top() + self.pixmap().rect().height() / 2.0 + common.MARGIN)
+                # Filename
+                common.draw_aliased_text(painter, font, rect, index.data(
+                    QtCore.Qt.StatusTipRole), QtCore.Qt.AlignCenter, common.TEXT)
+                rect.moveTop(rect.center().y() + metrics.height())
+
+                common.draw_aliased_text(painter, font, rect, index.data(
+                     common.DescriptionRole), QtCore.Qt.AlignCenter, common.FAVOURITE)
 
         painter.end()
         super(ThumbnailViewer, self).paintEvent(event)
 
     def keyPressEvent(self, event):
-        self.close()
+        if event.key() == QtCore.Qt.Key_Down:
+            self.parent().key_down()
+            self.reset_pixmap()
+        elif event.key() == QtCore.Qt.Key_Up:
+            self.parent().key_up()
+            self.reset_pixmap()
+        else:
+            self.close()
 
     def _fit_screen_geometry(self):
         # Compute the union of all screen geometries, and resize to fit.
@@ -88,14 +132,10 @@ class ThumbnailViewer(QtWidgets.QLabel):
     def showEvent(self, event):
         self.setFocus()
         self.parent()._thumbnailvieweropen = self
-
         self._fit_screen_geometry()
 
     def hideEvent(self, event):
         self.parent()._thumbnailvieweropen = None
-
-    def keyPressEvent(self, event):
-        self.close()
 
     def mousePressEvent(self, event):
         self.close()
@@ -106,7 +146,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.close()
 
 
-class ThumbnailEditor(QtWidgets.QFileDialog):
+class PickThumbnailDialog(QtWidgets.QFileDialog):
     """Editor widget used by the Asset- and FileWidget delegateself.
 
     The editor is responsible for associating a thumbnail image with
@@ -115,7 +155,7 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
     """
 
     def __init__(self, index, parent=None):
-        super(ThumbnailEditor, self).__init__(parent=parent)
+        super(PickThumbnailDialog, self).__init__(parent=parent)
         settings = AssetSettings(index)
 
         # Making config folder
@@ -127,7 +167,8 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
         self.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        self.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
+        self.setNameFilter(
+            u'Image files (*.png *.jpg  *.jpeg *.tif *.tiff *.dpx *.exr *.psd *.gif *.tga)')
         self.setDirectory(QtCore.QDir(
             index.data(QtCore.Qt.StatusTipRole)))
         self.setOption(
@@ -139,19 +180,15 @@ class ThumbnailEditor(QtWidgets.QFileDialog):
             return
 
         # Saving the thumbnail
-        image = QtGui.QImage()
-        image.load(next(f for f in self.selectedFiles()))
-
-        if image.isNull():
-            return
-
-        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
-        image.save(settings.thumbnail_path())
-
-        # Re-cache
-        common.delete_image(settings.thumbnail_path(), delete_file=False)
+        import browser.modules
+        from browser.utils.utils import generate_thumbnail
+        generate_thumbnail(
+            next(f for f in self.selectedFiles()),
+            AssetSettings(index).thumbnail_path()
+        )
+        settings = AssetSettings(index)
         height = self.parent().visualRect(index).height() - 2
-        common.cache_image(settings.thumbnail_path(), height)
+        common.cache_image(settings.thumbnail_path(), height, overwrite=True)
 
 
 class DescriptionEditorWidget(QtWidgets.QWidget):

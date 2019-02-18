@@ -176,11 +176,15 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.effect.setColor(QtCore.Qt.black)
         self.setGraphicsEffect(self.effect)
 
+
     def _createUI(self):
         super(StandaloneBrowserWidget, self)._createUI()
 
         self.headerwidget = HeaderWidget(parent=self)
         self.layout().insertWidget(0, self.headerwidget)
+
+        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
+        grip.show()
 
     def _connectSignals(self):
         super(StandaloneBrowserWidget, self)._connectSignals()

@@ -256,9 +256,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Resizing the rectangle to accommodate the image's aspect ration
         k = u'{path}:{size}'.format(path=settings.thumbnail_path(), size=rect.height())
         if k not in common.IMAGE_CACHE:
-            return
+            image = common.cache_image(settings.thumbnail_path(), rect.height())
+        else:
+            image = common.IMAGE_CACHE[k]
+        if not image:
+            return # might be a period when there's no thumbnail set
 
-        image = common.IMAGE_CACHE[k]
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / float(longer))
 

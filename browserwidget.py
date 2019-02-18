@@ -86,6 +86,82 @@ class BrowserButtonContextMenu(BaseContextMenu):
         return menu_set
 
 
+class SizeGrip(QtWidgets.QSizeGrip):
+    def __init__(self, parent):
+        super(SizeGrip, self).__init__(parent)
+        self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
+        self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        pixmap = common.get_rsc_pixmap('resize', common.TEXT, common.INLINE_ICON_SIZE / 2)
+        painter.drawPixmap(self.rect(), pixmap)
+        painter.end()
+
+class RefreshButton(ClickableLabel):
+    """Small widget to embed into the context to toggle the BrowserWidget's visibility."""
+
+    def __init__(self, parent=None):
+        super(RefreshButton, self).__init__(parent=parent)
+        self.context_menu_cls = BrowserButtonContextMenu
+        self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
+        self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
+
+        self.setToolTip('Files have changed and an update is necessary. Click to refresh.')
+
+        self.needs_update = False
+        self.clicked.connect(self.do_refresh)
+
+    def do_refresh(self):
+        if not self.needs_update:
+            return
+        self.parent().parent().stackedwidget.currentWidget().refresh()
+        self.needs_update = False
+        self.repaint()
+
+
+    def check_refresh_requests(self, location):
+        """Will check if the model needs a refresh."""
+        if self.parent().parent().stackedwidget.currentIndex() != 2:
+            return
+
+        widget = self.parent().parent().stackedwidget.currentWidget()
+        model = widget.model().sourceModel()
+
+        if not model.rowCount():
+            return
+
+        # Check the currently visible model has this path inside
+        # (might be a different location, in this case we'll ignore the request)
+        # We'll check against all changes and their timestamp
+        for n in xrange(model.rowCount()):
+            index = model.index(n, 0, parent=QtCore.QModelIndex())
+            file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+            if file_info.path() in model._last_changed:
+                if model._last_refreshed[location] < model._last_changed[file_info.path()]:
+                    self.needs_update = True
+                    self.repaint()
+                    return
+
+        self.needs_update = False
+        self.repaint()
+
+    def paintEvent(self, event):
+        if not self.needs_update:
+            return
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(250, 100, 0))
+        painter.drawRoundedRect(self.rect(), self.width() / 2, self.width() / 2)
+
+
+
 class BrowserButton(ClickableLabel):
     """Small widget to embed into the context to toggle the BrowserWidget's visibility."""
 
@@ -343,6 +419,9 @@ class LocationsButton(QtWidgets.QWidget):
 
         self.text.setText(self.location.title())
 
+    def update_(self, *args, **kwargs):
+        self.text.setText(self.location.title())
+
     @property
     def location(self):
         return self.parent().window().findChild(FilesWidget).model().sourceModel().get_location()
@@ -586,6 +665,7 @@ class ListControlWidget(QtWidgets.QWidget):
         filterbutton.update_(idx)
         collapsesequence.update_(idx)
         togglefavourite.update_(idx)
+        locations.update_(idx)
 
 
 class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
@@ -818,11 +898,18 @@ class BrowserWidget(QtWidgets.QWidget):
         self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.statusbar.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2.0)
-        self.statusbar.setSizeGripEnabled(True)
         self.statusbar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
+        self.statusbar.setSizeGripEnabled(False)
+
+        grip = SizeGrip(self)
+        self.statusbar.addPermanentWidget(RefreshButton(parent=self))
+        self.statusbar.addPermanentWidget(grip)
+
+        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
+        grip.hide()
 
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
@@ -830,6 +917,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def _connectSignals(self):
         self.listcontrolwidget.modeChanged.connect(self.activate_widget)
+
         # Bookmark
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().set_bookmark)
@@ -920,6 +1008,20 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda: self.listcontrolwidget.modeChanged.emit(2))
         self.fileswidget.model().sourceModel().grouppingChanged.connect(
             lambda: self.listcontrolwidget.modeChanged.emit(2))
+
+        # file-monitor
+        refreshbutton = self.findChild(RefreshButton)
+        self.fileswidget.model().sourceModel().refreshRequested.connect(refreshbutton.check_refresh_requests)
+
+        def func(idx):
+            if idx != 2:
+                return
+
+            location = self.fileswidget.model().sourceModel().get_location()
+            refreshbutton.check_refresh_requests(location)
+
+        self.listcontrolwidget.modeChanged.connect(func)
+
 
     def entered(self, index):
         """Custom itemEntered signal."""

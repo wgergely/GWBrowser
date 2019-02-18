@@ -14,8 +14,10 @@ The actual name of these folders can be customized in the ``common.py`` module.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
+import time
 import re
 import functools
+
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
 import browser.common as common
@@ -98,7 +100,7 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         self.add_display_toggles_menu()
 
         self.add_separator()
-        
+
         self.add_refresh_menu()
 
 
@@ -153,6 +155,8 @@ class BookmarksModel(BaseModel):
                 common.TodoCountRole: common.count_assets(file_info.filePath()),
                 common.FileDetailsRole: file_info.size(),
             }
+
+        self._last_refreshed[self.get_location()] = time.time() # file-monitor timestamp
 
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():
@@ -217,7 +221,7 @@ class BookmarksWidget(BaseInlineIconWidget):
     """Widget to list all saved ``Bookmarks``."""
 
     def __init__(self, parent=None):
-        super(BookmarksWidget, self).__init__(BookmarksModel(), parent=parent)
+        super(BookmarksWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
         self.setDragDropOverwriteMode(False)
         self.setAcceptDrops(True)
@@ -226,11 +230,9 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.setWindowTitle(u'Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
         self.context_menu_cls = BookmarksWidgetContextMenu
-        # Select the active item
-        self.selectionModel().setCurrentIndex(
-            self.active_index(),
-            QtCore.QItemSelectionModel.ClearAndSelect
-        )
+
+        self.set_model(BookmarksModel(parent=self))
+
 
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)

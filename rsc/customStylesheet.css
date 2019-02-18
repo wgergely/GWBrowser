@@ -35,7 +35,7 @@ QStackedWidget:focus {{
 }}
 
 
-QStatusBar, QSizeGrip {{
+QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "{fontFamily}";
@@ -43,6 +43,13 @@ QStatusBar, QSizeGrip {{
 	margin: 0px;
 	padding: 6px;
 	height: 36px;
+}}
+QStatusBar::item {{
+		border: none;
+}}
+
+QSizeGrip  {{
+		image: url(:/rsc/refresh.png);
 }}
 
 

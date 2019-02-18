@@ -19,6 +19,10 @@ def generate_thumbnail(source, dest):
         sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(source, img.geterror()))
         return
 
+    # Deep
+    if img.spec().deep:
+        img = ImageBufAlgo.flatten(img)
+
     size = int(common.THUMBNAIL_IMAGE_SIZE)
     spec = ImageSpec(size, size, 4, "uint8")
     spec.channelnames = ('R', 'G', 'B', 'A')
@@ -27,14 +31,13 @@ def generate_thumbnail(source, dest):
     b = ImageBuf(spec)
     b.set_write_format('uint8')
 
+
     oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
     ImageBufAlgo.fit(b, img)
 
     file_info = QtCore.QFileInfo(dest)
     if not file_info.dir().exists():
         QtCore.QDir().mkpath(file_info.path())
-
-    b = ImageBufAlgo.flatten(b)
 
     spec = b.spec()
     if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
@@ -82,7 +85,6 @@ def generate_thumbnail(source, dest):
         # Lastly, copying the pixels over from the old to the new buffer.
         _b = ImageBuf(spec)
         pixels = b.get_pixels()
-        print _b.spec().width
         _b.set_write_format('uint8')
         _b.set_pixels(oiio.get_roi(spec), pixels)
         if _b.has_error:
@@ -90,7 +92,7 @@ def generate_thumbnail(source, dest):
                 file_info.fileName(), _b.geterror(), oiio.geterror()))
     else:
         _b = b
-        
+
     # Ready to write
     if not _b.write(dest, dtype='uint8'):
         sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
@@ -106,8 +108,6 @@ class ThumbnailGenerator(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(ThumbnailGenerator, self).__init__(parent=parent)
-        self.threadpool = QtCore.QThreadPool()
-        self.threadpool.setMaxThreadCount(2)
 
     def get_all(self, parent):
         for n in xrange(parent.model().rowCount()):
@@ -118,9 +118,9 @@ class ThumbnailGenerator(QtCore.QObject):
         if not index.isValid():
             return
 
-        worker = Worker(self.action, index)
+        worker = ModelIndexWorker(self.action, index)
         worker.signals.finished.connect(self.thumbnailUpdated.emit)
-        self.threadpool.start(worker)
+        QtCore.QThreadPool.globalInstance().start(worker)
 
     def action(self, index):
         """The action executed by the QRunnable."""
@@ -134,20 +134,12 @@ class ThumbnailGenerator(QtCore.QObject):
         self.cache_thumbnail(index)
 
     def cache_thumbnail(self, index):
-        """Caches the saved thumbnail image to the image cache."""
+        """Caches the saved thumbnail image into our image cache."""
         if not index.isValid():
             return
-
         settings = AssetSettings(index)
-
-        common.delete_image(settings.thumbnail_path(), delete_file=False)
         height = self.parent().visualRect(index).height() - 2
-        common.cache_image(settings.thumbnail_path(), height)
-
-        k = u'{path}:{height}'.format(
-            path=settings.thumbnail_path(),
-            height=height
-        )
+        common.cache_image(settings.thumbnail_path(), height, overwrite=True)
 
 
     def get_biggest_file(self, index):
@@ -176,21 +168,23 @@ class ThumbnailGenerator(QtCore.QObject):
         return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
 
 
-class WorkerSignals(QtCore.QObject):
+class ModelIndexWorkerSignals(QtCore.QObject):
     """QRunnables can't define signals themselves."""
     finished = QtCore.Signal(QtCore.QModelIndex)
     error = QtCore.Signal(basestring)
 
 
-class Worker(QtCore.QRunnable):
+class ModelIndexWorker(QtCore.QRunnable):
+    """Generic QRunnable, taking an index as it's first argument, used by ThumbnailGenerator
+    to provide multithreading."""
 
     def __init__(self, func, index, *args, **kwargs):
-        super(Worker, self).__init__(*args, **kwargs)
+        super(ModelIndexWorker, self).__init__()
         self.func = func
         self.index = index
 
         # QRunnable doesnt have the capability to define signals
-        self.signals = WorkerSignals()
+        self.signals = ModelIndexWorkerSignals()
 
         self.args = args
         self.kwargs = kwargs
@@ -206,6 +200,33 @@ class Worker(QtCore.QRunnable):
             self.signals.error.emit(errstr)
 
 
+class ModelWorkerSignals(QtCore.QObject):
+    """QRunnables can't define signals themselves."""
+    finished = QtCore.Signal(QtCore.QAbstractItemModel)
+    error = QtCore.Signal(basestring)
+
+
+class ModelWorker(QtCore.QRunnable):
+    """Generic QRunnable."""
+
+    def __init__(self, func):
+        super(ModelWorker, self).__init__()
+        # QRunnable doesnt have the capability to define signals
+        self.signals = ModelWorkerSignals()
+
+        self.func = func
+
+    def run(self):
+        try:
+            instance = self.func()
+            self.signals.finished.emit(instance)
+        except Exception as err:
+            errstr = u'# Browser: Failed to generate thumbnail.\n{}\n'.format(
+                err)
+            sys.stderr.write(errstr)
+            self.signals.error.emit(errstr)
+
+
 if __name__ == '__main__':
-    path = r'//gordo/jobs/audible_8100/films/vignettes/shots/AU_dragon_lady/textures/Rock_Lava_tbhofjmr_8K_surface_ms/tbhofjmr_8K_Specular.jpg'
+    path = r'//gordo/jobs/audible_8100/films/vignettes/shots/AU_dragon_lady/renders/render/helmet_formado/helmet_formado_05/vignettes_AU_dragon_lady_fx_helmet_formado_V05_deep_0295.exr'
     generate_thumbnail(path, 'C:/temp/tbhofjmr_8K_Specular.jpg.png')

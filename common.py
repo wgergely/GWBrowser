@@ -77,9 +77,14 @@ NameFilters = {
         u'*.jpg',
         u'*.jpeg',
         u'*.psd',
+        u'*.dpx',
+        u'*.tga',
+        u'*.psd',
     ),
     TexturesFolder: (
         u'*.exr',
+        u'*.tx',
+        u'*.dpx',
         u'*.png',
         u'*.tiff',
         u'*.tff',
@@ -276,6 +281,22 @@ def set_custom_stylesheet(widget):
         widget.setStyleSheet(qss)
 
 
+def cache_placeholder(path, k, height):
+    ppath = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
+    ppath = ppath.absoluteFilePath()
+    placeholder_k = u'{path}:{height}'.format(
+        path=ppath,
+        height=height
+    )
+    if placeholder_k in IMAGE_CACHE:
+        IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
+    else:
+        IMAGE_CACHE[k] = _cache_placeholder(height)
+    IMAGE_CACHE[u'{}:BackgroundColor'.format(
+        path)] = IMAGE_CACHE[u'{}:BackgroundColor'.format(ppath)]
+    return IMAGE_CACHE[k]
+
+
 def cache_image(path, height, overwrite=False):
     """Saves the image at the path to the image cache. The cached images are
     stored in the IMAGE_CACHE dictionary.
@@ -293,21 +314,6 @@ def cache_image(path, height, overwrite=False):
         type: Description of returned object.
 
     """
-    def _load_placeholder(k, height):
-        ppath = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
-        ppath = ppath.absoluteFilePath()
-        placeholder_k = u'{path}:{height}'.format(
-            path=ppath,
-            height=height
-        )
-        if placeholder_k in IMAGE_CACHE:
-            IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
-        else:
-            IMAGE_CACHE[k] = cache_placeholder(height)
-        IMAGE_CACHE[u'{}:BackgroundColor'.format(
-            path)] = IMAGE_CACHE[u'{}:BackgroundColor'.format(ppath)]
-        return IMAGE_CACHE[k]
-
     height = int(height)
     path = QtCore.QFileInfo(path)
     path = path.filePath()
@@ -321,12 +327,12 @@ def cache_image(path, height, overwrite=False):
 
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
-        return _load_placeholder(k, height)
+        return cache_placeholder(path, k, height)
 
     image = QtGui.QImage()
     image.load(file_info.filePath())
     if image.isNull():
-        return _load_placeholder(k, height)
+        return cache_placeholder(path, k, height)
 
     image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
     image = resize_image(image, height)
@@ -339,7 +345,7 @@ def cache_image(path, height, overwrite=False):
     return IMAGE_CACHE[k]
 
 
-def cache_placeholder(height):
+def _cache_placeholder(height):
     height = int(height)
     path = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
     path = path.absoluteFilePath()
@@ -386,7 +392,13 @@ def delete_image(path, delete_file=True):
 
     keys = [k for k in IMAGE_CACHE if path.lower() in k.lower()]
     for k in keys:
-        del IMAGE_CACHE[k]
+        if ':' in k:
+            elem = k.split(':')[-1]
+            if 'BackgroundColor' in elem:
+                IMAGE_CACHE[k] = QtGui.QColor(0,0,0,0)
+            else:
+                cache_placeholder(path, k, int(elem))
+        # del IMAGE_CACHE[k]
 
 
 def label_generator():
@@ -472,14 +484,21 @@ def get_color_average(image):
     b = []
     for x in xrange(image.width()):
         for y in xrange(image.height()):
+            if image.pixelColor(x, y).alpha() < 0.01:
+                continue
             r.append(image.pixelColor(x, y).red())
             g.append(image.pixelColor(x, y).green())
             b.append(image.pixelColor(x, y).blue())
-    average_color = QtGui.QColor(
-        sum(r) / float(len(r)),
-        sum(g) / float(len(g)),
-        sum(b) / float(len(b))
-    )
+
+    if not all([float(len(r)), float(len(g)), float(len(b))]):
+        average_color = QtGui.QColor(SECONDARY_BACKGROUND)
+    else:
+        average_color = QtGui.QColor(
+            sum(r) / float(len(r)),
+            sum(g) / float(len(g)),
+            sum(b) / float(len(b))
+        )
+    average_color.setAlpha(average_color.alpha() / 2.0)
     return average_color
 
 

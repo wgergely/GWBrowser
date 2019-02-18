@@ -8,7 +8,9 @@ found by the collector classes.
 import re
 import functools
 from functools import wraps
+import time
 import collections
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
@@ -18,6 +20,8 @@ from browser.settings import local_settings
 from browser.settings import AssetSettings
 from browser.capture import ScreenGrabber
 
+
+# class EmptyModel(QtWidgets.QAbs)
 
 def contextmenu(func):
     """Decorator to create a menu set."""
@@ -484,6 +488,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
         show_thumbnail = common.get_rsc_pixmap(
             u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        refresh_thumbnail = common.get_rsc_pixmap('refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         key = u'Thumbnail'
         menu_set[key] = collections.OrderedDict()
@@ -508,7 +513,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key][u'Pick new'] = {
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(
-                editors.ThumbnailEditor,
+                editors.PickThumbnailDialog,
                 self.index
             )
         }
@@ -517,12 +522,13 @@ class BaseContextMenu(QtWidgets.QMenu):
             menu_set[key]['_separator_'] = {}
             file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
             menu_set[key][u'generatethis'] = {
-                'text': u'Make thumbnail',
-                'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+                u'text': u'Generate thumbnail',
+                u'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
             }
             menu_set[key][u'generateall'] = {
-                'text': u'Remake all thumbnails',
-                'action': functools.partial(self.parent().thumbnail_generator.get_all, self.parent())
+                u'icon': refresh_thumbnail,
+                u'text': u'Generate all thumbnails (might take a while)...',
+                u'action': functools.partial(self.parent().thumbnail_generator.get_all, self.parent())
             }
             menu_set[key][u'separator_'] = {}
 
@@ -606,15 +612,22 @@ class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
 
     grouppingChanged = QtCore.Signal()  # The sequence view mode
+    """Sequence view expanded/collapsed."""
 
     # Emit before the model is about to change
     modelDataAboutToChange = QtCore.Signal()
     """Signal emited before the model data changes."""
     modelDataResetRequested = QtCore.Signal()
+    """Signal emited when all the data has to be refreshed."""
+
+    refreshRequested = QtCore.Signal(basestring)
+    """Files have been modified and the model needs a refresh."""
+
     activeBookmarkChanged = QtCore.Signal(tuple)
     activeAssetChanged = QtCore.Signal(tuple)
     activeLocationChanged = QtCore.Signal(basestring)
     activeFileChanged = QtCore.Signal(basestring)
+    """The active item has changed."""
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -625,10 +638,47 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: {True: {}, False: {}},
         }
         self.model_data = {}
+
+        # File-system monitor
+        self._file_monitor = QtCore.QFileSystemWatcher()
+        self._last_refreshed = {
+            common.RendersFolder: 0.0,
+            common.ScenesFolder: 0.0,
+            common.TexturesFolder: 0.0,
+            common.ExportsFolder: 0.0,
+        }
+        self._last_changed = {} # a dict of path/timestamp values
+        self._file_monitor.directoryChanged.connect(self.directory_changed)
+
         self.__initdata__()
+
+    def directory_changed(self, path):
+        """Slot connected to the file monitor's folderChanged signal."""
+        # First I have to find which location this path is associated with
+
+        def _get_location(path):
+            for location in self._model_data:
+                data = self._model_data[location][True]
+                for k in data:
+                    loc_path = u'/'.join(data[k][common.ParentRole])
+                    if loc_path in path:
+                        return location
+            return None
+
+        location = _get_location(path)
+        if not location:
+            return
+        path = path.rstrip(u'/')
+        self._last_changed[path] = time.time()
+        if self._last_refreshed[location] < self._last_changed[path]:
+            self.refreshRequested.emit(location) # only for the given location
 
     def __resetdata__(self):
         """Resets the internal data."""
+        # Resetting the file-monitor
+        monitored = self._file_monitor.directories()
+        self._file_monitor.removePaths(monitored)
+
         self.modelDataAboutToChange.emit()
         self.beginResetModel()
         self._model_data = {
@@ -679,6 +729,8 @@ class BaseModel(QtCore.QAbstractItemModel):
     def is_grouped(self):
         return False
 
+    def get_location(self):
+        return '/'
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting data."""
@@ -798,18 +850,12 @@ class BaseListWidget(QtWidgets.QListView):
     # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
 
-    def __init__(self, model, parent=None):
+    def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
-        proxy_model = FilterProxyModel(parent=self)
-        proxy_model.setSourceModel(model)
-        self.setModel(proxy_model)
-        self.model().sort()
 
         self._thumbnailvieweropen = None
 
         self._previouspathtoselect = None
-        self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
-        self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
 
         self._location = None
 
@@ -839,6 +885,25 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
+
+    def set_model(self, model):
+        proxy_model = FilterProxyModel(parent=self)
+        proxy_model.setSourceModel(model)
+        self.setModel(proxy_model)
+        self.model().sort()
+
+        self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
+        self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
+
+        self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
+        self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
+
+
+        # Select the active item
+        self.selectionModel().setCurrentIndex(
+            self.active_index(),
+            QtCore.QItemSelectionModel.ClearAndSelect
+        )
 
     def store_previous_path(self):
         """Saves the currently selected path."""
@@ -998,6 +1063,7 @@ class BaseListWidget(QtWidgets.QListView):
     def refresh(self):
         """Refreshes the model data, and the sorting."""
         self.model().sourceModel().modelDataAboutToChange.emit()
+
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
         self.model().sourceModel().switch_location_data()
@@ -1005,6 +1071,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().invalidate()
         self.model().sort()
         self.reselect_previous_path()
+
+        self.model().sourceModel()._last_refreshed[self.model().sourceModel().get_location()] = time.time()
 
     def reselect_previous_path(self):
         """Reselects the index based on the path given."""
@@ -1379,8 +1447,8 @@ class BaseListWidget(QtWidgets.QListView):
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""
 
-    def __init__(self, model, parent=None):
-        super(BaseInlineIconWidget, self).__init__(model, parent=parent)
+    def __init__(self, parent=None):
+        super(BaseInlineIconWidget, self).__init__(parent=parent)
         self.multi_toggle_pos = None
         self.multi_toggle_state = None
         self.multi_toggle_idx = None

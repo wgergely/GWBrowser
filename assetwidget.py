@@ -12,7 +12,11 @@ values are stored in the ``bookmark/.browser`` folder.
 
 """
 
+import time
+import functools
 from PySide2 import QtWidgets, QtCore, QtGui
+
+from browser.utils.utils import ModelWorker
 
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
@@ -79,6 +83,11 @@ class AssetModel(BaseModel):
         config_dir_path = QtCore.QFileInfo(config_dir_path)
         if not config_dir_path.exists():
             QtCore.QDir().mkpath(config_dir_path.filePath())
+
+        # Resetting the path-monitor
+        monitored = self._file_monitor.directories()
+        self._file_monitor.removePaths(monitored)
+        self._file_monitor.addPath(u'/'.join(self.bookmark))
 
         dir_ = QtCore.QDir(u'/'.join(self.bookmark))
         dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
@@ -153,6 +162,8 @@ class AssetModel(BaseModel):
 
             idx += 1
 
+        self._last_refreshed[self.get_location()] = time.time() # file-monitor timestamp
+
     def get_location(self):
         """There is no location associated with the asset widget,
         Needed context menu functionality only."""
@@ -170,16 +181,13 @@ class AssetWidget(BaseInlineIconWidget):
     """View for displaying the model items."""
 
     def __init__(self, bookmark, parent=None):
-        super(AssetWidget, self).__init__(AssetModel(bookmark), parent=parent)
+        super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self.context_menu_cls = AssetWidgetContextMenu
+        self.set_model(AssetModel(bookmark))
 
-        # Select the active item
-        self.selectionModel().setCurrentIndex(
-            self.active_index(),
-            QtCore.QItemSelectionModel.ClearAndSelect
-        )
+        self.model().sourceModel().refreshRequested.connect(self.refresh)
 
     def eventFilter(self, widget, event):
         super(AssetWidget, self).eventFilter(widget, event)
@@ -279,7 +287,7 @@ class AssetWidget(BaseInlineIconWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            editors.ThumbnailEditor(index, parent=self)
+            editors.PickThumbnailDialog(index, parent=self)
             return
         else:
             self.activate_current_index()

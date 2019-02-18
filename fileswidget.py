@@ -4,12 +4,11 @@ found by the collector classes.
 
 """
 # pylint: disable=E1101, C0103, R0913, I1101
-import functools
-import collections
+import time
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.baselistwidget import BaseContextMenu, contextmenu
+from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 
@@ -79,6 +78,9 @@ class FilesModel(BaseModel):
         self.activeLocationChanged.connect(self.switch_location_data)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
+        # This will add the asset to the file monitor
+        self.set_asset(asset)
+
     @longprocess
     def __initdata__(self, spinner=None):
         """To get the files, we will have to decide what extensions to take
@@ -95,6 +97,9 @@ class FilesModel(BaseModel):
 
         if not all(self.asset):
             return
+
+        # File monitor
+        self._file_monitor.addPath(u'/'.join(self.asset))
 
         self.modes = self.get_modes(self.asset, location)
         # Iterator
@@ -276,6 +281,11 @@ class FilesModel(BaseModel):
                 else:
                     # We can just use the previously collected data
                     self._model_data[location][True][idx] = self._model_data[location][False][k]
+
+                mpath = u'/'.join(self._model_data[location][True][idx][common.ParentRole])
+                if mpath not in self._file_monitor.directories():
+                    self._file_monitor.addPath(mpath)
+
                 idx += 1
                 continue
 
@@ -364,8 +374,10 @@ class FilesModel(BaseModel):
                 settings.thumbnail_path(),
                 common.ROW_HEIGHT - 2
             )
-
             idx += 1
+
+        self._last_refreshed[self.get_location()] = time.time()  # file-monitor timestamp
+
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -512,14 +524,11 @@ class FilesWidget(BaseInlineIconWidget):
     itemDoubleClicked = QtCore.Signal(QtCore.QModelIndex)
 
     def __init__(self, asset, parent=None):
-        super(FilesWidget, self).__init__(FilesModel(asset), parent=parent)
+        super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
         self.setDropIndicatorShown(False)
         self.setAcceptDrops(False)
-
-        self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
-        self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
 
         self.setWindowTitle(u'Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
@@ -528,15 +537,18 @@ class FilesWidget(BaseInlineIconWidget):
         self.thumbnail_generator = ThumbnailGenerator(parent=self)
         self.thumbnail_generator.thumbnailUpdated.connect(self.update)
 
+        self.set_model(FilesModel(asset))
+
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:
-            #Let's paint the icon of the current mode
+            # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = common.get_rsc_pixmap('files', QtGui.QColor(0,0,0,10), 200)
+            pixmap = common.get_rsc_pixmap(
+                'files', QtGui.QColor(0, 0, 0, 10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -617,7 +629,7 @@ class FilesWidget(BaseInlineIconWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            editors.ThumbnailEditor(index, parent=self)
+            editors.PickThumbnailDialog(index, parent=self)
             return
 
         # self.activate_current_index()
