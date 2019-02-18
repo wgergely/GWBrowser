@@ -1,16 +1,18 @@
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import browser.modules
+import numpy
+import oiio.OpenImageIO as oiio
+from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
+
 from browser.settings import AssetSettings
 import browser.common as common
 
 
-def generate_thumbnail(source, dest):
-    """A fast thumbnail-builder using OpenImageIO."""
-    
-    import browser.modules.oiio.OpenImageIO as oiio
-    from browser.modules.oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
+def generate_thumbnail(source, dest):
+    """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
     img = ImageBuf(source)
 
     if img.has_error:
@@ -56,7 +58,7 @@ def generate_thumbnail(source, dest):
             '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
 
     # There seems to be a problem with the ICC profile exported from Adobe
-    # applications and the PNG library. THe sRGB profile seems to be out of date
+    # applications and the PNG library. The sRGB profile seems to be out of date
     # and pnglib crashes when encounters an invalid profile.
     # Removing the ICC profile seems to fix the issue. Annoying!
 
@@ -77,7 +79,7 @@ def generate_thumbnail(source, dest):
         spec = oiio.ImageSpec()
         spec.from_xml(xml)
 
-        # And lastly copying the pixels over from the old to the new buffer.
+        # Lastly, copying the pixels over from the old to the new buffer.
         _b = ImageBuf(spec)
         pixels = b.get_pixels()
         print _b.spec().width
@@ -88,6 +90,7 @@ def generate_thumbnail(source, dest):
                 file_info.fileName(), _b.geterror(), oiio.geterror()))
     else:
         _b = b
+        
     # Ready to write
     if not _b.write(dest, dtype='uint8'):
         sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
@@ -204,5 +207,5 @@ class Worker(QtCore.QRunnable):
 
 
 if __name__ == '__main__':
-    path = r'\\gordo\jobs\tkwwbk_8077\build\asset_one\renders\counter\Comp 1_0256.png'
-    generate_thumbnail(path, 'C:/temp/32bit.png')
+    path = r'//gordo/jobs/audible_8100/films/vignettes/shots/AU_dragon_lady/textures/Rock_Lava_tbhofjmr_8K_surface_ms/tbhofjmr_8K_Specular.jpg'
+    generate_thumbnail(path, 'C:/temp/tbhofjmr_8K_Specular.jpg.png')
