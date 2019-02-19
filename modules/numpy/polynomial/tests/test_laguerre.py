@@ -3,14 +3,12 @@
 """
 from __future__ import division, absolute_import, print_function
 
-from functools import reduce
-
 import numpy as np
 import numpy.polynomial.laguerre as lag
 from numpy.polynomial.polynomial import polyval
 from numpy.testing import (
-    assert_almost_equal, assert_raises, assert_equal, assert_,
-    )
+    TestCase, assert_almost_equal, assert_raises,
+    assert_equal, assert_, run_module_suite)
 
 L0 = np.array([1])/1
 L1 = np.array([1, -1])/1
@@ -27,7 +25,7 @@ def trim(x):
     return lag.lagtrim(x, tol=1e-6)
 
 
-class TestConstants(object):
+class TestConstants(TestCase):
 
     def test_lagdomain(self):
         assert_equal(lag.lagdomain, [0, 1])
@@ -42,7 +40,7 @@ class TestConstants(object):
         assert_equal(lag.lagx, [1, -1])
 
 
-class TestArithmetic(object):
+class TestArithmetic(TestCase):
     x = np.linspace(-3, 3, 100)
 
     def test_lagadd(self):
@@ -98,17 +96,8 @@ class TestArithmetic(object):
                 res = lag.lagadd(lag.lagmul(quo, ci), rem)
                 assert_almost_equal(trim(res), trim(tgt), err_msg=msg)
 
-    def test_lagpow(self):
-        for i in range(5):
-            for j in range(5):
-                msg = "At i=%d, j=%d" % (i, j)
-                c = np.arange(i + 1)
-                tgt = reduce(lag.lagmul, [c]*j, np.array([1]))
-                res = lag.lagpow(c, j) 
-                assert_equal(trim(res), trim(tgt), err_msg=msg)
 
-
-class TestEvaluation(object):
+class TestEvaluation(TestCase):
     # coefficients of 1 + 2*x + 3*x**2
     c1d = np.array([9., -14., 6.])
     c2d = np.einsum('i,j->ij', c1d, c1d)
@@ -202,16 +191,13 @@ class TestEvaluation(object):
         assert_(res.shape == (2, 3)*3)
 
 
-class TestIntegral(object):
+class TestIntegral(TestCase):
 
     def test_lagint(self):
         # check exceptions
         assert_raises(ValueError, lag.lagint, [0], .5)
         assert_raises(ValueError, lag.lagint, [0], -1)
         assert_raises(ValueError, lag.lagint, [0], 1, [0, 0])
-        assert_raises(ValueError, lag.lagint, [0], lbnd=[0])
-        assert_raises(ValueError, lag.lagint, [0], scl=[0])
-        assert_raises(ValueError, lag.lagint, [0], axis=.5)
 
         # test integration of zero polynomial
         for i in range(2, 5):
@@ -304,7 +290,7 @@ class TestIntegral(object):
         assert_almost_equal(res, tgt)
 
 
-class TestDerivative(object):
+class TestDerivative(TestCase):
 
     def test_lagder(self):
         # check exceptions
@@ -344,7 +330,7 @@ class TestDerivative(object):
         assert_almost_equal(res, tgt)
 
 
-class TestVander(object):
+class TestVander(TestCase):
     # some random values in [-1, 1)
     x = np.random.random((3, 5))*2 - 1
 
@@ -392,7 +378,7 @@ class TestVander(object):
         assert_(van.shape == (1, 5, 24))
 
 
-class TestFitting(object):
+class TestFitting(TestCase):
 
     def test_lagfit(self):
         def f(x):
@@ -454,7 +440,7 @@ class TestFitting(object):
         assert_almost_equal(lag.lagfit(x, x, [0, 1]), [1, -1])
 
 
-class TestCompanion(object):
+class TestCompanion(TestCase):
 
     def test_raises(self):
         assert_raises(ValueError, lag.lagcompanion, [])
@@ -469,7 +455,7 @@ class TestCompanion(object):
         assert_(lag.lagcompanion([1, 2])[0, 0] == 1.5)
 
 
-class TestGauss(object):
+class TestGauss(TestCase):
 
     def test_100(self):
         x, w = lag.laggauss(100)
@@ -488,7 +474,7 @@ class TestGauss(object):
         assert_almost_equal(w.sum(), tgt)
 
 
-class TestMisc(object):
+class TestMisc(TestCase):
 
     def test_lagfromroots(self):
         res = lag.lagfromroots([])
@@ -537,3 +523,7 @@ class TestMisc(object):
         tgt = np.exp(-x)
         res = lag.lagweight(x)
         assert_almost_equal(res, tgt)
+
+
+if __name__ == "__main__":
+    run_module_suite()

@@ -4,11 +4,11 @@
 from __future__ import division, absolute_import, print_function
 
 import numpy as np
-from numpy.testing import assert_warns
+from numpy.testing import TestCase, run_module_suite, assert_warns
 from numpy.ma.testutils import assert_equal
 from numpy.ma.core import MaskedArrayFutureWarning
 
-class TestArgsort(object):
+class TestArgsort(TestCase):
     """ gh-8701 """
     def _test_base(self, argsort, cls):
         arr_0d = np.array(1).view(cls)
@@ -37,7 +37,7 @@ class TestArgsort(object):
         return self._test_base(np.ma.MaskedArray.argsort, np.ma.MaskedArray)
 
 
-class TestMinimumMaximum(object):
+class TestMinimumMaximum(TestCase):
     def test_minimum(self):
         assert_warns(DeprecationWarning, np.ma.minimum, np.ma.array([1, 2]))
 
@@ -68,3 +68,7 @@ class TestMinimumMaximum(object):
         result = ma_max(data1d)
         assert_equal(result, ma_max(data1d, axis=None))
         assert_equal(result, ma_max(data1d, axis=0))
+
+
+if __name__ == "__main__":
+    run_module_suite()

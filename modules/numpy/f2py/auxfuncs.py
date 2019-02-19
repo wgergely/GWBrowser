@@ -552,7 +552,7 @@ class F2PYError(Exception):
     pass
 
 
-class throw_error(object):
+class throw_error:
 
     def __init__(self, mess):
         self.mess = mess

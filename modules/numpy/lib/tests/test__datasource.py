@@ -2,14 +2,13 @@ from __future__ import division, absolute_import, print_function
 
 import os
 import sys
-import pytest
 from tempfile import mkdtemp, mkstemp, NamedTemporaryFile
 from shutil import rmtree
 
-import numpy.lib._datasource as datasource
 from numpy.testing import (
-    assert_, assert_equal, assert_raises, assert_warns
+    run_module_suite, TestCase, assert_, SkipTest
     )
+import numpy.lib._datasource as datasource
 
 if sys.version_info[0] >= 3:
     import urllib.request as urllib_request
@@ -33,14 +32,14 @@ def urlopen_stub(url, data=None):
 old_urlopen = None
 
 
-def setup_module():
+def setup():
     global old_urlopen
 
     old_urlopen = urllib_request.urlopen
     urllib_request.urlopen = urlopen_stub
 
 
-def teardown_module():
+def teardown():
     urllib_request.urlopen = old_urlopen
 
 # A valid website for more robust testing
@@ -56,7 +55,7 @@ malicious_files = ['/etc/shadow', '../../shadow',
 magic_line = b'three is the magic number'
 
 
-# Utility functions used by many tests
+# Utility functions used by many TestCases
 def valid_textfile(filedir):
     # Generate and return a valid temporary file.
     fd, path = mkstemp(suffix='.txt', prefix='dstmp_', dir=filedir, text=True)
@@ -96,12 +95,12 @@ def invalid_httpfile():
     return http_fakefile
 
 
-class TestDataSourceOpen(object):
-    def setup(self):
+class TestDataSourceOpen(TestCase):
+    def setUp(self):
         self.tmpdir = mkdtemp()
         self.ds = datasource.DataSource(self.tmpdir)
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
         del self.ds
 
@@ -112,7 +111,7 @@ class TestDataSourceOpen(object):
 
     def test_InvalidHTTP(self):
         url = invalid_httpurl()
-        assert_raises(IOError, self.ds.open, url)
+        self.assertRaises(IOError, self.ds.open, url)
         try:
             self.ds.open(url)
         except IOError as e:
@@ -120,7 +119,7 @@ class TestDataSourceOpen(object):
             assert_(e.errno is None)
 
     def test_InvalidHTTPCacheURLError(self):
-        assert_raises(URLError, self.ds._cache, invalid_httpurl())
+        self.assertRaises(URLError, self.ds._cache, invalid_httpurl())
 
     def test_ValidFile(self):
         local_file = valid_textfile(self.tmpdir)
@@ -130,14 +129,14 @@ class TestDataSourceOpen(object):
 
     def test_InvalidFile(self):
         invalid_file = invalid_textfile(self.tmpdir)
-        assert_raises(IOError, self.ds.open, invalid_file)
+        self.assertRaises(IOError, self.ds.open, invalid_file)
 
     def test_ValidGzipFile(self):
         try:
             import gzip
         except ImportError:
             # We don't have the gzip capabilities to test.
-            pytest.skip()
+            raise SkipTest
         # Test datasource's internal file_opener for Gzip files.
         filepath = os.path.join(self.tmpdir, 'foobar.txt.gz')
         fp = gzip.open(filepath, 'w')
@@ -146,14 +145,14 @@ class TestDataSourceOpen(object):
         fp = self.ds.open(filepath)
         result = fp.readline()
         fp.close()
-        assert_equal(magic_line, result)
+        self.assertEqual(magic_line, result)
 
     def test_ValidBz2File(self):
         try:
             import bz2
         except ImportError:
             # We don't have the bz2 capabilities to test.
-            pytest.skip()
+            raise SkipTest
         # Test datasource's internal file_opener for BZip2 files.
         filepath = os.path.join(self.tmpdir, 'foobar.txt.bz2')
         fp = bz2.BZ2File(filepath, 'w')
@@ -162,33 +161,15 @@ class TestDataSourceOpen(object):
         fp = self.ds.open(filepath)
         result = fp.readline()
         fp.close()
-        assert_equal(magic_line, result)
-
-    @pytest.mark.skipif(sys.version_info[0] >= 3, reason="Python 2 only")
-    def test_Bz2File_text_mode_warning(self):
-        try:
-            import bz2
-        except ImportError:
-            # We don't have the bz2 capabilities to test.
-            pytest.skip()
-        # Test datasource's internal file_opener for BZip2 files.
-        filepath = os.path.join(self.tmpdir, 'foobar.txt.bz2')
-        fp = bz2.BZ2File(filepath, 'w')
-        fp.write(magic_line)
-        fp.close()
-        with assert_warns(RuntimeWarning):
-            fp = self.ds.open(filepath, 'rt')
-            result = fp.readline()
-            fp.close()
-        assert_equal(magic_line, result)
+        self.assertEqual(magic_line, result)
 
 
-class TestDataSourceExists(object):
-    def setup(self):
+class TestDataSourceExists(TestCase):
+    def setUp(self):
         self.tmpdir = mkdtemp()
         self.ds = datasource.DataSource(self.tmpdir)
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
         del self.ds
 
@@ -196,7 +177,7 @@ class TestDataSourceExists(object):
         assert_(self.ds.exists(valid_httpurl()))
 
     def test_InvalidHTTP(self):
-        assert_equal(self.ds.exists(invalid_httpurl()), False)
+        self.assertEqual(self.ds.exists(invalid_httpurl()), False)
 
     def test_ValidFile(self):
         # Test valid file in destpath
@@ -210,15 +191,15 @@ class TestDataSourceExists(object):
 
     def test_InvalidFile(self):
         tmpfile = invalid_textfile(self.tmpdir)
-        assert_equal(self.ds.exists(tmpfile), False)
+        self.assertEqual(self.ds.exists(tmpfile), False)
 
 
-class TestDataSourceAbspath(object):
-    def setup(self):
+class TestDataSourceAbspath(TestCase):
+    def setUp(self):
         self.tmpdir = os.path.abspath(mkdtemp())
         self.ds = datasource.DataSource(self.tmpdir)
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
         del self.ds
 
@@ -226,30 +207,30 @@ class TestDataSourceAbspath(object):
         scheme, netloc, upath, pms, qry, frg = urlparse(valid_httpurl())
         local_path = os.path.join(self.tmpdir, netloc,
                                   upath.strip(os.sep).strip('/'))
-        assert_equal(local_path, self.ds.abspath(valid_httpurl()))
+        self.assertEqual(local_path, self.ds.abspath(valid_httpurl()))
 
     def test_ValidFile(self):
         tmpfile = valid_textfile(self.tmpdir)
         tmpfilename = os.path.split(tmpfile)[-1]
         # Test with filename only
-        assert_equal(tmpfile, self.ds.abspath(tmpfilename))
+        self.assertEqual(tmpfile, self.ds.abspath(tmpfilename))
         # Test filename with complete path
-        assert_equal(tmpfile, self.ds.abspath(tmpfile))
+        self.assertEqual(tmpfile, self.ds.abspath(tmpfile))
 
     def test_InvalidHTTP(self):
         scheme, netloc, upath, pms, qry, frg = urlparse(invalid_httpurl())
         invalidhttp = os.path.join(self.tmpdir, netloc,
                                    upath.strip(os.sep).strip('/'))
-        assert_(invalidhttp != self.ds.abspath(valid_httpurl()))
+        self.assertNotEqual(invalidhttp, self.ds.abspath(valid_httpurl()))
 
     def test_InvalidFile(self):
         invalidfile = valid_textfile(self.tmpdir)
         tmpfile = valid_textfile(self.tmpdir)
         tmpfilename = os.path.split(tmpfile)[-1]
         # Test with filename only
-        assert_(invalidfile != self.ds.abspath(tmpfilename))
+        self.assertNotEqual(invalidfile, self.ds.abspath(tmpfilename))
         # Test filename with complete path
-        assert_(invalidfile != self.ds.abspath(tmpfile))
+        self.assertNotEqual(invalidfile, self.ds.abspath(tmpfile))
 
     def test_sandboxing(self):
         tmpfile = valid_textfile(self.tmpdir)
@@ -278,12 +259,12 @@ class TestDataSourceAbspath(object):
             os.sep = orig_os_sep
 
 
-class TestRepositoryAbspath(object):
-    def setup(self):
+class TestRepositoryAbspath(TestCase):
+    def setUp(self):
         self.tmpdir = os.path.abspath(mkdtemp())
         self.repos = datasource.Repository(valid_baseurl(), self.tmpdir)
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
         del self.repos
 
@@ -292,7 +273,7 @@ class TestRepositoryAbspath(object):
         local_path = os.path.join(self.repos._destpath, netloc,
                                   upath.strip(os.sep).strip('/'))
         filepath = self.repos.abspath(valid_httpfile())
-        assert_equal(local_path, filepath)
+        self.assertEqual(local_path, filepath)
 
     def test_sandboxing(self):
         tmp_path = lambda x: os.path.abspath(self.repos.abspath(x))
@@ -311,12 +292,12 @@ class TestRepositoryAbspath(object):
             os.sep = orig_os_sep
 
 
-class TestRepositoryExists(object):
-    def setup(self):
+class TestRepositoryExists(TestCase):
+    def setUp(self):
         self.tmpdir = mkdtemp()
         self.repos = datasource.Repository(valid_baseurl(), self.tmpdir)
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
         del self.repos
 
@@ -327,7 +308,7 @@ class TestRepositoryExists(object):
 
     def test_InvalidFile(self):
         tmpfile = invalid_textfile(self.tmpdir)
-        assert_equal(self.repos.exists(tmpfile), False)
+        self.assertEqual(self.repos.exists(tmpfile), False)
 
     def test_RemoveHTTPFile(self):
         assert_(self.repos.exists(valid_httpurl()))
@@ -344,11 +325,11 @@ class TestRepositoryExists(object):
         assert_(self.repos.exists(tmpfile))
 
 
-class TestOpenFunc(object):
-    def setup(self):
+class TestOpenFunc(TestCase):
+    def setUp(self):
         self.tmpdir = mkdtemp()
 
-    def teardown(self):
+    def tearDown(self):
         rmtree(self.tmpdir)
 
     def test_DataSourceOpen(self):
@@ -362,17 +343,6 @@ class TestOpenFunc(object):
         assert_(fp)
         fp.close()
 
-def test_del_attr_handling():
-    # DataSource __del__ can be called
-    # even if __init__ fails when the
-    # Exception object is caught by the
-    # caller as happens in refguide_check
-    # is_deprecated() function
 
-    ds = datasource.DataSource()
-    # simulate failed __init__ by removing key attribute
-    # produced within __init__ and expected by __del__
-    del ds._istmpdest
-    # should not raise an AttributeError if __del__
-    # gracefully handles failed __init__:
-    ds.__del__()
+if __name__ == "__main__":
+    run_module_suite()

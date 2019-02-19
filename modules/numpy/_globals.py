@@ -17,6 +17,7 @@ motivated this module.
 """
 from __future__ import division, absolute_import, print_function
 
+
 __ALL__ = [
     'ModuleDeprecationWarning', 'VisibleDeprecationWarning', '_NoValue'
     ]
@@ -38,9 +39,7 @@ class ModuleDeprecationWarning(DeprecationWarning):
     nose tester will let pass without making tests fail.
 
     """
-
-
-ModuleDeprecationWarning.__module__ = 'numpy'
+    pass
 
 
 class VisibleDeprecationWarning(UserWarning):
@@ -51,31 +50,13 @@ class VisibleDeprecationWarning(UserWarning):
     the usage is most likely a user bug.
 
     """
+    pass
 
 
-VisibleDeprecationWarning.__module__ = 'numpy'
-
-
-class _NoValueType(object):
+class _NoValue:
     """Special keyword value.
 
-    The instance of this class may be used as the default value assigned to a
-    deprecated keyword in order to check if it has been given a user defined
-    value.
+    This class may be used as the default value assigned to a deprecated
+    keyword in order to check if it has been given a user defined value.
     """
-    __instance = None
-    def __new__(cls):
-        # ensure that only one instance exists
-        if not cls.__instance:
-            cls.__instance = super(_NoValueType, cls).__new__(cls)
-        return cls.__instance
-
-    # needed for python 2 to preserve identity through a pickle
-    def __reduce__(self):
-        return (self.__class__, ())
-
-    def __repr__(self):
-        return "<no value>"
-
-
-_NoValue = _NoValueType()
+    pass

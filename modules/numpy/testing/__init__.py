@@ -9,14 +9,7 @@ from __future__ import division, absolute_import, print_function
 
 from unittest import TestCase
 
-from ._private.utils import *
-from ._private import decorators as dec
-from ._private.nosetester import (
-    run_module_suite, NoseTester as Tester
-    )
-
-__all__ = _private.utils.__all__ + ['TestCase', 'run_module_suite']
-
-from numpy._pytesttester import PytestTester
-test = PytestTester(__name__)
-del PytestTester
+from . import decorators as dec
+from .nosetester import run_module_suite, NoseTester as Tester
+from .utils import *
+test = nosetester._numpy_tester().test

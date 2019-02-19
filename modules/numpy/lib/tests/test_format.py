@@ -1,6 +1,5 @@
 from __future__ import division, absolute_import, print_function
 
-# doctest
 r''' Test the .npy file format.
 
 Set up:
@@ -276,17 +275,18 @@ Test the header writing.
     "v\x00{'descr': [('x', '>i4', (2,)), ('y', '>f8', (2, 2)), ('z', '|u1')],\n 'fortran_order': False,\n 'shape': (2,)}         \n"
     "\x16\x02{'descr': [('x', '>i4', (2,)),\n           ('Info',\n            [('value', '>c16'),\n             ('y2', '>f8'),\n             ('Info2',\n              [('name', '|S2'),\n               ('value', '>c16', (2,)),\n               ('y3', '>f8', (2,)),\n               ('z3', '>u4', (2,))]),\n             ('name', '|S2'),\n             ('z2', '|b1')]),\n           ('color', '|S2'),\n           ('info', [('Name', '>U8'), ('Value', '>c16')]),\n           ('y', '>f8', (2, 2)),\n           ('z', '|u1')],\n 'fortran_order': False,\n 'shape': (2,)}      \n"
 '''
+
 import sys
 import os
 import shutil
 import tempfile
 import warnings
-import pytest
 from io import BytesIO
 
 import numpy as np
 from numpy.testing import (
-    assert_, assert_array_equal, assert_raises, assert_raises_regex,
+    run_module_suite, assert_, assert_array_equal, assert_raises, raises,
+    dec, SkipTest
     )
 from numpy.lib import format
 
@@ -454,20 +454,20 @@ def assert_equal_(o1, o2):
 def test_roundtrip():
     for arr in basic_arrays + record_arrays:
         arr2 = roundtrip(arr)
-        assert_array_equal(arr, arr2)
+        yield assert_array_equal, arr, arr2
 
 
 def test_roundtrip_randsize():
     for arr in basic_arrays + record_arrays:
         if arr.dtype != object:
             arr2 = roundtrip_randsize(arr)
-            assert_array_equal(arr, arr2)
+            yield assert_array_equal, arr, arr2
 
 
 def test_roundtrip_truncated():
     for arr in basic_arrays:
         if arr.dtype != object:
-            assert_raises(ValueError, roundtrip_truncated, arr)
+            yield assert_raises, ValueError, roundtrip_truncated, arr
 
 
 def test_long_str():
@@ -477,9 +477,9 @@ def test_long_str():
     assert_array_equal(long_str_arr, long_str_arr2)
 
 
-@pytest.mark.slow
+@dec.slow
 def test_memmap_roundtrip():
-    # Fixme: used to crash on windows
+    # Fixme: test crashes nose on windows.
     if not (sys.platform == 'win32' or sys.platform == 'cygwin'):
         for arr in basic_arrays + record_arrays:
             if arr.dtype.hasobject:
@@ -508,7 +508,7 @@ def test_memmap_roundtrip():
             fp = open(mfn, 'rb')
             memmap_bytes = fp.read()
             fp.close()
-            assert_equal_(normal_bytes, memmap_bytes)
+            yield assert_equal_, normal_bytes, memmap_bytes
 
             # Check that reading the file using memmap works.
             ma = format.open_memmap(nfn, mode='r')
@@ -523,30 +523,6 @@ def test_compressed_roundtrip():
     assert_array_equal(arr, arr1)
 
 
-# aligned
-dt1 = np.dtype('i1, i4, i1', align=True)
-# non-aligned, explicit offsets
-dt2 = np.dtype({'names': ['a', 'b'], 'formats': ['i4', 'i4'],
-                'offsets': [1, 6]})
-# nested struct-in-struct
-dt3 = np.dtype({'names': ['c', 'd'], 'formats': ['i4', dt2]})
-# field with '' name
-dt4 = np.dtype({'names': ['a', '', 'b'], 'formats': ['i4']*3})
-# titles
-dt5 = np.dtype({'names': ['a', 'b'], 'formats': ['i4', 'i4'],
-                'offsets': [1, 6], 'titles': ['aa', 'bb']})
-
-@pytest.mark.parametrize("dt", [dt1, dt2, dt3, dt4, dt5])
-def test_load_padded_dtype(dt):
-    arr = np.zeros(3, dt)
-    for i in range(3):
-        arr[i] = i + 5
-    npz_file = os.path.join(tempdir, 'aligned.npz')
-    np.savez(npz_file, arr=arr)
-    arr1 = np.load(npz_file)['arr']
-    assert_array_equal(arr, arr1)
-
-
 def test_python2_python3_interoperability():
     if sys.version_info[0] >= 3:
         fname = 'win64python2.npy'
@@ -555,6 +531,7 @@ def test_python2_python3_interoperability():
     path = os.path.join(os.path.dirname(__file__), 'data', fname)
     data = np.load(path)
     assert_array_equal(data, np.ones(2))
+
 
 def test_pickle_python2_python3():
     # Test that loading object arrays saved on Python 2 works both on
@@ -638,11 +615,6 @@ def test_version_2_0():
         format.write_array(f, d)
         assert_(w[0].category is UserWarning)
 
-    # check alignment of data portion
-    f.seek(0)
-    header = f.readline()
-    assert_(len(header) % format.ARRAY_ALIGN == 0)
-
     f.seek(0)
     n = format.read_array(f)
     assert_array_equal(d, n)
@@ -651,7 +623,7 @@ def test_version_2_0():
     assert_raises(ValueError, format.write_array, f, d, (1, 0))
 
 
-@pytest.mark.slow
+@dec.slow
 def test_version_2_0_memmap():
     # requires more than 2 byte for header
     dt = [(("%d" % i) * 100, float) for i in range(500)]
@@ -701,9 +673,12 @@ def test_write_version():
         (255, 255),
     ]
     for version in bad_versions:
-        with assert_raises_regex(ValueError,
-                                 'we only support format version.*'):
+        try:
             format.write_array(f, arr, version=version)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("we should have raised a ValueError for the bad version %r" % (version,))
 
 
 bad_version_magic = [
@@ -748,13 +723,13 @@ def test_read_magic():
 def test_read_magic_bad_magic():
     for magic in malformed_magic:
         f = BytesIO(magic)
-        assert_raises(ValueError, format.read_array, f)
+        yield raises(ValueError)(format.read_magic), f
 
 
 def test_read_version_1_0_bad_magic():
     for magic in bad_version_magic + malformed_magic:
         f = BytesIO(magic)
-        assert_raises(ValueError, format.read_array, f)
+        yield raises(ValueError)(format.read_array), f
 
 
 def test_bad_magic_args():
@@ -783,7 +758,6 @@ def test_read_array_header_1_0():
     s.seek(format.MAGIC_LEN)
     shape, fortran, dtype = format.read_array_header_1_0(s)
 
-    assert_(s.tell() % format.ARRAY_ALIGN == 0)
     assert_((shape, fortran, dtype) == ((3, 6), False, float))
 
 
@@ -796,7 +770,6 @@ def test_read_array_header_2_0():
     s.seek(format.MAGIC_LEN)
     shape, fortran, dtype = format.read_array_header_2_0(s)
 
-    assert_(s.tell() % format.ARRAY_ALIGN == 0)
     assert_((shape, fortran, dtype) == ((3, 6), False, float))
 
 
@@ -829,7 +802,7 @@ def test_bad_header():
 
 def test_large_file_support():
     if (sys.platform == 'win32' or sys.platform == 'cygwin'):
-        pytest.skip("Unknown if Windows has sparse filesystems")
+        raise SkipTest("Unknown if Windows has sparse filesystems")
     # try creating a large sparse file
     tf_name = os.path.join(tempdir, 'sparse_file')
     try:
@@ -838,8 +811,8 @@ def test_large_file_support():
         # avoid actually writing 5GB
         import subprocess as sp
         sp.check_call(["truncate", "-s", "5368709120", tf_name])
-    except Exception:
-        pytest.skip("Could not create 5GB large file")
+    except:
+        raise SkipTest("Could not create 5GB large file")
     # write a small array to the end
     with open(tf_name, "wb") as f:
         f.seek(5368709120)
@@ -852,16 +825,15 @@ def test_large_file_support():
     assert_array_equal(r, d)
 
 
-@pytest.mark.skipif(np.dtype(np.intp).itemsize < 8,
-                    reason="test requires 64-bit system")
-@pytest.mark.slow
+@dec.slow
+@dec.skipif(np.dtype(np.intp).itemsize < 8, "test requires 64-bit system")
 def test_large_archive():
     # Regression test for product of saving arrays with dimensions of array
     # having a product that doesn't fit in int32.  See gh-7598 for details.
     try:
         a = np.empty((2**30, 2), dtype=np.uint8)
     except MemoryError:
-        pytest.skip("Could not create large file")
+        raise SkipTest("Could not create large file")
 
     fname = os.path.join(tempdir, "large_archive")
 
@@ -874,8 +846,5 @@ def test_large_archive():
     assert_(a.shape == new_a.shape)
 
 
-def test_empty_npz():
-    # Test for gh-9989
-    fname = os.path.join(tempdir, "nothing.npz")
-    np.savez(fname)
-    np.load(fname)
+if __name__ == "__main__":
+    run_module_suite()

@@ -328,12 +328,12 @@ def getarrdims(a, var, verbose=0):
         ret['size'] = '*'.join(dim)
         try:
             ret['size'] = repr(eval(ret['size']))
-        except Exception:
+        except:
             pass
         ret['dims'] = ','.join(dim)
         ret['rank'] = repr(len(dim))
         ret['rank*[-1]'] = repr(len(dim) * [-1])[1:-1]
-        for i in range(len(dim)):  # solve dim for dependencies
+        for i in range(len(dim)):  # solve dim for dependecies
             v = []
             if dim[i] in depargs:
                 v = [dim[i]]
@@ -485,7 +485,7 @@ def getinit(a, var):
                 else:
                     v = eval(v, {}, {})
                     ret['init.r'], ret['init.i'] = str(v.real), str(v.imag)
-            except Exception:
+            except:
                 raise ValueError(
                     'getinit: expected complex number `(r,i)\' but got `%s\' as initial value of %r.' % (init, a))
             if isarray(var):
@@ -718,7 +718,10 @@ def modsign2map(m):
 
 def cb_sign2map(a, var, index=None):
     ret = {'varname': a}
-    ret['varname_i'] = ret['varname']
+    if index is None or 1:  # disable 7712 patch
+        ret['varname_i'] = ret['varname']
+    else:
+        ret['varname_i'] = ret['varname'] + '_' + str(index)
     ret['ctype'] = getctype(var)
     if ret['ctype'] in c2capi_map:
         ret['atype'] = c2capi_map[ret['ctype']]

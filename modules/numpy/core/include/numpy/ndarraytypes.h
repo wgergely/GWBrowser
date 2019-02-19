@@ -235,34 +235,29 @@ typedef enum {
  *   TIMEZONE: 5
  *   NULL TERMINATOR: 1
  */
-#define NPY_DATETIME_MAX_ISO8601_STRLEN (21 + 3*5 + 1 + 3*6 + 6 + 1)
+#define NPY_DATETIME_MAX_ISO8601_STRLEN (21+3*5+1+3*6+6+1)
 
-/* The FR in the unit names stands for frequency */
 typedef enum {
-        /* Force signed enum type, must be -1 for code compatibility */
-        NPY_FR_ERROR = -1,      /* error or undetermined */
-
-        /* Start of valid units */
-        NPY_FR_Y = 0,           /* Years */
-        NPY_FR_M = 1,           /* Months */
-        NPY_FR_W = 2,           /* Weeks */
+        NPY_FR_Y = 0,  /* Years */
+        NPY_FR_M = 1,  /* Months */
+        NPY_FR_W = 2,  /* Weeks */
         /* Gap where 1.6 NPY_FR_B (value 3) was */
-        NPY_FR_D = 4,           /* Days */
-        NPY_FR_h = 5,           /* hours */
-        NPY_FR_m = 6,           /* minutes */
-        NPY_FR_s = 7,           /* seconds */
-        NPY_FR_ms = 8,          /* milliseconds */
-        NPY_FR_us = 9,          /* microseconds */
-        NPY_FR_ns = 10,         /* nanoseconds */
-        NPY_FR_ps = 11,         /* picoseconds */
-        NPY_FR_fs = 12,         /* femtoseconds */
-        NPY_FR_as = 13,         /* attoseconds */
-        NPY_FR_GENERIC = 14     /* unbound units, can convert to anything */
+        NPY_FR_D = 4,  /* Days */
+        NPY_FR_h = 5,  /* hours */
+        NPY_FR_m = 6,  /* minutes */
+        NPY_FR_s = 7,  /* seconds */
+        NPY_FR_ms = 8, /* milliseconds */
+        NPY_FR_us = 9, /* microseconds */
+        NPY_FR_ns = 10,/* nanoseconds */
+        NPY_FR_ps = 11,/* picoseconds */
+        NPY_FR_fs = 12,/* femtoseconds */
+        NPY_FR_as = 13,/* attoseconds */
+        NPY_FR_GENERIC = 14 /* Generic, unbound units, can convert to anything */
 } NPY_DATETIMEUNIT;
 
 /*
  * NOTE: With the NPY_FR_B gap for 1.6 ABI compatibility, NPY_DATETIME_NUMUNITS
- * is technically one more than the actual number of units.
+ *       is technically one more than the actual number of units.
  */
 #define NPY_DATETIME_NUMUNITS (NPY_FR_GENERIC + 1)
 #define NPY_DATETIME_DEFAULTUNIT NPY_FR_GENERIC
@@ -505,8 +500,7 @@ typedef struct {
         PyArray_NonzeroFunc *nonzero;
 
         /*
-         * Used for arange. Should return 0 on success
-         * and -1 on failure.
+         * Used for arange.
          * Can be NULL.
          */
         PyArray_FillFunc *fill;
@@ -683,7 +677,7 @@ typedef struct tagPyArrayObject_fields {
     /*
      * This object is decref'd upon
      * deletion of array. Except in the
-     * case of WRITEBACKIFCOPY which has
+     * case of UPDATEIFCOPY which has
      * special handling.
      *
      * For views it points to the original
@@ -694,9 +688,9 @@ typedef struct tagPyArrayObject_fields {
      * points to an object that should be
      * decref'd on deletion
      *
-     * For WRITEBACKIFCOPY flag this is an
-     * array to-be-updated upon calling
-     * PyArray_ResolveWritebackIfCopy
+     * For UPDATEIFCOPY flag this is an
+     * array to-be-updated upon deletion
+     * of this one
      */
     PyObject *base;
     /* Pointer to type structure */
@@ -871,13 +865,12 @@ typedef int (PyArray_FinalizeFunc)(PyArrayObject *, PyObject *);
 /*
  * If this flag is set, then base contains a pointer to an array of
  * the same size that should be updated with the current contents of
- * this array when PyArray_ResolveWritebackIfCopy is called.
+ * this array when this array is deallocated
  *
  * This flag may be requested in constructor functions.
  * This flag may be tested for in PyArray_FLAGS(arr).
  */
-#define NPY_ARRAY_UPDATEIFCOPY    0x1000 /* Deprecated in 1.14 */
-#define NPY_ARRAY_WRITEBACKIFCOPY 0x2000
+#define NPY_ARRAY_UPDATEIFCOPY    0x1000
 
 /*
  * NOTE: there are also internal flags defined in multiarray/arrayobject.h,
@@ -902,14 +895,10 @@ typedef int (PyArray_FinalizeFunc)(PyArrayObject *, PyObject *);
 #define NPY_ARRAY_OUT_ARRAY    (NPY_ARRAY_CARRAY)
 #define NPY_ARRAY_INOUT_ARRAY  (NPY_ARRAY_CARRAY | \
                                 NPY_ARRAY_UPDATEIFCOPY)
-#define NPY_ARRAY_INOUT_ARRAY2 (NPY_ARRAY_CARRAY | \
-                                NPY_ARRAY_WRITEBACKIFCOPY)
 #define NPY_ARRAY_IN_FARRAY    (NPY_ARRAY_FARRAY_RO)
 #define NPY_ARRAY_OUT_FARRAY   (NPY_ARRAY_FARRAY)
 #define NPY_ARRAY_INOUT_FARRAY (NPY_ARRAY_FARRAY | \
                                 NPY_ARRAY_UPDATEIFCOPY)
-#define NPY_ARRAY_INOUT_FARRAY2 (NPY_ARRAY_FARRAY | \
-                                NPY_ARRAY_WRITEBACKIFCOPY)
 
 #define NPY_ARRAY_UPDATE_ALL   (NPY_ARRAY_C_CONTIGUOUS | \
                                 NPY_ARRAY_F_CONTIGUOUS | \
@@ -1055,7 +1044,7 @@ typedef void (NpyIter_GetMultiIndexFunc)(NpyIter *iter,
 #define NPY_ITER_CONTIG                     0x00200000
 /* The operand may be copied to satisfy requirements */
 #define NPY_ITER_COPY                       0x00400000
-/* The operand may be copied with WRITEBACKIFCOPY to satisfy requirements */
+/* The operand may be copied with UPDATEIFCOPY to satisfy requirements */
 #define NPY_ITER_UPDATEIFCOPY               0x00800000
 /* Allocate the operand if it is NULL */
 #define NPY_ITER_ALLOCATE                   0x01000000
@@ -1671,7 +1660,7 @@ PyArray_CLEARFLAGS(PyArrayObject *arr, int flags)
 #define PyTypeNum_ISOBJECT(type) ((type) == NPY_OBJECT)
 
 
-#define PyDataType_ISBOOL(obj) PyTypeNum_ISBOOL(((PyArray_Descr*)(obj))->type_num)
+#define PyDataType_ISBOOL(obj) PyTypeNum_ISBOOL(_PyADt(obj))
 #define PyDataType_ISUNSIGNED(obj) PyTypeNum_ISUNSIGNED(((PyArray_Descr*)(obj))->type_num)
 #define PyDataType_ISSIGNED(obj) PyTypeNum_ISSIGNED(((PyArray_Descr*)(obj))->type_num)
 #define PyDataType_ISINTEGER(obj) PyTypeNum_ISINTEGER(((PyArray_Descr*)(obj))->type_num )
@@ -1687,8 +1676,6 @@ PyArray_CLEARFLAGS(PyArrayObject *arr, int flags)
 #define PyDataType_ISOBJECT(obj) PyTypeNum_ISOBJECT(((PyArray_Descr*)(obj))->type_num)
 #define PyDataType_HASFIELDS(obj) (((PyArray_Descr *)(obj))->names != NULL)
 #define PyDataType_HASSUBARRAY(dtype) ((dtype)->subarray != NULL)
-#define PyDataType_ISUNSIZED(dtype) ((dtype)->elsize == 0)
-#define PyDataType_MAKEUNSIZED(dtype) ((dtype)->elsize = 0)
 
 #define PyArray_ISBOOL(obj) PyTypeNum_ISBOOL(PyArray_TYPE(obj))
 #define PyArray_ISUNSIGNED(obj) PyTypeNum_ISUNSIGNED(PyArray_TYPE(obj))
@@ -1760,7 +1747,7 @@ typedef struct {
 /************************************************************
  * This is the form of the struct that's returned pointed by the
  * PyCObject attribute of an array __array_struct__. See
- * https://docs.scipy.org/doc/numpy/reference/arrays.interface.html for the full
+ * http://docs.scipy.org/doc/numpy/reference/arrays.interface.html for the full
  * documentation.
  ************************************************************/
 typedef struct {

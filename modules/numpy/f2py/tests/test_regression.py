@@ -1,12 +1,12 @@
 from __future__ import division, absolute_import, print_function
 
 import os
-import pytest
+import math
 
 import numpy as np
-from numpy.testing import assert_raises, assert_equal
+from numpy.testing import run_module_suite, dec, assert_raises, assert_equal
 
-from . import util
+import util
 
 
 def _path(*a):
@@ -17,7 +17,7 @@ class TestIntentInOut(util.F2PyTest):
     # Check that intent(in out) translates as intent(inout)
     sources = [_path('src', 'regression', 'inout.f90')]
 
-    @pytest.mark.slow
+    @dec.slow
     def test_inout(self):
         # non-contiguous should raise error
         x = np.arange(6, dtype=np.float32)[::2]
@@ -27,3 +27,7 @@ class TestIntentInOut(util.F2PyTest):
         x = np.arange(3, dtype=np.float32)
         self.module.foo(x)
         assert_equal(x, [3, 1, 2])
+
+
+if __name__ == "__main__":
+    run_module_suite()

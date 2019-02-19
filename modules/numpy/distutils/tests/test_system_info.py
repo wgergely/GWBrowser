@@ -2,13 +2,13 @@ from __future__ import division, print_function
 
 import os
 import shutil
-import pytest
 from tempfile import mkstemp, mkdtemp
 from subprocess import Popen, PIPE
 from distutils.errors import DistutilsError
 
-from numpy.distutils import ccompiler, customized_ccompiler
-from numpy.testing import assert_, assert_equal
+from numpy.distutils import ccompiler
+from numpy.testing import TestCase, run_module_suite, assert_, assert_equal
+from numpy.testing.decorators import skipif
 from numpy.distutils.system_info import system_info, ConfigParser
 from numpy.distutils.system_info import default_lib_dirs, default_include_dirs
 
@@ -20,9 +20,9 @@ def get_class(name, notfound_action=1):
       1 - display warning message
       2 - raise error
     """
-    cl = {'temp1': Temp1Info,
-          'temp2': Temp2Info
-          }.get(name.lower(), _system_info)
+    cl = {'temp1': TestTemp1,
+          'temp2': TestTemp2
+          }.get(name.lower(), test_system_info)
     return cl()
 
 simple_site = """
@@ -59,14 +59,15 @@ void bar(void) {
 def have_compiler():
     """ Return True if there appears to be an executable compiler
     """
-    compiler = customized_ccompiler()
+    compiler = ccompiler.new_compiler()
+    compiler.customize(None)
     try:
         cmd = compiler.compiler  # Unix compilers
     except AttributeError:
         try:
             if not compiler.initialized:
                 compiler.initialize()  # MSVC is different
-        except (DistutilsError, ValueError):
+        except DistutilsError:
             return False
         cmd = [compiler.cc]
     try:
@@ -82,7 +83,7 @@ def have_compiler():
 HAVE_COMPILER = have_compiler()
 
 
-class _system_info(system_info):
+class test_system_info(system_info):
 
     def __init__(self,
                  default_lib_dirs=default_lib_dirs,
@@ -109,19 +110,17 @@ class _system_info(system_info):
         return info
 
 
-class Temp1Info(_system_info):
-    """For testing purposes"""
+class TestTemp1(test_system_info):
     section = 'temp1'
 
 
-class Temp2Info(_system_info):
-    """For testing purposes"""
+class TestTemp2(test_system_info):
     section = 'temp2'
 
 
-class TestSystemInfoReading(object):
+class TestSystemInfoReading(TestCase):
 
-    def setup(self):
+    def setUp(self):
         """ Create the libraries """
         # Create 2 sources and 2 libraries
         self._dir1 = mkdtemp()
@@ -159,19 +158,19 @@ class TestSystemInfoReading(object):
         self.c_temp1 = site_and_parse(get_class('temp1'), self._sitecfg)
         self.c_temp2 = site_and_parse(get_class('temp2'), self._sitecfg)
 
-    def teardown(self):
+    def tearDown(self):
         # Do each removal separately
         try:
             shutil.rmtree(self._dir1)
-        except Exception:
+        except:
             pass
         try:
             shutil.rmtree(self._dir2)
-        except Exception:
+        except:
             pass
         try:
             os.remove(self._sitecfg)
-        except Exception:
+        except:
             pass
 
     def test_all(self):
@@ -200,10 +199,11 @@ class TestSystemInfoReading(object):
         extra = tsi.calc_extra_info()
         assert_equal(extra['extra_link_args'], ['-Wl,-rpath=' + self._lib2])
 
-    @pytest.mark.skipif(not HAVE_COMPILER, reason="Missing compiler")
+    @skipif(not HAVE_COMPILER)
     def test_compile1(self):
         # Compile source and link the first source
-        c = customized_ccompiler()
+        c = ccompiler.new_compiler()
+        c.customize(None)
         previousDir = os.getcwd()
         try:
             # Change directory to not screw up directories
@@ -215,13 +215,13 @@ class TestSystemInfoReading(object):
         finally:
             os.chdir(previousDir)
 
-    @pytest.mark.skipif(not HAVE_COMPILER, reason="Missing compiler")
-    @pytest.mark.skipif('msvc' in repr(ccompiler.new_compiler()),
-                         reason="Fails with MSVC compiler ")
+    @skipif(not HAVE_COMPILER)
+    @skipif('msvc' in repr(ccompiler.new_compiler()))
     def test_compile2(self):
         # Compile source and link the second source
         tsi = self.c_temp2
-        c = customized_ccompiler()
+        c = ccompiler.new_compiler()
+        c.customize(None)
         extra_link_args = tsi.calc_extra_info()['extra_link_args']
         previousDir = os.getcwd()
         try:
@@ -233,3 +233,7 @@ class TestSystemInfoReading(object):
             assert_(os.path.isfile(self._src2.replace('.c', '.o')))
         finally:
             os.chdir(previousDir)
+
+
+if __name__ == '__main__':
+    run_module_suite()

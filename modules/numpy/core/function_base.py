@@ -1,20 +1,13 @@
 from __future__ import division, absolute_import, print_function
 
-import functools
 import warnings
 import operator
 
 from . import numeric as _nx
 from .numeric import (result_type, NaN, shares_memory, MAY_SHARE_BOUNDS,
-                      TooHardError, asanyarray)
-from numpy.core.multiarray import add_docstring
-from numpy.core import overrides
+                      TooHardError,asanyarray)
 
 __all__ = ['logspace', 'linspace', 'geomspace']
-
-
-array_function_dispatch = functools.partial(
-    overrides.array_function_dispatch, module='numpy')
 
 
 def _index_deprecate(i, stacklevel=2):
@@ -29,14 +22,7 @@ def _index_deprecate(i, stacklevel=2):
     return i
 
 
-def _linspace_dispatcher(start, stop, num=None, endpoint=None, retstep=None,
-                         dtype=None, axis=None):
-    return (start, stop)
-
-
-@array_function_dispatch(_linspace_dispatcher)
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
-             axis=0):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None):
     """
     Return evenly spaced numbers over a specified interval.
 
@@ -45,14 +31,11 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
 
     The endpoint of the interval can optionally be excluded.
 
-    .. versionchanged:: 1.16.0
-        Non-scalar `start` and `stop` are now supported.
-
     Parameters
     ----------
-    start : array_like
+    start : scalar
         The starting value of the sequence.
-    stop : array_like
+    stop : scalar
         The end value of the sequence, unless `endpoint` is set to False.
         In that case, the sequence consists of all but the last of ``num + 1``
         evenly spaced samples, so that `stop` is excluded.  Note that the step
@@ -71,13 +54,6 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
 
         .. versionadded:: 1.9.0
 
-    axis : int, optional
-        The axis in the result to store the samples.  Relevant only if start
-        or stop are array-like.  By default (0), the samples will be along a
-        new axis inserted at the beginning. Use -1 to get an axis at the end.
-
-        .. versionadded:: 1.16.0
-
     Returns
     -------
     samples : ndarray
@@ -94,10 +70,7 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     --------
     arange : Similar to `linspace`, but uses a step size (instead of the
              number of samples).
-    geomspace : Similar to `linspace`, but with numbers spaced evenly on a log
-                scale (a geometric progression).
-    logspace : Similar to `geomspace`, but with the end points specified as
-               logarithms.
+    logspace : Samples uniformly distributed in log space.
 
     Examples
     --------
@@ -139,26 +112,20 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     if dtype is None:
         dtype = dt
 
+    y = _nx.arange(0, num, dtype=dt)
+
     delta = stop - start
-    y = _nx.arange(0, num, dtype=dt).reshape((-1,) + (1,) * delta.ndim)
-    # In-place multiplication y *= delta/div is faster, but prevents the multiplicant
-    # from overriding what class is produced, and thus prevents, e.g. use of Quantities,
-    # see gh-7142. Hence, we multiply in place only for standard scalar types.
-    _mult_inplace = _nx.isscalar(delta)
     if num > 1:
         step = delta / div
-        if _nx.any(step == 0):
+        if step == 0:
             # Special handling for denormal numbers, gh-5437
             y /= div
-            if _mult_inplace:
-                y *= delta
-            else:
-                y = y * delta
+            y = y * delta
         else:
-            if _mult_inplace:
-                y *= step
-            else:
-                y = y * step
+            # One might be tempted to use faster, in-place multiplication here,
+            # but this prevents step from overriding what class is produced,
+            # and thus prevents, e.g., use of Quantities; see gh-7142.
+            y = y * step
     else:
         # 0 and 1 item long sequences have an undefined step
         step = NaN
@@ -170,23 +137,13 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None,
     if endpoint and num > 1:
         y[-1] = stop
 
-    if axis != 0:
-        y = _nx.moveaxis(y, 0, axis)
-
     if retstep:
         return y.astype(dtype, copy=False), step
     else:
         return y.astype(dtype, copy=False)
 
 
-def _logspace_dispatcher(start, stop, num=None, endpoint=None, base=None,
-                         dtype=None, axis=None):
-    return (start, stop)
-
-
-@array_function_dispatch(_logspace_dispatcher)
-def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None,
-             axis=0):
+def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None):
     """
     Return numbers spaced evenly on a log scale.
 
@@ -194,14 +151,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None,
     (`base` to the power of `start`) and ends with ``base ** stop``
     (see `endpoint` below).
 
-    .. versionchanged:: 1.16.0
-        Non-scalar `start` and `stop` are now supported.
-
     Parameters
     ----------
-    start : array_like
+    start : float
         ``base ** start`` is the starting value of the sequence.
-    stop : array_like
+    stop : float
         ``base ** stop`` is the final value of the sequence, unless `endpoint`
         is False.  In that case, ``num + 1`` values are spaced over the
         interval in log-space, of which all but the last (a sequence of
@@ -218,13 +172,6 @@ def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None,
     dtype : dtype
         The type of the output array.  If `dtype` is not given, infer the data
         type from the other input arguments.
-    axis : int, optional
-        The axis in the result to store the samples.  Relevant only if start
-        or stop are array-like.  By default (0), the samples will be along a
-        new axis inserted at the beginning. Use -1 to get an axis at the end.
-
-        .. versionadded:: 1.16.0
-
 
     Returns
     -------
@@ -274,33 +221,24 @@ def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None,
     >>> plt.show()
 
     """
-    y = linspace(start, stop, num=num, endpoint=endpoint, axis=axis)
+    y = linspace(start, stop, num=num, endpoint=endpoint)
     if dtype is None:
         return _nx.power(base, y)
-    return _nx.power(base, y).astype(dtype, copy=False)
+    return _nx.power(base, y).astype(dtype)
 
 
-def _geomspace_dispatcher(start, stop, num=None, endpoint=None, dtype=None,
-                          axis=None):
-    return (start, stop)
-
-
-@array_function_dispatch(_geomspace_dispatcher)
-def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+def geomspace(start, stop, num=50, endpoint=True, dtype=None):
     """
     Return numbers spaced evenly on a log scale (a geometric progression).
 
     This is similar to `logspace`, but with endpoints specified directly.
     Each output sample is a constant multiple of the previous.
 
-    .. versionchanged:: 1.16.0
-        Non-scalar `start` and `stop` are now supported.
-
     Parameters
     ----------
-    start : array_like
+    start : scalar
         The starting value of the sequence.
-    stop : array_like
+    stop : scalar
         The final value of the sequence, unless `endpoint` is False.
         In that case, ``num + 1`` values are spaced over the
         interval in log-space, of which all but the last (a sequence of
@@ -313,12 +251,6 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     dtype : dtype
         The type of the output array.  If `dtype` is not given, infer the data
         type from the other input arguments.
-    axis : int, optional
-        The axis in the result to store the samples.  Relevant only if start
-        or stop are array-like.  By default (0), the samples will be along a
-        new axis inserted at the beginning. Use -1 to get an axis at the end.
-
-        .. versionadded:: 1.16.0
 
     Returns
     -------
@@ -383,80 +315,37 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
     >>> plt.show()
 
     """
-    start = asanyarray(start)
-    stop = asanyarray(stop)
-    if _nx.any(start == 0) or _nx.any(stop == 0):
+    if start == 0 or stop == 0:
         raise ValueError('Geometric sequence cannot include zero')
 
-    dt = result_type(start, stop, float(num), _nx.zeros((), dtype))
+    dt = result_type(start, stop, float(num))
     if dtype is None:
         dtype = dt
     else:
         # complex to dtype('complex128'), for instance
         dtype = _nx.dtype(dtype)
 
-    # Promote both arguments to the same dtype in case, for instance, one is
-    # complex and another is negative and log would produce NaN otherwise.
-    # Copy since we may change things in-place further down.
-    start = start.astype(dt, copy=True)
-    stop = stop.astype(dt, copy=True)
-
-    out_sign = _nx.ones(_nx.broadcast(start, stop).shape, dt)
     # Avoid negligible real or imaginary parts in output by rotating to
     # positive real, calculating, then undoing rotation
-    if _nx.issubdtype(dt, _nx.complexfloating):
-        all_imag = (start.real == 0.) & (stop.real == 0.)
-        if _nx.any(all_imag):
-            start[all_imag] = start[all_imag].imag
-            stop[all_imag] = stop[all_imag].imag
-            out_sign[all_imag] = 1j
+    out_sign = 1
+    if start.real == stop.real == 0:
+        start, stop = start.imag, stop.imag
+        out_sign = 1j * out_sign
+    if _nx.sign(start) == _nx.sign(stop) == -1:
+        start, stop = -start, -stop
+        out_sign = -out_sign
 
-    both_negative = (_nx.sign(start) == -1) & (_nx.sign(stop) == -1)
-    if _nx.any(both_negative):
-        _nx.negative(start, out=start, where=both_negative)
-        _nx.negative(stop, out=stop, where=both_negative)
-        _nx.negative(out_sign, out=out_sign, where=both_negative)
+    # Promote both arguments to the same dtype in case, for instance, one is
+    # complex and another is negative and log would produce NaN otherwise
+    start = start + (stop - stop)
+    stop = stop + (start - start)
+    if _nx.issubdtype(dtype, complex):
+        start = start + 0j
+        stop = stop + 0j
 
     log_start = _nx.log10(start)
     log_stop = _nx.log10(stop)
     result = out_sign * logspace(log_start, log_stop, num=num,
                                  endpoint=endpoint, base=10.0, dtype=dtype)
-    if axis != 0:
-        result = _nx.moveaxis(result, 0, axis)
 
-    return result.astype(dtype, copy=False)
-
-
-#always succeed
-def add_newdoc(place, obj, doc):
-    """
-    Adds documentation to obj which is in module place.
-
-    If doc is a string add it to obj as a docstring
-
-    If doc is a tuple, then the first element is interpreted as
-       an attribute of obj and the second as the docstring
-          (method, docstring)
-
-    If doc is a list, then each element of the list should be a
-       sequence of length two --> [(method1, docstring1),
-       (method2, docstring2), ...]
-
-    This routine never raises an error.
-
-    This routine cannot modify read-only docstrings, as appear
-    in new-style classes or built-in functions. Because this
-    routine never raises an error the caller must check manually
-    that the docstrings were changed.
-    """
-    try:
-        new = getattr(__import__(place, globals(), {}, [obj]), obj)
-        if isinstance(doc, str):
-            add_docstring(new, doc.strip())
-        elif isinstance(doc, tuple):
-            add_docstring(getattr(new, doc[0]), doc[1].strip())
-        elif isinstance(doc, list):
-            for val in doc:
-                add_docstring(getattr(new, val[0]), val[1].strip())
-    except Exception:
-        pass
+    return result.astype(dtype)

@@ -5,14 +5,13 @@ import sys
 import numpy as np
 from numpy.core.multiarray import _vec_string
 from numpy.testing import (
-    assert_, assert_equal, assert_array_equal, assert_raises,
-    assert_raises_regex, suppress_warnings,
-    )
+    TestCase, run_module_suite, assert_, assert_equal, assert_array_equal
+)
 
 kw_unicode_true = {'unicode': True}  # make 2to3 work properly
 kw_unicode_false = {'unicode': False}
 
-class TestBasic(object):
+class TestBasic(TestCase):
     def test_from_object_array(self):
         A = np.array([['abc', 2],
                       ['long   ', '0123456789']], dtype='O')
@@ -24,7 +23,7 @@ class TestBasic(object):
     def test_from_object_array_unicode(self):
         A = np.array([['abc', u'Sigma \u03a3'],
                       ['long   ', '0123456789']], dtype='O')
-        assert_raises(ValueError, np.char.array, (A,))
+        self.assertRaises(ValueError, np.char.array, (A,))
         B = np.char.array(A, **kw_unicode_true)
         assert_equal(B.dtype.itemsize, 10 * np.array('a', 'U').dtype.itemsize)
         assert_array_equal(B, [['abc', u'Sigma \u03a3'],
@@ -63,7 +62,7 @@ class TestBasic(object):
         def fail():
             np.char.array(A, **kw_unicode_false)
 
-        assert_raises(UnicodeEncodeError, fail)
+        self.assertRaises(UnicodeEncodeError, fail)
 
     def test_unicode_upconvert(self):
         A = np.char.array(['abc'])
@@ -83,59 +82,59 @@ class TestBasic(object):
         assert_equal(A.itemsize, 4)
         assert_(issubclass(A.dtype.type, np.unicode_))
 
-class TestVecString(object):
+class TestVecString(TestCase):
     def test_non_existent_method(self):
 
         def fail():
             _vec_string('a', np.string_, 'bogus')
 
-        assert_raises(AttributeError, fail)
+        self.assertRaises(AttributeError, fail)
 
     def test_non_string_array(self):
 
         def fail():
             _vec_string(1, np.string_, 'strip')
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_invalid_args_tuple(self):
 
         def fail():
             _vec_string(['a'], np.string_, 'strip', 1)
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_invalid_type_descr(self):
 
         def fail():
             _vec_string(['a'], 'BOGUS', 'strip')
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_invalid_function_args(self):
 
         def fail():
             _vec_string(['a'], np.string_, 'strip', (1,))
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_invalid_result_type(self):
 
         def fail():
             _vec_string(['a'], np.integer, 'strip')
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_broadcast_error(self):
 
         def fail():
             _vec_string([['abc', 'def']], np.integer, 'find', (['a', 'd', 'j'],))
 
-        assert_raises(ValueError, fail)
+        self.assertRaises(ValueError, fail)
 
 
-class TestWhitespace(object):
-    def setup(self):
+class TestWhitespace(TestCase):
+    def setUp(self):
         self.A = np.array([['abc ', '123  '],
                            ['789 ', 'xyz ']]).view(np.chararray)
         self.B = np.array([['abc', '123'],
@@ -149,16 +148,16 @@ class TestWhitespace(object):
         assert_(not np.any(self.A < self.B))
         assert_(not np.any(self.A != self.B))
 
-class TestChar(object):
-    def setup(self):
+class TestChar(TestCase):
+    def setUp(self):
         self.A = np.array('abc1', dtype='c').view(np.chararray)
 
     def test_it(self):
         assert_equal(self.A.shape, (4,))
         assert_equal(self.A.upper()[:2].tobytes(), b'AB')
 
-class TestComparisons(object):
-    def setup(self):
+class TestComparisons(TestCase):
+    def setUp(self):
         self.A = np.array([['abc', '123'],
                            ['789', 'xyz']]).view(np.chararray)
         self.B = np.array([['efg', '123  '],
@@ -185,21 +184,21 @@ class TestComparisons(object):
 class TestComparisonsMixed1(TestComparisons):
     """Ticket #1276"""
 
-    def setup(self):
-        TestComparisons.setup(self)
+    def setUp(self):
+        TestComparisons.setUp(self)
         self.B = np.array([['efg', '123  '],
                            ['051', 'tuv']], np.unicode_).view(np.chararray)
 
 class TestComparisonsMixed2(TestComparisons):
     """Ticket #1276"""
 
-    def setup(self):
-        TestComparisons.setup(self)
+    def setUp(self):
+        TestComparisons.setUp(self)
         self.A = np.array([['abc', '123'],
                            ['789', 'xyz']], np.unicode_).view(np.chararray)
 
-class TestInformation(object):
-    def setup(self):
+class TestInformation(TestCase):
+    def setUp(self):
         self.A = np.array([[' abc ', ''],
                            ['12345', 'MixedCase'],
                            ['123 \t 345 \0 ', 'UPPER']]).view(np.chararray)
@@ -231,7 +230,7 @@ class TestInformation(object):
         def fail():
             self.A.endswith('3', 'fdjk')
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
     def test_find(self):
         assert_(issubclass(self.A.find('a').dtype.type, np.integer))
@@ -245,7 +244,7 @@ class TestInformation(object):
         def fail():
             self.A.index('a')
 
-        assert_raises(ValueError, fail)
+        self.assertRaises(ValueError, fail)
         assert_(np.char.index('abcba', 'b') == 1)
         assert_(issubclass(np.char.index('abcba', 'b').dtype.type, np.integer))
 
@@ -289,7 +288,7 @@ class TestInformation(object):
         def fail():
             self.A.rindex('a')
 
-        assert_raises(ValueError, fail)
+        self.assertRaises(ValueError, fail)
         assert_(np.char.rindex('abcba', 'b') == 3)
         assert_(issubclass(np.char.rindex('abcba', 'b').dtype.type, np.integer))
 
@@ -301,11 +300,11 @@ class TestInformation(object):
         def fail():
             self.A.startswith('3', 'fdjk')
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
 
 
-class TestMethods(object):
-    def setup(self):
+class TestMethods(TestCase):
+    def setUp(self):
         self.A = np.array([[' abc ', ''],
                            ['12345', 'MixedCase'],
                            ['123 \t 345 \0 ', 'UPPER']],
@@ -347,11 +346,8 @@ class TestMethods(object):
             A = np.char.array([b'\\u03a3'])
             assert_(A.decode('unicode-escape')[0] == '\u03a3')
         else:
-            with suppress_warnings() as sup:
-                if sys.py3kwarning:
-                    sup.filter(DeprecationWarning, "'hex_codec'")
-                A = np.char.array(['736563726574206d657373616765'])
-                assert_(A.decode('hex_codec')[0] == 'secret message')
+            A = np.char.array(['736563726574206d657373616765'])
+            assert_(A.decode('hex_codec')[0] == 'secret message')
 
     def test_encode(self):
         B = self.B.encode('unicode_escape')
@@ -583,7 +579,7 @@ class TestMethods(object):
         def fail():
             self.A.isnumeric()
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
         assert_(issubclass(self.B.isnumeric().dtype.type, np.bool_))
         assert_array_equal(self.B.isnumeric(), [
                 [False, False], [True, False], [False, False]])
@@ -593,14 +589,14 @@ class TestMethods(object):
         def fail():
             self.A.isdecimal()
 
-        assert_raises(TypeError, fail)
+        self.assertRaises(TypeError, fail)
         assert_(issubclass(self.B.isdecimal().dtype.type, np.bool_))
         assert_array_equal(self.B.isdecimal(), [
                 [False, False], [True, False], [False, False]])
 
 
-class TestOperations(object):
-    def setup(self):
+class TestOperations(TestCase):
+    def setUp(self):
         self.A = np.array([['abc', '123'],
                            ['789', 'xyz']]).view(np.chararray)
         self.B = np.array([['efg', '456'],
@@ -626,9 +622,12 @@ class TestOperations(object):
             assert_array_equal(Ar, (self.A * r))
 
         for ob in [object(), 'qrs']:
-            with assert_raises_regex(ValueError,
-                                     'Can only multiply by integers'):
-                A*ob
+            try:
+                A * ob
+            except ValueError:
+                pass
+            else:
+                self.fail("chararray can only be multiplied by integers")
 
     def test_rmul(self):
         A = self.A
@@ -638,9 +637,12 @@ class TestOperations(object):
             assert_array_equal(Ar, (r * self.A))
 
         for ob in [object(), 'qrs']:
-            with assert_raises_regex(ValueError,
-                                     'Can only multiply by integers'):
+            try:
                 ob * A
+            except ValueError:
+                pass
+            else:
+                self.fail("chararray can only be multiplied by integers")
 
     def test_mod(self):
         """Ticket #856"""
@@ -662,9 +664,13 @@ class TestOperations(object):
         assert_(("%r" % self.A) == repr(self.A))
 
         for ob in [42, object()]:
-            with assert_raises_regex(
-                    TypeError, "unsupported operand type.* and 'chararray'"):
+            try:
                 ob % self.A
+            except TypeError:
+                pass
+            else:
+                self.fail("chararray __rmod__ should fail with "
+                          "non-string objects")
 
     def test_slice(self):
         """Regression test for https://github.com/numpy/numpy/issues/5982"""
@@ -690,3 +696,7 @@ def test_empty_indexing():
     # empty chararray instead of a chararray with a single empty string in it.
     s = np.chararray((4,))
     assert_(s[[]].size == 0)
+
+
+if __name__ == "__main__":
+    run_module_suite()

@@ -4,11 +4,12 @@ import sys
 
 import numpy as np
 from numpy.testing import (
-    assert_, assert_raises, assert_array_equal, HAS_REFCOUNT
-    )
+    TestCase, run_module_suite, assert_, assert_raises,
+    assert_array_equal, HAS_REFCOUNT
+)
 
 
-class TestTake(object):
+class TestTake(TestCase):
     def test_simple(self):
         a = [[1, 2], [3, 4]]
         a_str = [[b'1', b'2'], [b'3', b'4']]
@@ -23,7 +24,7 @@ class TestTake(object):
         # Currently all types but object, use the same function generation.
         # So it should not be necessary to test all. However test also a non
         # refcounted struct on top of object.
-        types = int, object, np.dtype([('', 'i', 2)])
+        types = np.int, np.object, np.dtype([('', 'i', 2)])
         for t in types:
             # ta works, even if the array may be odd if buffer interface is used
             ta = np.array(a if np.issubdtype(t, np.number) else a_str, dtype=t)
@@ -52,13 +53,13 @@ class TestTake(object):
         for mode in ('raise', 'clip', 'wrap'):
             a = np.array(objects)
             b = np.array([2, 2, 4, 5, 3, 5])
-            a.take(b, out=a[:6], mode=mode)
+            a.take(b, out=a[:6])
             del a
             if HAS_REFCOUNT:
                 assert_(all(sys.getrefcount(o) == 3 for o in objects))
             # not contiguous, example:
             a = np.array(objects * 2)[::2]
-            a.take(b, out=a[:6], mode=mode)
+            a.take(b, out=a[:6])
             del a
             if HAS_REFCOUNT:
                 assert_(all(sys.getrefcount(o) == 3 for o in objects))
@@ -85,3 +86,7 @@ class TestTake(object):
 
             b = np.array([0, 1, 2, 3, 4, 5])
             assert_array_equal(a, b)
+
+
+if __name__ == "__main__":
+    run_module_suite()

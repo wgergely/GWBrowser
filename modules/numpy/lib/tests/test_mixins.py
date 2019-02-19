@@ -5,7 +5,8 @@ import operator
 import sys
 
 import numpy as np
-from numpy.testing import assert_, assert_equal, assert_raises
+from numpy.testing import (
+    TestCase, run_module_suite, assert_, assert_equal, assert_raises)
 
 
 PY2 = sys.version_info.major < 3
@@ -98,7 +99,7 @@ _ALL_BINARY_OPERATORS = [
 ]
 
 
-class TestNDArrayOperatorsMixin(object):
+class TestNDArrayOperatorsMixin(TestCase):
 
     def test_array_like_add(self):
 
@@ -199,17 +200,6 @@ class TestNDArrayOperatorsMixin(object):
             err_msg = 'failed for operator {}'.format(op)
             _assert_equal_type_and_value(expected, actual, err_msg=err_msg)
 
-    def test_matmul(self):
-        array = np.array([1, 2], dtype=np.float64)
-        array_like = ArrayLike(array)
-        expected = ArrayLike(np.float64(5))
-        _assert_equal_type_and_value(expected, np.matmul(array_like, array))
-        if not PY2:
-            _assert_equal_type_and_value(
-                expected, operator.matmul(array_like, array))
-            _assert_equal_type_and_value(
-                expected, operator.matmul(array, array_like))
-
     def test_ufunc_at(self):
         array = ArrayLike(np.array([1, 2, 3, 4]))
         assert_(np.negative.at(array, np.array([0, 1])) is None)
@@ -222,3 +212,7 @@ class TestNDArrayOperatorsMixin(object):
             np.frexp(ArrayLike(2 ** -3)), expected)
         _assert_equal_type_and_value(
             np.frexp(ArrayLike(np.array(2 ** -3))), expected)
+
+
+if __name__ == "__main__":
+    run_module_suite()

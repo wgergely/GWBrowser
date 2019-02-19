@@ -5,13 +5,12 @@ Discrete Fourier Transforms - helper.py
 from __future__ import division, absolute_import, print_function
 
 import collections
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading
+import threading
+
 from numpy.compat import integer_types
-from numpy.core import integer, empty, arange, asarray, roll
-from numpy.core.overrides import array_function_dispatch, set_module
+from numpy.core import (
+        asarray, concatenate, arange, take, integer, empty
+        )
 
 # Created by Pearu Peterson, September 2002
 
@@ -20,11 +19,6 @@ __all__ = ['fftshift', 'ifftshift', 'fftfreq', 'rfftfreq']
 integer_types = integer_types + (integer,)
 
 
-def _fftshift_dispatcher(x, axes=None):
-    return (x,)
-
-
-@array_function_dispatch(_fftshift_dispatcher, module='numpy.fft')
 def fftshift(x, axes=None):
     """
     Shift the zero-frequency component to the center of the spectrum.
@@ -69,19 +63,21 @@ def fftshift(x, axes=None):
            [-1., -3., -2.]])
 
     """
-    x = asarray(x)
+    tmp = asarray(x)
+    ndim = tmp.ndim
     if axes is None:
-        axes = tuple(range(x.ndim))
-        shift = [dim // 2 for dim in x.shape]
+        axes = list(range(ndim))
     elif isinstance(axes, integer_types):
-        shift = x.shape[axes] // 2
-    else:
-        shift = [x.shape[ax] // 2 for ax in axes]
+        axes = (axes,)
+    y = tmp
+    for k in axes:
+        n = tmp.shape[k]
+        p2 = (n+1)//2
+        mylist = concatenate((arange(p2, n), arange(p2)))
+        y = take(y, mylist, k)
+    return y
 
-    return roll(x, shift, axes)
 
-
-@array_function_dispatch(_fftshift_dispatcher, module='numpy.fft')
 def ifftshift(x, axes=None):
     """
     The inverse of `fftshift`. Although identical for even-length `x`, the
@@ -116,19 +112,21 @@ def ifftshift(x, axes=None):
            [-3., -2., -1.]])
 
     """
-    x = asarray(x)
+    tmp = asarray(x)
+    ndim = tmp.ndim
     if axes is None:
-        axes = tuple(range(x.ndim))
-        shift = [-(dim // 2) for dim in x.shape]
+        axes = list(range(ndim))
     elif isinstance(axes, integer_types):
-        shift = -(x.shape[axes] // 2)
-    else:
-        shift = [-(x.shape[ax] // 2) for ax in axes]
+        axes = (axes,)
+    y = tmp
+    for k in axes:
+        n = tmp.shape[k]
+        p2 = n-(n+1)//2
+        mylist = concatenate((arange(p2, n), arange(p2)))
+        y = take(y, mylist, k)
+    return y
 
-    return roll(x, shift, axes)
 
-
-@set_module('numpy.fft')
 def fftfreq(n, d=1.0):
     """
     Return the Discrete Fourier Transform sample frequencies.
@@ -175,9 +173,9 @@ def fftfreq(n, d=1.0):
     p2 = arange(-(n//2), 0, dtype=int)
     results[N:] = p2
     return results * val
+    #return hstack((arange(0,(n-1)/2 + 1), arange(-(n/2),0))) / (n*d)
 
 
-@set_module('numpy.fft')
 def rfftfreq(n, d=1.0):
     """
     Return the Discrete Fourier Transform sample frequencies

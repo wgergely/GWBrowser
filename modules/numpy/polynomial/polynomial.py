@@ -18,10 +18,9 @@ Arithmetic
 ----------
 - `polyadd` -- add two polynomials.
 - `polysub` -- subtract one polynomial from another.
-- `polymulx` -- multiply a polynomial in ``P_i(x)`` by ``x``.
 - `polymul` -- multiply two polynomials.
 - `polydiv` -- divide one polynomial by another.
-- `polypow` -- raise a polynomial to a positive integer power.
+- `polypow` -- raise a polynomial to an positive integer power
 - `polyval` -- evaluate a polynomial at given points.
 - `polyval2d` -- evaluate a 2D polynomial at given points.
 - `polyval3d` -- evaluate a 3D polynomial at given points.
@@ -37,7 +36,7 @@ Misc Functions
 --------------
 - `polyfromroots` -- create a polynomial with specified roots.
 - `polyroots` -- find the roots of a polynomial.
-- `polyvalfromroots` -- evaluate a polynomial at given points from roots.
+- `polyvalfromroots` -- evalute a polynomial at given points from roots.
 - `polyvander` -- Vandermonde-like matrix for powers.
 - `polyvander2d` -- Vandermonde-like matrix for 2D power series.
 - `polyvander3d` -- Vandermonde-like matrix for 3D power series.
@@ -225,7 +224,7 @@ def polyadd(c1, c2):
 
     See Also
     --------
-    polysub, polymulx, polymul, polydiv, polypow
+    polysub, polymul, polydiv, polypow
 
     Examples
     --------
@@ -270,7 +269,7 @@ def polysub(c1, c2):
 
     See Also
     --------
-    polyadd, polymulx, polymul, polydiv, polypow
+    polyadd, polymul, polydiv, polypow
 
     Examples
     --------
@@ -313,10 +312,6 @@ def polymulx(c):
     out : ndarray
         Array representing the result of the multiplication.
 
-    See Also
-    --------
-    polyadd, polysub, polymul, polydiv, polypow
-
     Notes
     -----
 
@@ -356,7 +351,7 @@ def polymul(c1, c2):
 
     See Also
     --------
-    polyadd, polysub, polymulx, polydiv, polypow
+    polyadd, polysub, polydiv, polypow
 
     Examples
     --------
@@ -393,7 +388,7 @@ def polydiv(c1, c2):
 
     See Also
     --------
-    polyadd, polysub, polymulx, polymul, polypow
+    polyadd, polysub, polymul, polypow
 
     Examples
     --------
@@ -455,13 +450,10 @@ def polypow(c, pow, maxpower=None):
 
     See Also
     --------
-    polyadd, polysub, polymulx, polymul, polydiv
+    polyadd, polysub, polymul, polydiv
 
     Examples
     --------
-    >>> from numpy.polynomial import polynomial as P
-    >>> P.polypow([1,2,3], 2)
-    array([ 1., 4., 10., 12., 9.])
 
     """
     # c is a trimmed copy
@@ -554,7 +546,7 @@ def polyder(c, m=1, scl=1, axis=0):
     if cnt == 0:
         return c
 
-    c = np.moveaxis(c, iaxis, 0)
+    c = np.rollaxis(c, iaxis)
     n = len(c)
     if cnt >= n:
         c = c[:1]*0
@@ -566,7 +558,7 @@ def polyder(c, m=1, scl=1, axis=0):
             for j in range(n, 0, -1):
                 der[j - 1] = j*c[j]
             c = der
-    c = np.moveaxis(c, 0, iaxis)
+    c = np.rollaxis(c, 0, iaxis + 1)
     return c
 
 
@@ -616,8 +608,7 @@ def polyint(c, m=1, k=[], lbnd=0, scl=1, axis=0):
     Raises
     ------
     ValueError
-        If ``m < 1``, ``len(k) > m``, ``np.ndim(lbnd) != 0``, or
-        ``np.ndim(scl) != 0``.
+        If ``m < 1``, ``len(k) > m``.
 
     See Also
     --------
@@ -628,7 +619,7 @@ def polyint(c, m=1, k=[], lbnd=0, scl=1, axis=0):
     Note that the result of each integration is *multiplied* by `scl`.  Why
     is this important to note?  Say one is making a linear change of
     variable :math:`u = ax + b` in an integral relative to `x`. Then
-    :math:`dx = du/a`, so one will need to set `scl` equal to
+    .. math::`dx = du/a`, so one will need to set `scl` equal to
     :math:`1/a` - perhaps not what one would have first thought.
 
     Examples
@@ -663,10 +654,6 @@ def polyint(c, m=1, k=[], lbnd=0, scl=1, axis=0):
         raise ValueError("The order of integration must be non-negative")
     if len(k) > cnt:
         raise ValueError("Too many integration constants")
-    if np.ndim(lbnd) != 0:
-        raise ValueError("lbnd must be a scalar.")
-    if np.ndim(scl) != 0:
-        raise ValueError("scl must be a scalar.")
     if iaxis != axis:
         raise ValueError("The axis must be integer")
     iaxis = normalize_axis_index(iaxis, c.ndim)
@@ -675,7 +662,7 @@ def polyint(c, m=1, k=[], lbnd=0, scl=1, axis=0):
         return c
 
     k = list(k) + [0]*(cnt - len(k))
-    c = np.moveaxis(c, iaxis, 0)
+    c = np.rollaxis(c, iaxis)
     for i in range(cnt):
         n = len(c)
         c *= scl
@@ -689,7 +676,7 @@ def polyint(c, m=1, k=[], lbnd=0, scl=1, axis=0):
                 tmp[j + 1] = c[j]/(j + 1)
             tmp[0] += k[i] - polyval(lbnd, tmp)
             c = tmp
-    c = np.moveaxis(c, 0, iaxis)
+    c = np.rollaxis(c, 0, iaxis + 1)
     return c
 
 
@@ -926,7 +913,7 @@ def polyval2d(x, y, c):
     """
     try:
         x, y = np.array((x, y), copy=0)
-    except Exception:
+    except:
         raise ValueError('x, y are incompatible')
 
     c = polyval(x, c)
@@ -1039,7 +1026,7 @@ def polyval3d(x, y, z, c):
     """
     try:
         x, y, z = np.array((x, y, z), copy=0)
-    except Exception:
+    except:
         raise ValueError('x, y, z are incompatible')
 
     c = polyval(x, c)
@@ -1160,7 +1147,7 @@ def polyvander(x, deg):
         v[1] = x
         for i in range(2, ideg + 1):
             v[i] = v[i-1]*x
-    return np.moveaxis(v, 0, -1)
+    return np.rollaxis(v, 0, v.ndim)
 
 
 def polyvander2d(x, y, deg):
@@ -1651,15 +1638,3 @@ class Polynomial(ABCPolyBase):
     nickname = 'poly'
     domain = np.array(polydomain)
     window = np.array(polydomain)
-    basis_name = None
-
-    @staticmethod
-    def _repr_latex_term(i, arg_str, needs_parens):
-        if needs_parens:
-            arg_str = r'\left({}\right)'.format(arg_str)
-        if i == 0:
-            return '1'
-        elif i == 1:
-            return arg_str
-        else:
-            return '{}^{{{}}}'.format(arg_str, i)

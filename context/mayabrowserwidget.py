@@ -3,7 +3,9 @@
 """Maya wrapper for the BrowserWidget."""
 
 import re
+import os
 import sys
+import time
 import functools
 from functools import wraps
 import collections
@@ -68,7 +70,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         super(MayaBrowserWidgetContextMenu, self).__init__(
             index, parent=parent)
 
-        self.add_alembicexport_menu()
+        self.add_writealembic_menu()
         self.add_objexport_menu()
         self.add_save_as_menu()
         if index.isValid():
@@ -92,18 +94,21 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
     @contextmenu
     @mayacommand
-    def add_alembicexport_menu(self, cmds, menu_set, browserwidget=None):
+    def add_writealembic_menu(self, cmds, menu_set, browserwidget=None):
         objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
-        exporter = AbcExportCommand()            # saver.exec_()
+        exporter = AlembicExport()
 
         key = 'alembic'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
         menu_set[u'{}:text'.format(key)] = 'Export alembic...'
 
-        for k, value in exporter.get_dag_sets().iteritems():
-            menu_set[key][k.strip(':')] = {
-                'text': k.strip(':').upper(),
+        outliner_set_members = exporter.get_outliner_set_members()
+        for k in sorted(list(outliner_set_members)):
+            value = outliner_set_members[k]
+            k = k.replace(':', ' - ') # Namespace and speudo conflict
+            menu_set[key][k] = {
+                'text': '{} ({})'.format(k.upper(), len(value)),
                 'icon': objectset_pixmap,
                 'action': functools.partial(browserwidget.init_alembic_export, k.strip(':'), value, exporter)
             }
@@ -340,36 +345,48 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver = SaverWidget(u'abc', '{}'.format(
             common.ExportsFolder), currentfile=None)
         saver.findChild(Custom).setText(key)  # Setting the group name
+
+        # Proposed filename - we're going to check in a bit if there
         file_info = SaverFileInfo(saver).fileInfo()
 
-        path = '{}/{}'.format(file_info.path(), file_info.fileName())
-        dir_ = QtCore.QFileInfo(path).dir()
-
+        dir_ = QtCore.QFileInfo(file_info.filePath()).dir()
+        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dir_.setNameFilters(('*.abc',))
         if not dir_.exists():
             raise RuntimeError(
                 'The export destination path {} does not exist.'.format(dir_.path()))
 
-        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dir_.setNameFilters(('*.abc',))
+        # Let's check if the current name is a sequence
+        current_filename_match = common.get_sequence(file_info.fileName())
+        path = file_info.fileName()
+        if current_filename_match: # sequence
+            versions = []
 
-        match2 = common.get_sequence(file_info.fileName())
-        versions = []
-        for entry in dir_.entryList():
-            # Checking if the entry is a sequence
-            match = common.get_sequence(entry)
-            if not all((match, match2)):
-                continue
+            # We're going to look for existing files and match it against the
+            # proposed filename
+            for entry in dir_.entryInfoList():
+                # Checking if the entry is a sequence
+                existing_file_match = common.get_sequence(entry.fileName())
+                if not existing_file_match:
+                    continue
 
-            # Comparing against the new version
-            if match.group(1) == match2.group(1):
-                versions.append(match.group(2))
+                # Comparing against the new version and if they're the same
+                # thread saving it
+                if existing_file_match.group(1) == current_filename_match.group(1):
+                    versions.append(existing_file_match.group(2))
 
-        if versions:
-            version = unicode(max([int(f) for f in versions])).zfill(
-                len(versions[-1]))
-            path = match.expand(
-                r'{}/\1{}\3.\4').format(file_info.path(), version)
-            saver = SaverWidget(u'abc', common.ExportsFolder, currentfile=path)
+            if versions:
+                # finding the largest version
+                version = unicode(max([int(f) for f in versions])).zfill(
+                    len(versions[-1]))
+                # Making a new filename
+                path = current_filename_match.expand(
+                    r'{}/\1{}\3.\4').format(file_info.path(), version)
+            else:
+                path = current_filename_match.expand(
+                    r'{}/\1{}\3.\4').format(file_info.path(), unicode(current_filename_match.group(2) - 1).zfill(len(current_filename_match.group(2))))
+
+        saver = SaverWidget(u'abc', common.ExportsFolder, currentfile=path)
 
         # Start save
         saver.fileSaveRequested.connect(_init_xport)
@@ -692,14 +709,55 @@ class MayaBrowserButton(BrowserButton):
             sys.stdout.write('# Browser: Could not show widget:\n{}\n'.format(err))
 
 
-class AbcExportCommand(QtCore.QObject):
-    """Wrapper class for getting the current eligible sets for export."""
+class AlembicExport(QtCore.QObject):
+    """Utility class for exporting alembic caches from maya.
+    Exportable objects are those that are in a user-added objectSet (one, that is
+    visible in the outliner.).
+
+    Prior to exporting the hierarchy will be flattened, to avoid any issues with
+    parenting.
+    """
+
+    _instance = None
+    progress = QtCore.Signal(int, int, int)
+
+    def __new__(cls, *args, **kwargs):
+        cls._instance = QtCore.QObject.__new__(cls, *args, **kwargs)
+        return cls._instance
 
     def __init__(self, parent=None):
-        super(AbcExportCommand, self).__init__(parent=parent)
+        super(AlembicExport, self).__init__(parent=parent)
+        self.time = 0.0
+        self.progress.connect(self.report_progress)
+
+    def report_progress(self, start, current, end):
+        elapsed = time.time() - self.time
+        elapsed = time.strftime('%H:%M.%Ssecs', time.localtime(elapsed))
+
+        start = int(start)
+        current = int(current)
+        end = int(end)
+
+        _current = current - start
+        _end = end - start
+
+        progress = float(_current) / float(_end) * 100
+        progress = '{}%'.format(int(progress))
+
+        msg = '\n\n# Exporting frame {current} of {end} ({progress})\n# Elapsed: {elapsed}\n\n'.format(
+            current=current,
+            end=end,
+            progress=progress,
+            elapsed=elapsed
+        )
+        sys.stdout.write(msg)
+
+    @classmethod
+    def instance(cls):
+        return cls._instance
 
     @mayacommand
-    def setFilterScript(self, cmds, name):
+    def _setFilterScript(self, cmds, name):
         """From the good folks at cgsociety - filters the in-scene sets to return
         the user-created items only.
         https://forums.cgsociety.org/t/maya-mel-python-list-object-sets-visible-in-the-dag/1586067/2
@@ -751,53 +809,91 @@ class AbcExportCommand(QtCore.QObject):
         return True
 
     @mayacommand
-    def get_dag_sets(self, cmds):
-        """Querries the scene for sets with dag objects inside."""
+    def get_outliner_set_members(self, cmds):
+        """Returns the available outliner sets and the objects inside."""
         setData = {}
-        for s in sorted([k for k in cmds.ls(sets=True) if self.setFilterScript(k)]):
+        for s in sorted([k for k in cmds.ls(sets=True) if self._setFilterScript(k)]):
             dagMembers = cmds.listConnections(u'{}.dagSetMembers'.format(s))
             # Filters
             if not dagMembers:
                 continue
-            setData[s] = u' '.join(
-                [u'-root {}'.format(cmds.ls(dag)[-1]) for dag in dagMembers])
+            setData[s] = [cmds.ls(dag)[-1] for dag in dagMembers]
         return setData
 
     @mayacommand
-    def export(self, cmds, filepath, roots, startframe, endframe, step=1.0, preroll=100.0):
-        """Main Alembic exports method."""
+    def export(self, cmds, filepath, outliner_set, startframe, endframe, step=1.0, preroll=100.0):
+        """Main Alembic exports. We will querry the outliner_set items and
+        we'll flatten the hierarchy before exporting."""
 
+        is_intermediate = lambda s: cmds.getAttr('{}.intermediateObject'.format(s))
+        is_template = lambda s: cmds.getAttr('{}.template'.format(s))
+
+        roots = []
+        for item in outliner_set:
+            relatives = cmds.listRelatives(item, shapes=True)
+            if not relatives:
+                continue
+            sources = [f for f in relatives if not is_intermediate(f) and not is_template(f)]
+            if not sources:
+                continue
+            for source in sources:
+                if not cmds.attributeQuery('worldMesh', node=source, exists=True):
+                    continue
+                dest = cmds.createNode('mesh', name='abc_{}'.format(source))
+
+                cmds.connectAttr('{}.worldMesh[0]'.format(source), '{}.inMesh'.format(dest), force=True)
+                cmds.connectAttr('{}.uvSet'.format(source), '{}.uvSet'.format(dest), force=True)
+
+                transform = cmds.listRelatives(dest, type='transform', p=True)
+                if transform:
+                    roots.append(transform[-1])
+
+        if not roots:
+            sys.stdout.write('# Alembic export: No valid root nodes were specified.\n')
+            return
+
+
+        perframecallback = '"import browser.context.mayabrowserwidget as mb; mb.AlembicExport.instance().progress.emit({}, #FRAME#, {})"'.format(int(startframe), int(endframe))
         kwargs = {
-            'jobArg': '{f} {fr} {ro} {s} {sn} {uv} {wcs} {wfs} {wfg} {ws} {wuvs} {rt} {ef} {df}'.format(
+            'jobArg': '{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {ef} {df} {pfc} {ppc}'.format(
                 f='-file {}'.format(filepath),
                 fr='-framerange {} {}'.format(startframe, endframe),
                 # frs='-framerelativesample {}'.format(1.0),
                 # no='-nonormals',
                 # uvo='-uvsonly',
                 # pr='-preroll {}'.format(bool(preroll)),
-                ro='-renderableonly',
+                # ro='-renderableonly',
                 s='-step {}'.format(step),
                 # sl='-selection {}'.format(False),
-                sn='-stripnamespaces',
+                # sn='-stripnamespaces',
                 uv='-uvwrite',
-                wcs='-writecolorsets',
-                wfs='-writefacesets',
-                wfg='-wholeframegeo',
+                # wcs='-writecolorsets',
+                # wfs='-writefacesets',
+                # wfg='-wholeframegeo',
                 ws='-worldspace',
+                wv='-writevisibility',
                 wuvs='-writeuvsets',
                 # as_='-autosubd',
                 # mfc='-melperframecallback {}'.format(''),
-                # pfc='-pythonperframecallback {}'.format(''),
+                pfc='-pythonperframecallback {}'.format(perframecallback),
+                # pfc='-pythonperframecallback {}'.format('"\'Exporting #FRAME# of {}\'"'.format(endframe)),
                 # mpc='-melpostjobcallback {}'.format(''),
-                # ppc='-pythonpostjobcallback {}'.format(''),
+                ppc='-pythonpostjobcallback {}'.format('"\'Finished alembic export!\'"'),
+                # ppc='-pythonpostjobcallback {}'.format(perframecallback),
                 # atp='-attrprefix {}'.format(''),
                 # uatp='-userattrprefix {}'.format(''),
                 # u='-userattr {}'.format(''),
-                rt=roots,
+                rt='-root {}'.format(' -root '.join(roots)),
                 ef='-eulerfilter',
                 df='-dataformat {}'.format('ogawa'),
             ),
             'preRollStartFrame': float(int(startframe - preroll)),
             'dontSkipUnwrittenFrames': True,
         }
+
+        self.time = time.time()
         cmds.AbcExport(**kwargs)
+
+        # Teardown:
+        for root in roots:
+            cmds.delete(root)

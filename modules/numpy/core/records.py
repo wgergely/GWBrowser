@@ -38,13 +38,10 @@ from __future__ import division, absolute_import, print_function
 
 import sys
 import os
-import warnings
 
 from . import numeric as sb
 from . import numerictypes as nt
-from numpy.compat import isfileobj, bytes, long, unicode, os_fspath
-from numpy.core.overrides import set_module
-from .arrayprint import get_printoptions
+from numpy.compat import isfileobj, bytes, long
 
 # All of the functions allow formats to be a dtype
 __all__ = ['record', 'recarray', 'format_parser']
@@ -83,9 +80,7 @@ def find_duplicate(list):
                 dup.append(list[i])
     return dup
 
-
-@set_module('numpy')
-class format_parser(object):
+class format_parser:
     """
     Class to convert formats, names, titles description to a dtype.
 
@@ -177,7 +172,7 @@ class format_parser(object):
         if (names):
             if (type(names) in [list, tuple]):
                 pass
-            elif isinstance(names, (str, unicode)):
+            elif isinstance(names, str):
                 names = names.split(',')
             else:
                 raise NameError("illegal input names %s" % repr(names))
@@ -227,14 +222,10 @@ class record(nt.void):
     __module__ = 'numpy'
 
     def __repr__(self):
-        if get_printoptions()['legacy'] == '1.13':
-            return self.__str__()
-        return super(record, self).__repr__()
+        return self.__str__()
 
     def __str__(self):
-        if get_printoptions()['legacy'] == '1.13':
-            return str(self.item())
-        return super(record, self).__str__()
+        return str(self.item())
 
     def __getattribute__(self, attr):
         if attr in ['setfield', 'getfield', 'dtype']:
@@ -290,8 +281,10 @@ class record(nt.void):
         # pretty-print all fields
         names = self.dtype.names
         maxlen = max(len(name) for name in names)
+        rows = []
         fmt = '%% %ds: %%s' % maxlen
-        rows = [fmt % (name, getattr(self, name)) for name in names]
+        for name in names:
+            rows.append(fmt % (name, getattr(self, name)))
         return "\n".join(rows)
 
 # The recarray is almost identical to a standard array (which supports
@@ -480,7 +473,7 @@ class recarray(ndarray):
         newattr = attr not in self.__dict__
         try:
             ret = object.__setattr__(self, attr, val)
-        except Exception:
+        except:
             fielddict = ndarray.__getattribute__(self, 'dtype').fields or {}
             if attr not in fielddict:
                 exctype, value = sys.exc_info()[:2]
@@ -494,7 +487,7 @@ class recarray(ndarray):
                 # internal attribute.
                 try:
                     object.__delattr__(self, attr)
-                except Exception:
+                except:
                     return ret
         try:
             res = fielddict[attr][:2]
@@ -532,25 +525,22 @@ class recarray(ndarray):
             if repr_dtype.type is record:
                 repr_dtype = sb.dtype((nt.void, repr_dtype))
             prefix = "rec.array("
-            fmt = 'rec.array(%s,%sdtype=%s)'
+            fmt = 'rec.array(%s, %sdtype=%s)'
         else:
             # otherwise represent it using np.array plus a view
             # This should only happen if the user is playing
             # strange games with dtypes.
             prefix = "array("
-            fmt = 'array(%s,%sdtype=%s).view(numpy.recarray)'
+            fmt = 'array(%s, %sdtype=%s).view(numpy.recarray)'
 
         # get data/shape string. logic taken from numeric.array_repr
         if self.size > 0 or self.shape == (0,):
-            lst = sb.array2string(
-                self, separator=', ', prefix=prefix, suffix=',')
+            lst = sb.array2string(self, separator=', ', prefix=prefix)
         else:
             # show zero-length shape unless it is (0,)
             lst = "[], shape=%s" % (repr(self.shape),)
 
         lf = '\n'+' '*len(prefix)
-        if get_printoptions()['legacy'] == '1.13':
-            lf = ' ' + lf  # trailing space
         return fmt % (lst, lf, repr_dtype)
 
     def field(self, attr, val=None):
@@ -679,7 +669,7 @@ def fromrecords(recList, dtype=None, shape=None, formats=None, names=None,
 
     try:
         retval = sb.array(recList, dtype=descr)
-    except (TypeError, ValueError):
+    except TypeError:  # list of lists instead of list of tuples
         if (shape is None or shape == 0):
             shape = len(recList)
         if isinstance(shape, (int, long)):
@@ -689,12 +679,6 @@ def fromrecords(recList, dtype=None, shape=None, formats=None, names=None,
         _array = recarray(shape, descr)
         for k in range(_array.size):
             _array[k] = tuple(recList[k])
-        # list of lists instead of list of tuples ?
-        # 2018-02-07, 1.14.1
-        warnings.warn(
-            "fromrecords expected a list of tuples, may have received a list "
-            "of lists instead. In the future that will raise an error",
-            FutureWarning, stacklevel=2)
         return _array
     else:
         if shape is not None and retval.shape != shape:
@@ -711,7 +695,7 @@ def fromstring(datastring, dtype=None, shape=None, offset=0, formats=None,
     a string"""
 
     if dtype is None and formats is None:
-        raise TypeError("fromstring() needs a 'dtype' or 'formats' argument")
+        raise ValueError("Must have dtype= or formats=")
 
     if dtype is not None:
         descr = sb.dtype(dtype)
@@ -738,9 +722,9 @@ def fromfile(fd, dtype=None, shape=None, offset=0, formats=None,
              names=None, titles=None, aligned=False, byteorder=None):
     """Create an array from binary file data
 
-    If file is a string or a path-like object then that file is opened,
-    else it is assumed to be a file object. The file object must
-    support random access (i.e. it must have tell and seek methods).
+    If file is a string then that file is opened, else it is assumed
+    to be a file object. The file object must support random access
+    (i.e. it must have tell and seek methods).
 
     >>> from tempfile import TemporaryFile
     >>> a = np.empty(10,dtype='f8,i4,a5')
@@ -758,23 +742,16 @@ def fromfile(fd, dtype=None, shape=None, offset=0, formats=None,
     >>> r.shape
     (10,)
     """
-    
-    if dtype is None and formats is None:
-        raise TypeError("fromfile() needs a 'dtype' or 'formats' argument")
 
     if (shape is None or shape == 0):
         shape = (-1,)
     elif isinstance(shape, (int, long)):
         shape = (shape,)
 
-    if isfileobj(fd):
-        # file already opened
-        name = 0
-    else:
-        # open file
-        fd = open(os_fspath(fd), 'rb')
+    name = 0
+    if isinstance(fd, str):
         name = 1
-
+        fd = open(fd, 'rb')
     if (offset > 0):
         fd.seek(offset, 1)
     size = get_remaining_size(fd)
@@ -786,13 +763,13 @@ def fromfile(fd, dtype=None, shape=None, offset=0, formats=None,
 
     itemsize = descr.itemsize
 
-    shapeprod = sb.array(shape).prod(dtype=nt.intp)
+    shapeprod = sb.array(shape).prod()
     shapesize = shapeprod * itemsize
     if shapesize < 0:
         shape = list(shape)
-        shape[shape.index(-1)] = size // -shapesize
+        shape[shape.index(-1)] = size / -shapesize
         shape = tuple(shape)
-        shapeprod = sb.array(shape).prod(dtype=nt.intp)
+        shapeprod = sb.array(shape).prod()
 
     nbytes = shapeprod * itemsize
 

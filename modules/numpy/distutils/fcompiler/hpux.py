@@ -39,5 +39,7 @@ class HPUXFCompiler(FCompiler):
 if __name__ == '__main__':
     from distutils import log
     log.set_verbosity(10)
-    from numpy.distutils import customized_fcompiler
-    print(customized_fcompiler(compiler='hpux').get_version())
+    from numpy.distutils.fcompiler import new_fcompiler
+    compiler = new_fcompiler(compiler='hpux')
+    compiler.customize()
+    print(compiler.get_version())

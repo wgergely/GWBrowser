@@ -23,10 +23,7 @@ class BaseIntelFCompiler(FCompiler):
                                            f + '.f', '-o', f + '.o']
 
     def runtime_library_dir_option(self, dir):
-        # TODO: could use -Xlinker here, if it's supported
-        assert "," not in dir
-
-        return '-Wl,-rpath=%s' % dir
+        return '-Wl,-rpath="%s"' % dir
 
 
 class IntelFCompiler(BaseIntelFCompiler):
@@ -61,7 +58,7 @@ class IntelFCompiler(BaseIntelFCompiler):
     def get_flags_opt(self):  # Scipy test failures with -O2
         v = self.get_version()
         mpopt = 'openmp' if v and v < '15' else 'qopenmp'
-        return ['-fp-model strict -O1 -{}'.format(mpopt)]
+        return ['-xhost -fp-model strict -O1 -{}'.format(mpopt)]
 
     def get_flags_arch(self):
         return []
@@ -218,5 +215,7 @@ class IntelEM64VisualFCompiler(IntelVisualFCompiler):
 if __name__ == '__main__':
     from distutils import log
     log.set_verbosity(2)
-    from numpy.distutils import customized_fcompiler
-    print(customized_fcompiler(compiler='intel').get_version())
+    from numpy.distutils.fcompiler import new_fcompiler
+    compiler = new_fcompiler(compiler='intel')
+    compiler.customize()
+    print(compiler.get_version())

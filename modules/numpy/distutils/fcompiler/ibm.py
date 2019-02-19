@@ -3,10 +3,9 @@ from __future__ import division, absolute_import, print_function
 import os
 import re
 import sys
-import subprocess
 
 from numpy.distutils.fcompiler import FCompiler
-from numpy.distutils.exec_command import find_executable
+from numpy.distutils.exec_command import exec_command, find_executable
 from numpy.distutils.misc_util import make_temp_file
 from distutils import log
 
@@ -36,13 +35,9 @@ class IBMFCompiler(FCompiler):
             lslpp = find_executable('lslpp')
             xlf = find_executable('xlf')
             if os.path.exists(xlf) and os.path.exists(lslpp):
-                try:
-                    o = subprocess.check_output([lslpp, '-Lc', 'xlfcmp'])
-                except (OSError, subprocess.CalledProcessError):
-                    pass
-                else:
-                    m = re.search(r'xlfcmp:(?P<version>\d+([.]\d+)+)', o)
-                    if m: version = m.group('version')
+                s, o = exec_command(lslpp + ' -Lc xlfcmp')
+                m = re.search(r'xlfcmp:(?P<version>\d+([.]\d+)+)', o)
+                if m: version = m.group('version')
 
         xlf_dir = '/etc/opt/ibmcmp/xlf'
         if version is None and os.path.isdir(xlf_dir):
@@ -95,6 +90,7 @@ class IBMFCompiler(FCompiler):
         return ['-O3']
 
 if __name__ == '__main__':
-    from numpy.distutils import customized_fcompiler
     log.set_verbosity(2)
-    print(customized_fcompiler(compiler='ibm').get_version())
+    compiler = IBMFCompiler()
+    compiler.customize()
+    print(compiler.get_version())

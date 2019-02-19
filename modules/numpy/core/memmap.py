@@ -2,10 +2,7 @@ from __future__ import division, absolute_import, print_function
 
 import numpy as np
 from .numeric import uint8, ndarray, dtype
-from numpy.compat import (
-    long, basestring, os_fspath, contextlib_nullcontext, is_pathlib_path
-)
-from numpy.core.overrides import set_module
+from numpy.compat import long, basestring, is_pathlib_path
 
 __all__ = ['memmap']
 
@@ -20,8 +17,6 @@ mode_equivalents = {
     "write":"w+"
     }
 
-
-@set_module('numpy')
 class memmap(ndarray):
     """Create a memory-map to an array stored in a *binary* file on disk.
 
@@ -39,7 +34,7 @@ class memmap(ndarray):
     This class may at some point be turned into a factory function
     which returns a view into an mmap buffer.
 
-    Delete the memmap instance to close the memmap file.
+    Delete the memmap instance to close.
 
 
     Parameters
@@ -216,69 +211,78 @@ class memmap(ndarray):
                 raise ValueError("mode must be one of %s" %
                                  (valid_filemodes + list(mode_equivalents.keys())))
 
-        if mode == 'w+' and shape is None:
+        if hasattr(filename, 'read'):
+            fid = filename
+            own_file = False
+        elif is_pathlib_path(filename):
+            fid = filename.open((mode == 'c' and 'r' or mode)+'b')
+            own_file = True
+        else:
+            fid = open(filename, (mode == 'c' and 'r' or mode)+'b')
+            own_file = True
+
+        if (mode == 'w+') and shape is None:
             raise ValueError("shape must be given")
 
-        if hasattr(filename, 'read'):
-            f_ctx = contextlib_nullcontext(filename)
+        fid.seek(0, 2)
+        flen = fid.tell()
+        descr = dtypedescr(dtype)
+        _dbytes = descr.itemsize
+
+        if shape is None:
+            bytes = flen - offset
+            if (bytes % _dbytes):
+                fid.close()
+                raise ValueError("Size of available data is not a "
+                        "multiple of the data-type size.")
+            size = bytes // _dbytes
+            shape = (size,)
         else:
-            f_ctx = open(os_fspath(filename), ('r' if mode == 'c' else mode)+'b')
+            if not isinstance(shape, tuple):
+                shape = (shape,)
+            size = 1
+            for k in shape:
+                size *= k
 
-        with f_ctx as fid:
-            fid.seek(0, 2)
-            flen = fid.tell()
-            descr = dtypedescr(dtype)
-            _dbytes = descr.itemsize
+        bytes = long(offset + size*_dbytes)
 
-            if shape is None:
-                bytes = flen - offset
-                if bytes % _dbytes:
-                    raise ValueError("Size of available data is not a "
-                            "multiple of the data-type size.")
-                size = bytes // _dbytes
-                shape = (size,)
-            else:
-                if not isinstance(shape, tuple):
-                    shape = (shape,)
-                size = np.intp(1)  # avoid default choice of np.int_, which might overflow
-                for k in shape:
-                    size *= k
+        if mode == 'w+' or (mode == 'r+' and flen < bytes):
+            fid.seek(bytes - 1, 0)
+            fid.write(b'\0')
+            fid.flush()
 
-            bytes = long(offset + size*_dbytes)
+        if mode == 'c':
+            acc = mmap.ACCESS_COPY
+        elif mode == 'r':
+            acc = mmap.ACCESS_READ
+        else:
+            acc = mmap.ACCESS_WRITE
 
-            if mode == 'w+' or (mode == 'r+' and flen < bytes):
-                fid.seek(bytes - 1, 0)
-                fid.write(b'\0')
-                fid.flush()
+        start = offset - offset % mmap.ALLOCATIONGRANULARITY
+        bytes -= start
+        array_offset = offset - start
+        mm = mmap.mmap(fid.fileno(), bytes, access=acc, offset=start)
 
-            if mode == 'c':
-                acc = mmap.ACCESS_COPY
-            elif mode == 'r':
-                acc = mmap.ACCESS_READ
-            else:
-                acc = mmap.ACCESS_WRITE
+        self = ndarray.__new__(subtype, shape, dtype=descr, buffer=mm,
+                               offset=array_offset, order=order)
+        self._mmap = mm
+        self.offset = offset
+        self.mode = mode
 
-            start = offset - offset % mmap.ALLOCATIONGRANULARITY
-            bytes -= start
-            array_offset = offset - start
-            mm = mmap.mmap(fid.fileno(), bytes, access=acc, offset=start)
+        if isinstance(filename, basestring):
+            self.filename = os.path.abspath(filename)
+        elif is_pathlib_path(filename):
+            self.filename = filename.resolve()
+        # py3 returns int for TemporaryFile().name
+        elif (hasattr(filename, "name") and
+              isinstance(filename.name, basestring)):
+            self.filename = os.path.abspath(filename.name)
+        # same as memmap copies (e.g. memmap + 1)
+        else:
+            self.filename = None
 
-            self = ndarray.__new__(subtype, shape, dtype=descr, buffer=mm,
-                                   offset=array_offset, order=order)
-            self._mmap = mm
-            self.offset = offset
-            self.mode = mode
-
-            if is_pathlib_path(filename):
-                # special case - if we were constructed with a pathlib.path,
-                # then filename is a path object, not a string
-                self.filename = filename.resolve()
-            elif hasattr(fid, "name") and isinstance(fid.name, basestring):
-                # py3 returns int for TemporaryFile().name
-                self.filename = os.path.abspath(fid.name)
-            # same as memmap copies (e.g. memmap + 1)
-            else:
-                self.filename = None
+        if own_file:
+            fid.close()
 
         return self
 

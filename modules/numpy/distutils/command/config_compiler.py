@@ -5,12 +5,9 @@ from numpy.distutils import log
 
 #XXX: Linker flags
 
-def show_fortran_compilers(_cache=None):
-    # Using cache to prevent infinite recursion.
-    if _cache:
-        return
-    elif _cache is None:
-        _cache = []
+def show_fortran_compilers(_cache=[]):
+    # Using cache to prevent infinite recursion
+    if _cache: return
     _cache.append(1)
     from numpy.distutils.fcompiler import show_fcompilers
     import distutils.core

@@ -4,20 +4,19 @@ import sys
 import warnings
 import itertools
 import platform
-import pytest
 from decimal import Decimal
 
 import numpy as np
 from numpy.core import umath
 from numpy.random import rand, randint, randn
 from numpy.testing import (
-    assert_, assert_equal, assert_raises, assert_raises_regex,
-    assert_array_equal, assert_almost_equal, assert_array_almost_equal,
-    HAS_REFCOUNT
-    )
+    TestCase, run_module_suite, assert_, assert_equal, assert_raises,
+    assert_raises_regex, assert_array_equal, assert_almost_equal,
+    assert_array_almost_equal, dec, HAS_REFCOUNT, suppress_warnings
+)
 
 
-class TestResize(object):
+class TestResize(TestCase):
     def test_copies(self):
         A = np.array([[1, 2], [3, 4]])
         Ar1 = np.array([[1, 2, 3, 4], [1, 2, 3, 4]])
@@ -35,12 +34,6 @@ class TestResize(object):
         assert_array_equal(Ar, np.array([]))
         assert_equal(A.dtype, Ar.dtype)
 
-        Ar = np.resize(A, (0, 2))
-        assert_equal(Ar.shape, (0, 2))
-
-        Ar = np.resize(A, (2, 0))
-        assert_equal(Ar.shape, (2, 0))
-
     def test_reshape_from_zero(self):
         # See also gh-6740
         A = np.zeros(0, dtype=[('a', np.float32, 1)])
@@ -49,7 +42,7 @@ class TestResize(object):
         assert_equal(A.dtype, Ar.dtype)
 
 
-class TestNonarrayArgs(object):
+class TestNonarrayArgs(TestCase):
     # check that non-array arguments to functions wrap them in arrays
     def test_choose(self):
         choices = [[0, 1, 2],
@@ -209,61 +202,45 @@ class TestNonarrayArgs(object):
             assert_(w[0].category is RuntimeWarning)
 
 
-class TestIsscalar(object):
-    def test_isscalar(self):
-        assert_(np.isscalar(3.1))
-        assert_(np.isscalar(np.int16(12345)))
-        assert_(np.isscalar(False))
-        assert_(np.isscalar('numpy'))
-        assert_(not np.isscalar([3.1]))
-        assert_(not np.isscalar(None))
-
-        # PEP 3141
-        from fractions import Fraction
-        assert_(np.isscalar(Fraction(5, 17)))
-        from numbers import Number
-        assert_(np.isscalar(Number()))
-
-
-class TestBoolScalar(object):
+class TestBoolScalar(TestCase):
     def test_logical(self):
         f = np.False_
         t = np.True_
         s = "xyz"
-        assert_((t and s) is s)
-        assert_((f and s) is f)
+        self.assertTrue((t and s) is s)
+        self.assertTrue((f and s) is f)
 
     def test_bitwise_or(self):
         f = np.False_
         t = np.True_
-        assert_((t | t) is t)
-        assert_((f | t) is t)
-        assert_((t | f) is t)
-        assert_((f | f) is f)
+        self.assertTrue((t | t) is t)
+        self.assertTrue((f | t) is t)
+        self.assertTrue((t | f) is t)
+        self.assertTrue((f | f) is f)
 
     def test_bitwise_and(self):
         f = np.False_
         t = np.True_
-        assert_((t & t) is t)
-        assert_((f & t) is f)
-        assert_((t & f) is f)
-        assert_((f & f) is f)
+        self.assertTrue((t & t) is t)
+        self.assertTrue((f & t) is f)
+        self.assertTrue((t & f) is f)
+        self.assertTrue((f & f) is f)
 
     def test_bitwise_xor(self):
         f = np.False_
         t = np.True_
-        assert_((t ^ t) is f)
-        assert_((f ^ t) is t)
-        assert_((t ^ f) is t)
-        assert_((f ^ f) is f)
+        self.assertTrue((t ^ t) is f)
+        self.assertTrue((f ^ t) is t)
+        self.assertTrue((t ^ f) is t)
+        self.assertTrue((f ^ f) is f)
 
 
-class TestBoolArray(object):
-    def setup(self):
+class TestBoolArray(TestCase):
+    def setUp(self):
         # offset for simd tests
-        self.t = np.array([True] * 41, dtype=bool)[1::]
-        self.f = np.array([False] * 41, dtype=bool)[1::]
-        self.o = np.array([False] * 42, dtype=bool)[2::]
+        self.t = np.array([True] * 41, dtype=np.bool)[1::]
+        self.f = np.array([False] * 41, dtype=np.bool)[1::]
+        self.o = np.array([False] * 42, dtype=np.bool)[2::]
         self.nm = self.f.copy()
         self.im = self.t.copy()
         self.nm[3] = True
@@ -272,31 +249,31 @@ class TestBoolArray(object):
         self.im[-2] = False
 
     def test_all_any(self):
-        assert_(self.t.all())
-        assert_(self.t.any())
-        assert_(not self.f.all())
-        assert_(not self.f.any())
-        assert_(self.nm.any())
-        assert_(self.im.any())
-        assert_(not self.nm.all())
-        assert_(not self.im.all())
+        self.assertTrue(self.t.all())
+        self.assertTrue(self.t.any())
+        self.assertFalse(self.f.all())
+        self.assertFalse(self.f.any())
+        self.assertTrue(self.nm.any())
+        self.assertTrue(self.im.any())
+        self.assertFalse(self.nm.all())
+        self.assertFalse(self.im.all())
         # check bad element in all positions
         for i in range(256 - 7):
-            d = np.array([False] * 256, dtype=bool)[7::]
+            d = np.array([False] * 256, dtype=np.bool)[7::]
             d[i] = True
-            assert_(np.any(d))
-            e = np.array([True] * 256, dtype=bool)[7::]
+            self.assertTrue(np.any(d))
+            e = np.array([True] * 256, dtype=np.bool)[7::]
             e[i] = False
-            assert_(not np.all(e))
+            self.assertFalse(np.all(e))
             assert_array_equal(e, ~d)
         # big array test for blocked libc loops
         for i in list(range(9, 6000, 507)) + [7764, 90021, -10]:
-            d = np.array([False] * 100043, dtype=bool)
+            d = np.array([False] * 100043, dtype=np.bool)
             d[i] = True
-            assert_(np.any(d), msg="%r" % i)
-            e = np.array([True] * 100043, dtype=bool)
+            self.assertTrue(np.any(d), msg="%r" % i)
+            e = np.array([True] * 100043, dtype=np.bool)
             e[i] = False
-            assert_(not np.all(e), msg="%r" % i)
+            self.assertFalse(np.all(e), msg="%r" % i)
 
     def test_logical_not_abs(self):
         assert_array_equal(~self.t, self.f)
@@ -345,12 +322,12 @@ class TestBoolArray(object):
         assert_array_equal(self.im ^ False, self.im)
 
 
-class TestBoolCmp(object):
-    def setup(self):
+class TestBoolCmp(TestCase):
+    def setUp(self):
         self.f = np.ones(256, dtype=np.float32)
-        self.ef = np.ones(self.f.size, dtype=bool)
+        self.ef = np.ones(self.f.size, dtype=np.bool)
         self.d = np.ones(128, dtype=np.float64)
-        self.ed = np.ones(self.d.size, dtype=bool)
+        self.ed = np.ones(self.d.size, dtype=np.bool)
         # generate values for all permutation of 256bit simd vectors
         s = 0
         for i in range(32):
@@ -445,35 +422,38 @@ class TestBoolCmp(object):
             assert_array_equal(np.signbit(self.signd[i:]), self.ed[i:])
 
 
-class TestSeterr(object):
+class TestSeterr(TestCase):
     def test_default(self):
         err = np.geterr()
-        assert_equal(err,
-                     dict(divide='warn',
-                          invalid='warn',
-                          over='warn',
-                          under='ignore')
-                     )
+        self.assertEqual(err, dict(
+            divide='warn',
+            invalid='warn',
+            over='warn',
+            under='ignore',
+        ))
 
     def test_set(self):
         with np.errstate():
             err = np.seterr()
             old = np.seterr(divide='print')
-            assert_(err == old)
+            self.assertTrue(err == old)
             new = np.seterr()
-            assert_(new['divide'] == 'print')
+            self.assertTrue(new['divide'] == 'print')
             np.seterr(over='raise')
-            assert_(np.geterr()['over'] == 'raise')
-            assert_(new['divide'] == 'print')
+            self.assertTrue(np.geterr()['over'] == 'raise')
+            self.assertTrue(new['divide'] == 'print')
             np.seterr(**old)
-            assert_(np.geterr() == old)
+            self.assertTrue(np.geterr() == old)
 
-    @pytest.mark.skipif(platform.machine() == "armv5tel", reason="See gh-413.")
+    @dec.skipif(platform.machine() == "armv5tel", "See gh-413.")
     def test_divide_err(self):
         with np.errstate(divide='raise'):
-            with assert_raises(FloatingPointError):
+            try:
                 np.array([1.]) / np.array([0.])
-
+            except FloatingPointError:
+                pass
+            else:
+                self.fail()
             np.seterr(divide='ignore')
             np.array([1.]) / np.array([0.])
 
@@ -486,7 +466,7 @@ class TestSeterr(object):
                 with np.errstate(divide='warn'):
                     np.seterrobj([20000, 1, None])
                     np.array([1.]) / np.array([0.])
-                    assert_equal(len(w), 1)
+                    self.assertEqual(len(w), 1)
 
             def log_err(*args):
                 self.called += 1
@@ -497,12 +477,12 @@ class TestSeterr(object):
             with np.errstate(divide='ignore'):
                 np.seterrobj([20000, 3, log_err])
                 np.array([1.]) / np.array([0.])
-            assert_equal(self.called, 1)
+            self.assertEqual(self.called, 1)
 
             np.seterrobj(olderrobj)
             with np.errstate(divide='ignore'):
                 np.divide(1., 0., extobj=[20000, 3, log_err])
-            assert_equal(self.called, 2)
+            self.assertEqual(self.called, 2)
         finally:
             np.seterrobj(olderrobj)
             del self.called
@@ -526,7 +506,7 @@ class TestSeterr(object):
             np.seterrobj(olderrobj)
 
 
-class TestFloatExceptions(object):
+class TestFloatExceptions(TestCase):
     def assert_raises_fpe(self, fpeerr, flop, x, y):
         ftype = type(x)
         try:
@@ -549,6 +529,7 @@ class TestFloatExceptions(object):
         self.assert_raises_fpe(fpeerr, flop, sc1, sc2[()])
         self.assert_raises_fpe(fpeerr, flop, sc1[()], sc2[()])
 
+    @dec.knownfailureif(True, "See ticket #2350")
     def test_floating_exceptions(self):
         # Test basic arithmetic function errors
         with np.errstate(all='raise'):
@@ -609,20 +590,20 @@ class TestFloatExceptions(object):
             warnings.simplefilter("always")
             with np.errstate(all="warn"):
                 np.divide(1, 0.)
-                assert_equal(len(w), 1)
-                assert_("divide by zero" in str(w[0].message))
+                self.assertEqual(len(w), 1)
+                self.assertTrue("divide by zero" in str(w[0].message))
                 np.array(1e300) * np.array(1e300)
-                assert_equal(len(w), 2)
-                assert_("overflow" in str(w[-1].message))
+                self.assertEqual(len(w), 2)
+                self.assertTrue("overflow" in str(w[-1].message))
                 np.array(np.inf) - np.array(np.inf)
-                assert_equal(len(w), 3)
-                assert_("invalid value" in str(w[-1].message))
+                self.assertEqual(len(w), 3)
+                self.assertTrue("invalid value" in str(w[-1].message))
                 np.array(1e-300) * np.array(1e-300)
-                assert_equal(len(w), 4)
-                assert_("underflow" in str(w[-1].message))
+                self.assertEqual(len(w), 4)
+                self.assertTrue("underflow" in str(w[-1].message))
 
 
-class TestTypes(object):
+class TestTypes(TestCase):
     def check_promotion_cases(self, promote_func):
         # tests that the scalars get coerced correctly.
         b = np.bool_(0)
@@ -813,8 +794,8 @@ class TestTypes(object):
 
     def test_can_cast(self):
         assert_(np.can_cast(np.int32, np.int64))
-        assert_(np.can_cast(np.float64, complex))
-        assert_(not np.can_cast(complex, float))
+        assert_(np.can_cast(np.float64, np.complex))
+        assert_(not np.can_cast(np.complex, np.float))
 
         assert_(np.can_cast('i8', 'f8'))
         assert_(not np.can_cast('i8', 'f4'))
@@ -885,30 +866,13 @@ class TestTypes(object):
         assert_raises(TypeError, np.can_cast, 'i4', None)
         assert_raises(TypeError, np.can_cast, None, 'i4')
 
-        # Also test keyword arguments
-        assert_(np.can_cast(from_=np.int32, to=np.int64))
-
-    def test_can_cast_values(self):
-        # gh-5917
-        for dt in np.sctypes['int'] + np.sctypes['uint']:
-            ii = np.iinfo(dt)
-            assert_(np.can_cast(ii.min, dt))
-            assert_(np.can_cast(ii.max, dt))
-            assert_(not np.can_cast(ii.min - 1, dt))
-            assert_(not np.can_cast(ii.max + 1, dt))
-
-        for dt in np.sctypes['float']:
-            fi = np.finfo(dt)
-            assert_(np.can_cast(fi.min, dt))
-            assert_(np.can_cast(fi.max, dt))
-
 
 # Custom exception class to test exception propagation in fromiter
 class NIterError(Exception):
     pass
 
 
-class TestFromiter(object):
+class TestFromiter(TestCase):
     def makegen(self):
         for x in range(24):
             yield x**2
@@ -917,25 +881,25 @@ class TestFromiter(object):
         ai32 = np.fromiter(self.makegen(), np.int32)
         ai64 = np.fromiter(self.makegen(), np.int64)
         af = np.fromiter(self.makegen(), float)
-        assert_(ai32.dtype == np.dtype(np.int32))
-        assert_(ai64.dtype == np.dtype(np.int64))
-        assert_(af.dtype == np.dtype(float))
+        self.assertTrue(ai32.dtype == np.dtype(np.int32))
+        self.assertTrue(ai64.dtype == np.dtype(np.int64))
+        self.assertTrue(af.dtype == np.dtype(float))
 
     def test_lengths(self):
         expected = np.array(list(self.makegen()))
         a = np.fromiter(self.makegen(), int)
         a20 = np.fromiter(self.makegen(), int, 20)
-        assert_(len(a) == len(expected))
-        assert_(len(a20) == 20)
-        assert_raises(ValueError, np.fromiter,
+        self.assertTrue(len(a) == len(expected))
+        self.assertTrue(len(a20) == 20)
+        self.assertRaises(ValueError, np.fromiter,
                           self.makegen(), int, len(expected) + 10)
 
     def test_values(self):
         expected = np.array(list(self.makegen()))
         a = np.fromiter(self.makegen(), int)
         a20 = np.fromiter(self.makegen(), int, 20)
-        assert_(np.alltrue(a == expected, axis=0))
-        assert_(np.alltrue(a20 == expected[:20], axis=0))
+        self.assertTrue(np.alltrue(a == expected, axis=0))
+        self.assertTrue(np.alltrue(a20 == expected[:20], axis=0))
 
     def load_data(self, n, eindex):
         # Utility method for the issue 2592 tests.
@@ -948,18 +912,18 @@ class TestFromiter(object):
     def test_2592(self):
         # Test iteration exceptions are correctly raised.
         count, eindex = 10, 5
-        assert_raises(NIterError, np.fromiter,
+        self.assertRaises(NIterError, np.fromiter,
                           self.load_data(count, eindex), dtype=int, count=count)
 
     def test_2592_edge(self):
         # Test iter. exceptions, edge case (exception at end of iterator).
         count = 10
         eindex = count-1
-        assert_raises(NIterError, np.fromiter,
+        self.assertRaises(NIterError, np.fromiter,
                           self.load_data(count, eindex), dtype=int, count=count)
 
 
-class TestNonzero(object):
+class TestNonzero(TestCase):
     def test_nonzero_trivial(self):
         assert_equal(np.count_nonzero(np.array([])), 0)
         assert_equal(np.count_nonzero(np.array([], dtype='?')), 0)
@@ -1011,11 +975,11 @@ class TestNonzero(object):
     def test_sparse(self):
         # test special sparse condition boolean code path
         for i in range(20):
-            c = np.zeros(200, dtype=bool)
+            c = np.zeros(200, dtype=np.bool)
             c[i::20] = True
             assert_equal(np.nonzero(c)[0], np.arange(i, 200 + i, 20))
 
-            c = np.zeros(400, dtype=bool)
+            c = np.zeros(400, dtype=np.bool)
             c[10 + i:20 + i] = True
             c[20 + i*2] = True
             assert_equal(np.nonzero(c)[0],
@@ -1056,10 +1020,6 @@ class TestNonzero(object):
         # either integer or tuple arguments for axis
         msg = "Mismatch for dtype: %s"
 
-        def assert_equal_w_dt(a, b, err_msg):
-            assert_equal(a.dtype, b.dtype, err_msg=err_msg)
-            assert_equal(a, b, err_msg=err_msg)
-
         for dt in np.typecodes['All']:
             err_msg = msg % (np.dtype(dt).name,)
 
@@ -1079,13 +1039,13 @@ class TestNonzero(object):
                     m[1, 0] = '1970-01-12'
                     m = m.astype(dt)
 
-                expected = np.array([2, 0, 0], dtype=np.intp)
-                assert_equal_w_dt(np.count_nonzero(m, axis=0),
-                                  expected, err_msg=err_msg)
+                expected = np.array([2, 0, 0])
+                assert_equal(np.count_nonzero(m, axis=0),
+                             expected, err_msg=err_msg)
 
-                expected = np.array([1, 1, 0], dtype=np.intp)
-                assert_equal_w_dt(np.count_nonzero(m, axis=1),
-                                  expected, err_msg=err_msg)
+                expected = np.array([1, 1, 0])
+                assert_equal(np.count_nonzero(m, axis=1),
+                             expected, err_msg=err_msg)
 
                 expected = np.array(2)
                 assert_equal(np.count_nonzero(m, axis=(0, 1)),
@@ -1100,13 +1060,13 @@ class TestNonzero(object):
                 # setup is slightly different for this dtype
                 m = np.array([np.void(1)] * 6).reshape((2, 3))
 
-                expected = np.array([0, 0, 0], dtype=np.intp)
-                assert_equal_w_dt(np.count_nonzero(m, axis=0),
-                                  expected, err_msg=err_msg)
+                expected = np.array([0, 0, 0])
+                assert_equal(np.count_nonzero(m, axis=0),
+                             expected, err_msg=err_msg)
 
-                expected = np.array([0, 0], dtype=np.intp)
-                assert_equal_w_dt(np.count_nonzero(m, axis=1),
-                                  expected, err_msg=err_msg)
+                expected = np.array([0, 0])
+                assert_equal(np.count_nonzero(m, axis=1),
+                             expected, err_msg=err_msg)
 
                 expected = np.array(0)
                 assert_equal(np.count_nonzero(m, axis=(0, 1)),
@@ -1129,7 +1089,7 @@ class TestNonzero(object):
 
         rng = np.random.RandomState(1234)
         m = rng.randint(-100, 100, size=size)
-        n = m.astype(object)
+        n = m.astype(np.object)
 
         for length in range(len(axis)):
             for combo in combinations(axis, length):
@@ -1139,10 +1099,6 @@ class TestNonzero(object):
                         np.count_nonzero(n, axis=perm),
                         err_msg=msg % (perm,))
 
-    def test_countnonzero_axis_empty(self):
-        a = np.array([[0, 0, 1], [1, 0, 1]])
-        assert_equal(np.count_nonzero(a, axis=()), a.astype(bool))
-
     def test_array_method(self):
         # Tests that the array method
         # call to nonzero works
@@ -1151,21 +1107,8 @@ class TestNonzero(object):
 
         assert_equal(m.nonzero(), tgt)
 
-    def test_nonzero_invalid_object(self):
-        # gh-9295
-        a = np.array([np.array([1, 2]), 3])
-        assert_raises(ValueError, np.nonzero, a)
 
-        class BoolErrors:
-            def __bool__(self):
-                raise ValueError("Not allowed")
-            def __nonzero__(self):
-                raise ValueError("Not allowed")
-
-        assert_raises(ValueError, np.nonzero, np.array([BoolErrors()]))
-
-
-class TestIndex(object):
+class TestIndex(TestCase):
     def test_boolean(self):
         a = rand(3, 5, 8)
         V = rand(5, 8)
@@ -1182,7 +1125,7 @@ class TestIndex(object):
         assert_equal(c.dtype, np.dtype('int32'))
 
 
-class TestBinaryRepr(object):
+class TestBinaryRepr(TestCase):
     def test_zero(self):
         assert_equal(np.binary_repr(0), '0')
 
@@ -1219,7 +1162,7 @@ class TestBinaryRepr(object):
             assert_equal(np.binary_repr(num, width=width), exp)
 
 
-class TestBaseRepr(object):
+class TestBaseRepr(TestCase):
     def test_base3(self):
         assert_equal(np.base_repr(3**5, 3), '100000')
 
@@ -1235,13 +1178,13 @@ class TestBaseRepr(object):
         assert_equal(np.base_repr(-12, 4), '-30')
 
     def test_base_range(self):
-        with assert_raises(ValueError):
+        with self.assertRaises(ValueError):
             np.base_repr(1, 1)
-        with assert_raises(ValueError):
+        with self.assertRaises(ValueError):
             np.base_repr(1, 37)
 
 
-class TestArrayComparisons(object):
+class TestArrayComparisons(TestCase):
     def test_array_equal(self):
         res = np.array_equal(np.array([1, 2]), np.array([1, 2]))
         assert_(res)
@@ -1271,6 +1214,7 @@ class TestArrayComparisons(object):
         a = np.ones(3)
         assert_equal(a == None, [False, False, False])
         assert_equal(a != None, [True, True, True])
+
 
     def test_array_equiv(self):
         res = np.array_equiv(np.array([1, 2]), np.array([1, 2]))
@@ -1315,13 +1259,13 @@ def assert_array_strict_equal(x, y):
         assert_(x.flags.writeable == y.flags.writeable)
         assert_(x.flags.c_contiguous == y.flags.c_contiguous)
         assert_(x.flags.f_contiguous == y.flags.f_contiguous)
-        assert_(x.flags.writebackifcopy == y.flags.writebackifcopy)
+        assert_(x.flags.updateifcopy == y.flags.updateifcopy)
     # check endianness
     assert_(x.dtype.isnative == y.dtype.isnative)
 
 
-class TestClip(object):
-    def setup(self):
+class TestClip(TestCase):
+    def setUp(self):
         self.nr = 5
         self.nc = 3
 
@@ -1436,7 +1380,7 @@ class TestClip(object):
         # Address Issue gh-5354 for clipping complex arrays
         # Test native complex input without explicit min/max
         # ie, either min=None or max=None
-        a = np.ones(10, dtype=complex)
+        a = np.ones(10, dtype=np.complex)
         m = a.min()
         M = a.max()
         am = self.fastclip(a, m, None)
@@ -1526,7 +1470,7 @@ class TestClip(object):
         m = -0.5
         M = 0.6
         self.fastclip(a, m, M, a)
-        self.clip(ac, m, M, ac)
+        self.clip(a, m, M, ac)
         assert_array_strict_equal(a, ac)
 
     def test_noncontig_inplace(self):
@@ -1539,7 +1483,7 @@ class TestClip(object):
         m = -0.5
         M = 0.6
         self.fastclip(a, m, M, a)
-        self.clip(ac, m, M, ac)
+        self.clip(a, m, M, ac)
         assert_array_equal(a, ac)
 
     def test_type_cast_01(self):
@@ -1718,22 +1662,6 @@ class TestClip(object):
         self.clip(a, m, M, act)
         assert_array_strict_equal(ac, act)
 
-    def test_clip_with_out_transposed(self):
-        # Test that the out argument works when tranposed
-        a = np.arange(16).reshape(4, 4)
-        out = np.empty_like(a).T
-        a.clip(4, 10, out=out)
-        expected = self.clip(a, 4, 10)
-        assert_array_equal(out, expected)
-
-    def test_clip_with_out_memory_overlap(self):
-        # Test that the out argument works when it has memory overlap
-        a = np.arange(16).reshape(4, 4)
-        ac = a.copy()
-        a[:-1].clip(4, 10, out=a[1:])
-        expected = self.clip(ac[:-1], 4, 10)
-        assert_array_equal(a[1:], expected)
-
     def test_clip_inplace_array(self):
         # Test native double input with array min/max
         a = self._generate_data(self.nr, self.nc)
@@ -1763,7 +1691,7 @@ class TestClip(object):
         a2 = np.clip(a, m, M, out=a)
         self.clip(a, m, M, ac)
         assert_array_strict_equal(a2, ac)
-        assert_(a2 is a)
+        self.assertTrue(a2 is a)
 
     def test_clip_nan(self):
         d = np.arange(7.)
@@ -1778,10 +1706,10 @@ class TestAllclose(object):
     rtol = 1e-5
     atol = 1e-8
 
-    def setup(self):
+    def setUp(self):
         self.olderr = np.seterr(invalid='ignore')
 
-    def teardown(self):
+    def tearDown(self):
         np.seterr(**self.olderr)
 
     def tst_allclose(self, x, y):
@@ -1808,7 +1736,7 @@ class TestAllclose(object):
                 (np.inf, [np.inf])]
 
         for (x, y) in data:
-            self.tst_allclose(x, y)
+            yield (self.tst_allclose, x, y)
 
     def test_ip_not_allclose(self):
         # Parametric test factory.
@@ -1829,7 +1757,7 @@ class TestAllclose(object):
                 (np.array([np.inf, 1]), np.array([0, np.inf]))]
 
         for (x, y) in data:
-            self.tst_not_allclose(x, y)
+            yield (self.tst_not_allclose, x, y)
 
     def test_no_parameter_modification(self):
         x = np.array([np.inf, 1])
@@ -1913,7 +1841,7 @@ class TestIsclose(object):
         tests = self.some_close_tests
         results = self.some_close_results
         for (x, y), result in zip(tests, results):
-            assert_array_equal(np.isclose(x, y), result)
+            yield (assert_array_equal, np.isclose(x, y), result)
 
     def tst_all_isclose(self, x, y):
         assert_(np.all(np.isclose(x, y)), "%s and %s not close" % (x, y))
@@ -1933,19 +1861,19 @@ class TestIsclose(object):
     def test_ip_all_isclose(self):
         self.setup()
         for (x, y) in self.all_close_tests:
-            self.tst_all_isclose(x, y)
+            yield (self.tst_all_isclose, x, y)
 
     def test_ip_none_isclose(self):
         self.setup()
         for (x, y) in self.none_close_tests:
-            self.tst_none_isclose(x, y)
+            yield (self.tst_none_isclose, x, y)
 
     def test_ip_isclose_allclose(self):
         self.setup()
         tests = (self.all_close_tests + self.none_close_tests +
                  self.some_close_tests)
         for (x, y) in tests:
-            self.tst_isclose_allclose(x, y)
+            yield (self.tst_isclose_allclose, x, y)
 
     def test_equal_nan(self):
         assert_array_equal(np.isclose(np.nan, np.nan, equal_nan=True), [True])
@@ -1992,13 +1920,13 @@ class TestIsclose(object):
     def test_non_finite_scalar(self):
         # GH7014, when two scalars are compared the output should also be a
         # scalar
-        assert_(np.isclose(np.inf, -np.inf) is np.False_)
-        assert_(np.isclose(0, np.inf) is np.False_)
-        assert_(type(np.isclose(0, np.inf)) is np.bool_)
+        assert_(np.isclose(np.inf, -np.inf) is False)
+        assert_(np.isclose(0, np.inf) is False)
+        assert_(type(np.isclose(0, np.inf)) is bool)
 
 
-class TestStdVar(object):
-    def setup(self):
+class TestStdVar(TestCase):
+    def setUp(self):
         self.A = np.array([1, -1, 1, -1])
         self.real_var = 1
 
@@ -2036,7 +1964,7 @@ class TestStdVar(object):
         assert_array_equal(r, out)
 
 
-class TestStdVarComplex(object):
+class TestStdVarComplex(TestCase):
     def test_basic(self):
         A = np.array([1, 1.j, -1, -1.j])
         real_var = 1
@@ -2048,10 +1976,10 @@ class TestStdVarComplex(object):
         assert_equal(np.std(1j), 0)
 
 
-class TestCreationFuncs(object):
+class TestCreationFuncs(TestCase):
     # Test ones, zeros, empty and full.
 
-    def setup(self):
+    def setUp(self):
         dtypes = {np.dtype(tp) for tp in itertools.chain(*np.sctypes.values())}
         # void, bytes, str
         variable_sized = {tp for tp in dtypes if tp.str.endswith('0')}
@@ -2104,7 +2032,7 @@ class TestCreationFuncs(object):
         self.check_function(np.full, 0)
         self.check_function(np.full, 1)
 
-    @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
+    @dec.skipif(not HAS_REFCOUNT, "python has no sys.getrefcount")
     def test_for_reference_leak(self):
         # Make sure we have an object for reference
         dim = 1
@@ -2119,10 +2047,10 @@ class TestCreationFuncs(object):
         assert_(sys.getrefcount(dim) == beg)
 
 
-class TestLikeFuncs(object):
+class TestLikeFuncs(TestCase):
     '''Test ones_like, zeros_like, empty_like and full_like'''
 
-    def setup(self):
+    def setUp(self):
         self.data = [
                 # Array scalars
                 (np.array(3.), None),
@@ -2212,16 +2140,13 @@ class TestLikeFuncs(object):
             self.compare_array_value(dz, value, fill_value)
 
         # Test the 'subok' parameter
-        class MyNDArray(np.ndarray):
-            pass
-
-        a = np.array([[1, 2], [3, 4]]).view(MyNDArray)
+        a = np.matrix([[1, 2], [3, 4]])
 
         b = like_function(a, **fill_kwarg)
-        assert_(type(b) is MyNDArray)
+        assert_(type(b) is np.matrix)
 
         b = like_function(a, subok=False, **fill_kwarg)
-        assert_(type(b) is not MyNDArray)
+        assert_(type(b) is not np.matrix)
 
     def test_ones_like(self):
         self.check_like_function(np.ones_like, 1)
@@ -2240,7 +2165,7 @@ class TestLikeFuncs(object):
         self.check_like_function(np.full_like, np.inf, True)
 
 
-class TestCorrelate(object):
+class TestCorrelate(TestCase):
     def _setup(self, dt):
         self.x = np.array([1, 2, 3, 4, 5], dtype=dt)
         self.xs = np.arange(1, 20)[::3]
@@ -2254,7 +2179,7 @@ class TestCorrelate(object):
                            -102., -54., -19.], dtype=dt)
 
     def test_float(self):
-        self._setup(float)
+        self._setup(np.float)
         z = np.correlate(self.x, self.y, 'full')
         assert_array_almost_equal(z, self.z1)
         z = np.correlate(self.x, self.y[:-1], 'full')
@@ -2283,15 +2208,15 @@ class TestCorrelate(object):
         assert_array_equal(k, np.ones(3))
 
     def test_complex(self):
-        x = np.array([1, 2, 3, 4+1j], dtype=complex)
-        y = np.array([-1, -2j, 3+1j], dtype=complex)
-        r_z = np.array([3-1j, 6, 8+1j, 11+5j, -5+8j, -4-1j], dtype=complex)
+        x = np.array([1, 2, 3, 4+1j], dtype=np.complex)
+        y = np.array([-1, -2j, 3+1j], dtype=np.complex)
+        r_z = np.array([3-1j, 6, 8+1j, 11+5j, -5+8j, -4-1j], dtype=np.complex)
         r_z = r_z[::-1].conjugate()
         z = np.correlate(y, x, mode='full')
         assert_array_almost_equal(z, r_z)
 
 
-class TestConvolve(object):
+class TestConvolve(TestCase):
     def test_object(self):
         d = [1.] * 100
         k = [1.] * 3
@@ -2333,7 +2258,7 @@ class TestStringFunction(object):
         assert_equal(str(a), "[1]")
 
 
-class TestRoll(object):
+class TestRoll(TestCase):
     def test_roll1d(self):
         x = np.arange(10)
         xr = np.roll(x, 2)
@@ -2391,7 +2316,7 @@ class TestRoll(object):
         assert_equal(np.roll(x, 1), np.array([]))
 
 
-class TestRollaxis(object):
+class TestRollaxis(TestCase):
 
     # expected shape indexed by (axis, start) for array of
     # shape (1, 2, 3, 4)
@@ -2453,7 +2378,7 @@ class TestRollaxis(object):
             assert_(not res.flags['OWNDATA'])
 
 
-class TestMoveaxis(object):
+class TestMoveaxis(TestCase):
     def test_move_to_end(self):
         x = np.random.randn(5, 6, 7)
         for source, expected in [(0, (6, 7, 5)),
@@ -2527,7 +2452,7 @@ class TestMoveaxis(object):
         assert_(isinstance(result, np.ndarray))
 
 
-class TestCross(object):
+class TestCross(TestCase):
     def test_2x2(self):
         u = [1, 2]
         v = [3, 4]
@@ -2655,7 +2580,7 @@ class TestRequire(object):
         fd = [None, 'f8', 'c16']
         for idtype, fdtype, flag in itertools.product(id, fd, self.flag_names):
             a = self.generate_all_false(idtype)
-            self.set_and_check_flag(flag, fdtype,  a)
+            yield self.set_and_check_flag, flag, fdtype,  a
 
     def test_unknown_requirement(self):
         a = self.generate_all_false('f8')
@@ -2687,10 +2612,10 @@ class TestRequire(object):
 
         for flag in self.flag_names:
             a = ArraySubclass((2, 2))
-            self.set_and_check_flag(flag, None, a)
+            yield self.set_and_check_flag, flag, None, a
 
 
-class TestBroadcast(object):
+class TestBroadcast(TestCase):
     def test_broadcast_in_args(self):
         # gh-5881
         arrs = [np.empty((6, 7)), np.empty((5, 6, 1)), np.empty((7,)),
@@ -2727,7 +2652,7 @@ class TestBroadcast(object):
                 assert_equal(mit.numiter, j)
 
 
-class TestKeepdims(object):
+class TestKeepdims(TestCase):
 
     class sub_array(np.ndarray):
         def sum(self, axis=None, dtype=None, out=None):
@@ -2739,12 +2664,5 @@ class TestKeepdims(object):
         assert_raises(TypeError, np.sum, x, keepdims=True)
 
 
-class TestTensordot(object):
-
-    def test_zero_dimension(self):
-        # Test resolution to issue #5663
-        a = np.ndarray((3,0))
-        b = np.ndarray((0,4))
-        td = np.tensordot(a, b, (1, 0))
-        assert_array_equal(td, np.dot(a, b))
-        assert_array_equal(td, np.einsum('ij,jk', a, b))
+if __name__ == "__main__":
+    run_module_suite()

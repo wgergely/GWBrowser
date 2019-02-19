@@ -6,6 +6,6 @@ from .info import __doc__
 from .fftpack import *
 from .helper import *
 
-from numpy._pytesttester import PytestTester
-test = PytestTester(__name__)
-del PytestTester
+from numpy.testing.nosetester import _numpy_tester
+test = _numpy_tester().test
+bench = _numpy_tester().bench

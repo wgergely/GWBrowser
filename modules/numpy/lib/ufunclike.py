@@ -8,10 +8,8 @@ from __future__ import division, absolute_import, print_function
 __all__ = ['fix', 'isneginf', 'isposinf']
 
 import numpy.core.numeric as nx
-from numpy.core.overrides import array_function_dispatch, ENABLE_ARRAY_FUNCTION
 import warnings
 import functools
-
 
 def _deprecate_out_named_y(f):
     """
@@ -38,34 +36,7 @@ def _deprecate_out_named_y(f):
     return func
 
 
-def _fix_out_named_y(f):
-    """
-    Allow the out argument to be passed as the name `y` (deprecated)
-
-    This decorator should only be used if _deprecate_out_named_y is used on
-    a corresponding dispatcher fucntion.
-    """
-    @functools.wraps(f)
-    def func(x, out=None, **kwargs):
-        if 'y' in kwargs:
-            # we already did error checking in _deprecate_out_named_y
-            out = kwargs.pop('y')
-        return f(x, out=out, **kwargs)
-
-    return func
-
-
-if not ENABLE_ARRAY_FUNCTION:
-    _fix_out_named_y = _deprecate_out_named_y
-
-
 @_deprecate_out_named_y
-def _dispatcher(x, out=None):
-    return (x, out)
-
-
-@array_function_dispatch(_dispatcher, verify=False, module='numpy')
-@_fix_out_named_y
 def fix(x, out=None):
     """
     Round to nearest integer towards zero.
@@ -110,9 +81,7 @@ def fix(x, out=None):
         res = res[()]
     return res
 
-
-@array_function_dispatch(_dispatcher, verify=False, module='numpy')
-@_fix_out_named_y
+@_deprecate_out_named_y
 def isposinf(x, out=None):
     """
     Test element-wise for positive infinity, return result as bool array.
@@ -147,9 +116,8 @@ def isposinf(x, out=None):
     NumPy uses the IEEE Standard for Binary Floating-Point for Arithmetic
     (IEEE 754).
 
-    Errors result if the second argument is also supplied when x is a scalar
-    input, if first and second arguments have different shapes, or if the
-    first argument has complex values
+    Errors result if the second argument is also supplied when `x` is a
+    scalar input, or if first and second arguments have different shapes.
 
     Examples
     --------
@@ -160,7 +128,7 @@ def isposinf(x, out=None):
     >>> np.isposinf(np.NINF)
     array(False, dtype=bool)
     >>> np.isposinf([-np.inf, 0., np.inf])
-    array([False, False,  True])
+    array([False, False,  True], dtype=bool)
 
     >>> x = np.array([-np.inf, 0., np.inf])
     >>> y = np.array([2, 2, 2])
@@ -170,18 +138,10 @@ def isposinf(x, out=None):
     array([0, 0, 1])
 
     """
-    is_inf = nx.isinf(x)
-    try:
-        signbit = ~nx.signbit(x)
-    except TypeError:
-        raise TypeError('This operation is not supported for complex values '
-                        'because it would be ambiguous.')
-    else:
-        return nx.logical_and(is_inf, signbit, out)
+    return nx.logical_and(nx.isinf(x), ~nx.signbit(x), out)
 
 
-@array_function_dispatch(_dispatcher, verify=False, module='numpy')
-@_fix_out_named_y
+@_deprecate_out_named_y
 def isneginf(x, out=None):
     """
     Test element-wise for negative infinity, return result as bool array.
@@ -218,8 +178,7 @@ def isneginf(x, out=None):
     (IEEE 754).
 
     Errors result if the second argument is also supplied when x is a scalar
-    input, if first and second arguments have different shapes, or if the
-    first argument has complex values.
+    input, or if first and second arguments have different shapes.
 
     Examples
     --------
@@ -230,7 +189,7 @@ def isneginf(x, out=None):
     >>> np.isneginf(np.PINF)
     array(False, dtype=bool)
     >>> np.isneginf([-np.inf, 0., np.inf])
-    array([ True, False, False])
+    array([ True, False, False], dtype=bool)
 
     >>> x = np.array([-np.inf, 0., np.inf])
     >>> y = np.array([2, 2, 2])
@@ -240,11 +199,4 @@ def isneginf(x, out=None):
     array([1, 0, 0])
 
     """
-    is_inf = nx.isinf(x)
-    try:
-        signbit = nx.signbit(x)
-    except TypeError:
-        raise TypeError('This operation is not supported for complex values '
-                        'because it would be ambiguous.')
-    else:
-        return nx.logical_and(is_inf, signbit, out)
+    return nx.logical_and(nx.isinf(x), nx.signbit(x), out)

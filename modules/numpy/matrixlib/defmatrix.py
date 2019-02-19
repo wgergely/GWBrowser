@@ -3,15 +3,10 @@ from __future__ import division, absolute_import, print_function
 __all__ = ['matrix', 'bmat', 'mat', 'asmatrix']
 
 import sys
-import warnings
 import ast
 import numpy.core.numeric as N
-from numpy.core.numeric import concatenate, isscalar
-from numpy.core.overrides import set_module
-# While not in __all__, matrix_power used to be defined here, so we import
-# it for backward compatibility.
-from numpy.linalg import matrix_power
-
+from numpy.core.numeric import concatenate, isscalar, binary_repr, identity, asanyarray
+from numpy.core.numerictypes import issubdtype
 
 def _convert_from_string(data):
     for char in '[]':
@@ -34,8 +29,6 @@ def _convert_from_string(data):
         newdata.append(newrow)
     return newdata
 
-
-@set_module('numpy')
 def asmatrix(data, dtype=None):
     """
     Interpret the input as a matrix.
@@ -70,15 +63,117 @@ def asmatrix(data, dtype=None):
     """
     return matrix(data, dtype=dtype, copy=False)
 
+def matrix_power(M, n):
+    """
+    Raise a square matrix to the (integer) power `n`.
 
-@set_module('numpy')
+    For positive integers `n`, the power is computed by repeated matrix
+    squarings and matrix multiplications. If ``n == 0``, the identity matrix
+    of the same shape as M is returned. If ``n < 0``, the inverse
+    is computed and then raised to the ``abs(n)``.
+
+    Parameters
+    ----------
+    M : ndarray or matrix object
+        Matrix to be "powered."  Must be square, i.e. ``M.shape == (m, m)``,
+        with `m` a positive integer.
+    n : int
+        The exponent can be any integer or long integer, positive,
+        negative, or zero.
+
+    Returns
+    -------
+    M**n : ndarray or matrix object
+        The return value is the same shape and type as `M`;
+        if the exponent is positive or zero then the type of the
+        elements is the same as those of `M`. If the exponent is
+        negative the elements are floating-point.
+
+    Raises
+    ------
+    LinAlgError
+        If the matrix is not numerically invertible.
+
+    See Also
+    --------
+    matrix
+        Provides an equivalent function as the exponentiation operator
+        (``**``, not ``^``).
+
+    Examples
+    --------
+    >>> from numpy import linalg as LA
+    >>> i = np.array([[0, 1], [-1, 0]]) # matrix equiv. of the imaginary unit
+    >>> LA.matrix_power(i, 3) # should = -i
+    array([[ 0, -1],
+           [ 1,  0]])
+    >>> LA.matrix_power(np.matrix(i), 3) # matrix arg returns matrix
+    matrix([[ 0, -1],
+            [ 1,  0]])
+    >>> LA.matrix_power(i, 0)
+    array([[1, 0],
+           [0, 1]])
+    >>> LA.matrix_power(i, -3) # should = 1/(-i) = i, but w/ f.p. elements
+    array([[ 0.,  1.],
+           [-1.,  0.]])
+
+    Somewhat more sophisticated example
+
+    >>> q = np.zeros((4, 4))
+    >>> q[0:2, 0:2] = -i
+    >>> q[2:4, 2:4] = i
+    >>> q # one of the three quaternion units not equal to 1
+    array([[ 0., -1.,  0.,  0.],
+           [ 1.,  0.,  0.,  0.],
+           [ 0.,  0.,  0.,  1.],
+           [ 0.,  0., -1.,  0.]])
+    >>> LA.matrix_power(q, 2) # = -np.eye(4)
+    array([[-1.,  0.,  0.,  0.],
+           [ 0., -1.,  0.,  0.],
+           [ 0.,  0., -1.,  0.],
+           [ 0.,  0.,  0., -1.]])
+
+    """
+    M = asanyarray(M)
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError("input must be a square array")
+    if not issubdtype(type(n), int):
+        raise TypeError("exponent must be an integer")
+
+    from numpy.linalg import inv
+
+    if n==0:
+        M = M.copy()
+        M[:] = identity(M.shape[0])
+        return M
+    elif n<0:
+        M = inv(M)
+        n *= -1
+
+    result = M
+    if n <= 3:
+        for _ in range(n-1):
+            result=N.dot(result, M)
+        return result
+
+    # binary decomposition to reduce the number of Matrix
+    # multiplications for n > 3.
+    beta = binary_repr(n)
+    Z, q, t = M, 0, len(beta)
+    while beta[t-q-1] == '0':
+        Z = N.dot(Z, Z)
+        q += 1
+    result = Z
+    for k in range(q+1, t):
+        Z = N.dot(Z, Z)
+        if beta[t-k-1] == '1':
+            result = N.dot(result, Z)
+    return result
+
+
 class matrix(N.ndarray):
     """
     matrix(data, dtype=None, copy=True)
-
-    .. note:: It is no longer recommended to use this class, even for linear
-              algebra. Instead use regular arrays. The class may be removed
-              in the future.
 
     Returns a matrix from an array-like object, or from a string of data.
     A matrix is a specialized 2-D array that retains its 2-D nature
@@ -115,12 +210,6 @@ class matrix(N.ndarray):
     """
     __array_priority__ = 10.0
     def __new__(subtype, data, dtype=None, copy=True):
-        warnings.warn('the matrix subclass is not the recommended way to '
-                      'represent matrices or deal with linear algebra (see '
-                      'https://docs.scipy.org/doc/numpy/user/'
-                      'numpy-for-matlab-users.html). '
-                      'Please adjust your code to use regular ndarray.',
-                      PendingDeprecationWarning, stacklevel=2)
         if isinstance(data, matrix):
             dtype2 = data.dtype
             if (dtype is None):
@@ -206,7 +295,7 @@ class matrix(N.ndarray):
             # Determine when we should have a column array
             try:
                 n = len(index)
-            except Exception:
+            except:
                 n = 0
             if n > 1 and isscalar(index[1]):
                 out.shape = (sh, 1)
@@ -238,6 +327,19 @@ class matrix(N.ndarray):
 
     def __rpow__(self, other):
         return NotImplemented
+
+    def __repr__(self):
+        s = repr(self.__array__()).replace('array', 'matrix')
+        # now, 'matrix' has 6 letters, and 'array' 5, so the columns don't
+        # line up anymore. We need to add a space.
+        l = s.splitlines()
+        for i in range(1, len(l)):
+            if l[i]:
+                l[i] = ' ' + l[i]
+        return '\n'.join(l)
+
+    def __str__(self):
+        return str(self.__array__())
 
     def _align(self, axis):
         """A convenience function for operations that need to preserve axis
@@ -597,15 +699,15 @@ class matrix(N.ndarray):
         >>> (x == y)
         matrix([[ True,  True,  True,  True],
                 [False, False, False, False],
-                [False, False, False, False]])
+                [False, False, False, False]], dtype=bool)
         >>> (x == y).all()
         False
         >>> (x == y).all(0)
-        matrix([[False, False, False, False]])
+        matrix([[False, False, False, False]], dtype=bool)
         >>> (x == y).all(1)
         matrix([[ True],
                 [False],
-                [False]])
+                [False]], dtype=bool)
 
         """
         return N.ndarray.all(self, axis, out, keepdims=True)._collapse(axis)
@@ -1028,7 +1130,6 @@ def _from_string(str, gdict, ldict):
     return concatenate(rowtup, axis=0)
 
 
-@set_module('numpy')
 def bmat(obj, ldict=None, gdict=None):
     """
     Build a matrix object from a string, nested sequence, or array.

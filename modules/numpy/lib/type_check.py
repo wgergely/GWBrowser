@@ -2,8 +2,6 @@
 
 """
 from __future__ import division, absolute_import, print_function
-import functools
-import warnings
 
 __all__ = ['iscomplexobj', 'isrealobj', 'imag', 'iscomplex',
            'isreal', 'nan_to_num', 'real', 'real_if_close',
@@ -11,21 +9,12 @@ __all__ = ['iscomplexobj', 'isrealobj', 'imag', 'iscomplex',
            'common_type']
 
 import numpy.core.numeric as _nx
-from numpy.core.numeric import asarray, asanyarray, isnan, zeros
-from numpy.core.overrides import set_module
-from numpy.core import overrides
+from numpy.core.numeric import asarray, asanyarray, array, isnan, zeros
 from .ufunclike import isneginf, isposinf
-
-
-array_function_dispatch = functools.partial(
-    overrides.array_function_dispatch, module='numpy')
-
 
 _typecodes_by_elsize = 'GDFgdfQqLlIiHhBb?'
 
-
-@set_module('numpy')
-def mintypecode(typechars, typeset='GDFgdf', default='d'):
+def mintypecode(typechars,typeset='GDFgdf',default='d'):
     """
     Return the character for the minimum-size type to which given types can
     be safely cast.
@@ -75,16 +64,13 @@ def mintypecode(typechars, typeset='GDFgdf', default='d'):
         return default
     if 'F' in intersection and 'd' in intersection:
         return 'D'
-    l = [(_typecodes_by_elsize.index(t), t) for t in intersection]
+    l = []
+    for t in intersection:
+        i = _typecodes_by_elsize.index(t)
+        l.append((i, t))
     l.sort()
     return l[0][1]
 
-
-def _asfarray_dispatcher(a, dtype=None):
-    return (a,)
-
-
-@array_function_dispatch(_asfarray_dispatcher)
 def asfarray(a, dtype=_nx.float_):
     """
     Return an array converted to a float type.
@@ -112,16 +98,12 @@ def asfarray(a, dtype=_nx.float_):
     array([ 2.,  3.])
 
     """
-    if not _nx.issubdtype(dtype, _nx.inexact):
+    dtype = _nx.obj2sctype(dtype)
+    if not issubclass(dtype, _nx.inexact):
         dtype = _nx.float_
     return asarray(a, dtype=dtype)
 
 
-def _real_dispatcher(val):
-    return (val,)
-
-
-@array_function_dispatch(_real_dispatcher)
 def real(val):
     """
     Return the real part of the complex argument.
@@ -163,11 +145,6 @@ def real(val):
         return asanyarray(val).real
 
 
-def _imag_dispatcher(val):
-    return (val,)
-
-
-@array_function_dispatch(_imag_dispatcher)
 def imag(val):
     """
     Return the imaginary part of the complex argument.
@@ -206,11 +183,6 @@ def imag(val):
         return asanyarray(val).imag
 
 
-def _is_type_dispatcher(x):
-    return (x,)
-
-
-@array_function_dispatch(_is_type_dispatcher)
 def iscomplex(x):
     """
     Returns a bool array, where True if input element is complex.
@@ -237,17 +209,15 @@ def iscomplex(x):
     Examples
     --------
     >>> np.iscomplex([1+1j, 1+0j, 4.5, 3, 2, 2j])
-    array([ True, False, False, False, False,  True])
+    array([ True, False, False, False, False,  True], dtype=bool)
 
     """
     ax = asanyarray(x)
     if issubclass(ax.dtype.type, _nx.complexfloating):
         return ax.imag != 0
     res = zeros(ax.shape, bool)
-    return res[()]   # convert to scalar if needed
+    return +res  # convet to array-scalar if needed
 
-
-@array_function_dispatch(_is_type_dispatcher)
 def isreal(x):
     """
     Returns a bool array, where True if input element is real.
@@ -273,13 +243,11 @@ def isreal(x):
     Examples
     --------
     >>> np.isreal([1+1j, 1+0j, 4.5, 3, 2, 2j])
-    array([False,  True,  True,  True,  True, False])
+    array([False,  True,  True,  True,  True, False], dtype=bool)
 
     """
     return imag(x) == 0
 
-
-@array_function_dispatch(_is_type_dispatcher)
 def iscomplexobj(x):
     """
     Check for a complex type or an array of complex numbers.
@@ -320,7 +288,6 @@ def iscomplexobj(x):
     return issubclass(type_, _nx.complexfloating)
 
 
-@array_function_dispatch(_is_type_dispatcher)
 def isrealobj(x):
     """
     Return True if x is a not complex type or an array of complex numbers.
@@ -362,28 +329,17 @@ def _getmaxmin(t):
     f = getlimits.finfo(t)
     return f.max, f.min
 
-
-def _nan_to_num_dispatcher(x, copy=None):
-    return (x,)
-
-
-@array_function_dispatch(_nan_to_num_dispatcher)
 def nan_to_num(x, copy=True):
     """
-    Replace NaN with zero and infinity with large finite numbers.
+    Replace nan with zero and inf with finite numbers.
 
-    If `x` is inexact, NaN is replaced by zero, and infinity and -infinity
-    replaced by the respectively largest and most negative finite floating
-    point values representable by ``x.dtype``.
-
-    For complex dtypes, the above is applied to each of the real and
-    imaginary components of `x` separately.
-
-    If `x` is not inexact, then no replacements are made.
+    Returns an array or scalar replacing Not a Number (NaN) with zero,
+    (positive) infinity with a very large number and negative infinity
+    with a very small (or negative) number.
 
     Parameters
     ----------
-    x : scalar or array_like
+    x : array_like
         Input data.
     copy : bool, optional
         Whether to create a copy of `x` (True) or to replace values
@@ -396,8 +352,12 @@ def nan_to_num(x, copy=True):
     Returns
     -------
     out : ndarray
-        `x`, with the non-finite values replaced. If `copy` is False, this may
-        be `x` itself.
+        New Array with the same shape as `x` and dtype of the element in
+        `x`  with the greatest precision. If `x` is inexact, then NaN is
+        replaced by zero, and infinity (-infinity) is replaced by the
+        largest (smallest or most negative) floating point value that fits
+        in the output dtype. If `x` is not inexact, then a copy of `x` is
+        returned.
 
     See Also
     --------
@@ -412,50 +372,36 @@ def nan_to_num(x, copy=True):
     NumPy uses the IEEE Standard for Binary Floating-Point for Arithmetic
     (IEEE 754). This means that Not a Number is not equivalent to infinity.
 
+
     Examples
     --------
-    >>> np.nan_to_num(np.inf)
-    1.7976931348623157e+308
-    >>> np.nan_to_num(-np.inf)
-    -1.7976931348623157e+308
-    >>> np.nan_to_num(np.nan)
-    0.0
+    >>> np.set_printoptions(precision=8)
     >>> x = np.array([np.inf, -np.inf, np.nan, -128, 128])
     >>> np.nan_to_num(x)
     array([  1.79769313e+308,  -1.79769313e+308,   0.00000000e+000,
             -1.28000000e+002,   1.28000000e+002])
-    >>> y = np.array([complex(np.inf, np.nan), np.nan, complex(np.nan, np.inf)])
-    >>> np.nan_to_num(y)
-    array([  1.79769313e+308 +0.00000000e+000j,
-             0.00000000e+000 +0.00000000e+000j,
-             0.00000000e+000 +1.79769313e+308j])
+
     """
     x = _nx.array(x, subok=True, copy=copy)
     xtype = x.dtype.type
-
-    isscalar = (x.ndim == 0)
-
     if not issubclass(xtype, _nx.inexact):
-        return x[()] if isscalar else x
+        return x
 
     iscomplex = issubclass(xtype, _nx.complexfloating)
+    isscalar = (x.ndim == 0)
 
+    x = x[None] if isscalar else x
     dest = (x.real, x.imag) if iscomplex else (x,)
     maxf, minf = _getmaxmin(x.real.dtype)
     for d in dest:
         _nx.copyto(d, 0.0, where=isnan(d))
         _nx.copyto(d, maxf, where=isposinf(d))
         _nx.copyto(d, minf, where=isneginf(d))
-    return x[()] if isscalar else x
+    return x[0] if isscalar else x
 
 #-----------------------------------------------------------------------------
 
-def _real_if_close_dispatcher(a, tol=None):
-    return (a,)
-
-
-@array_function_dispatch(_real_if_close_dispatcher)
-def real_if_close(a, tol=100):
+def real_if_close(a,tol=100):
     """
     If complex input returns a real array if complex parts are close to zero.
 
@@ -484,12 +430,12 @@ def real_if_close(a, tol=100):
     -----
     Machine epsilon varies from machine to machine and between data types
     but Python floats on most platforms have a machine epsilon equal to
-    2.2204460492503131e-16.  You can use 'np.finfo(float).eps' to print
+    2.2204460492503131e-16.  You can use 'np.finfo(np.float).eps' to print
     out the machine epsilon for floats.
 
     Examples
     --------
-    >>> np.finfo(float).eps
+    >>> np.finfo(np.float).eps
     2.2204460492503131e-16
 
     >>> np.real_if_close([2.1 + 4e-14j], tol=1000)
@@ -510,18 +456,9 @@ def real_if_close(a, tol=100):
     return a
 
 
-def _asscalar_dispatcher(a):
-    return (a,)
-
-
-@array_function_dispatch(_asscalar_dispatcher)
 def asscalar(a):
     """
     Convert an array of size 1 to its scalar equivalent.
-
-    .. deprecated:: 1.16
-
-        Deprecated, use `numpy.ndarray.item()` instead.
 
     Parameters
     ----------
@@ -540,10 +477,6 @@ def asscalar(a):
     24
 
     """
-
-    # 2018-10-10, 1.16
-    warnings.warn('np.asscalar(a) is deprecated since NumPy v1.16, use '
-                  'a.item() instead', DeprecationWarning, stacklevel=1)
     return a.item()
 
 #-----------------------------------------------------------------------------
@@ -572,7 +505,6 @@ _namefromtype = {'S1': 'character',
                  'O': 'object'
                  }
 
-@set_module('numpy')
 def typename(char):
     """
     Return a description for the given data type code.
@@ -636,13 +568,6 @@ array_precision = {_nx.half: 0,
                    _nx.csingle: 1,
                    _nx.cdouble: 2,
                    _nx.clongdouble: 3}
-
-
-def _common_type_dispatcher(*arrays):
-    return arrays
-
-
-@array_function_dispatch(_common_type_dispatcher)
 def common_type(*arrays):
     """
     Return a scalar type which is common to the input arrays.
@@ -652,8 +577,8 @@ def common_type(*arrays):
     an integer array, the minimum precision type that is returned is a
     64-bit floating point dtype.
 
-    All input arrays except int64 and uint64 can be safely cast to the
-    returned dtype without loss of information.
+    All input arrays can be safely cast to the returned dtype without loss
+    of information.
 
     Parameters
     ----------

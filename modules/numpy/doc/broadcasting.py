@@ -3,12 +3,6 @@
 Broadcasting over arrays
 ========================
 
-.. note::
-    See `this article
-    <https://numpy.org/devdocs/user/theory.broadcasting.html>`_
-    for illustrations of broadcasting concepts.
-
-
 The term broadcasting describes how numpy treats arrays with different
 shapes during arithmetic operations. Subject to certain constraints,
 the smaller array is "broadcast" across the larger array so that they
@@ -59,10 +53,9 @@ dimensions are compatible when
 2) one of them is 1
 
 If these conditions are not met, a
-``ValueError: operands could not be broadcast together`` exception is 
-thrown, indicating that the arrays have incompatible shapes. The size of 
-the resulting array is the maximum size along each dimension of the input 
-arrays.
+``ValueError: frames are not aligned`` exception is thrown, indicating that
+the arrays have incompatible shapes. The size of the resulting array
+is the maximum size along each dimension of the input arrays.
 
 Arrays do not need to have the same *number* of dimensions.  For example,
 if you have a ``256x256x3`` array of RGB values, and you want to scale
@@ -131,7 +124,7 @@ An example of broadcasting in practice::
  (5,)
 
  >>> x + y
- ValueError: operands could not be broadcast together with shapes (4,) (5,)
+ <type 'exceptions.ValueError'>: shape mismatch: objects cannot be broadcast to a single shape
 
  >>> xx.shape
  (4, 1)
@@ -177,6 +170,9 @@ outer addition operation of two 1-d arrays::
 Here the ``newaxis`` index operator inserts a new axis into ``a``,
 making it a two-dimensional ``4x1`` array.  Combining the ``4x1`` array
 with ``b``, which has shape ``(3,)``, yields a ``4x3`` array.
+
+See `this article <http://wiki.scipy.org/EricsBroadcastingDoc>`_
+for illustrations of broadcasting concepts.
 
 """
 from __future__ import division, absolute_import, print_function

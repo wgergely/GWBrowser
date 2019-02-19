@@ -4,8 +4,9 @@ import sys
 
 import numpy as np
 from numpy.testing import (
-     assert_, assert_equal, assert_array_equal, assert_raises, HAS_REFCOUNT
-    )
+     run_module_suite, assert_, assert_equal, assert_array_equal,
+     assert_raises, HAS_REFCOUNT
+)
 
 # Switch between new behaviour when NPY_RELAXED_STRIDES_CHECKING is set.
 NPY_RELAXED_STRIDES_CHECKING = np.ones((10, 1), order='C').flags.f_contiguous
@@ -223,25 +224,22 @@ def test_array_astype():
     b = a.astype('f4', subok=0, copy=False)
     assert_(a is b)
 
-    class MyNDArray(np.ndarray):
-        pass
+    a = np.matrix([[0, 1, 2], [3, 4, 5]], dtype='f4')
 
-    a = np.array([[0, 1, 2], [3, 4, 5]], dtype='f4').view(MyNDArray)
-
-    # subok=True passes through a subclass
+    # subok=True passes through a matrix
     b = a.astype('f4', subok=True, copy=False)
     assert_(a is b)
 
     # subok=True is default, and creates a subtype on a cast
     b = a.astype('i4', copy=False)
     assert_equal(a, b)
-    assert_equal(type(b), MyNDArray)
+    assert_equal(type(b), np.matrix)
 
-    # subok=False never returns a subclass
+    # subok=False never returns a matrix
     b = a.astype('f4', subok=False, copy=False)
     assert_equal(a, b)
     assert_(not (a is b))
-    assert_(type(b) is not MyNDArray)
+    assert_(type(b) is not np.matrix)
 
     # Make sure converting from string object to fixed length string
     # does not truncate.
@@ -514,3 +512,6 @@ def test_broadcast_arrays():
     result = np.broadcast_arrays(a, b)
     assert_equal(result[0], np.array([(1, 2, 3), (1, 2, 3), (1, 2, 3)], dtype='u4,u4,u4'))
     assert_equal(result[1], np.array([(1, 2, 3), (4, 5, 6), (7, 8, 9)], dtype='u4,u4,u4'))
+
+if __name__ == "__main__":
+    run_module_suite()

@@ -4,14 +4,14 @@
 from __future__ import division, absolute_import, print_function
 
 from numpy.testing import (
-    assert_equal, assert_array_equal, assert_array_max_ulp,
-    assert_array_almost_equal, assert_raises,
+    TestCase, run_module_suite, assert_equal, assert_array_equal,
+    assert_array_max_ulp, assert_array_almost_equal, assert_raises,
     )
 
 from numpy import (
-    arange, add, fliplr, flipud, zeros, ones, eye, array, diag, histogram2d,
-    tri, mask_indices, triu_indices, triu_indices_from, tril_indices,
-    tril_indices_from, vander,
+    arange, add, fliplr, flipud, zeros, ones, eye, array, diag,
+    histogram2d, tri, mask_indices, triu_indices, triu_indices_from,
+    tril_indices, tril_indices_from, vander,
     )
 
 import numpy as np
@@ -23,7 +23,7 @@ def get_mat(n):
     return data
 
 
-class TestEye(object):
+class TestEye(TestCase):
     def test_basic(self):
         assert_equal(eye(4),
                      array([[1, 0, 0, 0],
@@ -95,17 +95,8 @@ class TestEye(object):
     def test_bool(self):
         assert_equal(eye(2, 2, dtype=bool), [[True, False], [False, True]])
 
-    def test_order(self):
-        mat_c = eye(4, 3, k=-1)
-        mat_f = eye(4, 3, k=-1, order='F')
-        assert_equal(mat_c, mat_f)
-        assert mat_c.flags.c_contiguous
-        assert not mat_c.flags.f_contiguous
-        assert not mat_f.flags.c_contiguous
-        assert mat_f.flags.f_contiguous
 
-
-class TestDiag(object):
+class TestDiag(TestCase):
     def test_vector(self):
         vals = (100 * arange(5)).astype('l')
         b = zeros((5, 5))
@@ -149,12 +140,12 @@ class TestDiag(object):
         assert_equal(diag(A, k=-3), [])
 
     def test_failure(self):
-        assert_raises(ValueError, diag, [[[1]]])
+        self.assertRaises(ValueError, diag, [[[1]]])
 
 
-class TestFliplr(object):
+class TestFliplr(TestCase):
     def test_basic(self):
-        assert_raises(ValueError, fliplr, ones(4))
+        self.assertRaises(ValueError, fliplr, ones(4))
         a = get_mat(4)
         b = a[:, ::-1]
         assert_equal(fliplr(a), b)
@@ -165,7 +156,7 @@ class TestFliplr(object):
         assert_equal(fliplr(a), b)
 
 
-class TestFlipud(object):
+class TestFlipud(TestCase):
     def test_basic(self):
         a = get_mat(4)
         b = a[::-1, :]
@@ -177,7 +168,7 @@ class TestFlipud(object):
         assert_equal(flipud(a), b)
 
 
-class TestHistogram2d(object):
+class TestHistogram2d(TestCase):
     def test_simple(self):
         x = array(
             [0.41702200, 0.72032449, 1.1437481e-4, 0.302332573, 0.146755891])
@@ -208,7 +199,7 @@ class TestHistogram2d(object):
         x = array([1, 1, 2, 3, 4, 4, 4, 5])
         y = array([1, 3, 2, 0, 1, 2, 3, 4])
         H, xed, yed = histogram2d(
-            x, y, (6, 5), range=[[0, 6], [0, 5]], density=True)
+            x, y, (6, 5), range=[[0, 6], [0, 5]], normed=True)
         answer = array(
             [[0., 0, 0, 0, 0],
              [0, 1, 0, 1, 0],
@@ -220,11 +211,11 @@ class TestHistogram2d(object):
         assert_array_equal(xed, np.linspace(0, 6, 7))
         assert_array_equal(yed, np.linspace(0, 5, 6))
 
-    def test_density(self):
+    def test_norm(self):
         x = array([1, 2, 3, 1, 2, 3, 1, 2, 3])
         y = array([1, 1, 1, 2, 2, 2, 3, 3, 3])
         H, xed, yed = histogram2d(
-            x, y, [[1, 2, 3, 5], [1, 2, 3, 5]], density=True)
+            x, y, [[1, 2, 3, 5], [1, 2, 3, 5]], normed=True)
         answer = array([[1, 1, .5],
                         [1, 1, .5],
                         [.5, .5, .25]])/9.
@@ -244,37 +235,37 @@ class TestHistogram2d(object):
 
     def test_binparameter_combination(self):
         x = array(
-            [0, 0.09207008, 0.64575234, 0.12875982, 0.47390599,
+            [0, 0.09207008,  0.64575234,  0.12875982,  0.47390599,
              0.59944483, 1])
         y = array(
-            [0, 0.14344267, 0.48988575, 0.30558665, 0.44700682,
+            [0, 0.14344267,  0.48988575,  0.30558665,  0.44700682,
              0.15886423, 1])
         edges = (0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)
         H, xe, ye = histogram2d(x, y, (edges, 4))
         answer = array(
-            [[2., 0., 0., 0.],
-             [0., 1., 0., 0.],
-             [0., 0., 0., 0.],
-             [0., 0., 0., 0.],
-             [0., 1., 0., 0.],
-             [1., 0., 0., 0.],
-             [0., 1., 0., 0.],
-             [0., 0., 0., 0.],
-             [0., 0., 0., 0.],
-             [0., 0., 0., 1.]])
+            [[ 2.,  0.,  0.,  0.],
+             [ 0.,  1.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.],
+             [ 0.,  1.,  0.,  0.],
+             [ 1.,  0.,  0.,  0.],
+             [ 0.,  1.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.],
+             [ 0.,  0.,  0.,  1.]])
         assert_array_equal(H, answer)
         assert_array_equal(ye, array([0., 0.25, 0.5, 0.75, 1]))
         H, xe, ye = histogram2d(x, y, (4, edges))
         answer = array(
-            [[1., 1., 0., 1., 0., 0., 0., 0., 0., 0.],
-             [0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
-             [0., 1., 0., 0., 1., 0., 0., 0., 0., 0.],
-             [0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]])
+            [[ 1.,  1.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.],
+             [ 0.,  1.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.],
+             [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.]])
         assert_array_equal(H, answer)
         assert_array_equal(xe, array([0., 0.25, 0.5, 0.75, 1]))
 
 
-class TestTri(object):
+class TestTri(TestCase):
     def test_dtype(self):
         out = array([[1, 0, 0],
                      [1, 1, 0],
@@ -288,11 +279,11 @@ def test_tril_triu_ndim2():
         a = np.ones((2, 2), dtype=dtype)
         b = np.tril(a)
         c = np.triu(a)
-        assert_array_equal(b, [[1, 0], [1, 1]])
-        assert_array_equal(c, b.T)
+        yield assert_array_equal, b, [[1, 0], [1, 1]]
+        yield assert_array_equal, c, b.T
         # should return the same dtype as the original array
-        assert_equal(b.dtype, a.dtype)
-        assert_equal(c.dtype, a.dtype)
+        yield assert_equal, b.dtype, a.dtype
+        yield assert_equal, c.dtype, a.dtype
 
 
 def test_tril_triu_ndim3():
@@ -314,11 +305,10 @@ def test_tril_triu_ndim3():
             ], dtype=dtype)
         a_triu_observed = np.triu(a)
         a_tril_observed = np.tril(a)
-        assert_array_equal(a_triu_observed, a_triu_desired)
-        assert_array_equal(a_tril_observed, a_tril_desired)
-        assert_equal(a_triu_observed.dtype, a.dtype)
-        assert_equal(a_tril_observed.dtype, a.dtype)
-
+        yield assert_array_equal, a_triu_observed, a_triu_desired
+        yield assert_array_equal, a_tril_observed, a_tril_desired
+        yield assert_equal, a_triu_observed.dtype, a.dtype
+        yield assert_equal, a_tril_observed.dtype, a.dtype
 
 def test_tril_triu_with_inf():
     # Issue 4859
@@ -359,10 +349,10 @@ def test_mask_indices():
     # simple test without offset
     iu = mask_indices(3, np.triu)
     a = np.arange(9).reshape(3, 3)
-    assert_array_equal(a[iu], array([0, 1, 2, 4, 5, 8]))
+    yield (assert_array_equal, a[iu], array([0, 1, 2, 4, 5, 8]))
     # Now with an offset
     iu1 = mask_indices(3, np.triu, 1)
-    assert_array_equal(a[iu1], array([1, 2, 5]))
+    yield (assert_array_equal, a[iu1], array([1, 2, 5]))
 
 
 def test_tril_indices():
@@ -379,37 +369,37 @@ def test_tril_indices():
     b = np.arange(1, 21).reshape(4, 5)
 
     # indexing:
-    assert_array_equal(a[il1],
-                       array([1, 5, 6, 9, 10, 11, 13, 14, 15, 16]))
-    assert_array_equal(b[il3],
-                       array([1, 6, 7, 11, 12, 13, 16, 17, 18, 19]))
+    yield (assert_array_equal, a[il1],
+           array([1, 5, 6, 9, 10, 11, 13, 14, 15, 16]))
+    yield (assert_array_equal, b[il3],
+           array([1, 6, 7, 11, 12, 13, 16, 17, 18, 19]))
 
     # And for assigning values:
     a[il1] = -1
-    assert_array_equal(a,
-                       array([[-1, 2, 3, 4],
-                              [-1, -1, 7, 8],
-                              [-1, -1, -1, 12],
-                              [-1, -1, -1, -1]]))
+    yield (assert_array_equal, a,
+           array([[-1, 2, 3, 4],
+                  [-1, -1, 7, 8],
+                  [-1, -1, -1, 12],
+                  [-1, -1, -1, -1]]))
     b[il3] = -1
-    assert_array_equal(b,
-                       array([[-1, 2, 3, 4, 5],
-                              [-1, -1, 8, 9, 10],
-                              [-1, -1, -1, 14, 15],
-                              [-1, -1, -1, -1, 20]]))
+    yield (assert_array_equal, b,
+           array([[-1, 2, 3, 4, 5],
+                  [-1, -1, 8, 9, 10],
+                  [-1, -1, -1, 14, 15],
+                  [-1, -1, -1, -1, 20]]))
     # These cover almost the whole array (two diagonals right of the main one):
     a[il2] = -10
-    assert_array_equal(a,
-                       array([[-10, -10, -10, 4],
-                              [-10, -10, -10, -10],
-                              [-10, -10, -10, -10],
-                              [-10, -10, -10, -10]]))
+    yield (assert_array_equal, a,
+           array([[-10, -10, -10, 4],
+                  [-10, -10, -10, -10],
+                  [-10, -10, -10, -10],
+                  [-10, -10, -10, -10]]))
     b[il4] = -10
-    assert_array_equal(b,
-                       array([[-10, -10, -10, 4, 5],
-                              [-10, -10, -10, -10, 10],
-                              [-10, -10, -10, -10, -10],
-                              [-10, -10, -10, -10, -10]]))
+    yield (assert_array_equal, b,
+           array([[-10, -10, -10, 4, 5],
+                  [-10, -10, -10, -10, 10],
+                  [-10, -10, -10, -10, -10],
+                  [-10, -10, -10, -10, -10]]))
 
 
 class TestTriuIndices(object):
@@ -426,40 +416,39 @@ class TestTriuIndices(object):
         b = np.arange(1, 21).reshape(4, 5)
 
         # Both for indexing:
-        assert_array_equal(a[iu1],
-                           array([1, 2, 3, 4, 6, 7, 8, 11, 12, 16]))
-        assert_array_equal(b[iu3],
-                           array([1, 2, 3, 4, 5, 7, 8, 9,
-                                  10, 13, 14, 15, 19, 20]))
+        yield (assert_array_equal, a[iu1],
+               array([1, 2, 3, 4, 6, 7, 8, 11, 12, 16]))
+        yield (assert_array_equal, b[iu3],
+               array([1, 2, 3, 4, 5, 7, 8, 9, 10, 13, 14, 15, 19, 20]))
 
         # And for assigning values:
         a[iu1] = -1
-        assert_array_equal(a,
-                           array([[-1, -1, -1, -1],
-                                  [5, -1, -1, -1],
-                                  [9, 10, -1, -1],
-                                  [13, 14, 15, -1]]))
+        yield (assert_array_equal, a,
+               array([[-1, -1, -1, -1],
+                      [5, -1, -1, -1],
+                      [9, 10, -1, -1],
+                      [13, 14, 15, -1]]))
         b[iu3] = -1
-        assert_array_equal(b,
-                           array([[-1, -1, -1, -1, -1],
-                                  [6, -1, -1, -1, -1],
-                                  [11, 12, -1, -1, -1],
-                                  [16, 17, 18, -1, -1]]))
+        yield (assert_array_equal, b,
+               array([[-1, -1, -1, -1, -1],
+                      [6, -1, -1, -1, -1],
+                      [11, 12, -1, -1, -1],
+                      [16, 17, 18, -1, -1]]))
 
         # These cover almost the whole array (two diagonals right of the
         # main one):
         a[iu2] = -10
-        assert_array_equal(a,
-                           array([[-1, -1, -10, -10],
-                                  [5, -1, -1, -10],
-                                  [9, 10, -1, -1],
-                                  [13, 14, 15, -1]]))
+        yield (assert_array_equal, a,
+               array([[-1, -1, -10, -10],
+                      [5, -1, -1, -10],
+                      [9, 10, -1, -1],
+                      [13, 14, 15, -1]]))
         b[iu4] = -10
-        assert_array_equal(b,
-                           array([[-1, -1, -10, -10, -10],
-                                  [6, -1, -1, -10, -10],
-                                  [11, 12, -1, -1, -10],
-                                  [16, 17, 18, -1, -1]]))
+        yield (assert_array_equal, b,
+               array([[-1, -1, -10, -10, -10],
+                      [6, -1, -1, -10, -10],
+                      [11, 12, -1, -1, -10],
+                      [16, 17, 18, -1, -1]]))
 
 
 class TestTrilIndicesFrom(object):
@@ -485,12 +474,12 @@ class TestVander(object):
                            [16, -8, 4, -2, 1],
                            [81, 27, 9, 3, 1]])
         # Check default value of N:
-        assert_array_equal(v, powers[:, 1:])
+        yield (assert_array_equal, v, powers[:, 1:])
         # Check a range of N values, including 0 and 5 (greater than default)
         m = powers.shape[1]
         for n in range(6):
             v = vander(c, N=n)
-            assert_array_equal(v, powers[:, m-n:m])
+            yield (assert_array_equal, v, powers[:, m-n:m])
 
     def test_dtypes(self):
         c = array([11, -12, 13], dtype=np.int8)
@@ -498,7 +487,7 @@ class TestVander(object):
         expected = np.array([[121, 11, 1],
                              [144, -12, 1],
                              [169, 13, 1]])
-        assert_array_equal(v, expected)
+        yield (assert_array_equal, v, expected)
 
         c = array([1.0+1j, 1.0-1j])
         v = vander(c, N=3)
@@ -507,4 +496,8 @@ class TestVander(object):
         # The data is floating point, but the values are small integers,
         # so assert_array_equal *should* be safe here (rather than, say,
         # assert_array_almost_equal).
-        assert_array_equal(v, expected)
+        yield (assert_array_equal, v, expected)
+
+
+if __name__ == "__main__":
+    run_module_suite()

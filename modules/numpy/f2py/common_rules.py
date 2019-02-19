@@ -31,9 +31,11 @@ from .crackfortran import rmbadname
 def findcommonblocks(block, top=1):
     ret = []
     if hascommon(block):
-        for key, value in block['common'].items():
-            vars_ = {v: block['vars'][v] for v in value}
-            ret.append((key, value, vars_))
+        for n in block['common'].keys():
+            vars = {}
+            for v in block['common'][n]:
+                vars[v] = block['vars'][v]
+            ret.append((n, block['common'][n], vars))
     elif hasbody(block):
         for b in block['body']:
             ret = ret + findcommonblocks(b, 0)

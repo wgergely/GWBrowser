@@ -8,7 +8,7 @@ __docformat__ = "restructuredtext en"
 import sys
 import numpy as np
 import numpy.core.numeric as nx
-from numpy.compat import asbytes, asunicode, bytes, basestring
+from numpy.compat import asbytes, bytes, asbytes_nested, basestring
 
 if sys.version_info[0] >= 3:
     from builtins import bool, int, float, complex, object, str
@@ -17,30 +17,15 @@ else:
     from __builtin__ import bool, int, float, complex, object, unicode, str
 
 
-def _decode_line(line, encoding=None):
-    """Decode bytes from binary input streams.
+if sys.version_info[0] >= 3:
+    def _bytes_to_complex(s):
+        return complex(s.decode('ascii'))
 
-    Defaults to decoding from 'latin1'. That differs from the behavior of
-    np.compat.asunicode that decodes from 'ascii'.
-
-    Parameters
-    ----------
-    line : str or bytes
-         Line to be decoded.
-
-    Returns
-    -------
-    decoded_line : unicode
-         Unicode in Python 2, a str (unicode) in Python 3.
-
-    """
-    if type(line) is bytes:
-        if encoding is None:
-            line = line.decode('latin1')
-        else:
-            line = line.decode(encoding)
-
-    return line
+    def _bytes_to_name(s):
+        return s.decode('ascii')
+else:
+    _bytes_to_complex = complex
+    _bytes_to_name = str
 
 
 def _is_string_like(obj):
@@ -204,14 +189,12 @@ class LineSplitter(object):
         return lambda input: [_.strip() for _ in method(input)]
     #
 
-    def __init__(self, delimiter=None, comments='#', autostrip=True, encoding=None):
-        delimiter = _decode_line(delimiter)
-        comments = _decode_line(comments)
-
+    def __init__(self, delimiter=None, comments=b'#', autostrip=True):
         self.comments = comments
-
         # Delimiter is a character
-        if (delimiter is None) or isinstance(delimiter, basestring):
+        if isinstance(delimiter, unicode):
+            delimiter = delimiter.encode('ascii')
+        if (delimiter is None) or _is_bytes_like(delimiter):
             delimiter = delimiter or None
             _handyman = self._delimited_splitter
         # Delimiter is a list of field widths
@@ -230,14 +213,12 @@ class LineSplitter(object):
             self._handyman = self.autostrip(_handyman)
         else:
             self._handyman = _handyman
-        self.encoding = encoding
     #
 
     def _delimited_splitter(self, line):
-        """Chop off comments, strip, and split at delimiter. """
         if self.comments is not None:
             line = line.split(self.comments)[0]
-        line = line.strip(" \r\n")
+        line = line.strip(b" \r\n")
         if not line:
             return []
         return line.split(self.delimiter)
@@ -246,7 +227,7 @@ class LineSplitter(object):
     def _fixedwidth_splitter(self, line):
         if self.comments is not None:
             line = line.split(self.comments)[0]
-        line = line.strip("\r\n")
+        line = line.strip(b"\r\n")
         if not line:
             return []
         fixed = self.delimiter
@@ -264,7 +245,7 @@ class LineSplitter(object):
     #
 
     def __call__(self, line):
-        return self._handyman(_decode_line(line, self.encoding))
+        return self._handyman(line)
 
 
 class NameValidator(object):
@@ -453,9 +434,9 @@ def str2bool(value):
 
     """
     value = value.upper()
-    if value == 'TRUE':
+    if value == b'TRUE':
         return True
-    elif value == 'FALSE':
+    elif value == b'FALSE':
         return False
     else:
         raise ValueError("Invalid boolean")
@@ -529,10 +510,8 @@ class StringConverter(object):
         Value to return by default, that is, when the string to be
         converted is flagged as missing. If not given, `StringConverter`
         tries to supply a reasonable default value.
-    missing_values : {None, sequence of str}, optional
-        ``None`` or sequence of strings indicating a missing value. If ``None``
-        then missing values are indicated by empty entries. The default is
-        ``None``.
+    missing_values : sequence of str, optional
+        Sequence of strings indicating a missing value.
     locked : bool, optional
         Whether the StringConverter should be locked to prevent automatic
         upgrade or not. Default is False.
@@ -548,10 +527,9 @@ class StringConverter(object):
         _mapper.append((nx.int64, int, -1))
 
     _mapper.extend([(nx.floating, float, nx.nan),
-                    (nx.complexfloating, complex, nx.nan + 0j),
+                    (complex, _bytes_to_complex, nx.nan + 0j),
                     (nx.longdouble, nx.longdouble, nx.nan),
-                    (nx.unicode_, asunicode, '???'),
-                    (nx.string_, asbytes, '???')])
+                    (nx.string_, bytes, b'???')])
 
     (_defaulttype, _defaultfunc, _defaultfill) = zip(*_mapper)
 
@@ -623,6 +601,11 @@ class StringConverter(object):
 
     def __init__(self, dtype_or_func=None, default=None, missing_values=None,
                  locked=False):
+        # Convert unicode (for Py3)
+        if isinstance(missing_values, unicode):
+            missing_values = asbytes(missing_values)
+        elif isinstance(missing_values, (list, tuple)):
+            missing_values = asbytes_nested(missing_values)
         # Defines a lock for upgrade
         self._locked = bool(locked)
         # No input dtype: minimal initialization
@@ -648,7 +631,7 @@ class StringConverter(object):
                 # None
                 if default is None:
                     try:
-                        default = self.func('0')
+                        default = self.func(b'0')
                     except ValueError:
                         default = None
                 dtype = self._getdtype(default)
@@ -693,11 +676,11 @@ class StringConverter(object):
                     self.func = lambda x: int(float(x))
         # Store the list of strings corresponding to missing values.
         if missing_values is None:
-            self.missing_values = {''}
+            self.missing_values = set([b''])
         else:
-            if isinstance(missing_values, basestring):
-                missing_values = missing_values.split(",")
-            self.missing_values = set(list(missing_values) + [''])
+            if isinstance(missing_values, bytes):
+                missing_values = missing_values.split(b",")
+            self.missing_values = set(list(missing_values) + [b''])
         #
         self._callingfunction = self._strict_call
         self.type = self._dtypeortype(dtype)
@@ -818,7 +801,7 @@ class StringConverter(object):
             self.iterupgrade(value)
 
     def update(self, func, default=None, testing_value=None,
-               missing_values='', locked=False):
+               missing_values=b'', locked=False):
         """
         Set StringConverter attributes directly.
 
@@ -834,9 +817,8 @@ class StringConverter(object):
             A string representing a standard input value of the converter.
             This string is used to help defining a reasonable default
             value.
-        missing_values : {sequence of str, None}, optional
-            Sequence of strings indicating a missing value. If ``None``, then
-            the existing `missing_values` are cleared. The default is `''`.
+        missing_values : sequence of str, optional
+            Sequence of strings indicating a missing value.
         locked : bool, optional
             Whether the StringConverter should be locked to prevent
             automatic upgrade or not. Default is False.
@@ -850,29 +832,25 @@ class StringConverter(object):
         """
         self.func = func
         self._locked = locked
-
         # Don't reset the default to None if we can avoid it
         if default is not None:
             self.default = default
             self.type = self._dtypeortype(self._getdtype(default))
         else:
             try:
-                tester = func(testing_value or '1')
+                tester = func(testing_value or b'1')
             except (TypeError, ValueError):
                 tester = None
             self.type = self._dtypeortype(self._getdtype(tester))
-
-        # Add the missing values to the existing set or clear it.
-        if missing_values is None:
-            # Clear all missing values even though the ctor initializes it to
-            # set(['']) when the argument is None.
-            self.missing_values = set()
+        # Add the missing values to the existing set
+        if missing_values is not None:
+            if _is_bytes_like(missing_values):
+                self.missing_values.add(missing_values)
+            elif hasattr(missing_values, '__iter__'):
+                for val in missing_values:
+                    self.missing_values.add(val)
         else:
-            if not np.iterable(missing_values):
-                missing_values = [missing_values]
-            if not all(isinstance(v, basestring) for v in missing_values):
-                raise TypeError("missing_values must be strings or unicode")
-            self.missing_values.update(missing_values)
+            self.missing_values = []
 
 
 def easy_dtype(ndtype, names=None, defaultfmt="f%i", **validationargs):

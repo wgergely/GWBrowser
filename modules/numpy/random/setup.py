@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 
-from os.path import join
+from os.path import join, split, dirname
+import os
 import sys
 from distutils.dep_util import newer
 from distutils.msvccompiler import get_build_version as get_msvc_build_version

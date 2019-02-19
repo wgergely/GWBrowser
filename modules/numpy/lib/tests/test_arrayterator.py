@@ -46,3 +46,7 @@ def test():
 
     # Check that all elements are iterated correctly
     assert_(list(c.flat) == list(d.flat))
+
+if __name__ == '__main__':
+    from numpy.testing import run_module_suite
+    run_module_suite()
