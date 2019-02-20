@@ -17,7 +17,7 @@ os.environ['PATH'] = '{};{}'.format(path, os.environ['PATH'])
 # Numpy
 path = QtCore.QFileInfo(u'{}/../modules'.format(browser.__file__))
 path = QtCore.QDir.toNativeSeparators(path.absoluteFilePath())
-sys.path.append(path)
+sys.path.insert(0, path)
 
 path = QtCore.QFileInfo(u'{}/../modules/bin'.format(browser.__file__))
 path = QtCore.QDir.toNativeSeparators(path.absoluteFilePath())
