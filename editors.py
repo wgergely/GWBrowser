@@ -9,7 +9,8 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
 from browser.settings import AssetSettings
-
+import browser.modules
+from browser.utils.utils import generate_thumbnail
 
 class ClickableLabel(QtWidgets.QLabel):
     clicked = QtCore.Signal()
@@ -180,8 +181,6 @@ class PickThumbnailDialog(QtWidgets.QFileDialog):
             return
 
         # Saving the thumbnail
-        import browser.modules
-        from browser.utils.utils import generate_thumbnail
         generate_thumbnail(
             next(f for f in self.selectedFiles()),
             AssetSettings(index).thumbnail_path()
