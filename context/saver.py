@@ -815,6 +815,8 @@ class SaverWidget(QtWidgets.QDialog):
     """Contains the header and the saver widgets."""
 
     fileSaveRequested = QtCore.Signal(basestring)
+    fileDescriptionAdded = QtCore.Signal(basestring)
+    fileThumbnailAdded = QtCore.Signal(basestring)
 
     def __init__(self, extension, location, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
@@ -1085,15 +1087,15 @@ class SaverWidget(QtWidgets.QDialog):
         if not bookmarkswidget.active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
-                u'Bookmarks not selected.', u'', parent=self).exec_()
+                u'', u'Unable to save as the destination bookmark has not yet been selected.', parent=self).exec_()
         elif not assetswidget.active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
-                u'', u'Asset not selected.', parent=self).exec_()
+                u'', u'Unable to save as the destination asset has not yet been selected.', parent=self).exec_()
         elif not folderswidget.active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
-                u'', u'Fodler not selected.', parent=self).exec_()
+                u'', u'Unable to save as the destination folder inside the asset has not yet been selected.', parent=self).exec_()
 
         self.fileSaveRequested.emit(SaverFileInfo(self).fileInfo().filePath())
         self.close()
