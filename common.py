@@ -235,8 +235,8 @@ def _add_custom_fonts():
 
     font_families = []
     for f in d.entryInfoList(
-        QtCore.QDir.Files |
-        QtCore.QDir.NoDotAndDotDot
+        QtCore.QDir.Files
+        | QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
         font_families.append(
@@ -395,7 +395,7 @@ def delete_image(path, delete_file=True):
         if ':' in k:
             elem = k.split(':')[-1]
             if 'BackgroundColor' in elem:
-                IMAGE_CACHE[k] = QtGui.QColor(0,0,0,0)
+                IMAGE_CACHE[k] = QtGui.QColor(0, 0, 0, 0)
             else:
                 cache_placeholder(path, k, int(elem))
         # del IMAGE_CACHE[k]
@@ -567,9 +567,9 @@ def count_assets(path):
     """Returns the number of assets inside the given folder."""
     dir_ = QtCore.QDir(path)
     dir_.setFilter(
-        QtCore.QDir.NoDotAndDotDot |
-        QtCore.QDir.Dirs |
-        QtCore.QDir.Readable
+        QtCore.QDir.NoDotAndDotDot
+        | QtCore.QDir.Dirs
+        | QtCore.QDir.Readable
     )
 
     # Counting the number assets found
@@ -608,7 +608,8 @@ def reveal(path):
                 QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
         return QtCore.QProcess.startDetached(u'osascript', args)
     else:
-        raise NotImplementedError('{} os has not been implemented.'.format(QtCore.QSysInfo().productType()))
+        raise NotImplementedError('{} os has not been implemented.'.format(
+            QtCore.QSysInfo().productType()))
 
 
 NoHighlightFlag = 0b000000
@@ -653,11 +654,15 @@ HIGHLIGHT_RULES = {
     },
 }
 
-# def convertToHtml(text)
-
 
 def get_ranges(arr, padding):
-    """Examines a sequence of numbers and returnsa string representation."""
+    """Given an array of numbers the method will return a string representation.
+
+    Args:
+        arr (list):       An array of numbers
+        padding (int):    The number of leading zeros before the number.
+
+    """
     arr = sorted(list(set(arr)))
     blocks = {}
     k = 0
@@ -674,10 +679,6 @@ def get_ranges(arr, padding):
     return u','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
-def get_valid_filename(text):
-    return ValidFilenameRegex.search(text)
-
-
 ValidFilenameRegex = re.compile(
     r'\/([^_]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$', flags=re.IGNORECASE)
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
@@ -685,25 +686,76 @@ SequenceStartRegex = re.compile(
     r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
 SequenceEndRegex = re.compile(
     r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
-# If a string denotes a sequence the match should return 4 groups:
-# $1[#]$3.$4  # beginning of string, sequence number, string following the sequence number, extension (without the '.')
 GetSequenceRegex = re.compile(
     r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
 
 
+def get_valid_filename(text):
+    """This method will check if the given text conforms Browser's enforced
+    filenaming convention.
+
+    A valid ``match`` object if true, ``None`` if the text is invalid.
+
+    Match:
+        group(1):   The job's short name, between 1 and 3 characters.
+        group(2):   The current asset-name, between 1 and 12 characters.
+        group(3):   The current asset mode, eg. 'animation', between 1 and 12 characters.
+        group(4):   The custom descirption of the file, between 1-25 characters.
+        group(5):   The file's version. Has to be exactly 3 characters.
+        group(6):   The name of the user.
+        group(7):   The file's extension (without the '.')
+
+    Returns:
+        A valid ``match`` object if true, ``None`` if the text is invalid.
+
+    """
+    return ValidFilenameRegex.search(text)
+
+
 def get_sequence(text):
-    """Returs the number to increment of a filename."""
+    """This method will check if the given text contains a sequence element.
+
+    In Browser's terms, a sequence is an file that has a valid number element
+    that can be inremented.
+    There can only be `one` number element - it will always be the number at the
+    end of the file-name, closest to the extension.
+
+    Match:
+        group(1):   All the character `before` the sequence.
+        group(2):   The sequence number.
+        group(3):   All the characters after the sequence number.
+
+    Returns:
+        A valid ``match`` object if true or ``None`` if the text doesn't contain
+        a number.
+
+    """
     return GetSequenceRegex.search(text)
 
 
 def is_collapsed(text):
-    """Checks if the given path is collapsed."""
+    """In Browser's terminology, a `collapsed` item is a name that represents a
+    sequence. Sequence are annoted by a series of numbers contained inside a bracket.
+
+    Eg.: `[001-050]`
+
+    Match:
+        group(1):   All the character `before` the sequence marker.
+        group(2):   The sequence marker (eg. `[1-50]`).
+        group(3):   All the characters after the sequence marker.
+
+    Returns:
+        A valid ``match`` object if true or ``None`` if the text doesn't is not
+        a collapsed sequence.
+
+    """
     return IsSequenceRegex.search(text)
 
 
 def get_sequence_startpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
-    the first item.
+    the first file.
+
     """
     if not is_collapsed(path):
         return path
@@ -716,7 +768,8 @@ def get_sequence_startpath(path):
 
 def get_sequence_endpath(path):
     """Checks the given string and if it denotes a seuqence returns the path for
-    the first item.
+    the last file.
+
     """
     if not is_collapsed(path):
         return path
@@ -775,6 +828,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
     painter.restore()
 
+
 class QSingleton(type(QtCore.QObject)):
     """Singleton metaclass for QWidgets.
     # WARNING: DONT USE, kills plugin-reload in Maya.
@@ -790,7 +844,6 @@ class QSingleton(type(QtCore.QObject)):
             cls._instances[cls] = super(
                 QSingleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
 
 
 # Label LABEL_COLORS
