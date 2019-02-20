@@ -398,7 +398,6 @@ def delete_image(path, delete_file=True):
                 IMAGE_CACHE[k] = QtGui.QColor(0, 0, 0, 0)
             else:
                 cache_placeholder(path, k, int(elem))
-        # del IMAGE_CACHE[k]
 
 
 def label_generator():

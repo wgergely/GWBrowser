@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
 
-"""Browser's custom saver widget.
+"""Browser's custom saver widget. The widget will take into consideration the
+currently set active paths and will try to return an appropiate save-path.
+
+It is possible to add an option ``currentfile`` when initiating the saver.
+Saver will then try to factor in the given files current location and version number.
+(this will be incremented by +1).
 
 Note:
     The widget itself will only return a filepath and is not performing any save
@@ -10,10 +15,14 @@ Note:
     When the selection is made by the user the ``SaverWidget.fileSaveRequested``
     signal is emitted with the output path.
 
+    The set description and image will be emited by the ``fileThumbnailAdded`` and
+    ``fileDescriptionAdded`` signals.
+
 """
 
 
 import re
+import uuid
 import collections
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -34,9 +43,13 @@ from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
 from browser.capture import ScreenGrabber
 from browser.settings import MarkedAsActive, MarkedAsArchived
 
+from browser.utils.utils import generate_thumbnail
+from browser.settings import AssetSettings
+
 
 class ThumbnailContextMenu(BaseContextMenu):
     """Context menu associated with the thumbnail."""
+
     def __init__(self, parent=None):
         super(ThumbnailContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
@@ -93,6 +106,24 @@ class ThumbnailButton(ClickableLabel):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
+
+
+class Progressbar(QtWidgets.QLabel):
+    def __init__(self, parent=None):
+        super(BaseCombobox, self).__init__(parent=parent)
+        self.setFixedHeight(common.INDICATOR_WIDTH)
+        self.setFixedWidth(0)
+
+        self.setStyleSheet(
+            """QLabel{{
+                margin: 0px;
+                padding: 0px;
+                border: none;
+                outline: none;
+                background-color: rgba({});
+            }}""".format(
+                '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            ))
 
 
 class BaseCombobox(QtWidgets.QComboBox):
@@ -364,12 +395,10 @@ class FoldersWidget(BaseCombobox):
         self.model().setRootPath(path)
         self.setRootModelIndex(self.model().index(path))
 
-        # location = '{}/abc'.format(self.window().location) if isexport else self.window().location
-        # path = u'/'.join(list(asset) + [location, ])
         self.override = False
 
         if self.window().location == common.ExportsFolder:
-            path = u'/'.join(list(asset) + [self.window().location, 'abc'])
+            path = u'/'.join(list(asset) + [self.window().location, self.window().extension])
         # When currentfile is set, we want to match a folder inside to root,
         if self.diff(asset):
             index = self.model().index('{}/{}'.format(path, self.diff(asset)))
@@ -556,27 +585,74 @@ class SaverHeaderWidget(HeaderWidget):
 
 
 class SaverFileInfo(QtCore.QObject):
-    """Utility class responsible for getting the currently set path components."""
+    """A FileInfo-like class responsible for getting the currently set file-path
+    components.
+
+    Methods:
+        fileInfo():     QFileInfo instance with the current path choice.
+        path():         The path of the current choice without the filename.
+        fileName():     The filename without the path.
+
+    """
 
     def __init__(self, parent):
         super(SaverFileInfo, self).__init__(parent=parent)
 
-    def fileInfo(self):
-        """Returns the path as a QFileInfo instance"""
-        return QtCore.QFileInfo('{}/{}'.format(self.path(), self.fileName()))
-
-    def path(self):
-        """Returns the path() element of the set path."""
+    def _new(self):
+        """Creates a new filename based on the currently set properties."""
         paths = self._paths()
-        arr = []
-        for k in paths:
-            if not paths[k]:
-                break
-            arr.append(paths[k])
-        return u'/'.join(arr).rstrip(u'/')
+
+        custom = self.parent().window().findChild(Custom).text()
+        regex = re.compile(r'[^0-9a-z]+', flags=re.IGNORECASE)
+        job = regex.sub(u'', paths[u'job'])[
+            :3] if paths[u'job'] else u'gw'
+
+        asset = regex.sub(u'', paths[u'asset'])[
+            :12] if paths[u'asset'] else u'sandbox'
+
+        folder = paths['folder'].split(
+            u'/')[0] if paths['folder'] else self.parent().window().location
+        folder = regex.sub(u'', folder)[
+            :12] if folder else self.parent().window().location
+
+        custom = custom if custom else u'untitled'
+        custom = regex.sub(u'-', custom)[:25]
+
+        version = u'001'
+
+        user = next(f for f in QtCore.QStandardPaths.standardLocations(
+            QtCore.QStandardPaths.HomeLocation))
+        user = QtCore.QFileInfo(user).fileName()
+        user = regex.sub(u'', user)
+        # Numbers are not allowed in the username
+        user = re.sub(r'[0-9]+', u'', user)
+
+        isexport = self.parent().window().location == common.ExportsFolder
+        folder = self.parent().window().extension if isexport else folder
+        return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
+            job=job,
+            asset=asset,
+            folder=folder,
+            custom=custom,
+            version=version,
+            user=user,
+            ext=self.parent().window().extension,
+        )
+
+    def _increment_sequence(self, currentfile):
+        """Increments the version of the current file by 1."""
+        file_info = QtCore.QFileInfo(currentfile)
+        match = common.get_sequence(file_info.fileName())
+
+        if not match:
+            return currentfile
+
+        version = '{}'.format(int(match.group(2))
+                              + 1).zfill(len(match.group(2)))
+        return match.expand(r'\1{}\3.\4').format(version)
 
     def _paths(self):
-        """Private method querries the ui choices and constructs a valid path"""
+        """Private method querries the ui choices and constructs a valid path."""
         bookmarkswidget = self.parent().window().findChild(BookmarksWidget)
         assetswidget = self.parent().window().findChild(AssetsWidget)
         folderswidget = self.parent().window().findChild(FoldersWidget)
@@ -639,6 +715,20 @@ class SaverFileInfo(QtCore.QObject):
 
         return paths
 
+    def fileInfo(self):
+        """Returns the path as a QFileInfo instance"""
+        return QtCore.QFileInfo('{}/{}'.format(self.path(), self.fileName()))
+
+    def path(self):
+        """Returns the path() element of the set path."""
+        paths = self._paths()
+        arr = []
+        for k in paths:
+            if not paths[k]:
+                break
+            arr.append(paths[k])
+        return u'/'.join(arr).rstrip(u'/')
+
     def fileName(self, style=common.LowerCase):
         """The main method to get the new file's filename."""
         currentfile = self.parent().window().currentfile
@@ -651,8 +741,8 @@ class SaverFileInfo(QtCore.QObject):
                 # Not including the username if the destination is the exports folder
                 filename = match.expand(r'\1_\2_\3_{}_{}_\6.\7'.format(
                     custom if custom else u'untitled',
-                    u'{}'.format(int(match.group(5)) +
-                                 1).zfill(len(match.group(5)))
+                    u'{}'.format(int(match.group(5))
+                                 + 1).zfill(len(match.group(5)))
                 ))
             else:
                 filename = self._increment_sequence(currentfile)
@@ -663,64 +753,32 @@ class SaverFileInfo(QtCore.QObject):
             filename = filename.lower()
         elif style == common.UpperCase:
             filename = filename.upper()
-
         return filename
 
-    def _new(self):
-        """Creates a new filename based on the currently set properties."""
-        paths = self._paths()
 
-        custom = self.parent().window().findChild(Custom).text()
-        regex = re.compile(r'[^0-9a-z]+', flags=re.IGNORECASE)
-        job = regex.sub(u'', paths[u'job'])[
-            :3] if paths[u'job'] else u'gw'
+class DescriptionEditor(QtWidgets.QLineEdit):
+    """Editor widget to input the description of the file."""
 
-        asset = regex.sub(u'', paths[u'asset'])[
-            :12] if paths[u'asset'] else u'sandbox'
-
-        folder = paths['folder'].split(
-            u'/')[0] if paths['folder'] else self.parent().window().location
-        folder = regex.sub(u'', folder)[
-            :12] if folder else self.parent().window().location
-
-        custom = custom if custom else u'untitled'
-        custom = regex.sub(u'-', custom)[:25]
-
-        version = u'001'
-
-        user = next(f for f in QtCore.QStandardPaths.standardLocations(
-            QtCore.QStandardPaths.HomeLocation))
-        user = QtCore.QFileInfo(user).fileName()
-        user = regex.sub(u'', user)
-        # Numbers are not allowed in the username
-        user = re.sub(r'[0-9]+', u'', user)
-
-        isexport = self.parent().window().location == common.ExportsFolder
-        folder = self.parent().window().extension if isexport else folder
-        return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
-            job=job,
-            asset=asset,
-            folder=folder,
-            custom=custom,
-            version=version,
-            user=user,
-            ext=self.parent().window().extension,
-        )
-
-    def _increment_sequence(self, currentfile):
-        file_info = QtCore.QFileInfo(currentfile)
-        match = common.get_sequence(file_info.fileName())
-
-        if not match:
-            return currentfile
-
-        version = '{}'.format(int(match.group(2)) +
-                              1).zfill(len(match.group(2)))
-        print match.groups()
-        return match.expand(r'\1{}\3.\4').format(version)
+    def __init__(self, parent=None):
+        super(DescriptionEditor, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Description...')
+        self.setStyleSheet("""QLineEdit {{
+            background-color: rgba(0,0,0,0);
+            border-bottom: 2px solid rgba(0,0,0,50);
+            padding: 0px;
+            margin: 0px;
+            color: rgba({});
+            font-family: "{}";
+            font-size: 11pt;
+        }}""".format(
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.PrimaryFont.family()
+        ))
 
 
 class BaseNameLabel(QtWidgets.QLabel):
+    """Baselabel to display the current filename."""
+
     def __init__(self, parent=None):
         super(BaseNameLabel, self).__init__(parent=parent)
         self.setTextFormat(QtCore.Qt.RichText)
@@ -737,13 +795,15 @@ class BaseNameLabel(QtWidgets.QLabel):
 
 
 class Prefix(BaseNameLabel):
+    """Displays the first parth of the filename."""
+
     def __init__(self, parent=None):
         super(Prefix, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
 
 
 class Custom(QtWidgets.QLineEdit):
-    """Editor widget for editing the custom filename component."""
+    """Widget for editing the custom filename component."""
 
     def __init__(self, parent=None):
         super(Custom, self).__init__(parent=parent)
@@ -793,12 +853,16 @@ class Custom(QtWidgets.QLineEdit):
 
 
 class Suffix(BaseNameLabel):
+    """Label containing the end of the filename string."""
+
     def __init__(self, parent=None):
         super(Suffix, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
 
 
 class Check(ClickableLabel):
+    """The checkbox button."""
+
     def __init__(self, parent=None):
         super(Check, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignCenter)
@@ -812,11 +876,21 @@ class Check(ClickableLabel):
 
 
 class SaverWidget(QtWidgets.QDialog):
-    """Contains the header and the saver widgets."""
+    """The save dialog to save a file.
+    Contains the header and the saver widgets needed to select the desired path.
 
+    When done() is called, the widget will emit the ``fileSaveRequested``,
+    ``fileDescriptionAdded`` and ``fileThumbnailAdded`` signals.
+
+    The latter two will emit a tuple of paths (bookmark, file path) the data to
+    be provide the information needed to initialize an AssetSettings instance.
+
+    """
+
+    # Signals
     fileSaveRequested = QtCore.Signal(basestring)
-    fileDescriptionAdded = QtCore.Signal(basestring)
-    fileThumbnailAdded = QtCore.Signal(basestring)
+    fileDescriptionAdded = QtCore.Signal(tuple)
+    fileThumbnailAdded = QtCore.Signal(tuple)
 
     def __init__(self, extension, location, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
@@ -827,69 +901,13 @@ class SaverWidget(QtWidgets.QDialog):
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint
+            QtCore.Qt.Window
+            | QtCore.Qt.FramelessWindowHint
         )
 
         self._createUI()
         self._connectSignals()
         self._set_initial_state()
-
-    def pick_thumbnail(self):
-        """Prompt to select an image file."""
-        dialog = QtWidgets.QFileDialog(parent=self)
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter(u'Image files (*.png *.jpg  *.jpeg)')
-
-        # Setting the dialog's root path
-        dialog.setDirectory(SaverFileInfo(self).path())
-        dialog.setOption(
-            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
-
-        if not dialog.exec_():
-            return
-        if not dialog.selectedFiles():
-            return
-
-        # Saving the thumbnail
-        image = QtGui.QImage()
-        image.load(next(f for f in dialog.selectedFiles()))
-
-        if image.isNull():
-            return
-
-        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
-        self.set_image(image)
-
-    def capture_thumbnail(self):
-        pixmap = ScreenGrabber.capture()
-
-        if not pixmap:
-            return
-        if pixmap.isNull():
-            return
-
-        image = common.resize_image(pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
-        self.set_image(image)
-
-    def set_image(self, image):
-        self.thumbnail_image = image
-
-        thumbnail = self.findChild(ThumbnailButton)
-        image = common.resize_image(image, thumbnail.height())
-
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-        background = common.get_color_average(image)
-
-        thumbnail.setPixmap(pixmap)
-        thumbnail.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
-            '{},{},{},{}'.format(*background.getRgb())
-        ))
-
-
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -928,21 +946,7 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
         column.layout().addWidget(row, 1)
         #
-        editor = QtWidgets.QLineEdit(parent=self)
-        editor.setPlaceholderText(u'Description...')
-        editor.setStyleSheet("""QLineEdit {{
-            background-color: rgba(0,0,0,0);
-            border-bottom: 2px solid rgba(0,0,0,50);
-            padding: 0px;
-            margin: 0px;
-            color: rgba({});
-            font-family: "{}";
-            font-size: 11pt;
-        }}""".format(
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            common.PrimaryFont.family()
-        ))
-
+        editor = DescriptionEditor(parent=self)
         row.layout().addWidget(editor, 1)
         row.layout().addWidget(BookmarksWidget(parent=self))
         row.layout().addWidget(AssetsWidget(parent=self))
@@ -990,6 +994,7 @@ class SaverWidget(QtWidgets.QDialog):
         self.layout().addWidget(statusbar, 1)
 
     def _set_initial_state(self):
+        """Checks the models' active items and sets the ui elements accordingly."""
         bookmarkswidget = self.findChild(BookmarksWidget)
         assetswidget = self.findChild(AssetsWidget)
         folderswidget = self.findChild(FoldersWidget)
@@ -1003,7 +1008,10 @@ class SaverWidget(QtWidgets.QDialog):
             folderswidget.set_asset(asset)
 
             if self.currentfile:  # Selecting the currentfile folder
+                # if self.location == common.ExportsFolder:
+                #     path = u'/'.join(list(asset) + [self.location, self.extension])
                 path = u'/'.join(list(asset) + [self.location, ])
+
                 currentfile = QtCore.QFileInfo(
                     self.currentfile).path()
                 if path in currentfile:
@@ -1025,6 +1033,20 @@ class SaverWidget(QtWidgets.QDialog):
             # Checking if the reference file has a valid pattern
             match = common.get_valid_filename(self.currentfile)
             self.findChild(Custom).setHidden(False)
+
+            # Thumbnail
+            bookmark = bookmarkswidget.active_index()
+            if bookmark.isValid():
+                bookmark = bookmark.data(common.ParentRole)
+                if all(bookmark):
+                    settings = AssetSettings(
+                        (bookmark[0], bookmark[1], bookmark[2], self.currentfile))
+                    if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+                        image = QtGui.QImage()
+                        image.load(settings.thumbnail_path())
+                        if not image.isNull():
+                            self.thumbnail_image = image
+                            self.update_thumbnail_preview()
             if match:
                 self.findChild(Custom).setHidden(False)
                 self.findChild(Custom).setText(match.group(4))
@@ -1035,6 +1057,66 @@ class SaverWidget(QtWidgets.QDialog):
 
         self.update_filename_display()
         self.update_filepath_display()
+
+    def pick_thumbnail(self):
+        """Prompt to select an image file."""
+        dialog = QtWidgets.QFileDialog(parent=self)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilter(
+            u'Image files (*.png *.jpg *.jpeg *.tiff *.tff *.tga *.psd *.exr *.tx *.dpx)')
+
+        # Setting the dialog's root path
+        dialog.setDirectory(SaverFileInfo(self).path())
+        dialog.setOption(
+            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
+
+        if not dialog.exec_():
+            return
+        if not dialog.selectedFiles():
+            return
+
+        temp_path = '{}/browser_temp_thumbnail_{}.png'.format(
+            QtCore.QDir.tempPath(), uuid.uuid1())
+        generate_thumbnail(next(f for f in dialog.selectedFiles()), temp_path)
+
+        self.thumbnail_image = QtGui.QImage()
+        self.thumbnail_image.load(temp_path)
+        self.update_thumbnail_preview()
+
+    def capture_thumbnail(self):
+        """Captures a thumbnail."""
+        pixmap = ScreenGrabber.capture()
+
+        if not pixmap:
+            return
+        if pixmap.isNull():
+            return
+
+        image = common.resize_image(
+            pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+        self.thumbnail_image = image
+        self.update_thumbnail_preview()
+
+    def update_thumbnail_preview(self):
+        """Displays the selected thumbnail image."""
+        if not self.thumbnail_image:
+            return
+        if self.thumbnail_image.isNull():
+            return
+        # Resizing for display
+        thumbnail = self.findChild(ThumbnailButton)
+        image = common.resize_image(self.thumbnail_image, thumbnail.height())
+
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
+        background = common.get_color_average(image)
+
+        thumbnail.setPixmap(pixmap)
+        thumbnail.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
+            '{},{},{},{}'.format(*background.getRgb())
+        ))
 
     def update_filepath_display(self, *args, **kwargs):
         """Slot responsible for updating the file-path display."""
@@ -1079,7 +1161,11 @@ class SaverWidget(QtWidgets.QDialog):
         ))
         return prefix, suffix
 
-    def _done(self):
+    def done(self, result):
+        """Slot called by the check button to initiate the save."""
+        if result == QtWidgets.QDialog.Rejected:
+            return super(SaverWidget, self).done(result)
+
         bookmarkswidget = self.findChild(BookmarksWidget)
         assetswidget = self.findChild(AssetsWidget)
         folderswidget = self.findChild(FoldersWidget)
@@ -1097,11 +1183,45 @@ class SaverWidget(QtWidgets.QDialog):
                 QtWidgets.QMessageBox.NoIcon,
                 u'', u'Unable to save as the destination folder inside the asset has not yet been selected.', parent=self).exec_()
 
-        self.fileSaveRequested.emit(SaverFileInfo(self).fileInfo().filePath())
-        self.close()
+        file_info = SaverFileInfo(self).fileInfo()
+
+        # Let's check if we're not overwriding a file by accident
+        if file_info.exists():
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setWindowTitle(u'File exists already')
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setText(
+                u'{} already exists.'.format(file_info.fileName())
+            )
+            mbox.setInformativeText(
+                u'If you decide to proceed the existing file will be overriden. Are you sure you want to continue?')
+            mbox.setStandardButtons(
+                QtWidgets.QMessageBox.Save
+                | QtWidgets.QMessageBox.Cancel
+            )
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+            if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
+                return
+
+        bookmark = bookmarkswidget.active_index().data(common.ParentRole)
+        # Let's broadcast these settings
+        self.fileSaveRequested.emit(file_info.filePath())
+        self.fileThumbnailAdded.emit((
+            bookmark[0],
+            bookmark[1],
+            bookmark[2],
+            file_info.filePath(),
+            self.thumbnail_image))
+        self.fileDescriptionAdded.emit((
+            bookmark[0],
+            bookmark[1],
+            bookmark[2],
+            file_info.filePath(),
+            self.findChild(DescriptionEditor).text()))
+
+        super(SaverWidget, self).done(result)
 
     def _connectSignals(self):
-        headerwidget = self.findChild(SaverHeaderWidget)
         closebutton = self.findChild(CloseButton)
         bookmarkswidget = self.findChild(BookmarksWidget)
         assetswidget = self.findChild(AssetsWidget)
@@ -1113,9 +1233,9 @@ class SaverWidget(QtWidgets.QDialog):
         custom = self.findChild(Custom)
         check = self.findChild(Check)
 
-        check.clicked.connect(self._done)
-        # Closes the dialog
-        closebutton.clicked.connect(self.close)
+        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
+        closebutton.clicked.connect(
+            lambda: self.done(QtWidgets.QDialog.Rejected))
         # Picks a thumbnail
         thumbnailbutton.clicked.connect(self.pick_thumbnail)
 
@@ -1138,12 +1258,14 @@ class SaverWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    currentfile = u'//gordo/jobs/tkwwbk_8077/build2/asset_one/scenes/carlos/test/job_asset_location_new__filename_002_gergely.ma'
+    currentfile = '//gordo/jobs/bemusic_8283/assets/trumpet/exports/bem_trumpet_scenes_untitled_001_freelance.obj'
 
-    widget = SaverWidget(u'ma', common.ExportsFolder, currentfile=None)
+    widget = SaverWidget(u'obj', common.ExportsFolder, currentfile=currentfile)
 
     def func(path):
         print path
     widget.fileSaveRequested.connect(func)
+    widget.fileThumbnailAdded.connect(func)
+    widget.fileDescriptionAdded.connect(func)
     widget.show()
     app.exec_()

@@ -655,7 +655,6 @@ class BaseModel(QtCore.QAbstractItemModel):
     def directory_changed(self, path):
         """Slot connected to the file monitor's folderChanged signal."""
         # First I have to find which location this path is associated with
-
         def _get_location(path):
             for location in self._model_data:
                 data = self._model_data[location][True]
@@ -892,7 +891,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy_model)
         self.model().sort()
 
-        self.model().sourceModel().grouppingChanged.connect(self.reselect_previous_path)
+        self.model().sourceModel().grouppingChanged.connect(self.select_path)
         self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
 
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
@@ -1070,17 +1069,23 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
         self.model().sort()
-        self.reselect_previous_path()
+        self.select_path()
 
         self.model().sourceModel()._last_refreshed[self.model().sourceModel().get_location()] = time.time()
 
-    def reselect_previous_path(self):
-        """Reselects the index based on the path given."""
-        if not self._previouspathtoselect:
+    def select_path(self, path=None):
+        """Selects an item of the given path if found. This method is called
+        by a few signals, usually after a refresh has been triggered.
+
+        ``_previouspathtoselect`` is automatically set when the ``modelDataAboutToChange``
+        signal is emited.
+
+        """
+        path = path if path else self._previouspathtoselect
+        if path is None:
             return
 
-        path = common.get_sequence_endpath(self._previouspathtoselect)
-
+        path = common.get_sequence_endpath(path)
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0, parent=QtCore.QModelIndex())
 

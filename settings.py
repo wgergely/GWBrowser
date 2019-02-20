@@ -196,7 +196,8 @@ class AssetSettings(QtCore.QSettings):
     """
 
     def __init__(self, index, parent=None):
-        """Init accepts either a model index or a tuple."""
+        """Primarily expects a QModelIndex but when it's not possible to provide,
+        it takes a tuple of server, job, root, full filepath. variables."""
         if isinstance(index, QtCore.QModelIndex):
             self._root = u'{server}/{job}/{root}'.format(
                 server=index.data(common.ParentRole)[0],

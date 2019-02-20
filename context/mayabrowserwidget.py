@@ -12,37 +12,23 @@ import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-try:
-    from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-    from maya.app.general.mayaMixin import mixinWorkspaceControls
-    import maya.OpenMayaUI as OpenMayaUI
-    import maya.OpenMaya as OpenMaya
-    from shiboken2 import wrapInstance
-except ImportError:
-    sys.stderr.write('# Browser context error.\n\n')
-    raise ImportError(
-        ':( This widget can only be initiated from within Maya compiled with PySide2.')
+from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+from maya.app.general.mayaMixin import mixinWorkspaceControls
+import maya.OpenMayaUI as OpenMayaUI
+import maya.OpenMaya as OpenMaya
+from shiboken2 import wrapInstance
+import maya.cmds as cmds
 
 import browser.common as common
 
 from browser.baselistwidget import BaseContextMenu
-from browser.browserwidget import BrowserWidget, BrowserButton
+from browser.browserwidget import BrowserWidget, BrowserButton, ListControlWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.settings import local_settings
 from browser.context.saver import SaverWidget, SaverFileInfo, Custom
-
-
-def mayacommand(func):
-    """Decorator responsible for importing the ``Maya commands`` module."""
-    @wraps(func)
-    def func_wrapper(self, *args, **kwargs):
-        try:
-            import maya.cmds
-            return func(self, maya.cmds, *args, **kwargs)
-        except ImportError:
-            raise ImportError('Couldn\'t import the Maya commands module')
-    return func_wrapper
+from browser.context.mayaexporter import BaseExporter, AlembicExport
+from browser.settings import AssetSettings
 
 
 def contextmenu(func):
@@ -50,7 +36,6 @@ def contextmenu(func):
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         menu_set = collections.OrderedDict()
-        menu_set['__separator__'] = None
         parent = self.parent().parent().parent().parent()
 
         menu_set = func(self, menu_set, *args, browserwidget=parent, **kwargs)
@@ -69,72 +54,25 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(MayaBrowserWidgetContextMenu, self).__init__(
             index, parent=parent)
-
-        self.add_writealembic_menu()
-        self.add_objexport_menu()
-        self.add_save_as_menu()
+        # Scenes
         if index.isValid():
             if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
                 self.add_scenes_menu()
-            elif self.parent().model().sourceModel().get_location() == common.ExportsFolder:
-                self.add_alembic_menu()
+        self.add_save_as_menu()
+
+        self.add_separator()
+
+        # Caches
+        if index.isValid():
+            if self.parent().model().sourceModel().get_location() == common.ExportsFolder:
+                self.add_readalembic_menu()
+
+        self.add_writealembic_menu()
+        self.add_writeobj_menu()
+
 
     @contextmenu
-    @mayacommand
-    def add_objexport_menu(self, cmds, menu_set, browserwidget=None):
-        if not cmds.ls(selection=True):
-            return menu_set
-        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
-        menu_set['obj'] = {
-            'text': 'Export obj...',
-            'icon': objectset_pixmap,
-            'action': lambda: browserwidget.init_obj_export()
-        }
-        return menu_set
-
-    @contextmenu
-    @mayacommand
-    def add_writealembic_menu(self, cmds, menu_set, browserwidget=None):
-        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
-        exporter = AlembicExport()
-
-        key = 'alembic'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = 'Export alembic...'
-
-        outliner_set_members = exporter.get_outliner_set_members()
-        for k in sorted(list(outliner_set_members)):
-            value = outliner_set_members[k]
-            k = k.replace(':', ' - ') # Namespace and speudo conflict
-            menu_set[key][k] = {
-                'text': '{} ({})'.format(k.upper(), len(value)),
-                'icon': objectset_pixmap,
-                'action': functools.partial(browserwidget.init_alembic_export, k.strip(':'), value, exporter)
-            }
-
-        return menu_set
-
-    @contextmenu
-    @mayacommand
-    def add_save_as_menu(self, cmds, menu_set, browserwidget=None):
-        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
-
-        if common.get_sequence(scene.fileName()):
-            menu_set[u'increment'] = {
-                u'text': u'Save as increment...',
-                u'icon': QtGui.QPixmap(':mayaIcon.png'),
-                u'action': lambda: browserwidget.save_scene(increment=True)
-            }
-        menu_set[u'new'] = {
-            u'text': u'Save as new...',
-            u'icon': QtGui.QPixmap(':mayaIcon.png'),
-            u'action': lambda: browserwidget.save_scene(increment=False)
-        }
-        return menu_set
-
-    @contextmenu
-    def add_alembic_menu(self, menu_set, browserwidget=None):
+    def add_readalembic_menu(self, menu_set, browserwidget=None):
         """Actions associated with ``alembic`` cache operations."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
@@ -154,6 +92,68 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
             u'text': u'Import alembic as reference...',
             u'icon': QtGui.QPixmap(':importAlembic.png'),
             u'action': functools.partial(browserwidget.import_referenced_scene, file_info.filePath())
+        }
+        return menu_set
+
+    @contextmenu
+    def add_writealembic_menu(self, menu_set, browserwidget=None):
+        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        exporter = AlembicExport()
+
+        key = 'alembic'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = 'Export alembic...'
+
+        outliner_set_members = exporter.get_outliner_set_members()
+        for k in sorted(list(outliner_set_members)):
+            value = outliner_set_members[k]
+            k = k.replace(':', ' - ')  # Namespace and speudo conflict
+            menu_set[key][k] = {
+                'text': '{} ({})'.format(k.upper(), len(value)),
+                'icon': objectset_pixmap,
+                'action': functools.partial(browserwidget.init_alembic_export, k, value, exporter)
+            }
+
+        return menu_set
+
+
+    @contextmenu
+    def add_writeobj_menu(self, menu_set, browserwidget=None):
+        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        exporter = BaseExporter()
+
+        key = 'obj'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = 'Export obj...'
+
+        outliner_set_members = exporter.get_outliner_set_members()
+        for k in sorted(list(outliner_set_members)):
+            value = outliner_set_members[k]
+            k = k.replace(':', ' - ')  # Namespace and speudo conflict
+            menu_set[key][k] = {
+                'text': '{} ({})'.format(k.upper(), len(value)),
+                'icon': objectset_pixmap,
+                'action': functools.partial(browserwidget.init_obj_export, k, value)
+            }
+
+        return menu_set
+
+    @contextmenu
+    def add_save_as_menu(self, menu_set, browserwidget=None):
+        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
+
+        if common.get_sequence(scene.fileName()):
+            menu_set[u'increment'] = {
+                u'text': u'Save as increment...',
+                u'icon': QtGui.QPixmap(':mayaIcon.png'),
+                u'action': lambda: browserwidget.save_scene(increment=True)
+            }
+        menu_set[u'new'] = {
+            u'text': u'Save as new...',
+            u'icon': QtGui.QPixmap(':mayaIcon.png'),
+            u'action': lambda: browserwidget.save_scene(increment=False)
         }
         return menu_set
 
@@ -222,8 +222,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """Callback responsible for keeping the active-file in the list updated."""
         self.findChild(FilesWidget).unmark_active_index()
 
-    @mayacommand
-    def mark_current_as_active(self, cmds, *args):
+    def mark_current_as_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
 
         scene = common.get_sequence_endpath(
@@ -283,83 +282,40 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.open_scene(index.data(QtCore.Qt.StatusTipRole))
         fileswidget.itemDoubleClicked.connect(open_scene)
 
-    @mayacommand
-    def init_obj_export(self, cmds):
+    def fileThumbnailAdded(self, args):
+        """Slot called by the Saver when finished."""
+        server, job, root, filepath, image = args
+        settings = AssetSettings((server, job, root, filepath))
+        if not image.isNull():
+            image.save(settings.thumbnail_path())
 
-        saver = SaverWidget(u'obj', '{}'.format(
-            common.ExportsFolder), currentfile=None)
-        saver.findChild(Custom).setText(key)  # Setting the group name
-        file_info = SaverFileInfo(saver).fileInfo()
-
-        path = '{}/{}'.format(file_info.path(), file_info.fileName())
-        dir_ = QtCore.QFileInfo(path).dir()
-
-        if not dir_.exists():
-            raise RuntimeError(
-                'The export destination path {} does not exist.'.format(dir_.path()))
-
-        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dir_.setNameFilters(('*.obj',))
-
-        match2 = common.get_sequence(file_info.fileName())
-        versions = []
-        for entry in dir_.entryList():
-            # Checking if the entry is a sequence
-            match = common.get_sequence(entry)
-            if not all((match, match2)):
-                continue
-
-            # Comparing against the new version
-            if match.group(1) == match2.group(1):
-                versions.append(match.group(2))
-
-        if versions:
-            version = unicode(max([int(f) for f in versions])).zfill(
-                len(versions[-1]))
-            path = match.expand(
-                r'{}/\1{}\3.\4').format(file_info.path(), version)
-            saver = SaverWidget(u'obj', common.ExportsFolder, currentfile=path)
-
-        # Start save
-        saver.fileSaveRequested.connect(lambda: cmds.file(path, force=True, option='groups=1;ptgroups=1;materials=1;smoothing=1;normals=1', type='OBJexport', preserveReferences=True, exportSelected=True))
-        saver.exec_()
-
-        # Refresh the view
         fileswidget = self.findChild(FilesWidget)
-        if fileswidget.model().sourceModel().get_location() == common.ExportsFolder:
-            self.findChild(FilesWidget).refresh()
+        sizehint = fileswidget.itemDelegate().sizeHint(None, None)
+        height = sizehint.height() - 2
+        common.cache_image(settings.thumbnail_path(), height, overwrite=True)
 
-    @mayacommand
-    def init_alembic_export(self, cmds, key, value, exporter):
+    def _get_saver_for_objectset(self, ext, key, location):
+        """Returns a saver instance after checked for existing versions."""
         # Creating the saver with no current file set will generate a new filename
         # we can use to query the exports folder
-        def _init_xport(file):
-            """Slot called by the saver when finished."""
-            exporter.export(
-                file,
-                value,
-                cmds.playbackOptions(query=True, animationStartTime=True),
-                cmds.playbackOptions(query=True, animationEndTime=True)
-            )
-
-        saver = SaverWidget(u'abc', '{}'.format(
-            common.ExportsFolder), currentfile=None)
+        saver = SaverWidget(u'{}'.format(ext), '{}'.format(
+            location), currentfile=None)
         saver.findChild(Custom).setText(key)  # Setting the group name
 
-        # Proposed filename - we're going to check in a bit if there
+        # Proposed filename - we're going to check in a bit if newer versions
+        # are present
         file_info = SaverFileInfo(saver).fileInfo()
 
         dir_ = QtCore.QFileInfo(file_info.filePath()).dir()
         dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dir_.setNameFilters(('*.abc',))
+        dir_.setNameFilters(('*.{}'.format(ext),))
         if not dir_.exists():
             raise RuntimeError(
                 'The export destination path {} does not exist.'.format(dir_.path()))
-
         # Let's check if the current name is a sequence
         current_filename_match = common.get_sequence(file_info.fileName())
         path = file_info.fileName()
-        if current_filename_match: # sequence
+        if current_filename_match:  # sequence
             versions = []
 
             # We're going to look for existing files and match it against the
@@ -369,7 +325,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 existing_file_match = common.get_sequence(entry.fileName())
                 if not existing_file_match:
                     continue
-
                 # Comparing against the new version and if they're the same
                 # thread saving it
                 if existing_file_match.group(1) == current_filename_match.group(1):
@@ -383,34 +338,105 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 path = current_filename_match.expand(
                     r'{}/\1{}\3.\4').format(file_info.path(), version)
             else:
+                v = int(current_filename_match.group(2)) - 1
+                pad = len(current_filename_match.group(2))
                 path = current_filename_match.expand(
-                    r'{}/\1{}\3.\4').format(file_info.path(), unicode(current_filename_match.group(2) - 1).zfill(len(current_filename_match.group(2))))
+                    r'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
 
-        saver = SaverWidget(u'abc', common.ExportsFolder, currentfile=path)
+        saver = SaverWidget(u'{}'.format(ext), location, currentfile=path)
+        return saver
+
+    def init_obj_export(self, key, value):
+        """Main method to initiate an alembic export using Browser's
+        saver to generate the filename.
+
+        Args:
+            key (str):   The name of the object set to export.
+            value (tuple): A list of object names inside the set.
+
+        """
+        def fileSaveRequested(filepath):
+            """Slot called by the Saver when finished."""
+            cmds.select(value, replace=True)
+            filepath = cmds.file(
+                filepath,
+                force=True,
+                type='OBJexport',
+                options='groups=1;ptgroups=1;materials=1;smoothing=1;normals=1',
+                preserveReferences=True,
+                exportSelected=True)
+
+            # Refresh the view and select the added path
+            fileswidget = self.findChild(FilesWidget)
+            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
+            fileswidget.refresh()
+            fileswidget.select_path(path=filepath)
+
+            sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(path))
+
+        def fileDescriptionAdded(args):
+            """Slot called by the Saver when finished."""
+            server, job, root, filepath, description = args
+            settings = AssetSettings((server, job, root, filepath))
+            settings.setValue(u'config/description', description)
 
         # Start save
-        saver.fileSaveRequested.connect(_init_xport)
+        saver = self._get_saver_for_objectset(u'obj', key, common.ExportsFolder)
+        saver.fileSaveRequested.connect(fileSaveRequested)
+        saver.fileDescriptionAdded.connect(fileDescriptionAdded)
+        saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
 
-        # Refresh the view
-        fileswidget = self.findChild(FilesWidget)
-        if fileswidget.model().sourceModel().get_location() == common.ExportsFolder:
-            self.findChild(FilesWidget).refresh()
 
-    @mayacommand
-    def save_scene(self, cmds, increment=True):
-        """Launches the saver widget."""
-        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
-        currentfile = scene.filePath() if scene.exists() and increment else None
+    def init_alembic_export(self, key, value, exporter):
+        """Main method to initiate an alembic export using Browser's
+        saver to generate the filename.
 
-        # Setting the file-extension
-        saver = SaverWidget(u'ma', common.ScenesFolder,
-                            currentfile=currentfile)
+        Args:
+            key (str):   The name of the object set to export.
+            value (tuple): A list of object names inside the set.
 
-        saver.fileSaveRequested.connect(self.save_as)
+        """
+        def fileSaveRequested(filepath):
+            """Slot called by the Saver when finished."""
+            exporter.export(
+                filepath,
+                value,
+                cmds.playbackOptions(query=True, animationStartTime=True),
+                cmds.playbackOptions(query=True, animationEndTime=True)
+            )
+
+            # Refresh the view and select the added path
+            fileswidget = self.findChild(FilesWidget)
+            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
+            fileswidget.refresh()
+            fileswidget.select_path(path=filepath)
+
+            sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(path))
+
+        def fileDescriptionAdded(args):
+            """Slot called by the Saver when finished."""
+            server, job, root, filepath, description = args
+            from alembic.Abc import IArchive, GetArchiveInfo
+            # WARNING: The IArchive / Boost code can't accept unicode input.
+            # It needs to be a simple srt string. I do wonder why this is...
+            abc = IArchive('{}'.format(filepath))
+            if not abc.valid():
+                annotation = 'invalid cache'
+            else:
+                annotation = GetArchiveInfo(abc)['userDescription']
+
+            settings = AssetSettings((server, job, root, filepath))
+            description = '{} - {}'.format(description, annotation)
+            settings.setValue(u'config/description', description)
+
+        # Start save
+        saver = self._get_saver_for_objectset(u'abc', key, common.ExportsFolder)
+        saver.fileSaveRequested.connect(fileSaveRequested)
+        saver.fileDescriptionAdded.connect(fileDescriptionAdded)
+        saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
 
-        self.findChild(FilesWidget).refresh()
 
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
@@ -433,8 +459,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         common.move_widget_to_available_geo(widget)
         widget.show()
 
-    @mayacommand
-    def set_workspace(self, cmds, asset):
+    def set_workspace(self, asset):
         """Slot responsible for updating the maya worspace."""
         if not all(asset):
             return
@@ -484,45 +509,57 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         }
         super(MayaBrowserWidget, self).show(**kwargs)
 
-    @mayacommand
-    def save_as(self, cmds, path):
-        """Saves the current scene as a new scene."""
-        file_info = QtCore.QFileInfo(path)
-        if file_info.exists():
-            mbox = QtWidgets.QMessageBox()
-            mbox.setText(
-                u'{} already exists.'
-            )
-            mbox.setInformativeText(
-                u'If you select save the the existing file will be overriden. Are you sure you want to continue?')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Save |
-                QtWidgets.QMessageBox.Cancel
-            )
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
-            if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
-                return
 
-        cmds.file(rename=path)
-        path = cmds.file(force=True, save=True, type='mayaAscii')
+    def save_scene(self, increment=True):
+        """Saves the current scene either as a new file or as an increment of
+        the current scene.
 
-        print '# File saved to {}'.format(path)
+        The filename and the location will be returned by the ``Saver``."""
+        def fileSaveRequested(filepath):
+            """Slot responsible for saving the scene-file."""
+            cmds.file(rename=filepath)
+            filepath = cmds.file(force=True, save=True, type='mayaAscii')
 
-    @mayacommand
-    def open_scene(self, cmds, path):
+            # Refresh the view and select the added path
+            fileswidget = self.findChild(FilesWidget)
+            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
+            fileswidget.refresh()
+            fileswidget.select_path(path=filepath)
+
+            sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(filepath))
+
+        def fileDescriptionAdded(args):
+            """Slot responsible for saving the description"""
+            server, job, root, filepath, description = args
+            settings = AssetSettings((server, job, root, filepath))
+            settings.setValue(u'config/description', description)
+
+
+        scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
+        currentfile = scene.filePath() if scene.exists() and increment else None
+        saver = SaverWidget(u'ma', common.ScenesFolder, currentfile=currentfile)
+
+        saver.fileSaveRequested.connect(fileSaveRequested)
+        saver.fileDescriptionAdded.connect(fileDescriptionAdded)
+        saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
+        saver.exec_()
+
+        self.findChild(FilesWidget).refresh()
+
+
+
+    def open_scene(self, path):
         """Opens the given scene."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
+            sys.stderr.write('# Browser: File {} does not exist.\n'.format(path))
             return
-
         result = self.is_scene_modified()
         if result == QtWidgets.QMessageBox.Cancel:
             return
-
         cmds.file(file_info.filePath(), open=True, force=True)
 
-    @mayacommand
-    def import_scene(self, cmds, path):
+    def import_scene(self, path):
         """Imports the given scene locally."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
@@ -539,8 +576,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             ns=u'{}#'.format(match.group(1) if match else file_info.baseName())
         )
 
-    @mayacommand
-    def import_referenced_scene(self, cmds, path):
+    def import_referenced_scene(self, path):
         """Imports the given scene as a reference."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
@@ -560,8 +596,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 1) if match else file_info.baseName()),
         )
 
-    @mayacommand
-    def open_alembic(self, cmds, path):
+    def open_alembic(self, path):
         """Opens the given scene."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
@@ -573,8 +608,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         cmds.AbcImport(file_info.filePath(), mode=u'open')
 
-    @mayacommand
-    def import_alembic(self, cmds, path):
+    def import_alembic(self, path):
         """Imports the given scene locally."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
@@ -590,8 +624,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             filterObjects=".*Shape.*"
         )
 
-    @mayacommand
-    def import_referenced_alembic(self, cmds, path):
+    def import_referenced_alembic(self, path):
         """Imports the given scene as a reference."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
@@ -612,8 +645,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 1) if match else file_info.baseName()),
         )
 
-    @mayacommand
-    def is_scene_modified(self, cmds):
+    def is_scene_modified(self):
         """If the current scene was modified since the last save, the user will be
         prompted to save the scene.
 
@@ -625,9 +657,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             )
             mbox.setInformativeText(u'Save the scene now?')
             mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Save |
-                QtWidgets.QMessageBox.Discard |
-                QtWidgets.QMessageBox.Cancel
+                QtWidgets.QMessageBox.Save
+                | QtWidgets.QMessageBox.Discard
+                | QtWidgets.QMessageBox.Cancel
             )
             mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
             result = mbox.exec_()
@@ -658,8 +690,7 @@ class MayaBrowserButton(BrowserButton):
         self.set_size(widget.width())
         self.update()
 
-    @mayacommand
-    def showEvent(self, cmds, event):
+    def showEvent(self, event):
         """The first time the widget is shown is when the main MayaBrowser widget
         will be initialized.
 
@@ -673,8 +704,7 @@ class MayaBrowserButton(BrowserButton):
                 cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
             self.firstshow = False
 
-    @mayacommand
-    def show_browser(self, cmds):
+    def show_browser(self):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()
         try:
@@ -691,7 +721,8 @@ class MayaBrowserButton(BrowserButton):
                         widget.show()
                     return
         except Exception as err:
-            sys.stdout.write('# Browser: Could not show widget:\n{}\n'.format(err))
+            sys.stdout.write(
+                '# Browser: Could not show widget:\n{}\n'.format(err))
 
         try:
             widget = MayaBrowserWidget()
@@ -706,194 +737,44 @@ class MayaBrowserButton(BrowserButton):
                     cmds.evalDeferred(lambda: widget.raise_())
                     return
         except Exception as err:
-            sys.stdout.write('# Browser: Could not show widget:\n{}\n'.format(err))
+            sys.stdout.write(
+                '# Browser: Could not show widget:\n{}\n'.format(err))
 
 
-class AlembicExport(QtCore.QObject):
-    """Utility class for exporting alembic caches from maya.
-    Exportable objects are those that are in a user-added objectSet (one, that is
-    visible in the outliner.).
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    import maya.standalone
+    import maya.mel
+    import maya.cmds
 
-    Prior to exporting the hierarchy will be flattened, to avoid any issues with
-    parenting.
-    """
+    os.environ['PYMEL_SKIP_MEL_INIT'] = '0'
+    os.environ['MAYA_SKIP_USERSETUP_PY'] = '0'
 
-    _instance = None
-    progress = QtCore.Signal(int, int, int)
+    def load_plugins():
+        MEL_SCRIPTS = ('createPreferencesOptVars.mel',
+                       'createGlobalOptVars.mel',
+                       'initialPlugins.mel',
+                       'namedCommandSetup.mel',)
+        for script in MEL_SCRIPTS:
+            cmds.evalDeferred(lambda script: maya.mel.eval(
+                'source "{}"'.format(script)))
 
-    def __new__(cls, *args, **kwargs):
-        cls._instance = QtCore.QObject.__new__(cls, *args, **kwargs)
-        return cls._instance
+        dir_ = QtCore.QDir(r'C:\dev\PyMaya2018\plug-ins')
+        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dir_.setNameFilters(('*.mll',))
+        for plugin in dir_.entryInfoList():
+            maya.cmds.loadPlugin(plugin.completeBaseName(), quiet=True)
+        maya.cmds.loadPlugin('mtoa', quiet=True)
 
-    def __init__(self, parent=None):
-        super(AlembicExport, self).__init__(parent=parent)
-        self.time = 0.0
-        self.progress.connect(self.report_progress)
+    maya.standalone.initialize(name='python')
+    load_plugins()
 
-    def report_progress(self, start, current, end):
-        elapsed = time.time() - self.time
-        elapsed = time.strftime('%H:%M.%Ssecs', time.localtime(elapsed))
+    widget = MayaBrowserWidget()
+    path = r'\\gordo\jobs\tkwwbk_8077\films\prologue\shots\sh_210\scenes\animation\_sh_210_v012.ma'
+    cmds.file(QtCore.QFileInfo(path).filePath(), open=True, force=True)
 
-        start = int(start)
-        current = int(current)
-        end = int(end)
+    sys.stdout.write('\n# Opening scene...\n\n')
+    cmds.evalDeferred(lambda: widget.show())
 
-        _current = current - start
-        _end = end - start
-
-        progress = float(_current) / float(_end) * 100
-        progress = '{}%'.format(int(progress))
-
-        msg = '\n\n# Exporting frame {current} of {end} ({progress})\n# Elapsed: {elapsed}\n\n'.format(
-            current=current,
-            end=end,
-            progress=progress,
-            elapsed=elapsed
-        )
-        sys.stdout.write(msg)
-
-    @classmethod
-    def instance(cls):
-        return cls._instance
-
-    @mayacommand
-    def _setFilterScript(self, cmds, name):
-        """From the good folks at cgsociety - filters the in-scene sets to return
-        the user-created items only.
-        https://forums.cgsociety.org/t/maya-mel-python-list-object-sets-visible-in-the-dag/1586067/2
-
-        """
-        # We first test for plug-in object sets.
-        try:
-            apiNodeType = cmds.nodeType(name, api=True)
-        except RuntimeError:
-            return False
-
-        if apiNodeType == "kPluginObjectSet":
-            return True
-
-      # We do not need to test is the object is a set, since that test
-        # has already been done by the outliner
-        try:
-            nodeType = cmds.nodeType(name)
-        except RuntimeError:
-            return False
-
-        # We do not want any rendering sets
-        if nodeType == "shadingEngine":
-            return False
-
-        # if the object is not a set, return false
-        if not (nodeType == "objectSet" or
-                nodeType == "textureBakeSet" or
-                nodeType == "vertexBakeSet" or
-                nodeType == "character"):
-            return False
-
-        # We also do not want any sets with restrictions
-        restrictionAttrs = ["verticesOnlySet", "edgesOnlySet",
-                            "facetsOnlySet", "editPointsOnlySet", "renderableOnlySet"]
-        if any(cmds.getAttr("{0}.{1}".format(name, attr)) for attr in restrictionAttrs):
-            return False
-
-        # Do not show layers
-        if cmds.getAttr("{0}.isLayer".format(name)):
-            return False
-
-        # Do not show bookmarks
-        annotation = cmds.getAttr("{0}.annotation".format(name))
-        if annotation == "bookmarkAnimCurves":
-            return False
-
-        # Whew ... we can finally show it
-        return True
-
-    @mayacommand
-    def get_outliner_set_members(self, cmds):
-        """Returns the available outliner sets and the objects inside."""
-        setData = {}
-        for s in sorted([k for k in cmds.ls(sets=True) if self._setFilterScript(k)]):
-            dagMembers = cmds.listConnections(u'{}.dagSetMembers'.format(s))
-            # Filters
-            if not dagMembers:
-                continue
-            setData[s] = [cmds.ls(dag)[-1] for dag in dagMembers]
-        return setData
-
-    @mayacommand
-    def export(self, cmds, filepath, outliner_set, startframe, endframe, step=1.0, preroll=100.0):
-        """Main Alembic exports. We will querry the outliner_set items and
-        we'll flatten the hierarchy before exporting."""
-
-        is_intermediate = lambda s: cmds.getAttr('{}.intermediateObject'.format(s))
-        is_template = lambda s: cmds.getAttr('{}.template'.format(s))
-
-        roots = []
-        for item in outliner_set:
-            relatives = cmds.listRelatives(item, shapes=True)
-            if not relatives:
-                continue
-            sources = [f for f in relatives if not is_intermediate(f) and not is_template(f)]
-            if not sources:
-                continue
-            for source in sources:
-                if not cmds.attributeQuery('worldMesh', node=source, exists=True):
-                    continue
-                dest = cmds.createNode('mesh', name='abc_{}'.format(source))
-
-                cmds.connectAttr('{}.worldMesh[0]'.format(source), '{}.inMesh'.format(dest), force=True)
-                cmds.connectAttr('{}.uvSet'.format(source), '{}.uvSet'.format(dest), force=True)
-
-                transform = cmds.listRelatives(dest, type='transform', p=True)
-                if transform:
-                    roots.append(transform[-1])
-
-        if not roots:
-            sys.stdout.write('# Alembic export: No valid root nodes were specified.\n')
-            return
-
-
-        perframecallback = '"import browser.context.mayabrowserwidget as mb; mb.AlembicExport.instance().progress.emit({}, #FRAME#, {})"'.format(int(startframe), int(endframe))
-        kwargs = {
-            'jobArg': '{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {ef} {df} {pfc} {ppc}'.format(
-                f='-file {}'.format(filepath),
-                fr='-framerange {} {}'.format(startframe, endframe),
-                # frs='-framerelativesample {}'.format(1.0),
-                # no='-nonormals',
-                # uvo='-uvsonly',
-                # pr='-preroll {}'.format(bool(preroll)),
-                # ro='-renderableonly',
-                s='-step {}'.format(step),
-                # sl='-selection {}'.format(False),
-                # sn='-stripnamespaces',
-                uv='-uvwrite',
-                # wcs='-writecolorsets',
-                # wfs='-writefacesets',
-                # wfg='-wholeframegeo',
-                ws='-worldspace',
-                wv='-writevisibility',
-                wuvs='-writeuvsets',
-                # as_='-autosubd',
-                # mfc='-melperframecallback {}'.format(''),
-                pfc='-pythonperframecallback {}'.format(perframecallback),
-                # pfc='-pythonperframecallback {}'.format('"\'Exporting #FRAME# of {}\'"'.format(endframe)),
-                # mpc='-melpostjobcallback {}'.format(''),
-                ppc='-pythonpostjobcallback {}'.format('"\'Finished alembic export!\'"'),
-                # ppc='-pythonpostjobcallback {}'.format(perframecallback),
-                # atp='-attrprefix {}'.format(''),
-                # uatp='-userattrprefix {}'.format(''),
-                # u='-userattr {}'.format(''),
-                rt='-root {}'.format(' -root '.join(roots)),
-                ef='-eulerfilter',
-                df='-dataformat {}'.format('ogawa'),
-            ),
-            'preRollStartFrame': float(int(startframe - preroll)),
-            'dontSkipUnwrittenFrames': True,
-        }
-
-        self.time = time.time()
-        cmds.AbcExport(**kwargs)
-
-        # Teardown:
-        for root in roots:
-            cmds.delete(root)
+    # maya.standalone.uninitialize()
+    app.exec_()
