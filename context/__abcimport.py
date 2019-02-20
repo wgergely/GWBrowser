@@ -3,9 +3,12 @@
 """http://docs.alembic.io/python/abc.html#alembic.Abc"""
 
 import sys
-from alembic.Abc import IArchive, GetArchiveInfo
+
 from PySide2 import QtCore, QtGui, QtWidgets
 
+import browser.common as common
+import browser.modules
+from alembic.Abc import IArchive, GetArchiveInfo
 
 class Node(QtCore.QObject):
     """Small wrapper around the iobject hierarchy to display it in a QTreeView."""
@@ -169,6 +172,8 @@ class AlembicView(QtWidgets.QTreeView):
     def __init__(self, path, parent=None):
         super(AlembicView, self).__init__(parent=parent)
 
+        if not QtCore.QFileInfo(path).exists():
+            return
         self._abc = IArchive(path)
         node = self.alembic_to_nodes()
         model = AlembicModel(node)

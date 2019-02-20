@@ -14,7 +14,7 @@ import maya.cmds as cmds
 
 
 class BaseExporter(QtCore.QObject):
-    """"""
+    """Just a baseclass to wrap the more abstract methodsself."""
 
     _instance = None
     progress = QtCore.Signal(int, int, int)
