@@ -16,6 +16,7 @@ getConfigPath() or getThumbnailPath().
 
 
 import re
+import hashlib
 import collections
 from PySide2 import QtCore
 
@@ -197,7 +198,9 @@ class AssetSettings(QtCore.QSettings):
 
     def __init__(self, index, parent=None):
         """Primarily expects a QModelIndex but when it's not possible to provide,
-        it takes a tuple of server, job, root, full filepath. variables."""
+        it takes a tuple bookmark tuple of server, job, root and a full filepath.
+
+        """
         if isinstance(index, QtCore.QModelIndex):
             self._root = u'{server}/{job}/{root}'.format(
                 server=index.data(common.ParentRole)[0],
@@ -213,6 +216,11 @@ class AssetSettings(QtCore.QSettings):
             )
             self._filepath = index[3]
 
+        path = self._filepath.replace(self._root, u'').strip(u'/')
+        path = hashlib.md5(path).hexdigest()
+        self._conf_path = u'{}/.browser/{}.conf'.format(self._root, path)
+        self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
+
         super(AssetSettings, self).__init__(
             self.conf_path(),
             QtCore.QSettings.IniFormat,
@@ -221,24 +229,23 @@ class AssetSettings(QtCore.QSettings):
 
         self.setFallbacksEnabled(False)
 
+
+
     def conf_path(self):
-        """Returns the path to the Asset's configuration file.
+        """The configuration files associated with assets are stored in
+        the root folder of the current bookmark.
+
+        For example:
+            //server/job/root/.browser/986613d368816aa7e0ae9144c65107ee0a1b10bdba14177f2f35ee0dfd863297.conf
 
         Returns:
             str: The path to the configuration file as a string.
 
         """
-        def beautify(text):
-            match = re.search(r'(\[.*\])', text)
-            if match:
-                text = text.replace(match.group(1), 'SEQ')
-            return re.sub(r'[^a-zA-Z0-9/]+', '_', text)
-
-        path = self._filepath.replace(self._root, u'').strip(u'/')
-        return u'{}/.browser/{}.conf'.format(self._root, beautify(path))
+        return self._conf_path
 
     def thumbnail_path(self):
-        return self.conf_path().replace(u'.conf', u'.png')
+        return self._thumbnail_path
 
     def value(self, *args, **kwargs):
         val = super(AssetSettings, self).value(*args, **kwargs)
