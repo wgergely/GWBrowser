@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
 
-
 """Widgets used to edit data in the list widgets."""
 
+import sys
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+from browser.capture import ScreenGrabber
 import browser.common as common
 from browser.settings import AssetSettings
-import browser.modules
-from browser.utils.utils import generate_thumbnail
+
+import browser.modules # loads the numpy, oiio libraries
+import oiio.OpenImageIO as oiio
+from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
+
 
 class ClickableLabel(QtWidgets.QLabel):
     clicked = QtCore.Signal()
@@ -77,12 +81,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         painter.setBrush(QtGui.QColor(0, 0, 0, 170))
         painter.setPen(QtCore.Qt.NoPen)
@@ -158,12 +158,6 @@ class PickThumbnailDialog(QtWidgets.QFileDialog):
     def __init__(self, index, parent=None):
         super(PickThumbnailDialog, self).__init__(parent=parent)
         settings = AssetSettings(index)
-
-        # Making config folder
-        conf_dir = QtCore.QFileInfo(settings.conf_path())
-        if not conf_dir.exists():
-            QtCore.QDir().mkpath(conf_dir.path())
-
         # Opening dialog to select an image file
         self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         self.setViewMode(QtWidgets.QFileDialog.List)
@@ -188,6 +182,258 @@ class PickThumbnailDialog(QtWidgets.QFileDialog):
         settings = AssetSettings(index)
         height = self.parent().visualRect(index).height() - 2
         common.cache_image(settings.thumbnail_path(), height, overwrite=True)
+
+
+class ThumbnailEditor(QtCore.QObject):
+    """Utility class for setting, capturing and editing thumbnail."""
+
+    # Signals
+    thumbnailChanged = QtCore.Signal(QtCore.QModelIndex)
+
+    def generate(self, index, overwrite=True):
+        """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
+        if not index.isValid():
+            return
+
+        source = index.data(QtCore.Qt.StatusTipRole)
+        dest = AssetSettings(index).thumbnail_path()
+        if not overwrite and QtCore.QFileInfo(dest).exists():
+            return # skipping the existing thumbnails
+
+        img = ImageBuf(source)
+
+        if img.has_error:
+            sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(source, img.geterror()))
+            return
+
+        # Deep
+        if img.spec().deep:
+            img = ImageBufAlgo.flatten(img)
+
+        size = int(common.THUMBNAIL_IMAGE_SIZE)
+        spec = ImageSpec(size, size, 4, "uint8")
+        spec.channelnames = ('R', 'G', 'B', 'A')
+        spec.alpha_channel = 3
+        spec.attribute('oiio:ColorSpace', 'Linear')
+        b = ImageBuf(spec)
+        b.set_write_format('uint8')
+
+
+        oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
+        ImageBufAlgo.fit(b, img)
+
+        spec = b.spec()
+        if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+            roi = oiio.get_roi(b.spec())
+            roi.chbegin = 0
+            roi.chend = 3
+            ImageBufAlgo.pow(b, b, 1.0/2.2, roi)
+
+        if int(spec.nchannels) < 3:
+            b = ImageBufAlgo.channels(
+                b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+        elif int(spec.nchannels) > 4:
+            if spec.channelindex('A') > -1:
+                b = ImageBufAlgo.channels(
+                    b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+            else:
+                b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+        if b.has_error:
+            sys.stderr.write(
+                '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
+
+        # There seems to be a problem with the ICC profile exported from Adobe
+        # applications and the PNG library. The sRGB profile seems to be out of date
+        # and pnglib crashes when encounters an invalid profile.
+        # Removing the ICC profile seems to fix the issue. Annoying!
+
+        # First, rebuilding the attributes as a modified xml tree
+        modified = False
+
+        from xml.etree import ElementTree
+        root = ElementTree.fromstring(b.spec().to_xml())
+        for attrib in root.findall('attrib'):
+            if attrib.attrib['name'] == 'ICCProfile':
+                root.remove(attrib)
+                modified = True
+                break
+
+        if modified:
+            xml = ElementTree.tostring(root)
+            # Initiating a new spec with the modified xml
+            spec = oiio.ImageSpec()
+            spec.from_xml(xml)
+
+            # Lastly, copying the pixels over from the old to the new buffer.
+            _b = ImageBuf(spec)
+            pixels = b.get_pixels()
+            _b.set_write_format('uint8')
+            _b.set_pixels(oiio.get_roi(spec), pixels)
+            if _b.has_error:
+                sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
+                    dest, _b.geterror(), oiio.geterror()))
+        else:
+            _b = b
+
+        # Ready to write
+        if not _b.write(dest, dtype='uint8'):
+            sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
+                dest, _b.geterror(), oiio.geterror()))
+            QtCore.QFile(dest).remove() # removing failed thumbnail save
+        else:
+            self.thumbnailChanged.emit(index)
+
+    def capture(self, index):
+        """Captures a thumbnail for the current index item using ScreenGrabber."""
+        if not index.isValid():
+            return
+        settings = AssetSettings(index)
+
+        pixmap = ScreenGrabber.capture()
+        if pixmap.isNull():
+            return
+
+        image = pixmap.toImage()
+        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
+        if image.isNull():
+            return
+
+        if not image.save(settings.thumbnail_path()):
+            sys.stderr.write('# Capture thumnail error: Error saving {}.\n'.format(settings.thumbnail_path()))
+        else:
+            self.thumbnailChanged.emit(index)
+
+    def remove(self, index):
+        """Deletes the given thumbnail."""
+        if not index.isValid():
+            return
+        settings = AssetSettings(index)
+        self._reset_cached(settings.thumbnail_path(), removefile=True)
+        self.thumbnailChanged.emit(index)
+
+    @classmethod
+    def _reset_cache(cls, cache_key_element, removefile=True):
+        """Resets any cached items containing `k` with the original placeholder image.
+
+        Args:
+            cache_key_element (str): Normally, the path to the cached item.
+
+        """
+        file_ = QtCore.QFile(cache_key_element)
+
+        if file_.exists() and removefile:
+            file_.remove()
+
+        keys = [key for key in common.IMAGE_CACHE if k.lower() in key.lower()]
+        for key in keys:
+            if ':' in cache_key_element:
+                path, label = key.split(':')
+                if 'BackgroundColor' in label:
+                    common.IMAGE_CACHE[key] = QtGui.QColor(0, 0, 0, 0) # transparent bg
+                else:
+                    cls._assign_placeholder(path, int(label))
+
+    @staticmethod
+    def cache_image(path, height, overwrite=False):
+        """Saves the image at the path to the image cache at the given sized.
+        The cached images are stored in the IMAGE_CACHE dictionary.
+
+        Returns the cached image if it already is in the cache or the placholder
+        image if the loading of the image fails. In addittion, each cached entry
+        will be associated with an average background color that can be used
+        to paint a unique background.
+
+        Args:
+            path (str):    Path to the image file.
+            height (int):  Description of parameter `height`.
+
+        Returns:
+            QImage: The cached, and resized QImage
+
+        """
+        height = int(height)
+        file_info = QtCore.QFileInfo(path)
+
+        k = u'{path}:{height}'.format(
+            path=file_info.filePath(),
+            height=height
+        )
+
+        # Return cached item if exsits
+        if k in common.IMAGE_CACHE and not overwrite:
+            return common.IMAGE_CACHE[k]
+
+        # If the file doesn't exist, return a placeholder
+        if not file_info.exists():
+            return cache_placeholder(path, k, height)
+
+        image = QtGui.QImage()
+        image.load(file_info.filePath())
+        if image.isNull():
+            return cache_placeholder(path, k, height)
+
+        image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
+        image = resize_image(image, height)
+
+        # Saving the background color
+        common.IMAGE_CACHE[u'{k}:BackgroundColor'.format(
+            k=path
+        )] = get_color_average(image)
+        common.IMAGE_CACHE[k] = image
+
+        return common.IMAGE_CACHE[k]
+
+    @staticmethod
+    def _assign_placeholder(path, height):
+        """If a thumbnail doesn't exist, we will use a placeholder image to
+        represent it.
+
+        The placeholder image will be cached per size and associated with each key
+        that doesn't have a valid thumbnail image saved.
+
+        """
+        file_info = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
+        height = int(height)
+
+        pk = u'{path}:{height}'.format(
+            path=file_info.filePath(),
+            height=height
+        )
+        bgpk = u'{}:BackgroundColor'.format(file_info.filePath())
+        k = u'{path}:{height}'.format(
+            path=path,
+            height=height
+        )
+        bgk = u'{}:BackgroundColor'.format(path)
+
+        # The placehold has already been cached
+        if pk in common.IMAGE_CACHE:
+            common.IMAGE_CACHE[k] = common.IMAGE_CACHE[pk]
+            common.IMAGE_CACHE[bgpk] = QtGui.QColor(0,0,0,0)
+            return common.IMAGE_CACHE[k]
+
+        if not file_info.exists():
+            sys.stderr.write('# Could not find the placeholder image. Using null.\n')
+            return QtCore.QImage(height, height)
+
+        # Loading a and resizing a copy of the placeholder
+        image = QtGui.QImage()
+        image.load(file_info.filePath())
+
+        if image.isNull():
+            sys.stderr.write('# Could not load the placeholder image. Using null.\n')
+            return QtCore.QImage(height, height)
+
+        image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
+        image = common.resize_image(image, height)
+
+        common.IMAGE_CACHE[k] = image
+        common.IMAGE_CACHE[bgk] = QtGui.QColor(0,0,0,0)
+        common.IMAGE_CACHE[pk] = image
+        common.IMAGE_CACHE[bgpk] = QtGui.QColor(0,0,0,0)
+
+        return common.IMAGE_CACHE[k]
 
 
 class DescriptionEditorWidget(QtWidgets.QWidget):
