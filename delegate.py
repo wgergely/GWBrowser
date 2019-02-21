@@ -37,12 +37,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         favourite = index.flags() & MarkedAsFavourite
         archived = index.flags() & MarkedAsArchived
         active = index.flags() & MarkedAsActive
-        painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing |
-            QtGui.QPainter.Antialiasing |
-            QtGui.QPainter.SmoothPixmapTransform,
-            on=True
-        )
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
         args = (painter, option, index, selected,
                 focused, active, archived, favourite)
         return args
@@ -316,21 +314,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         path.addText(rect.left(), rect.center().y() +
                      (metrics.ascent() / 2.0), font, text)
         painter.drawPath(path)
-
-    @paintmethod
-    def paint_filter_indicator(self, *args):
-        """Paints the leading color-bar if a filter is active."""
-        painter, option, _, _, _, _, _, _ = args
-
-        _filter = self.parent().current_filter
-        if _filter == u'/':
-            return
-
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(common.INDICATOR_WIDTH)
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(common.get_label(_filter)))
-        painter.drawRect(rect)
 
     @paintmethod
     def paint_archived(self, *args):
