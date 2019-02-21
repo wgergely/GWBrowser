@@ -16,7 +16,6 @@ Example:
 
 """
 # pylint: disable=E1101, C0103, R0913, I1101
-import tempfile
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
@@ -41,8 +40,6 @@ class ScreenGrabber(QtWidgets.QDialog):
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.WindowStaysOnTopHint
-            # QtCore.Qt.CustomizeWindowHint |
-            # QtCore.Qt.Tool
         )
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setCursor(QtCore.Qt.CrossCursor)
@@ -228,7 +225,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         # Compute the union of all screen geometries, and resize to fit.
         app = QtCore.QCoreApplication.instance()
         workspace_rect = QtCore.QRect()
-        for i in range(app.desktop().screenCount()):
+        for i in xrange(app.desktop().screenCount()):
             workspace_rect = workspace_rect.united(
                 app.desktop().screenGeometry(i))
         self.setGeometry(workspace_rect)

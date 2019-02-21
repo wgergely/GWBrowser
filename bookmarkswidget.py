@@ -20,6 +20,7 @@ import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
+from browser.editors import image_cache
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
@@ -105,13 +106,19 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
 
 class BookmarksModel(BaseModel):
-    """Drop enabled model for storing bookmarks."""
+    """Drop-enabled model for displaying Bookmarks."""
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
 
     def __initdata__(self):
-        """Collects the data needed to populate the bookmark views."""
+        """Collects the data needed to populate the bookmarks model.
+
+        Bookmarks are made up of a tuple of ``(server, job, root)`` values and
+        are stored are saved in the local system settings, eg. the Registry
+        in under windows.
+
+        """
         self.model_data = {}  # reset
         active_paths = Active.get_active_paths()
 
@@ -120,6 +127,13 @@ class BookmarksModel(BaseModel):
         items = [BookmarkInfo(items[k]) for k in items]
 
         for idx, file_info in enumerate(items):
+            # Let's make sure the Browser's configuration folder exists
+            # This folder lives in the root of the bookmarks folder
+            _confpath = u'{}/.browser/'.format(file_info.filePath())
+            _confpath = QtCore.QFileInfo(_confpath)
+            if not _confpath.exists():
+                QtCore.QDir().mkpath(_confpath.filePath())
+
             flags = (
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
@@ -242,7 +256,7 @@ class BookmarksWidget(BaseInlineIconWidget):
             #Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = common.get_rsc_pixmap('bookmark', QtGui.QColor(0,0,0,10), 200)
+            pixmap = image_cache.get_rsc_pixmap('bookmark', QtGui.QColor(0,0,0,10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -486,7 +500,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         main_widget = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(main_widget)
         self.label = QtWidgets.QLabel()
-        pixmap = common.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 128)
+        pixmap = image_cache.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 128)
         self.label.setPixmap(pixmap)
         main_widget.layout().addWidget(self.label)
         main_widget.layout().addSpacing(common.MARGIN)

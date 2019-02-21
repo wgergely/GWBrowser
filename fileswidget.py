@@ -18,7 +18,7 @@ from browser.settings import AssetSettings
 from browser.settings import local_settings, Active
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
-
+from browser.editors import image_cache
 from browser.spinner import longprocess
 from browser.utils.utils import ThumbnailGenerator
 
@@ -195,12 +195,6 @@ class FilesModel(BaseModel):
                 common.TodoCountRole: count,
                 common.FileDetailsRole: info_string,
             }
-
-            common.cache_image(
-                settings.thumbnail_path(),
-                common.ROW_HEIGHT - 2
-            )
-
             idx += 1
 
         # Getting unique sequence groups
@@ -274,10 +268,6 @@ class FilesModel(BaseModel):
                         common.TodoCountRole: count,
                         common.FileDetailsRole: info_string,
                     }
-                    common.cache_image(
-                        settings.thumbnail_path(),
-                        common.ROW_HEIGHT - 2
-                    )
                 else:
                     # We can just use the previously collected data
                     self._model_data[location][True][idx] = self._model_data[location][False][k]
@@ -369,15 +359,9 @@ class FilesModel(BaseModel):
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: info_string,
             }
-
-            common.cache_image(
-                settings.thumbnail_path(),
-                common.ROW_HEIGHT - 2
-            )
             idx += 1
 
         self._last_refreshed[self.get_location()] = time.time()  # file-monitor timestamp
-
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -547,7 +531,7 @@ class FilesWidget(BaseInlineIconWidget):
             # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 'files', QtGui.QColor(0, 0, 0, 10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
@@ -629,12 +613,11 @@ class FilesWidget(BaseInlineIconWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            editors.PickThumbnailDialog(index, parent=self)
+            image_cache.pick(index)
             return
 
         # self.activate_current_index()
         self.itemDoubleClicked.emit(index)
-        return
 
 
 if __name__ == '__main__':

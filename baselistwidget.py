@@ -15,13 +15,12 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
 import browser.editors as editors
+from browser.editors import image_cache
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.settings import local_settings
 from browser.settings import AssetSettings
-from browser.capture import ScreenGrabber
 
 
-# class EmptyModel(QtWidgets.QAbs)
 
 def contextmenu(func):
     """Decorator to create a menu set."""
@@ -185,14 +184,14 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
-        sort_menu_icon = common.get_rsc_pixmap(
+        sort_menu_icon = image_cache.get_rsc_pixmap(
             u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        arrow_up_icon = common.get_rsc_pixmap(
+        arrow_up_icon = image_cache.get_rsc_pixmap(
             u'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        arrow_down_icon = common.get_rsc_pixmap(
+        arrow_down_icon = image_cache.get_rsc_pixmap(
             u'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
         item_off_icon = QtGui.QPixmap()
-        item_on_icon = common.get_rsc_pixmap(
+        item_on_icon = image_cache.get_rsc_pixmap(
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         sort_by_name = self.parent().model().sortkey == common.SortByName
@@ -246,9 +245,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_reveal_folder_menu(self, menu_set):
         """Creates a menu containing"""
-        folder_icon = common.get_rsc_pixmap(
+        folder_icon = image_cache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        folder_icon2 = common.get_rsc_pixmap(
+        folder_icon2 = image_cache.get_rsc_pixmap(
             u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         key = u'Reveal'
@@ -345,9 +344,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_copy_menu(self, menu_set):
         """Menu containing the subfolders of the selected item."""
-        copy_icon = common.get_rsc_pixmap(
+        copy_icon = image_cache.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        copy_icon2 = common.get_rsc_pixmap(
+        copy_icon2 = image_cache.get_rsc_pixmap(
             u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
@@ -391,13 +390,13 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_mode_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
-        favourite_on_icon = common.get_rsc_pixmap(
+        favourite_on_icon = image_cache.get_rsc_pixmap(
             u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        favourite_off_icon = common.get_rsc_pixmap(
+        favourite_off_icon = image_cache.get_rsc_pixmap(
             u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        archived_on_icon = common.get_rsc_pixmap(
+        archived_on_icon = image_cache.get_rsc_pixmap(
             u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        archived_off_icon = common.get_rsc_pixmap(
+        archived_off_icon = image_cache.get_rsc_pixmap(
             u'archived', common.TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & MarkedAsFavourite
@@ -427,7 +426,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
-        item_on = common.get_rsc_pixmap(
+        item_on = image_cache.get_rsc_pixmap(
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
@@ -463,7 +462,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
-        refresh_pixmap = common.get_rsc_pixmap(u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        refresh_pixmap = image_cache.get_rsc_pixmap(
+            u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         if self.index.isValid():
             menu_set[u'Activate'] = {
                 u'action': self.parent().activate_current_index
@@ -478,24 +478,24 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
-        capture_thumbnail_pixmap = common.get_rsc_pixmap(
+        capture_thumbnail_pixmap = image_cache.get_rsc_pixmap(
             u'capture_thumbnail', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+        pick_thumbnail_pixmap = image_cache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        pick_thumbnail_pixmap = common.get_rsc_pixmap(
+        pick_thumbnail_pixmap = image_cache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        remove_thumbnail_pixmap = common.get_rsc_pixmap(
+        remove_thumbnail_pixmap = image_cache.get_rsc_pixmap(
             u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        show_thumbnail = common.get_rsc_pixmap(
+        show_thumbnail = image_cache.get_rsc_pixmap(
             u'active', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        refresh_thumbnail = common.get_rsc_pixmap('refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        refresh_thumbnail = image_cache.get_rsc_pixmap(
+            'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         key = u'Thumbnail'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
 
         settings = AssetSettings(self.index)
-
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'Show'] = {
                 u'icon': show_thumbnail,
@@ -506,43 +506,72 @@ class BaseContextMenu(QtWidgets.QMenu):
                 )
             }
             menu_set[key][u'separator'] = {}
+
         menu_set[key][u'Capture new'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': self.parent().capture_thumbnail
-        }
+            u'action': functools.partial(image_cache.capture, self.index)}
+
         menu_set[key][u'Pick new'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(
-                editors.PickThumbnailDialog,
-                self.index
-            )
-        }
+            u'action': functools.partial(image_cache.pick, self.index)}
 
-        if len(QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole)).suffix()):
+        suffix = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole)).suffix()
+        if suffix in common.get_oiio_namefilters(as_array=True):
             menu_set[key]['_separator_'] = {}
-            file_info = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole))
+
             menu_set[key][u'generatethis'] = {
+                u'icon': refresh_thumbnail,
                 u'text': u'Generate thumbnail',
-                u'action': functools.partial(self.parent().thumbnail_generator.get, self.index)
+                u'action': functools.partial(image_cache.generate, self.index)}
+
+            def generate_all(overwrite=False):
+                if overwrite:
+                    mbox = QtWidgets.QMessageBox()
+                    mbox.setWindowTitle(u'Re-generate all thumbnails?')
+                    mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                    mbox.setText(
+                        u'Are you sure you want to re-generate all thumbnails?'
+                    )
+                    mbox.setInformativeText(
+                        u'This will overwrite all the custom thumbnails you have set previously.\nThe process is resource-intensive, and might take a while to finish. Continue?')
+                    mbox.setStandardButtons(
+                        QtWidgets.QMessageBox.SaveAll
+                        | QtWidgets.QMessageBox.Cancel
+                    )
+                    mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+                    if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
+                        return
+
+                indexes = []
+                for n in xrange(self.parent().model().rowCount()):
+                    index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
+                    indexes.append(index)
+                image_cache.generate_all(indexes, overwrite=overwrite)
+
+            menu_set[key][u'generatemissing'] = {
+                u'icon': refresh_thumbnail,
+                u'text': u'Generate missing thumbnails',
+                u'action': functools.partial(generate_all, overwrite=False)
             }
+
             menu_set[key][u'generateall'] = {
                 u'icon': refresh_thumbnail,
-                u'text': u'Generate all thumbnails (might take a while)...',
-                u'action': functools.partial(self.parent().thumbnail_generator.get_all, self.parent())
+                u'text': u'Generate all thumbnails',
+                u'action': functools.partial(generate_all, overwrite=True)
             }
-            menu_set[key][u'separator_'] = {}
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
-                u'action': self.parent().remove_thumbnail,
+                u'action': functools.partial(image_cache.remove, self.index),
                 u'icon': remove_thumbnail_pixmap
             }
         return menu_set
 
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
-        pixmap = common.get_rsc_pixmap('todo_add', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        pixmap = image_cache.get_rsc_pixmap(
+            'todo_add', common.FAVOURITE, common.INLINE_ICON_SIZE)
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'icon': pixmap,
@@ -554,11 +583,11 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_collapse_sequence_menu(self, menu_set):
         """Adds the menu needed to change context"""
         if self.parent().model().sourceModel().get_location() == common.RendersFolder:
-            return menu_set # Render sequences are always collapsed
+            return menu_set  # Render sequences are always collapsed
 
-        expand_pixmap = common.get_rsc_pixmap(
+        expand_pixmap = image_cache.get_rsc_pixmap(
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        collapse_pixmap = common.get_rsc_pixmap(
+        collapse_pixmap = image_cache.get_rsc_pixmap(
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
         collapsed = self.parent().model().sourceModel().is_grouped()
 
@@ -575,9 +604,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
-        locations_icon_pixmap = common.get_rsc_pixmap(
+        locations_icon_pixmap = image_cache.get_rsc_pixmap(
             u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_on_pixmap = common.get_rsc_pixmap(
+        item_on_pixmap = image_cache.get_rsc_pixmap(
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off_pixmap = QtGui.QPixmap()
 
@@ -647,7 +676,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.TexturesFolder: 0.0,
             common.ExportsFolder: 0.0,
         }
-        self._last_changed = {} # a dict of path/timestamp values
+        self._last_changed = {}  # a dict of path/timestamp values
         self._file_monitor.directoryChanged.connect(self.directory_changed)
 
         self.__initdata__()
@@ -670,7 +699,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         path = path.rstrip(u'/')
         self._last_changed[path] = time.time()
         if self._last_refreshed[location] < self._last_changed[path]:
-            self.refreshRequested.emit(location) # only for the given location
+            self.refreshRequested.emit(location)  # only for the given location
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -730,6 +759,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def get_location(self):
         return '/'
+
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting data."""
@@ -853,11 +883,8 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).__init__(parent=parent)
 
         self._thumbnailvieweropen = None
-
         self._previouspathtoselect = None
-
         self._location = None
-
         self.collector_count = 0
         self.context_menu_cls = BaseContextMenu
 
@@ -885,6 +912,13 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
+        image_cache.thumbnailChanged.connect(self.update_thumbnail)
+
+    def update_thumbnail(self, index):
+        height = self.visualRect(index).height() - 2
+        image_cache.cache_image(AssetSettings(index).thumbnail_path(), height, overwrite=True)
+        self.update(index)
+
     def set_model(self, model):
         proxy_model = FilterProxyModel(parent=self)
         proxy_model.setSourceModel(model)
@@ -896,7 +930,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
         self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
-
 
         # Select the active item
         self.selectionModel().setCurrentIndex(
@@ -1021,44 +1054,6 @@ class BaseListWidget(QtWidgets.QListView):
                     favourites.remove(file_info.filePath())
                     local_settings.setValue(u'favourites', favourites)
 
-    def capture_thumbnail(self):
-        """Captures a thumbnail for the current item using ScreenGrabber."""
-        index = self.selectionModel().currentIndex()
-
-        if not index.isValid():
-            return
-
-        settings = AssetSettings(index)
-        # Making config folder
-        conf_dir = QtCore.QFileInfo(settings.conf_path())
-        if not conf_dir.exists():
-            QtCore.QDir().mkpath(conf_dir.path())
-
-        # Saves the iamge
-        pixmap = ScreenGrabber.capture()
-        image = pixmap.toImage()
-        image = common.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
-        image.save(settings.thumbnail_path())
-
-        common.delete_image(settings.thumbnail_path(), delete_file=False)
-        height = self.visualRect(index).height() - 2
-        common.cache_image(settings.thumbnail_path(), height)
-
-        self.repaint()
-
-    def remove_thumbnail(self):
-        """Deletes the given thumbnail."""
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        settings = AssetSettings(index)
-        common.delete_image(settings.thumbnail_path())
-        height = self.visualRect(index).height() - 2
-        common.cache_image(settings.thumbnail_path(), height)
-
-        self.repaint()
-
     def refresh(self):
         """Refreshes the model data, and the sorting."""
         self.model().sourceModel().modelDataAboutToChange.emit()
@@ -1071,7 +1066,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.model().sort()
         self.select_path()
 
-        self.model().sourceModel()._last_refreshed[self.model().sourceModel().get_location()] = time.time()
+        self.model().sourceModel()._last_refreshed[self.model(
+        ).sourceModel().get_location()] = time.time()
 
     def select_path(self, path=None):
         """Selects an item of the given path if found. This method is called
@@ -1202,7 +1198,8 @@ class BaseListWidget(QtWidgets.QListView):
                     else:
                         self._thumbnailvieweropen.close()
             if event.key() == QtCore.Qt.Key_Escape:
-                self.selectionModel().setCurrentIndex(QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
+                self.selectionModel().setCurrentIndex(QtCore.QModelIndex(),
+                                                      QtCore.QItemSelectionModel.ClearAndSelect)
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
             elif event.key() == QtCore.Qt.Key_Up:
@@ -1418,12 +1415,8 @@ class BaseListWidget(QtWidgets.QListView):
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
             text_rect.setRight(rect.right() - common.MARGIN)
 
-            painter.setRenderHints(
-                QtGui.QPainter.TextAntialiasing |
-                QtGui.QPainter.Antialiasing |
-                QtGui.QPainter.SmoothPixmapTransform,
-                on=True
-            )
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
@@ -1436,12 +1429,14 @@ class BaseListWidget(QtWidgets.QListView):
                     rect_.setWidth(sizehint.height() - 2)
                 if n == 0 and not favourite_mode:  # Empty model
                     text = u'No items to show.'
-                    common.draw_aliased_text(painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                    common.draw_aliased_text(
+                        painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 elif n == self.model().rowCount():  # filter mode
                     if favourite_mode:
                         text = u'{} items are hidden'.format(
                             self.model().sourceModel().rowCount() - self.model().rowCount())
-                        common.draw_aliased_text(painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
+                        common.draw_aliased_text(
+                            painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())

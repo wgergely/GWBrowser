@@ -17,7 +17,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser import common
 from browser.settings import AssetSettings
-
+from browser.editors import image_cache
 
 class Highlighter(QtGui.QSyntaxHighlighter):
     """Class responsible for highlighting urls"""
@@ -217,7 +217,7 @@ class AddButton(QtWidgets.QLabel):
         super(AddButton, self).__init__(parent=parent)
         self.setMouseTracking(True)
 
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
@@ -234,7 +234,7 @@ class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
 
-        pixmap = common.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
+        pixmap = image_cache.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -279,20 +279,20 @@ class DragIndicatorButton(QtWidgets.QLabel):
         self.dragStartPosition = None
 
         if self.isEnabled():
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
     def setDisabled(self, b):
         # super(DragIndicatorButton, self).setDisabled(b)
         if b:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
 
         self.setPixmap(pixmap)
@@ -356,7 +356,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         ).parent().parent().findChild(RemoveButton)
         # Ugh, ugly code...
         add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
-        pixmap = pixmap = common.get_rsc_pixmap(
+        pixmap = pixmap = image_cache.get_rsc_pixmap(
             u'todo_remove_activated', QtGui.QColor(255, 0, 0), 24)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
@@ -369,7 +369,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Cleanup after drag has finished...
         overlay.close()
         self.parent().parent().separator.setHidden(True)
-        pixmap = common.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
+        pixmap = image_cache.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
 
@@ -402,11 +402,11 @@ class CheckBoxButton(QtWidgets.QLabel):
 
     def set_pixmap(self, checked):
         if checked:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'checkbox_unchecked', common.SEPARATOR, 24)
             self.setPixmap(pixmap)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'checkbox_checked', common.FAVOURITE, 24)
             self.setPixmap(pixmap)
 
@@ -878,7 +878,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.add_button.setFixedWidth(32)
         self.add_button.setFixedHeight(32)
         self.add_button.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = common.get_rsc_pixmap(u'todo', common.FAVOURITE, 32)
+        pixmap = image_cache.get_rsc_pixmap(u'todo', common.FAVOURITE, 32)
         self.add_button.setPixmap(pixmap)
         row.layout().addWidget(self.add_button, 0)
 

@@ -2,102 +2,12 @@ import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.modules
-import numpy
 import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
 from browser.settings import AssetSettings
 import browser.common as common
 
-
-
-def generate_thumbnail(source, dest):
-    """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
-    img = ImageBuf(source)
-
-    if img.has_error:
-        sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(source, img.geterror()))
-        return
-
-    # Deep
-    if img.spec().deep:
-        img = ImageBufAlgo.flatten(img)
-
-    size = int(common.THUMBNAIL_IMAGE_SIZE)
-    spec = ImageSpec(size, size, 4, "uint8")
-    spec.channelnames = ('R', 'G', 'B', 'A')
-    spec.alpha_channel = 3
-    spec.attribute('oiio:ColorSpace', 'Linear')
-    b = ImageBuf(spec)
-    b.set_write_format('uint8')
-
-
-    oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
-    ImageBufAlgo.fit(b, img)
-
-    file_info = QtCore.QFileInfo(dest)
-    if not file_info.dir().exists():
-        QtCore.QDir().mkpath(file_info.path())
-
-    spec = b.spec()
-    if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
-        roi = oiio.get_roi(b.spec())
-        roi.chbegin = 0
-        roi.chend = 3
-        ImageBufAlgo.pow(b, b, 1.0/2.2, roi)
-
-    if int(spec.nchannels) < 3:
-        b = ImageBufAlgo.channels(
-            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
-    elif int(spec.nchannels) > 4:
-        if spec.channelindex('A') > -1:
-            b = ImageBufAlgo.channels(
-                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
-        else:
-            b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
-
-    if b.has_error:
-        sys.stderr.write(
-            '# OpenImageIO: Channel error {}.\n{}\n'.format(b.geterror()))
-
-    # There seems to be a problem with the ICC profile exported from Adobe
-    # applications and the PNG library. The sRGB profile seems to be out of date
-    # and pnglib crashes when encounters an invalid profile.
-    # Removing the ICC profile seems to fix the issue. Annoying!
-
-    # First, rebuilding the attributes as a modified xml tree
-    modified = False
-
-    from xml.etree import ElementTree
-    root = ElementTree.fromstring(b.spec().to_xml())
-    for attrib in root.findall('attrib'):
-        if attrib.attrib['name'] == 'ICCProfile':
-            root.remove(attrib)
-            modified = True
-            break
-
-    if modified:
-        xml = ElementTree.tostring(root)
-        # Initiating a new spec with the modified xml
-        spec = oiio.ImageSpec()
-        spec.from_xml(xml)
-
-        # Lastly, copying the pixels over from the old to the new buffer.
-        _b = ImageBuf(spec)
-        pixels = b.get_pixels()
-        _b.set_write_format('uint8')
-        _b.set_pixels(oiio.get_roi(spec), pixels)
-        if _b.has_error:
-            sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
-                file_info.fileName(), _b.geterror(), oiio.geterror()))
-    else:
-        _b = b
-
-    # Ready to write
-    if not _b.write(dest, dtype='uint8'):
-        sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
-            file_info.fileName(), _b.geterror(), oiio.geterror()))
-        QtCore.QFile(dest).remove() # removing failed thumbnail save
 
 
 class ThumbnailGenerator(QtCore.QObject):
@@ -122,69 +32,24 @@ class ThumbnailGenerator(QtCore.QObject):
         worker.signals.finished.connect(self.thumbnailUpdated.emit)
         QtCore.QThreadPool.globalInstance().start(worker)
 
-    def action(self, index):
-        """The action executed by the QRunnable."""
-        if self.parent().model().sourceModel().is_grouped():
-            path = self.get_biggest_file(index)
-        else:
-            path = index.data(QtCore.Qt.StatusTipRole)
-
-        file_info = QtCore.QFileInfo(path)
-        generate_thumbnail(path, AssetSettings(index).thumbnail_path())
-        self.cache_thumbnail(index)
-
-    def cache_thumbnail(self, index):
-        """Caches the saved thumbnail image into our image cache."""
-        if not index.isValid():
-            return
-        settings = AssetSettings(index)
-        height = self.parent().visualRect(index).height() - 2
-        common.cache_image(settings.thumbnail_path(), height, overwrite=True)
 
 
-    def get_biggest_file(self, index):
-        """Finds the sequence's largest file from sequence filepath.
-        The largest files of the sequence will probably hold enough visual information
-        to be used a s thumbnail image. :)
 
-        """
-        path = index.data(QtCore.Qt.StatusTipRole)
-        path = common.get_sequence_startpath(path)
-
-        file_info = QtCore.QFileInfo(path)
-        match = common.get_sequence(file_info.fileName())
-        if not match:  # File is not a sequence
-            return path
-
-        dir_ = file_info.dir()
-        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        f = u'{}{}{}.{}'.format(
-            match.group(1),
-            u'?' * (len(match.group(2))),
-            match.group(3),
-            match.group(4),
-        )
-        dir_.setNameFilters((f,))
-        return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
-
-
-class ModelIndexWorkerSignals(QtCore.QObject):
+class Signals(QtCore.QObject):
     """QRunnables can't define signals themselves."""
     finished = QtCore.Signal(QtCore.QModelIndex)
-    error = QtCore.Signal(basestring)
 
 
-class ModelIndexWorker(QtCore.QRunnable):
+class Worker(QtCore.QRunnable):
     """Generic QRunnable, taking an index as it's first argument, used by ThumbnailGenerator
     to provide multithreading."""
 
     def __init__(self, func, index, *args, **kwargs):
-        super(ModelIndexWorker, self).__init__()
+        super(Worker, self).__init__()
         self.func = func
         self.index = index
-
         # QRunnable doesnt have the capability to define signals
-        self.signals = ModelIndexWorkerSignals()
+        self.signals = Signals()
 
         self.args = args
         self.kwargs = kwargs
@@ -194,37 +59,9 @@ class ModelIndexWorker(QtCore.QRunnable):
             self.func(self.index, *self.args, **self.kwargs)
             self.signals.finished.emit(self.index)
         except Exception as err:
-            errstr = u'# Browser: Failed to generate thumbnail.\n{}\n'.format(
-                err)
-            sys.stderr.write(errstr)
-            self.signals.error.emit(errstr)
+            sys.stderr.write(u'# Worker error:\n{}\n'.format(err))
 
 
-class ModelWorkerSignals(QtCore.QObject):
-    """QRunnables can't define signals themselves."""
-    finished = QtCore.Signal(QtCore.QAbstractItemModel)
-    error = QtCore.Signal(basestring)
-
-
-class ModelWorker(QtCore.QRunnable):
-    """Generic QRunnable."""
-
-    def __init__(self, func):
-        super(ModelWorker, self).__init__()
-        # QRunnable doesnt have the capability to define signals
-        self.signals = ModelWorkerSignals()
-
-        self.func = func
-
-    def run(self):
-        try:
-            instance = self.func()
-            self.signals.finished.emit(instance)
-        except Exception as err:
-            errstr = u'# Browser: Failed to generate thumbnail.\n{}\n'.format(
-                err)
-            sys.stderr.write(errstr)
-            self.signals.error.emit(errstr)
 
 
 if __name__ == '__main__':

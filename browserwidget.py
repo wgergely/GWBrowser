@@ -29,7 +29,10 @@ from browser.baselistwidget import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
+
 from browser.editors import FilterEditor, ClickableLabel
+from browser.editors import image_cache
+
 from browser.settings import local_settings, Active, active_monitor
 
 
@@ -47,7 +50,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': common.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'icon': image_cache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -63,21 +66,21 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
         if all(bookmark):
             menu_set[u'bookmark'] = {
-                u'icon': common.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'icon': image_cache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
                 u'disabled': not all(bookmark),
                 u'text': u'Show active bookmark in the file manager...',
                 u'action': functools.partial(common.reveal, u'/'.join(bookmark))
             }
             if all(asset):
                 menu_set[u'asset'] = {
-                    u'icon': common.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+                    u'icon': image_cache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
                     u'disabled': not all(asset),
                     u'text': u'Show active asset in the file manager...',
                     u'action': functools.partial(common.reveal, '/'.join(asset))
                 }
                 if all(location):
                     menu_set[u'location'] = {
-                        u'icon': common.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+                        u'icon': image_cache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
                         u'disabled': not all(location),
                         u'text': u'Show active location in the file manager...',
                         u'action': functools.partial(common.reveal, '/'.join(location))
@@ -95,7 +98,8 @@ class SizeGrip(QtWidgets.QSizeGrip):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        pixmap = common.get_rsc_pixmap('resize', common.TEXT, common.INLINE_ICON_SIZE / 2)
+        pixmap = image_cache.get_rsc_pixmap('resize', common.TEXT, common.INLINE_ICON_SIZE / 2)
+        painter.setOpacity(0.1)
         painter.drawPixmap(self.rect(), pixmap)
         painter.end()
 
@@ -181,14 +185,14 @@ class BrowserButton(ClickableLabel):
             QtCore.Qt.Widget |
             QtCore.Qt.FramelessWindowHint
         )
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'custom', None, height)
         self.setPixmap(pixmap)
 
     def set_size(self, size):
         self.setFixedWidth(int(size))
         self.setFixedHeight(int(size))
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'custom', None, int(size))
         self.setPixmap(pixmap)
 
@@ -342,9 +346,9 @@ class LocationsMenu(BaseContextMenu):
     @contextmenu
     def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
-        locations_icon_pixmap = common.get_rsc_pixmap(
+        locations_icon_pixmap = image_cache.get_rsc_pixmap(
             u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_on_pixmap = common.get_rsc_pixmap(
+        item_on_pixmap = image_cache.get_rsc_pixmap(
             u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         for k in sorted(list(common.NameFilters)):
@@ -395,10 +399,10 @@ class FilterButton(ClickableLabel):
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(ListStackWidget)
         if stackwidget.widget(idx).model().get_filterstring() != u'/':
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'filter', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
@@ -413,7 +417,7 @@ class LocationsButton(QtWidgets.QWidget):
         self.setToolTip('Select the asset location to browse')
         self._createUI()
 
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'location', common.FAVOURITE, common.INLINE_ICON_SIZE)
         self.icon.setPixmap(pixmap)
 
@@ -488,10 +492,10 @@ class CollapseSequenceButton(ClickableLabel):
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(ListStackWidget)
         if stackwidget.widget(idx).model().sourceModel().is_grouped():
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'expand', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
@@ -517,10 +521,10 @@ class ToggleArchivedButton(ClickableLabel):
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(ListStackWidget)
         if stackwidget.widget(idx).model().get_filtermode(u'archived'):
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'active', common.TEXT, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
@@ -546,10 +550,10 @@ class ToggleFavouriteButton(ClickableLabel):
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(ListStackWidget)
         if stackwidget.widget(idx).model().get_filtermode(u'favourite'):
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
-            pixmap = common.get_rsc_pixmap(
+            pixmap = image_cache.get_rsc_pixmap(
                 u'favourite', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
@@ -566,7 +570,7 @@ class AddBookmarkButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(AddBookmarkButton, self).__init__(parent=parent)
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'todo_add', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
         self.setFixedSize(
@@ -742,11 +746,11 @@ class ChangeListWidgetDelegate(QtWidgets.QStyledItemDelegate):
             color = common.TEXT_DISABLED
 
         if index.row() == 0:
-            pixmap = common.get_rsc_pixmap(u'bookmark', color, rect.height())
+            pixmap = image_cache.get_rsc_pixmap(u'bookmark', color, rect.height())
         if index.row() == 1:
-            pixmap = common.get_rsc_pixmap(u'package', color, rect.height())
+            pixmap = image_cache.get_rsc_pixmap(u'package', color, rect.height())
         if index.row() == 2:
-            pixmap = common.get_rsc_pixmap(u'file', color, rect.height())
+            pixmap = image_cache.get_rsc_pixmap(u'file', color, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -837,7 +841,7 @@ class BrowserWidget(QtWidgets.QWidget):
             QtCore.Qt.FramelessWindowHint
         )
 
-        pixmap = common.get_rsc_pixmap(u'custom', None, 64)
+        pixmap = image_cache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self._contextMenu = None
 
@@ -888,6 +892,7 @@ class BrowserWidget(QtWidgets.QWidget):
         )
 
         self.stackedwidget = ListStackWidget(parent=self)
+        self.stackedwidget.setObjectName('browserListStackWidget')
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)

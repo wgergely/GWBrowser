@@ -651,7 +651,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         """
         if cmds.file(q=True, modified=True):
-            mbox = QtWidgets.QMessageBox()
+            mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setText(
                 u'Current scene has unsaved changes.'
             )

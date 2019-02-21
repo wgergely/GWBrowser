@@ -19,20 +19,20 @@ Global Variables
     customize them here. ``Browser`` will assume all of these folder reside in the
     root of the ``asset`` folder.
 
+Sequence-recognition
+    The regexes we're using to validate file-names are aslo defined here.
+    `get_sequence` is the regex method that checks if a filename can be incremented.
+    For instance, it will understand sequences with the `v` prefix, eg v001, v002,
+    but works without the prefix as well. Eg. 001, 002.
 
-Thumbnails and UI Icon
-    The variables and the methods needed to read and cache thumbnail images
-    and UI icon are also defined here.
-
-    All cached images are stored in ``IMAGE_CACHE``.
-    To add an image to the cache you can use the ``cache_image()`` method.
-
-    Loading and caching ui resource items is done by ``get_rsc_pixmap()``.
+    Also, in the case of a filename like `_myfile_v001_freelance_v002.c4d_` ``002``
+    will be the prevailing sequence number.
+    Likewise, in the case of _myfile_v001_freelance_v002.0001.c4d_ the sequence
+    number understood will be ``0001``.
 
 """
 
 import os
-import random
 import re
 
 from PySide2 import QtGui, QtCore
@@ -54,6 +54,35 @@ ScenesFolder = u'scenes'
 RendersFolder = u'renders'
 TexturesFolder = u'textures'
 
+
+def get_oiio_namefilters(as_array=False):
+    """Gets all accepted formats from the oiio build as a namefilter list.
+    Use the return value on the QFileDialog.setNameFilters() method.
+
+    """
+    import browser.modules
+    import oiio.OpenImageIO as oiio
+
+    formatlist = oiio.get_string_attribute("extension_list").split(';')
+    namefilters = []
+    arr = []
+    for exts in formatlist:
+        exts = exts.split(':')
+        _exts = exts[1].split(',')
+        e = ['*.{}'.format(f) for f in _exts]
+        namefilter = '{} files ({})'.format(exts[0].upper(), ' '.join(e))
+
+        namefilters.append(namefilter)
+        for _e in _exts:
+            arr.append(_e)
+    if as_array:
+        return arr
+
+    e = ['*.{}'.format(f) for f in arr]
+    namefilters.insert(0, 'All files ({})'.format(' '.join(e)))
+    return namefilters
+
+
 NameFilters = {
     ExportsFolder: (
         u'*.abc',  # Alembic
@@ -69,18 +98,7 @@ NameFilters = {
         u'*.aep',  # After-Effects
         u'*.nk',  # Nuke
     ),
-    RendersFolder: (
-        u'*.exr',
-        u'*.png',
-        u'*.tiff',
-        u'*.tff',
-        u'*.jpg',
-        u'*.jpeg',
-        u'*.psd',
-        u'*.dpx',
-        u'*.tga',
-        u'*.psd',
-    ),
+    RendersFolder: tuple([u'*.{}'.format(f) for f in get_oiio_namefilters(as_array=True)]),
     TexturesFolder: (
         u'*.exr',
         u'*.tx',
@@ -231,12 +249,12 @@ def _add_custom_fonts():
             QtCore.QFileInfo(__file__).dir().path()
         )
     )
-    d.setNameFilters([u'*.ttf', ])
+    d.setNameFilters((u'*.ttf',))
 
     font_families = []
     for f in d.entryInfoList(
-        QtCore.QDir.Files |
-        QtCore.QDir.NoDotAndDotDot
+        QtCore.QDir.Files
+        | QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
         font_families.append(
@@ -281,125 +299,13 @@ def set_custom_stylesheet(widget):
         widget.setStyleSheet(qss)
 
 
-def resize_image(image, size):
-    """Returns a scaled copy of the image fitting inside the square of ``size``.
-
-    Args:
-        image (QImage): The image to rescale.
-        size (int): The width/height of the square.
-
-    Returns:
-        QImage: The resized copy of the original image.
-
-    """
-    longer = float(max(image.width(), image.height()))
-    factor = float(float(size) / float(longer))
-    if image.width() < image.height():
-        image = image.smoothScaled(
-            float(image.width()) * factor,
-            size
-        )
-        return image
-    image = image.smoothScaled(
-        size,
-        float(image.height()) * factor
-    )
-    return image
-
-
-def get_color_average(image):
-    """Returns the average color of an image."""
-    r = []
-    g = []
-    b = []
-    for x in xrange(image.width()):
-        for y in xrange(image.height()):
-            if image.pixelColor(x, y).alpha() < 0.01:
-                continue
-            r.append(image.pixelColor(x, y).red())
-            g.append(image.pixelColor(x, y).green())
-            b.append(image.pixelColor(x, y).blue())
-
-    if not all([float(len(r)), float(len(g)), float(len(b))]):
-        average_color = QtGui.QColor(SECONDARY_BACKGROUND)
-    else:
-        average_color = QtGui.QColor(
-            sum(r) / float(len(r)),
-            sum(g) / float(len(g)),
-            sum(b) / float(len(b))
-        )
-    average_color.setAlpha(average_color.alpha() / 2.0)
-    return average_color
-
-
-def get_rsc_pixmap(name, color, size, opacity=1.0):
-    """Loads a rescoure image and returns it as a re-sized and coloured QPixmap.
-
-    Args:
-        name (str): Name of the resource without the extension.
-        color (QColor): The colour of the icon.
-        size (int): The size of pixmap.
-
-    Returns:
-        QPixmap: The loaded image
-
-    """
-
-    k = u'{name}:{size}:{color}'.format(
-        name=name, size=size, color=u'null' if not color else color.name())
-
-    if k in IMAGE_CACHE:
-        return IMAGE_CACHE[k]
-
-    file_info = QtCore.QFileInfo(u'{}/../rsc/{}.png'.format(__file__, name))
-    if not file_info.exists():
-        return QtGui.QPixmap()
-
-    image = QtGui.QImage()
-    image.load(file_info.filePath())
-
-    if image.isNull():
-        return QtGui.QPixmap()
-
-    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-    if color is not None:
-        painter = QtGui.QPainter()
-        painter.begin(image)
-        painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(image.rect())
-        painter.end()
-
-    image = resize_image(image, size)
-    pixmap = QtGui.QPixmap()
-    pixmap.convertFromImage(image)
-
-    # Setting transparency
-    if opacity < 1.0:
-        image = QtGui.QImage(
-            pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
-        image.fill(QtCore.Qt.transparent)
-
-        painter = QtGui.QPainter()
-        painter.begin(image)
-        painter.setOpacity(opacity)
-        painter.drawPixmap(0, 0, pixmap)
-        painter.end()
-
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-
-    IMAGE_CACHE[k] = pixmap
-    return IMAGE_CACHE[k]
-
-
 def count_assets(path):
     """Returns the number of assets inside the given folder."""
     dir_ = QtCore.QDir(path)
     dir_.setFilter(
-        QtCore.QDir.NoDotAndDotDot |
-        QtCore.QDir.Dirs |
-        QtCore.QDir.Readable
+        QtCore.QDir.NoDotAndDotDot
+        | QtCore.QDir.Dirs
+        | QtCore.QDir.Readable
     )
 
     # Counting the number assets found
@@ -674,7 +580,3 @@ class QSingleton(type(QtCore.QObject)):
             cls._instances[cls] = super(
                 QSingleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
-
-# Thumbnail cache
-IMAGE_CACHE = {}

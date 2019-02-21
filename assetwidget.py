@@ -13,11 +13,9 @@ values are stored in the ``bookmark/.browser`` folder.
 """
 
 import time
-import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.utils.utils import ModelWorker
-
+from browser.editors import image_cache
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
@@ -76,13 +74,6 @@ class AssetModel(BaseModel):
         server, job, root = self.bookmark
         if not all((server, job, root)):
             return
-
-        # Creating folders
-        config_dir_path = u'{}/.browser/'.format(
-            u'/'.join(self.bookmark))
-        config_dir_path = QtCore.QFileInfo(config_dir_path)
-        if not config_dir_path.exists():
-            QtCore.QDir().mkpath(config_dir_path.filePath())
 
         # Resetting the path-monitor
         monitored = self._file_monitor.directories()
@@ -155,11 +146,6 @@ class AssetModel(BaseModel):
                 common.TodoCountRole: count,
                 common.FileDetailsRole: it.fileInfo().size(),
             }
-
-            common.cache_image(
-                settings.thumbnail_path(),
-                common.ASSET_ROW_HEIGHT - 2)
-
             idx += 1
 
         self._last_refreshed[self.get_location()] = time.time() # file-monitor timestamp
@@ -197,7 +183,7 @@ class AssetWidget(BaseInlineIconWidget):
             #Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = common.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
+            pixmap = image_cache.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())

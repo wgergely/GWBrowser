@@ -14,7 +14,7 @@ from browser.editors import ClickableLabel
 from browser.baselistwidget import contextmenu
 import browser.common as common
 from browser.settings import local_settings
-
+from browser.editors import image_cache
 
 class TrayMenu(BrowserButtonContextMenu):
     """The context menu associated with the QSystemTrayIcon."""
@@ -72,7 +72,7 @@ class CloseButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
                           common.ROW_BUTTONS_HEIGHT / 1.5)
@@ -87,7 +87,7 @@ class MinimizeButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
-        pixmap = common.get_rsc_pixmap(
+        pixmap = image_cache.get_rsc_pixmap(
             u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
                           common.ROW_BUTTONS_HEIGHT / 1.5)
@@ -152,7 +152,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = common.get_rsc_pixmap('custom', None, 256)
+        pixmap = image_cache.get_rsc_pixmap('custom', None, 256)
         icon = QtGui.QIcon(pixmap)
 
         self.tray.setIcon(icon)
@@ -292,7 +292,7 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(u'Browser')
         self.setApplicationVersion(u'0.2.0')
         self.set_model_id()
-        pixmap = common.get_rsc_pixmap(u'custom', None, 256)
+        pixmap = image_cache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def exec_(self):
