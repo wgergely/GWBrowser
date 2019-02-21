@@ -235,8 +235,8 @@ def _add_custom_fonts():
 
     font_families = []
     for f in d.entryInfoList(
-        QtCore.QDir.Files
-        | QtCore.QDir.NoDotAndDotDot
+        QtCore.QDir.Files |
+        QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
         font_families.append(
@@ -279,175 +279,6 @@ def set_custom_stylesheet(widget):
             SELECTION=u'{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
-
-
-def cache_placeholder(path, k, height):
-    ppath = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
-    ppath = ppath.absoluteFilePath()
-    placeholder_k = u'{path}:{height}'.format(
-        path=ppath,
-        height=height
-    )
-    if placeholder_k in IMAGE_CACHE:
-        IMAGE_CACHE[k] = IMAGE_CACHE[placeholder_k]
-    else:
-        IMAGE_CACHE[k] = _cache_placeholder(height)
-    IMAGE_CACHE[u'{}:BackgroundColor'.format(
-        path)] = IMAGE_CACHE[u'{}:BackgroundColor'.format(ppath)]
-    return IMAGE_CACHE[k]
-
-
-def cache_image(path, height, overwrite=False):
-    """Saves the image at the path to the image cache. The cached images are
-    stored in the IMAGE_CACHE dictionary.
-
-    If the loading the image fails, we'll use an empty image.
-
-    We're also saving an average of colour to be used as the background when the
-    image is not square.
-
-    Args:
-        path (str):    Path to the image file.
-        height (int):  Description of parameter `height`.
-
-    Returns:
-        type: Description of returned object.
-
-    """
-    height = int(height)
-    path = QtCore.QFileInfo(path)
-    path = path.filePath()
-
-    k = u'{path}:{height}'.format(
-        path=path,
-        height=height
-    )
-    if k in IMAGE_CACHE and not overwrite:
-        return IMAGE_CACHE[k]
-
-    file_info = QtCore.QFileInfo(path)
-    if not file_info.exists():
-        return cache_placeholder(path, k, height)
-
-    image = QtGui.QImage()
-    image.load(file_info.filePath())
-    if image.isNull():
-        return cache_placeholder(path, k, height)
-
-    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-    image = resize_image(image, height)
-
-    # Average colour
-    IMAGE_CACHE[u'{path}:BackgroundColor'.format(
-        path=path
-    )] = get_color_average(image)
-    IMAGE_CACHE[k] = image
-    return IMAGE_CACHE[k]
-
-
-def _cache_placeholder(height):
-    height = int(height)
-    path = QtCore.QFileInfo(u'{}/../rsc/placeholder.png'.format(__file__))
-    path = path.absoluteFilePath()
-
-    k = u'{path}:{height}'.format(
-        path=path,
-        height=height
-    )
-
-    if k in IMAGE_CACHE:
-        return IMAGE_CACHE[k]
-
-    file_info = QtCore.QFileInfo(
-        u'{}/../rsc/placeholder.png'.format(__file__))
-    image = QtGui.QImage()
-    image.load(file_info.filePath())
-    image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-
-    # If the load fails, use the placeholder image
-    image = resize_image(
-        image,
-        height
-    )
-
-    # Average colour
-    IMAGE_CACHE[k] = image
-    IMAGE_CACHE[u'{path}:BackgroundColor'.format(
-        path=path
-    )] = QtGui.QColor(0, 0, 0, 0)
-    return IMAGE_CACHE[k]
-
-
-def delete_image(path, delete_file=True):
-    """Deletes the given file and the associated cached data.
-
-    Args:
-        path (type): Path to the image file.
-
-    """
-    file_ = QtCore.QFile(path)
-
-    if file_.exists() and delete_file:
-        file_.remove()
-
-    keys = [k for k in IMAGE_CACHE if path.lower() in k.lower()]
-    for k in keys:
-        if ':' in k:
-            elem = k.split(':')[-1]
-            if 'BackgroundColor' in elem:
-                IMAGE_CACHE[k] = QtGui.QColor(0, 0, 0, 0)
-            else:
-                cache_placeholder(path, k, int(elem))
-
-
-def label_generator():
-    """Generates QColors from an array of RGB values.
-
-    Example:
-
-    .. code-block:: python
-        :linenos:
-
-        LABEL_COLORS = label_generator()
-        next(LABEL_COLORS)
-
-    Yields:         QtCore.QColor
-
-    """
-    arr = []
-    for n in xrange(999):
-        a = [120, 60, 150] if n % 2 == 0 else [150, 60, 120]
-        v = 20
-        arr.append([
-            random.randint(max(a[0] - v, 0), min(a[0] + v, 255)),
-            random.randint(max(a[1] - (v / 3), 0), min(a[1] + (v / 3), 255)),
-            random.randint(max(a[2] - v, 0), min(a[2] + v, 255))
-        ])
-    for color in arr:
-        yield QtGui.QColor(*color)
-
-
-def get_label(k):
-    """Returns the QColor for the given key.
-
-    Args:
-        k (str):    The key, eg. the name of a folder.
-
-    Raises:         StopIterationrError: When out of labels.
-    Returns:        QColor.
-
-    """
-    global LABEL_COLORS
-    if k.lower() not in ASSIGNED_LABELS:
-        ASSIGNED_LABELS[k.lower()] = next(LABEL_COLORS)
-    return ASSIGNED_LABELS[k.lower()]
-
-
-def revert_labels():
-    global LABEL_COLORS
-    global ASSIGNED_LABELS
-    ASSIGNED_LABELS = {}
-    LABEL_COLORS = label_generator()
 
 
 def resize_image(image, size):
@@ -566,9 +397,9 @@ def count_assets(path):
     """Returns the number of assets inside the given folder."""
     dir_ = QtCore.QDir(path)
     dir_.setFilter(
-        QtCore.QDir.NoDotAndDotDot
-        | QtCore.QDir.Dirs
-        | QtCore.QDir.Readable
+        QtCore.QDir.NoDotAndDotDot |
+        QtCore.QDir.Dirs |
+        QtCore.QDir.Readable
     )
 
     # Counting the number assets found
@@ -845,11 +676,5 @@ class QSingleton(type(QtCore.QObject)):
         return cls._instances[cls]
 
 
-# Label LABEL_COLORS
-ASSIGNED_LABELS = {}
 # Thumbnail cache
 IMAGE_CACHE = {}
-
-# Property contains all the saVed label LABEL_COLORS
-LABEL_COLORS = label_generator()
-#
