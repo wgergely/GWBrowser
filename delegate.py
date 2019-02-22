@@ -8,7 +8,7 @@ from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
 from browser.settings import AssetSettings
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
@@ -244,8 +244,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                       common.INDICATOR_WIDTH + rect.height())
 
         settings = AssetSettings(index)
-        image = image_cache.get(settings.thumbnail_path(), (option.rect.height() - 2))
-        color = image_cache.get(settings.thumbnail_path(), 'BackgroundColor')
+        image = ImageCache.instance().get(settings.thumbnail_path(), (option.rect.height() - 2))
+        color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
@@ -345,12 +345,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
 
         if archived:
-            pixmap = image_cache.get_rsc_pixmap(
+            pixmap = ImageCache.get_rsc_pixmap(
                 u'archived', color, common.INLINE_ICON_SIZE)
             painter.setBrush(common.SEPARATOR)
             painter.drawRoundedRect(bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
         else:
-            pixmap = image_cache.get_rsc_pixmap(
+            pixmap = ImageCache.get_rsc_pixmap(
                 u'active', color, common.INLINE_ICON_SIZE)
 
         # Icon
@@ -366,7 +366,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 2)
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SEPARATOR, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
@@ -383,7 +383,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 3)
 
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'todo', common.SEPARATOR, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
@@ -430,7 +430,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pos = QtGui.QCursor().pos()
         pos = self.parent().mapFromGlobal(pos)
 
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'favourite', color, common.INLINE_ICON_SIZE)
 
         painter.setPen(QtCore.Qt.NoPen)
@@ -585,10 +585,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setHeight(option.rect.height() / 1.5)
         rect.moveCenter(center)
 
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'bookmark', common.SECONDARY_BACKGROUND, option.rect.height() / 1.5)
         if selected:
-            pixmap = image_cache.get_rsc_pixmap(
+            pixmap = ImageCache.get_rsc_pixmap(
             u'bookmark', common.BACKGROUND, option.rect.height() / 1.5)
 
         painter.drawPixmap(

@@ -15,7 +15,7 @@ values are stored in the ``bookmark/.browser`` folder.
 import time
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
@@ -183,7 +183,7 @@ class AssetWidget(BaseInlineIconWidget):
             #Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = image_cache.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
+            pixmap = ImageCache.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())

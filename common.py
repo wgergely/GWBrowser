@@ -60,7 +60,7 @@ def get_oiio_namefilters(as_array=False):
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    import browser.modules
+    import browser.modules  # pylint: disable=E0401
     import oiio.OpenImageIO as oiio
 
     formatlist = oiio.get_string_attribute("extension_list").split(';')
@@ -253,8 +253,8 @@ def _add_custom_fonts():
 
     font_families = []
     for f in d.entryInfoList(
-        QtCore.QDir.Files
-        | QtCore.QDir.NoDotAndDotDot
+        QtCore.QDir.Files |
+        QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
         font_families.append(
@@ -297,26 +297,6 @@ def set_custom_stylesheet(widget):
             SELECTION=u'{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
-
-
-def count_assets(path):
-    """Returns the number of assets inside the given folder."""
-    dir_ = QtCore.QDir(path)
-    dir_.setFilter(
-        QtCore.QDir.NoDotAndDotDot
-        | QtCore.QDir.Dirs
-        | QtCore.QDir.Readable
-    )
-
-    # Counting the number assets found
-    count = 0
-    for file_info in dir_.entryInfoList():
-        dir_ = QtCore.QDir(file_info.filePath())
-        dir_.setFilter(QtCore.QDir.Files)
-        dir_.setNameFilters((ASSET_IDENTIFIER,))
-        if dir_.entryInfoList():
-            count += 1
-    return count
 
 
 def byte_to_string(num, suffix=u'B'):

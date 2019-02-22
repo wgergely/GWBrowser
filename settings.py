@@ -201,7 +201,7 @@ class AssetSettings(QtCore.QSettings):
         it takes a tuple bookmark tuple of server, job, root and a full filepath.
 
         """
-        if isinstance(index, QtCore.QModelIndex):
+        if isinstance(index, (QtCore.QModelIndex, QtCore.QPersistentModelIndex)):
             self._root = u'{server}/{job}/{root}'.format(
                 server=index.data(common.ParentRole)[0],
                 job=index.data(common.ParentRole)[1],

@@ -36,12 +36,12 @@ class Spinner(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(Spinner, self).__init__(parent=parent)
-        from browser.editors import image_cache
+        from browser.imagecache import ImageCache
 
         self._createUI()
         self.setText(u'Loading...')
 
-        pixmap = image_cache.get_rsc_pixmap(u'custom', None, 64)
+        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self.setWindowFlags(
@@ -83,17 +83,10 @@ class Spinner(QtWidgets.QWidget):
     def start(self):
         """Starts the widget-spin."""
         self.show()
-        app = QtWidgets.QApplication.instance()
-        app.setOverrideCursor(QtCore.Qt.WaitCursor)
-        QtWidgets.QApplication.instance().processEvents(
-            QtCore.QEventLoop.ExcludeUserInputEvents)
-
 
     def stop(self):
         """Stops the widget-spin."""
         self.close()
-        app = QtWidgets.QApplication.instance()
-        app.restoreOverrideCursor()
 
 
 
@@ -101,4 +94,5 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     app.w = Spinner()
     app.w.start()
+    app.w.setText('asdsad')
     app.exec_()

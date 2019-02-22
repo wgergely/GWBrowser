@@ -8,13 +8,14 @@
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu
+from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu, SizeGrip
 from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
 from browser.baselistwidget import contextmenu
 import browser.common as common
 from browser.settings import local_settings
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
+
 
 class TrayMenu(BrowserButtonContextMenu):
     """The context menu associated with the QSystemTrayIcon."""
@@ -42,14 +43,14 @@ class TrayMenu(BrowserButtonContextMenu):
             self.parent().hide()
             if self.stays_on_top:
                 self.parent().setWindowFlags(
-                    QtCore.Qt.Window |
-                    QtCore.Qt.FramelessWindowHint)
+                    QtCore.Qt.Window
+                    | QtCore.Qt.FramelessWindowHint)
             else:
                 self.parent().setWindowFlags(
-                    QtCore.Qt.Window |
-                    QtCore.Qt.FramelessWindowHint |
-                    QtCore.Qt.WindowStaysOnTopHint |
-                    QtCore.Qt.X11BypassWindowManagerHint)
+                    QtCore.Qt.Window
+                    | QtCore.Qt.FramelessWindowHint
+                    | QtCore.Qt.WindowStaysOnTopHint
+                    | QtCore.Qt.X11BypassWindowManagerHint)
             self.parent().show()
             self.stays_on_top = not self.stays_on_top
 
@@ -72,7 +73,7 @@ class CloseButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
                           common.ROW_BUTTONS_HEIGHT / 1.5)
@@ -87,7 +88,7 @@ class MinimizeButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
                           common.ROW_BUTTONS_HEIGHT / 1.5)
@@ -119,8 +120,10 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
 
-        button = BrowserButton(height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self)
-        button.clicked.connect(lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
+        button = BrowserButton(
+            height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self)
+        button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
         self.layout().addWidget(button)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
@@ -152,7 +155,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = image_cache.get_rsc_pixmap('custom', None, 256)
+        pixmap = ImageCache.get_rsc_pixmap('custom', None, 256)
         icon = QtGui.QIcon(pixmap)
 
         self.tray.setIcon(icon)
@@ -165,7 +168,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        shadow_offset = common.MARGIN / 2.0
+        shadow_offset = common.INDICATOR_WIDTH * 2
         self.layout().setContentsMargins(common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
                                          common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)
 
@@ -176,14 +179,11 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.effect.setColor(QtCore.Qt.black)
         self.setGraphicsEffect(self.effect)
 
-
     def _createUI(self):
         super(StandaloneBrowserWidget, self)._createUI()
-
         self.headerwidget = HeaderWidget(parent=self)
         self.layout().insertWidget(0, self.headerwidget)
-
-        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
+        grip = self.statusbar.findChild(SizeGrip)
         grip.show()
 
     def _connectSignals(self):
@@ -207,8 +207,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.setOpacity(0.8)
-        painter.drawRoundedRect(rect, 8, 8)
+        painter.drawRoundedRect(rect, 4, 4)
         painter.end()
 
     def itemDoubleClicked(self, index):
@@ -292,7 +291,7 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(u'Browser')
         self.setApplicationVersion(u'0.2.0')
         self.set_model_id()
-        pixmap = image_cache.get_rsc_pixmap(u'custom', None, 256)
+        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def exec_(self):

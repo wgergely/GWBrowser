@@ -18,9 +18,8 @@ from browser.settings import AssetSettings
 from browser.settings import local_settings, Active
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
 from browser.spinner import longprocess
-from browser.utils.utils import ThumbnailGenerator
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -129,7 +128,7 @@ class FilesModel(BaseModel):
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
             # We're not going to set more data when looking inside the ``renders`` location.
-            # Things can slow down when querrying 10000+ files.
+            # Things can slow down when querrying 10000s of files.
             if location == common.RendersFolder:
                 self._model_data[location][False][idx] = {
                     int(QtCore.Qt.StatusTipRole): path,
@@ -196,6 +195,7 @@ class FilesModel(BaseModel):
                 common.FileDetailsRole: info_string,
             }
             idx += 1
+            ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
 
         # Getting unique sequence groups
         groups = {}
@@ -268,6 +268,7 @@ class FilesModel(BaseModel):
                         common.TodoCountRole: count,
                         common.FileDetailsRole: info_string,
                     }
+                    ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
                 else:
                     # We can just use the previously collected data
                     self._model_data[location][True][idx] = self._model_data[location][False][k]
@@ -360,6 +361,7 @@ class FilesModel(BaseModel):
                 common.FileDetailsRole: info_string,
             }
             idx += 1
+            ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
 
         self._last_refreshed[self.get_location()] = time.time()  # file-monitor timestamp
 
@@ -517,10 +519,6 @@ class FilesWidget(BaseInlineIconWidget):
         self.setWindowTitle(u'Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
-
-        self.thumbnail_generator = ThumbnailGenerator(parent=self)
-        self.thumbnail_generator.thumbnailUpdated.connect(self.update)
-
         self.set_model(FilesModel(asset))
 
     def eventFilter(self, widget, event):
@@ -531,7 +529,7 @@ class FilesWidget(BaseInlineIconWidget):
             # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = image_cache.get_rsc_pixmap(
+            pixmap = ImageCache.get_rsc_pixmap(
                 'files', QtGui.QColor(0, 0, 0, 10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
@@ -613,7 +611,7 @@ class FilesWidget(BaseInlineIconWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            image_cache.pick(index)
+            ImageCache.instance().pick(index)
             return
 
         # self.activate_current_index()

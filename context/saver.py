@@ -43,9 +43,8 @@ from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
 from browser.capture import ScreenGrabber
 from browser.settings import MarkedAsActive, MarkedAsArchived
 
-from browser.utils.utils import generate_thumbnail
 from browser.settings import AssetSettings
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
 
 class ThumbnailContextMenu(BaseContextMenu):
     """Context menu associated with the thumbnail."""
@@ -58,11 +57,11 @@ class ThumbnailContextMenu(BaseContextMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
-        capture_thumbnail_pixmap = image_cache.get_rsc_pixmap(
+        capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        pick_thumbnail_pixmap = image_cache.get_rsc_pixmap(
+        pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        remove_thumbnail_pixmap = image_cache.get_rsc_pixmap(
+        remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set[u'Capture thumbnail'] = {
@@ -92,7 +91,7 @@ class ThumbnailButton(ClickableLabel):
         self.reset()
 
     def reset(self):
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
         self.setPixmap(pixmap)
         self.setStyleSheet(
@@ -179,7 +178,7 @@ class BaseCombobox(QtWidgets.QComboBox):
 class FoldersIconProvider(QtWidgets.QFileIconProvider):
     def __init__(self, parent=None):
         super(FoldersIconProvider, self).__init__(parent=parent)
-        self.FolderIcon = image_cache.get_rsc_pixmap(
+        self.FolderIcon = ImageCache.get_rsc_pixmap(
             'folder', common.TEXT, common.ROW_BUTTONS_HEIGHT)
 
     def icon(self, type):
@@ -867,7 +866,7 @@ class Check(ClickableLabel):
         super(Check, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedSize(common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
-        pixmap = image_cache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             'check', common.FAVOURITE, common.ROW_HEIGHT / 1.5)
         self.setPixmap(pixmap)
         self.setStyleSheet("""

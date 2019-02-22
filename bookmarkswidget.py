@@ -20,7 +20,7 @@ import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
-from browser.editors import image_cache
+from browser.imagecache import ImageCache
 import browser.common as common
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
@@ -71,7 +71,27 @@ class BookmarkInfo(QtCore.QFileInfo):
         path = u'{}/{}/{}'.format(self.server, self.job, self.root)
         super(BookmarkInfo, self).__init__(path, parent=parent)
 
-        self.size = functools.partial(common.count_assets, path)
+        self.size = self._count_assets
+        self.count = self._count_assets
+
+    def _count_assets(self):
+        """Returns the number of assets inside the given folder."""
+        dir_ = QtCore.QDir(self.filePath())
+        dir_.setFilter(
+            QtCore.QDir.NoDotAndDotDot
+            | QtCore.QDir.Dirs
+            | QtCore.QDir.Readable
+        )
+
+        # Counting the number assets found
+        count = 0
+        for file_info in dir_.entryInfoList():
+            dir_ = QtCore.QDir(file_info.filePath())
+            dir_.setFilter(QtCore.QDir.Files)
+            dir_.setNameFilters((common.ASSET_IDENTIFIER,))
+            if dir_.entryInfoList():
+                count += 1
+        return count
 
 
 class BookmarksWidgetContextMenu(BaseContextMenu):
@@ -166,11 +186,12 @@ class BookmarksModel(BaseModel):
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
-                common.TodoCountRole: common.count_assets(file_info.filePath()),
+                common.TodoCountRole: file_info.size(),
                 common.FileDetailsRole: file_info.size(),
             }
 
-        self._last_refreshed[self.get_location()] = time.time() # file-monitor timestamp
+        # file-monitor timestamp
+        self._last_refreshed[self.get_location()] = time.time()
 
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():
@@ -247,16 +268,16 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         self.set_model(BookmarksModel(parent=self))
 
-
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:
-            #Let's paint the icon of the current mode
+            # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = image_cache.get_rsc_pixmap('bookmark', QtGui.QColor(0,0,0,10), 200)
+            pixmap = ImageCache.get_rsc_pixmap(
+                'bookmark', QtGui.QColor(0, 0, 0, 10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -389,8 +410,10 @@ class ComboBoxItemDelegate(BaseDelegate):
         text = re.sub(r'[\W\d\_]+', u' ', text.upper())
 
         if disabled:
-            text = u'{}  |  Unavailable'.format(index.data(QtCore.Qt.DisplayRole))
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+            text = u'{}  |  Unavailable'.format(
+                index.data(QtCore.Qt.DisplayRole))
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().view().width(), common.ROW_HEIGHT * 0.66)
@@ -500,7 +523,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         main_widget = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(main_widget)
         self.label = QtWidgets.QLabel()
-        pixmap = image_cache.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 128)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'bookmark', common.SECONDARY_TEXT, 128)
         self.label.setPixmap(pixmap)
         main_widget.layout().addWidget(self.label)
         main_widget.layout().addSpacing(common.MARGIN)
