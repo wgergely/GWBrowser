@@ -246,8 +246,6 @@ class BrowserButton(ClickableLabel):
         widget.exec_()
 
 
-
-
 class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
 
