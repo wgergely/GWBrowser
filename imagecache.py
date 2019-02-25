@@ -331,8 +331,10 @@ class ImageCache(QtCore.QObject):
         # First let's check if the file is competible with OpenImageIO
         i = oiio.ImageInput.open(source)
         if not i:
+            i.close()
             sys.stderr.write(oiio.geterror())
             return  # the file is not understood by OenImageIO
+        i.close()
 
         img = ImageBuf(source)
 
