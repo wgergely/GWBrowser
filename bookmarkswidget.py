@@ -16,7 +16,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import time
 import re
-import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 

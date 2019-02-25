@@ -14,12 +14,11 @@ from browser.baselistwidget import StackedWidget
 from browser.baselistwidget import BaseModel
 from browser.bookmarkswidget import BookmarksWidget
 from browser.fileswidget import FilesWidget
-
 from browser.editors import FilterEditor
 from browser.editors import ClickableLabel
 from browser.imagecache import ImageCache
+from browser.settings import local_settings
 
-from browser.settings import local_settings, Active
 
 
 class LocationsMenu(BaseContextMenu):
