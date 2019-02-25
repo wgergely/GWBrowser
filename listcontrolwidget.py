@@ -11,6 +11,7 @@ from browser.delegate import paintmethod
 from browser.baselistwidget import BaseContextMenu
 from browser.baselistwidget import contextmenu
 from browser.baselistwidget import StackedWidget
+from browser.baselistwidget import BaseModel
 from browser.bookmarkswidget import BookmarksWidget
 from browser.fileswidget import FilesWidget
 
@@ -260,13 +261,6 @@ class AddBookmarkButton(ClickableLabel):
         )
 
 
-class SortButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(SortButton, self).__init__(parent=parent)
-
-
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the list to control the mode, filters and sorting."""
 
@@ -441,6 +435,57 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
             pixmap.rect()
         )
 
+    def sizeHint(self, option, index):
+        return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+
+class ListControlView(QtWidgets.QListView):
+    def __init__(self, parent=None):
+        super(ListControlView, self).__init__(parent=parent)
+
+
+class ListControlModel(BaseModel):
+
+    static_string_list = ('Bookmarks', 'Assets', 'Files')
+
+    def __init__(self, parent=None):
+        super(ListControlModel, self).__init__(parent=parent)
+
+    def __initdata__(self):
+        self.model_data = {} # resetting data
+        flags = (
+            QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsEnabled |
+            QtCore.Qt.ItemIsEditable
+        )
+        for idx, item in enumerate(self.static_string_list):
+            self.model_data[idx] = {
+                QtCore.Qt.DisplayRole: item,
+                QtCore.Qt.EditRole: item,
+                QtCore.Qt.StatusTipRole: item,
+                QtCore.Qt.ToolTipRole: item,
+                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
+                common.FlagsRole: flags,
+                common.ParentRole: None,
+                common.DescriptionRole: item,
+                common.TodoCountRole: 0,
+                common.FileDetailsRole: None,
+            }
+
+    def __resetdata__(self):
+        """Resets the internal data."""
+        # Resetting the file-monitor
+        self.modelDataAboutToChange.emit()
+        self.beginResetModel()
+        self.model_data = {}
+        self.endResetModel()
+
+    def columnCount(self, parent=QtCore.QModelIndex()):
+        return 1
+
+    def rowCount(self, parent=QtCore.QModelIndex()):
+        return 3
+
+
 
 class ListControlDropdown(QtWidgets.QComboBox):
     """Drop-down widget to switch between the list"""
@@ -449,15 +494,14 @@ class ListControlDropdown(QtWidgets.QComboBox):
         super(ListControlDropdown, self).__init__(parent=parent)
         self.currentTextChanged.connect(self._adjustSize)
 
-        self.setItemDelegate(ListControlDelegate(parent=self))
-        self.addItem(u'Bookmarks')
-        self.addItem(u'Assets')
-        self.addItem(u'Files')
+        self.setView(ListControlView(parent=self.parent()))
+        self.setModel(ListControlModel(parent=self.parent())) # parent = ListControlWidget
+        self.setItemDelegate(ListControlDelegate(parent=self.view()))
 
         idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
-        self.apply_flags()
+        # self.apply_flags()
 
     def _adjustSize(self, text):
         font = QtGui.QFont(common.PrimaryFont)
@@ -468,19 +512,20 @@ class ListControlDropdown(QtWidgets.QComboBox):
 
     def apply_flags(self):
         """Sets the item flags based on the set active paths."""
-        active_paths = Active.get_active_paths()
-        flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        for n in xrange(self.model().rowCount()):
-            item = self.model().item(n)
-            if n == 1 and not all(bookmark):
-                item.setFlags(QtCore.Qt.NoItemFlags)
-                continue
-            if n == 2 and not active_paths[u'asset']:
-                item.setFlags(QtCore.Qt.NoItemFlags)
-                continue
-            item.setFlags(flags)
+        return
+        # active_paths = Active.get_active_paths()
+        # flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+        # bookmark = (active_paths[u'server'],
+        #             active_paths[u'job'], active_paths[u'root'])
+        # for n in xrange(self.model().rowCount()):
+        #     item = self.model().item(n)
+        #     if n == 1 and not all(bookmark):
+        #         item.setFlags(QtCore.Qt.NoItemFlags)
+        #         continue
+        #     if n == 2 and not active_paths[u'asset']:
+        #         item.setFlags(QtCore.Qt.NoItemFlags)
+        #         continue
+        #     item.setFlags(flags)
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""

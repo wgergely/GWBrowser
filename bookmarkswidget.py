@@ -148,7 +148,8 @@ class BookmarksModel(BaseModel):
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists
-            # This folder lives in the root of the bookmarks folder
+            # This folder lives in the root of the bookmarks folder and is
+            # created here if not created previously.
             _confpath = u'{}/.browser/'.format(file_info.filePath())
             _confpath = QtCore.QFileInfo(_confpath)
             if not _confpath.exists():
