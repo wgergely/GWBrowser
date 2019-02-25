@@ -1598,3 +1598,21 @@ class BaseInlineIconWidget(BaseListWidget):
                     index=source_index,
                     state=self.multi_toggle_items.pop(idx)
                 )
+
+
+class StackedWidget(QtWidgets.QStackedWidget):
+    """Stacked widget to switch between the Bookmark-, Asset - and File lists."""
+
+    def __init__(self, parent=None):
+        super(StackedWidget, self).__init__(parent=parent)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+
+    def setCurrentIndex(self, idx):
+        local_settings.setValue(u'widget/current_index', idx)
+        super(StackedWidget, self).setCurrentIndex(idx)
+
+    def sizeHint(self):
+        return QtCore.QSize(common.WIDTH, common.HEIGHT)

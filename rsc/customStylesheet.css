@@ -161,7 +161,7 @@ QComboBox::drop-down:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 
-ChangeListWidget {{
+ListControlDropdown {{
 	font-size: 10pt;
 	text-align: left;
 	margin: 0px;
@@ -169,15 +169,15 @@ ChangeListWidget {{
 	color: rgba({TEXT});
 	background-color: rgba(0,0,0,0);
 }}
-ChangeListWidget:active {{
+ListControlDropdown:active {{
 	background-color: rgba(0,0,0,0);
 	color: rgb({TEXT_SELECTED});
 }}
-ChangeListWidget:hover {{
+ListControlDropdown:hover {{
 	background-color: rgba(0,0,0,0);
 	color: rgb({TEXT_SELECTED});
 }}
-ChangeListWidget:focus {{
+ListControlDropdown:focus {{
 	background-color: rgba(0,0,0,0);
 }}
 
