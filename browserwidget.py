@@ -32,7 +32,6 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.listcontrolwidget import ListControlWidget
 from browser.listcontrolwidget import FilterButton
-from browser.listcontrolwidget import LocationsButton
 
 from browser.editors import ClickableLabel
 from browser.imagecache import ImageCache
@@ -307,7 +306,6 @@ class BrowserWidget(QtWidgets.QWidget):
         )
 
         self.stackedwidget = StackedWidget(parent=self)
-        self.stackedwidget.setObjectName('browserStackedWidget')
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
@@ -345,16 +343,12 @@ class BrowserWidget(QtWidgets.QWidget):
             self.assetswidget.model().sourceModel().set_bookmark)
 
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
-        locationsbutton = self.listcontrolwidget.findChild(LocationsButton)
-
-        def func(text): return locationsbutton.text.setText(text.title())
-        self.fileswidget.model().sourceModel().activeLocationChanged.connect(func)
         # Filter proxy model
-        def func(): return self.listcontrolwidget.setCurrentMode(
-            self.stackedwidget.currentIndex())
-        self.fileswidget.model().filterModeChanged.connect(func)
-        self.assetswidget.model().filterModeChanged.connect(func)
-        self.bookmarkswidget.model().filterModeChanged.connect(func)
+        def _set_mode():
+            self.listcontrolwidget.setCurrentMode(self.stackedwidget.currentIndex())
+        self.fileswidget.model().filterModeChanged.connect(_set_mode)
+        self.assetswidget.model().filterModeChanged.connect(_set_mode)
+        self.bookmarkswidget.model().filterModeChanged.connect(_set_mode)
 
         # Show bookmarks shortcut
         shortcut = QtWidgets.QShortcut(
@@ -383,12 +377,6 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(filterbutton.clicked)
-        # Search
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+L'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(locationsbutton.clicked)
 
         self.bookmarkswidget.model().sourceModel(
         ).activeBookmarkChanged.connect(

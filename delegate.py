@@ -183,20 +183,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(option.rect)
         rect.setTop(rect.top() + 1)
         rect.setBottom(rect.bottom() - 1)
-        rect.setWidth(common.INDICATOR_WIDTH)
-        rect.moveRight(option.rect.right())
 
+        painter.setOpacity(0.2)
+        painter.setBrush(common.FAVOURITE)
         painter.drawRect(rect)
-        rect.moveLeft(option.rect.left() +
-                      common.INDICATOR_WIDTH + rect.height())
-        painter.drawRect(rect)
-
-        if active:
-            color = QtGui.QColor(common.FAVOURITE)
-            color.setAlpha(50)
-            painter.setBrush(color)
-            rect.setRight(option.rect.right())
-            painter.drawRect(rect)
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -255,18 +245,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Resizing the rectangle to accommodate the image's aspect ration
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / float(longer))
-
+        center = rect.center()
         if image.rect().width() < image.rect().height():
             rect.setWidth(int(image.rect().width() * factor) - 2)
         else:
             rect.setHeight(int(image.rect().height() * factor) - 2)
-
-        rect.moveLeft(
-            rect.left() + int(((option.rect.height() - 2) - rect.width()) * 0.5)
-        )
-        rect.moveTop(
-            rect.top() + int(((option.rect.height() - 2) - rect.height()) * 0.5)
-        )
+        rect.moveCenter(center)
 
         painter.drawImage(
             rect,
@@ -571,9 +555,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """Paints the thumbnail of the ``BookmarkWidget`` item."""
         painter, option, index, selected, _, active, _, _ = args
 
-        favourite = index.flags() & MarkedAsFavourite
-        active = index.flags() & MarkedAsActive
-
         rect = QtCore.QRect(option.rect)
         rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
         rect.setTop(rect.top() + 1)
@@ -581,15 +562,18 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setWidth(rect.height())
 
         center = rect.center()
-        rect.setWidth(option.rect.height() / 1.5)
-        rect.setHeight(option.rect.height() / 1.5)
+        rect.setWidth(rect.height() / 2)
+        rect.setHeight(rect.height() / 2)
         rect.moveCenter(center)
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.SECONDARY_BACKGROUND, option.rect.height() / 1.5)
+            u'bookmark', common.SECONDARY_BACKGROUND, rect.height())
         if selected:
             pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.BACKGROUND, option.rect.height() / 1.5)
+            u'bookmark', common.BACKGROUND, rect.height())
+        if active:
+            pixmap = ImageCache.get_rsc_pixmap(
+            u'bookmark', common.FAVOURITE, rect.height())
 
         painter.drawPixmap(
             rect,
@@ -612,7 +596,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setLeft(
             common.INDICATOR_WIDTH +
             rect.height() +
-            (common.MARGIN / 2.0)
+            common.MARGIN
         )
         rect.setRight(rect.right() - common.MARGIN)
 
@@ -648,7 +632,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
 
         color = self.get_state_color(option, index, common.TEXT)
-        rect.moveLeft(rect.right() + (common.MARGIN / 2.0))
+        rect.moveLeft(rect.right() + common.MARGIN)
 
         text = index.data(common.ParentRole)[2]
         text = text.split(u'/')[-1]

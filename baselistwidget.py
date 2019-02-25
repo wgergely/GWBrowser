@@ -1609,6 +1609,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
         )
+        self.setObjectName(u'BrowserStackedWidget')
 
     def setCurrentIndex(self, idx):
         local_settings.setValue(u'widget/current_index', idx)

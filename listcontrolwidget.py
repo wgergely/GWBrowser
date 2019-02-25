@@ -18,33 +18,9 @@ from browser.editors import FilterEditor
 from browser.editors import ClickableLabel
 from browser.imagecache import ImageCache
 from browser.settings import local_settings
+from browser.settings import AssetSettings
+from browser.settings import Active
 
-
-
-class LocationsMenu(BaseContextMenu):
-    def __init__(self, parent=None):
-        super(LocationsMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_location_toggles_menu()
-
-    @contextmenu
-    def add_location_toggles_menu(self, menu_set):
-        """Adds the menu needed to change context"""
-        locations_icon_pixmap = ImageCache.get_rsc_pixmap(
-            u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        item_on_pixmap = ImageCache.get_rsc_pixmap(
-            u'item_on', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-
-        for k in sorted(list(common.NameFilters)):
-            checked = self.parent().model().sourceModel().get_location() == k
-            menu_set[k] = {
-                u'text': k.title(),
-                u'checkable': True,
-                u'checked': checked,
-                u'icon': item_on_pixmap if checked else QtGui.QPixmap(),
-                u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
-            }
-        return menu_set
 
 
 class FilterButton(ClickableLabel):
@@ -90,66 +66,6 @@ class FilterButton(ClickableLabel):
                 u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
-
-class LocationsButton(QtWidgets.QWidget):
-    """Button responsible for switching and displaying the current location of the list widget."""
-
-    def __init__(self, parent=None):
-        super(LocationsButton, self).__init__(parent=parent)
-        self.icon = None
-        self.text = None
-        self.setToolTip('Select the asset location to browse')
-        self._createUI()
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'location', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        self.icon.setPixmap(pixmap)
-
-        self.text.setText(self.location.title())
-
-    def update_(self, *args, **kwargs):
-        self.text.setText(self.location.title())
-
-    @property
-    def location(self):
-        return self.parent().window().findChild(FilesWidget).model().sourceModel().get_location()
-
-    def mousePressEvent(self, event):
-        self.clicked()
-
-    def _createUI(self):
-        QtWidgets.QHBoxLayout(self)
-
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
-
-        self.icon = ClickableLabel(parent=self)
-        self.icon.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.icon.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
-        self.layout().addWidget(self.icon)
-        self.text = QtWidgets.QLabel()
-        self.text.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.layout().addWidget(self.text)
-
-    def setPixmap(self, pixmap):
-        self.label.setPixmap(pixmap)
-
-    def clicked(self):
-        parent = self.parent().parent().findChild(FilesWidget)
-        menu = LocationsMenu(parent=parent)
-        # left =
-        bottom = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
-        left = self.icon.mapToGlobal(self.icon.rect().bottomLeft())
-        menu.move(left.x(), bottom.y())
-
-        right = self.parent().mapToGlobal(self.parent().rect().bottomRight())
-        menu.setFixedWidth((right - left).x())
-
-        menu.exec_()
-        self.text.setText(self.location.title())
 
 
 class CollapseSequenceButton(ClickableLabel):
@@ -273,7 +189,8 @@ class ListControlWidget(QtWidgets.QWidget):
 
         idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
-        self.modeChanged.emit(idx)
+        mode_idx = idx if idx < 2 else 2
+        self.modeChanged.emit(mode_idx)
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -285,7 +202,6 @@ class ListControlWidget(QtWidgets.QWidget):
         # Listwidget
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ListControlDropdown(parent=self))
-        self.layout().addWidget(LocationsButton(parent=self))
         self.layout().addStretch(1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
         self.layout().addWidget(FilterButton(parent=self))
@@ -299,18 +215,26 @@ class ListControlWidget(QtWidgets.QWidget):
         combobox = self.findChild(ListControlDropdown)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
-        combobox.currentIndexChanged.connect(self.modeChanged.emit)
+        combobox.currentIndexChanged.connect(self.currentIndexChanged)
         self.modeChanged.connect(self.setCurrentMode)
-        self.modeChanged.connect(combobox.setCurrentIndex)
         self.modeChanged.connect(combobox.apply_flags)
 
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
+    def currentIndexChanged(self, idx):
+        combobox = self.findChild(ListControlDropdown)
+        self.modeChanged.emit(idx if idx < 2 else 2)
+
+        if idx >= 2: # Locations
+            index = combobox.model().index(idx, 0, parent=QtCore.QModelIndex())
+            self.parent().fileswidget.model().sourceModel().set_location(index.data(QtCore.Qt.DisplayRole))
+
     def setCurrentMode(self, idx):
         """Sets the current mode of ``ListControlWidget``."""
+        idx = idx if idx < 2 else 2
+
         addbookmark = self.findChild(AddBookmarkButton)
-        locations = self.findChild(LocationsButton)
         filterbutton = self.findChild(FilterButton)
         collapsesequence = self.findChild(CollapseSequenceButton)
         togglearchived = self.findChild(ToggleArchivedButton)
@@ -318,7 +242,6 @@ class ListControlWidget(QtWidgets.QWidget):
 
         if idx == 0:  # Bookmarks
             addbookmark.setHidden(False)
-            locations.setHidden(True)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
@@ -326,14 +249,12 @@ class ListControlWidget(QtWidgets.QWidget):
         elif idx == 1:  # Assets
             addbookmark.setHidden(True)
             togglearchived.setHidden(True)
-            locations.setHidden(True)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
         elif idx == 2:  # Files
             addbookmark.setHidden(True)
-            locations.setHidden(False)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(False)
             togglearchived.setHidden(False)
@@ -343,7 +264,6 @@ class ListControlWidget(QtWidgets.QWidget):
         filterbutton.update_(idx)
         collapsesequence.update_(idx)
         togglefavourite.update_(idx)
-        locations.update_(idx)
 
 
 class ListControlDelegate(QtWidgets.QStyledItemDelegate):
@@ -356,38 +276,192 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
     def paint(self, painter, option, index):
         """The main paint method."""
         painter.setRenderHints(
-            QtGui.QPainter.TextAntialiasing
-            | QtGui.QPainter.Antialiasing
-            | QtGui.QPainter.SmoothPixmapTransform,
+            QtGui.QPainter.TextAntialiasing |
+            QtGui.QPainter.Antialiasing |
+            QtGui.QPainter.SmoothPixmapTransform,
             on=True
         )
         selected = option.state & QtWidgets.QStyle.State_Selected
         args = (painter, option, index, selected)
 
         self.paint_background(*args)
-        self.paint_name(*args)
+        self.paint_bookmark(*args)
+        self.paint_asset(*args)
+        self.paint_location(*args)
 
     @paintmethod
-    def paint_name(self, *args):
+    def paint_location(self, *args):
         painter, option, index, _ = args
-        active = self.parent().currentIndex() == index.row()
         hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        if index.row() < 2:
+            return
+
+        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        currentmode = parent.fileswidget.model().sourceModel().get_location()
+        active = currentmode.lower() == index.data(QtCore.Qt.DisplayRole).lower()
+
+        # Text
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.FAVOURITE if active else color
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + common.MARGIN)
-
-        color = common.TEXT
-        if hover:
-            color = common.TEXT_SELECTED
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            color = common.TEXT_DISABLED
-        if active:
-            color = common.TEXT
-
         text = index.data(QtCore.Qt.DisplayRole)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+
+    @paintmethod
+    def paint_asset(self, *args):
+        painter, option, index, _ = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        Mode = 1
+
+        if index.row() != Mode:
+            return
+
+        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        currentmode = parent.findChild(StackedWidget).currentIndex()
+        active_index = parent.findChild(
+            StackedWidget).widget(Mode).active_index()
+
+        active = active_index.isValid()
+
+        # Thumbnail
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(rect.height())
+        rect.moveLeft(common.INDICATOR_WIDTH)
+
+        if currentmode == Mode:  # currently browsing bookmarks
+            color = common.FAVOURITE
+        else:
+            color = common.SEPARATOR
+
+        painter.setPen(QtCore.Qt.NoPen)
+        if active:
+            settings = AssetSettings(active_index)
+            if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+                image = ImageCache.instance().get(settings.thumbnail_path(), rect.height())
+
+                # Resizing the rectangle to accommodate the image's aspect ration
+                longer = float(
+                    max(image.rect().width(), image.rect().height()))
+                factor = float(rect.width() / float(longer))
+                center = rect.center()
+                if image.rect().width() < image.rect().height():
+                    rect.setWidth(int(image.rect().width() * factor) - 2)
+                else:
+                    rect.setHeight(int(image.rect().height() * factor) - 2)
+                rect.moveCenter(center)
+
+                pixmap = QtGui.QPixmap()
+                pixmap.convertFromImage(image)
+                background = ImageCache.get_color_average(image)
+
+                bgrect = QtCore.QRect(option.rect)
+                bgrect.setWidth(bgrect.height())
+                bgrect.moveLeft(common.INDICATOR_WIDTH)
+                painter.setBrush(background)
+                painter.drawRect(bgrect)
+            else:
+                center = rect.center()
+                rect.setWidth(rect.width() / 2.0)
+                rect.setHeight(rect.height() / 2.0)
+                rect.moveCenter(center)
+                pixmap = ImageCache.get_rsc_pixmap(
+                    u'assets', color, rect.height())
+                background = QtGui.QColor(0, 0, 0, 0)
+        else:
+            center = rect.center()
+            rect.setWidth(rect.width() / 2.0)
+            rect.setHeight(rect.height() / 2.0)
+            rect.moveCenter(center)
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'assets', color, rect.height())
+            background = QtGui.QColor(0, 0, 0, 0)
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        # Indicator
+        painter.setPen(QtCore.Qt.NoPen)
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(common.INDICATOR_WIDTH)
+        if currentmode == Mode:  # currently browsing bookmarks
+            painter.setBrush(common.FAVOURITE)
+        else:
+            painter.setBrush(common.SEPARATOR)
+        painter.drawRect(rect)
+
+        # Text
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        color = common.TEXT_SELECTED if hover else common.TEXT
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSize(10)
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = 'Asset:  {}'.format(
+            active_index.data(QtCore.Qt.DisplayRole).upper()
+        ) if active else text
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+
+    @paintmethod
+    def paint_bookmark(self, *args):
+        painter, option, index, _ = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        Mode = 0
+
+        if index.row() != Mode:
+            return
+
+        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        currentmode = parent.findChild(StackedWidget).currentIndex()
+        active_index = parent.findChild(
+            StackedWidget).widget(Mode).active_index()
+        active = active_index.isValid()
+
+        # Thumbnail
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(rect.height())
+        rect.moveLeft(common.INDICATOR_WIDTH)
+        center = rect.center()
+        rect.setWidth(rect.width() / 2.0)
+        rect.setHeight(rect.height() / 2.0)
+        rect.moveCenter(center)
+
+        if currentmode == Mode:  # currently browsing bookmarks
+            color = common.FAVOURITE
+        else:
+            color = common.SEPARATOR
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'bookmark', color, rect.height())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        # Indicator
+        painter.setPen(QtCore.Qt.NoPen)
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(common.INDICATOR_WIDTH)
+        if currentmode == Mode:  # currently browsing bookmarks
+            painter.setBrush(common.FAVOURITE)
+        else:
+            painter.setBrush(common.SEPARATOR)
+        painter.drawRect(rect)
+
+        # Text
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        color = common.TEXT_SELECTED if hover else common.TEXT
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSize(10)
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = 'Bookmark:  {} - {}'.format(
+            active_index.data(QtCore.Qt.DisplayRole).upper(),
+            ''.join(active_index.data(common.ParentRole)
+                    [-1].split('/')[-1]).upper(),
+        ) if active else text
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -402,40 +476,9 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
-    @paintmethod
-    def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the item."""
-        painter, option, index, selected = args
-        active = self.parent().currentIndex() == index.row()
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(rect.height())
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        color = common.TEXT
-        if active:
-            color = common.FAVOURITE
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            color = common.TEXT_DISABLED
-
-        if index.row() == 0:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'bookmark', color, rect.height())
-        if index.row() == 1:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'package', color, rect.height())
-        if index.row() == 2:
-            pixmap = ImageCache.get_rsc_pixmap(u'file', color, rect.height())
-
-        painter.drawPixmap(
-            rect,
-            pixmap,
-            pixmap.rect()
-        )
-
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+
 
 class ListControlView(QtWidgets.QListView):
     def __init__(self, parent=None):
@@ -443,19 +486,24 @@ class ListControlView(QtWidgets.QListView):
 
 
 class ListControlModel(BaseModel):
+    """The model responsible for storing the available modes to browse."""
 
-    static_string_list = ('Bookmarks', 'Assets', 'Files')
+    static_string_list = (
+        'Bookmarks',
+        'Assets',
+        common.ScenesFolder,
+        common.ExportsFolder,
+        common.RendersFolder,
+        common.TexturesFolder,
+    )
 
     def __init__(self, parent=None):
         super(ListControlModel, self).__init__(parent=parent)
 
     def __initdata__(self):
-        self.model_data = {} # resetting data
-        flags = (
-            QtCore.Qt.ItemIsSelectable |
-            QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsEditable
-        )
+        """Bookmarks and assets are static. But files will be any number of """
+        self.model_data = {}  # resetting data
+        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
         for idx, item in enumerate(self.static_string_list):
             self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: item,
@@ -470,6 +518,8 @@ class ListControlModel(BaseModel):
                 common.FileDetailsRole: None,
             }
 
+
+
     def __resetdata__(self):
         """Resets the internal data."""
         # Resetting the file-monitor
@@ -477,12 +527,6 @@ class ListControlModel(BaseModel):
         self.beginResetModel()
         self.model_data = {}
         self.endResetModel()
-
-    def columnCount(self, parent=QtCore.QModelIndex()):
-        return 1
-
-    def rowCount(self, parent=QtCore.QModelIndex()):
-        return 3
 
 
 
@@ -494,13 +538,14 @@ class ListControlDropdown(QtWidgets.QComboBox):
         self.currentTextChanged.connect(self._adjustSize)
 
         self.setView(ListControlView(parent=self.parent()))
-        self.setModel(ListControlModel(parent=self.parent())) # parent = ListControlWidget
+        # parent = ListControlWidget
+        self.setModel(ListControlModel(parent=self.parent()))
         self.setItemDelegate(ListControlDelegate(parent=self.view()))
 
         idx = local_settings.value(u'widget/current_index')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
-        # self.apply_flags()
+        self.apply_flags()
 
     def _adjustSize(self, text):
         font = QtGui.QFont(common.PrimaryFont)
@@ -510,21 +555,23 @@ class ListControlDropdown(QtWidgets.QComboBox):
         self.setFixedWidth(width)
 
     def apply_flags(self):
-        """Sets the item flags based on the set active paths."""
-        return
-        # active_paths = Active.get_active_paths()
-        # flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
-        # bookmark = (active_paths[u'server'],
-        #             active_paths[u'job'], active_paths[u'root'])
-        # for n in xrange(self.model().rowCount()):
-        #     item = self.model().item(n)
-        #     if n == 1 and not all(bookmark):
-        #         item.setFlags(QtCore.Qt.NoItemFlags)
-        #         continue
-        #     if n == 2 and not active_paths[u'asset']:
-        #         item.setFlags(QtCore.Qt.NoItemFlags)
-        #         continue
-        #     item.setFlags(flags)
+        """Sets the item flags based on the currently available active paths."""
+        active_paths = Active.get_active_paths()
+        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+        bookmark = (
+            active_paths[u'server'],
+            active_paths[u'job'],
+            active_paths[u'root']
+        )
+        for row in xrange(self.model().rowCount()):
+            index = self.model().index(row, 0, parent=QtCore.QModelIndex())
+            if row == 1 and not all(bookmark):
+                self.model().setData(index, QtCore.Qt.NoItemFlags, role=common.FlagsRole)
+                continue
+            if row >= 2 and not active_paths[u'asset']:
+                self.model().setData(index, QtCore.Qt.NoItemFlags, role=common.FlagsRole)
+                continue
+            self.model().setData(index, flags, role=common.FlagsRole)
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
@@ -535,8 +582,9 @@ class ListControlDropdown(QtWidgets.QComboBox):
         popup.setFixedWidth(self.parent().rect().width())
         popup.setFixedHeight(self.itemDelegate().sizeHint(
             None, None).height() * self.model().rowCount())
+
         # Selecting the current item
-        index = self.view().model().index(self.currentIndex(), 0)
+        index = self.view().model().index(self.currentIndex(), 0, parent=QtCore.QModelIndex())
         self.view().selectionModel().setCurrentIndex(
             index,
             QtCore.QItemSelectionModel.ClearAndSelect

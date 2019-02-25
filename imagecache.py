@@ -8,7 +8,6 @@ the image cache and the OpenImageIO-based thmbnail generator methods.
 """
 
 import sys
-import functools
 import math
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -17,11 +16,11 @@ from browser.capture import ScreenGrabber
 from browser.settings import AssetSettings
 import browser.common as common
 from browser.spinner import Spinner
-import browser.modules  # loads the numpy, oiio libraries
 
+import browser.modules  # loads the numpy, oiio libraries
 import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
-import threading
+
 
 class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
@@ -60,7 +59,6 @@ class ImageCache(QtCore.QObject):
                 self.__class__.__name__))
         else:
             ImageCache.__instance = self
-
 
     def _reset_cached_item(self, path, removefile=True):
         """Resets any cached items containing `k` with the original placeholder image.
@@ -299,15 +297,19 @@ class ImageCache(QtCore.QObject):
         chunks = chunks(l, int(math.ceil(float(len(l)) / float(tc))))
 
         app = QtWidgets.QApplication.instance()
-        parent = [f for f in app.allWidgets() if f.objectName() == u'browserListStackWidget'][0]
-        spinner = Spinner(parent=parent)
-        spinner.setFixedWidth(parent.width())
-        spinner.show()
+        parent = [f for f in app.allWidgets() if f.objectName()
+                  == u'BrowserStackedWidget']
+        parent = next((f for f in parent), None)
+        if parent:
+            spinner = Spinner(parent=parent)
+            spinner.setFixedWidth(parent.width())
+            spinner.show()
         # Creating threads
         for chunk in chunks:
             worker = CacheWorker(chunk)
-            worker.signals.finished.connect(spinner.stop)
-            worker.signals.update.connect(spinner.setText)
+            if parent:
+                worker.signals.finished.connect(spinner.stop)
+                worker.signals.update.connect(spinner.setText)
             QtCore.QThreadPool.globalInstance().start(worker)
 
     @classmethod
@@ -463,7 +465,7 @@ class ImageCache(QtCore.QObject):
         dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dialog.setLabelText(QtWidgets.QFileDialog.Accept, 'Pick thumbnail')
         dialog.setDirectory(QtCore.QFileInfo(
-            index.data(QtCore.Qt.StatusTipRole)).path())
+            index.data(QtCore.Qt.StatusTipRole)).filePath())
         # dialog.setOption(
         #     QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
@@ -555,11 +557,11 @@ class CacheWorker(QtCore.QRunnable):
     def run(self):
         """The main work method run in a secondary thread."""
         for index in self.chunk:
-            filename = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).fileName()
+            filename = QtCore.QFileInfo(index.data(
+                QtCore.Qt.StatusTipRole)).fileName()
             self.signals.update.emit('Processing {}...'.format(filename))
             ImageCache.generate(index)
         self.signals.finished.emit()
-
 
 
 # Initializing the ImageCache:

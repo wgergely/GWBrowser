@@ -49,8 +49,8 @@ ASSET_IDENTIFIER = u'workspace.mel'
 considered an ``assets``."""
 
 
-ExportsFolder = u'exports'
 ScenesFolder = u'scenes'
+ExportsFolder = u'exports'
 RendersFolder = u'renders'
 TexturesFolder = u'textures'
 

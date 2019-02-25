@@ -273,7 +273,7 @@ class AssetWidget(BaseInlineIconWidget):
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            editors.PickThumbnailDialog(index, parent=self)
+            ImageCache.instance().pick(index)
             return
         else:
             self.activate_current_index()

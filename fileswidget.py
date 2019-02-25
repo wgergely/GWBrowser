@@ -483,17 +483,16 @@ class FilesModel(BaseModel):
         local_settings.setValue(key, val)
         self.activeLocationChanged.emit(val)
 
-        # Updating the groupping
-        cval = self.is_grouped()
+        # Updating the groupping of the files
         cls = self.__class__.__name__
         key = u'widget/{}/{}/isgroupped'.format(cls, val)
-        val = local_settings.value(key)
+        groupped = True if local_settings.value(key) else False
 
-        if cval == val:
+        if self.is_grouped() == groupped:
             return
 
         self.modelDataAboutToChange.emit()
-        self._isgrouped = val
+        self._isgrouped = groupped
         self.grouppingChanged.emit()
 
 
