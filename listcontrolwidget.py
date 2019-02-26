@@ -302,17 +302,22 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 
         parent = self.parent().parent().parent().parent().parent()  # browserwidget
         currentmode = parent.fileswidget.model().sourceModel().get_location()
+
         active = currentmode.lower() == index.data(QtCore.Qt.DisplayRole).lower()
+        active = active if parent.findChild(StackedWidget).currentIndex() == 2 else False
 
         # Text
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.INDICATOR_WIDTH + (rect.height() * 2))
-        color = common.TEXT_SELECTED if hover else common.TEXT
+        rect.setLeft(common.INDICATOR_WIDTH + common.MARGIN)
+        color = common.TEXT if index.row() <= 5 else common.SECONDARY_TEXT
+        color = common.TEXT_SELECTED if hover else color
         color = common.FAVOURITE if active else color
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(10)
         text = index.data(QtCore.Qt.DisplayRole).upper()
+        if index.row() > 5:
+            font.setItalic(True)
+            font.setPointSize(9)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -325,22 +330,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         else:
             painter.setBrush(common.SEPARATOR)
         painter.drawRect(rect)
-
-        # Thumbnail
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(rect.height())
-        rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
-        center = rect.center()
-        rect.setWidth(rect.width() / 1.5)
-        rect.setHeight(rect.height() / 1.5)
-        rect.moveCenter(center)
-        if active:
-            color = common.FAVOURITE
-        else:
-            color = common.SEPARATOR
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'files', color, rect.height())
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
     def paint_asset(self, *args):
@@ -393,16 +382,16 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
                 painter.drawRect(bgrect)
             else:
                 center = rect.center()
-                rect.setWidth(rect.width() / 1.5)
-                rect.setHeight(rect.height() / 1.5)
+                rect.setWidth(rect.width() / 2)
+                rect.setHeight(rect.height() / 2)
                 rect.moveCenter(center)
                 pixmap = ImageCache.get_rsc_pixmap(
                     u'assets', color, rect.height())
                 background = QtGui.QColor(0, 0, 0, 0)
         else:
             center = rect.center()
-            rect.setWidth(rect.width() / 1.5)
-            rect.setHeight(rect.height() / 1.5)
+            rect.setWidth(rect.width() / 2)
+            rect.setHeight(rect.height() / 2)
             rect.moveCenter(center)
             pixmap = ImageCache.get_rsc_pixmap(
                 u'assets', color, rect.height())
@@ -425,7 +414,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(10)
         text = index.data(QtCore.Qt.DisplayRole)
         if active:
             text = '{}'.format(active_index.data(QtCore.Qt.DisplayRole).upper())
@@ -463,8 +451,8 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         rect.setWidth(rect.height())
         rect.moveLeft(common.INDICATOR_WIDTH)
         center = rect.center()
-        rect.setWidth(rect.width() / 1.5)
-        rect.setHeight(rect.height() / 1.5)
+        rect.setWidth(rect.width() / 2)
+        rect.setHeight(rect.height() / 2)
         rect.moveCenter(center)
         if currentmode == Mode:  # currently browsing bookmarks
             color = common.FAVOURITE
@@ -475,12 +463,11 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         # Text
-        rect.setLeft(rect.right()+ common.MARGIN)
-        rect.setRight(option.rect.right())
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.INDICATOR_WIDTH)
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(10)
         text = index.data(QtCore.Qt.DisplayRole)
         text = '{} - {}'.format(
             active_index.data(QtCore.Qt.DisplayRole).upper(),
@@ -496,14 +483,32 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         """Paints the background."""
         painter, option, index, selected = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        color = common.SECONDARY_BACKGROUND
+
+        rect = QtCore.QRect(option.rect)
+        color = common.SEPARATOR
+        painter.setBrush(QtGui.QBrush(color))
+        painter.drawRect(rect)
+
+        if index.row() < 2:
+            rect.setHeight(rect.height() - 2)
+
+        if index.row() >= 2:
+            color = common.SECONDARY_BACKGROUND
+        else:
+            color = common.BACKGROUND
         if selected:
             color = common.BACKGROUND_SELECTED
         painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(option.rect)
+        painter.drawRect(rect)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
+        if not index:
+            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
+
+        if index.row() < 2:
+            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        else:
+            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
 
 
 class ListControlView(QtWidgets.QListView):
@@ -517,9 +522,9 @@ class ListControlModel(BaseModel):
     static_string_list = (
         'Bookmarks',
         'Assets',
-        common.ScenesFolder,
         common.ExportsFolder,
         common.RendersFolder,
+        common.ScenesFolder,
         common.TexturesFolder,
     )
     """These are the static folders that will always be present."""
@@ -564,10 +569,11 @@ class ListControlModel(BaseModel):
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
 
         flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-        for idx, item in enumerate(sorted(dir_.entryList())):
-            if item in self.model_data:
+        idx = len(self.static_string_list)
+        for item in sorted(dir_.entryList()):
+            if item in (f[QtCore.Qt.DisplayRole] for f in self.model_data.itervalues()):
                 continue # skipping existing items
-            self.model_data[idx + len(self.static_string_list)] = {
+            self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: item,
                 QtCore.Qt.EditRole: item,
                 QtCore.Qt.StatusTipRole: item,
@@ -579,6 +585,7 @@ class ListControlModel(BaseModel):
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: None,
             }
+            idx += 1
 
 
     def rowCount(self, parent=QtCore.QModelIndex()):

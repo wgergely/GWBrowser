@@ -110,7 +110,12 @@ class FilesModel(BaseModel):
             return
         dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dir_.setSorting(QtCore.QDir.Unsorted)
-        dir_.setNameFilters(common.NameFilters[location])
+
+        if location in common.NameFilters:
+            dir_.setNameFilters(common.NameFilters[location])
+        else:
+            dir_.setNameFilters((u'*.*',))
+
         it = QtCore.QDirIterator(
             dir_, flags=QtCore.QDirIterator.Subdirectories)
 
@@ -388,6 +393,8 @@ class FilesModel(BaseModel):
             filepath = common.get_sequence_endpath(file_info.filePath())
         elif location == common.ExportsFolder:
             filepath = common.get_sequence_endpath(file_info.filePath())
+        else:
+            filepath = common.get_sequence_endpath(file_info.filePath())
 
         url = QtCore.QUrl.fromLocalFile(filepath)
         mime.setUrls((url,))
@@ -406,7 +413,10 @@ class FilesModel(BaseModel):
 
         """
         # When the dataset is empty, calling __initdata__
-        if not self._model_data[self.get_location()][self.is_grouped()]:
+        location = self.get_location()
+        if not location in self._model_data:
+            self._model_data[location] = {True: {}, False: {},}
+        if not self._model_data[location][self.is_grouped()]:
             self.beginResetModel()
             self.__initdata__()
             self.endResetModel()

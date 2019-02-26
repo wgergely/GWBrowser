@@ -331,7 +331,6 @@ class ImageCache(QtCore.QObject):
         # First let's check if the file is competible with OpenImageIO
         i = oiio.ImageInput.open(source)
         if not i:
-            i.close()
             sys.stderr.write(oiio.geterror())
             return  # the file is not understood by OenImageIO
         i.close()
@@ -561,7 +560,7 @@ class CacheWorker(QtCore.QRunnable):
         for index in self.chunk:
             filename = QtCore.QFileInfo(index.data(
                 QtCore.Qt.StatusTipRole)).fileName()
-            self.signals.update.emit('Processing {}...'.format(filename))
+            self.signals.update.emit(u'Processing {}...'.format(filename.encode('utf-8')))
             ImageCache.generate(index)
         self.signals.finished.emit()
 
