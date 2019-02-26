@@ -16,6 +16,7 @@ The actual name of these folders can be customized in the ``common.py`` module.
 
 import time
 import re
+import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
@@ -70,12 +71,13 @@ class BookmarkInfo(QtCore.QFileInfo):
         path = u'{}/{}/{}'.format(self.server, self.job, self.root)
         super(BookmarkInfo, self).__init__(path, parent=parent)
 
-        self.size = self._count_assets
-        self.count = self._count_assets
+        self.size = functools.partial(lambda n : n, self.count_assets(path))
+        self.count = functools.partial(lambda n : n, self.count_assets(path))
 
-    def _count_assets(self):
+    @staticmethod
+    def count_assets(path):
         """Returns the number of assets inside the given folder."""
-        dir_ = QtCore.QDir(self.filePath())
+        dir_ = QtCore.QDir(path)
         dir_.setFilter(
             QtCore.QDir.NoDotAndDotDot
             | QtCore.QDir.Dirs
@@ -85,10 +87,10 @@ class BookmarkInfo(QtCore.QFileInfo):
         # Counting the number assets found
         count = 0
         for file_info in dir_.entryInfoList():
-            dir_ = QtCore.QDir(file_info.filePath())
-            dir_.setFilter(QtCore.QDir.Files)
-            dir_.setNameFilters((common.ASSET_IDENTIFIER,))
-            if dir_.entryInfoList():
+            d = QtCore.QDir(file_info.filePath())
+            d.setFilter(QtCore.QDir.Files)
+            d.setNameFilters((common.ASSET_IDENTIFIER,))
+            if d.entryInfoList():
                 count += 1
         return count
 
@@ -710,7 +712,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             return
 
         self.ok_button.setDisabled(False)
-        count = common.count_assets(path)
+        count = BookmarkInfo.count_assets(path)
 
         # Removing the server and job name from the selection
         path = path.replace(self.pick_job_widget.currentData(
