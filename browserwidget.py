@@ -284,7 +284,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
 
-        idx = local_settings.value(u'widget/current_index')
+        idx = local_settings.value(u'widget/mode')
         idx = idx if idx else 0
         self.activate_widget(idx)
 

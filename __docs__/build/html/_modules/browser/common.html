@@ -1,0 +1,892 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>browser.common &mdash; Browser 0.2.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> Browser
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.2
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">1. Browser Python Modules Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Browser</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content style-external-links">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>browser.common</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for browser.common</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="c1"># pylint: disable=E1101, C0103, R0913, I1101, R0903</span>
+<span class="sd">&quot;&quot;&quot;Module used to define common variables and methods used across the project.</span>
+
+<span class="sd">Global Variables</span>
+<span class="sd">    The studio wide servers are defined here. These are hard-coded</span>
+<span class="sd">    variables that will depend on the context the program is usedself.</span>
+<span class="sd">    Make sure to customize these settings depending on your environment.</span>
+
+<span class="sd">    ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder</span>
+<span class="sd">    as an ``asset``. At Glassworks we&#39;re using the maya project structure so this is</span>
+<span class="sd">    a ``workspace.mel`` file.</span>
+
+<span class="sd">    ``Assets`` are directory structures compartmentalizing data. ``Browser``</span>
+<span class="sd">    is designed to read and annote ``scene``, ``cache`` (exports) and</span>
+<span class="sd">    ``render`` files.</span>
+
+<span class="sd">    Depending on your setup these folders might have different names you can</span>
+<span class="sd">    customize them here. ``Browser`` will assume all of these folder reside in the</span>
+<span class="sd">    root of the ``asset`` folder.</span>
+
+
+<span class="sd">Thumbnails and UI Icon</span>
+<span class="sd">    The variables and the methods needed to read and cache thumbnail images</span>
+<span class="sd">    and UI icon are also defined here.</span>
+
+<span class="sd">    All cached images are stored in ``IMAGE_CACHE``.</span>
+<span class="sd">    To add an image to the cache you can use the ``cache_image()`` method.</span>
+
+<span class="sd">    Loading and caching ui resource items is done by ``get_rsc_pixmap()``.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="kn">import</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span>
+
+
+<span class="n">SERVERS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="s1">&#39;//gordo/jobs&#39;</span><span class="p">,</span> <span class="s1">&#39;nickname&#39;</span><span class="p">:</span> <span class="s1">&#39;Gordo&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="s1">&#39;//sloth/jobs&#39;</span><span class="p">,</span> <span class="s1">&#39;nickname&#39;</span><span class="p">:</span> <span class="s1">&#39;Sloth&#39;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="s1">&#39;//localhost/c$/temp&#39;</span><span class="p">,</span> <span class="s1">&#39;nickname&#39;</span><span class="p">:</span> <span class="s1">&#39;Local Drive&#39;</span><span class="p">},</span>
+<span class="p">]</span>
+
+<span class="n">ASSET_IDENTIFIER</span> <span class="o">=</span> <span class="s1">&#39;workspace.mel&#39;</span>
+<span class="sd">&quot;&quot;&quot;When with the given name is present in the root of a folder, it will be</span>
+<span class="sd">considered an ``assets``.&quot;&quot;&quot;</span>
+
+
+<span class="n">ExportsFolder</span> <span class="o">=</span> <span class="s1">&#39;exports&#39;</span>
+<span class="n">ScenesFolder</span> <span class="o">=</span> <span class="s1">&#39;scenes&#39;</span>
+<span class="n">RendersFolder</span> <span class="o">=</span> <span class="s1">&#39;renders&#39;</span>
+<span class="n">TexturesFolder</span> <span class="o">=</span> <span class="s1">&#39;textures&#39;</span>
+
+<span class="n">NameFilters</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ExportsFolder</span><span class="p">:</span> <span class="p">(</span>
+        <span class="s1">&#39;*.abc&#39;</span><span class="p">,</span>  <span class="c1"># Alembic</span>
+        <span class="s1">&#39;*.obj&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.ass&#39;</span><span class="p">,</span>  <span class="c1"># Arnold cache</span>
+    <span class="p">),</span>
+    <span class="n">ScenesFolder</span><span class="p">:</span> <span class="p">(</span>
+        <span class="s1">&#39;*.ma&#39;</span><span class="p">,</span>  <span class="c1"># Maya ASCII</span>
+        <span class="s1">&#39;*.mb&#39;</span><span class="p">,</span>  <span class="c1"># Maya Binary</span>
+        <span class="s1">&#39;*.c4d&#39;</span><span class="p">,</span>  <span class="c1"># Cinema 4D</span>
+        <span class="s1">&#39;*.hud&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+        <span class="s1">&#39;*.aep&#39;</span><span class="p">,</span>  <span class="c1"># After-Effects</span>
+        <span class="s1">&#39;*.nk&#39;</span><span class="p">,</span>  <span class="c1"># Nuke</span>
+    <span class="p">),</span>
+    <span class="n">RendersFolder</span><span class="p">:</span> <span class="p">(</span>
+        <span class="s1">&#39;*.exr&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.png&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.tiff&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.tff&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.jpg&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.jpeg&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.psd&#39;</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">TexturesFolder</span><span class="p">:</span> <span class="p">(</span>
+        <span class="s1">&#39;*.exr&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.png&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.tiff&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.tff&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.jpg&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.jpeg&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;*.psd&#39;</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;A list of expected file-formats associated with the location.&quot;&quot;&quot;</span>
+
+<span class="c1"># Extending the</span>
+<span class="n">FlagsRole</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the path of the item.&quot;&quot;&quot;</span>
+<span class="n">ParentRole</span> <span class="o">=</span> <span class="mi">1026</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the paths the item is associated with.&quot;&quot;&quot;</span>
+<span class="n">DescriptionRole</span> <span class="o">=</span> <span class="mi">1027</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the description of the item.&quot;&quot;&quot;</span>
+<span class="n">TodoCountRole</span> <span class="o">=</span> <span class="mi">1028</span>
+<span class="sd">&quot;&quot;&quot;Asset role used to store the number of todos.&quot;&quot;&quot;</span>
+<span class="n">FileDetailsRole</span> <span class="o">=</span> <span class="mi">1029</span>
+<span class="sd">&quot;&quot;&quot;Special role used to save the information string of a file.&quot;&quot;&quot;</span>
+
+
+<span class="n">SortByName</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">SortByLastModified</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">SortByLastCreated</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">SortBySize</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="sd">&quot;&quot;&quot;Item sort flags&quot;&quot;&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">sort_alphanum_key</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_convert</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">text</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="n">text</span>
+
+    <span class="k">def</span> <span class="nf">_split</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;([0-9]+)&#39;</span><span class="p">,</span> <span class="n">key</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="p">[</span><span class="n">_convert</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">_split</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span>
+
+
+<span class="k">def</span> <span class="nf">sort_last_modified_key</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">key</span><span class="o">.</span><span class="n">lastModified</span><span class="p">()</span><span class="o">.</span><span class="n">toMSecsSinceEpoch</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">sort_last_created_key</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">key</span><span class="o">.</span><span class="n">created</span><span class="p">()</span><span class="o">.</span><span class="n">toMSecsSinceEpoch</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">sort_size_key</span><span class="p">(</span><span class="n">key</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">key</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
+
+<span class="n">sort_keys</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">SortByName</span><span class="p">:</span> <span class="n">sort_alphanum_key</span><span class="p">,</span>
+    <span class="n">SortByLastModified</span><span class="p">:</span> <span class="n">sort_last_modified_key</span><span class="p">,</span>
+    <span class="n">SortByLastCreated</span><span class="p">:</span> <span class="n">sort_last_created_key</span><span class="p">,</span>
+    <span class="n">SortBySize</span><span class="p">:</span> <span class="n">sort_size_key</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;These are the methods/keys used to sort lists.&quot;&quot;&quot;</span>
+
+<span class="c1"># Sizes</span>
+<span class="n">ROW_HEIGHT</span> <span class="o">=</span> <span class="mf">54.0</span>
+<span class="n">ASSET_ROW_HEIGHT</span> <span class="o">=</span> <span class="mf">84.0</span>
+
+<span class="n">MARGIN</span> <span class="o">=</span> <span class="mf">18.0</span>
+
+<span class="n">INDICATOR_WIDTH</span> <span class="o">=</span> <span class="mf">4.0</span>
+<span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">=</span> <span class="mf">36.0</span>
+
+<span class="n">WIDTH</span> <span class="o">=</span> <span class="mf">640.0</span>
+<span class="n">HEIGHT</span> <span class="o">=</span> <span class="mf">480.0</span>
+
+<span class="n">INLINE_ICON_SIZE</span> <span class="o">=</span> <span class="mf">18.0</span>
+<span class="n">THUMBNAIL_IMAGE_SIZE</span> <span class="o">=</span> <span class="mf">1024.0</span>
+
+<span class="n">BACKGROUND_SELECTED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">125</span><span class="p">,</span> <span class="mi">125</span><span class="p">,</span> <span class="mi">125</span><span class="p">)</span>
+<span class="n">SECONDARY_BACKGROUND</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="mi">80</span><span class="p">)</span>
+<span class="n">BACKGROUND</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">98</span><span class="p">,</span> <span class="mi">98</span><span class="p">,</span> <span class="mi">98</span><span class="p">)</span>
+
+<span class="n">TEXT</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">220</span><span class="p">,</span> <span class="mi">220</span><span class="p">,</span> <span class="mi">220</span><span class="p">)</span>
+<span class="n">TEXT_SELECTED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
+<span class="n">TEXT_DISABLED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">)</span>
+
+<span class="n">TEXT_NOTE</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">150</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+<span class="n">SECONDARY_TEXT</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">)</span>
+
+
+<span class="n">SEPARATOR</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+<span class="n">SELECTION</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">161</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+<span class="n">FAVOURITE</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span> <span class="mi">120</span><span class="p">,</span> <span class="mi">233</span><span class="p">)</span>
+
+<span class="n">PRIMARY_FONT</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">SECONDARY_FONT</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">TERCIARY_FONT</span> <span class="o">=</span> <span class="mi">2</span>
+
+
+<div class="viewcode-block" id="move_widget_to_available_geo"><a class="viewcode-back" href="../../api.html#browser.common.move_widget_to_available_geo">[docs]</a><span class="k">def</span> <span class="nf">move_widget_to_available_geo</span><span class="p">(</span><span class="n">widget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Moves the widget inside the available screen geomtery, if any of the edges</span>
+<span class="sd">    fall outside.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QCoreApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">widget</span><span class="o">.</span><span class="n">parentWidget</span><span class="p">():</span>
+        <span class="n">screenID</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">desktop</span><span class="p">()</span><span class="o">.</span><span class="n">screenNumber</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">parentWidget</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">screenID</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">desktop</span><span class="p">()</span><span class="o">.</span><span class="n">primaryScreen</span><span class="p">()</span>
+
+    <span class="n">screen</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">screens</span><span class="p">()[</span><span class="n">screenID</span><span class="p">]</span>
+    <span class="n">screen_rect</span> <span class="o">=</span> <span class="n">screen</span><span class="o">.</span><span class="n">availableGeometry</span><span class="p">()</span>
+
+    <span class="c1"># Widget&#39;s rectangle in the global screen space</span>
+    <span class="n">rect</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">()</span>
+    <span class="n">topLeft</span> <span class="o">=</span> <span class="n">widget</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setTopLeft</span><span class="p">(</span><span class="n">topLeft</span><span class="p">)</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setWidth</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">width</span><span class="p">())</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setHeight</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">left</span><span class="p">():</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">top</span><span class="p">():</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">right</span><span class="p">():</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="o">-</span> <span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">():</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()</span> <span class="o">-</span> <span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span>
+
+    <span class="n">widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">_add_custom_fonts</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Adds custom fonts to the application.&quot;&quot;&quot;</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span>
+        <span class="s1">&#39;{}/rsc/fonts&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">dir</span><span class="p">()</span><span class="o">.</span><span class="n">path</span><span class="p">()</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">setNameFilters</span><span class="p">([</span><span class="s1">&#39;*.ttf&#39;</span><span class="p">,</span> <span class="p">])</span>
+
+    <span class="n">font_families</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">entryInfoList</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">Files</span> <span class="o">|</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">NoDotAndDotDot</span>
+    <span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontDatabase</span><span class="p">()</span><span class="o">.</span><span class="n">addApplicationFont</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+        <span class="n">font_families</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontDatabase</span><span class="p">()</span><span class="o">.</span><span class="n">applicationFontFamilies</span><span class="p">(</span><span class="n">idx</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="set_custom_stylesheet"><a class="viewcode-back" href="../../api.html#browser.common.set_custom_stylesheet">[docs]</a><span class="k">def</span> <span class="nf">set_custom_stylesheet</span><span class="p">(</span><span class="n">widget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies the custom stylesheet to the given widget.&quot;&quot;&quot;</span>
+    <span class="n">_add_custom_fonts</span><span class="p">()</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="vm">__file__</span><span class="p">,</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">pardir</span><span class="p">,</span>
+                <span class="s1">&#39;rsc&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;customStylesheet.css&#39;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">qss</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">)</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">qss</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">fontFamily</span><span class="o">=</span><span class="s1">&#39;Roboto Medium&#39;</span><span class="p">,</span>
+            <span class="n">fontSize</span><span class="o">=</span><span class="mi">9</span><span class="p">,</span>
+            <span class="n">BACKGROUND</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">BACKGROUND_SELECTED</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">BACKGROUND_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SECONDARY_BACKGROUND</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">SECONDARY_BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SECONDARY_TEXT</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SECONDARY_TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT_DISABLED</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_DISABLED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT_SELECTED</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SEPARATOR</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SEPARATOR</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">FAVOURITE</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">FAVOURITE</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SELECTION</span><span class="o">=</span><span class="s1">&#39;{},{},{},{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SELECTION</span><span class="o">.</span><span class="n">getRgb</span><span class="p">())</span>
+        <span class="p">)</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="n">qss</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="cache_image"><a class="viewcode-back" href="../../api.html#browser.common.cache_image">[docs]</a><span class="k">def</span> <span class="nf">cache_image</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Saves the image at the path to the image cache. The cached images are</span>
+<span class="sd">    stored in the IMAGE_CACHE dictionary.</span>
+
+<span class="sd">    If the loading the image fails, we&#39;ll use an empty image.</span>
+
+<span class="sd">    We&#39;re also saving an average of colour to be used as the background when the</span>
+<span class="sd">    image is not square.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (str):    Path to the image file.</span>
+<span class="sd">        height (int):  Description of parameter `height`.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        type: Description of returned object.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">height</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">filePath</span><span class="p">()</span>
+
+    <span class="n">k</span> <span class="o">=</span> <span class="s1">&#39;{path}:{height}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="n">height</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">IMAGE_CACHE</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">ppath</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="s1">&#39;{}/../rsc/placeholder.png&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+        <span class="n">ppath</span> <span class="o">=</span> <span class="n">ppath</span><span class="o">.</span><span class="n">absoluteFilePath</span><span class="p">()</span>
+        <span class="n">placeholder_k</span> <span class="o">=</span> <span class="s1">&#39;{path}:{height}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">path</span><span class="o">=</span><span class="n">ppath</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="n">height</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">placeholder_k</span> <span class="ow">in</span> <span class="n">IMAGE_CACHE</span><span class="p">:</span>
+            <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">placeholder_k</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">cache_placeholder</span><span class="p">(</span><span class="n">height</span><span class="p">)</span>
+        <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="s1">&#39;{}:BackgroundColor&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">path</span><span class="p">)]</span> <span class="o">=</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="s1">&#39;{}:BackgroundColor&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ppath</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">()</span>
+    <span class="n">image</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">convertToFormat</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="o">.</span><span class="n">Format_ARGB32_Premultiplied</span><span class="p">)</span>
+
+    <span class="c1"># If the load fails, use the placeholder image</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">resize_image</span><span class="p">(</span>
+        <span class="n">image</span><span class="p">,</span>
+        <span class="n">height</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Average colour</span>
+    <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="s1">&#39;{path}:BackgroundColor&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="n">path</span>
+    <span class="p">)]</span> <span class="o">=</span> <span class="n">get_color_average</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
+    <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span></div>
+
+
+<span class="k">def</span> <span class="nf">cache_placeholder</span><span class="p">(</span><span class="n">height</span><span class="p">):</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">height</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="s1">&#39;{}/../rsc/placeholder.png&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">absoluteFilePath</span><span class="p">()</span>
+
+    <span class="n">k</span> <span class="o">=</span> <span class="s1">&#39;{path}:{height}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="n">path</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="n">height</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">IMAGE_CACHE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span>
+        <span class="s1">&#39;{}/../rsc/placeholder.png&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">()</span>
+    <span class="n">image</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">convertToFormat</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="o">.</span><span class="n">Format_ARGB32_Premultiplied</span><span class="p">)</span>
+
+    <span class="c1"># If the load fails, use the placeholder image</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">resize_image</span><span class="p">(</span>
+        <span class="n">image</span><span class="p">,</span>
+        <span class="n">height</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Average colour</span>
+    <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
+    <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="s1">&#39;{path}:BackgroundColor&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">path</span><span class="o">=</span><span class="n">path</span>
+    <span class="p">)]</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="delete_image"><a class="viewcode-back" href="../../api.html#browser.common.delete_image">[docs]</a><span class="k">def</span> <span class="nf">delete_image</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">delete_file</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Deletes the given file and the associated cached data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        path (type): Path to the image file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">file_</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">delete_file</span><span class="p">:</span>
+        <span class="n">file_</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+
+    <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">IMAGE_CACHE</span> <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="label_generator"><a class="viewcode-back" href="../../api.html#browser.common.label_generator">[docs]</a><span class="k">def</span> <span class="nf">label_generator</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Generates QColors from an array of RGB values.</span>
+
+<span class="sd">    Example:</span>
+
+<span class="sd">    .. code-block:: python</span>
+<span class="sd">        :linenos:</span>
+
+<span class="sd">        LABEL_COLORS = label_generator()</span>
+<span class="sd">        next(LABEL_COLORS)</span>
+
+<span class="sd">    Yields:         QtCore.QColor</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="mi">999</span><span class="p">):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">[</span><span class="mi">120</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">150</span><span class="p">]</span> <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[</span><span class="mi">150</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">120</span><span class="p">]</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="mi">20</span>
+        <span class="n">arr</span><span class="o">.</span><span class="n">append</span><span class="p">([</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">v</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">v</span><span class="p">,</span> <span class="mi">255</span><span class="p">)),</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">0</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="mi">3</span><span class="p">),</span> <span class="mi">255</span><span class="p">)),</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">v</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">v</span><span class="p">,</span> <span class="mi">255</span><span class="p">))</span>
+        <span class="p">])</span>
+    <span class="k">for</span> <span class="n">color</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="o">*</span><span class="n">color</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_label"><a class="viewcode-back" href="../../api.html#browser.common.get_label">[docs]</a><span class="k">def</span> <span class="nf">get_label</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the QColor for the given key.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        k (str):    The key, eg. the name of a folder.</span>
+
+<span class="sd">    Raises:         StopIterationrError: When out of labels.</span>
+<span class="sd">    Returns:        QColor.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">LABEL_COLORS</span>
+    <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ASSIGNED_LABELS</span><span class="p">:</span>
+        <span class="n">ASSIGNED_LABELS</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">LABEL_COLORS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ASSIGNED_LABELS</span><span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span></div>
+
+
+<span class="k">def</span> <span class="nf">revert_labels</span><span class="p">():</span>
+    <span class="k">global</span> <span class="n">LABEL_COLORS</span>
+    <span class="k">global</span> <span class="n">ASSIGNED_LABELS</span>
+    <span class="n">ASSIGNED_LABELS</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">LABEL_COLORS</span> <span class="o">=</span> <span class="n">label_generator</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="resize_image"><a class="viewcode-back" href="../../api.html#browser.common.resize_image">[docs]</a><span class="k">def</span> <span class="nf">resize_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a scaled copy of the image fitting inside the square of ``size``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image (QImage): The image to rescale.</span>
+<span class="sd">        size (int): The width/height of the square.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        QImage: The resized copy of the original image.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">longer</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">(),</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">()))</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">size</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">longer</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">():</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">smoothScaled</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">())</span> <span class="o">*</span> <span class="n">factor</span><span class="p">,</span>
+            <span class="n">size</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">image</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">smoothScaled</span><span class="p">(</span>
+        <span class="n">size</span><span class="p">,</span>
+        <span class="nb">float</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">())</span> <span class="o">*</span> <span class="n">factor</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">image</span></div>
+
+
+<div class="viewcode-block" id="get_color_average"><a class="viewcode-back" href="../../api.html#browser.common.get_color_average">[docs]</a><span class="k">def</span> <span class="nf">get_color_average</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the average color of an image.&quot;&quot;&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">()):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">xrange</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">()):</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">pixelColor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">red</span><span class="p">())</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">pixelColor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">green</span><span class="p">())</span>
+            <span class="n">b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">pixelColor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">blue</span><span class="p">())</span>
+    <span class="n">average_color</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">)),</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">g</span><span class="p">)),</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">))</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">average_color</span></div>
+
+
+<div class="viewcode-block" id="get_rsc_pixmap"><a class="viewcode-back" href="../../api.html#browser.common.get_rsc_pixmap">[docs]</a><span class="k">def</span> <span class="nf">get_rsc_pixmap</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">color</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Loads a rescoure image and returns it as a re-sized and coloured QPixmap.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): Name of the resource without the extension.</span>
+<span class="sd">        color (QColor): The colour of the icon.</span>
+<span class="sd">        size (int): The size of pixmap.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        QPixmap: The loaded image</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">k</span> <span class="o">=</span> <span class="s1">&#39;{name}:{size}:{color}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;null&#39;</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">color</span> <span class="k">else</span> <span class="n">color</span><span class="o">.</span><span class="n">name</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">IMAGE_CACHE</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+    <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="s1">&#39;{}/../rsc/{}.png&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPixmap</span><span class="p">()</span>
+
+    <span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">()</span>
+    <span class="n">image</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">isNull</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPixmap</span><span class="p">()</span>
+
+    <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">convertToFormat</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="o">.</span><span class="n">Format_ARGB32_Premultiplied</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">color</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">setCompositionMode</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="o">.</span><span class="n">CompositionMode_SourceIn</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">setBrush</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QBrush</span><span class="p">(</span><span class="n">color</span><span class="p">))</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">drawRect</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">rect</span><span class="p">())</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+    <span class="n">image</span> <span class="o">=</span> <span class="n">resize_image</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+    <span class="n">pixmap</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPixmap</span><span class="p">()</span>
+    <span class="n">pixmap</span><span class="o">.</span><span class="n">convertFromImage</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+    <span class="c1"># Setting transparency</span>
+    <span class="k">if</span> <span class="n">opacity</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">(</span>
+            <span class="n">pixmap</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="o">.</span><span class="n">Format_ARGB32_Premultiplied</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">fill</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">transparent</span><span class="p">)</span>
+
+        <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">setOpacity</span><span class="p">(</span><span class="n">opacity</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">drawPixmap</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">pixmap</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPixmap</span><span class="p">()</span>
+        <span class="n">pixmap</span><span class="o">.</span><span class="n">convertFromImage</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+
+    <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">pixmap</span>
+    <span class="k">return</span> <span class="n">IMAGE_CACHE</span><span class="p">[</span><span class="n">k</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="count_assets"><a class="viewcode-back" href="../../api.html#browser.common.count_assets">[docs]</a><span class="k">def</span> <span class="nf">count_assets</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the number of assets inside the given folder.&quot;&quot;&quot;</span>
+    <span class="n">dir_</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">dir_</span><span class="o">.</span><span class="n">setFilter</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">NoDotAndDotDot</span> <span class="o">|</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">Dirs</span> <span class="o">|</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">Readable</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Counting the number assets found</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">file_info</span> <span class="ow">in</span> <span class="n">dir_</span><span class="o">.</span><span class="n">entryInfoList</span><span class="p">():</span>
+        <span class="n">dir_</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+        <span class="n">dir_</span><span class="o">.</span><span class="n">setFilter</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">Files</span><span class="p">)</span>
+        <span class="n">dir_</span><span class="o">.</span><span class="n">setNameFilters</span><span class="p">((</span><span class="n">ASSET_IDENTIFIER</span><span class="p">,))</span>
+        <span class="k">if</span> <span class="n">dir_</span><span class="o">.</span><span class="n">entryInfoList</span><span class="p">():</span>
+            <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">count</span></div>
+
+
+<div class="viewcode-block" id="byte_to_string"><a class="viewcode-back" href="../../api.html#browser.common.byte_to_string">[docs]</a><span class="k">def</span> <span class="nf">byte_to_string</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;B&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts a numeric byte-value to a human readable string.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;K&#39;</span><span class="p">,</span> <span class="s1">&#39;M&#39;</span><span class="p">,</span> <span class="s1">&#39;G&#39;</span><span class="p">,</span> <span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="s1">&#39;E&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1024.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%3.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">/=</span> <span class="mf">1024.0</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">%.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="s1">&#39;Yi&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="reveal"><a class="viewcode-back" href="../../api.html#browser.common.reveal">[docs]</a><span class="k">def</span> <span class="nf">reveal</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reveals the specified folder in the file explorer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (str): A relative path or the folder&#39;s name.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">isDir</span><span class="p">():</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">file_info</span><span class="o">.</span><span class="n">path</span><span class="p">()</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QUrl</span><span class="o">.</span><span class="n">fromLocalFile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">QtGui</span><span class="o">.</span><span class="n">QDesktopServices</span><span class="o">.</span><span class="n">openUrl</span><span class="p">(</span><span class="n">url</span><span class="p">)</span></div>
+
+
+<span class="n">NoHighlightFlag</span> <span class="o">=</span> <span class="mb">0b000000</span>
+<span class="n">HeadingHighlight</span> <span class="o">=</span> <span class="mb">0b000001</span>
+<span class="n">QuoteHighlight</span> <span class="o">=</span> <span class="mb">0b000010</span>
+<span class="n">CodeHighlight</span> <span class="o">=</span> <span class="mb">0b000100</span>
+<span class="n">BoldHighlight</span> <span class="o">=</span> <span class="mb">0b001000</span>
+<span class="n">ItalicHighlight</span> <span class="o">=</span> <span class="mb">0b010000</span>
+
+<span class="n">HIGHLIGHT_RULES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="c1"># Should yield 3 groups:</span>
+    <span class="c1"># group 1 = the file:// prefix if exists,</span>
+    <span class="c1"># group 2 = the //path or \\path</span>
+    <span class="c1"># group 3 = trailing space</span>
+    <span class="s1">&#39;file_path&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;([a-z]{2,4}:)?([\/</span><span class="se">\\</span><span class="s1">]{2}[^\&quot;\*\&lt;\&gt;\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;folder_path&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;([a-z]{2,4}:)?([\/</span><span class="se">\\</span><span class="s1">]{2}[^\&quot;\*\&lt;\&gt;\?\|\s]+)&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;quotes&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;([\&quot;</span><span class="se">\&#39;</span><span class="s1">]+[^\&quot;</span><span class="se">\&#39;</span><span class="s1">]+[</span><span class="se">\&#39;</span><span class="s1">\&quot;]+)&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;bold&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">BoldHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;italicized&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;([\*_]{1})([^\*_]+)([\*_]{1})&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">ItalicHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^([#]{1,6})&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">HeadingHighlight</span>
+    <span class="p">},</span>
+    <span class="s1">&#39;quote&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^([&gt;]{1})&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">),</span>
+        <span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">QuoteHighlight</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_ranges"><a class="viewcode-back" href="../../api.html#browser.common.get_ranges">[docs]</a><span class="k">def</span> <span class="nf">get_ranges</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Examines a sequence of numbers and returnsa string representation.&quot;&quot;&quot;</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">arr</span><span class="p">)))</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>  <span class="c1"># blocks</span>
+        <span class="n">zfill</span> <span class="o">=</span> <span class="s1">&#39;{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">:</span>
+            <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">zfill</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">arr</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># break coming up</span>
+                <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]))))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">])</span></div>
+
+
+<span class="n">isequenceregex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^(.+?)(\[.*\])$&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+<span class="n">sequencestartregex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">r</span><span class="s1">&#39;^(.*)\[([0-9]+).*\](.*)$&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+<span class="n">sequenceendregex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">r</span><span class="s1">&#39;^(.*)\[.*?([0-9]+)\](.*)$&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+<span class="n">sequenceregex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^(.*?)([0-9]+)\.(.{2,5})$&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">get_sequence</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sequenceregex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">is_sequence</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">isequenceregex</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_sequence_startpath"><a class="viewcode-back" href="../../api.html#browser.common.get_sequence_startpath">[docs]</a><span class="k">def</span> <span class="nf">get_sequence_startpath</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Checks the given string and if it denotes a seuqence returns the path for</span>
+<span class="sd">    the first item.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">sequencestartregex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">sequencestartregex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\1\2\3&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="get_sequence_endpath"><a class="viewcode-back" href="../../api.html#browser.common.get_sequence_endpath">[docs]</a><span class="k">def</span> <span class="nf">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Checks the given string and if it denotes a seuqence returns the path for</span>
+<span class="sd">    the first item.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">sequenceendregex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">sequenceendregex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\1\2\3&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+<span class="c1"># Label LABEL_COLORS</span>
+<span class="n">ASSIGNED_LABELS</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="c1"># Thumbnail cache</span>
+<span class="n">IMAGE_CACHE</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="c1"># Property contains all the saVed label LABEL_COLORS</span>
+<span class="n">LABEL_COLORS</span> <span class="o">=</span> <span class="n">label_generator</span><span class="p">()</span>
+<span class="c1">#</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Gergely Wootsch.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'0.2.0',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -187,10 +187,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
 
-        idx = local_settings.value(u'widget/current_index')
+        idx = local_settings.value(u'widget/mode')
         idx = idx if idx else 0
-        mode_idx = idx if idx < 2 else 2
-        self.modeChanged.emit(mode_idx)
+        self.modeChanged.emit(idx)
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -223,10 +222,15 @@ class ListControlWidget(QtWidgets.QWidget):
             bookmarkswidget.show_add_bookmark_widget)
 
     def currentIndexChanged(self, idx):
-        combobox = self.findChild(ListControlDropdown)
-        self.modeChanged.emit(idx if idx < 2 else 2)
+        local_settings.setValue(u'widget/listcontrolmode', idx)
+        if idx < 2:
+            self.modeChanged.emit(idx)
+            local_settings.setValue(u'widget/mode', idx)
+        elif idx >= 2: # Locations
+            self.modeChanged.emit(2)
+            local_settings.setValue(u'widget/mode', 2)
 
-        if idx >= 2: # Locations
+            combobox = self.findChild(ListControlDropdown)
             index = combobox.model().index(idx, 0, parent=QtCore.QModelIndex())
             self.parent().fileswidget.model().sourceModel().set_location(index.data(QtCore.Qt.DisplayRole))
 
@@ -303,7 +307,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 
         # Text
         rect = QtCore.QRect(option.rect)
-        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        rect.setLeft(common.INDICATOR_WIDTH + common.MARGIN + rect.left() + rect.height() + common.MARGIN)
         color = common.TEXT_SELECTED if hover else common.TEXT
         color = common.FAVOURITE if active else color
 
@@ -332,7 +336,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         # Thumbnail
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
-        rect.moveLeft(common.INDICATOR_WIDTH)
+        rect.moveLeft(common.INDICATOR_WIDTH + common.MARGIN)
 
         if currentmode == Mode:  # currently browsing bookmarks
             color = common.FAVOURITE
@@ -395,15 +399,16 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 
         # Text
         rect = QtCore.QRect(option.rect)
-        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
+        # rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
         text = index.data(QtCore.Qt.DisplayRole)
-        text = 'Asset:  {}'.format(
-            active_index.data(QtCore.Qt.DisplayRole).upper()
-        ) if active else text
+        if active:
+            text = '{}'.format(active_index.data(QtCore.Qt.DisplayRole).upper())
+            rect.moveLeft(rect.left() + common.MARGIN)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -457,7 +462,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
         text = index.data(QtCore.Qt.DisplayRole)
-        text = 'Bookmark:  {} - {}'.format(
+        text = '{} - {}'.format(
             active_index.data(QtCore.Qt.DisplayRole).upper(),
             ''.join(active_index.data(common.ParentRole)
                     [-1].split('/')[-1]).upper(),
@@ -542,7 +547,7 @@ class ListControlDropdown(QtWidgets.QComboBox):
         self.setModel(ListControlModel(parent=self.parent()))
         self.setItemDelegate(ListControlDelegate(parent=self.view()))
 
-        idx = local_settings.value(u'widget/current_index')
+        idx = local_settings.value(u'widget/listcontrolmode')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
         self.apply_flags()
