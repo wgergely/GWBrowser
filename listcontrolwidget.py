@@ -216,7 +216,6 @@ class ListControlWidget(QtWidgets.QWidget):
 
         combobox.currentIndexChanged.connect(self.currentIndexChanged)
         self.modeChanged.connect(self.setCurrentMode)
-        self.modeChanged.connect(combobox.apply_flags)
 
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
@@ -307,15 +306,41 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 
         # Text
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.INDICATOR_WIDTH + common.MARGIN + rect.left() + rect.height() + common.MARGIN)
+        rect.setLeft(common.INDICATOR_WIDTH + (rect.height() * 2))
         color = common.TEXT_SELECTED if hover else common.TEXT
         color = common.FAVOURITE if active else color
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(10)
-        text = index.data(QtCore.Qt.DisplayRole)
+        text = index.data(QtCore.Qt.DisplayRole).upper()
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+
+        # Indicator
+        painter.setPen(QtCore.Qt.NoPen)
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(common.INDICATOR_WIDTH)
+        if active:
+            painter.setBrush(common.FAVOURITE)
+        else:
+            painter.setBrush(common.SEPARATOR)
+        painter.drawRect(rect)
+
+        # Thumbnail
+        rect = QtCore.QRect(option.rect)
+        rect.setWidth(rect.height())
+        rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
+        center = rect.center()
+        rect.setWidth(rect.width() / 1.5)
+        rect.setHeight(rect.height() / 1.5)
+        rect.moveCenter(center)
+        if active:
+            color = common.FAVOURITE
+        else:
+            color = common.SEPARATOR
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'files', color, rect.height())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
     def paint_asset(self, *args):
@@ -330,19 +355,16 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         currentmode = parent.findChild(StackedWidget).currentIndex()
         active_index = parent.findChild(
             StackedWidget).widget(Mode).active_index()
-
         active = active_index.isValid()
 
         # Thumbnail
         rect = QtCore.QRect(option.rect)
         rect.setWidth(rect.height())
-        rect.moveLeft(common.INDICATOR_WIDTH + common.MARGIN)
-
+        rect.moveLeft(common.INDICATOR_WIDTH)
         if currentmode == Mode:  # currently browsing bookmarks
             color = common.FAVOURITE
         else:
             color = common.SEPARATOR
-
         painter.setPen(QtCore.Qt.NoPen)
         if active:
             settings = AssetSettings(active_index)
@@ -371,16 +393,16 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
                 painter.drawRect(bgrect)
             else:
                 center = rect.center()
-                rect.setWidth(rect.width() / 2.0)
-                rect.setHeight(rect.height() / 2.0)
+                rect.setWidth(rect.width() / 1.5)
+                rect.setHeight(rect.height() / 1.5)
                 rect.moveCenter(center)
                 pixmap = ImageCache.get_rsc_pixmap(
                     u'assets', color, rect.height())
                 background = QtGui.QColor(0, 0, 0, 0)
         else:
             center = rect.center()
-            rect.setWidth(rect.width() / 2.0)
-            rect.setHeight(rect.height() / 2.0)
+            rect.setWidth(rect.width() / 1.5)
+            rect.setHeight(rect.height() / 1.5)
             rect.moveCenter(center)
             pixmap = ImageCache.get_rsc_pixmap(
                 u'assets', color, rect.height())
@@ -400,7 +422,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         # Text
         rect = QtCore.QRect(option.rect)
         rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
-        # rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -408,7 +429,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         text = index.data(QtCore.Qt.DisplayRole)
         if active:
             text = '{}'.format(active_index.data(QtCore.Qt.DisplayRole).upper())
-            rect.moveLeft(rect.left() + common.MARGIN)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -427,22 +447,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
             StackedWidget).widget(Mode).active_index()
         active = active_index.isValid()
 
-        # Thumbnail
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(rect.height())
-        rect.moveLeft(common.INDICATOR_WIDTH)
-        center = rect.center()
-        rect.setWidth(rect.width() / 2.0)
-        rect.setHeight(rect.height() / 2.0)
-        rect.moveCenter(center)
-
-        if currentmode == Mode:  # currently browsing bookmarks
-            color = common.FAVOURITE
-        else:
-            color = common.SEPARATOR
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', color, rect.height())
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         # Indicator
         painter.setPen(QtCore.Qt.NoPen)
@@ -454,9 +458,25 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
             painter.setBrush(common.SEPARATOR)
         painter.drawRect(rect)
 
-        # Text
+        # Thumbnail
         rect = QtCore.QRect(option.rect)
-        rect.setLeft((common.INDICATOR_WIDTH * 3) + rect.height())
+        rect.setWidth(rect.height())
+        rect.moveLeft(common.INDICATOR_WIDTH)
+        center = rect.center()
+        rect.setWidth(rect.width() / 1.5)
+        rect.setHeight(rect.height() / 1.5)
+        rect.moveCenter(center)
+        if currentmode == Mode:  # currently browsing bookmarks
+            color = common.FAVOURITE
+        else:
+            color = common.SEPARATOR
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'bookmark', color, rect.height())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        # Text
+        rect.setLeft(rect.right()+ common.MARGIN)
+        rect.setRight(option.rect.right())
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -467,6 +487,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
             ''.join(active_index.data(common.ParentRole)
                     [-1].split('/')[-1]).upper(),
         ) if active else text
+
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -475,14 +496,14 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         """Paints the background."""
         painter, option, index, selected = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        color = common.BACKGROUND
+        color = common.SECONDARY_BACKGROUND
         if selected:
             color = common.BACKGROUND_SELECTED
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(option.rect)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
 
 
 class ListControlView(QtWidgets.QListView):
@@ -501,9 +522,15 @@ class ListControlModel(BaseModel):
         common.RendersFolder,
         common.TexturesFolder,
     )
+    """These are the static folders that will always be present."""
 
     def __init__(self, parent=None):
         super(ListControlModel, self).__init__(parent=parent)
+        self.parentwidget = parent
+
+        active_asset = self.parentwidget.parent().assetswidget.active_index()
+        if active_asset.isValid():
+            self.activeAssetChanged(active_asset.data(common.ParentRole))
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
@@ -523,6 +550,50 @@ class ListControlModel(BaseModel):
                 common.FileDetailsRole: None,
             }
 
+    def activeAssetChanged(self, asset):
+        # Remove dynamic folders:
+        for idx, k in enumerate(self.model_data.keys()):
+            if idx <= 5:
+                continue
+            del self.model_data[k]
+
+        path = u'/'.join(asset)
+        dir_ = QtCore.QDir(path)
+        if not dir_.exists():
+            return
+        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
+
+        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+        for idx, item in enumerate(sorted(dir_.entryList())):
+            if item in self.model_data:
+                continue # skipping existing items
+            self.model_data[idx + len(self.static_string_list)] = {
+                QtCore.Qt.DisplayRole: item,
+                QtCore.Qt.EditRole: item,
+                QtCore.Qt.StatusTipRole: item,
+                QtCore.Qt.ToolTipRole: item,
+                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
+                common.FlagsRole: flags,
+                common.ParentRole: None,
+                common.DescriptionRole: item,
+                common.TodoCountRole: 0,
+                common.FileDetailsRole: None,
+            }
+
+
+    def rowCount(self, parent=QtCore.QModelIndex()):
+        """Sets the item flags based on the currently available active paths."""
+        active_bookmark = self.parentwidget.parent().bookmarkswidget.active_index()
+        if not active_bookmark.isValid():
+            return 1
+
+        active_asset = self.parentwidget.parent().assetswidget.active_index()
+        if not active_asset.isValid():
+            return 2
+
+        active_asset.data(QtCore.Qt.StatusTipRole)
+
+        return len(self.model_data)
 
 
     def __resetdata__(self):
@@ -550,7 +621,6 @@ class ListControlDropdown(QtWidgets.QComboBox):
         idx = local_settings.value(u'widget/listcontrolmode')
         idx = idx if idx else 0
         self.setCurrentIndex(idx)
-        self.apply_flags()
 
     def _adjustSize(self, text):
         font = QtGui.QFont(common.PrimaryFont)
@@ -558,25 +628,6 @@ class ListControlDropdown(QtWidgets.QComboBox):
         metrics = QtGui.QFontMetrics(font)
         width = metrics.width(text)
         self.setFixedWidth(width)
-
-    def apply_flags(self):
-        """Sets the item flags based on the currently available active paths."""
-        active_paths = Active.get_active_paths()
-        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-        bookmark = (
-            active_paths[u'server'],
-            active_paths[u'job'],
-            active_paths[u'root']
-        )
-        for row in xrange(self.model().rowCount()):
-            index = self.model().index(row, 0, parent=QtCore.QModelIndex())
-            if row == 1 and not all(bookmark):
-                self.model().setData(index, QtCore.Qt.NoItemFlags, role=common.FlagsRole)
-                continue
-            if row >= 2 and not active_paths[u'asset']:
-                self.model().setData(index, QtCore.Qt.NoItemFlags, role=common.FlagsRole)
-                continue
-            self.model().setData(index, flags, role=common.FlagsRole)
 
     def showPopup(self):
         """Toggling overlay widget when combobox is shown."""
