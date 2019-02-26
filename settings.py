@@ -217,7 +217,7 @@ class AssetSettings(QtCore.QSettings):
             self._filepath = index[3]
 
         path = self._filepath.replace(self._root, u'').strip(u'/')
-        path = hashlib.md5(path).hexdigest()
+        path = hashlib.md5(path.encode('utf-8')).hexdigest()
         self._conf_path = u'{}/.browser/{}.conf'.format(self._root, path)
         self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
 
