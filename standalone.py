@@ -8,7 +8,8 @@
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu, SizeGrip
+from browser.browserwidget import BrowserWidget, SizeGrip
+from browser.listcontrolwidget import BrowserButtonContextMenu
 from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
 from browser.baselistwidget import contextmenu
@@ -120,11 +121,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
 
-        button = BrowserButton(
-            height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self)
-        button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
-        self.layout().addWidget(button)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))

@@ -483,7 +483,6 @@ class BookmarksListDelegate(BookmarksWidgetDelegate):
         self.paint_count_icon(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
@@ -562,7 +561,6 @@ class AssetListDelegate(AssetWidgetDelegate):
         self.paint_description(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)

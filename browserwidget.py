@@ -24,8 +24,6 @@ import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
-from browser.baselistwidget import BaseContextMenu
-from browser.baselistwidget import contextmenu
 from browser.baselistwidget import StackedWidget
 from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
@@ -37,59 +35,6 @@ from browser.editors import ClickableLabel
 from browser.imagecache import ImageCache
 
 from browser.settings import local_settings, Active, active_monitor
-
-
-class BrowserButtonContextMenu(BaseContextMenu):
-    """The context-menu associated with the BrowserButton."""
-
-    def __init__(self, parent=None):
-        super(BrowserButtonContextMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_show_menu()
-        self.add_toolbar_menu()
-
-    @contextmenu
-    def add_show_menu(self, menu_set):
-        if not hasattr(self.parent(), 'clicked'):
-            return menu_set
-        menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
-            u'text': u'Open...',
-            u'action': self.parent().clicked.emit
-        }
-        return menu_set
-
-    @contextmenu
-    def add_toolbar_menu(self, menu_set):
-        active_paths = Active.get_active_paths()
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        asset = bookmark + (active_paths[u'asset'],)
-        location = asset + (active_paths[u'location'],)
-
-        if all(bookmark):
-            menu_set[u'bookmark'] = {
-                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-                u'disabled': not all(bookmark),
-                u'text': u'Show active bookmark in the file manager...',
-                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
-            }
-            if all(asset):
-                menu_set[u'asset'] = {
-                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-                    u'disabled': not all(asset),
-                    u'text': u'Show active asset in the file manager...',
-                    u'action': functools.partial(common.reveal, '/'.join(asset))
-                }
-                if all(location):
-                    menu_set[u'location'] = {
-                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-                        u'disabled': not all(location),
-                        u'text': u'Show active location in the file manager...',
-                        u'action': functools.partial(common.reveal, '/'.join(location))
-                    }
-
-        return menu_set
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
@@ -113,7 +58,7 @@ class RefreshButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(RefreshButton, self).__init__(parent=parent)
-        self.context_menu_cls = BrowserButtonContextMenu
+
         self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
         self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
 
@@ -169,80 +114,6 @@ class RefreshButton(ClickableLabel):
         painter.setBrush(QtGui.QColor(250, 100, 0))
         painter.drawRoundedRect(
             self.rect(), self.width() / 2, self.width() / 2)
-
-
-class BrowserButton(ClickableLabel):
-    """Small widget to embed into the context to toggle the BrowserWidget's visibility."""
-
-    def __init__(self, height=common.ROW_HEIGHT, parent=None):
-        super(BrowserButton, self).__init__(parent=parent)
-        self.context_menu_cls = BrowserButtonContextMenu
-        self.setFixedWidth(height)
-        self.setFixedHeight(height)
-
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
-
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setWindowFlags(
-            QtCore.Qt.Widget |
-            QtCore.Qt.FramelessWindowHint
-        )
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', None, height)
-        self.setPixmap(pixmap)
-
-    def set_size(self, size):
-        self.setFixedWidth(int(size))
-        self.setFixedHeight(int(size))
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', None, int(size))
-        self.setPixmap(pixmap)
-
-    def enterEvent(self, event):
-        self.update()
-
-    def leaveEvent(self, event):
-        self.update()
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        brush = self.pixmap().toImage()
-
-        painter.setBrush(brush)
-        painter.setPen(QtCore.Qt.NoPen)
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-
-        painter.setOpacity(0.8)
-        if option.state & QtWidgets.QStyle.State_MouseOver:
-            painter.setOpacity(1)
-
-        painter.drawRoundedRect(self.rect(), 2, 2)
-        painter.end()
-
-    def contextMenuEvent(self, event):
-        """Context menu event."""
-        # Custom context menu
-        shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
-        alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
-        control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
-        if shift_modifier or alt_modifier or control_modifier:
-            self.customContextMenuRequested.emit()
-            return
-
-        widget = self.context_menu_cls(parent=self)
-        widget.move(self.mapToGlobal(self.rect().bottomLeft()))
-        widget.setFixedWidth(300)
-        common.move_widget_to_available_geo(widget)
-        widget.exec_()
 
 
 class BrowserWidget(QtWidgets.QWidget):
