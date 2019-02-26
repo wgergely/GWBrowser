@@ -112,7 +112,19 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setDocumentMargin(common.MARGIN)
+        self.document().setDocumentMargin(common.MARGIN * 2)
+        # option
+        option = QtGui.QTextOption()
+        option.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        option.setWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
+        option.setUseDesignMetrics(True)
+        self.document().setDefaultTextOption(option)
+        # font
+        font = QtGui.QFont(common.SecondaryFont)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        font.setPointSizeF(12.0)
+        self.document().setDefaultFont(font)
+
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
         self.setOpenLinks(True)
@@ -124,9 +136,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         metrics.width(u'  ')
         self.setTabStopWidth(common.MARGIN)
 
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(10.0)
-        self.document().setDefaultFont(font)
         self.setUndoRedoEnabled(True)
 
         self.setSizePolicy(
@@ -134,9 +143,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             QtWidgets.QSizePolicy.Fixed
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setAlignment(QtCore.Qt.AlignJustify)
         self.setMouseTracking(True)
         self.document().setPlainText(text)
+        # self.setAlignment(QtCore.Qt.AlignJustify | QtCore.Qt.AlignVCenter)
 
         self.document().contentsChanged.connect(self._contentChanged)
         self.anchorClicked.connect(self._anchorClicked)
@@ -144,7 +153,8 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
         font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(10.0)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        font.setPointSizeF(12.0)
         if b:
             font.setStrikeOut(True)
         self.document().setDefaultFont(font)
@@ -159,7 +169,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         """Returns the desired minimum height of the editor."""
         margins = self.contentsMargins()
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = (metrics.height() + metrics.leading()) * 8  # Lines tall
+        line_height = (metrics.height() + metrics.leading()) * 4  # Lines tall
+        return line_height + margins.top() + margins.bottom()
+
+    def get_maxHeight(self):
+        """Returns the desired minimum height of the editor."""
+        margins = self.contentsMargins()
+        metrics = QtGui.QFontMetrics(self.document().defaultFont())
+        line_height = (metrics.height() + metrics.leading()) * 48  # Lines tall
         return line_height + margins.top() + margins.bottom()
 
     def heightForWidth(self, width):
@@ -174,14 +191,12 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         document = self.document().clone()
         document.setTextWidth(document_width)
-
         height = margins.top() + document.size().height() + margins.bottom()
 
         if height < self.get_minHeight():
-            height = self.get_minHeight() + 8
-        elif height > 300.0:
-            height = 300.0
-
+            return self.get_minHeight()
+        if height > self.get_maxHeight():
+            return self.get_maxHeight()
         return height
 
     def keyPressEvent(self, event):

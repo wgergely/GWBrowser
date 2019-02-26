@@ -560,7 +560,7 @@ class CacheWorker(QtCore.QRunnable):
         for index in self.chunk:
             filename = QtCore.QFileInfo(index.data(
                 QtCore.Qt.StatusTipRole)).fileName()
-            self.signals.update.emit(u'Processing {}...'.format(filename.encode('utf-8')))
+            self.signals.update.emit(u'Processing {}'.format(filename).encode('utf-8'))
             ImageCache.generate(index)
         self.signals.finished.emit()
 

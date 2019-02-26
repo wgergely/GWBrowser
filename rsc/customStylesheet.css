@@ -396,13 +396,13 @@ TodoEditorWidget {{
 TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
 	background: rgba(230,230,230,255);
 	border: none;
+	border-radius: 6px;
 }}
 TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
-	background: rgba(100,100,100,255);
+	background: rgba(200,200,200,255);
 	border: none;
-	border-radius: 3px;
 	max-height: 250px;
-	min-height: 24;
+	min-height: 24px;
 }}
 TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
 	background: rgba(230,230,230,255);
@@ -417,7 +417,8 @@ TodoItemEditor {{
 	padding: 0px;
 	outline: 0;
 	color: rgba(0,0,0,255);
-	font-size: 10pt;
+	font-family: "Roboto Medium";
+	font-size: 12pt;
 }}
 
 CheckBoxButton, DragIndicatorButton{{
