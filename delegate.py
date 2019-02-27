@@ -106,19 +106,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         size = max(rect.width(), rect.height())
         bg_rect = QtCore.QRect(rect)
-        bg_rect.setWidth(size)
-        bg_rect.setHeight(size)
-        bg_rect.setLeft(bg_rect.left() - common.INDICATOR_WIDTH)
-        bg_rect.setTop(bg_rect.top() - common.INDICATOR_WIDTH)
-        bg_rect.setRight(bg_rect.right() + common.INDICATOR_WIDTH)
-        bg_rect.setBottom(bg_rect.bottom() + common.INDICATOR_WIDTH)
-
+        center = rect.center()
+        bg_rect.setWidth(size + (common.INDICATOR_WIDTH * 1.5))
+        bg_rect.setHeight(size + (common.INDICATOR_WIDTH * 1.5))
+        bg_rect.moveCenter(center)
         return rect, bg_rect
 
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, _, active, _, _ = args
+        painter, option, index, selected, _, active, _, _ = args
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.drawRect(option.rect)
@@ -149,6 +146,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
+        if active:
+            color = self.get_state_color(option, index, common.SELECTION)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(color)
+
+            rect = QtCore.QRect(option.rect)
+            rect.setTop(rect.top() + 1)
+            rect.setBottom(rect.bottom() - 1)
+
+            painter.setOpacity(0.2)
+            painter.setBrush(common.FAVOURITE)
+            painter.drawRect(rect)
+
     @paintmethod
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
@@ -168,25 +178,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
-    @paintmethod
-    def paint_active_indicator(self, *args):
-        """Paints the leading rectangle to indicate item is set as current."""
-        painter, option, index, _, _, active, _, _ = args
-
-        if not active:
-            return
-
-        color = self.get_state_color(option, index, common.SELECTION)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(color)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-
-        painter.setOpacity(0.2)
-        painter.setBrush(common.FAVOURITE)
-        painter.drawRect(rect)
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -439,7 +430,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_inline_icons_background(self, *args):
-        painter, option, _, selected, _, _, archived, _ = args
+        painter, option, index, selected, _, active, archived, _ = args
         if option.rect.width() < 360.0:
             return
 
@@ -467,6 +458,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             )
             painter.setBrush(color)
             painter.drawRect(bg_rect)
+
+        if active:
+            color = self.get_state_color(option, index, common.SELECTION)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(color)
+
+            painter.setOpacity(0.2)
+            painter.setBrush(common.FAVOURITE)
+            painter.drawRect(bg_rect)
+            painter.setOpacity(1)
 
         painter.setPen(QtCore.Qt.NoPen)
         if selected:
@@ -548,7 +549,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_count_icon(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     @paintmethod
     def paint_thumbnail(self, *args):
@@ -584,10 +584,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, _, _, active, _, _ = args
-
-        active = index.flags() & MarkedAsActive
-        count = index.data(common.FileDetailsRole)
+        painter, option, index, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
@@ -596,7 +593,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setLeft(
             common.INDICATOR_WIDTH +
             rect.height() +
-            common.MARGIN
+            common.MARGIN - 2
         )
         rect.setRight(rect.right() - common.MARGIN)
 
@@ -607,24 +604,18 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[\W\d\_]+', '', text)
-        text = u' {} '.format(text)
+        text = u'  {}  |  {}  '.format(index.data(common.ParentRole)[0].strip('/').lower(), text.upper())
         width = metrics.width(text)
         rect.setWidth(width)
 
         offset = common.INDICATOR_WIDTH
-
         center = rect.center()
         rect.setHeight(common.INLINE_ICON_SIZE)
         rect.moveCenter(center)
 
         # Name background
-
         pen = QtGui.QPen(common.FAVOURITE)
         painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-
-        if active:
-            pen = QtGui.QPen(common.SELECTION)
-            painter.setBrush(QtGui.QBrush(common.SELECTION))
 
         pen.setWidth(offset)
         painter.setPen(pen)
@@ -635,9 +626,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveLeft(rect.right() + common.MARGIN)
 
         text = index.data(common.ParentRole)[2]
-        text = text.split(u'/')[-1]
         text = re.sub(r'[_]+', ' ', text.upper())
-        text = u' {} '.format(text)
 
         if option.rect.width() < 360.0:
             rect.setRight(option.rect.right() - common.MARGIN)
@@ -650,7 +639,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_count_icon(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, _, _, active, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
         # Count
         if option.rect.width() < 360.0:
             return
@@ -661,12 +650,12 @@ class BookmarksWidgetDelegate(BaseDelegate):
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
 
         if count:
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(common.FAVOURITE)
-            if active:
-                painter.setBrush(common.SELECTION)
+            pen = QtGui.QPen(common.SEPARATOR)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.setBrush(common.SECONDARY_BACKGROUND)
             painter.drawRoundedRect(
-                bg_rect, bg_rect.height() / 2.0, bg_rect.height() / 2.0)
+                rect, rect.height() / 2.0, rect.height() / 2.0)
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
@@ -704,7 +693,6 @@ class AssetWidgetDelegate(BaseDelegate):
         self.paint_folder_icon(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     @paintmethod
     def paint_name(self, *args):
@@ -771,7 +759,6 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_archived_icon(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     def _draw(self, painter, font, rect, text, align, color, option, left):
         """Draws a sequence element."""

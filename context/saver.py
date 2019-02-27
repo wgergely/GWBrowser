@@ -107,24 +107,6 @@ class ThumbnailButton(ClickableLabel):
         menu.exec_()
 
 
-class Progressbar(QtWidgets.QLabel):
-    def __init__(self, parent=None):
-        super(BaseCombobox, self).__init__(parent=parent)
-        self.setFixedHeight(common.INDICATOR_WIDTH)
-        self.setFixedWidth(0)
-
-        self.setStyleSheet(
-            """QLabel{{
-                margin: 0px;
-                padding: 0px;
-                border: none;
-                outline: none;
-                background-color: rgba({});
-            }}""".format(
-                '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            ))
-
-
 class BaseCombobox(QtWidgets.QComboBox):
     def __init__(self, parent=None):
         super(BaseCombobox, self).__init__(parent=parent)
@@ -483,7 +465,6 @@ class BookmarksListDelegate(BookmarksWidgetDelegate):
         self.paint_count_icon(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
@@ -562,7 +543,6 @@ class AssetListDelegate(AssetWidgetDelegate):
         self.paint_description(*args)
         #
         self.paint_selection_indicator(*args)
-        self.paint_active_indicator(*args)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)

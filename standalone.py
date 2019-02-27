@@ -8,7 +8,8 @@ import sys
 import browser.modules
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu, SizeGrip
+from browser.browserwidget import BrowserWidget, SizeGrip
+from browser.listcontrolwidget import BrowserButtonContextMenu
 from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
 from browser.baselistwidget import contextmenu
@@ -27,13 +28,12 @@ class TrayMenu(BrowserButtonContextMenu):
         self.stays_on_top = False
         self.add_visibility_menu()
 
-    def show_(self):
+    def show_window(self):
         """Raises and shows the widget."""
         screen = self.parent().window().windowHandle().screen()
         self.parent().move(screen.geometry().center() - self.parent().rect().center())
-        self.parent().show()
+        self.parent().showNormal()
         self.parent().activateWindow()
-        self.parent().raise_()
 
     @contextmenu
     def add_visibility_menu(self, menu_set):
@@ -58,8 +58,8 @@ class TrayMenu(BrowserButtonContextMenu):
             'checkable': True,
             'action': _set_flag
         }
-        menu_set['Show'] = {
-            'action': self.show_
+        menu_set['Show window...'] = {
+            'action': self.show_window
         }
         menu_set['separator1'] = {}
         menu_set['Quit'] = {
@@ -120,11 +120,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
 
-        button = BrowserButton(
-            height=common.ROW_BUTTONS_HEIGHT / 1.5, parent=self)
-        button.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
-        self.layout().addWidget(button)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
@@ -176,7 +171,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.effect.setBlurRadius(shadow_offset)
         self.effect.setXOffset(0)
         self.effect.setYOffset(0)
-        self.effect.setColor(QtCore.Qt.black)
+        self.effect.setColor(QtGui.QColor(0, 0, 0, 80))
         self.setGraphicsEffect(self.effect)
 
     def _createUI(self):
@@ -297,7 +292,9 @@ class StandaloneApp(QtWidgets.QApplication):
     def exec_(self):
         """Shows the ``StandaloneBrowserWidget`` on execution."""
         widget = StandaloneBrowserWidget()
-        widget.show()
+        widget.showNormal()
+        widget.activateWindow()
+        widget.raise_()
         super(StandaloneApp, self).exec_()
 
     def set_model_id(self):
