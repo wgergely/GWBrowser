@@ -79,7 +79,7 @@ class FilesModel(BaseModel):
         # This will add the asset to the file monitor
         self.set_asset(asset)
 
-    def __initdata__(self, spinner=None):
+    def __initdata__(self):
         """To get the files, we will have to decide what extensions to take
         into consideration and what location to get the files from.
 
@@ -126,7 +126,7 @@ class FilesModel(BaseModel):
             # Collecting files can take a long time. We're triggering ui updates inside loop here.
             __count += 1
             if ((__count % __nth) + 1) == __nth:
-                spinner.setText(it.fileName())
+                common.ProgressMessage.instance().set_message(it.fileName())
                 QtCore.QCoreApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
