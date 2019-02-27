@@ -23,6 +23,55 @@ from browser.settings import AssetSettings
 
 
 
+class Progressbar(QtWidgets.QLabel):
+    """Custom loading indicator."""
+
+    def __init__(self, parent=None):
+        super(Progressbar, self).__init__(parent=parent)
+        self.processmonitor = QtCore.QTimer()
+        self.processmonitor.setSingleShot(False)
+        self.processmonitor.setInterval(80)
+        self.processmonitor.timeout.connect(self.set_visibility)
+        self.processmonitor.start()
+
+        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.setStyleSheet("""
+            QLabel {{
+                font-family: "{}";
+                font-size: 8pt;
+                color: rgba({});
+                background-color: rgba(0,0,0,0);
+            	border: 0px solid;
+                padding: 0px;
+                margin: 0px;
+            }}
+        """.format(
+            common.SecondaryFont.family(),
+            u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()))
+        )
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+
+        self.setText(u'Working...')
+        common.ProgressMessage.instance().messageChanged.connect(self.setText)
+
+    def set_visibility(self):
+        """Checks if the thread pool is has running threads."""
+        pool = QtCore.QThreadPool.globalInstance()
+        app = QtWidgets.QApplication.instance()
+        if pool.activeThreadCount():
+            app.setOverrideCursor(QtCore.Qt.WaitCursor)
+            self.show()
+        else:
+            app.restoreOverrideCursor()
+            self.hide()
+            common.ProgressMessage.instance().clear_message()
+
+
+
+
 class BrowserButtonContextMenu(BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
@@ -335,7 +384,8 @@ class ListControlWidget(QtWidgets.QWidget):
         # Listwidget
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(ListControlDropdown(parent=self))
-        self.layout().addStretch(1)
+        self.layout().addStretch()
+        self.layout().addWidget(Progressbar(parent=self), 1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
         self.layout().addWidget(CustomButton(parent=self))
         self.layout().addWidget(FilterButton(parent=self))

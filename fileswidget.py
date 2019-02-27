@@ -19,7 +19,6 @@ from browser.settings import local_settings, Active
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
 from browser.imagecache import ImageCache
-from browser.spinner import longprocess
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -80,7 +79,6 @@ class FilesModel(BaseModel):
         # This will add the asset to the file monitor
         self.set_asset(asset)
 
-    @longprocess
     def __initdata__(self, spinner=None):
         """To get the files, we will have to decide what extensions to take
         into consideration and what location to get the files from.

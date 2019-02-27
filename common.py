@@ -545,18 +545,45 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.restore()
 
 
-class QSingleton(type(QtCore.QObject)):
-    """Singleton metaclass for QWidgets.
-    # WARNING: DONT USE, kills plugin-reload in Maya.
-    Note:
-        We have to supply an appropiate type object as the baseclass,
-        'type' won't work. Creating type(QtWidgets.QWidget) seems to function.
+class ProgressMessage(QtCore.QObject):
+    """Utiity class to store and emit thread-progress messages."""
+    mutex = QtCore.QMutex()
+    msg = u''
 
-    """
-    _instances = {}
+    messageChanged = QtCore.Signal(unicode)
+    __instance = None
 
-    def __call__(cls, *args, **kwargs):  # pylint: disable=E0213
-        if cls not in cls._instances:
-            cls._instances[cls] = super(
-                QSingleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+    @staticmethod
+    def instance():
+        """ Static access method. """
+        if ProgressMessage.__instance == None:
+            ProgressMessage()
+        return ProgressMessage.__instance
+
+    @classmethod
+    def initialize(cls, *args, **kwargs):
+        """ Static create method. """
+        cls(*args, **kwargs)
+        return ProgressMessage.__instance
+
+    def __init__(self, parent=None):
+        if ProgressMessage.__instance != None:
+            raise RuntimeError(u'\n# {} already initialized.\n# Use ProgressMessage.instance() instead.'.format(
+                self.__class__.__name__))
+        super(ProgressMessage, self).__init__(parent=parent)
+        ProgressMessage.__instance = self
+
+    def set_message(self, text):
+        text = text.encode('utf-8')
+        self.mutex.lock()
+        self.msg = u'{}'.format(text)
+        self.mutex.unlock()
+        self.messageChanged.emit(self.msg)
+
+    def get_message(self):
+        return u'{}'.format(self.msg)
+
+    def clear_message(self):
+        self.msg = u''
+
+ProgressMessage.initialize()

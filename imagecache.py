@@ -15,7 +15,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from browser.capture import ScreenGrabber
 from browser.settings import AssetSettings
 import browser.common as common
-from browser.spinner import Spinner
 
 import browser.modules  # loads the numpy, oiio libraries
 import oiio.OpenImageIO as oiio
@@ -53,12 +52,11 @@ class ImageCache(QtCore.QObject):
         sys.stdout.write('# ImageCache: Initialized.\n')
 
     def __init__(self, parent=None):
-        super(ImageCache, self).__init__(parent=parent)
         if ImageCache.__instance != None:
             raise RuntimeError(u'\n# {} already initialized.\n# Use ImageCache.instance() instead.'.format(
                 self.__class__.__name__))
-        else:
-            ImageCache.__instance = self
+        super(ImageCache, self).__init__(parent=parent)
+        ImageCache.__instance = self
 
     def _reset_cached_item(self, path, removefile=True):
         """Resets any cached items containing `k` with the original placeholder image.
@@ -300,16 +298,13 @@ class ImageCache(QtCore.QObject):
         parent = [f for f in app.allWidgets() if f.objectName()
                   == u'BrowserStackedWidget']
         parent = next((f for f in parent), None)
-        if parent:
-            spinner = Spinner(parent=parent)
-            spinner.setFixedWidth(parent.width())
-            spinner.show()
+
+        common.ProgressMessage.instance().set_message(u'Processing thumbnails...')
+
         # Creating threads
         for chunk in chunks:
             worker = CacheWorker(chunk)
-            if parent:
-                worker.signals.finished.connect(spinner.stop)
-                worker.signals.update.connect(spinner.setText)
+            worker.signals.update.connect(common.ProgressMessage.instance().set_message)
             QtCore.QThreadPool.globalInstance().start(worker)
 
     @classmethod
@@ -543,7 +538,7 @@ class ImageCache(QtCore.QObject):
 
 class CacheWorkerSignals(QtCore.QObject):
     finished = QtCore.Signal()
-    update = QtCore.Signal(basestring)
+    update = QtCore.Signal(unicode)
 
 
 class CacheWorker(QtCore.QRunnable):
@@ -560,7 +555,7 @@ class CacheWorker(QtCore.QRunnable):
         for index in self.chunk:
             filename = QtCore.QFileInfo(index.data(
                 QtCore.Qt.StatusTipRole)).fileName()
-            self.signals.update.emit(u'Processing {}'.format(filename).encode('utf-8'))
+            self.signals.update.emit(u'Processing {}'.format(filename.encode('utf-8')))
             ImageCache.generate(index)
         self.signals.finished.emit()
 

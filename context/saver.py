@@ -107,24 +107,6 @@ class ThumbnailButton(ClickableLabel):
         menu.exec_()
 
 
-class Progressbar(QtWidgets.QLabel):
-    def __init__(self, parent=None):
-        super(BaseCombobox, self).__init__(parent=parent)
-        self.setFixedHeight(common.INDICATOR_WIDTH)
-        self.setFixedWidth(0)
-
-        self.setStyleSheet(
-            """QLabel{{
-                margin: 0px;
-                padding: 0px;
-                border: none;
-                outline: none;
-                background-color: rgba({});
-            }}""".format(
-                '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            ))
-
-
 class BaseCombobox(QtWidgets.QComboBox):
     def __init__(self, parent=None):
         super(BaseCombobox, self).__init__(parent=parent)
