@@ -7,18 +7,19 @@ for the os.env and sys.path."""
 import sys
 import os
 import browser
-from PySide2 import QtCore
 
-# OpenImageIO libs
-file_info = QtCore.QFileInfo(u'{}/../modules/oiio'.format(browser.__file__))
-path = QtCore.QDir.toNativeSeparators(file_info.absoluteFilePath())
+module_root ='{file}{sep}{parent}{sep}modules'.format(
+    file=browser.__file__,
+    sep=os.path.sep,
+    parent=os.pardir
+)
+
+# Modules
+module_root = os.path.abspath(module_root)
+sys.path.insert(0, module_root)
+path = '{}{}bin'.format(module_root, os.path.sep)
 os.environ['PATH'] = '{};{}'.format(path, os.environ['PATH'])
 
-# Numpy
-path = QtCore.QFileInfo(u'{}/../modules'.format(browser.__file__))
-path = QtCore.QDir.toNativeSeparators(path.absoluteFilePath())
-sys.path.insert(0, path)
-
-path = QtCore.QFileInfo(u'{}/../modules/bin'.format(browser.__file__))
-path = QtCore.QDir.toNativeSeparators(path.absoluteFilePath())
+# OpenImageIO libs
+path = '{}{}oiio'.format(module_root, os.path.sep)
 os.environ['PATH'] = '{};{}'.format(path, os.environ['PATH'])

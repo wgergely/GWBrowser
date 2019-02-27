@@ -4,8 +4,8 @@
 
 """Browser - Standalone PySide2 application."""
 
-
 import sys
+import browser.modules
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.browserwidget import BrowserWidget, BrowserButton, BrowserButtonContextMenu, SizeGrip

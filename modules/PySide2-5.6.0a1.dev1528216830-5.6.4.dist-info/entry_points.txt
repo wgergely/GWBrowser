@@ -1,0 +1,3 @@
+[console_scripts]
+pyside2-uic = PySide2.scripts.uic:main
+
