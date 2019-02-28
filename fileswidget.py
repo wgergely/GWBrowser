@@ -98,7 +98,6 @@ class FilesModel(BaseModel):
         # File monitor
         self._file_monitor.addPath(u'/'.join(self.asset))
 
-        self.modes = self.get_modes(self.asset, location)
         # Iterator
         dir_ = QtCore.QDir(u'{asset}/{location}'.format(
             asset=u'/'.join(self.asset),
@@ -456,20 +455,6 @@ class FilesModel(BaseModel):
         self._isgrouped = val
         local_settings.setValue(key, val)
         self.grouppingChanged.emit()
-
-    def get_modes(self, asset, location):
-        file_info = QtCore.QFileInfo(u'{asset}/{location}'.format(
-            asset=u'/'.join(asset),
-            location=location))
-        if not file_info.exists():
-            return []
-
-        d = QtCore.QDir(file_info.filePath())
-        d = d.entryList(
-            filters=QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot,
-        )
-        d.append(u'')
-        return sorted(d)
 
     def get_location(self):
         """Get's the current ``location``."""
