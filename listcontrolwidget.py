@@ -22,7 +22,6 @@ from browser.settings import local_settings
 from browser.settings import AssetSettings
 
 
-
 class Progressbar(QtWidgets.QLabel):
     """Custom loading indicator."""
 
@@ -68,8 +67,6 @@ class Progressbar(QtWidgets.QLabel):
             app.restoreOverrideCursor()
             self.hide()
             common.ProgressMessage.instance().clear_message()
-
-
 
 
 class BrowserButtonContextMenu(BaseContextMenu):
@@ -202,9 +199,11 @@ class BrowserButton(ClickableLabel):
 class CustomButton(BrowserButton):
     def __init__(self, parent=None):
         self.context_menu_cls = BrowserButtonContextMenu
-        super(CustomButton, self).__init__(height=common.INLINE_ICON_SIZE, parent=parent)
+        super(CustomButton, self).__init__(
+            height=common.INLINE_ICON_SIZE, parent=parent)
         self.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
+
 
 class FilterButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
@@ -248,7 +247,6 @@ class FilterButton(ClickableLabel):
             pixmap = ImageCache.get_rsc_pixmap(
                 u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
-
 
 
 class CollapseSequenceButton(ClickableLabel):
@@ -372,6 +370,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
         idx = local_settings.value(u'widget/mode')
         idx = idx if idx else 0
+        idx = idx if idx >= 0 else 0
         self.modeChanged.emit(idx)
 
     def _createUI(self):
@@ -399,27 +398,34 @@ class ListControlWidget(QtWidgets.QWidget):
         combobox = self.findChild(ListControlDropdown)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
-        combobox.currentIndexChanged.connect(self.currentIndexChanged)
+        combobox.activated.connect(self.activated)
         self.modeChanged.connect(self.setCurrentMode)
 
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
-    def currentIndexChanged(self, idx):
+    def activated(self, idx):
+        """Maps the index to the mode / location signals."""
+        if idx < 0:
+            return
+
         local_settings.setValue(u'widget/listcontrolmode', idx)
+        # Index values 0-2 refer to stacked iwdget index values
         if idx < 2:
             self.modeChanged.emit(idx)
-            local_settings.setValue(u'widget/mode', idx)
-        elif idx >= 2: # Locations
-            self.modeChanged.emit(2)
-            local_settings.setValue(u'widget/mode', 2)
-
+        # Index values above 2 refer to locations inside the asset
+        elif idx >= 2:
+            if self.parent().stackedwidget.currentIndex() != 2:
+                self.modeChanged.emit(2)
+            # Setting the location
             combobox = self.findChild(ListControlDropdown)
             index = combobox.model().index(idx, 0, parent=QtCore.QModelIndex())
-            self.parent().fileswidget.model().sourceModel().set_location(index.data(QtCore.Qt.DisplayRole))
+            model = self.parent().fileswidget.model().sourceModel()
+            model.set_location(index.data(QtCore.Qt.DisplayRole))
 
     def setCurrentMode(self, idx):
         """Sets the current mode of ``ListControlWidget``."""
+        idx = idx if idx >= 0 else 0
         idx = idx if idx < 2 else 2
 
         addbookmark = self.findChild(AddBookmarkButton)
@@ -489,7 +495,8 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         currentmode = parent.fileswidget.model().sourceModel().get_location()
 
         active = currentmode.lower() == index.data(QtCore.Qt.DisplayRole).lower()
-        active = active if parent.findChild(StackedWidget).currentIndex() == 2 else False
+        active = active if parent.findChild(
+            StackedWidget).currentIndex() == 2 else False
 
         # Text
         rect = QtCore.QRect(option.rect)
@@ -601,7 +608,8 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         font = QtGui.QFont(common.PrimaryFont)
         text = index.data(QtCore.Qt.DisplayRole)
         if active:
-            text = '{}'.format(active_index.data(QtCore.Qt.DisplayRole).upper())
+            text = '{}'.format(active_index.data(
+                QtCore.Qt.DisplayRole).upper())
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -619,7 +627,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         active_index = parent.findChild(
             StackedWidget).widget(Mode).active_index()
         active = active_index.isValid()
-
 
         # Indicator
         painter.setPen(QtCore.Qt.NoPen)
@@ -649,7 +656,8 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 
         # Text
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.INDICATOR_WIDTH)
+        rect.setLeft(common.INDICATOR_WIDTH +
+                     rect.height() + common.INDICATOR_WIDTH)
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -703,7 +711,6 @@ class ListControlView(QtWidgets.QListView):
 
 class ListControlModel(BaseModel):
     """The model responsible for storing the available modes to browse."""
-
     static_string_list = (
         'Bookmarks',
         'Assets',
@@ -715,17 +722,15 @@ class ListControlModel(BaseModel):
     """These are the static folders that will always be present."""
 
     def __init__(self, parent=None):
-        super(ListControlModel, self).__init__(parent=parent)
         self.parentwidget = parent
-
-        active_asset = self.parentwidget.parent().assetswidget.active_index()
-        if active_asset.isValid():
-            self.activeAssetChanged(active_asset.data(common.ParentRole))
+        super(ListControlModel, self).__init__(parent=parent)
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         self.model_data = {}  # resetting data
         flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+
+        # Static folder - we're expecting these to be always present
         for idx, item in enumerate(self.static_string_list):
             self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: item,
@@ -740,37 +745,30 @@ class ListControlModel(BaseModel):
                 common.FileDetailsRole: None,
             }
 
-    def activeAssetChanged(self, asset):
-        # Remove dynamic folders:
-        for idx, k in enumerate(self.model_data.keys()):
-            if idx <= 5:
-                continue
-            del self.model_data[k]
+        # Dynamic folders - this list might change depending on the asset
+        active_asset = self.parentwidget.parent().assetswidget.active_index()
+        if active_asset.isValid():
+            path = active_asset.data(QtCore.Qt.StatusTipRole)
+            dir_ = QtCore.QDir(path)
+            dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
 
-        path = u'/'.join(asset)
-        dir_ = QtCore.QDir(path)
-        if not dir_.exists():
-            return
-        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-
-        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-        idx = len(self.static_string_list)
-        for item in sorted(dir_.entryList()):
-            if item in (f[QtCore.Qt.DisplayRole] for f in self.model_data.itervalues()):
-                continue # skipping existing items
-            self.model_data[idx] = {
-                QtCore.Qt.DisplayRole: item,
-                QtCore.Qt.EditRole: item,
-                QtCore.Qt.StatusTipRole: item,
-                QtCore.Qt.ToolTipRole: item,
-                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
-                common.FlagsRole: flags,
-                common.ParentRole: None,
-                common.DescriptionRole: item,
-                common.TodoCountRole: 0,
-                common.FileDetailsRole: None,
-            }
-            idx += 1
+            idx = len(self.static_string_list)
+            for item in sorted(dir_.entryList()):
+                if item in (f[QtCore.Qt.DisplayRole] for f in self.model_data.itervalues()):
+                    continue  # skipping existing items
+                self.model_data[idx] = {
+                    QtCore.Qt.DisplayRole: item,
+                    QtCore.Qt.EditRole: item,
+                    QtCore.Qt.StatusTipRole: item,
+                    QtCore.Qt.ToolTipRole: item,
+                    QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
+                    common.FlagsRole: flags,
+                    common.ParentRole: None,
+                    common.DescriptionRole: item,
+                    common.TodoCountRole: 0,
+                    common.FileDetailsRole: None,
+                }
+                idx += 1
 
     def rowCount(self, parent=QtCore.QModelIndex()):
         """Sets the item flags based on the currently available active paths."""
@@ -784,19 +782,17 @@ class ListControlModel(BaseModel):
 
         return len(self.model_data)
 
-
     def __resetdata__(self):
         """Resets the internal data."""
-        # Resetting the file-monitor
         self.modelDataAboutToChange.emit()
         self.beginResetModel()
         self.model_data = {}
         self.endResetModel()
 
 
-
 class ListControlDropdown(QtWidgets.QComboBox):
     """Drop-down widget to switch between the list"""
+    activeAssetChanged = QtCore.Signal(tuple)
 
     def __init__(self, parent=None):
         super(ListControlDropdown, self).__init__(parent=parent)
@@ -805,11 +801,18 @@ class ListControlDropdown(QtWidgets.QComboBox):
         self.setView(ListControlView(parent=self.parent()))
         # parent = ListControlWidget
         self.setModel(ListControlModel(parent=self.parent()))
+        self.activeAssetChanged.connect(self.asset_changed)
+
         self.setItemDelegate(ListControlDelegate(parent=self.view()))
 
         idx = local_settings.value(u'widget/listcontrolmode')
         idx = idx if idx else 0
+        idx = idx if idx >= 0 else 0
         self.setCurrentIndex(idx)
+
+    def asset_changed(self, asset):
+        self.model().__resetdata__()
+        self.model().__initdata__()
 
     def _adjustSize(self, text):
         font = QtGui.QFont(common.PrimaryFont)
@@ -825,11 +828,17 @@ class ListControlDropdown(QtWidgets.QComboBox):
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
         popup.move(pos)
         popup.setFixedWidth(self.parent().rect().width())
-        popup.setFixedHeight(self.itemDelegate().sizeHint(
-            None, None).height() * (self.model().rowCount() + 2))
+
+        # Setting the height based on the conents
+        height = 0
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n,0, parent=QtCore.QModelIndex())
+            height += self.view().visualRect(index).height()
+        popup.setFixedHeight(height)
 
         # Selecting the current item
-        index = self.view().model().index(self.currentIndex(), 0, parent=QtCore.QModelIndex())
+        index = self.view().model().index(
+            self.currentIndex(), 0, parent=QtCore.QModelIndex())
         self.view().selectionModel().setCurrentIndex(
             index,
             QtCore.QItemSelectionModel.ClearAndSelect

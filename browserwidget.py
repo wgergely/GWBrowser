@@ -261,9 +261,6 @@ class BrowserWidget(QtWidgets.QWidget):
         # A new asset has been activated and all the data has to be re-initialized
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().set_asset)
-        dropdown = self.listcontrolwidget.findChild(ListControlDropdown)
-        self.assetswidget.model().sourceModel().activeAssetChanged.connect(
-            dropdown.model().activeAssetChanged)
         # First, clear the data
         self.assetswidget.model().sourceModel().modelDataResetRequested.connect(
             self.fileswidget.model().sourceModel().modelDataResetRequested.emit)
