@@ -21,6 +21,30 @@ import browser.editors as editors
 from browser.imagecache import ImageCache
 
 
+class ModelWorkerSignals(QtCore.QObject):
+    finished = QtCore.Signal()
+    update = QtCore.Signal(unicode)
+
+
+class ModelWorker(QtCore.QRunnable):
+    """Generic QRunnable, taking an index as it's first argument."""
+
+    def __init__(self, chunk):
+        super(ModelWorker, self).__init__()
+        self.chunk = chunk
+        self.signals = ModelWorkerSignals()
+
+    @QtCore.Slot()
+    def run(self):
+        """The main work method run in a secondary thread."""
+        for index in self.chunk:
+            filename = QtCore.QFileInfo(index.data(
+                QtCore.Qt.StatusTipRole)).fileName()
+            self.signals.update.emit(u'Processing {}'.format(filename.encode('utf-8')))
+            ImageCache.generate(index)
+        self.signals.finished.emit()
+
+
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with FilesWidget."""
 
@@ -96,7 +120,8 @@ class FilesModel(BaseModel):
             return
 
         # File monitor
-        self._file_monitor.addPath(u'/'.join(self.asset))
+        self._file_monitor.addPath('{}/{}/{}/{}/{}'.format(
+            server, job, root, asset, location))
 
         # Iterator
         dir_ = QtCore.QDir(u'{asset}/{location}'.format(
@@ -119,15 +144,13 @@ class FilesModel(BaseModel):
         idx = 0
         __count = 0
         __nth = 300
+
         while it.hasNext():
             path = it.next()
-
             # Collecting files can take a long time. We're triggering ui updates inside loop here.
             __count += 1
             if ((__count % __nth) + 1) == __nth:
-                common.ProgressMessage.instance().set_message(it.fileName())
-                QtCore.QCoreApplication.instance().processEvents(
-                    QtCore.QEventLoop.ExcludeUserInputEvents)
+                common.ProgressMessage.instance().set_message(path)
 
             # We're not going to set more data when looking inside the ``renders`` location.
             # Things can slow down when querrying 10000s of files.
@@ -139,129 +162,99 @@ class FilesModel(BaseModel):
                 idx += 1
                 continue
 
+            file_info = it.fileInfo()
+            filename = file_info.fileName()
+            filepath = file_info.filePath()
+            last_modified = file_info.lastModified()
+            size = file_info.size()
+
             # Flags
-            flags = (
-                QtCore.Qt.ItemNeverHasChildren |
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable |
-                QtCore.Qt.ItemIsDragEnabled
+            flags, settings, fileroot = self.__flags(
+                active_paths,
+                server, job, root, asset, location,
+                file_info.path(), filepath, filename
             )
-
-            # Active
-            fileroot = u'/'.join((server, job, root, asset, location))
-            fileroot = it.fileInfo().path().replace(fileroot, u'')
-            fileroot = fileroot.strip(u'/')
-
-            activefilepath = u'{}/{}'.format(fileroot, it.fileName())
-            if activefilepath == active_paths[u'file']:
-                flags = flags | MarkedAsActive
-
-            # Archived
-            settings = AssetSettings((server, job, root, it.filePath()))
-            if settings.value(u'config/archived'):
-                flags = flags | MarkedAsArchived
-
-            # Favourite
-            favourites = local_settings.value(u'favourites')
-            favourites = favourites if favourites else []
-            if it.filePath() in favourites:
-                flags = flags | MarkedAsFavourite
 
             # Todos
             count = 0
 
+            # Tooltip
             tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-            tooltip += u'{}'.format(it.filePath())
+            tooltip += u'{}'.format(filepath)
 
             # File info
             info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=it.fileInfo().lastModified().toString(u'dd'),
-                month=it.fileInfo().lastModified().toString(u'MM'),
-                year=it.fileInfo().lastModified().toString(u'yyyy'),
-                hour=it.fileInfo().lastModified().toString(u'hh'),
-                minute=it.fileInfo().lastModified().toString(u'mm'),
-                size=common.byte_to_string(it.fileInfo().size())
+                day=last_modified.toString(u'dd'),
+                month=last_modified.toString(u'MM'),
+                year=last_modified.toString(u'yyyy'),
+                hour=last_modified.toString(u'hh'),
+                minute=last_modified.toString(u'mm'),
+                size=common.byte_to_string(size)
             )
 
             self._model_data[location][False][idx] = {
-                QtCore.Qt.DisplayRole: it.fileName(),
-                QtCore.Qt.EditRole: it.fileName(),
-                QtCore.Qt.StatusTipRole: it.filePath(),
+                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.EditRole: filename,
+                QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, asset, location, fileroot),
                 common.DescriptionRole: settings.value(u'config/description'),
-                common.TodoCountRole: count,
+                common.TodoCountRole: 0,
                 common.FileDetailsRole: info_string,
             }
             idx += 1
             ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
 
-        # Getting unique sequence groups
+        self.__collapseddata(active_paths, server, job, root, asset, location)
+
+    def __collapseddata(self, active_paths, server, job, root, asset, location):
+        """Populates the model data with the information needed to display file
+        sequences.
+
+        """
         groups = {}
         idx = 0
         for k in self._model_data[location][False]:
             path = self._model_data[location][False][k][QtCore.Qt.StatusTipRole]
-
             match = common.get_sequence(path)
             if not match:  # Non-sequence items
-                # Previously skipped all this, have to re-add the data here.
+                # Previously skipped getting information for render-files
                 if location == common.RendersFolder:
-                    file_info = QtCore.QFileInfo(
-                        self._model_data[location][False][k][QtCore.Qt.StatusTipRole])
-
-                    # Active
-                    fileroot = u'/'.join((server, job, root, asset, location))
-                    fileroot = file_info.path().replace(fileroot, u'')
-                    fileroot = fileroot.strip(u'/')
+                    file_info = QtCore.QFileInfo(path)
+                    filename = file_info.fileName()
+                    filepath = file_info.filePath()
+                    last_modified = file_info.lastModified()
+                    size = file_info.size()
 
                     # Flags
-                    flags = (
-                        QtCore.Qt.ItemNeverHasChildren |
-                        QtCore.Qt.ItemIsSelectable |
-                        QtCore.Qt.ItemIsEnabled |
-                        QtCore.Qt.ItemIsEditable |
-                        QtCore.Qt.ItemIsDragEnabled
+                    flags, settings, fileroot = self.__flags(
+                        active_paths,
+                        server, job, root, asset, location,
+                        file_info.path(), filepath, filename
                     )
-
-                    activefilepath = u'{}/{}'.format(fileroot,
-                                                     file_info.fileName())
-                    if activefilepath == active_paths[u'file']:
-                        flags = flags | MarkedAsActive
-
-                    # Archived
-                    settings = AssetSettings(
-                        (server, job, root, file_info.filePath()))
-                    if settings.value(u'config/archived'):
-                        flags = flags | MarkedAsArchived
-
-                    # Favourite
-                    favourites = local_settings.value(u'favourites')
-                    favourites = favourites if favourites else []
-                    if file_info.filePath() in favourites:
-                        flags = flags | MarkedAsFavourite
 
                     # Todos
                     count = 0
 
+                    # Tooltip
                     tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-                    tooltip += u'{}'.format(file_info.filePath())
+                    tooltip += u'{}'.format(filepath)
 
-                    # File info
+                    # File description
                     info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                        day=file_info.lastModified().toString(u'dd'),
-                        month=file_info.lastModified().toString(u'MM'),
-                        year=file_info.lastModified().toString(u'yyyy'),
-                        hour=file_info.lastModified().toString(u'hh'),
-                        minute=file_info.lastModified().toString(u'mm'),
-                        size=common.byte_to_string(file_info.size())
+                        day=last_modified.toString(u'dd'),
+                        month=last_modified.toString(u'MM'),
+                        year=last_modified.toString(u'yyyy'),
+                        hour=last_modified.toString(u'hh'),
+                        minute=last_modified.toString(u'mm'),
+                        size=common.byte_to_string(size)
                     )
                     self._model_data[location][True][idx] = {
-                        QtCore.Qt.DisplayRole: file_info.fileName(),
-                        QtCore.Qt.EditRole: file_info.fileName(),
-                        QtCore.Qt.StatusTipRole: file_info.filePath(),
+                        QtCore.Qt.DisplayRole: filename,
+                        QtCore.Qt.EditRole: filename,
+                        QtCore.Qt.StatusTipRole: filepath,
                         QtCore.Qt.ToolTipRole: u'Non-sequence item.',
                         QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                         common.FlagsRole: flags,
@@ -272,12 +265,9 @@ class FilesModel(BaseModel):
                     }
                     ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
                 else:
-                    # We can just use the previously collected data
+                    # If the item is not a sequence we can just use the previously
+                    # collected item
                     self._model_data[location][True][idx] = self._model_data[location][False][k]
-
-                mpath = u'/'.join(self._model_data[location][True][idx][common.ParentRole])
-                if mpath not in self._file_monitor.directories():
-                    self._file_monitor.addPath(mpath)
 
                 idx += 1
                 continue
@@ -305,55 +295,33 @@ class FilesModel(BaseModel):
                 common.get_ranges(frames, groups[k][u'padding']),
                 sk[1]
             )
-
-            file_info = QtCore.QFileInfo(path)
-            settings = AssetSettings((server, job, root, file_info.filePath()))
-
-            # Flags
-            flags = (
-                QtCore.Qt.ItemNeverHasChildren |
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable |
-                QtCore.Qt.ItemIsDragEnabled
+            __path = u'{}{}{}'.format(
+                sk[0],
+                u'{}'.format(frames[0]).zfill(groups[k][u'padding']),
+                sk[1]
             )
 
-            # Active
-            fileroot = u'/'.join((server, job, root, asset, location))
-            fileroot = file_info.path().replace(fileroot, u'')
-            fileroot = fileroot.strip(u'/')
-            activefilepath = u'{}/{}'.format(fileroot, file_info.fileName())
-            if activefilepath == active_paths[u'file']:
-                flags = flags | MarkedAsActive
+            file_info = QtCore.QFileInfo(path)
+            filename = file_info.fileName()
+            filepath = file_info.filePath()
 
-            # Archived
-            if settings.value(u'config/archived'):
-                flags = flags | MarkedAsArchived
+            # Flags
+            flags, settings, fileroot = self.__flags(
+                active_paths,
+                server, job, root, asset, location,
+                file_info.path(), filepath, filename
+            )
 
-            # Favourite
-            favourites = local_settings.value(u'favourites')
-            favourites = favourites if favourites else []
-            if file_info.filePath() in favourites:
-                flags = flags | MarkedAsFavourite
-
-            # Modes
-            fileroot = u'/'.join((server, job, root, asset, location))
-            fileroot = file_info.path().replace(fileroot, u'')
-            fileroot = fileroot.strip(u'/')
-
-            tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-            tooltip += u'{}'.format(file_info.filePath())
-
-            # File info
+            # File info string
             info_string = u'Sequence of {} files'.format(len(frames))
 
             tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-            tooltip += u'{}  (sequence)'.format(file_info.filePath())
+            tooltip += u'{}  (sequence)'.format(filepath)
 
             self._model_data[location][True][idx] = {
-                QtCore.Qt.DisplayRole: file_info.fileName(),
-                QtCore.Qt.EditRole: file_info.fileName(),
-                QtCore.Qt.StatusTipRole: file_info.filePath(),
+                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.EditRole: filename,
+                QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
                 common.FlagsRole: flags,
@@ -364,8 +332,46 @@ class FilesModel(BaseModel):
             }
             idx += 1
             ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
+            #
+            if file_info.path() not in self._file_monitor.directories():
+                self._file_monitor.addPath(file_info.path())
 
-        self._last_refreshed[self.get_location()] = time.time()  # file-monitor timestamp
+        # file-monitor timestamp
+        self._last_refreshed[self.get_location()] = time.time()
+
+    @staticmethod
+    def __flags(active_paths, server, job, root, asset, location, path, filepath, filename):
+        """Private convenicen function for getting the flag values of a file."""
+        settings = AssetSettings((server, job, root, filepath))
+        # Flags
+        flags = (
+            QtCore.Qt.ItemNeverHasChildren |
+            QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsEnabled |
+            QtCore.Qt.ItemIsEditable |
+            QtCore.Qt.ItemIsDragEnabled
+        )
+        # Active
+        fileroot = u'/'.join((server, job, root, asset, location))
+        fileroot = path.replace(fileroot, u'')
+        print path
+        fileroot = fileroot.strip(u'/')
+
+        activefilepath = u'{}/{}'.format(fileroot, filename)
+        if activefilepath == active_paths[u'file']:
+            flags = flags | MarkedAsActive
+
+        # Archived
+        if settings.value(u'config/archived'):
+            flags = flags | MarkedAsArchived
+
+        # Favourite
+        favourites = local_settings.value(u'favourites')
+        favourites = favourites if favourites else []
+        if filepath in favourites:
+            flags = flags | MarkedAsFavourite
+
+        return flags, settings, fileroot
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -412,7 +418,7 @@ class FilesModel(BaseModel):
         # When the dataset is empty, calling __initdata__
         location = self.get_location()
         if not location in self._model_data:
-            self._model_data[location] = {True: {}, False: {},}
+            self._model_data[location] = {True: {}, False: {}, }
         if not self._model_data[location][self.is_grouped()]:
             self.beginResetModel()
             self.__initdata__()
@@ -610,14 +616,14 @@ class FilesWidget(BaseInlineIconWidget):
         self.itemDoubleClicked.emit(index)
 
 
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    active_paths = Active.get_active_paths()
-    asset = (active_paths[u'server'],
-             active_paths[u'job'],
-             active_paths[u'root'],
-             active_paths[u'asset'],
-             )
-    widget = FilesWidget(asset)
-    widget.show()
-    app.exec_()
+# if __name__ == '__main__':
+#     app = QtWidgets.QApplication([])
+#     active_paths = Active.get_active_paths()
+#     asset = (active_paths[u'server'],
+#              active_paths[u'job'],
+#              active_paths[u'root'],
+#              active_paths[u'asset'],
+#              )
+#     widget = FilesWidget(asset)
+#     widget.show()
+#     app.exec_()
