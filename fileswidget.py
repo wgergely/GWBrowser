@@ -87,7 +87,6 @@ class FilesModel(BaseModel):
         self.model_data = self._model_data[location][grouppingMode]
 
     """
-
     def __init__(self, asset, parent=None):
         self.asset = asset
         self.mode = None
@@ -354,7 +353,6 @@ class FilesModel(BaseModel):
         # Active
         fileroot = u'/'.join((server, job, root, asset, location))
         fileroot = path.replace(fileroot, u'')
-        print path
         fileroot = fileroot.strip(u'/')
 
         activefilepath = u'{}/{}'.format(fileroot, filename)

@@ -49,7 +49,6 @@ class ImageCache(QtCore.QObject):
         """ Static create method. """
         cls(*args, **kwargs)
         return ImageCache.__instance
-        sys.stdout.write('# ImageCache: Initialized.\n')
 
     def __init__(self, parent=None):
         if ImageCache.__instance != None:
