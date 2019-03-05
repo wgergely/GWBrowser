@@ -85,30 +85,30 @@ def get_oiio_namefilters(as_array=False):
 
 NameFilters = {
     ExportsFolder: (
-        u'*.abc',  # Alembic
-        u'*.obj',
-        u'*.ass',  # Arnold cache
+        u'abc',  # Alembic
+        u'obj',
+        u'ass',  # Arnold cache
     ),
     ScenesFolder: (
-        u'*.psd',  # 2D Animation
-        u'*.ma',  # Maya ASCII
-        u'*.mb',  # Maya Binary
-        u'*.c4d',  # Cinema 4D
-        u'*.hud',  # Houdini
-        u'*.aep',  # After-Effects
-        u'*.nk',  # Nuke
+        u'psd',  # 2D Animation
+        u'ma',  # Maya ASCII
+        u'mb',  # Maya Binary
+        u'c4d',  # Cinema 4D
+        u'hud',  # Houdini
+        u'aep',  # After-Effects
+        u'nk',  # Nuke
     ),
-    RendersFolder: tuple([u'*.{}'.format(f) for f in get_oiio_namefilters(as_array=True)]),
+    RendersFolder: tuple([u'{}'.format(f) for f in get_oiio_namefilters(as_array=True)]),
     TexturesFolder: (
-        u'*.exr',
-        u'*.tx',
-        u'*.dpx',
-        u'*.png',
-        u'*.tiff',
-        u'*.tff',
-        u'*.jpg',
-        u'*.jpeg',
-        u'*.psd',
+        u'exr',
+        u'tx',
+        u'dpx',
+        u'png',
+        u'tiff',
+        u'tff',
+        u'jpg',
+        u'jpeg',
+        u'psd',
     ),
 }
 """A list of expected file-formats associated with the location."""

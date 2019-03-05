@@ -140,6 +140,9 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(
             dir_, flags=QtCore.QDirIterator.Subdirectories)
 
+        favourites = local_settings.value(u'favourites')
+        favourites = favourites if favourites else []
+
         idx = 0
         __count = 0
         __nth = 300
@@ -168,7 +171,7 @@ class FilesModel(BaseModel):
             size = file_info.size()
 
             # Flags
-            flags, settings, fileroot = self.__flags(
+            flags, settings, fileroot = self.__flags(favourites,
                 active_paths,
                 server, job, root, asset, location,
                 file_info.path(), filepath, filename
@@ -206,9 +209,9 @@ class FilesModel(BaseModel):
             idx += 1
             ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
 
-        self.__collapseddata(active_paths, server, job, root, asset, location)
+        self.__collapseddata(favourites, active_paths, server, job, root, asset, location)
 
-    def __collapseddata(self, active_paths, server, job, root, asset, location):
+    def __collapseddata(self, favourites, active_paths, server, job, root, asset, location):
         """Populates the model data with the information needed to display file
         sequences.
 
@@ -228,7 +231,7 @@ class FilesModel(BaseModel):
                     size = file_info.size()
 
                     # Flags
-                    flags, settings, fileroot = self.__flags(
+                    flags, settings, fileroot = self.__flags(favourites,
                         active_paths,
                         server, job, root, asset, location,
                         file_info.path(), filepath, filename
@@ -305,7 +308,7 @@ class FilesModel(BaseModel):
             filepath = file_info.filePath()
 
             # Flags
-            flags, settings, fileroot = self.__flags(
+            flags, settings, fileroot = self.__flags(favourites, 
                 active_paths,
                 server, job, root, asset, location,
                 file_info.path(), filepath, filename
@@ -339,7 +342,7 @@ class FilesModel(BaseModel):
         self._last_refreshed[self.get_location()] = time.time()
 
     @staticmethod
-    def __flags(active_paths, server, job, root, asset, location, path, filepath, filename):
+    def __flags(favourites, active_paths, server, job, root, asset, location, path, filepath, filename):
         """Private convenicen function for getting the flag values of a file."""
         settings = AssetSettings((server, job, root, filepath))
         # Flags
@@ -364,8 +367,6 @@ class FilesModel(BaseModel):
             flags = flags | MarkedAsArchived
 
         # Favourite
-        favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
         if filepath in favourites:
             flags = flags | MarkedAsFavourite
 
