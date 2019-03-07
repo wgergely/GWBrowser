@@ -200,24 +200,20 @@ class AssetSettings(QtCore.QSettings):
         it takes a tuple bookmark tuple of server, job, root and a full filepath.
 
         """
-        if isinstance(index, (QtCore.QModelIndex, QtCore.QPersistentModelIndex)):
-            self._root = u'{server}/{job}/{root}'.format(
-                server=index.data(common.ParentRole)[0],
-                job=index.data(common.ParentRole)[1],
-                root=index.data(common.ParentRole)[2],
-            )
-            self._filepath = index.data(QtCore.Qt.StatusTipRole)
-        else:
-            self._root = u'{server}/{job}/{root}'.format(
-                server=index[0],
-                job=index[1],
-                root=index[2],
-            )
-            self._filepath = index[3]
+        bookmark = u'{}/{}/{}'.format(
+            index.data(common.ParentRole)[0],
+            index.data(common.ParentRole)[1],
+            index.data(common.ParentRole)[2],
+        )
+        filepath = index.data(QtCore.Qt.StatusTipRole)
+        collapsed = common.is_collapsed(filepath)
 
-        path = self._filepath.replace(self._root, u'').strip(u'/')
+        if collapsed:
+            filepath = collapsed.expand(r'\1[0]\3')
+
+        path = filepath.replace(bookmark, u'').strip(u'/')
         path = hashlib.md5(path.encode('utf-8')).hexdigest()
-        self._conf_path = u'{}/.browser/{}.conf'.format(self._root, path)
+        self._conf_path = u'{}/.browser/{}.conf'.format(bookmark, path)
         self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
 
         super(AssetSettings, self).__init__(
@@ -227,7 +223,6 @@ class AssetSettings(QtCore.QSettings):
         )
 
         self.setFallbacksEnabled(False)
-
 
 
     def conf_path(self):
