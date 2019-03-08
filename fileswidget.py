@@ -24,66 +24,191 @@ from browser.imagecache import ImageCache
 
 
 mutex = QtCore.QMutex()
+"""The mutex reposinble for guarding the model data."""
+
 
 class FileInfoThread(QtCore.QThread):
     """The thread responsible for updating the file list with the missing
-    information.
+    information. I can't get threads work using the 'normal' documented way -
+    depending on conditions I don't understand, the thread sometimes executes
+    the worker, sometimes the `started` signal doesn't fire.
+
+    The thread is started when the model is created.
 
     """
-    def __init__(self, idx, parent=None):
+    thread_id = 0
+    __worker = None
+
+    dataRequested = QtCore.Signal(tuple)
+
+    def __init__(self, model, parent=None):
         super(FileInfoThread, self).__init__(parent=parent)
-        self.idx = idx
+        self.model = model
+        app = QtCore.QCoreApplication.instance()
+        app.aboutToQuit.connect(self.quit)
+        app.aboutToQuit.connect(self.deleteLater)
+        self.start()
+
+    def run(self):
+        self.worker = FileInfoWorker(self.model)
+        self.dataRequested.connect(self.worker.processIndexes)
+        ImageCache.instance().thumbnailChanged.connect(
+            lambda index: self.worker.processIndexes((index,)))
+        sys.stderr.write(
+            'FileInfoThread.run() -> {}\n'.format(QtCore.QThread.currentThread()))
+
+        self.started.emit()
+        self.exec_()
+
 
 class FileInfoWorker(QtCore.QObject):
-    """Generic QRunnable, taking an index as it's first argument."""
+    """Thread-worker class responsible for updating the given indexes."""
+    queue = []
+    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     finished = QtCore.Signal()
     error = QtCore.Signal(basestring)
 
     def __init__(self, model, parent=None):
         super(FileInfoWorker, self).__init__(parent=parent)
+        self.mutex = QtCore.QMutex()
         self.model = model
+        sys.stderr.write(
+            'FileInfoWorker.__init__() -> {}\n'.format(QtCore.QThread.currentThread()))
 
-    def process_data(self):
+    @QtCore.Slot(tuple)
+    def processIndexes(self, indexes):
         """Gets and sets the missing information for each index in a background
         thread.
 
         """
         common.ProgressMessage.instance().set_message('Updating list...')
+        try:
+            self._process_data(indexes)
+        except RuntimeError as err:
+            errstr = '\nRuntimeError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        except ValueError as err:
+            errstr = '\nValueError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        except Exception as err:
+            errstr = '\nError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        finally:
+            common.ProgressMessage.instance().clear_message()
+            self.finished.emit()
 
-        # TODO: Paint information for delegate could be processed here as well?
-        for n in xrange(self.model.rowCount()):
-            index = self.model.index(n, 0)
+    def _process_data(self, indexes):
+        """The actual processing happens here."""
+        import time
+        for index in indexes:
+            if not index.isValid():
+                return
+
             idx = index.row()
+            if self.model.model_data[idx][common.StatusRole]:
+                continue
+
+            settings = AssetSettings(index)
+            # Item description
+            description = settings.value(u'config/description')
+            if description:
+                self.model.model_data[idx][common.DescriptionRole] = description
+
+            # Sequence path and name
+            if self.model.model_data[idx][common.TypeRole] == common.SequenceItem:
+                frames = sorted(self.model.model_data[idx][common.FramesRole])
+                intframes = [int(f) for f in frames]
+                rangestring = common.get_ranges(intframes, len(frames[0]))
+
+                p = self.model.model_data[idx][common.SequenceRole].expand(
+                    r'\1{}\3.\4')
+                startpath = p.format(
+                    unicode(min(intframes)).zfill(len(frames[0])))
+                endpath = p.format(
+                    unicode(max(intframes)).zfill(len(frames[0])))
+                seqpath = p.format('[{}]'.format(rangestring))
+                seqname = seqpath.split(u'/')[-1]
+
+                self.model.model_data[idx][common.StartpathRole] = startpath
+                self.model.model_data[idx][common.EndpathRole] = endpath
+                self.model.model_data[idx][QtCore.Qt.StatusTipRole] = seqpath
+                self.model.model_data[idx][QtCore.Qt.ToolTipRole] = seqpath
+                self.model.model_data[idx][QtCore.Qt.DisplayRole] = seqname
+                self.model.model_data[idx][QtCore.Qt.EditRole] = seqname
+
+                # File description string
+                size = 0
+                last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
+                for frame in frames:
+                    framepath = p.format(frame)
+                    file_info = QtCore.QFileInfo(framepath)
+                    size += file_info.size()
+                    last_modified = file_info.lastModified() if file_info.lastModified(
+                    ).toTime_t() > last_modified.toTime_t() else last_modified
+
+                info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                    count=len(frames),
+                    day=last_modified.toString(u'dd'),
+                    month=last_modified.toString(u'MM'),
+                    year=last_modified.toString(u'yyyy'),
+                    hour=last_modified.toString(u'hh'),
+                    minute=last_modified.toString(u'mm'),
+                    size=common.byte_to_string(size)
+                )
+            else:
+                file_info = QtCore.QFileInfo(
+                    self.model.model_data[idx][QtCore.Qt.StatusTipRole])
+                last_modified = file_info.lastModified()
+                info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                    day=last_modified.toString(u'dd'),
+                    month=last_modified.toString(u'MM'),
+                    year=last_modified.toString(u'yyyy'),
+                    hour=last_modified.toString(u'hh'),
+                    minute=last_modified.toString(u'mm'),
+                    size=common.byte_to_string(file_info.size())
+                )
+
+            self.model.model_data[idx][common.FileDetailsRole] = info_string
+
+            # Thumbnail
+            height = self.model.model_data[idx][QtCore.Qt.SizeHintRole].height(
+            ) - 2
+            image = ImageCache.instance().get(settings.thumbnail_path(), height)
+            if not image:
+                def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+                ext = self.model.model_data[idx][QtCore.Qt.StatusTipRole].split(
+                    '.')[-1]
+                color = QtGui.QColor(0, 0, 0, 0)
+
+                if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+                    image = ImageCache.instance().get(rsc_path(__file__, ext), height)
+                else:
+                    image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+            else:
+
+                color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+
+            self.model.model_data[idx][common.ThumbnailRole] = image
+            self.model.model_data[idx][common.ThumbnailBackgroundRole] = color
+
+            # Item flags
             flags = index.flags()
             flags = (flags |
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsEditable |
-                QtCore.Qt.ItemIsDragEnabled)
-
-            settings = AssetSettings(index)
-            description = settings.value(u'config/description')
+                     QtCore.Qt.ItemIsDragEnabled)
 
             if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
-
-            self.model.model_data[idx][common.FileDetailsRole] = 'Updated!'
-
-            # Thumbnail
-            height = self.model.model_data[idx][QtCore.Qt.SizeHintRole].height()
-            image = ImageCache.instance().get(settings.thumbnail_path(), (height - 2))
-            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
-            self.model.model_data[idx]['thumbnail'] = image
-            self.model.model_data[idx]['thumbnail_bakcground'] = color
-            self.model.model_data[idx][common.DescriptionRole] = description
-            self.model.model_data[idx][common.DescriptionRole] = description
-
-            break
-
-        common.ProgressMessage.instance().clear_message()
-        self.finished.emit()
-
-
+            self.model.model_data[idx][common.FlagsRole] = flags
+            self.indexUpdated.emit(index)
 
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with FilesWidget."""
@@ -134,6 +259,16 @@ class FilesModel(BaseModel):
         self._isgrouped = None
         self.threads = {}
 
+        # Thread-worker reposinble for completing the model data
+        self.threads[FileInfoThread.thread_id] = FileInfoThread(self)
+
+        self.timer = QtCore.QTimer()
+        self.timer.setInterval(1250)
+        self.timer.setSingleShot(False)
+        self.timer.timeout.connect(lambda: sys.stderr.write(
+            'FileInfoThread status: {}\n'.format(self.threads[FileInfoThread.thread_id].isRunning())))
+        self.timer.start()
+
         super(FilesModel, self).__init__(parent=parent)
 
         self.grouppingChanged.connect(self.switch_model_data)
@@ -145,8 +280,11 @@ class FilesModel(BaseModel):
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
-        definitions. Later all the additional information is populated by secondary
-        thread-workers.
+        definitions by running a recursive QDirIterator from the location-folder.
+
+        Getting all additional information, like description, item flags, thumbnails
+        are costly and therefore are populated by secondary thread-workers when
+        switch the model dataset.
 
         """
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -159,6 +297,7 @@ class FilesModel(BaseModel):
         # Invalid asset, we'll do nothing.
         if not all(self.asset):
             return
+
         server, job, root, asset = self.asset
         location = self.get_location()
 
@@ -180,14 +319,12 @@ class FilesModel(BaseModel):
 
         while it.hasNext():
             filepath = it.next()
-
             # File-filter:
             if location in common.NameFilters:
                 if not filepath.split('.')[-1] in common.NameFilters[location]:
                     continue
 
             fileroot = it.path().replace(location_path, '')
-
             seq = common.get_sequence(filepath)
             filename = it.fileName()
 
@@ -203,9 +340,17 @@ class FilesModel(BaseModel):
                 QtCore.Qt.SizeHintRole: rowsize,
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, asset, location, fileroot),
-                common.DescriptionRole: 'Loading...',
+                common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
-                common.FileDetailsRole: 'Loading...',
+                common.FileDetailsRole: u'',
+                common.SequenceRole: seq,
+                common.FramesRole: [],
+                common.StatusRole: False,
+                common.StartpathRole: None,
+                common.EndpathRole: None,
+                common.ThumbnailRole: None,
+                common.ThumbnailBackgroundRole: None,
+                common.TypeRole: common.FileItem,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -214,8 +359,8 @@ class FilesModel(BaseModel):
                 seqpath = u'{}[0]{}.{}'.format(
                     seq.group(1), seq.group(3), seq.group(4))
 
-                if seqpath not in seqs: #... and create it if it doesn't exist
-                    seqname = seqpath.split('/')[-1]
+                if seqpath not in seqs:  # ... and create it if it doesn't exist
+                    seqname = seqpath.split(u'/')[-1]
                     if seqname in favourites:
                         flags = flags | MarkedAsFavourite
                     seqs[seqpath] = {
@@ -226,21 +371,38 @@ class FilesModel(BaseModel):
                         QtCore.Qt.SizeHintRole: rowsize,
                         common.FlagsRole: flags,
                         common.ParentRole: (server, job, root, asset, location, fileroot),
-                        common.DescriptionRole: 'Loading...',
+                        common.DescriptionRole: u'',
                         common.TodoCountRole: 0,
-                        common.FileDetailsRole: 'Loading...',
-                        u'frames': [] # extra attrib for storing the found frames.
+                        common.FileDetailsRole: u'',
+                        common.SequenceRole: seq,
+                        common.FramesRole: [],
+                        common.StatusRole: False,
+                        common.StartpathRole: None,
+                        common.EndpathRole: None,
+                        common.ThumbnailRole: None,
+                        common.ThumbnailBackgroundRole: None,
+                        common.TypeRole: common.SequenceItem,
                     }
-                seqs[seqpath]['frames'].append(seq.group(2))
+                seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
                 seqs[filepath] = self._model_data[location][False][idx]
+
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
             idx = len(self._model_data[location][True])
+            # A sequence with only one element is not a sequence!
+            if len(v[common.FramesRole]) == 1:
+                filepath = v[common.SequenceRole].expand(r'\1{}\3.\4')
+                filepath = filepath.format(v[common.FramesRole][0])
+                filename = filepath.split(u'/')[-1]
+                v[QtCore.Qt.DisplayRole] = filename
+                v[QtCore.Qt.EditRole] = filename
+                v[QtCore.Qt.StatusTipRole] = filepath
+                v[QtCore.Qt.ToolTipRole] = filepath
+                v[common.TypeRole] = common.FileItem
             self._model_data[location][True][idx] = v
 
         self.endResetModel()
-
 
     def switch_model_data(self):
         """The data is stored is stored in the private ``_model_data`` object.
@@ -260,51 +422,47 @@ class FilesModel(BaseModel):
         location = self.get_location()
 
         if location not in self._model_data:
-            self._model_data[location] = {True: {}, False: {}, }
+            self._model_data[location] = {True: {}, False: {}}
 
         if not self._model_data[location][self.is_grouped()]:
             self.__initdata__()
 
         self.beginResetModel()
-        self.model_data = self._model_data[self.get_location()][self.is_grouped()]
+        self.model_data = self._model_data[self.get_location(
+        )][self.is_grouped()]
         self.endResetModel()
 
         # Getting additional information
-        app = QtCore.QCoreApplication.instance()
-        app.processEvents()
+        # app = QtCore.QCoreApplication.instance()
+        # app.processEvents()
 
-        idtc = QtCore.QThread.idealThreadCount()
+        # idtc = QtCore.QThread.idealThreadCount()
         indexes = []
         for n in xrange(self.rowCount()):
             index = self.index(n, 0)
             indexes.append(index)
+        self.threads[0].dataRequested.emit(indexes)
+        #
+        # chunks = list(chunks(indexes, int(math.ceil(float(len(indexes)) / idtc))))
 
-        chunks = list(chunks(indexes, int(math.ceil(float(len(indexes)) / idtc))))
+        # worker = FileInfoWorker(self)
+        # worker.moveToThread(thread)
+        #
+        # app.aboutToQuit.connect(thread.quit)
+        # app.aboutToQuit.connect(thread.deleteLater)
+        #
+        # thread.started.connect(worker.process_data)
+        #
+        # worker.finished.connect(thread.quit)
+        # worker.finished.connect(worker.deleteLater)
+        # thread.finished.connect(thread.deleteLater)
+        # thread.finished.connect(functools.partial(self.delete_thread, thread))
+        #
+        # thread.start()
 
-        thread = self.get_thread()
-        worker = FileInfoWorker(self)
-        worker.moveToThread(thread)
-
-        app.aboutToQuit.connect(thread.quit)
-        app.aboutToQuit.connect(thread.deleteLater)
-
-        thread.started.connect(worker.process_data)
-
-        worker.finished.connect(thread.quit)
-        worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        thread.finished.connect(functools.partial(self.delete_thread, thread))
-
-        thread.start()
-
-    def get_thread(self):
-        idx = len(self.threads)
-        self.threads[idx] = FileInfoThread(idx)
-        return self.threads[idx]
-
+    @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.idx]
-
 
     def set_asset(self, asset):
         """Sets a new asset for the model."""
@@ -408,7 +566,6 @@ class FilesModel(BaseModel):
         return mime
 
 
-
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing scene and project files of an asset.
 
@@ -432,6 +589,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel(asset))
+        self.model().sourceModel().threads[FileInfoThread.thread_id].worker.indexUpdated.connect(self.update)
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

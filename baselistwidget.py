@@ -582,9 +582,6 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_collapse_sequence_menu(self, menu_set):
         """Adds the menu needed to change context"""
-        if self.parent().model().sourceModel().get_location() == common.RendersFolder:
-            return menu_set  # Render sequences are always collapsed
-
         expand_pixmap = ImageCache.get_rsc_pixmap(
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = ImageCache.get_rsc_pixmap(

@@ -213,7 +213,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the item."""
+        """Paints the thumbnail of a ``FileListWidget`` item."""
         painter, option, index, selected, _, _, _, _ = args
 
         # Background rectangle
@@ -224,9 +224,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setRight(option.rect.left() +
                       common.INDICATOR_WIDTH + rect.height())
 
-        settings = AssetSettings(index)
-        image = ImageCache.instance().get(settings.thumbnail_path(), (option.rect.height() - 2))
-        color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+        image = index.data(common.ThumbnailRole)
+        color = index.data(common.ThumbnailBackgroundRole)
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
@@ -242,12 +241,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         else:
             rect.setHeight(int(image.rect().height() * factor) - 2)
         rect.moveCenter(center)
+        if isinstance(image, QtGui.QImage):
+            painter.drawImage(
+                rect,
+                image,
+                image.rect()
+            )
+        elif isinstance(image, QtGui.QPixmap):
+            painter.drawPixmap(
+                rect,
+                image,
+                image.rect()
+            )
 
-        painter.drawImage(
-            rect,
-            image,
-            image.rect()
-        )
 
     @paintmethod
     def paint_data(self, *args):
@@ -746,8 +752,8 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
 
         #
-        self.paint_thumbnail(*args)
         if index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.paint_thumbnail(*args)
             self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
@@ -774,7 +780,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         painter.setBrush(common.SEPARATOR)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setOpacity(0.5)
+        painter.setOpacity(0.1)
         rect = QtCore.QRect(option.rect)
         center = rect.center()
         rect.setHeight(rect.height() - 2)

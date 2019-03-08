@@ -38,6 +38,7 @@ import re
 from PySide2 import QtGui, QtCore
 
 
+
 SERVERS = [
     {u'path': u'//gordo/jobs', u'nickname': u'Gordo'},
     {u'path': u'//sloth/jobs', u'nickname': u'Sloth'},
@@ -53,6 +54,43 @@ ScenesFolder = u'scenes'
 ExportsFolder = u'exports'
 RendersFolder = u'renders'
 TexturesFolder = u'textures'
+
+
+# Sizes
+ROW_HEIGHT = 54.0
+BOOKMARK_ROW_HEIGHT = 54.0
+ASSET_ROW_HEIGHT = 84.0
+
+MARGIN = 18.0
+
+INDICATOR_WIDTH = 4.0
+ROW_BUTTONS_HEIGHT = 36.0
+
+WIDTH = 640.0
+HEIGHT = 480.0
+
+INLINE_ICON_SIZE = 18.0
+THUMBNAIL_IMAGE_SIZE = 1024.0
+
+BACKGROUND_SELECTED = QtGui.QColor(125, 125, 125)
+SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
+BACKGROUND = QtGui.QColor(98, 98, 98)
+
+TEXT = QtGui.QColor(220, 220, 220)
+TEXT_SELECTED = QtGui.QColor(250, 250, 250)
+TEXT_DISABLED = QtGui.QColor(140, 140, 140)
+
+TEXT_NOTE = QtGui.QColor(150, 150, 255)
+SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
+
+SEPARATOR = QtGui.QColor(50, 50, 50)
+SELECTION = QtGui.QColor(100, 161, 255)
+FAVOURITE = QtGui.QColor(140, 120, 233)
+
+PrimaryFont = QtGui.QFont(u'Roboto Black')
+PrimaryFont.setPointSize(9)
+SecondaryFont = QtGui.QFont(u'Roboto Medium')
+SecondaryFont.setPointSize(8)
 
 
 def get_oiio_namefilters(as_array=False):
@@ -87,9 +125,12 @@ _creative_cloud_formats = (
     u'psb',
     u'aep',
     u'ai',
+    u'eps',
     u'prproj',
     u'ppj',
     u'psq',
+    u'fla',
+    u'xfl',
 )
 _exports_formats = (
     u'abc', # Alembic
@@ -108,6 +149,7 @@ _scene_formats = (
     u'c4d',
     u'hud',
     u'nk',
+    u'rv'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))
 
@@ -118,6 +160,7 @@ NameFilters = {
     TexturesFolder: _oiio_formats,
 }
 """A list of expected file-formats associated with the location."""
+
 
 # Extending the
 FlagsRole = 1024
@@ -130,6 +173,14 @@ TodoCountRole = 1028
 """Asset role used to store the number of todos."""
 FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
+SequenceRole = 1030 # SRE Match object
+FramesRole = 1031 # List of frame names
+StatusRole = 1032
+StartpathRole = 1033
+EndpathRole = 1034
+ThumbnailRole = 1035
+ThumbnailBackgroundRole = 1036
+TypeRole = 1037
 
 FileItem = 0
 SequenceItem = 1
@@ -175,42 +226,6 @@ sort_keys = {
 }
 """These are the methods/keys used to sort lists."""
 
-# Sizes
-ROW_HEIGHT = 54.0
-BOOKMARK_ROW_HEIGHT = 54.0
-ASSET_ROW_HEIGHT = 84.0
-
-MARGIN = 18.0
-
-INDICATOR_WIDTH = 4.0
-ROW_BUTTONS_HEIGHT = 36.0
-
-WIDTH = 640.0
-HEIGHT = 480.0
-
-INLINE_ICON_SIZE = 18.0
-THUMBNAIL_IMAGE_SIZE = 1024.0
-
-BACKGROUND_SELECTED = QtGui.QColor(125, 125, 125)
-SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
-BACKGROUND = QtGui.QColor(98, 98, 98)
-
-TEXT = QtGui.QColor(220, 220, 220)
-TEXT_SELECTED = QtGui.QColor(250, 250, 250)
-TEXT_DISABLED = QtGui.QColor(140, 140, 140)
-
-TEXT_NOTE = QtGui.QColor(150, 150, 255)
-SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
-
-SEPARATOR = QtGui.QColor(50, 50, 50)
-SELECTION = QtGui.QColor(100, 161, 255)
-FAVOURITE = QtGui.QColor(140, 120, 233)
-
-
-PrimaryFont = QtGui.QFont(u'Roboto Black')
-PrimaryFont.setPointSize(9)
-SecondaryFont = QtGui.QFont(u'Roboto Medium')
-SecondaryFont.setPointSize(8)
 
 
 def move_widget_to_available_geo(widget):

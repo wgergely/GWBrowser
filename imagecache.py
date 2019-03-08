@@ -57,8 +57,12 @@ class ImageCache(QtCore.QObject):
         super(ImageCache, self).__init__(parent=parent)
         ImageCache.__instance = self
 
+        rsc_path = lambda f, n: u'{}/../rsc/{}.png'.format(f, n)
+        for ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+            ImageCache.instance().get(rsc_path(__file__, ext), common.ROW_HEIGHT - 2)
+
     def _reset_cached_item(self, path, removefile=True):
-        """Resets any cached items containing `k` with the original placeholder image.
+        """Deletes any cached items containing `k`.
 
         Args:
             path (str): Normally, the path to the cached item.
@@ -71,63 +75,7 @@ class ImageCache(QtCore.QObject):
 
         keys = [k for k in self.__data if path.lower() in k.lower()]
         for key in keys:
-            if ':' in path:
-                path, label = key.split(':')
-                if 'BackgroundColor' in label:
-                    continue
-                self._assign_placeholder(path, int(label))
-
-    def _assign_placeholder(self, path, height):
-        """If a thumbnail doesn't exist, we will use a placeholder image to
-        represent it.
-
-        The placeholder image will be cached per size and associated with each key
-        that doesn't have a valid thumbnail image saved.
-
-        """
-        imagepath = u'{}/../rsc/placeholder.png'.format(__file__)
-        file_info = QtCore.QFileInfo(imagepath)
-        height = int(height)
-
-        pk = u'{path}:{height}'.format(
-            path=file_info.filePath(),
-            height=height
-        )
-        bgpk = u'{}:BackgroundColor'.format(file_info.filePath())
-        k = u'{path}:{height}'.format(
-            path=path,
-            height=height
-        )
-        bgk = u'{}:BackgroundColor'.format(path)
-        # The placehold has already been cached
-        if pk in self.__data:
-            self.__data[k] = self.__data[pk]
-            self.__data[bgk] = QtGui.QColor(0, 0, 0, 0)
-            return self.__data[k]
-
-        if not file_info.exists():
-            sys.stderr.write(
-                '# Could not find the placeholder image. Using null.\n')
-            return QtCore.QImage(height, height)
-
-        # Loading a and resizing a copy of the placeholder
-        image = QtGui.QImage()
-        image.load(file_info.filePath())
-
-        if image.isNull():
-            sys.stderr.write(
-                '# Could not load the placeholder image. Using null.\n')
-            return QtCore.QImage(height, height)
-
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-        image = self.resize_image(image, height)
-
-        self.__data[pk] = image
-        self.__data[bgpk] = QtGui.QColor(0, 0, 0, 0)
-        self.__data[k] = self.__data[pk]
-        self.__data[bgk] = self.__data[bgpk]
-
-        return self.__data[k]
+            del self.__data[key]
 
     def get(self, path, element):
         """Main method to get a cached image. Automatically caches the element
@@ -445,7 +393,6 @@ class ImageCache(QtCore.QObject):
             return
         settings = AssetSettings(index)
         self._reset_cached_item(settings.thumbnail_path(), removefile=True)
-
         self.thumbnailChanged.emit(index)
 
     @classmethod
