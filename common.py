@@ -82,34 +82,40 @@ def get_oiio_namefilters(as_array=False):
     namefilters.insert(0, 'All files ({})'.format(' '.join(e)))
     return namefilters
 
+_creative_cloud_formats = (
+    u'psd',
+    u'psb',
+    u'aep',
+    u'ai',
+    u'prproj',
+    u'ppj',
+    u'psq',
+)
+_exports_formats = (
+    u'abc', # Alembic
+    u'obj',
+    u'fbx',
+    u'bgeo', # Houdini
+    u'geo', # Houdini
+    u'sim', # Houdini
+    u'vdb', # OpenVDB cache file
+    u'rs', # Redshift cache file
+    u'ass', # Arnold
+)
+_scene_formats = (
+    u'ma',
+    u'mb',
+    u'c4d',
+    u'hud',
+    u'nk',
+)
+_oiio_formats = tuple(get_oiio_namefilters(as_array=True))
 
 NameFilters = {
-    ExportsFolder: (
-        u'abc',  # Alembic
-        u'obj',
-        u'ass',  # Arnold cache
-    ),
-    ScenesFolder: (
-        u'psd',  # 2D Animation
-        u'ma',  # Maya ASCII
-        u'mb',  # Maya Binary
-        u'c4d',  # Cinema 4D
-        u'hud',  # Houdini
-        u'aep',  # After-Effects
-        u'nk',  # Nuke
-    ),
-    RendersFolder: tuple([u'{}'.format(f) for f in get_oiio_namefilters(as_array=True)]),
-    TexturesFolder: (
-        u'exr',
-        u'tx',
-        u'dpx',
-        u'png',
-        u'tiff',
-        u'tff',
-        u'jpg',
-        u'jpeg',
-        u'psd',
-    ),
+    ExportsFolder: _exports_formats,
+    ScenesFolder: _creative_cloud_formats + _scene_formats + _oiio_formats,
+    RendersFolder: _oiio_formats,
+    TexturesFolder: _oiio_formats,
 }
 """A list of expected file-formats associated with the location."""
 
@@ -125,6 +131,8 @@ TodoCountRole = 1028
 FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
 
+FileItem = 0
+SequenceItem = 1
 
 SortByName = 0
 SortByLastModified = 1
