@@ -286,7 +286,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items flagged as `archived`."""
-        painter, option, _, _, _, _, archived, _ = args
+        painter, option, index, _, _, _, archived, _ = args
         if not archived:
             return
 
@@ -533,7 +533,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
 
     def paint(self, painter, option, index):
-        """Defines how the BookmarksWidgetItems should be painted."""
+        """Defines how the ``BookmarksWidgetItems`` should be painted."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
         #
@@ -742,23 +742,44 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
         args = self._get_paint_args(painter, option, index)
-
+        #
         self.paint_background(*args)
+
         #
         self.paint_thumbnail(*args)
-        self.paint_archived(*args)
+        if index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
-        self.paint_description(*args, left=left)
+        if index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
         #
-        self.paint_selection_indicator(*args)
+        if index.flags() & QtCore.Qt.ItemIsEnabled:
+            self.paint_selection_indicator(*args)
+        #
+        self.paint_uninitialized(*args)
+
+    @paintmethod
+    def paint_uninitialized(self, *args):
+        painter, option, index, _, _, _, _, _ = args
+        if index.flags() & QtCore.Qt.ItemIsEnabled:
+            return
+
+        painter.setBrush(common.SEPARATOR)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setOpacity(0.5)
+        rect = QtCore.QRect(option.rect)
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.moveCenter(center)
+        painter.drawRect(rect)
 
     def _draw(self, painter, font, rect, text, align, color, option, left):
         """Draws a sequence element."""

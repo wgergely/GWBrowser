@@ -597,7 +597,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': True,
             u'checked': collapsed,
             u'action': functools.partial(
-                self.parent().model().sourceModel().set_grouped, not collapsed)
+                self.parent().model().sourceModel().set_collapsed, not collapsed)
         }
         return menu_set
 
@@ -751,7 +751,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.model_data[index.row()][role] = data
         self.dataChanged.emit(index, index)
 
-    def switch_location_data(self):
+    def switch_model_data(self):
         pass
 
     def is_grouped(self):
@@ -1060,7 +1060,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().beginResetModel()
         self.model().sourceModel().__initdata__()
-        self.model().sourceModel().switch_location_data()
+        self.model().sourceModel().switch_model_data()
         self.model().sourceModel().endResetModel()
         self.model().invalidate()
         self.model().sort()

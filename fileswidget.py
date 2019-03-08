@@ -26,6 +26,10 @@ from browser.imagecache import ImageCache
 mutex = QtCore.QMutex()
 
 class FileInfoThread(QtCore.QThread):
+    """The thread responsible for updating the file list with the missing
+    information.
+
+    """
     def __init__(self, idx, parent=None):
         super(FileInfoThread, self).__init__(parent=parent)
         self.idx = idx
@@ -40,15 +44,43 @@ class FileInfoWorker(QtCore.QObject):
         self.model = model
 
     def process_data(self):
-        indexes = []
-        nth = 100
-        for n in xrange(self.model.rowCount()):
-            if n % nth == 0:
-            index = self.model.index(n, 0)
-            settings = AssetSettings(index)
-            self.model.model_data[index.row()][common.FileDetailsRole] = 'Updated!'
-            self.
+        """Gets and sets the missing information for each index in a background
+        thread.
 
+        """
+        common.ProgressMessage.instance().set_message('Updating list...')
+
+        # TODO: Paint information for delegate could be processed here as well?
+        for n in xrange(self.model.rowCount()):
+            index = self.model.index(n, 0)
+            idx = index.row()
+            flags = index.flags()
+            flags = (flags |
+                QtCore.Qt.ItemIsSelectable |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsEditable |
+                QtCore.Qt.ItemIsDragEnabled)
+
+            settings = AssetSettings(index)
+            description = settings.value(u'config/description')
+
+            if settings.value(u'config/archived'):
+                flags = flags | MarkedAsArchived
+
+            self.model.model_data[idx][common.FileDetailsRole] = 'Updated!'
+
+            # Thumbnail
+            height = self.model.model_data[idx][QtCore.Qt.SizeHintRole].height()
+            image = ImageCache.instance().get(settings.thumbnail_path(), (height - 2))
+            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+            self.model.model_data[idx]['thumbnail'] = image
+            self.model.model_data[idx]['thumbnail_bakcground'] = color
+            self.model.model_data[idx][common.DescriptionRole] = description
+            self.model.model_data[idx][common.DescriptionRole] = description
+
+            break
+
+        common.ProgressMessage.instance().clear_message()
         self.finished.emit()
 
 
@@ -119,11 +151,7 @@ class FilesModel(BaseModel):
         """
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
         flags = (
-            QtCore.Qt.ItemNeverHasChildren |
-            QtCore.Qt.ItemIsSelectable |
-            # QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsEditable |
-            QtCore.Qt.ItemIsDragEnabled
+            QtCore.Qt.ItemNeverHasChildren
         )
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
@@ -215,7 +243,13 @@ class FilesModel(BaseModel):
 
 
     def switch_model_data(self):
-        """Method responsible for setting
+        """The data is stored is stored in the private ``_model_data`` object.
+        This object is not exposed to the model - this method will set the
+        ``model_data`` to the appropiate data-point.
+
+        The ``model_data`` is not fully loaded by the default. By switching the
+        dataset we will trigger a secondary thread to querry the file-system and
+        to load the missing pieces of data.
 
         """
         def chunks(l, n):
@@ -224,6 +258,7 @@ class FilesModel(BaseModel):
                 yield l[i:i + n]
         # When the dataset is empty, calling __initdata__
         location = self.get_location()
+
         if location not in self._model_data:
             self._model_data[location] = {True: {}, False: {}, }
 
@@ -246,7 +281,6 @@ class FilesModel(BaseModel):
 
         chunks = list(chunks(indexes, int(math.ceil(float(len(indexes)) / idtc))))
 
-        print app.thread()
         thread = self.get_thread()
         worker = FileInfoWorker(self)
         worker.moveToThread(thread)

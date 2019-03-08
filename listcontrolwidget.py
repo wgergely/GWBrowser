@@ -265,7 +265,7 @@ class CollapseSequenceButton(ClickableLabel):
     def toggle(self):
         filewidget = self.parent().parent().findChild(FilesWidget)
         grouped = filewidget.model().sourceModel().is_grouped()
-        filewidget.model().sourceModel().set_grouped(not grouped)
+        filewidget.model().sourceModel().set_collapsed(not grouped)
 
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(StackedWidget)
