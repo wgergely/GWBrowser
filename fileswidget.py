@@ -4,8 +4,10 @@ found by the collector classes.
 
 """
 # pylint: disable=E1101, C0103, R0913, I1101
-import time
 
+import math
+import sys
+import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from browser.baselistwidget import BaseContextMenu
@@ -21,29 +23,34 @@ import browser.editors as editors
 from browser.imagecache import ImageCache
 
 
-class ModelWorkerSignals(QtCore.QObject):
-    finished = QtCore.Signal()
-    update = QtCore.Signal(unicode)
+mutex = QtCore.QMutex()
 
+class FileInfoThread(QtCore.QThread):
+    def __init__(self, idx, parent=None):
+        super(FileInfoThread, self).__init__(parent=parent)
+        self.idx = idx
 
-class ModelWorker(QtCore.QRunnable):
+class FileInfoWorker(QtCore.QObject):
     """Generic QRunnable, taking an index as it's first argument."""
+    finished = QtCore.Signal()
+    error = QtCore.Signal(basestring)
 
-    def __init__(self, chunk):
-        super(ModelWorker, self).__init__()
-        self.chunk = chunk
-        self.signals = ModelWorkerSignals()
+    def __init__(self, model, parent=None):
+        super(FileInfoWorker, self).__init__(parent=parent)
+        self.model = model
 
-    @QtCore.Slot()
-    def run(self):
-        """The main work method run in a secondary thread."""
-        for index in self.chunk:
-            filename = QtCore.QFileInfo(index.data(
-                QtCore.Qt.StatusTipRole)).fileName()
-            self.signals.update.emit(
-                u'Processing {}'.format(filename.encode('utf-8')))
-            ImageCache.generate(index)
-        self.signals.finished.emit()
+    def process_data(self):
+        indexes = []
+        nth = 100
+        for n in xrange(self.model.rowCount()):
+            if n % nth == 0:
+            index = self.model.index(n, 0)
+            settings = AssetSettings(index)
+            self.model.model_data[index.row()][common.FileDetailsRole] = 'Updated!'
+            self.
+
+        self.finished.emit()
+
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -93,23 +100,21 @@ class FilesModel(BaseModel):
         self.asset = asset
         self.mode = None
         self._isgrouped = None
+        self.threads = {}
 
         super(FilesModel, self).__init__(parent=parent)
-        self.switch_location_data()
 
-        self.grouppingChanged.connect(self.switch_location_data)
-        self.activeLocationChanged.connect(self.switch_location_data)
+        self.grouppingChanged.connect(self.switch_model_data)
+        self.activeLocationChanged.connect(self.switch_model_data)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
-        # This will add the asset to the file monitor
-        self.set_asset(asset)
+        self.mutex = QtCore.QMutex()
+        self.switch_model_data()
 
     def __initdata__(self):
-        """To get the files, we will have to decide what extensions to take
-        into consideration and what location to get the files from.
-
-        Each asset should be made up of an `scenes`, `renders`, `textures` and
-        `exports` folder. See the ``common`` module for definitions.
+        """The method is responsible for getting the bare-bones file and sequence
+        definitions. Later all the additional information is populated by secondary
+        thread-workers.
 
         """
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -134,6 +139,7 @@ class FilesModel(BaseModel):
         ))
 
         # Data-containers
+        self.beginResetModel()
         self._model_data[location] = {True: {}, False: {}}
         seqs = {}
 
@@ -200,171 +206,135 @@ class FilesModel(BaseModel):
                 seqs[seqpath]['frames'].append(seq.group(2))
             else:
                 seqs[filepath] = self._model_data[location][False][idx]
-
+        # Casting the sequence data onto the model
         for v in seqs.itervalues():
             idx = len(self._model_data[location][True])
             self._model_data[location][True][idx] = v
 
-    # def __collapseddata(self, favourites, active_paths, server, job, root, asset, location):
-    #     """Populates the model data with the information needed to display file
-    #     sequences.
-    #
-    #     """
-    #     groups = {}
-    #     idx = 0
-    #     for k in self._model_data[location][False]:
-    #         path = self._model_data[location][False][k][QtCore.Qt.StatusTipRole]
-    #         match = common.get_sequence(path)
-    #         if not match:  # Non-sequence items
-    #             # Previously skipped getting information for render-files
-    #             if location == common.RendersFolder:
-    #                 file_info = QtCore.QFileInfo(path)
-    #                 filename = file_info.fileName()
-    #                 filepath = file_info.filePath()
-    #                 last_modified = file_info.lastModified()
-    #                 size = file_info.size()
-    #
-    #                 # Flags
-    #                 flags, settings, fileroot = self.__flags(favourites,
-    #                     active_paths,
-    #                     server, job, root, asset, location,
-    #                     file_info.path(), filepath, filename
-    #                 )
-    #
-    #                 # Todos
-    #                 count = 0
-    #
-    #                 # Tooltip
-    #                 tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-    #                 tooltip += u'{}'.format(filepath)
-    #
-    #                 # File description
-    #                 info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-    #                     day=last_modified.toString(u'dd'),
-    #                     month=last_modified.toString(u'MM'),
-    #                     year=last_modified.toString(u'yyyy'),
-    #                     hour=last_modified.toString(u'hh'),
-    #                     minute=last_modified.toString(u'mm'),
-    #                     size=common.byte_to_string(size)
-    #                 )
-    #                 self._model_data[location][True][idx] = {
-    #                     QtCore.Qt.DisplayRole: filename,
-    #                     QtCore.Qt.EditRole: filename,
-    #                     QtCore.Qt.StatusTipRole: filepath,
-    #                     QtCore.Qt.ToolTipRole: u'Non-sequence item.',
-    #                     QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
-    #                     common.FlagsRole: flags,
-    #                     common.ParentRole: (server, job, root, asset, location, fileroot),
-    #                     common.DescriptionRole: settings.value(u'config/description'),
-    #                     common.TodoCountRole: count,
-    #                     common.FileDetailsRole: info_string,
-    #                 }
-    #                 ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
-    #             else:
-    #                 # If the item is not a sequence we can just use the previously
-    #                 # collected item
-    #                 self._model_data[location][True][idx] = self._model_data[location][False][k]
-    #
-    #             idx += 1
-    #             continue
-    #
-    #         k = u'{}|{}.{}'.format(match.group(
-    #             1), match.group(3), match.group(4))
-    #         if k not in groups:
-    #             file_info = QtCore.QFileInfo(path)
-    #             groups[k] = {
-    #                 u'path': path,
-    #                 u'frames': [],
-    #                 u'size': file_info.size(),
-    #                 u'padding': len(match.group(2)),
-    #                 u'modified': file_info.lastModified(),
-    #             }
-    #         groups[k][u'frames'].append(int(match.group(2)))
-    #
-    #     # Adding the collapsed sequence items
-    #     for k in groups:
-    #         frames = groups[k][u'frames']
-    #         frames = sorted(list(set(frames)))
-    #         sk = k.split(u'|')
-    #         path = u'{}[{}]{}'.format(
-    #             sk[0],
-    #             common.get_ranges(frames, groups[k][u'padding']),
-    #             sk[1]
-    #         )
-    #         __path = u'{}{}{}'.format(
-    #             sk[0],
-    #             u'{}'.format(frames[0]).zfill(groups[k][u'padding']),
-    #             sk[1]
-    #         )
-    #
-    #         file_info = QtCore.QFileInfo(path)
-    #         filename = file_info.fileName()
-    #         filepath = file_info.filePath()
-    #
-    #         # Flags
-    #         flags, settings, fileroot = self.__flags(favourites,
-    #             active_paths,
-    #             server, job, root, asset, location,
-    #             file_info.path(), filepath, filename
-    #         )
-    #
-    #         # File info string
-    #         info_string = u'Sequence of {} files'.format(len(frames))
-    #
-    #         tooltip = u'{} | {} | {}\n'.format(job, root, fileroot)
-    #         tooltip += u'{}  (sequence)'.format(filepath)
-    #
-    #         self._model_data[location][True][idx] = {
-    #             QtCore.Qt.DisplayRole: filename,
-    #             QtCore.Qt.EditRole: filename,
-    #             QtCore.Qt.StatusTipRole: filepath,
-    #             QtCore.Qt.ToolTipRole: tooltip,
-    #             QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ROW_HEIGHT),
-    #             common.FlagsRole: flags,
-    #             common.ParentRole: (server, job, root, asset, location, fileroot),
-    #             common.DescriptionRole: settings.value(u'config/description'),
-    #             common.TodoCountRole: 0,
-    #             common.FileDetailsRole: info_string,
-    #         }
-    #         idx += 1
-    #         ImageCache.instance().get(settings.thumbnail_path(), common.ROW_HEIGHT - 2)
-    #         #
-    #         if file_info.path() not in self._file_monitor.directories():
-    #             self._file_monitor.addPath(file_info.path())
-    #
-    #     # file-monitor timestamp
-    #     self._last_refreshed[self.get_location()] = time.time()
+        self.endResetModel()
 
-    # @staticmethod
-    # def __flags(favourites, active_paths, server, job, root, asset, location, path, filepath, filename):
-    #     """Private convenicen function for getting the flag values of a file."""
-    #     settings = AssetSettings((server, job, root, filepath))
-    #     # Flags
-    #     flags = (
-    #         QtCore.Qt.ItemNeverHasChildren |
-    #         QtCore.Qt.ItemIsSelectable |
-    #         QtCore.Qt.ItemIsEnabled |
-    #         QtCore.Qt.ItemIsEditable |
-    #         QtCore.Qt.ItemIsDragEnabled
-    #     )
-    #     # Active
-    #     fileroot = u'/'.join((server, job, root, asset, location))
-    #     fileroot = path.replace(fileroot, u'')
-    #     fileroot = fileroot.strip(u'/')
-    #
-    #     activefilepath = u'{}/{}'.format(fileroot, filename)
-    #     if activefilepath == active_paths[u'file']:
-    #         flags = flags | MarkedAsActive
-    #
-    #     # Archived
-    #     if settings.value(u'config/archived'):
-    #         flags = flags | MarkedAsArchived
-    #
-    #     # Favourite
-    #     if filepath in favourites:
-    #         flags = flags | MarkedAsFavourite
-    #
-    #     return flags, settings, fileroot
+
+    def switch_model_data(self):
+        """Method responsible for setting
+
+        """
+        def chunks(l, n):
+            """Yields successive n-sized chunks of the given list."""
+            for i in xrange(0, len(l), n):
+                yield l[i:i + n]
+        # When the dataset is empty, calling __initdata__
+        location = self.get_location()
+        if location not in self._model_data:
+            self._model_data[location] = {True: {}, False: {}, }
+
+        if not self._model_data[location][self.is_grouped()]:
+            self.__initdata__()
+
+        self.beginResetModel()
+        self.model_data = self._model_data[self.get_location()][self.is_grouped()]
+        self.endResetModel()
+
+        # Getting additional information
+        app = QtCore.QCoreApplication.instance()
+        app.processEvents()
+
+        idtc = QtCore.QThread.idealThreadCount()
+        indexes = []
+        for n in xrange(self.rowCount()):
+            index = self.index(n, 0)
+            indexes.append(index)
+
+        chunks = list(chunks(indexes, int(math.ceil(float(len(indexes)) / idtc))))
+
+        print app.thread()
+        thread = self.get_thread()
+        worker = FileInfoWorker(self)
+        worker.moveToThread(thread)
+
+        app.aboutToQuit.connect(thread.quit)
+        app.aboutToQuit.connect(thread.deleteLater)
+
+        thread.started.connect(worker.process_data)
+
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.finished.connect(functools.partial(self.delete_thread, thread))
+
+        thread.start()
+
+    def get_thread(self):
+        idx = len(self.threads)
+        self.threads[idx] = FileInfoThread(idx)
+        return self.threads[idx]
+
+    def delete_thread(self, thread):
+        del self.threads[thread.idx]
+
+
+    def set_asset(self, asset):
+        """Sets a new asset for the model."""
+        if self.asset == asset:
+            return
+        self.asset = asset
+
+    def is_grouped(self):
+        """Gathers sequences into a single file."""
+        if self._isgrouped is None:
+            cls = self.__class__.__name__
+            key = u'widget/{}/{}/iscollapsed'.format(cls, self.get_location())
+            val = local_settings.value(key)
+            if val is None:
+                self._isgrouped = False
+            else:
+                self._isgrouped = val
+        return self._isgrouped
+
+    def set_collapsed(self, val):
+        """Sets the groupping mode."""
+        cls = self.__class__.__name__
+        key = u'widget/{}/{}/iscollapsed'.format(cls, self.get_location())
+        cval = local_settings.value(key)
+
+        if cval == val:
+            return
+
+        self.modelDataAboutToChange.emit()
+        self._isgrouped = val
+        local_settings.setValue(key, val)
+        self.grouppingChanged.emit()
+
+    def get_location(self):
+        """Get's the current ``location``."""
+        val = local_settings.value(u'activepath/location')
+        if not val:
+            local_settings.setValue(
+                u'activepath/location', common.ScenesFolder)
+
+        return val if val else common.ScenesFolder
+
+    def set_location(self, val):
+        """Sets the location and emits the ``activeLocationChanged`` signal."""
+        key = u'activepath/location'
+        cval = local_settings.value(key)
+
+        if cval == val:
+            return
+
+        local_settings.setValue(key, val)
+        self.activeLocationChanged.emit(val)
+
+        # Updating the groupping of the files
+        cls = self.__class__.__name__
+        key = u'widget/{}/{}/iscollapsed'.format(cls, val)
+        groupped = True if local_settings.value(key) else False
+
+        if self.is_grouped() == groupped:
+            return
+
+        self.modelDataAboutToChange.emit()
+        self._isgrouped = groupped
+        self.grouppingChanged.emit()
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -403,89 +373,6 @@ class FilesModel(BaseModel):
             QtCore.QDir.toNativeSeparators(filepath))
         return mime
 
-    def switch_location_data(self):
-        """Sets the location data stored in the private
-        ``_model_data`` dictionary as the active model_data.
-
-        """
-        # When the dataset is empty, calling __initdata__
-        location = self.get_location()
-        if not location in self._model_data:
-            self._model_data[location] = {True: {}, False: {}, }
-        if not self._model_data[location][self.is_grouped()]:
-            self.beginResetModel()
-            self.__initdata__()
-            self.endResetModel()
-
-        self.model_data = self._model_data[self.get_location(
-        )][self.is_grouped()]
-
-    def set_asset(self, asset):
-        """Sets a new asset for the model."""
-        self.asset = asset
-
-    def is_grouped(self):
-        """Gathers sequences into a single file."""
-        location = self.get_location()
-        if location == common.RendersFolder:
-            return True
-
-        if self._isgrouped is None:
-            cls = self.__class__.__name__
-            key = u'widget/{}/{}/isgroupped'.format(cls, location)
-            val = local_settings.value(key)
-            if val is None:
-                self._isgrouped = False
-            else:
-                self._isgrouped = val
-        return self._isgrouped
-
-    def set_grouped(self, val):
-        """Sets the groupping mode."""
-        location = self.get_location()
-        cls = self.__class__.__name__
-        key = u'widget/{}/{}/isgroupped'.format(cls, location)
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        self.modelDataAboutToChange.emit()
-        self._isgrouped = val
-        local_settings.setValue(key, val)
-        self.grouppingChanged.emit()
-
-    def get_location(self):
-        """Get's the current ``location``."""
-        val = local_settings.value(u'activepath/location')
-        if not val:
-            local_settings.setValue(
-                u'activepath/location', common.ScenesFolder)
-
-        return val if val else common.ScenesFolder
-
-    def set_location(self, val):
-        """Sets the location and emits the ``activeLocationChanged`` signal."""
-        key = u'activepath/location'
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        local_settings.setValue(key, val)
-        self.activeLocationChanged.emit(val)
-
-        # Updating the groupping of the files
-        cls = self.__class__.__name__
-        key = u'widget/{}/{}/isgroupped'.format(cls, val)
-        groupped = True if local_settings.value(key) else False
-
-        if self.is_grouped() == groupped:
-            return
-
-        self.modelDataAboutToChange.emit()
-        self._isgrouped = groupped
-        self.grouppingChanged.emit()
 
 
 class FilesWidget(BaseInlineIconWidget):
