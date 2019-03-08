@@ -85,8 +85,8 @@ class ImageCache(QtCore.QObject):
         that doesn't have a valid thumbnail image saved.
 
         """
-        file_info = QtCore.QFileInfo(
-            u'{}/../rsc/placeholder.png'.format(__file__))
+        imagepath = u'{}/../rsc/placeholder.png'.format(__file__)
+        file_info = QtCore.QFileInfo(imagepath)
         height = int(height)
 
         pk = u'{path}:{height}'.format(
@@ -171,12 +171,12 @@ class ImageCache(QtCore.QObject):
         # If the file doesn't exist, return a placeholder
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
-            return self._assign_placeholder(path, height)
+            return None
 
         image = QtGui.QImage()
         image.load(file_info.filePath())
         if image.isNull():
-            return self._assign_placeholder(path, height)
+            return None
 
         image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
         image = self.resize_image(image, height)
