@@ -154,9 +154,14 @@ class BrowserWidget(QtWidgets.QWidget):
         mode = local_settings.value(u'widget/mode')
         mode = mode if mode else 0
         mode = mode if mode >= 0 else 0
-        self.listcontrolwidget.modeChanged.emit(mode)
 
+        mode = local_settings.value(u'widget/mode')
+        active_paths = active_monitor.get_active_paths()
+
+        self.listcontrolwidget.listChanged.emit(mode)
+        self.listcontrolwidget.locationChanged.emit(active_paths['location'])
         self.bookmarkswidget.model().sourceModel().initialize()
+        self.listcontrolwidget.initialize()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -207,7 +212,7 @@ class BrowserWidget(QtWidgets.QWidget):
     def _connectSignals(self):
         def filterModeChanged():
             idx = self.stackedwidget.currentIndex()
-            self.listcontrolwidget.modeChanged.emit(idx)
+            self.listcontrolwidget.update_controls(idx)
 
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
 
@@ -216,14 +221,20 @@ class BrowserWidget(QtWidgets.QWidget):
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().setBookmark)
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
-            lambda _: self.listcontrolwidget.modeChanged.emit(1))
+            lambda _: self.listcontrolwidget.listChanged.emit(1))
 
-        self.listcontrolwidget.modeChanged.connect(self.activate_widget)
+        self.listcontrolwidget.listChanged.connect(self.activate_widget)
 
-        active_monitor.activeBookmarkChanged.connect(
-            self.bookmarkswidget.refresh)
+        # active_monitor.activeBookmarkChanged.connect(
+        #     self.bookmarkswidget.refresh)
         # active_monitor.activeBookmarkChanged.connect(
         #     self.assetswidget.model().sourceModel().setBookmark)
+        # active_monitor.activeAssetChanged.connect(self.assetswidget.refresh)
+        # active_monitor.activeAssetChanged.connect(
+        #     self.fileswidget.model().sourceModel().set_asset)
+        # active_monitor.activeAssetChanged.connect(
+        #     self.fileswidget.model().sourceModel().__resetdata__)
+        # active_monitor.activeAssetChanged.connect(self.fileswidget.refresh)
 
         # Filter proxy model
         self.fileswidget.model().filterModeChanged.connect(filterModeChanged)
@@ -236,21 +247,21 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(0))
+            lambda: self.listcontrolwidget.listChanged.emit(0))
         # Show asset shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+2'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(1))
+            lambda: self.listcontrolwidget.listChanged.emit(1))
         # Show files shortcut
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+3'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(2))
+            lambda: self.listcontrolwidget.listChanged.emit(2))
         # Search
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+F'), self)
@@ -267,20 +278,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget.model().sourceModel().modelDataResetRequested.connect(
             self.fileswidget.model().sourceModel().modelDataResetRequested.emit)
         # Re-populates the data for the current location
-        self.assetswidget.model().sourceModel(
-        ).modelDataResetRequested.connect(self.fileswidget.refresh)
+        self.assetswidget.model().sourceModel().modelDataResetRequested.connect(
+            self.fileswidget.refresh)
 
         # Shows the FilesWidget
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(2))
-        # Updates the controls above the list
-
-        active_monitor.activeAssetChanged.connect(self.assetswidget.refresh)
-        active_monitor.activeAssetChanged.connect(
-            self.fileswidget.model().sourceModel().set_asset)
-        active_monitor.activeAssetChanged.connect(
-            self.fileswidget.model().sourceModel().__resetdata__)
-        active_monitor.activeAssetChanged.connect(self.fileswidget.refresh)
+            lambda: self.listcontrolwidget.listChanged.emit(2))
 
         # Statusbar
         self.bookmarkswidget.entered.connect(self.entered)
@@ -288,23 +291,16 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget.entered.connect(self.entered)
 
         self.fileswidget.model().sourceModel().activeLocationChanged.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(2))
+            lambda: self.listcontrolwidget.listChanged.emit(2))
         self.fileswidget.model().sourceModel().grouppingChanged.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(2))
-
-        # file-monitor
+            lambda: self.listcontrolwidget.listChanged.emit(2))
+        # File monitor for file-changes:
         refreshbutton = self.findChild(RefreshButton)
         self.fileswidget.model().sourceModel().refreshRequested.connect(
             refreshbutton.check_refresh_requests)
-
-        def func(idx):
-            if idx != 2:
-                return
-
-            location = self.fileswidget.model().sourceModel().get_location()
-            refreshbutton.check_refresh_requests(location)
-
-        self.listcontrolwidget.modeChanged.connect(func)
+        self.listcontrolwidget.locationChanged.connect(refreshbutton.check_refresh_requests)
+        self.listcontrolwidget.locationChanged.connect(
+                self.fileswidget.model().sourceModel().set_location)
 
     def entered(self, index):
         """Custom itemEntered signal."""

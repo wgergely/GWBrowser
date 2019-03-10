@@ -360,13 +360,16 @@ class AddBookmarkButton(ClickableLabel):
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the list to control the mode, filters and sorting."""
 
-    modeChanged = QtCore.Signal(int)
-    """Mode changed is the main signal emited when the listwidget in view changes."""
+    listChanged = QtCore.Signal(int)
+    locationChanged = QtCore.Signal(basestring)
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
         self._createUI()
         self._connectSignals()
+
+    def initialize(self):
+        self.findChild(ListControlDropdown).view.model().__initdata__()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -390,11 +393,22 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def _connectSignals(self):
         addbookmarkbutton = self.findChild(AddBookmarkButton)
-        combobox = self.findChild(ListControlDropdown)
+        controlbutton = self.findChild(ListControlDropdown)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
-        combobox.view.activated.connect(lambda index: self.update_controls(index.row()))
-        self.modeChanged.connect(self.update_controls)
+        controlbutton.view.activated.connect(lambda index: self.update_controls(index.row()))
+        controlbutton.view.activated.connect(lambda index: self.listChanged.emit(index.row() if index.row() <= 2 else 2))
+        controlbutton.view.activated.connect(lambda index: self.locationChanged.emit(index.data(QtCore.Qt.DisplayRole) if index.row() > 1 else None))
+        self.listChanged.connect(self.update_controls)
+
+        def locationChanged(location):
+            for n in xrange(controlbutton.view.model().rowCount()):
+                index = controlbutton.view.model().index(n, 0)
+                if index.data(QtCore.Qt.DisplayRole) == location:
+                    controlbutton.view.selectionModel().setCurrentIndex(
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
+                    return index.row()
+        self.locationChanged.connect(locationChanged)
 
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
@@ -415,7 +429,7 @@ class ListControlWidget(QtWidgets.QWidget):
             model.set_location(index.data(QtCore.Qt.DisplayRole))
 
         mode = mode if mode >= 0 else 0
-        mode = mode if mode < 2 else 2
+        mode = mode if mode <= 2 else 2
 
         addbookmark = self.findChild(AddBookmarkButton)
         filterbutton = self.findChild(FilterButton)
@@ -687,7 +701,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         if not index:
             return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
 
-        if index.row() < 2:
+        if index.row() <= 1:
             return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
         else:
             return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
@@ -697,6 +711,9 @@ class ListControlView(QtWidgets.QListView):
     def __init__(self, parent=None):
         super(ListControlView, self).__init__(parent=parent)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.activated.connect(self.close)
+        self.clicked.connect(self.activated)
+        self.clicked.connect(self.close)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -718,30 +735,32 @@ class ListControlModel(BaseModel):
     def __init__(self, parent=None):
         self.parentwidget = parent
         super(ListControlModel, self).__init__(parent=parent)
-        self.__initdata__()
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         self.model_data = {}  # resetting data
         flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-
+        # Dynamic folders - this list might change depending on the asset
+        active_asset = self.parentwidget.parent().assetswidget.active_index()
         # Static folder - we're expecting these to be always present
         for idx, item in enumerate(self.static_string_list):
+            exists = True
+            if idx > 1 and active_asset.isValid():
+                path = '{}/{}'.format(active_asset.data(QtCore.Qt.StatusTipRole), item)
+                exists = QtCore.QFileInfo(path).exists()
             self.model_data[idx] = {
                 QtCore.Qt.DisplayRole: item,
                 QtCore.Qt.EditRole: item,
                 QtCore.Qt.StatusTipRole: item,
                 QtCore.Qt.ToolTipRole: item,
                 QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
-                common.FlagsRole: flags,
+                common.FlagsRole: flags if exists else QtCore.Qt.NoItemFlags,
                 common.ParentRole: None,
                 common.DescriptionRole: item,
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: None,
             }
 
-        # Dynamic folders - this list might change depending on the asset
-        active_asset = self.parentwidget.parent().assetswidget.active_index()
         if active_asset.isValid():
             path = active_asset.data(QtCore.Qt.StatusTipRole)
             dir_ = QtCore.QDir(path)
@@ -798,11 +817,17 @@ class ListControlDropdown(ClickableLabel):
         self.activeAssetChanged.connect(self.assetChanged)
         self.clicked.connect(self.showPopup)
 
-        self.setFixedWidth(150)
+        self.setFixedWidth(180)
 
     def paintEvent(self, event):
         idx = self.parent().parent().stackedwidget.currentIndex()
-        text = self.view.model().index(idx, 0).data(QtCore.Qt.DisplayRole)
+        active_asset = self.parent().parent().assetswidget.active_index()
+        if idx == 2 and active_asset.isValid():
+            text = u'{} / {}'.format(
+                active_asset.data(QtCore.Qt.DisplayRole).upper(),
+                local_settings.value(u'activepath/location').upper())
+        else:
+            text = self.view.model().index(idx, 0).data(QtCore.Qt.DisplayRole).upper()
 
         painter = QtGui.QPainter()
         painter.begin(self)
@@ -830,9 +855,19 @@ class ListControlDropdown(ClickableLabel):
 
         # Selecting the current item
         idx = self.parent().parent().stackedwidget.currentIndex()
-        index = self.view.model().index(idx, 0, parent=QtCore.QModelIndex())
-        self.view.selectionModel().setCurrentIndex(
-            index,
-            QtCore.QItemSelectionModel.ClearAndSelect
-        )
+        if idx == 2 and self.parent().parent().assetswidget.active_index().isValid():
+            for n in xrange(self.view.model().rowCount()):
+                index = self.view.model().index(n, 0)
+                if index.data(QtCore.Qt.DisplayRole) == local_settings.value(u'activepath/location'):
+                    self.view.selectionModel().setCurrentIndex(
+                        index,
+                        QtCore.QItemSelectionModel.ClearAndSelect
+                    )
+                    break
+        else:
+            index = self.view.model().index(idx, 0, parent=QtCore.QModelIndex())
+            self.view.selectionModel().setCurrentIndex(
+                index,
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
         self.view.show()

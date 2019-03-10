@@ -1307,8 +1307,8 @@ class BaseListWidget(QtWidgets.QListView):
         If no item has been flagged as `active`, returns ``None``.
 
         """
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0, parent=QtCore.QModelIndex())
+        for n in xrange(self.model().sourceModel().rowCount()):
+            index = self.model().sourceModel().index(n, 0, parent=QtCore.QModelIndex())
             if index.flags() & MarkedAsActive:
                 return index
         return QtCore.QModelIndex()

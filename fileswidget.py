@@ -483,6 +483,9 @@ class FilesModel(BaseModel):
 
     def set_location(self, val):
         """Sets the location and emits the ``activeLocationChanged`` signal."""
+        if val is None:
+            return
+
         key = u'activepath/location'
         cval = local_settings.value(key)
 
