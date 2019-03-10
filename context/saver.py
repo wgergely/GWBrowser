@@ -446,7 +446,7 @@ class BookmarksWidget(BaseCombobox):
             index.flags() | MarkedAsActive,
             role=common.FlagsRole)
 
-        self.model().activeBookmarkChanged.emit(index.data(common.ParentRole))
+        self.model().activeBookmarkChanged.emit(index)
 
 
 class BookmarksListDelegate(BookmarksWidgetDelegate):

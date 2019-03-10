@@ -184,6 +184,8 @@ TypeRole = 1037
 
 FileItem = 0
 SequenceItem = 1
+AssetItem = 2
+BookmarkItem = 3
 
 SortByName = 0
 SortByLastModified = 1
@@ -523,6 +525,9 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     """Method to draw aliased text windows, where the default antialiasing fails."""
     painter.save()
 
+    painter.setRenderHint(QtGui.QPainter.Antialiasing)
+    painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+    
     x, y = (rect.left(), rect.top())
     elide = None
     metrics = QtGui.QFontMetrics(font)

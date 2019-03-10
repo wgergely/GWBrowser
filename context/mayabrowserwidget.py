@@ -280,7 +280,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             if self.findChild(FilesWidget).model().sourceModel().get_location() != common.ScenesFolder:
                 return
             self.open_scene(index.data(QtCore.Qt.StatusTipRole))
-        fileswidget.itemDoubleClicked.connect(open_scene)
+        fileswidget.activated.connect(open_scene)
 
     def fileThumbnailAdded(self, args):
         """Slot called by the Saver when finished."""

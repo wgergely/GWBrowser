@@ -71,8 +71,8 @@ class BookmarkInfo(QtCore.QFileInfo):
         path = u'{}/{}/{}'.format(self.server, self.job, self.root)
         super(BookmarkInfo, self).__init__(path, parent=parent)
 
-        self.size = functools.partial(lambda n : n, self.count_assets(path))
-        self.count = functools.partial(lambda n : n, self.count_assets(path))
+        self.size = functools.partial(lambda n: n, self.count_assets(path))
+        self.count = functools.partial(lambda n: n, self.count_assets(path))
 
     @staticmethod
     def count_assets(path):
@@ -132,6 +132,11 @@ class BookmarksModel(BaseModel):
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
 
+    def initialize(self):
+        """Emits loads the model_data and emits the active index."""
+        self.__initdata__()
+        self.initialized.emit(self.active_index())
+
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -140,12 +145,18 @@ class BookmarksModel(BaseModel):
         in under windows.
 
         """
+        self.beginResetModel()
         self.model_data = {}  # reset
         active_paths = Active.get_active_paths()
-
+        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        
         items = local_settings.value(
             u'bookmarks') if local_settings.value(u'bookmarks') else []
         items = [BookmarkInfo(items[k]) for k in items]
+
+        thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        thumbnail_image = ImageCache.instance().get(
+            thumbnail_path, rowsize.height() - 2)
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists
@@ -184,13 +195,17 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: file_info.filePath(),
-                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
+                QtCore.Qt.SizeHintRole: rowsize,
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
                 common.TodoCountRole: file_info.size(),
                 common.FileDetailsRole: file_info.size(),
+                common.TypeRole: common.BookmarkItem,
+                common.ThumbnailRole: thumbnail_image,
+                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0)
             }
+        self.endResetModel()
 
         # file-monitor timestamp
         self._last_refreshed[self.get_location()] = time.time()
@@ -311,7 +326,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         active_monitor.update_saved_state(u'server', server)
         active_monitor.update_saved_state(u'job', job)
         active_monitor.update_saved_state(u'root', root)
-        self.model().sourceModel().activeBookmarkChanged.emit(index.data(common.ParentRole))
+        self.model().sourceModel().activeBookmarkChanged.emit(index)
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from

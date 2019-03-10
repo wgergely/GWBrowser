@@ -19,8 +19,7 @@ and ```collector.FilesCollector`` classes. The gathered files then are displayed
 in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` items.
 
 """
-
-import functools
+import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import browser.common as common
@@ -29,7 +28,6 @@ from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.listcontrolwidget import ListControlWidget
-from browser.listcontrolwidget import ListControlDropdown
 from browser.listcontrolwidget import FilterButton
 
 from browser.editors import ClickableLabel
@@ -128,40 +126,37 @@ class BrowserWidget(QtWidgets.QWidget):
             QtCore.Qt.FramelessWindowHint
         )
 
+        print sys.stderr.write('!!')
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self._contextMenu = None
+        self._initialized = False
 
         self.stackedwidget = None
         self.bookmarkswidget = None
+        self.listcontrolwidget = None
         self.assetswidget = None
         self.fileswidget = None
 
-        # Applying the initial config settings.
-        active_paths = Active.get_active_paths()
-        self.bookmarkswidget = BookmarksWidget()
-        self.assetswidget = AssetWidget((
-            active_paths[u'server'],
-            active_paths[u'job'],
-            active_paths[u'root']
-        ))
-        self.fileswidget = FilesWidget((
-            active_paths[u'server'],
-            active_paths[u'job'],
-            active_paths[u'root'],
-            active_paths[u'asset'])
-        )
-
-        # Create layout
         self._createUI()
         self._connectSignals()
 
-        idx = local_settings.value(u'widget/mode')
-        idx = idx if idx else 0
-        self.activate_widget(idx)
+    def showEvent(self, event):
+        if not self._initialized:
+            self.initialize()
+            self._initialized = True
 
-        # Let's start the monitor
+    def initialize(self):
+        """`Initializes` the widget."""
         active_monitor.timer.start()
+
+        # Mode
+        mode = local_settings.value(u'widget/mode')
+        mode = mode if mode else 0
+        mode = mode if mode >= 0 else 0
+        self.listcontrolwidget.modeChanged.emit(mode)
+
+        self.bookmarkswidget.model().sourceModel().initialize()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -176,6 +171,10 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred
         )
+
+        self.bookmarkswidget = BookmarksWidget(parent=self)
+        self.assetswidget = AssetWidget(parent=self)
+        self.fileswidget = FilesWidget(parent=self)
 
         self.stackedwidget = StackedWidget(parent=self)
         self.stackedwidget.addWidget(self.bookmarkswidget)
@@ -206,21 +205,30 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
-        self.listcontrolwidget.modeChanged.connect(self.activate_widget)
-
-        # Bookmark
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
-            self.assetswidget.model().sourceModel().set_bookmark)
-        active_monitor.activeBookmarkChanged.connect(
-            self.assetswidget.model().sourceModel().set_bookmark)
+        def filterModeChanged():
+            idx = self.stackedwidget.currentIndex()
+            self.listcontrolwidget.modeChanged.emit(idx)
 
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
+
+        self.bookmarkswidget.model().sourceModel().initialized.connect(
+            self.assetswidget.model().sourceModel().initialize)
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
+            self.assetswidget.model().sourceModel().setBookmark)
+        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
+            lambda _: self.listcontrolwidget.modeChanged.emit(1))
+
+        self.listcontrolwidget.modeChanged.connect(self.activate_widget)
+
+        active_monitor.activeBookmarkChanged.connect(
+            self.bookmarkswidget.refresh)
+        # active_monitor.activeBookmarkChanged.connect(
+        #     self.assetswidget.model().sourceModel().setBookmark)
+
         # Filter proxy model
-        def _set_mode():
-            self.listcontrolwidget.setCurrentMode(self.stackedwidget.currentIndex())
-        self.fileswidget.model().filterModeChanged.connect(_set_mode)
-        self.assetswidget.model().filterModeChanged.connect(_set_mode)
-        self.bookmarkswidget.model().filterModeChanged.connect(_set_mode)
+        self.fileswidget.model().filterModeChanged.connect(filterModeChanged)
+        self.assetswidget.model().filterModeChanged.connect(filterModeChanged)
+        self.bookmarkswidget.model().filterModeChanged.connect(filterModeChanged)
 
         # Show bookmarks shortcut
         shortcut = QtWidgets.QShortcut(
@@ -250,12 +258,6 @@ class BrowserWidget(QtWidgets.QWidget):
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(filterbutton.clicked)
 
-        self.bookmarkswidget.model().sourceModel(
-        ).activeBookmarkChanged.connect(
-            lambda: self.listcontrolwidget.modeChanged.emit(1))
-
-        active_monitor.activeBookmarkChanged.connect(
-            self.bookmarkswidget.refresh)
 
         # Asset
         # A new asset has been activated and all the data has to be re-initialized

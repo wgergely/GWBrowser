@@ -368,11 +368,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
 
-        idx = local_settings.value(u'widget/mode')
-        idx = idx if idx else 0
-        idx = idx if idx >= 0 else 0
-        self.modeChanged.emit(idx)
-
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -398,35 +393,29 @@ class ListControlWidget(QtWidgets.QWidget):
         combobox = self.findChild(ListControlDropdown)
         bookmarkswidget = self.parent().findChild(BookmarksWidget)
 
-        combobox.activated.connect(self.activated)
-        self.modeChanged.connect(self.setCurrentMode)
+        combobox.view.activated.connect(lambda index: self.update_controls(index.row()))
+        self.modeChanged.connect(self.update_controls)
 
         addbookmarkbutton.clicked.connect(
             bookmarkswidget.show_add_bookmark_widget)
 
-    def activated(self, idx):
-        """Maps the index to the mode / location signals."""
-        if idx < 0:
-            return
+    @QtCore.Slot(int)
+    def update_controls(self, mode):
+        """Sets the current mode of ``ListControlWidget`` and updates
+        all widgets accordingly."""
+        if mode > 2:
+            listcontrolmode = int(mode)
+            local_settings.setValue(u'widget/listcontrolmode', listcontrolmode)
 
-        local_settings.setValue(u'widget/listcontrolmode', idx)
-        # Index values 0-2 refer to stacked iwdget index values
-        if idx < 2:
-            self.modeChanged.emit(idx)
-        # Index values above 2 refer to locations inside the asset
-        elif idx >= 2:
-            if self.parent().stackedwidget.currentIndex() != 2:
-                self.modeChanged.emit(2)
-            # Setting the location
-            combobox = self.findChild(ListControlDropdown)
-            index = combobox.model().index(idx, 0, parent=QtCore.QModelIndex())
+            self.update_controls(2)
+
+            listcontrol = self.findChild(ListControlDropdown)
+            index = listcontrol.view.model().index(listcontrolmode, 0)
             model = self.parent().fileswidget.model().sourceModel()
             model.set_location(index.data(QtCore.Qt.DisplayRole))
 
-    def setCurrentMode(self, idx):
-        """Sets the current mode of ``ListControlWidget``."""
-        idx = idx if idx >= 0 else 0
-        idx = idx if idx < 2 else 2
+        mode = mode if mode >= 0 else 0
+        mode = mode if mode < 2 else 2
 
         addbookmark = self.findChild(AddBookmarkButton)
         filterbutton = self.findChild(FilterButton)
@@ -434,30 +423,30 @@ class ListControlWidget(QtWidgets.QWidget):
         togglearchived = self.findChild(ToggleArchivedButton)
         togglefavourite = self.findChild(ToggleFavouriteButton)
 
-        if idx == 0:  # Bookmarks
+        if mode == 0:  # Bookmarks
             addbookmark.setHidden(False)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
-        elif idx == 1:  # Assets
+        elif mode == 1:  # Assets
             addbookmark.setHidden(True)
             togglearchived.setHidden(True)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(True)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
-        elif idx == 2:  # Files
+        elif mode == 2:  # Files
             addbookmark.setHidden(True)
             filterbutton.setHidden(False)
             collapsesequence.setHidden(False)
             togglearchived.setHidden(False)
             togglefavourite.setHidden(False)
 
-        togglearchived.update_(idx)
-        filterbutton.update_(idx)
-        collapsesequence.update_(idx)
-        togglefavourite.update_(idx)
+        togglearchived.update_(mode)
+        filterbutton.update_(mode)
+        collapsesequence.update_(mode)
+        togglefavourite.update_(mode)
 
 
 class ListControlDelegate(QtWidgets.QStyledItemDelegate):
@@ -491,7 +480,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         if index.row() < 2:
             return
 
-        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        parent = self.parent().parent()  # browserwidget
         currentmode = parent.fileswidget.model().sourceModel().get_location()
 
         active = currentmode.lower() == index.data(QtCore.Qt.DisplayRole).lower()
@@ -532,7 +521,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         if index.row() != Mode:
             return
 
-        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        parent = self.parent().parent()  # browserwidget
         currentmode = parent.findChild(StackedWidget).currentIndex()
         active_index = parent.findChild(
             StackedWidget).widget(Mode).active_index()
@@ -622,7 +611,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         if index.row() != Mode:
             return
 
-        parent = self.parent().parent().parent().parent().parent()  # browserwidget
+        parent = self.parent().parent()  # browserwidget
         currentmode = parent.findChild(StackedWidget).currentIndex()
         active_index = parent.findChild(
             StackedWidget).widget(Mode).active_index()
@@ -707,7 +696,12 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
 class ListControlView(QtWidgets.QListView):
     def __init__(self, parent=None):
         super(ListControlView, self).__init__(parent=parent)
+        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.close()
 
 class ListControlModel(BaseModel):
     """The model responsible for storing the available modes to browse."""
@@ -724,6 +718,7 @@ class ListControlModel(BaseModel):
     def __init__(self, parent=None):
         self.parentwidget = parent
         super(ListControlModel, self).__init__(parent=parent)
+        self.__initdata__()
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
@@ -790,61 +785,54 @@ class ListControlModel(BaseModel):
         self.endResetModel()
 
 
-class ListControlDropdown(QtWidgets.QComboBox):
+class ListControlDropdown(ClickableLabel):
     """Drop-down widget to switch between the list"""
-    activeAssetChanged = QtCore.Signal(tuple)
+    activeAssetChanged = QtCore.Signal(QtCore.QModelIndex)
 
     def __init__(self, parent=None):
         super(ListControlDropdown, self).__init__(parent=parent)
-        self.currentTextChanged.connect(self._adjustSize)
+        self.view = ListControlView(parent=parent)
+        self.view.setModel(ListControlModel(parent=parent))
+        self.view.setItemDelegate(ListControlDelegate(parent=parent))
 
-        self.setView(ListControlView(parent=self.parent()))
-        # parent = ListControlWidget
-        self.setModel(ListControlModel(parent=self.parent()))
-        self.activeAssetChanged.connect(self.asset_changed)
+        self.activeAssetChanged.connect(self.assetChanged)
+        self.clicked.connect(self.showPopup)
 
-        self.setItemDelegate(ListControlDelegate(parent=self.view()))
+        self.setFixedWidth(150)
 
-        idx = local_settings.value(u'widget/listcontrolmode')
-        idx = idx if idx else 0
-        idx = idx if idx >= 0 else 0
-        self.setCurrentIndex(idx)
+    def paintEvent(self, event):
+        idx = self.parent().parent().stackedwidget.currentIndex()
+        text = self.view.model().index(idx, 0).data(QtCore.Qt.DisplayRole)
 
-    def asset_changed(self, asset):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        common.draw_aliased_text(
+            painter, common.PrimaryFont, self.rect(), text, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, common.TEXT)
+        painter.end()
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def assetChanged(self, index):
         self.model().__resetdata__()
         self.model().__initdata__()
 
-    def _adjustSize(self, text):
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(11)
-        metrics = QtGui.QFontMetrics(font)
-        width = metrics.width(text)
-        self.setFixedWidth(width)
-
     def showPopup(self):
-        """Toggling overlay widget when combobox is shown."""
-        popup = self.findChild(QtWidgets.QFrame)
-
+        """Showing view."""
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
-        popup.move(pos)
-        popup.setFixedWidth(self.parent().rect().width())
+        self.view.move(pos)
+        self.view.setFixedWidth(self.parent().rect().width())
 
         # Setting the height based on the conents
         height = 0
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n,0, parent=QtCore.QModelIndex())
-            height += self.view().visualRect(index).height()
-        popup.setFixedHeight(height)
+        for n in xrange(self.view.model().rowCount()):
+            index = self.view.model().index(n,0, parent=QtCore.QModelIndex())
+            height += self.view.visualRect(index).height()
+        self.view.setFixedHeight(height)
 
         # Selecting the current item
-        index = self.view().model().index(
-            self.currentIndex(), 0, parent=QtCore.QModelIndex())
-        self.view().selectionModel().setCurrentIndex(
+        idx = self.parent().parent().stackedwidget.currentIndex()
+        index = self.view.model().index(idx, 0, parent=QtCore.QModelIndex())
+        self.view.selectionModel().setCurrentIndex(
             index,
             QtCore.QItemSelectionModel.ClearAndSelect
         )
-        popup.show()
-
-    def hidePopup(self):
-        """Toggling overlay widget when combobox is shown."""
-        super(ListControlDropdown, self).hidePopup()
+        self.view.show()

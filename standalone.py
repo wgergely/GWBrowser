@@ -158,8 +158,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.tray.setToolTip('Browser')
         self.tray.show()
         self.tray.activated.connect(self.trayActivated)
-        self.findChild(FilesWidget).itemDoubleClicked.connect(
-            self.itemDoubleClicked)
+        self.findChild(FilesWidget).activated.connect(
+            self.index_activated)
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -205,7 +205,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         painter.drawRoundedRect(rect, 4, 4)
         painter.end()
 
-    def itemDoubleClicked(self, index):
+    def index_activated(self, index):
         """When in standalone mode, double-clicking an item will open that item."""
         if not index.isValid():
             return

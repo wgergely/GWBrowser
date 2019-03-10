@@ -56,9 +56,17 @@ class AssetWidgetContextMenu(BaseContextMenu):
 class AssetModel(BaseModel):
     """The model associated with the assets views."""
 
-    def __init__(self, bookmark, parent=None):
-        self.bookmark = bookmark
+    def __init__(self, parent=None):
+        self.bookmark = None
         super(AssetModel, self).__init__(parent=parent)
+
+        self.activeBookmarkChanged.connect(self.__resetdata__)
+        self.activeBookmarkChanged.connect(self.__initdata__)
+
+    def initialize(self, index):
+        if not index.isValid():
+            return
+        self.setBookmark(index)
 
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset items.
@@ -68,29 +76,35 @@ class AssetModel(BaseModel):
         the dictionary.
 
         """
+        self.beginResetModel()
         self.model_data = {}  # reset
         active_paths = Active.get_active_paths()
+        favourites = local_settings.value(u'favourites')
+        favourites = favourites if favourites else []
 
-        server, job, root = self.bookmark
-        if not all((server, job, root)):
+        if not self.bookmark:
+            return
+        if not all(self.bookmark):
             return
 
-        # Resetting the path-monitor
-        monitored = self._file_monitor.directories()
-        self._file_monitor.removePaths(monitored)
-        self._file_monitor.addPath(u'/'.join(self.bookmark))
+        rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
 
-        dir_ = QtCore.QDir(u'/'.join(self.bookmark))
-        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
-                       QtCore.QDir.Dirs |
-                       QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(
-            dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
+        server, job, root = self.bookmark
+        bookmark_path = '{}/{}/{}'.format(server, job, root)
+        itdir = QtCore.QDir(bookmark_path)
+        itdir.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.Dirs)
+        itdir.setSorting(QtCore.QDir.Unsorted)
+        it = QtCore.QDirIterator(itdir,
+                                 flags=QtCore.QDirIterator.NoIteratorFlags)
 
-        idx = 0
+        thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        thumbnail_image = ImageCache.instance().get(
+            thumbnail_path, rowsize.height() - 2)
+
         while it.hasNext():
-            # Validate assets by skipping folders without the identifier file
-            it.next()
+            filepath = it.next()
+            filename = it.fileName()
+
             identifier = QtCore.QDir(it.filePath()).entryList(
                 (common.ASSET_IDENTIFIER, ),
                 filters=QtCore.QDir.Files |
@@ -99,80 +113,81 @@ class AssetModel(BaseModel):
             if not identifier:
                 continue
 
-            # Flags
+            tooltip = u'{}\n'.format(filename.upper())
+            tooltip += u'{}\n'.format(server.upper())
+            tooltip += u'{}\n'.format(job.upper())
+            tooltip += u'{}'.format(filepath)
+
+            self.model_data[len(self.model_data)] = {
+                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.EditRole: filename,
+                QtCore.Qt.StatusTipRole: it.filePath(),
+                QtCore.Qt.ToolTipRole: tooltip,
+                QtCore.Qt.SizeHintRole: rowsize,
+                common.FlagsRole: QtCore.Qt.NoItemFlags,
+                common.ParentRole: (server, job, root, filename),
+                common.DescriptionRole: u'',
+                common.TodoCountRole: 0,
+                common.FileDetailsRole: it.fileInfo().size(),
+                common.ThumbnailRole: thumbnail_image,
+                common.ThumbnailBackgroundRole: QtGui.QColor(0,0,0,0),
+                common.TypeRole: common.AssetItem,
+            }
+        self.endResetModel()
+        # file-monitor timestamp
+        self._last_refreshed[None] = time.time()
+
+        for n in xrange(self.rowCount()):
+            index = self.index(n, 0, parent=QtCore.QModelIndex())
+            settings = AssetSettings(index)
             flags = (
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsEditable
             )
+            filename = index.data(QtCore.Qt.DisplayRole)
+            filepath = index.data(QtCore.Qt.StatusTipRole)
 
-            # Active
-            if it.fileName() == active_paths[u'asset']:
+            if filename == active_paths[u'asset']:
                 flags = flags | MarkedAsActive
-
-            # Archived
-            settings = AssetSettings((server, job, root, it.filePath()))
             if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
-
-            # Favourite
-            favourites = local_settings.value(u'favourites')
-            favourites = favourites if favourites else []
-            if it.filePath() in favourites:
+            if filepath in favourites:
                 flags = flags | MarkedAsFavourite
+            self.model_data[index.row()][common.FlagsRole] = flags
 
             # Todos
             todos = settings.value(u'config/todos')
+            todocount = 0
             if todos:
-                count = len([k for k in todos if not todos[k]
+                todocount = len([k for k in todos if not todos[k]
                              [u'checked'] and todos[k][u'text']])
             else:
-                count = 0
+                todocount = 0
+            self.model_data[index.row()][common.TodoCountRole] = todocount
 
-            tooltip = u'{}\n'.format(it.fileName().upper())
-            tooltip += u'{}\n'.format(server.upper())
-            tooltip += u'{}\n'.format(job.upper())
-            tooltip += u'{}'.format(it.filePath())
-            self.model_data[idx] = {
-                QtCore.Qt.DisplayRole: it.fileName(),
-                QtCore.Qt.EditRole: it.fileName(),
-                QtCore.Qt.StatusTipRole: it.filePath(),
-                QtCore.Qt.ToolTipRole: tooltip,
-                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT),
-                common.FlagsRole: flags,
-                # parent includes the asset
-                common.ParentRole: (server, job, root, it.fileName()),
-                common.DescriptionRole: settings.value(u'config/description'),
-                common.TodoCountRole: count,
-                common.FileDetailsRole: it.fileInfo().size(),
-            }
-            idx += 1
+            description = settings.value(u'config/description')
+            self.model_data[index.row()][common.DescriptionRole] = description
 
-        self._last_refreshed[self.get_location()] = time.time() # file-monitor timestamp
-
-    def get_location(self):
-        """There is no location associated with the asset widget,
-        Needed context menu functionality only."""
-        return None
-
-    def set_bookmark(self, bookmark):
+    @QtCore.Slot(QtCore.QModelIndex)
+    def setBookmark(self, index):
         """Sets a new bookmark for the model and resets the model_data object."""
-        self.bookmark = bookmark
-        self.beginResetModel()
-        self.__initdata__()
-        self.endResetModel()
+        if index.data(common.ParentRole) == self.bookmark:
+            return
+        self.bookmark = index.data(common.ParentRole)
+        self.activeBookmarkChanged.emit(index)
 
 
 class AssetWidget(BaseInlineIconWidget):
     """View for displaying the model items."""
 
-    def __init__(self, bookmark, parent=None):
+    def __init__(self, parent=None):
         super(AssetWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
         self.setItemDelegate(AssetWidgetDelegate(parent=self))
         self.context_menu_cls = AssetWidgetContextMenu
-        self.set_model(AssetModel(bookmark))
 
+        self.set_model(AssetModel(parent=self))
         self.model().sourceModel().refreshRequested.connect(self.refresh)
 
     def eventFilter(self, widget, event):
@@ -180,10 +195,11 @@ class AssetWidget(BaseInlineIconWidget):
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:
-            #Let's paint the icon of the current mode
+            # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
-            pixmap = ImageCache.get_rsc_pixmap('assets', QtGui.QColor(0,0,0,10), 200)
+            pixmap = ImageCache.get_rsc_pixmap(
+                'assets', QtGui.QColor(0, 0, 0, 10), 200)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())

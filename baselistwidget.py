@@ -21,7 +21,6 @@ from browser.settings import local_settings
 from browser.settings import AssetSettings
 
 
-
 def contextmenu(func):
     """Decorator to create a menu set."""
     @wraps(func)
@@ -515,7 +514,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, self.index)}
 
-        suffix = QtCore.QFileInfo(self.index.data(QtCore.Qt.StatusTipRole)).suffix()
+        suffix = QtCore.QFileInfo(self.index.data(
+            QtCore.Qt.StatusTipRole)).suffix()
         if suffix in common.get_oiio_namefilters(as_array=True):
             menu_set[key]['_separator_'] = {}
 
@@ -636,7 +636,6 @@ def flagsmethod(func):
 
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
-
     grouppingChanged = QtCore.Signal()  # The sequence view mode
     """Sequence view expanded/collapsed."""
 
@@ -649,11 +648,13 @@ class BaseModel(QtCore.QAbstractItemModel):
     refreshRequested = QtCore.Signal(basestring)
     """Files have been modified and the model needs a refresh."""
 
-    activeBookmarkChanged = QtCore.Signal(tuple)
-    activeAssetChanged = QtCore.Signal(tuple)
+    activeBookmarkChanged = QtCore.Signal(QtCore.QModelIndex)
+    activeAssetChanged = QtCore.Signal(QtCore.QModelIndex)
     activeLocationChanged = QtCore.Signal(basestring)
     activeFileChanged = QtCore.Signal(basestring)
     """The active item has changed."""
+
+    initialized = QtCore.Signal(QtCore.QModelIndex) # The active model
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -676,7 +677,36 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._last_changed = {}  # a dict of path/timestamp values
         self._file_monitor.directoryChanged.connect(self.directory_changed)
 
-        self.__initdata__()
+    def __resetdata__(self):
+        """Resets the internal data."""
+        # Resetting the file-monitor
+        monitored = self._file_monitor.directories()
+        if monitored:
+            self._file_monitor.removePaths(monitored)
+
+        self.modelDataAboutToChange.emit()
+        self.beginResetModel()
+        self._model_data = {
+            common.RendersFolder: {True: {}, False: {}},
+            common.ScenesFolder: {True: {}, False: {}},
+            common.TexturesFolder: {True: {}, False: {}},
+            common.ExportsFolder: {True: {}, False: {}},
+        }
+        self.model_data = {}
+        self.endResetModel()
+
+    def __initdata__(self):
+        raise NotImplementedError(u'__initdata__ is abstract')
+
+    def initialize(self):
+        raise NotImplementedError('initialize() is abstract.')
+
+    def active_index(self):
+        index = QtCore.QModelIndex()
+        for n in xrange(self.rowCount()):
+            index = self.index(n, 0)
+            if index.flags() & MarkedAsActive:
+                return index
 
     def directory_changed(self, path):
         """Slot connected to the file monitor's folderChanged signal."""
@@ -697,26 +727,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._last_changed[path] = time.time()
         if self._last_refreshed[location] < self._last_changed[path]:
             self.refreshRequested.emit(location)  # only for the given location
-
-    def __resetdata__(self):
-        """Resets the internal data."""
-        # Resetting the file-monitor
-        monitored = self._file_monitor.directories()
-        self._file_monitor.removePaths(monitored)
-
-        self.modelDataAboutToChange.emit()
-        self.beginResetModel()
-        self._model_data = {
-            common.RendersFolder: {True: {}, False: {}},
-            common.ScenesFolder: {True: {}, False: {}},
-            common.TexturesFolder: {True: {}, False: {}},
-            common.ExportsFolder: {True: {}, False: {}},
-        }
-        self.model_data = {}
-        self.endResetModel()
-
-    def __initdata__(self):
-        raise NotImplementedError(u'__initdata__ is abstract')
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -913,7 +923,8 @@ class BaseListWidget(QtWidgets.QListView):
 
     def update_thumbnail(self, index):
         height = self.visualRect(index).height() - 2
-        ImageCache.instance().cache_image(AssetSettings(index).thumbnail_path(), height, overwrite=True)
+        ImageCache.instance().cache_image(AssetSettings(
+            index).thumbnail_path(), height, overwrite=True)
         self.update(index)
 
     def set_model(self, model):

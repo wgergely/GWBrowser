@@ -44,8 +44,9 @@ class FileInfoThread(QtCore.QThread):
     def __init__(self, model, parent=None):
         super(FileInfoThread, self).__init__(parent=parent)
         self.model = model
-        app = QtCore.QCoreApplication.instance()
-        app.aboutToQuit.connect(self.quit)
+        app = QtWidgets.QApplication.instance()
+        # app.aboutToQuit.connect(self.quit)
+        app.aboutToQuit.connect(lambda: self.exit(0))
         app.aboutToQuit.connect(self.deleteLater)
         self.start()
 
@@ -56,7 +57,6 @@ class FileInfoThread(QtCore.QThread):
             lambda index: self.worker.processIndexes((index,)))
         sys.stderr.write(
             'FileInfoThread.run() -> {}\n'.format(QtCore.QThread.currentThread()))
-
         self.started.emit()
         self.exec_()
 
@@ -253,8 +253,8 @@ class FilesModel(BaseModel):
 
     """
 
-    def __init__(self, asset, parent=None):
-        self.asset = asset
+    def __init__(self, parent=None):
+        self.asset = None
         self.mode = None
         self._isgrouped = None
         self.threads = {}
@@ -276,7 +276,7 @@ class FilesModel(BaseModel):
         self.modelDataResetRequested.connect(self.__resetdata__)
 
         self.mutex = QtCore.QMutex()
-        self.switch_model_data()
+        # self.switch_model_data()
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -288,19 +288,18 @@ class FilesModel(BaseModel):
 
         """
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        flags = (
-            QtCore.Qt.ItemNeverHasChildren
-        )
+        flags = (QtCore.Qt.ItemNeverHasChildren)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
         # Invalid asset, we'll do nothing.
+        if not self.asset:
+            return
         if not all(self.asset):
             return
 
         server, job, root, asset = self.asset
         location = self.get_location()
-
         location_path = ('{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
@@ -418,7 +417,6 @@ class FilesModel(BaseModel):
             """Yields successive n-sized chunks of the given list."""
             for i in xrange(0, len(l), n):
                 yield l[i:i + n]
-        # When the dataset is empty, calling __initdata__
         location = self.get_location()
 
         if location not in self._model_data:
@@ -432,33 +430,11 @@ class FilesModel(BaseModel):
         )][self.is_grouped()]
         self.endResetModel()
 
-        # Getting additional information
-        # app = QtCore.QCoreApplication.instance()
-        # app.processEvents()
-
-        # idtc = QtCore.QThread.idealThreadCount()
         indexes = []
         for n in xrange(self.rowCount()):
             index = self.index(n, 0)
             indexes.append(index)
         self.threads[0].dataRequested.emit(indexes)
-        #
-        # chunks = list(chunks(indexes, int(math.ceil(float(len(indexes)) / idtc))))
-
-        # worker = FileInfoWorker(self)
-        # worker.moveToThread(thread)
-        #
-        # app.aboutToQuit.connect(thread.quit)
-        # app.aboutToQuit.connect(thread.deleteLater)
-        #
-        # thread.started.connect(worker.process_data)
-        #
-        # worker.finished.connect(thread.quit)
-        # worker.finished.connect(worker.deleteLater)
-        # thread.finished.connect(thread.deleteLater)
-        # thread.finished.connect(functools.partial(self.delete_thread, thread))
-        #
-        # thread.start()
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -575,10 +551,7 @@ class FilesWidget(BaseInlineIconWidget):
     asset file.
 
     """
-
-    itemDoubleClicked = QtCore.Signal(QtCore.QModelIndex)
-
-    def __init__(self, asset, parent=None):
+    def __init__(self, parent=None):
         super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
@@ -588,7 +561,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.setWindowTitle(u'Files')
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
-        self.set_model(FilesModel(asset))
+        self.set_model(FilesModel())
         self.model().sourceModel().threads[FileInfoThread.thread_id].worker.indexUpdated.connect(self.update)
 
     def eventFilter(self, widget, event):
@@ -613,7 +586,7 @@ class FilesWidget(BaseInlineIconWidget):
 
     def action_on_enter_key(self):
         index = self.selectionModel().currentIndex()
-        self.itemDoubleClicked.emit(index)
+        self.activated.emit(index)
 
     def activate_current_index(self):
         """Sets the current item item as ``active`` and
@@ -685,17 +658,12 @@ class FilesWidget(BaseInlineIconWidget):
             return
 
         # self.activate_current_index()
-        self.itemDoubleClicked.emit(index)
+        self.activated.emit(index)
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     active_paths = Active.get_active_paths()
-    asset = (active_paths[u'server'],
-             active_paths[u'job'],
-             active_paths[u'root'],
-             active_paths[u'asset'],
-             )
-    widget = FilesWidget(asset)
+    widget = FilesWidget()
     widget.show()
     app.exec_()

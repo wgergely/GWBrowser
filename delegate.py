@@ -178,6 +178,41 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(color))
         painter.drawRect(rect)
 
+    @paintmethod
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnail of an item."""
+        painter, option, index, selected, _, _, _, _ = args
+
+        # Background rectangle
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
+        rect.setTop(rect.top() + 1)
+        rect.setBottom(rect.bottom() - 1)
+        rect.setRight(option.rect.left() +
+                      common.INDICATOR_WIDTH + rect.height())
+
+        image = index.data(common.ThumbnailRole)
+        color = index.data(common.ThumbnailBackgroundRole)
+
+        # Background
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(color)
+        painter.drawRect(rect)
+
+        # Resizing the rectangle to accommodate the image's aspect ration
+        longer = float(max(image.rect().width(), image.rect().height()))
+        factor = float(rect.width() / float(longer))
+        center = rect.center()
+        if image.rect().width() < image.rect().height():
+            rect.setWidth(int(image.rect().width() * factor) - 2)
+        else:
+            rect.setHeight(int(image.rect().height() * factor) - 2)
+        rect.moveCenter(center)
+        painter.drawImage(
+            rect,
+            image,
+            image.rect()
+        )
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -210,49 +245,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
-
-    @paintmethod
-    def paint_thumbnail(self, *args):
-        """Paints the thumbnail of a ``FileListWidget`` item."""
-        painter, option, index, selected, _, _, _, _ = args
-
-        # Background rectangle
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setRight(option.rect.left() +
-                      common.INDICATOR_WIDTH + rect.height())
-
-        image = index.data(common.ThumbnailRole)
-        color = index.data(common.ThumbnailBackgroundRole)
-
-        # Background
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(color)
-        painter.drawRect(rect)
-
-        # Resizing the rectangle to accommodate the image's aspect ration
-        longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / float(longer))
-        center = rect.center()
-        if image.rect().width() < image.rect().height():
-            rect.setWidth(int(image.rect().width() * factor) - 2)
-        else:
-            rect.setHeight(int(image.rect().height() * factor) - 2)
-        rect.moveCenter(center)
-        if isinstance(image, QtGui.QImage):
-            painter.drawImage(
-                rect,
-                image,
-                image.rect()
-            )
-        elif isinstance(image, QtGui.QPixmap):
-            painter.drawPixmap(
-                rect,
-                image,
-                image.rect()
-            )
 
 
     @paintmethod
@@ -555,37 +547,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_count_icon(*args)
         #
         self.paint_selection_indicator(*args)
-
-    @paintmethod
-    def paint_thumbnail(self, *args):
-        """Paints the thumbnail of the ``BookmarkWidget`` item."""
-        painter, option, index, selected, _, active, _, _ = args
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setWidth(rect.height())
-
-        center = rect.center()
-        rect.setWidth(rect.height() / 2)
-        rect.setHeight(rect.height() / 2)
-        rect.moveCenter(center)
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.SECONDARY_BACKGROUND, rect.height())
-        if selected:
-            pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.BACKGROUND, rect.height())
-        if active:
-            pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.FAVOURITE, rect.height())
-
-        painter.drawPixmap(
-            rect,
-            pixmap,
-            pixmap.rect()
-        )
 
     @paintmethod
     def paint_name(self, *args):
