@@ -131,11 +131,7 @@ class BookmarksModel(BaseModel):
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
-
-    def initialize(self):
-        """Emits loads the model_data and emits the active index."""
         self.__initdata__()
-        self.initialized.emit(self.active_index())
 
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
@@ -149,7 +145,7 @@ class BookmarksModel(BaseModel):
         self.model_data = {}  # reset
         active_paths = Active.get_active_paths()
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
-        
+
         items = local_settings.value(
             u'bookmarks') if local_settings.value(u'bookmarks') else []
         items = [BookmarkInfo(items[k]) for k in items]
@@ -284,6 +280,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.context_menu_cls = BookmarksWidgetContextMenu
 
         self.set_model(BookmarksModel(parent=self))
+
 
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)

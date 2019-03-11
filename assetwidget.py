@@ -60,16 +60,8 @@ class AssetModel(BaseModel):
         self.bookmark = None
         super(AssetModel, self).__init__(parent=parent)
 
-        self.activeBookmarkChanged.connect(self.__resetdata__)
-        self.activeBookmarkChanged.connect(self.__initdata__)
-
-    def initialize(self, index):
-        if not index.isValid():
-            return
-        self.setBookmark(index)
-
     def __initdata__(self):
-        """Querries the bookmark folder and collects the found asset items.
+        """Querries the bookmark folder and collects the found asset itemsself.
 
         The model uses `self.model_data (dict)` to read the values needed to
         display the found items. Calling this method will reset / repopulate
@@ -172,10 +164,12 @@ class AssetModel(BaseModel):
     @QtCore.Slot(QtCore.QModelIndex)
     def setBookmark(self, index):
         """Sets a new bookmark for the model and resets the model_data object."""
+        if not index.isValid():
+            return
         if index.data(common.ParentRole) == self.bookmark:
             return
         self.bookmark = index.data(common.ParentRole)
-        self.activeBookmarkChanged.emit(index)
+        self.modelDataResetRequested.emit()
 
 
 class AssetWidget(BaseInlineIconWidget):
@@ -188,7 +182,6 @@ class AssetWidget(BaseInlineIconWidget):
         self.context_menu_cls = AssetWidgetContextMenu
 
         self.set_model(AssetModel(parent=self))
-        self.model().sourceModel().refreshRequested.connect(self.refresh)
 
     def eventFilter(self, widget, event):
         super(AssetWidget, self).eventFilter(widget, event)
@@ -216,14 +209,9 @@ class AssetWidget(BaseInlineIconWidget):
         emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
 
         """
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
-        reset_needed = not index.flags() & MarkedAsActive
-
         if not super(AssetWidget, self).activate_current_index():
             return
+        index = self.selectionModel().currentIndex()
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         local_settings.setValue(u'activepath/asset', file_info.fileName())
@@ -232,11 +220,7 @@ class AssetWidget(BaseInlineIconWidget):
         # By updating the saved state we're making sure the active_monit doesn't emit the assetChangedSignal
         # (we don't want to trigger two update model updates)
         active_monitor.update_saved_state(u'asset', file_info.fileName())
-        self.model().sourceModel().activeAssetChanged.emit(index.data(common.ParentRole))
-
-        # Activating a new item will require the filesmodel to be updated
-        if reset_needed:
-            self.model().sourceModel().modelDataResetRequested.emit()  # resetting the fileModel
+        self.model().sourceModel().activeAssetChanged.emit(index)
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""

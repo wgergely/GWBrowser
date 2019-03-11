@@ -105,7 +105,6 @@ class FileInfoWorker(QtCore.QObject):
 
     def _process_data(self, indexes):
         """The actual processing happens here."""
-        import time
         for index in indexes:
             if not index.isValid():
                 return
@@ -254,29 +253,26 @@ class FilesModel(BaseModel):
     """
 
     def __init__(self, parent=None):
+        super(FilesModel, self).__init__(parent=parent)
+
         self.asset = None
         self.mode = None
         self._isgrouped = None
-        self.threads = {}
 
         # Thread-worker reposinble for completing the model data
+        self.threads = {}
+        self.mutex = QtCore.QMutex()
         self.threads[FileInfoThread.thread_id] = FileInfoThread(self)
 
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(1250)
-        self.timer.setSingleShot(False)
-        self.timer.timeout.connect(lambda: sys.stderr.write(
-            'FileInfoThread status: {}\n'.format(self.threads[FileInfoThread.thread_id].isRunning())))
-        self.timer.start()
-
-        super(FilesModel, self).__init__(parent=parent)
+        # self.timer = QtCore.QTimer()
+        # self.timer.setInterval(1250)
+        # self.timer.setSingleShot(False)
+        # self.timer.timeout.connect(lambda: sys.stderr.write(
+        #     'FileInfoThread status: {}\n'.format(self.threads[FileInfoThread.thread_id].isRunning())))
+        # self.timer.start()
 
         self.grouppingChanged.connect(self.switch_model_data)
         self.activeLocationChanged.connect(self.switch_model_data)
-        self.modelDataResetRequested.connect(self.__resetdata__)
-
-        self.mutex = QtCore.QMutex()
-        # self.switch_model_data()
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -440,11 +436,13 @@ class FilesModel(BaseModel):
     def delete_thread(self, thread):
         del self.threads[thread.idx]
 
-    def set_asset(self, asset):
+    @QtCore.Slot(QtCore.QModelIndex)
+    def setAsset(self, index):
         """Sets a new asset for the model."""
-        if self.asset == asset:
+        if index.data(common.ParentRole) == self.asset:
             return
-        self.asset = asset
+        self.asset = index.data(common.ParentRole)
+        self.modelDataResetRequested.emit()
 
     def is_grouped(self):
         """Gathers sequences into a single file."""
@@ -467,7 +465,6 @@ class FilesModel(BaseModel):
         if cval == val:
             return
 
-        self.modelDataAboutToChange.emit()
         self._isgrouped = val
         local_settings.setValue(key, val)
         self.grouppingChanged.emit()
@@ -503,7 +500,6 @@ class FilesModel(BaseModel):
         if self.is_grouped() == groupped:
             return
 
-        self.modelDataAboutToChange.emit()
         self._isgrouped = groupped
         self.grouppingChanged.emit()
 
@@ -666,7 +662,6 @@ class FilesWidget(BaseInlineIconWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    active_paths = Active.get_active_paths()
     widget = FilesWidget()
     widget.show()
     app.exec_()

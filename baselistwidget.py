@@ -468,7 +468,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'action': self.parent().activate_current_index
             }
         menu_set[u'Refresh'] = {
-            u'action': self.parent().refresh,
+            u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
             u'icon': refresh_pixmap
         }
 
@@ -611,6 +611,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 
+        parent = self.parent().parent().parent().listcontrolwidget
         for k in sorted(list(common.NameFilters)):
             checked = self.parent().model().sourceModel().get_location() == k
             menu_set[key][k] = {
@@ -618,7 +619,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'checkable': True,
                 u'checked': checked,
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
-                u'action': functools.partial(self.parent().model().sourceModel().set_location, k)
+                u'action': functools.partial(parent.locationChanged.emit, k)
             }
         return menu_set
 
@@ -640,13 +641,8 @@ class BaseModel(QtCore.QAbstractItemModel):
     """Sequence view expanded/collapsed."""
 
     # Emit before the model is about to change
-    modelDataAboutToChange = QtCore.Signal()
-    """Signal emited before the model data changes."""
     modelDataResetRequested = QtCore.Signal()
     """Signal emited when all the data has to be refreshed."""
-
-    refreshRequested = QtCore.Signal(basestring)
-    """Files have been modified and the model needs a refresh."""
 
     activeBookmarkChanged = QtCore.Signal(QtCore.QModelIndex)
     activeAssetChanged = QtCore.Signal(QtCore.QModelIndex)
@@ -654,16 +650,9 @@ class BaseModel(QtCore.QAbstractItemModel):
     activeFileChanged = QtCore.Signal(basestring)
     """The active item has changed."""
 
-    initialized = QtCore.Signal(QtCore.QModelIndex) # The active model
-
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
-        self._model_data = {
-            common.RendersFolder: {True: {}, False: {}},
-            common.ScenesFolder: {True: {}, False: {}},
-            common.TexturesFolder: {True: {}, False: {}},
-            common.ExportsFolder: {True: {}, False: {}},
-        }
+        self._model_data = {}
         self.model_data = {}
 
         # File-system monitor
@@ -676,24 +665,19 @@ class BaseModel(QtCore.QAbstractItemModel):
         }
         self._last_changed = {}  # a dict of path/timestamp values
         self._file_monitor.directoryChanged.connect(self.directory_changed)
+        self.modelDataResetRequested.connect(self.__resetdata__)
 
-    def __resetdata__(self):
+    def __resetdata__(self, resetall=False):
         """Resets the internal data."""
-        # Resetting the file-monitor
         monitored = self._file_monitor.directories()
         if monitored:
             self._file_monitor.removePaths(monitored)
 
-        self.modelDataAboutToChange.emit()
-        self.beginResetModel()
-        self._model_data = {
-            common.RendersFolder: {True: {}, False: {}},
-            common.ScenesFolder: {True: {}, False: {}},
-            common.TexturesFolder: {True: {}, False: {}},
-            common.ExportsFolder: {True: {}, False: {}},
-        }
+        if resetall:
+            self._model_data = {}
         self.model_data = {}
-        self.endResetModel()
+        self.__initdata__()
+        self.switch_model_data()
 
     def __initdata__(self):
         raise NotImplementedError(u'__initdata__ is abstract')
@@ -726,7 +710,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         path = path.rstrip(u'/')
         self._last_changed[path] = time.time()
         if self._last_refreshed[location] < self._last_changed[path]:
-            self.refreshRequested.emit(location)  # only for the given location
+            self.model().sourceModel().modelDataResetRequested.emit()
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -933,11 +917,15 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy_model)
         self.model().sort()
 
-        self.model().sourceModel().grouppingChanged.connect(self.select_path)
-        self.model().sourceModel().modelDataAboutToChange.connect(self.store_previous_path)
+        def timestamp():
+            self.model().sourceModel()._last_refreshed[self.model(
+            ).sourceModel().get_location()] = time.time()
 
-        self.model().sourceModel().grouppingChanged.connect(self.model().invalidate)
-        self.model().sourceModel().activeLocationChanged.connect(self.model().invalidate)
+        self.model().sourceModel().modelAboutToBeReset.connect(self.store_previous_path)
+        self.model().sourceModel().modelReset.connect(self.model().invalidate)
+        self.model().sourceModel().modelReset.connect(self.model().sort)
+        self.model().sourceModel().modelReset.connect(self.reselect_previous_path)
+        self.model().sourceModel().modelReset.connect(timestamp)
 
         # Select the active item
         self.selectionModel().setCurrentIndex(
@@ -1062,26 +1050,11 @@ class BaseListWidget(QtWidgets.QListView):
                     favourites.remove(file_info.filePath())
                     local_settings.setValue(u'favourites', favourites)
 
-    def refresh(self):
-        """Refreshes the model data, and the sorting."""
-        self.model().sourceModel().modelDataAboutToChange.emit()
-
-        self.model().sourceModel().beginResetModel()
-        self.model().sourceModel().__initdata__()
-        self.model().sourceModel().switch_model_data()
-        self.model().sourceModel().endResetModel()
-        self.model().invalidate()
-        self.model().sort()
-        self.select_path()
-
-        self.model().sourceModel()._last_refreshed[self.model(
-        ).sourceModel().get_location()] = time.time()
-
-    def select_path(self, path=None):
+    def reselect_previous_path(self, path=None):
         """Selects an item of the given path if found. This method is called
         by a few signals, usually after a refresh has been triggered.
 
-        ``_previouspathtoselect`` is automatically set when the ``modelDataAboutToChange``
+        ``_previouspathtoselect`` is automatically set when the ``modelAboutToBeReset``
         signal is emited.
 
         """
@@ -1310,15 +1283,15 @@ class BaseListWidget(QtWidgets.QListView):
         for n in xrange(self.model().sourceModel().rowCount()):
             index = self.model().sourceModel().index(n, 0, parent=QtCore.QModelIndex())
             if index.flags() & MarkedAsActive:
-                return index
+                return self.model().mapFromSource(index)
         return QtCore.QModelIndex()
 
     def unmark_active_index(self):
         """Unsets the active flag."""
-        source_index = self.model().mapToSource(self.active_index())
-        if not source_index.isValid():
+        index = self.active_index()
+        if not index.isValid():
             return
-
+        source_index = self.model().mapToSource(index)
         self.model().sourceModel().setData(
             source_index,
             source_index.flags() & ~MarkedAsActive,
@@ -1341,8 +1314,11 @@ class BaseListWidget(QtWidgets.QListView):
         if index.flags() & MarkedAsArchived:
             return False
 
-        self.unmark_active_index()
+        self.activated.emit(index)
+        if index == self.active_index():
+            return
 
+        self.unmark_active_index()
         source_index = self.model().mapToSource(index)
         self.model().sourceModel().setData(
             source_index,
@@ -1351,28 +1327,26 @@ class BaseListWidget(QtWidgets.QListView):
         )
         return True
 
-    def select_active_index(self):
-        """Selects the active item."""
-        self.selectionModel().setCurrentIndex(
-            self.active_index(),
-            QtCore.QItemSelectionModel.ClearAndSelect
-        )
-
     def showEvent(self, event):
         """Show event will set the size of the widget."""
-
-        self.select_active_index()
-
-        idx = local_settings.value(
-            u'widget/{}/selected_row'.format(self.__class__.__name__),
-        )
-        if not idx:
-            idx = 0
-        if self.model().rowCount():
+        if self.active_index().isValid():
             self.selectionModel().setCurrentIndex(
-                self.model().index(idx, 0, parent=QtCore.QModelIndex()),
+                self.active_index(),
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
+            self.scrollTo(self.active_index())
+        else:
+            idx = local_settings.value(
+                u'widget/{}/selected_row'.format(self.__class__.__name__),
+            )
+            if not idx:
+                idx = 0
+            if self.model().rowCount():
+                self.selectionModel().setCurrentIndex(
+                    self.model().index(idx, 0),
+                    QtCore.QItemSelectionModel.ClearAndSelect
+                )
+                self.scrollTo(self.model().index(idx, 0))
 
         super(BaseListWidget, self).showEvent(event)
 

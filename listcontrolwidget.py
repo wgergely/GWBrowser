@@ -369,6 +369,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._connectSignals()
 
     def initialize(self):
+        """Populates the model data."""
         self.findChild(ListControlDropdown).view.model().__initdata__()
 
     def _createUI(self):
@@ -798,7 +799,6 @@ class ListControlModel(BaseModel):
 
     def __resetdata__(self):
         """Resets the internal data."""
-        self.modelDataAboutToChange.emit()
         self.beginResetModel()
         self.model_data = {}
         self.endResetModel()
