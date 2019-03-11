@@ -36,13 +36,14 @@ class FileInfoThread(QtCore.QThread):
     The thread is started when the model is created.
 
     """
-    thread_id = 0
     __worker = None
 
     dataRequested = QtCore.Signal(tuple)
 
     def __init__(self, model, parent=None):
         super(FileInfoThread, self).__init__(parent=parent)
+        self.thread_id = None
+
         self.model = model
         app = QtWidgets.QApplication.instance()
         # app.aboutToQuit.connect(self.quit)
@@ -209,6 +210,7 @@ class FileInfoWorker(QtCore.QObject):
             self.model.model_data[idx][common.FlagsRole] = flags
             self.indexUpdated.emit(index)
 
+
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with FilesWidget."""
 
@@ -262,14 +264,12 @@ class FilesModel(BaseModel):
         # Thread-worker reposinble for completing the model data
         self.threads = {}
         self.mutex = QtCore.QMutex()
-        self.threads[FileInfoThread.thread_id] = FileInfoThread(self)
-
-        # self.timer = QtCore.QTimer()
-        # self.timer.setInterval(1250)
-        # self.timer.setSingleShot(False)
-        # self.timer.timeout.connect(lambda: sys.stderr.write(
-        #     'FileInfoThread status: {}\n'.format(self.threads[FileInfoThread.thread_id].isRunning())))
-        # self.timer.start()
+        self.threads[0] = FileInfoThread(self)
+        self.threads[0].thread_id = 0
+        self.threads[1] = FileInfoThread(self)
+        self.threads[1].thread_id = 1
+        self.threads[2] = FileInfoThread(self)
+        self.threads[2].thread_id = 2
 
         self.grouppingChanged.connect(self.switch_model_data)
         self.activeLocationChanged.connect(self.switch_model_data)
@@ -312,6 +312,7 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(
             itdir, flags=QtCore.QDirIterator.Subdirectories)
 
+        common.ProgressMessage.instance().set_message(u'Getting files...')
         while it.hasNext():
             filepath = it.next()
             # File-filter:
@@ -441,7 +442,10 @@ class FilesModel(BaseModel):
         """Sets a new asset for the model."""
         if index.data(common.ParentRole) == self.asset:
             return
+
         self.asset = index.data(common.ParentRole)
+
+        self._model_data = {}
         self.modelDataResetRequested.emit()
 
     def is_grouped(self):
@@ -561,7 +565,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel())
-        self.model().sourceModel().threads[FileInfoThread.thread_id].worker.indexUpdated.connect(self.update)
+        self.model().sourceModel().threads[0].worker.indexUpdated.connect(self.update)
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

@@ -667,14 +667,12 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._file_monitor.directoryChanged.connect(self.directory_changed)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
-    def __resetdata__(self, resetall=False):
+    def __resetdata__(self):
         """Resets the internal data."""
         monitored = self._file_monitor.directories()
         if monitored:
             self._file_monitor.removePaths(monitored)
 
-        if resetall:
-            self._model_data = {}
         self.model_data = {}
         self.__initdata__()
         self.switch_model_data()
