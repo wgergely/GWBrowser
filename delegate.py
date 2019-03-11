@@ -246,7 +246,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(QtGui.QBrush(gradient))
         painter.drawRect(rect)
 
-
     @paintmethod
     def paint_data(self, *args):
         """Generic paint method to draw the name of an item."""
@@ -297,7 +296,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(brush)
         painter.drawRect(option.rect)
 
-
     @paintmethod
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
@@ -321,14 +319,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             pixmap = ImageCache.get_rsc_pixmap(
                 u'archived', color, common.INLINE_ICON_SIZE)
             painter.setBrush(common.SEPARATOR)
-            painter.drawRoundedRect(bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
+            painter.drawRoundedRect(
+                bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
                 u'active', color, common.INLINE_ICON_SIZE)
 
         # Icon
         painter.drawPixmap(rect, pixmap)
-
 
     @paintmethod
     def paint_folder_icon(self, *args):
@@ -381,7 +379,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
 
         text = u'{}'.format(index.data(common.TodoCountRole))
-        common.draw_aliased_text(painter, font, count_rect, text, QtCore.Qt.AlignCenter, common.TEXT)
+        common.draw_aliased_text(
+            painter, font, count_rect, text, QtCore.Qt.AlignCenter, common.TEXT)
 
     @paintmethod
     def paint_favourite_icon(self, *args):
@@ -517,7 +516,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
         return metrics.width(text)
 
     def sizeHint(self, option, index):
@@ -571,7 +571,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[\W\d\_]+', '', text)
-        text = u'  {}  |  {}  '.format(index.data(common.ParentRole)[0].strip('/').lower(), text.upper())
+        text = u'  {}  |  {}  '.format(index.data(common.ParentRole)[
+                                       0].strip('/').lower(), text.upper())
         width = metrics.width(text)
         rect.setWidth(width)
 
@@ -587,7 +588,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         pen.setWidth(offset)
         painter.setPen(pen)
         painter.drawRoundedRect(rect, 2, 2)
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
 
         color = self.get_state_color(option, index, common.TEXT)
         rect.moveLeft(rect.right() + common.MARGIN)
@@ -601,7 +603,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignLeft, color)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignLeft, color)
 
     @paintmethod
     def paint_count_icon(self, *args):
@@ -628,7 +631,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         font.setPointSize(8)
 
         text = u'{}'.format(count)
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else common.SEPARATOR)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else common.SEPARATOR)
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
@@ -696,8 +700,10 @@ class AssetWidgetDelegate(BaseDelegate):
             QtCore.Qt.ElideRight,
             rect.width()
         )
-        color = self.get_state_color(option, index, common.SECONDARY_TEXT if archived else common.TEXT)
-        common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+        color = self.get_state_color(
+            option, index, common.SECONDARY_TEXT if archived else common.TEXT)
+        common.draw_aliased_text(
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ASSET_ROW_HEIGHT)
@@ -716,9 +722,12 @@ class FilesWidgetDelegate(BaseDelegate):
         if index.flags() & QtCore.Qt.ItemIsEnabled:
             self.paint_thumbnail(*args)
             self.paint_archived(*args)
-        self.paint_thumbnail_shadow(*args)
+            self.paint_thumbnail_shadow(*args)
         #
-        left = self.paint_mode(*args)
+        if index.flags() & QtCore.Qt.ItemIsEnabled:
+            left = self.paint_mode(*args)
+        else:
+            left = 0
         self.paint_name(*args, left=left)
         if index.flags() & QtCore.Qt.ItemIsEnabled:
             self.paint_description(*args, left=left)
@@ -797,19 +806,22 @@ class FilesWidgetDelegate(BaseDelegate):
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         text = index.data(common.FileDetailsRole)
 
-        rect = self._draw(painter, font, rect, text, align, common.SECONDARY_TEXT, option, kwargs['left'])
+        rect = self._draw(painter, font, rect, text, align,
+                          common.SECONDARY_TEXT, option, kwargs['left'])
 
         if option.rect.width() < 360.0:
             return
 
         if index.data(common.DescriptionRole):
             text = u'{}  |  \n'.format(index.data(common.DescriptionRole))
-            rect = self._draw(painter, font, rect, text, align, common.FAVOURITE, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, text, align,
+                              common.FAVOURITE, option, kwargs['left'])
         elif not index.data(common.DescriptionRole) and hover:
             color = QtGui.QColor(common.SECONDARY_TEXT)
             color.setAlpha(150)
             text = u'Double-click to add description...  |  '
-            rect = self._draw(painter, font, rect, text, align, color, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, text,
+                              align, color, option, kwargs['left'])
         return metrics.width(text)
 
     @paintmethod
@@ -863,7 +875,7 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.setPen(pen)
             painter.setBrush(QtGui.QBrush(bg_color))
 
-            rect.setWidth(metrics.width(text) + (padding*2))
+            rect.setWidth(metrics.width(text) + (padding * 2))
             # rect.moveLeft(rect.left() + (padding * 3))
             painter.drawRoundedRect(rect, 1.0, 1.0)
 
@@ -872,7 +884,8 @@ class FilesWidgetDelegate(BaseDelegate):
             else:
                 color = QtGui.QColor(common.TEXT_DISABLED)
 
-            common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, color)
+            common.draw_aliased_text(
+                painter, font, rect, text, QtCore.Qt.AlignCenter, color)
 
             if len(modes) - 1 == n:
                 return rect.right()
@@ -882,6 +895,8 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
         painter, option, index, _, _, _, _, _ = args
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(8.5)
@@ -915,7 +930,6 @@ class FilesWidgetDelegate(BaseDelegate):
         text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)',
                       r'\1\3', text, flags=re.IGNORECASE)
 
-
         match = common.is_collapsed(text)
         if match:  # sequence collapsed
             text = match.group(3).split(u'.')
@@ -924,23 +938,31 @@ class FilesWidgetDelegate(BaseDelegate):
                 suffix=u'.'.join(text).upper()
             )
 
-            rect = self._draw(painter, font, rect, text, align, common.TEXT, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(2).upper(), align, common.FAVOURITE, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(1).upper(), align, common.TEXT, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, text, align,
+                              common.TEXT, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, match.group(
+                2).upper(), align, common.FAVOURITE, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, match.group(
+                1).upper(), align, common.TEXT, option, kwargs['left'])
             return
         match = common.get_sequence(text)
         if match:  # sequence collapsed
-            text = u'{}.{}'.format(match.group(3).upper(), match.group(4).lower())
-            rect = self._draw(painter, font, rect, text, align, common.TEXT, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(2).upper(), align, common.FAVOURITE, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(1).upper(), align, common.TEXT, option, kwargs['left'])
+            text = u'{}.{}'.format(match.group(
+                3).upper(), match.group(4).lower())
+            rect = self._draw(painter, font, rect, text, align,
+                              common.TEXT, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, match.group(
+                2).upper(), align, common.FAVOURITE, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, match.group(
+                1).upper(), align, common.TEXT, option, kwargs['left'])
             return
         text = text.split(u'.')
         text = u'{suffix}.{ext}'.format(
             ext=text.pop().lower(),
             suffix=u'.'.join(text).upper()
         )
-        self._draw(painter, font, rect, text, align, common.TEXT, option, kwargs['left'])
+        self._draw(painter, font, rect, text, align,
+                   common.TEXT, option, kwargs['left'])
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)

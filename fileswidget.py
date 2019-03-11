@@ -82,7 +82,7 @@ class FileInfoWorker(QtCore.QObject):
         thread.
 
         """
-        common.ProgressMessage.instance().set_message('Updating list...')
+        common.ProgressMessage.instance().messageChanged.emit('Updating list...')
         try:
             self._process_data(indexes)
         except RuntimeError as err:
@@ -108,12 +108,9 @@ class FileInfoWorker(QtCore.QObject):
         """The actual processing happens here."""
         for index in indexes:
             if not index.isValid():
-                return
-
-            idx = index.row()
-            if self.model.model_data[idx][common.StatusRole]:
                 continue
 
+            idx = index.row()
             settings = AssetSettings(index)
             # Item description
             description = settings.value(u'config/description')
@@ -208,6 +205,7 @@ class FileInfoWorker(QtCore.QObject):
             if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
             self.model.model_data[idx][common.FlagsRole] = flags
+            self.model.model_data[idx][common.StatusRole] = True
             self.indexUpdated.emit(index)
 
 
@@ -270,6 +268,8 @@ class FilesModel(BaseModel):
         self.threads[1].thread_id = 1
         self.threads[2] = FileInfoThread(self)
         self.threads[2].thread_id = 2
+        self.threads[3] = FileInfoThread(self)
+        self.threads[3].thread_id = 3
 
         self.grouppingChanged.connect(self.switch_model_data)
         self.activeLocationChanged.connect(self.switch_model_data)
@@ -312,7 +312,6 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(
             itdir, flags=QtCore.QDirIterator.Subdirectories)
 
-        common.ProgressMessage.instance().set_message(u'Getting files...')
         while it.hasNext():
             filepath = it.next()
             # File-filter:
@@ -398,6 +397,7 @@ class FilesModel(BaseModel):
                 v[common.TypeRole] = common.FileItem
             self._model_data[location][True][idx] = v
 
+        self.model_data = self._model_data[location][self.is_grouped()]
         self.endResetModel()
 
     def switch_model_data(self):
@@ -414,37 +414,37 @@ class FilesModel(BaseModel):
             """Yields successive n-sized chunks of the given list."""
             for i in xrange(0, len(l), n):
                 yield l[i:i + n]
-        location = self.get_location()
 
+        location = self.get_location()
+        groupping = self.is_grouped()
         if location not in self._model_data:
             self._model_data[location] = {True: {}, False: {}}
 
-        if not self._model_data[location][self.is_grouped()]:
+        if not self._model_data[location][groupping]:
             self.__initdata__()
-
-        self.beginResetModel()
-        self.model_data = self._model_data[self.get_location(
-        )][self.is_grouped()]
-        self.endResetModel()
+        else:
+            self.model_data = self._model_data[location][groupping]
 
         indexes = []
         for n in xrange(self.rowCount()):
             index = self.index(n, 0)
+            if index.data(common.StatusRole):
+                continue
             indexes.append(index)
-        self.threads[0].dataRequested.emit(indexes)
+
+        for idx, chunk in enumerate(chunks(indexes, int(math.ceil(len(indexes) / float(len(self.threads)))))):
+            self.threads[idx].dataRequested.emit(chunk)
 
     @QtCore.Slot()
     def delete_thread(self, thread):
-        del self.threads[thread.idx]
+        del self.threads[thread.thread_id]
 
     @QtCore.Slot(QtCore.QModelIndex)
     def setAsset(self, index):
         """Sets a new asset for the model."""
         if index.data(common.ParentRole) == self.asset:
             return
-
         self.asset = index.data(common.ParentRole)
-
         self._model_data = {}
         self.modelDataResetRequested.emit()
 
@@ -565,7 +565,11 @@ class FilesWidget(BaseInlineIconWidget):
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel())
-        self.model().sourceModel().threads[0].worker.indexUpdated.connect(self.update)
+
+        self.model().sourceModel().threads[0].worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().threads[1].worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().threads[2].worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().threads[3].worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

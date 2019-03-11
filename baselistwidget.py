@@ -664,8 +664,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: 0.0,
         }
         self._last_changed = {}  # a dict of path/timestamp values
-        self._file_monitor.directoryChanged.connect(self.directory_changed)
-        self.modelDataResetRequested.connect(self.__resetdata__)
+        self.modelDataResetRequested.connect(self.__resetdata__, type=QtCore.Qt.QueuedConnection)
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -689,26 +688,6 @@ class BaseModel(QtCore.QAbstractItemModel):
             index = self.index(n, 0)
             if index.flags() & MarkedAsActive:
                 return index
-
-    def directory_changed(self, path):
-        """Slot connected to the file monitor's folderChanged signal."""
-        # First I have to find which location this path is associated with
-        def _get_location(path):
-            for location in self._model_data:
-                data = self._model_data[location][True]
-                for k in data:
-                    loc_path = u'/'.join(data[k][common.ParentRole])
-                    if loc_path in path:
-                        return location
-            return None
-
-        location = _get_location(path)
-        if not location:
-            return
-        path = path.rstrip(u'/')
-        self._last_changed[path] = time.time()
-        if self._last_refreshed[location] < self._last_changed[path]:
-            self.model().sourceModel().modelDataResetRequested.emit()
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -901,7 +880,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
-        ImageCache.instance().thumbnailChanged.connect(self.update_thumbnail)
+        ImageCache.instance().thumbnailChanged.connect(self.update_thumbnail, QtCore.Qt.QueuedConnection)
 
     def update_thumbnail(self, index):
         height = self.visualRect(index).height() - 2
@@ -920,10 +899,10 @@ class BaseListWidget(QtWidgets.QListView):
             ).sourceModel().get_location()] = time.time()
 
         self.model().sourceModel().modelAboutToBeReset.connect(self.store_previous_path)
-        self.model().sourceModel().modelReset.connect(self.model().invalidate)
-        self.model().sourceModel().modelReset.connect(self.model().sort)
-        self.model().sourceModel().modelReset.connect(self.reselect_previous_path)
-        self.model().sourceModel().modelReset.connect(timestamp)
+        self.model().sourceModel().modelReset.connect(self.model().invalidate, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().modelReset.connect(self.model().sort, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().modelReset.connect(self.reselect_previous_path, type=QtCore.Qt.QueuedConnection)
+        self.model().sourceModel().modelReset.connect(timestamp, type=QtCore.Qt.QueuedConnection)
 
         # Select the active item
         self.selectionModel().setCurrentIndex(
@@ -1362,6 +1341,10 @@ class BaseListWidget(QtWidgets.QListView):
 
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            self._reset_multitoggle()
+            return None
+
         index = self.indexAt(event.pos())
         if not index.isValid():
             self.selectionModel().setCurrentIndex(
@@ -1482,6 +1465,10 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def mouseReleaseEvent(self, event):
         """Inline-button methods are triggered here."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            self._reset_multitoggle()
+            return None
+
         index = self.indexAt(event.pos())
         source_index = self.model().mapToSource(index)
         rect = self.visualRect(index)
@@ -1520,6 +1507,9 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def mouseMoveEvent(self, event):
         """Multi-toggle is handled here."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return None
+
         if self.viewport().width() < 360.0:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
