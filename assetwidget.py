@@ -76,8 +76,10 @@ class AssetModel(BaseModel):
         favourites = favourites if favourites else []
 
         if not self.bookmark:
+            self.endResetModel()
             return
         if not all(self.bookmark):
+            self.endResetModel()
             return
 
         rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
@@ -129,9 +131,6 @@ class AssetModel(BaseModel):
                 common.SortByLastModified: it.fileInfo().lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: 0,
             }
-        self.endResetModel()
-        # file-monitor timestamp
-        self._last_refreshed[None] = time.time()
 
         for n in xrange(self.rowCount()):
             index = self.index(n, 0, parent=QtCore.QModelIndex())
@@ -166,6 +165,10 @@ class AssetModel(BaseModel):
             self.model_data[index.row()][common.DescriptionRole] = description
             self.model_data[index.row()][common.SortByName] = '{}{}'.format(filename, todocount)
             self.model_data[index.row()][common.SortBySize] = todocount
+            
+        # file-monitor timestamp
+        self._last_refreshed[None] = time.time()
+        self.endResetModel()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def setBookmark(self, index):

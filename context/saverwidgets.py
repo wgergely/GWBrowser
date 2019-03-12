@@ -156,8 +156,6 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.setIndentation(common.MARGIN / 2)
         self.setRootIsDecorated(False)
         common.set_custom_stylesheet(self)
-        self.setWindowFlags(
-            QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
         self.clicked.connect(lambda i: self.collapse(
             i) if self.isExpanded(i) else self.expand(i))
@@ -207,12 +205,13 @@ class SelectFolderView(QtWidgets.QTreeView):
     @QtCore.Slot(QtCore.QModelIndex)
     def set_asset(self, index):
         if not index.isValid():
-            return
-        self.model()._asset = index
-        path = index.data(common.ParentRole)
+            self.model().setRootPath(u'.')
+        else:
+            path = u'/'.join(index.data(common.ParentRole))
+            self.model().setRootPath(path)
 
-        path = u'/'.join(index.data(common.ParentRole))
-        self.model().setRootPath(path)
+        self.model()._asset = index
+        self.model().destinationChanged.emit(QtCore.QModelIndex())
         self.setRootIndex(self.model().index(self.model().rootPath()))
 
 
@@ -309,6 +308,8 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
     @QtCore.Slot(QtCore.QModelIndex)
     def set_destination(self, index):
         """The folder to save the file into."""
+        if not index.isValid():
+            self._destination = None
         self._destination = self.filePath(index)
 
     def flags(self, index):
@@ -340,6 +341,7 @@ class SelectFolderButton(ClickableLabel):
         self.setText(u'Select destination folder...')
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.clicked.connect(self.show_view)
+        self.setObjectName(u'SelectFolderButton')
 
     def contextMenuEvent(self, event):
         widget = SelectFolderContextMenu(parent=self)
@@ -352,6 +354,8 @@ class SelectFolderButton(ClickableLabel):
         """Sets the view associated with this custom button."""
         self._view = widget
         widget.setParent(self)
+        self._view.setWindowFlags(
+            QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self._view.model().destinationChanged.connect(self.destinationChanged)
 
     def view(self):
@@ -372,6 +376,10 @@ class SelectFolderButton(ClickableLabel):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def destinationChanged(self, index):
+        if not index.isValid():
+            self.setText(u'Select destination folder...')
+            return
+
         data = self.view().model().fileName(index)
         self.setText(data.upper())
 
@@ -438,10 +446,11 @@ class SelectAssetView(BaseListWidget):
 
     def __init__(self, parent=None):
         super(SelectAssetView, self).__init__(parent=parent)
-        self.setItemDelegate(SelectFolderDelegate(parent=self))
+        self.setItemDelegate(SelectAssetDelegate(parent=self))
         common.set_custom_stylesheet(self)
         self.set_model(AssetModel())
-        self.model().sourceModel().activeAssetChanged.connect(self.hide)
+        self.activated.connect(self.hide)
+        self.activated.connect(self.model().sourceModel().activeAssetChanged.emit)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -461,12 +470,18 @@ class SelectAssetButton(SelectFolderButton):
     def __init__(self, parent=None):
         super(SelectAssetButton, self).__init__(parent=parent)
         self.setText('Select asset')
+        self.setObjectName(u'SelectAssetButton')
 
     def set_view(self, widget):
         self._view = widget
         widget.setParent(self)
         self._view.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+
+        widget.model().sourceModel().activeAssetChanged.connect(self.activeAssetChanged)
+        widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset'))
+        widget.model().sourceModel().modelReset.connect(
+            lambda: widget.model().sourceModel().activeAssetChanged.emit(widget.active_index()))
 
     def paintEvent(self, event):
         option = QtWidgets.QStyleOption()
@@ -484,6 +499,14 @@ class SelectAssetButton(SelectFolderButton):
             painter, common.PrimaryFont, self.rect(),
             self.text(), QtCore.Qt.AlignCenter, color)
         painter.end()
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def activeAssetChanged(self, index):
+        if not index.isValid():
+            return
+        parent = index.data(common.ParentRole)
+        # text = u'{}'.format(parent[1], parent[-1])
+        self.setText(parent[-1].upper())
 
 
 # ++++++++++++++++++++++++++++++
@@ -528,6 +551,7 @@ class SelectBookmarkButton(SelectAssetButton):
     def __init__(self, parent=None):
         super(SelectBookmarkButton, self).__init__(parent=parent)
         self.setText('Select bookmark')
+        self.setObjectName(u'SelectBookmarkButton')
 
     def set_view(self, widget):
         super(SelectBookmarkButton, self).set_view(widget)
@@ -535,6 +559,8 @@ class SelectBookmarkButton(SelectAssetButton):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def activeBookmarkChanged(self, index):
+        if not index.isValid():
+            return
         parent = index.data(common.ParentRole)
         text = u'{}: {}'.format(parent[1], parent[-1])
         self.setText(text.upper())
@@ -543,32 +569,32 @@ class SelectBookmarkButton(SelectAssetButton):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
 
+    bookmarkbutton = SelectBookmarkButton()
+    bookmarkview = SelectBookmarkView()
+    bookmarkbutton.set_view(bookmarkview)
 
-    # Barebones hierarchy
-    bookmarkmodel = BookmarksModel()
-    assetsmodel = AssetModel()
+    assetbutton = SelectAssetButton()
+    assetview = SelectAssetView()
+    assetbutton.set_view(assetview)
 
-    bookmarkmodel.activeBookmarkChanged.connect(assetsmodel.setBookmark)
-    bookmarkmodel.activeBookmarkChanged.emit(bookmarkmodel.active_index())
+    foldersbutton = SelectFolderButton()
+    foldersview = SelectFolderView()
+    foldersview.set_model(SelectFolderModel())
+    foldersbutton.set_view(foldersview)
 
-    select_folder_widget = SelectFolderButton()
-    view = SelectFolderView()
-    view.set_model(SelectFolderModel())
-    select_folder_widget.set_view(view)
+    bookmarkview.model().sourceModel().activeBookmarkChanged.connect(assetview.model().sourceModel().setBookmark)
+    assetview.model().sourceModel().activeAssetChanged.connect(foldersview.set_asset)
 
-    assetsmodel.activeAssetChanged.connect(select_folder_widget.view().set_asset)
-    assetsmodel.activeAssetChanged.emit(assetsmodel.active_index())
-    select_folder_widget.view().model().fileTypeChanged.emit(u'vdb')
-    # select_folder_widget.show()
+    bookmarkview.model().sourceModel().activeBookmarkChanged.emit(bookmarkview.model().sourceModel().active_index())
+    assetview.model().sourceModel().activeAssetChanged.emit(assetview.model().sourceModel().active_index())
+    assetview.model().sourceModel().activeAssetChanged.connect(lambda i: foldersview.model().fileTypeChanged.emit(u'ma'))
 
-    select_assets_widget = SelectAssetButton()
-    view = SelectAssetView()
-    select_assets_widget.set_view(view)
-    # select_assets_widget.show()
+    # foldersview.model().fileTypeChanged.emit(u'vdb')
 
-    select_bookmark_widget = SelectBookmarkButton()
-    view = SelectBookmarkView()
-    select_bookmark_widget.set_view(view)
-    select_bookmark_widget.show()
+    bookmarkbutton.show()
+    assetbutton.show()
+    foldersbutton.show()
+
+    # assetsmodel.activeAssetChanged.emit(assetsmodel.active_index())
 
     app.exec_()
