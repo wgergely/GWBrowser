@@ -100,6 +100,7 @@ class MinimizeButton(ClickableLabel):
 
 class HeaderWidget(QtWidgets.QWidget):
     """Horizontal widget for controlling the position of the widget active window."""
+    widgetMoved = QtCore.Signal(QtCore.QPoint)
 
     def __init__(self, parent=None):
         super(HeaderWidget, self).__init__(parent=parent)
@@ -141,6 +142,9 @@ class HeaderWidget(QtWidgets.QWidget):
                 pos.x() - margins.left(),
                 pos.y() - margins.top()
             )
+            bl = self.window().rect().bottomLeft()
+            bl = self.window().mapToGlobal(bl)
+            self.widgetMoved.emit(bl)
 
 
 class StandaloneBrowserWidget(BrowserWidget):

@@ -257,6 +257,7 @@ class DescriptionEditor(QtWidgets.QLineEdit):
             '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
             common.PrimaryFont.family()
         ))
+        self.setFixedHeight(36)
 
 
 class BaseNameLabel(QtWidgets.QLabel):
@@ -394,7 +395,7 @@ class SaverWidget(QtWidgets.QDialog):
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setContentsMargins(common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
@@ -414,8 +415,8 @@ class SaverWidget(QtWidgets.QDialog):
         #
         column = QtWidgets.QWidget()
         QtWidgets.QVBoxLayout(column)
-        column.layout().setContentsMargins(0, common.MARGIN, 0, common.MARGIN)
-        column.layout().setSpacing(common.MARGIN)
+        column.layout().setContentsMargins(0, 0, 0, 0)
+        column.layout().setSpacing(0)
         column.layout().setAlignment(QtCore.Qt.AlignCenter)
         mainrow.layout().addWidget(column)
 
@@ -426,6 +427,7 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setSpacing(common.INDICATOR_WIDTH)
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
         column.layout().addWidget(row, 1)
+        # #
         #
         editor = DescriptionEditor(parent=self)
         row.layout().addWidget(editor, 1)
@@ -443,7 +445,6 @@ class SaverWidget(QtWidgets.QDialog):
         foldersview = SelectFolderView()
         foldersview.set_model(SelectFolderModel())
         foldersbutton.set_view(foldersview)
-
 
         row.layout().addWidget(bookmarkbutton)
         row.layout().addWidget(assetbutton)
@@ -513,11 +514,9 @@ class SaverWidget(QtWidgets.QDialog):
 
         bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
         assetbutton.view().model().sourceModel().activeAssetChanged.emit(assetbutton.view().model().sourceModel().active_index())
-        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
 
-
-        self.update_filename_display()
-        self.update_filepath_display()
+        # self.update_filepath_display()
+        # self.update_filename_display()
 
     def pick_thumbnail(self):
         """Prompt to select an image file."""
@@ -688,9 +687,29 @@ class SaverWidget(QtWidgets.QDialog):
         bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
         assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
         foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        header = self.findChild(SaverHeaderWidget)
+
+        assetbutton.view().widgetShown.connect(bookmarkbutton.view().hide)
+        assetbutton.view().widgetShown.connect(foldersbutton.view().hide)
+        bookmarkbutton.view().widgetShown.connect(assetbutton.view().hide)
+        bookmarkbutton.view().widgetShown.connect(foldersbutton.view().hide)
+        foldersbutton.view().widgetShown.connect(bookmarkbutton.view().hide)
+        foldersbutton.view().widgetShown.connect(assetbutton.view().hide)
+
+        header.widgetMoved.connect(assetbutton.view().move)
+        header.widgetMoved.connect(bookmarkbutton.view().move)
+        header.widgetMoved.connect(foldersbutton.view().move)
+
 
         bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(assetbutton.view().model().sourceModel().setBookmark)
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(foldersbutton.view().set_asset)
+
+        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
+
+        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(lambda i: self.update_filename_display())
+        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(lambda i: self.update_filepath_display())
+        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filename_display())
+        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filepath_display())
 
         closebutton = self.findChild(CloseButton)
         thumbnailbutton = self.findChild(ThumbnailButton)

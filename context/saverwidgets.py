@@ -98,9 +98,11 @@ class SelectFolderDelegate(BaseDelegate):
         # Asset name
         text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
         text = re.sub(r'[_]{1,}', '_', text).strip('_')
-        text = ' {} '.format(text).upper()
         if active:
-            text = '{}  (destination folder)  '.format(text)
+            text = ' >  {}  < '.format(text).upper()
+        else:
+            text = ' {} '.format(text).upper()
+            # text = '{}'.format(text)
         rect.setWidth(metrics.width(text))
 
         if root:
@@ -148,6 +150,7 @@ class SelectFolderDelegate(BaseDelegate):
 
 class SelectFolderView(QtWidgets.QTreeView):
     """Simple tree view for browsing the available folders."""
+    widgetShown = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(SelectFolderView, self).__init__(parent=parent)
@@ -156,6 +159,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.setIndentation(common.MARGIN / 2)
         self.setRootIsDecorated(False)
         common.set_custom_stylesheet(self)
+
 
         self.clicked.connect(lambda i: self.collapse(
             i) if self.isExpanded(i) else self.expand(i))
@@ -173,6 +177,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.adjust_height()
 
     def showEvent(self, event):
+        self.widgetShown.emit()
         self.adjust_height()
 
         if self.model().destination():
@@ -197,10 +202,10 @@ class SelectFolderView(QtWidgets.QTreeView):
             height += self.itemDelegate().sizeHint(QtCore.QModelIndex()).height()
         self.setFixedHeight(height)
 
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            self.close()
+    # def focusOutEvent(self, event):
+    #     """Closes the editor on focus loss."""
+    #     if event.lostFocus():
+    #         self.hide()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_asset(self, index):
@@ -342,6 +347,7 @@ class SelectFolderButton(ClickableLabel):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.clicked.connect(self.show_view)
         self.setObjectName(u'SelectFolderButton')
+        self.setFixedHeight(36)
 
     def contextMenuEvent(self, event):
         widget = SelectFolderContextMenu(parent=self)
@@ -366,10 +372,19 @@ class SelectFolderButton(ClickableLabel):
         """Shows the view associated with this custom button."""
         if not self.view():
             return
+        if self.view().isVisible():
+            self.view().hide()
+            return
         pos = self.rect().bottomLeft()
-        pos = self.mapToGlobal(pos)
+        y = self.mapToGlobal(pos).y()
+        pos = self.parent().window().rect().bottomLeft()
+        x = self.parent().window().mapToGlobal(pos).x()
+        y = self.parent().window().mapToGlobal(pos).y()
+        width = self.parent().window().rect().width()
+        self.view().move(x, y)
+        self.view().setFixedWidth(width)
         self.view().show()
-        self.view().move(pos)
+        self.view().raise_()
 
     def showEvent(self, event):
         return super(SelectFolderButton, self).showEvent(event)
@@ -408,10 +423,18 @@ class SelectFolderButton(ClickableLabel):
 
         painter = QtGui.QPainter()
         painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         common.draw_aliased_text(
             painter, common.PrimaryFont, self.rect(),
             self.text(), QtCore.Qt.AlignCenter, color)
+
+        rect = QtCore.QRect(self.rect())
+        rect.setTop(rect.bottom() - 1)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(color)
+        painter.drawRoundedRect(rect, 1,1)
         painter.end()
 
 
@@ -443,6 +466,7 @@ class SelectAssetDelegate(AssetWidgetDelegate):
 
 class SelectAssetView(BaseListWidget):
     """Simple tree view for browsing the available assets."""
+    widgetShown = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(SelectAssetView, self).__init__(parent=parent)
@@ -452,10 +476,28 @@ class SelectAssetView(BaseListWidget):
         self.activated.connect(self.hide)
         self.activated.connect(self.model().sourceModel().activeAssetChanged.emit)
 
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            self.close()
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+
+    def showEvent(self, event):
+        self.widgetShown.emit()
+        self.adjust_height()
+
+    @QtCore.Slot()
+    def adjust_height(self, *args, **kwargs):
+        """Adjusts the size of the view to fix the items exactly."""
+        height = 0
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            if not index.isValid():
+                break
+            height += self.itemDelegate().sizeHint(None, None).height()
+        self.setFixedHeight(height)
+
+    # def focusOutEvent(self, event):
+    #     """Closes the editor on focus loss."""
+    #     if event.lostFocus():
+    #         self.hide()
 
     def mouseDoubleClickEvent(self, event):
         self.activate_current_index()
@@ -469,7 +511,7 @@ class SelectAssetButton(SelectFolderButton):
 
     def __init__(self, parent=None):
         super(SelectAssetButton, self).__init__(parent=parent)
-        self.setText('Select asset')
+        self.setText('Select asset...')
         self.setObjectName(u'SelectAssetButton')
 
     def set_view(self, widget):
@@ -479,7 +521,7 @@ class SelectAssetButton(SelectFolderButton):
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
         widget.model().sourceModel().activeAssetChanged.connect(self.activeAssetChanged)
-        widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset'))
+        widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset...'))
         widget.model().sourceModel().modelReset.connect(
             lambda: widget.model().sourceModel().activeAssetChanged.emit(widget.active_index()))
 
@@ -494,10 +536,19 @@ class SelectAssetButton(SelectFolderButton):
 
         painter = QtGui.QPainter()
         painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         common.draw_aliased_text(
             painter, common.PrimaryFont, self.rect(),
             self.text(), QtCore.Qt.AlignCenter, color)
+
+        rect = QtCore.QRect(self.rect())
+        rect.setTop(rect.bottom() - 1)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(color)
+        painter.drawRoundedRect(rect, 1, 1)
+
         painter.end()
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -531,7 +582,7 @@ class SelectBookmarkDelegate(BookmarksWidgetDelegate):
         self.paint_selection_indicator(*args)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
+        return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
 
 
 class SelectBookmarkView(SelectAssetView):
