@@ -59,6 +59,7 @@ class AssetModel(BaseModel):
     def __init__(self, parent=None):
         self.bookmark = None
         super(AssetModel, self).__init__(parent=parent)
+        self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset itemsself.
