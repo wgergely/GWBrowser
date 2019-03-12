@@ -676,11 +676,12 @@ class BaseModel(QtCore.QAbstractItemModel):
         raise NotImplementedError('initialize() is abstract.')
 
     def active_index(self):
-        index = QtCore.QModelIndex()
+        """The model's active_index."""
         for n in xrange(self.rowCount()):
             index = self.index(n, 0)
             if index.flags() & MarkedAsActive:
                 return index
+        return QtCore.QModelIndex()
 
     def columnCount(self, parent=QtCore.QModelIndex()):
         return 1
@@ -1259,11 +1260,10 @@ class BaseListWidget(QtWidgets.QListView):
         If no item has been flagged as `active`, returns ``None``.
 
         """
-        for n in xrange(self.model().sourceModel().rowCount()):
-            index = self.model().sourceModel().index(n, 0, parent=QtCore.QModelIndex())
-            if index.flags() & MarkedAsActive:
-                return self.model().mapFromSource(index)
-        return QtCore.QModelIndex()
+        index = self.model().sourceModel().active_index()
+        if index.isValid():
+            return self.model().mapFromSource(index)
+        return index
 
     def unmark_active_index(self):
         """Unsets the active flag."""
