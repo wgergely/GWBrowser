@@ -238,7 +238,7 @@ class FileInfoWorker(QtCore.QObject):
             self.model.model_data[idx][common.StatusRole] = True
 
             FileInfoWorker.remove_from_queue(idx)
-            self.indexUpdated.emit(index)
+            # self.indexUpdated.emit(index)
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -618,10 +618,8 @@ class FilesWidget(BaseInlineIconWidget):
         self.set_model(FilesModel(parent=self))
 
         def connectSignal(thread):
-            thread.worker.indexUpdated.connect(
-                self.update, type=QtCore.Qt.QueuedConnection)
-            thread.worker.finished.connect(
-                self.repaint, type=QtCore.Qt.QueuedConnection)
+            thread.worker.indexUpdated.connect(self.update)
+            thread.worker.finished.connect(self.repaint)
 
         for thread in self.model().sourceModel().threads.itervalues():
             thread.started.connect(functools.partial(connectSignal, thread))
