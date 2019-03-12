@@ -518,7 +518,8 @@ class SelectBookmarkView(SelectAssetView):
         super(SelectBookmarkView, self).__init__(parent=parent)
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
         self.set_model(BookmarksModel())
-        self.model().sourceModel().activeBookmarkChanged.connect(self.hide)
+        self.activated.connect(self.hide)
+        self.activated.connect(self.model().sourceModel().activeBookmarkChanged.emit)
 
 
 class SelectBookmarkButton(SelectAssetButton):
@@ -528,6 +529,15 @@ class SelectBookmarkButton(SelectAssetButton):
         super(SelectBookmarkButton, self).__init__(parent=parent)
         self.setText('Select bookmark')
 
+    def set_view(self, widget):
+        super(SelectBookmarkButton, self).set_view(widget)
+        widget.model().sourceModel().activeBookmarkChanged.connect(self.activeBookmarkChanged)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def activeBookmarkChanged(self, index):
+        parent = index.data(common.ParentRole)
+        text = u'{}: {}'.format(parent[1], parent[-1])
+        self.setText(text.upper())
 
 
 if __name__ == '__main__':
