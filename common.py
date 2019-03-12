@@ -35,7 +35,7 @@ Sequence-recognition
 import os
 import re
 
-from PySide2 import QtGui, QtCore
+from PySide2 import QtGui, QtCore, QtWidgets
 
 
 
@@ -181,17 +181,15 @@ EndpathRole = 1034
 ThumbnailRole = 1035
 ThumbnailBackgroundRole = 1036
 TypeRole = 1037
+#
+SortByName = 1038
+SortByLastModified = 1039
+SortBySize = 1041
 
-FileItem = 0
-SequenceItem = 1
-AssetItem = 2
-BookmarkItem = 3
-
-SortByName = 0
-SortByLastModified = 1
-SortByLastCreated = 2
-SortBySize = 3
-"""Item sort flags"""
+FileItem = 1100
+SequenceItem = 1200
+AssetItem = 1300
+BookmarkItem = 1400
 
 LowerCase = 0
 UpperCase = 1
@@ -208,12 +206,13 @@ def sort_alphanum_key(key):
     return [_convert(f) for f in _split(key)]
 
 
+
+alphanum = re.compile(r'([0-9]+)', flags=re.IGNORECASE)
+def namekey(key):
+    return [(int(f) if f.isdigit() else f) for f in alphanum.split(key)]
+
 def sort_last_modified_key(key):
     return key.lastModified().toMSecsSinceEpoch()
-
-
-def sort_last_created_key(key):
-    return key.created().toMSecsSinceEpoch()
 
 
 def sort_size_key(key):
@@ -223,7 +222,6 @@ def sort_size_key(key):
 sort_keys = {
     SortByName: sort_alphanum_key,
     SortByLastModified: sort_last_modified_key,
-    SortByLastCreated: sort_last_created_key,
     SortBySize: sort_size_key,
 }
 """These are the methods/keys used to sort lists."""
@@ -527,7 +525,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing)
     painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-    
+
     x, y = (rect.left(), rect.top())
     elide = None
     metrics = QtGui.QFontMetrics(font)
@@ -575,8 +573,6 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
 class ProgressMessage(QtCore.QObject):
     """Utiity class to store and emit thread-progress messages."""
-    mutex = QtCore.QMutex()
-    msg = u''
 
     messageChanged = QtCore.Signal(unicode)
     __instance = None
@@ -601,17 +597,20 @@ class ProgressMessage(QtCore.QObject):
         super(ProgressMessage, self).__init__(parent=parent)
         ProgressMessage.__instance = self
 
+    @QtCore.Slot(unicode)
     def set_message(self, text):
+        """Slot to update the progress bar message."""
         text = text.encode('utf-8')
-        self.mutex.lock()
-        self.msg = u'{}'.format(text)
-        self.mutex.unlock()
-        self.messageChanged.emit(self.msg)
+        self.messageChanged.emit(text)
+        app = QtWidgets.QApplication.instance()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
-    def get_message(self):
-        return u'{}'.format(self.msg)
-
+    @QtCore.Slot()
     def clear_message(self):
-        self.msg = u''
+        app = QtWidgets.QApplication.instance()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+        self.messageChanged.emit(u'')
+        # self.msg = u''
+
 
 ProgressMessage.initialize()

@@ -199,7 +199,10 @@ class BookmarksModel(BaseModel):
                 common.FileDetailsRole: file_info.size(),
                 common.TypeRole: common.BookmarkItem,
                 common.ThumbnailRole: thumbnail_image,
-                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0)
+                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.SortByName: '{}{}{}{}'.format(file_info.server, file_info.job, file_info.root, file_info.size()),
+                common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
+                common.SortBySize: file_info.size(),
             }
         self.endResetModel()
 

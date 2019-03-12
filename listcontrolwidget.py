@@ -29,7 +29,7 @@ class Progressbar(QtWidgets.QLabel):
         super(Progressbar, self).__init__(parent=parent)
         self.processmonitor = QtCore.QTimer()
         self.processmonitor.setSingleShot(False)
-        self.processmonitor.setInterval(80)
+        self.processmonitor.setInterval(120)
         self.processmonitor.timeout.connect(self.set_visibility)
         self.processmonitor.start()
 
@@ -53,18 +53,14 @@ class Progressbar(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
-        self.setText(u'Working...')
-        common.ProgressMessage.instance().messageChanged.connect(self.setText)
+        self.setText(u'')
+        common.ProgressMessage.instance().messageChanged.connect(self.setText, type=QtCore.Qt.QueuedConnection)
 
     def set_visibility(self):
         """Checks if the thread pool is has running threads."""
-        pool = QtCore.QThreadPool.globalInstance()
-        app = QtWidgets.QApplication.instance()
-        if pool.activeThreadCount():
-            app.setOverrideCursor(QtCore.Qt.WaitCursor)
+        if self.text():
             self.show()
         else:
-            app.restoreOverrideCursor()
             self.hide()
             common.ProgressMessage.instance().clear_message()
 

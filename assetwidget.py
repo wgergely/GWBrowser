@@ -124,6 +124,9 @@ class AssetModel(BaseModel):
                 common.ThumbnailRole: thumbnail_image,
                 common.ThumbnailBackgroundRole: QtGui.QColor(0,0,0,0),
                 common.TypeRole: common.AssetItem,
+                common.SortByName: filename,
+                common.SortByLastModified: it.fileInfo().lastModified().toMSecsSinceEpoch(),
+                common.SortBySize: 0,
             }
         self.endResetModel()
         # file-monitor timestamp
@@ -160,6 +163,8 @@ class AssetModel(BaseModel):
 
             description = settings.value(u'config/description')
             self.model_data[index.row()][common.DescriptionRole] = description
+            self.model_data[index.row()][common.SortByName] = '{}{}'.format(filename, todocount)
+            self.model_data[index.row()][common.SortBySize] = todocount
 
     @QtCore.Slot(QtCore.QModelIndex)
     def setBookmark(self, index):

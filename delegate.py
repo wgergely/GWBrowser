@@ -724,10 +724,7 @@ class FilesWidgetDelegate(BaseDelegate):
             self.paint_archived(*args)
             self.paint_thumbnail_shadow(*args)
         #
-        if index.flags() & QtCore.Qt.ItemIsEnabled:
-            left = self.paint_mode(*args)
-        else:
-            left = 0
+        left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
         if index.flags() & QtCore.Qt.ItemIsEnabled:
             self.paint_description(*args, left=left)

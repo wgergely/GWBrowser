@@ -195,7 +195,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         sort_by_name = self.parent().model().sortkey == common.SortByName
         sort_modified = self.parent().model().sortkey == common.SortByLastModified
-        sort_created = self.parent().model().sortkey == common.SortByLastCreated
         sort_size = self.parent().model().sortkey == common.SortBySize
 
         menu_set[u'Sort'] = collections.OrderedDict()
@@ -224,13 +223,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checked': True if sort_modified else False,
             u'action': functools.partial(self.parent().model().set_sortkey,
                                          common.SortByLastModified)
-        }
-        menu_set[u'Sort'][u'Date created'] = {
-            u'icon': item_on_icon if sort_created else item_off_icon,
-            u'ckeckable': True,
-            u'checked': True if sort_created else False,
-            u'action': functools.partial(self.parent().model().set_sortkey,
-                                         common.SortByLastCreated)
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
@@ -652,6 +644,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
+        self.view = parent
         self._model_data = {}
         self.model_data = {}
 
@@ -735,7 +728,11 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
+        self.setSortLocaleAware(False)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
+
         self.parentwidget = parent
+
         self.sortkey = self.get_sortkey()  # Alphabetical/Modified...etc.
         self.sortorder = self.get_sortorder()  # Ascending/descending
         self.filterstring = self.get_filterstring()  # Ascending/descending
@@ -747,57 +744,57 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def get_filterstring(self):
         """Will only display items contaning this string."""
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         val = local_settings.value(u'widget/{}/filterstring'.format(cls))
         return val if val else u'/'
 
     def set_filterstring(self, val):
         """Sets and saves the sort-key."""
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         val = val if val else u'/'
         self.filterstring = val
         local_settings.setValue(u'widget/{}/filterstring'.format(cls), val)
-        self.invalidate()
+        self.invalidateFilter()
 
         self.filterModeChanged.emit()
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list."""
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         val = local_settings.value(u'widget/{}/sortkey'.format(cls))
-        return int(val) if val else common.SortByName
+        if val not in (common.SortByName, common.SortByLastModified, common.SortBySize):
+            return common.SortByName
+        return val
 
     def set_sortkey(self, val):
         """Sets and saves the sort-key."""
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         self.sortkey = val
         local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
+        # self.sort()
         self.invalidate()
-
         self.filterModeChanged.emit()
 
     def get_sortorder(self):
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         val = local_settings.value(
             u'widget/{}/sortorder'.format(cls))
         return int(val) if val else False
 
     def set_sortorder(self, val):
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         self.sortorder = val
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
-        self.invalidate()
         self.sort()
-
         self.filterModeChanged.emit()
 
     def get_filtermode(self, mode):
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         val = local_settings.value(u'widget/{}/mode:{}'.format(cls, mode))
         return val if val else False
 
     def set_filtermode(self, mode, val):
-        cls = self.parentwidget.__class__.__name__
+        cls = self.__class__.__name__
         self.filter_mode[mode] = val
         local_settings.setValue(u'widget/{}/mode:{}'.format(cls, mode), val)
         self.invalidateFilter()
@@ -809,11 +806,11 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
         """The main method used to filter the elements using the flags and the filter string."""
-        index = self.sourceModel().index(source_row, 0, parent=QtCore.QModelIndex())
-        archived = index.flags() & MarkedAsArchived
-        favourite = index.flags() & MarkedAsFavourite
+        flags = self.sourceModel().model_data[source_row][common.FlagsRole]
+        archived = flags & MarkedAsArchived
+        favourite = flags & MarkedAsFavourite
 
-        if self.filterstring.lower() not in index.data(QtCore.Qt.StatusTipRole).lower():
+        if self.filterstring.lower() not in self.sourceModel().model_data[source_row][QtCore.Qt.StatusTipRole].lower():
             return False
         if archived and not self.filter_mode[u'archived']:
             return False
@@ -822,20 +819,15 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def sort(self, column=0):
-        if self.sortorder:
-            super(FilterProxyModel, self).sort(
-                column, order=QtCore.Qt.AscendingOrder)
-        else:
-            super(FilterProxyModel, self).sort(
-                column, order=QtCore.Qt.DescendingOrder)
+        print '> prxy sorted'
+        order = QtCore.Qt.AscendingOrder if self.sortorder else QtCore.Qt.DescendingOrder
+        super(FilterProxyModel, self).sort(column, order=order)
 
     def lessThan(self, source_left, source_right):
         """The main method responsible for sorting the items."""
-        left_info = QtCore.QFileInfo(source_left.data(QtCore.Qt.StatusTipRole))
-        right_info = QtCore.QFileInfo(
-            source_right.data(QtCore.Qt.StatusTipRole))
-
-        return common.sort_keys[self.sortkey](left_info) < common.sort_keys[self.sortkey](right_info)
+        if self.sortkey == common.SortByName:
+            return common.namekey(source_left.data(common.SortByName)) < common.namekey(source_right.data(common.SortByName))
+        return source_left.data(self.sortkey) < source_right.data(self.sortkey)
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -892,17 +884,27 @@ class BaseListWidget(QtWidgets.QListView):
         proxy_model = FilterProxyModel(parent=self)
         proxy_model.setSourceModel(model)
         self.setModel(proxy_model)
-        self.model().sort()
 
         def timestamp():
             self.model().sourceModel()._last_refreshed[self.model(
             ).sourceModel().get_location()] = time.time()
 
+        self.model().sourceModel().modelAboutToBeReset.connect(lambda: self.setUpdatesEnabled(False))
+        self.model().sourceModel().modelAboutToBeReset.connect(lambda: self.blockSignals(True))
+        self.model().sourceModel().modelAboutToBeReset.connect(lambda: self.model().blockSignals(True))
+        self.model().sourceModel().modelReset.connect(lambda: self.setUpdatesEnabled(True))
+        self.model().sourceModel().modelReset.connect(lambda: self.blockSignals(False))
+        self.model().sourceModel().modelReset.connect(lambda: self.model().blockSignals(False))
+
         self.model().sourceModel().modelAboutToBeReset.connect(self.store_previous_path)
-        self.model().sourceModel().modelReset.connect(self.model().invalidate, type=QtCore.Qt.QueuedConnection)
-        self.model().sourceModel().modelReset.connect(self.model().sort, type=QtCore.Qt.QueuedConnection)
+        # self.model().sourceModel().modelReset.connect(self.model().reset, type=QtCore.Qt.QueuedConnection)
         self.model().sourceModel().modelReset.connect(self.reselect_previous_path, type=QtCore.Qt.QueuedConnection)
         self.model().sourceModel().modelReset.connect(timestamp, type=QtCore.Qt.QueuedConnection)
+
+        self.model().sourceModel().modelAboutToBeReset.connect(self.model().beginResetModel)
+        self.model().sourceModel().modelReset.connect(self.model().endResetModel)
+        # self.model().sourceModel().modelReset.connect(self.model().invalidateFilter)
+        # self.model().sourceModel().modelReset.connect(self.model().sort)
 
         # Select the active item
         self.selectionModel().setCurrentIndex(
