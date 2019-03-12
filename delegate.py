@@ -911,7 +911,6 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - rect.height() + (rect.height() / 3))
-        # rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         # Taking the control-icons into consideration
         if option.rect.width() >= 360.0:
@@ -919,7 +918,6 @@ class FilesWidgetDelegate(BaseDelegate):
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         # Name
         text = index.data(QtCore.Qt.DisplayRole)
@@ -942,6 +940,7 @@ class FilesWidgetDelegate(BaseDelegate):
             rect = self._draw(painter, font, rect, match.group(
                 1).upper(), align, common.TEXT, option, kwargs['left'])
             return
+
         match = common.get_sequence(text)
         if match:  # sequence collapsed
             text = u'{}.{}'.format(match.group(
