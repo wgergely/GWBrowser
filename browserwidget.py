@@ -141,8 +141,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
-
-
         self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
             self.assetswidget.model().sourceModel().setBookmark)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
