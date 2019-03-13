@@ -637,7 +637,6 @@ class BaseModel(QtCore.QAbstractItemModel):
     """Signal emited when all the data has to be refreshed."""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
-    activeChanged = QtCore.Signal(QtCore.QModelIndex)
     activeLocationChanged = QtCore.Signal(basestring)
     activeFileChanged = QtCore.Signal(basestring)
     """The active item has changed."""
