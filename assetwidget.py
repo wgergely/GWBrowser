@@ -165,7 +165,7 @@ class AssetModel(BaseModel):
             self.model_data[index.row()][common.DescriptionRole] = description
             self.model_data[index.row()][common.SortByName] = '{}{}'.format(filename, todocount)
             self.model_data[index.row()][common.SortBySize] = todocount
-            
+
         # file-monitor timestamp
         self._last_refreshed[None] = time.time()
         self.endResetModel()
@@ -215,7 +215,7 @@ class AssetWidget(BaseInlineIconWidget):
 
     def activate_current_index(self):
         """Sets the current item item as ``active`` and
-        emits the ``activeAssetChanged`` and ``activeFileChanged`` signals.
+        emits the ``activeChanged`` signal.
 
         """
         if not super(AssetWidget, self).activate_current_index():

@@ -90,7 +90,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget.locationChanged.emit(
             self.fileswidget.model().sourceModel().get_location())
 
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.emit(
+        self.bookmarkswidget.model().sourceModel().activeChanged.emit(
             self.bookmarkswidget.active_index())
         self.assetswidget.model().sourceModel().activeAssetChanged.emit(
             self.fileswidget.active_index())
@@ -141,14 +141,14 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
+        self.bookmarkswidget.model().sourceModel().activeChanged.connect(
             self.assetswidget.model().sourceModel().setBookmark)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().setAsset)
 
-        self.bookmarkswidget.model().sourceModel().activeBookmarkChanged.connect(
+        self.bookmarkswidget.model().sourceModel().activeChanged.connect(
             lambda x: self.listcontrolwidget.listChanged.emit(1))
-        self.assetswidget.model().sourceModel().activeBookmarkChanged.connect(
+        self.assetswidget.model().sourceModel().activeChanged.connect(
             lambda x: self.listcontrolwidget.listChanged.emit(2))
         self.fileswidget.model().sourceModel().activeLocationChanged.connect(
             lambda x: self.listcontrolwidget.listChanged.emit(2))

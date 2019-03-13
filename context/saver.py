@@ -512,7 +512,7 @@ class SaverWidget(QtWidgets.QDialog):
         else:
             self.findChild(Custom).setHidden(False)
 
-        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
+        bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
         assetbutton.view().model().sourceModel().activeAssetChanged.emit(assetbutton.view().model().sourceModel().active_index())
 
         # self.update_filepath_display()
@@ -701,13 +701,13 @@ class SaverWidget(QtWidgets.QDialog):
         header.widgetMoved.connect(foldersbutton.view().move)
 
 
-        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(assetbutton.view().model().sourceModel().setBookmark)
+        bookmarkbutton.view().model().sourceModel().activeChanged.connect(assetbutton.view().model().sourceModel().setBookmark)
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(foldersbutton.view().set_asset)
 
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
 
-        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(lambda i: self.update_filename_display())
-        bookmarkbutton.view().model().sourceModel().activeBookmarkChanged.connect(lambda i: self.update_filepath_display())
+        bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
+        bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filename_display())
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filepath_display())
 

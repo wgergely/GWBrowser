@@ -593,7 +593,7 @@ class SelectBookmarkView(SelectAssetView):
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
         self.set_model(BookmarksModel())
         self.activated.connect(self.hide)
-        self.activated.connect(self.model().sourceModel().activeBookmarkChanged.emit)
+        self.activated.connect(self.model().sourceModel().activeChanged.emit)
 
 
 class SelectBookmarkButton(SelectAssetButton):
@@ -606,10 +606,10 @@ class SelectBookmarkButton(SelectAssetButton):
 
     def set_view(self, widget):
         super(SelectBookmarkButton, self).set_view(widget)
-        widget.model().sourceModel().activeBookmarkChanged.connect(self.activeBookmarkChanged)
+        widget.model().sourceModel().activeChanged.connect(self.activeChanged)
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def activeBookmarkChanged(self, index):
+    def activeChanged(self, index):
         if not index.isValid():
             return
         parent = index.data(common.ParentRole)
@@ -633,10 +633,10 @@ if __name__ == '__main__':
     foldersview.set_model(SelectFolderModel())
     foldersbutton.set_view(foldersview)
 
-    bookmarkview.model().sourceModel().activeBookmarkChanged.connect(assetview.model().sourceModel().setBookmark)
+    bookmarkview.model().sourceModel().activeChanged.connect(assetview.model().sourceModel().setBookmark)
     assetview.model().sourceModel().activeAssetChanged.connect(foldersview.set_asset)
 
-    bookmarkview.model().sourceModel().activeBookmarkChanged.emit(bookmarkview.model().sourceModel().active_index())
+    bookmarkview.model().sourceModel().activeChanged.emit(bookmarkview.model().sourceModel().active_index())
     assetview.model().sourceModel().activeAssetChanged.emit(assetview.model().sourceModel().active_index())
     assetview.model().sourceModel().activeAssetChanged.connect(lambda i: foldersview.model().fileTypeChanged.emit(u'ma'))
 

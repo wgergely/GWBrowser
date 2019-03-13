@@ -307,9 +307,7 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def activate_current_index(self):
         """Sets the current item as ``active_index``.
-
-        Emits the ``activeBookmarkChanged``, ``activeAssetChanged`` and
-        ``activeFileChanged`` signals.
+        Emits the ``activeChanged`` signal.
 
         """
         index = self.selectionModel().currentIndex()
@@ -319,14 +317,15 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
 
         server, job, root = index.data(common.ParentRole)
+
         local_settings.setValue(u'activepath/server', server)
         local_settings.setValue(u'activepath/job', job)
         local_settings.setValue(u'activepath/root', root)
-
         active_monitor.update_saved_state(u'server', server)
         active_monitor.update_saved_state(u'job', job)
         active_monitor.update_saved_state(u'root', root)
-        self.model().sourceModel().activeBookmarkChanged.emit(index)
+
+        self.model().sourceModel().activeChanged.emit(index)
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
