@@ -364,8 +364,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
 
-    def initialize(self):
-        """Populates the model data."""
         self.findChild(ListControlDropdown).view.model().__initdata__()
 
     def _createUI(self):
@@ -389,15 +387,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.MARGIN)
 
     def _connectSignals(self):
-        addbookmarkbutton = self.findChild(AddBookmarkButton)
-        controlbutton = self.findChild(ListControlDropdown)
-        bookmarkswidget = self.parent().findChild(BookmarksWidget)
-
-        controlbutton.view.activated.connect(lambda index: self.update_controls(index.row()))
-        controlbutton.view.activated.connect(lambda index: self.listChanged.emit(index.row() if index.row() <= 2 else 2))
-        controlbutton.view.activated.connect(lambda index: self.locationChanged.emit(index.data(QtCore.Qt.DisplayRole) if index.row() > 1 else None))
-        self.listChanged.connect(self.update_controls)
-
         def locationChanged(location):
             for n in xrange(controlbutton.view.model().rowCount()):
                 index = controlbutton.view.model().index(n, 0)
@@ -405,6 +394,19 @@ class ListControlWidget(QtWidgets.QWidget):
                     controlbutton.view.selectionModel().setCurrentIndex(
                         index, QtCore.QItemSelectionModel.ClearAndSelect)
                     return index.row()
+
+        addbookmarkbutton = self.findChild(AddBookmarkButton)
+        controlbutton = self.findChild(ListControlDropdown)
+        bookmarkswidget = self.parent().findChild(BookmarksWidget)
+
+        controlbutton.view.activated.connect(lambda index: self.update_controls(index.row()))
+        controlbutton.view.activated.connect(lambda index: self.listChanged.emit(index.row() if index.row() <= 2 else 2))
+        controlbutton.view.activated.connect(lambda index: self.locationChanged.emit(index.data(QtCore.Qt.DisplayRole) if index.row() > 1 else None))
+        controlbutton.view.activated.connect(controlbutton.repaint)
+        self.listChanged.connect(self.update_controls)
+        self.listChanged.connect(controlbutton.repaint)
+        self.locationChanged.connect(self.update_controls)
+        self.locationChanged.connect(controlbutton.repaint)
         self.locationChanged.connect(locationChanged)
 
         addbookmarkbutton.clicked.connect(
