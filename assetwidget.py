@@ -57,9 +57,7 @@ class AssetModel(BaseModel):
     """The model associated with the assets views."""
 
     def __init__(self, parent=None):
-        self.bookmark = None
         super(AssetModel, self).__init__(parent=parent)
-        self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset itemsself.
@@ -171,7 +169,7 @@ class AssetModel(BaseModel):
         self.endResetModel()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def setBookmark(self, index):
+    def set_active(self, index):
         """Sets a new bookmark for the model and resets the model_data object."""
         if not index.isValid():
             return

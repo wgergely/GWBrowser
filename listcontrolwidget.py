@@ -9,8 +9,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from browser.settings import Active
 import browser.common as common
 from browser.delegate import paintmethod
-from browser.baselistwidget import BaseContextMenu
-from browser.baselistwidget import contextmenu
+from browser.basecontextmenu import BaseContextMenu, contextmenu
 from browser.baselistwidget import StackedWidget
 from browser.baselistwidget import BaseModel
 from browser.bookmarkswidget import BookmarksWidget
@@ -214,15 +213,15 @@ class FilterButton(ClickableLabel):
 
     def action(self):
         widget = self.parent().parent().findChild(StackedWidget)
-        filterstring = widget.currentWidget().model().get_filterstring()
-        editor = FilterEditor(filterstring, parent=widget)
+        filtertext = widget.currentWidget().model().get_filtertext()
+        editor = FilterEditor(filtertext, parent=widget)
         editor.finished.connect(
-            widget.currentWidget().model().set_filterstring)
+            widget.currentWidget().model().set_filtertext)
         editor.finished.connect(lambda: self.update_(widget.currentIndex()))
         editor.editor.textEdited.connect(
             widget.currentWidget().model().invalidate)
         editor.editor.textEdited.connect(
-            widget.currentWidget().model().set_filterstring)
+            widget.currentWidget().model().set_filtertext)
         editor.editor.textEdited.connect(
             lambda s: self.update_(widget.currentIndex()))
 
@@ -236,7 +235,7 @@ class FilterButton(ClickableLabel):
 
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().get_filterstring() != u'/':
+        if stackwidget.widget(idx).model().get_filtertext() != u'/':
             pixmap = ImageCache.get_rsc_pixmap(
                 u'filter', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:

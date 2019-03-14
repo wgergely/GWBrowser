@@ -22,7 +22,7 @@ from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
 from browser.imagecache import ImageCache
 import browser.common as common
-from browser.baselistwidget import BaseContextMenu
+from browser.basecontextmenu import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 from browser.settings import local_settings, Active, active_monitor
@@ -141,8 +141,7 @@ class BookmarksModel(BaseModel):
         in under windows.
 
         """
-        self.beginResetModel()
-        self.model_data = {}  # reset
+        self.model_data = {}
         active_paths = Active.get_active_paths()
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
 
@@ -204,10 +203,6 @@ class BookmarksModel(BaseModel):
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: file_info.size(),
             }
-        self.endResetModel()
-
-        # file-monitor timestamp
-        self._last_refreshed[self.get_location()] = time.time()
 
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():

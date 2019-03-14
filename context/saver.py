@@ -33,7 +33,7 @@ from browser.delegate import AssetWidgetDelegate
 from browser.editors import ClickableLabel
 from browser.settings import Active
 
-from browser.baselistwidget import BaseContextMenu, contextmenu
+from browser.basecontextmenu import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksModel
 from browser.assetwidget import AssetModel
 from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
@@ -701,7 +701,7 @@ class SaverWidget(QtWidgets.QDialog):
         header.widgetMoved.connect(foldersbutton.view().move)
 
 
-        bookmarkbutton.view().model().sourceModel().activeChanged.connect(assetbutton.view().model().sourceModel().setBookmark)
+        bookmarkbutton.view().model().sourceModel().activeChanged.connect(assetbutton.view().model().sourceModel().set_active)
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(foldersbutton.view().set_asset)
 
         assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))

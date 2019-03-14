@@ -10,7 +10,7 @@ import sys
 import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.baselistwidget import BaseContextMenu
+from browser.basecontextmenu import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 

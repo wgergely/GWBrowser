@@ -13,7 +13,7 @@ from browser.editors import ClickableLabel
 from browser.delegate import BaseDelegate
 from browser.delegate import paintmethod
 from browser.settings import MarkedAsActive
-from browser.baselistwidget import BaseContextMenu, contextmenu
+from browser.basecontextmenu import BaseContextMenu, contextmenu
 from browser.delegate import AssetWidgetDelegate
 from browser.delegate import BookmarksWidgetDelegate
 from browser.assetwidget import AssetModel
@@ -615,37 +615,3 @@ class SelectBookmarkButton(SelectAssetButton):
         parent = index.data(common.ParentRole)
         text = u'{}: {}'.format(parent[1], parent[-1])
         self.setText(text.upper())
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-
-    bookmarkbutton = SelectBookmarkButton()
-    bookmarkview = SelectBookmarkView()
-    bookmarkbutton.set_view(bookmarkview)
-
-    assetbutton = SelectAssetButton()
-    assetview = SelectAssetView()
-    assetbutton.set_view(assetview)
-
-    foldersbutton = SelectFolderButton()
-    foldersview = SelectFolderView()
-    foldersview.set_model(SelectFolderModel())
-    foldersbutton.set_view(foldersview)
-
-    bookmarkview.model().sourceModel().activeChanged.connect(assetview.model().sourceModel().setBookmark)
-    assetview.model().sourceModel().activeAssetChanged.connect(foldersview.set_asset)
-
-    bookmarkview.model().sourceModel().activeChanged.emit(bookmarkview.model().sourceModel().active_index())
-    assetview.model().sourceModel().activeAssetChanged.emit(assetview.model().sourceModel().active_index())
-    assetview.model().sourceModel().activeAssetChanged.connect(lambda i: foldersview.model().fileTypeChanged.emit(u'ma'))
-
-    # foldersview.model().fileTypeChanged.emit(u'vdb')
-
-    bookmarkbutton.show()
-    assetbutton.show()
-    foldersbutton.show()
-
-    # assetsmodel.activeAssetChanged.emit(assetsmodel.active_index())
-
-    app.exec_()

@@ -142,7 +142,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def _connectSignals(self):
         self.bookmarkswidget.model().sourceModel().activeChanged.connect(
-            self.assetswidget.model().sourceModel().setBookmark)
+            self.assetswidget.model().sourceModel().set_active)
         self.assetswidget.model().sourceModel().activeAssetChanged.connect(
             self.fileswidget.model().sourceModel().setAsset)
 

@@ -20,7 +20,7 @@ import maya.cmds as cmds
 
 import browser.common as common
 from browser.imagecache import ImageCache
-from browser.baselistwidget import BaseContextMenu
+from browser.basecontextmenu import BaseContextMenu
 from browser.browserwidget import BrowserWidget, ListControlWidget
 from browser.listcontrolwidget import BrowserButton
 from browser.assetwidget import AssetWidget
