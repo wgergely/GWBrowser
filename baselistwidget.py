@@ -201,9 +201,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         }
         self._last_changed = {}  # a dict of path/timestamp values
 
-        self.modelDataResetRequested.connect(
-            self.__resetdata__, type=QtCore.Qt.QueuedConnection)
-
     def __resetdata__(self):
         """Resets the internal data."""
         monitored = self._file_monitor.directories()
@@ -211,13 +208,11 @@ class BaseModel(QtCore.QAbstractItemModel):
             self._file_monitor.removePaths(monitored)
 
         self.model_data = {}
-        self.beginResetModel()
         self.__initdata__()
         self.switch_model_data()
-        self.endResetModel()
 
     def __initdata__(self):
-        raise NotImplementedError(u'__initdata__ is abstract')
+        raise NotImplementedError(u'__initdata__ is abstract and has to be defined in the subclass.')
 
     def active_index(self):
         """The model's active_index."""
@@ -308,21 +303,21 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
-        ImageCache.instance().thumbnailChanged.connect(
-            self.update_thumbnail, QtCore.Qt.QueuedConnection)
-
-    def update_thumbnail(self, index):
-        height = self.visualRect(index).height() - 2
-        ImageCache.instance().cache_image(AssetSettings(
-            index).thumbnail_path(), height, overwrite=True)
-        self.update(index)
+    # def update_thumbnail(self, index):
+    #     height = self.visualRect(index).height() - 2
+    #     ImageCache.instance().cache_image(AssetSettings(
+    #         index).thumbnail_path(), height, overwrite=True)
+    #     self.update(index)
 
     def set_model(self, model):
-        """Main method to add a model to the view and connect all it's signals."""
+        """Add a model to the view and connects all signals."""
         proxy_model = FilterProxyModel(parent=self)
         proxy_model.setSourceModel(model)
         self.setModel(proxy_model)
-        #
+
+        self.model().sourceModel().modelDataResetRequested.connect(
+            self.__resetdata__, type=QtCore.Qt.DirectConnection)
+
         # def timestamp():
         #     self.model().sourceModel()._last_refreshed[self.model(
         #     ).sourceModel().get_location()] = time.time()
