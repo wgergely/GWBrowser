@@ -17,7 +17,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 from browser.imagecache import ImageCache
 import browser.common as common
-from browser.baselistwidget import BaseContextMenu
+from browser.basecontextmenu import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 import browser.editors as editors
@@ -67,41 +67,45 @@ class AssetModel(BaseModel):
         the dictionary.
 
         """
-        self.beginResetModel()
-        self.model_data = {}  # reset
+        self._data[self._datakey] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+
+        rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
         active_paths = Active.paths()
+
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
-        if not self.bookmark:
+        if not self._parent_item:
             self.endResetModel()
             return
-        if not all(self.bookmark):
+        if not all(self._parent_item):
             self.endResetModel()
             return
 
-        rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
-
-        server, job, root = self.bookmark
+        server, job, root = self._parent_item
         bookmark_path = '{}/{}/{}'.format(server, job, root)
+
         itdir = QtCore.QDir(bookmark_path)
         itdir.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.Dirs)
         itdir.setSorting(QtCore.QDir.Unsorted)
         it = QtCore.QDirIterator(itdir,
                                  flags=QtCore.QDirIterator.NoIteratorFlags)
 
-        thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
-        thumbnail_image = ImageCache.instance().get(
-            thumbnail_path, rowsize.height() - 2)
+        default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        default_thumbnail_image = ImageCache.instance().get(
+            default_thumbnail_path, rowsize.height() - 2)
+        default_background_color = QtGui.QColor(0, 0, 0, 0)
 
         while it.hasNext():
             filepath = it.next()
             filename = it.fileName()
+            filepath = it.filePath()
 
-            identifier = QtCore.QDir(it.filePath()).entryList(
+            identifier = QtCore.QDir(filepath).entryList(
                 (common.ASSET_IDENTIFIER, ),
-                filters=QtCore.QDir.Files |
-                QtCore.QDir.NoDotAndDotDot
+                filters=QtCore.QDir.Files
+                | QtCore.QDir.NoDotAndDotDot
             )
             if not identifier:
                 continue
@@ -111,35 +115,56 @@ class AssetModel(BaseModel):
             tooltip += u'{}\n'.format(job.upper())
             tooltip += u'{}'.format(filepath)
 
-            self.model_data[len(self.model_data)] = {
+            data = self.model_data()
+            idx = len(data)
+            data[idx] = {
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
-                QtCore.Qt.StatusTipRole: it.filePath(),
+                QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: rowsize,
+                #
                 common.FlagsRole: QtCore.Qt.NoItemFlags,
                 common.ParentRole: (server, job, root, filename),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
-                common.FileDetailsRole: it.fileInfo().size(),
-                common.ThumbnailRole: thumbnail_image,
-                common.ThumbnailBackgroundRole: QtGui.QColor(0,0,0,0),
+                common.FileDetailsRole: None,
+                #
+                common.DefaultThumbnailRole: default_thumbnail_image,
+                common.DefaultThumbnailBackgroundRole: default_background_color,
+                common.ThumbnailPathRole: None,
+                common.ThumbnailRole: default_thumbnail_image,
+                common.ThumbnailBackgroundRole: default_background_color,
+                #
                 common.TypeRole: common.AssetItem,
+                #
                 common.SortByName: filename,
                 common.SortByLastModified: it.fileInfo().lastModified().toMSecsSinceEpoch(),
-                common.SortBySize: 0,
+                common.SortBySize: None,
             }
 
-        for n in xrange(self.rowCount()):
-            index = self.index(n, 0, parent=QtCore.QModelIndex())
+            index = self.index(idx, 0)
             settings = AssetSettings(index)
+            data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
+
+            image = ImageCache.instance().get(
+                data[idx][common.ThumbnailPathRole],
+                rowsize.height() - 2)
+
+            if image:
+                if not image.isNull():
+                    color = ImageCache.instance().get(
+                        data[idx][common.ThumbnailPathRole],
+                        'BackgroundColor')
+
+                    data[idx][common.ThumbnailRole] = image
+                    data[idx][common.ThumbnailBackgroundRole] = color
+
             flags = (
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable
+                QtCore.Qt.ItemIsSelectable
+                | QtCore.Qt.ItemIsEnabled
+                | QtCore.Qt.ItemIsEditable
             )
-            filename = index.data(QtCore.Qt.DisplayRole)
-            filepath = index.data(QtCore.Qt.StatusTipRole)
 
             if filename == active_paths[u'asset']:
                 flags = flags | MarkedAsActive
@@ -147,36 +172,26 @@ class AssetModel(BaseModel):
                 flags = flags | MarkedAsArchived
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
-            self.model_data[index.row()][common.FlagsRole] = flags
+            data[idx][common.FlagsRole] = flags
 
             # Todos
             todos = settings.value(u'config/todos')
             todocount = 0
             if todos:
                 todocount = len([k for k in todos if not todos[k]
-                             [u'checked'] and todos[k][u'text']])
+                                 [u'checked'] and todos[k][u'text']])
             else:
                 todocount = 0
-            self.model_data[index.row()][common.TodoCountRole] = todocount
+            data[idx][common.TodoCountRole] = todocount
 
             description = settings.value(u'config/description')
-            self.model_data[index.row()][common.DescriptionRole] = description
-            self.model_data[index.row()][common.SortByName] = '{}{}'.format(filename, todocount)
-            self.model_data[index.row()][common.SortBySize] = todocount
+            data[idx][common.DescriptionRole] = description
+            data[idx][common.SortByName] = '{}{}'.format(
+                filename, todocount)
+            data[idx][common.SortBySize] = todocount
 
         # file-monitor timestamp
-        self._last_refreshed[None] = time.time()
         self.endResetModel()
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def set_active(self, index):
-        """Sets a new bookmark for the model and resets the model_data object."""
-        if not index.isValid():
-            return
-        if index.data(common.ParentRole) == self.bookmark:
-            return
-        self.bookmark = index.data(common.ParentRole)
-        self.modelDataResetRequested.emit()
 
 
 class AssetWidget(BaseInlineIconWidget):
@@ -211,15 +226,11 @@ class AssetWidget(BaseInlineIconWidget):
         """The number of icons on the right-hand side."""
         return 4
 
-    def activate_current_index(self):
+    def save_activated(self, index):
         """Sets the current item item as ``active`` and
         emits the ``activeChanged`` signal.
 
         """
-        if not super(AssetWidget, self).activate_current_index():
-            return
-        index = self.selectionModel().currentIndex()
-
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         local_settings.setValue(u'activepath/asset', file_info.fileName())
         Active.paths()  # Resetting invalid paths
@@ -227,7 +238,6 @@ class AssetWidget(BaseInlineIconWidget):
         # By updating the saved state we're making sure the active_monit doesn't emit the assetChangedSignal
         # (we don't want to trigger two update model updates)
         active_monitor.update_saved_state(u'asset', file_info.fileName())
-        self.model().sourceModel().activeAssetChanged.emit(index)
 
     def show_todos(self):
         """Shows the ``TodoEditorWidget`` for the current item."""
@@ -252,9 +262,9 @@ class AssetWidget(BaseInlineIconWidget):
         #
         name_rect = QtCore.QRect(rect)
         name_rect.setLeft(
-            common.INDICATOR_WIDTH +
-            name_rect.height() +
-            common.MARGIN
+            common.INDICATOR_WIDTH
+            + name_rect.height()
+            + common.MARGIN
         )
         name_rect.setRight(name_rect.right() - common.MARGIN)
 
@@ -283,5 +293,5 @@ class AssetWidget(BaseInlineIconWidget):
             ImageCache.instance().pick(index)
             return
         else:
-            self.activate_current_index()
+            self.activate(self.selectionModel().currentIndex())
             return

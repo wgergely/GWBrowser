@@ -649,28 +649,15 @@ class FilesWidget(BaseInlineIconWidget):
         index = self.selectionModel().currentIndex()
         self.activated.emit(index)
 
-    def activate_current_index(self):
+    def save_activated(self, index):
         """Sets the current item item as ``active`` and
         emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
 
         """
-        if not super(FilesWidget, self).activate_current_index():
-            return
-
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         fileroot = index.data(common.ParentRole)[5]
         activefilepath = u'{}/{}'.format(fileroot, file_info.fileName())
         local_settings.setValue(u'activepath/file', activefilepath)
-
-        activefilepath = list(index.data(common.ParentRole)
-                              ) + [file_info.fileName(), ]
-        activefilepath = u'/'.join(activefilepath)
-        activefilepath = common.get_sequence_endpath(activefilepath)
-        self.model().sourceModel().activeFileChanged.emit(activefilepath)
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
@@ -718,7 +705,6 @@ class FilesWidget(BaseInlineIconWidget):
             ImageCache.instance().pick(index)
             return
 
-        # self.activate_current_index()
         self.activated.emit(index)
 
 

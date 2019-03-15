@@ -191,8 +191,6 @@ class BaseModel(QtCore.QAbstractItemModel):
     """Signal emited when all the data has to be refreshed."""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
-    activeLocationChanged = QtCore.Signal(basestring)
-    activeFileChanged = QtCore.Signal(basestring)
     """The active item has changed."""
 
     def __init__(self, parent=None):
@@ -203,6 +201,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data = {}
         self._datakey = None
         self._datatype = None
+        self._parent_item = None
 
         # File-system monitor
         self._file_monitor = QtCore.QFileSystemWatcher()
@@ -213,6 +212,16 @@ class BaseModel(QtCore.QAbstractItemModel):
             common.ExportsFolder: 0.0,
         }
         self._last_changed = {}  # a dict of path/timestamp values
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_active(self, index):
+        """Sets the given index's parent."""
+        if not index.isValid():
+            return
+        if index.data(common.ParentRole) == self._parent_item:
+            return
+        self._parent_item = index.data(common.ParentRole)
+
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -326,12 +335,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
-    # def update_thumbnail(self, index):
-    #     height = self.visualRect(index).height() - 2
-    #     ImageCache.instance().cache_image(AssetSettings(
-    #         index).thumbnail_path(), height, overwrite=True)
-    #     self.update(index)
-
     def set_model(self, model):
         """This is the main port of entry for the model.
 
@@ -359,6 +362,7 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.QueuedConnection
         )
 
+        # Sort/Filter signals
         self.model().filterTextChanged.connect(
             self.model().set_filtertext,
             type=QtCore.Qt.QueuedConnection)
@@ -375,10 +379,8 @@ class BaseListWidget(QtWidgets.QListView):
                 0,
                 QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
 
-        # key = self.get_sortkey()
-        # order =
-        # self.setSortRole(key)
-        # print super(FilterProxyModel, self).sort(column, order=order)
+        self.model().sourceModel().activeChanged.connect(self.save_activated)
+
 
         # def timestamp():
         #     self.model().sourceModel()._last_refreshed[self.model(
@@ -414,6 +416,60 @@ class BaseListWidget(QtWidgets.QListView):
         #     QtCore.QItemSelectionModel.ClearAndSelect
         # )
 
+    def active_index(self):
+        """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
+        flag. Returns an invalid index if no items is marked as active.
+
+        """
+        index = self.model().sourceModel().active_index()
+        if index.isValid():
+            return self.model().mapFromSource(index)
+        return QtCore.QModelIndex()
+
+    def activate(self, index):
+        """Sets the given index as ``active``.
+
+        Note:
+            The method doesn't alter the config files or emits signals,
+            merely sets the item flags. Make sure to implement that in the subclass.
+
+        """
+        if not index.isValid():
+            return
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+        if index.flags() & Settings.MarkedAsArchived:
+            return
+
+        self.activated.emit(index)
+        if index.flags() & Settings.MarkedAsActive:
+            return
+
+        self.deactivate(self.active_index())
+
+        source_index = self.model().mapToSource(index)
+        source_index.model().setData(
+            source_index,
+            source_index.flags() | Settings.MarkedAsActive,
+            role=common.FlagsRole
+        )
+        source_index.model().activeChanged.emit(source_index)
+
+    def deactivate(self, index):
+        """Unsets the active flag."""
+        if not index.isValid():
+            return
+        source_index = self.model().mapToSource(index)
+        source_index.model().setData(
+            source_index,
+            source_index.flags() & ~Settings.MarkedAsActive,
+            role=common.FlagsRole)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def save_activated(self, index):
+        raise NotImplementedError(
+            '`save_activated` is abstract and has to be implemented in the subclass.')
+
     @QtCore.Slot(QtCore.QModelIndex, QtCore.QModelIndex)
     def save_selection(self, current, previous):
         """Saves the currently selected path."""
@@ -428,6 +484,9 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot()
     def reselect_previous(self):
+        """Slot called when the model has finished a reset operation.
+        The method will try to reselect the previously selected path."""
+        
         val = local_settings.value(
             u'widget/{}/selected_item'.format(self.__class__.__name__))
         if not val:
@@ -446,21 +505,13 @@ class BaseListWidget(QtWidgets.QListView):
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 self.scrollTo(index)
-                break
+                return
 
-    def get_item_filter(self):
-        """A path segment used to filter the collected items."""
-        val = local_settings.value(
-            u'widget/{}/filter'.format(self.__class__.__name__))
-        return val if val else u'/'
+        if self.model().rowCount():
+            index = self.model().index(0, 0)
+            self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+            self.scrollTo(index)
 
-    def set_item_filter(self, val):
-        cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/filter'.format(cls), val)
-
-    def showEvent(self, event):
-        if self.model().sourceModel().model_data() == {}:
-            self.model().sourceModel().modelDataResetRequested.emit()
 
     def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -560,9 +611,6 @@ class BaseListWidget(QtWidgets.QListView):
                     )
                     favourites.remove(file_info.filePath())
                     local_settings.setValue(u'favourites', favourites)
-
-    def action_on_enter_key(self):
-        self.activate_current_index()
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
@@ -755,58 +803,8 @@ class BaseListWidget(QtWidgets.QListView):
         common.move_widget_to_available_geo(widget)
         widget.exec_()
 
-    def active_index(self):
-        """Return the ``active`` item.
-
-        The active item is indicated by the ``Settings.MarkedAsActive`` flag.
-        If no item has been flagged as `active`, returns ``None``.
-
-        """
-        index = self.model().sourceModel().active_index()
-        if index.isValid():
-            return self.model().mapFromSource(index)
-        return index
-
-    def unmark_active_index(self):
-        """Unsets the active flag."""
-        index = self.active_index()
-        if not index.isValid():
-            return
-        source_index = self.model().mapToSource(index)
-        self.model().sourceModel().setData(
-            source_index,
-            source_index.flags() & ~Settings.MarkedAsActive,
-            role=common.FlagsRole
-        )
-
-    def activate_current_index(self):
-        """Sets the current index as ``active``.
-
-        Note:
-            The method doesn't alter the config files or emits signals,
-            merely sets the item flags. Make sure to implement that in the subclass.
-
-        """
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return False
-        if index.flags() == QtCore.Qt.NoItemFlags:
-            return False
-        if index.flags() & Settings.MarkedAsArchived:
-            return False
-
-        self.activated.emit(index)
-        if index.flags() & Settings.MarkedAsActive:
-            return False
-
-        self.unmark_active_index()
-        source_index = self.model().mapToSource(index)
-        self.model().sourceModel().setData(
-            source_index,
-            source_index.flags() | Settings.MarkedAsActive,
-            role=common.FlagsRole
-        )
-        return True
+    def action_on_enter_key(self):
+        self.activate(self.selectionModel().currentIndex())
 
     def resizeEvent(self, event):
         """Custom resize event will emit the ``sizeChanged`` signal."""

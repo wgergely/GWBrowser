@@ -500,7 +500,7 @@ class SelectAssetView(BaseListWidget):
     #         self.hide()
 
     def mouseDoubleClickEvent(self, event):
-        self.activate_current_index()
+        self.activate(self.selectionModel().currentIndex())
 
     def inline_icons_count(self):
         return 0

@@ -79,9 +79,9 @@ class BookmarkInfo(QtCore.QFileInfo):
         """Returns the number of assets inside the given folder."""
         dir_ = QtCore.QDir(path)
         dir_.setFilter(
-            QtCore.QDir.NoDotAndDotDot
-            | QtCore.QDir.Dirs
-            | QtCore.QDir.Readable
+            QtCore.QDir.NoDotAndDotDot |
+            QtCore.QDir.Dirs |
+            QtCore.QDir.Readable
         )
 
         # Counting the number assets found
@@ -154,6 +154,7 @@ class BookmarksModel(BaseModel):
         default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
         default_thumbnail_image = ImageCache.instance().get(
             default_thumbnail_path, rowsize.height() - 2)
+        default_background_color = QtGui.QColor(0, 0, 0, 0)
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists
@@ -165,17 +166,17 @@ class BookmarksModel(BaseModel):
                 QtCore.QDir().mkpath(_confpath.filePath())
 
             flags = (
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsDropEnabled |
-                QtCore.Qt.ItemIsEditable
+                QtCore.Qt.ItemIsSelectable
+                | QtCore.Qt.ItemIsEnabled
+                | QtCore.Qt.ItemIsDropEnabled
+                | QtCore.Qt.ItemIsEditable
             )
 
             # Active
             if (
-                file_info.server == active_paths[u'server'] and
-                file_info.job == active_paths[u'job'] and
-                file_info.root == active_paths[u'root']
+                file_info.server == active_paths[u'server']
+                and file_info.job == active_paths[u'job']
+                and file_info.root == active_paths[u'root']
             ):
                 flags = flags | MarkedAsActive
 
@@ -194,17 +195,21 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: file_info.filePath(),
                 QtCore.Qt.SizeHintRole: rowsize,
+                #
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
                 common.TodoCountRole: file_info.size(),
                 common.FileDetailsRole: file_info.size(),
-                common.TypeRole: common.BookmarkItem,
+                #
                 common.DefaultThumbnailRole: default_thumbnail_image,
-                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
                 common.ThumbnailRole: default_thumbnail_image,
-                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.ThumbnailBackgroundRole: default_background_color,
+                #
+                common.TypeRole: common.BookmarkItem,
+                #
                 common.SortByName: file_info.filePath(),
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: file_info.size(),
@@ -212,7 +217,8 @@ class BookmarksModel(BaseModel):
 
             # Thumbnail
             index = self.index(idx, 0)
-            data[idx][common.ThumbnailPathRole] = AssetSettings(index).thumbnail_path()
+            data[idx][common.ThumbnailPathRole] = AssetSettings(
+                index).thumbnail_path()
             image = ImageCache.instance().get(
                 data[idx][common.ThumbnailPathRole],
                 rowsize.height() - 2)
@@ -326,19 +332,9 @@ class BookmarksWidget(BaseInlineIconWidget):
     def inline_icons_count(self):
         return 4
 
-    def activate_current_index(self):
-        """Sets the current item as ``active_index``.
-        Emits the ``activeChanged`` signal.
-
-        """
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            return
-        if not super(BookmarksWidget, self).activate_current_index():
-            return
-
+    def save_activated(self, index):
+        """Saves the activated index to ``LocalSettings``."""
         server, job, root = index.data(common.ParentRole)
-
         local_settings.setValue(u'activepath/server', server)
         local_settings.setValue(u'activepath/job', job)
         local_settings.setValue(u'activepath/root', root)
@@ -346,7 +342,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         active_monitor.update_saved_state(u'job', job)
         active_monitor.update_saved_state(u'root', root)
 
-        self.model().sourceModel().activeChanged.emit(index)
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
@@ -397,7 +392,7 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
         if not index.data(common.TodoCountRole):
             return common.reveal(index.data(QtCore.Qt.StatusTipRole))
-        self.activate_current_index()
+        self.activate(self.selectionModel().currentIndex())
 
 
 class ComboBoxItemDelegate(BaseDelegate):
@@ -481,9 +476,9 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.Window)
+            QtCore.Qt.FramelessWindowHint
+            | QtCore.Qt.WindowStaysOnTopHint
+            | QtCore.Qt.Window)
 
         self._connectSignals()
         self._set_initial_values()
@@ -696,9 +691,9 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         """
 
         qdir.setFilter(
-            QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks
+            QtCore.QDir.NoDotAndDotDot
+            | QtCore.QDir.Dirs
+            | QtCore.QDir.NoSymLinks
         )
 
         self.pick_job_widget.clear()
@@ -732,11 +727,11 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             self,
             u'Pick the location of the assets folder',
             file_info.filePath(),
-            QtWidgets.QFileDialog.ShowDirsOnly |
-            QtWidgets.QFileDialog.DontResolveSymlinks |
-            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons |
-            QtWidgets.QFileDialog.HideNameFilterDetails |
-            QtWidgets.QFileDialog.ReadOnly
+            QtWidgets.QFileDialog.ShowDirsOnly
+            | QtWidgets.QFileDialog.DontResolveSymlinks
+            | QtWidgets.QFileDialog.DontUseCustomDirectoryIcons
+            | QtWidgets.QFileDialog.HideNameFilterDetails
+            | QtWidgets.QFileDialog.ReadOnly
         )
         if not path:
             self.ok_button.setDisabled(True)

@@ -455,7 +455,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         if self.index.isValid():
             menu_set[u'Activate'] = {
-                u'action': self.parent().activate_current_index
+                u'action': lambda: self.parent().activate(self.index)
             }
         menu_set[u'Refresh'] = {
             u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,

@@ -238,7 +238,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 fileswidget.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 fileswidget.scrollTo(index)
-                fileswidget.activate_current_index()
+                fileswidget.activate(index)
                 break
 
     def add_context_callbacks(self):
