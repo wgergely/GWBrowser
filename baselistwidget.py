@@ -796,7 +796,7 @@ class BaseListWidget(QtWidgets.QListView):
             return False
 
         self.activated.emit(index)
-        if index.flags() & Settings.MarkedAsActivated:
+        if index.flags() & Settings.MarkedAsActive:
             return False
 
         self.unmark_active_index()

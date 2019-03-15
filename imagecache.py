@@ -239,7 +239,7 @@ class ImageCache(QtCore.QObject):
                 source = ImageCache._find_largest_file(index)
 
         source = source if source else index.data(QtCore.Qt.StatusTipRole)
-        dest = AssetSettings(index).thumbnail_path()
+        dest = index.data(common.ThumbnailPathRole)
 
         # First let's check if the file is competible with OpenImageIO
         i = oiio.ImageInput.open(source)
@@ -330,7 +330,17 @@ class ImageCache(QtCore.QObject):
                 dest, _b.geterror(), oiio.geterror()))
             QtCore.QFile(dest).remove()  # removing failed thumbnail save
         else:
-            cls.instance().thumbnailChanged.emit(index)
+            image = cls.instance().get(
+                index.data(common.ThumbnailPathRole),
+                index.data(QtCore.Qt.SizeHintRole).height() - 2,
+                overwrite=True)
+            color = cls.instance().get(
+                index.data(common.ThumbnailPathRole),
+                'BackgroundColor',
+                overwrite=False)
+            index.model().setData(index, image, common.ThumbnailRole)
+            index.model().setData(index, color, common.ThumbnailBackgroundRole)
+
 
     def capture(self, index):
         """Uses ``ScreenGrabber to save a custom screen-grab."""
@@ -348,25 +358,24 @@ class ImageCache(QtCore.QObject):
         # data = index.model().sourceModel().model_data()
         source_index = index.model().mapToSource(index)
 
-        settings = AssetSettings(index)
-        f = QtCore.QFile(settings.thumbnail_path())
+        f = QtCore.QFile(index.data(common.ThumbnailPathRole))
         if f.exists():
-            print settings.thumbnail_path()
             f.remove()
-        if not image.save(settings.thumbnail_path()):
+        if not image.save(index.data(common.ThumbnailPathRole)):
             sys.stderr.write('# Capture thumnail error: Error saving {}.\n'.format(
-                settings.thumbnail_path()))
-        else:
-            image = self.get(
-                settings.thumbnail_path(),
-                index.data(QtCore.Qt.SizeHintRole).height() - 2,
-                overwrite=True)
-            color = self.get(
-                settings.thumbnail_path(),
-                'BackgroundColor',
-                overwrite=False)
-            source_index.model().setData(source_index, image, common.ThumbnailRole)
-            source_index.model().setData(source_index, color, common.ThumbnailBackgroundRole)
+                index.data(common.ThumbnailPathRole)))
+            return
+
+        image = self.get(
+            index.data(common.ThumbnailPathRole),
+            index.data(QtCore.Qt.SizeHintRole).height() - 2,
+            overwrite=True)
+        color = self.get(
+            index.data(common.ThumbnailPathRole),
+            'BackgroundColor',
+            overwrite=False)
+        source_index.model().setData(source_index, image, common.ThumbnailRole)
+        source_index.model().setData(source_index, color, common.ThumbnailBackgroundRole)
 
 
     def remove(self, index):
@@ -414,8 +423,6 @@ class ImageCache(QtCore.QObject):
         dialog.setLabelText(QtWidgets.QFileDialog.Accept, 'Pick thumbnail')
         dialog.setDirectory(QtCore.QFileInfo(
             index.data(QtCore.Qt.StatusTipRole)).filePath())
-        # dialog.setOption(
-        #     QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
 
         if not dialog.exec_():
             return
@@ -423,7 +430,8 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
-        cls.generate(index, source=dialog.selectedFiles()[0])
+        source_index = index.model().mapToSource(index)
+        cls.generate(source_index, source=dialog.selectedFiles()[0])
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0):

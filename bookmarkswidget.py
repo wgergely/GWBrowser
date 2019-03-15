@@ -202,6 +202,7 @@ class BookmarksModel(BaseModel):
                 common.TypeRole: common.BookmarkItem,
                 common.DefaultThumbnailRole: default_thumbnail_image,
                 common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.ThumbnailPathRole: None,
                 common.ThumbnailRole: default_thumbnail_image,
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 common.SortByName: file_info.filePath(),
@@ -211,13 +212,20 @@ class BookmarksModel(BaseModel):
 
             # Thumbnail
             index = self.index(idx, 0)
-            settings = AssetSettings(index)
-            image = ImageCache.instance().get(settings.thumbnail_path(), rowsize.height() - 2)
+            data[idx][common.ThumbnailPathRole] = AssetSettings(index).thumbnail_path()
+            image = ImageCache.instance().get(
+                data[idx][common.ThumbnailPathRole],
+                rowsize.height() - 2)
+
             if not image:
                 continue
             if image.isNull():
                 continue
-            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+
+            color = ImageCache.instance().get(
+                data[idx][common.ThumbnailPathRole],
+                'BackgroundColor')
+
             data[idx][common.ThumbnailRole] = image
             data[idx][common.ThumbnailBackgroundRole] = color
 
