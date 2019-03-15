@@ -428,10 +428,10 @@ class BaseListWidget(QtWidgets.QListView):
             lambda x, y: self.model().sort(
                 0,
                 QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
-        # model.modelReset.connect(self.model().invalidate)
-            # lambda: self.model().sort(
-            #     0,
-            #     QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+        model.modelReset.connect(
+            lambda: self.model().sort(
+                0,
+                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
 
         model.activeChanged.connect(self.save_activated)
 

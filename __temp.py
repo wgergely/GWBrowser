@@ -23,28 +23,30 @@ f.move(1150, 50)
 b.model().sourceModel().modelReset.connect(
     lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
 b.model().sourceModel().modelReset.connect(
-    a.model().sourceModel().__resetdata__)
+    a.model().sourceModel().modelDataResetRequested.emit)
 
 b.model().sourceModel().activeChanged.connect(
     a.model().sourceModel().set_active)
 b.model().sourceModel().activeChanged.connect(
-    lambda x: a.model().sourceModel().__resetdata__())
+    lambda x: a.model().sourceModel().modelDataResetRequested.emit())
 
 
 a.model().sourceModel().modelReset.connect(
     lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
-    f.model().sourceModel().__resetdata__)
+    f.model().sourceModel().modelDataResetRequested.emit)
 
 a.model().sourceModel().activeChanged.connect(
     f.model().sourceModel().set_active)
 a.model().sourceModel().activeChanged.connect(
-    lambda x: f.model().sourceModel().__resetdata__())
+    lambda x: f.model().sourceModel().modelDataResetRequested.emit())
 
-a.model().sourceModel().activeChanged.connect(
-    lambda: f.model().sourceModel().set_data_key(None))
-a.model().sourceModel().activeChanged.connect(
-    lambda: f.model().sourceModel().set_data_type(None))
+
+
+# a.model().sourceModel().activeChanged.connect(
+#     lambda: f.model().sourceModel().set_data_key(None))
+# a.model().sourceModel().activeChanged.connect(
+#     lambda: f.model().sourceModel().set_data_type(None))
 
 # def _debug(model):
 #     print model
