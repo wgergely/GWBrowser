@@ -179,10 +179,11 @@ StatusRole = 1032
 StartpathRole = 1033
 EndpathRole = 1034
 ThumbnailRole = 1035
-ThumbnailBackgroundRole = 1036
-DefaultThumbnailRole = 1037
-DefaultThumbnailBackgroundRole = 1038
-TypeRole = 1039
+ThumbnailPathRole = 1036
+ThumbnailBackgroundRole = 1037
+DefaultThumbnailRole = 1038
+DefaultThumbnailBackgroundRole = 1039
+TypeRole = 1040
 
 SortByName = 2048
 SortByLastModified = 2049
