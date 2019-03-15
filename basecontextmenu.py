@@ -611,7 +611,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         dir_ = QtCore.QDir(u'/'.join(parent_item))
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         for entry in sorted(dir_.entryList()):
-            checked = self.parent().model().sourceModel().data_key() == entry
+            checked = self.parent().model().sourceModel().data_key().lower() == entry.lower()
             menu_set[key][entry] = {
                 u'text': entry.title(),
                 u'checkable': True,
