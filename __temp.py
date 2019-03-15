@@ -4,6 +4,7 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 
 app = QtWidgets.QApplication([])
+
 b = BookmarksWidget()
 b.setFixedWidth(500)
 b.show()
@@ -35,11 +36,23 @@ a.model().sourceModel().modelReset.connect(
 a.model().sourceModel().modelReset.connect(
     f.model().sourceModel().__resetdata__)
 
-def _debug(model):
-    data = model.model_data()
-    print len(data)
+a.model().sourceModel().activeChanged.connect(
+    f.model().sourceModel().set_active)
+a.model().sourceModel().activeChanged.connect(
+    lambda x: f.model().sourceModel().__resetdata__())
 
-f.model().sourceModel().modelReset.connect(lambda: _debug(f.model().sourceModel()))
+a.model().sourceModel().activeChanged.connect(
+    lambda: f.model().sourceModel().set_data_key(None))
+a.model().sourceModel().activeChanged.connect(
+    lambda: f.model().sourceModel().set_data_type(None))
+
+# def _debug(model):
+#     print model
+#     data = model.model_data()
+#     print len(data)
+#     print a.model().sourceModel().active_index()
+#
+# a.model().sourceModel().modelReset.connect(lambda: _debug(f.model().sourceModel()))
 
 
 app.processEvents()

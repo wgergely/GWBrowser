@@ -324,6 +324,8 @@ class FilesModel(BaseModel):
 
         # Iterator
         itdir = QtCore.QDir(location_path)
+        if not itdir.exists():
+            return
         itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         itdir.setSorting(QtCore.QDir.Unsorted)
         it = QtCore.QDirIterator(
@@ -473,16 +475,6 @@ class FilesModel(BaseModel):
     @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
-
-    def data_key(self):
-        """Get's the current ``location``."""
-        val = local_settings.value(u'activepath/location')
-        if not val:
-            local_settings.setValue(
-                u'activepath/location', common.ScenesFolder)
-
-        return val if val else common.ScenesFolder
-
 
     def canDropMimeData(self, data, action, row, column):
         return False

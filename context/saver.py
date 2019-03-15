@@ -29,9 +29,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 
 import browser.common as common
 
-from browser.delegate import AssetWidgetDelegate
 from browser.editors import ClickableLabel
-from browser.settings import Active
 
 from browser.basecontextmenu import BaseContextMenu, contextmenu
 from browser.bookmarkswidget import BookmarksModel

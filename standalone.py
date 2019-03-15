@@ -12,7 +12,7 @@ from browser.browserwidget import BrowserWidget, SizeGrip
 from browser.listcontrolwidget import BrowserButtonContextMenu
 from browser.fileswidget import FilesWidget
 from browser.editors import ClickableLabel
-from browser.baselistwidget import contextmenu
+from browser.basecontextmenu import contextmenu
 import browser.common as common
 from browser.settings import local_settings
 from browser.imagecache import ImageCache

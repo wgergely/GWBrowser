@@ -288,14 +288,13 @@ class BaseModel(QtCore.QAbstractItemModel):
         return self._datakey
 
     def data_type(self):
-        """Returns the current data type: files or sequences."""
+        """Current key to the data dictionary."""
         if self._datatype is None:
+            val = common.FileItem
             cls = self.__class__.__name__
             key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
-            val = local_settings.value(key)
-            if val:
-                return val
-            return common.FileItem
+            savedval = local_settings.value(key)
+            return savedval if savedval else val
         return self._datatype
 
     @QtCore.Slot(unicode)
@@ -313,6 +312,9 @@ class BaseModel(QtCore.QAbstractItemModel):
             return
         if val not in (common.FileItem, common.SequenceItem):
             raise ValueError('Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
+        cls = self.__class__.__name__
+        key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
+        local_settings.setValue(key, val)
         self._datatype = val
 
 
@@ -406,9 +408,11 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.model().sourceModel().dataKeyChanged.connect(self.model().sourceModel().set_data_key)
         self.model().sourceModel().dataKeyChanged.connect(self._check_data)
-            # lambda k: self.model().sourceModel().modelDataResetRequested.emit() if not self.model().sourceModel()._data[x][common.FileItem] else pass)
-
         self.model().sourceModel().dataKeyChanged.connect(lambda x: self.model().invalidate())
+
+        self.model().sourceModel().dataTypeChanged.connect(self.model().sourceModel().set_data_type)
+        self.model().sourceModel().dataTypeChanged.connect(lambda x: self.model().invalidate())
+
 
     def _check_data(self, k):
         _data = self.model().sourceModel()._data

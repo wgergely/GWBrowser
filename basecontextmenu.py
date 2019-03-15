@@ -576,15 +576,18 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = ImageCache.get_rsc_pixmap(
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        collapsed = self.parent().model().sourceModel().data_type() == common.SequenceItem
+
+        currenttype = self.parent().model().sourceModel().data_type()
+        newtype = common.SequenceItem if currenttype == common.FileItem else common.FileItem
+        groupped = currenttype == common.SequenceItem
 
         menu_set[u'collapse'] = {
-            u'text': 'Show individual files' if collapsed else 'Group sequences together',
-            u'icon': expand_pixmap if collapsed else collapse_pixmap,
+            u'text': 'Show individual files' if groupped else 'Group sequences together',
+            u'icon': expand_pixmap if groupped else collapse_pixmap,
             u'checkable': True,
-            u'checked': collapsed,
+            u'checked': groupped,
             u'action': functools.partial(
-                self.parent().model().sourceModel().dataTypeChanged.emit, not collapsed)
+                self.parent().model().sourceModel().dataTypeChanged.emit, newtype)
         }
         return menu_set
 
