@@ -288,7 +288,7 @@ numpy/lib/type_check.py,sha256=RDgUcaR7xphlJfV_JFmEx_WcnuxunvZxbjTu1t0xj68,16418
 numpy/lib/ufunclike.py,sha256=yxfFrgw-BmiJPIqrnb6Fvdr8RjB1qE4aUBqhp74-pAw,5738
 numpy/lib/user_array.py,sha256=7nJPlDfP-04Lcq8iH_cqBbSEsx5cHCcj-2Py-oh-5t0,7817
 numpy/lib/utils.py,sha256=vlSx-X0uumralcxOb09iXtBPfDmOgmTApAlHTwlawKw,36327
-numpy/lib/tests/test__datasource.py,sha256=UA-UafR0XI1nH9uVmRLHgtnVViH4XKZ__3_ZaTdgd_M,10404
+numpy/lib/tests/test_datasource.py,sha256=UA-UafR0XI1nH9uVmRLHgtnVViH4XKZ__3_ZaTdgd_M,10404
 numpy/lib/tests/test__iotools.py,sha256=9ZsTKpelljkO-TUZqwGPMU1sW_7wV-98gsETAItPHs8,13465
 numpy/lib/tests/test__version.py,sha256=-4O_MvSGwZYSzgtt7oWYotmZo9uEF8_95Or73F3X82g,2125
 numpy/lib/tests/test_arraypad.py,sha256=5btnh6Tog5TB-nnjYlID_LhLsOrt3e-K3A6zBQNdwVY,43242
@@ -726,7 +726,7 @@ numpy/core/tests/test_arrayprint.pyc,,
 numpy/ma/mrecords.pyc,,
 numpy/core/tests/test_mem_overlap.pyc,,
 numpy/lib/mixins.pyc,,
-numpy/lib/tests/test__datasource.pyc,,
+numpy/lib/tests/test_datasource.pyc,,
 numpy/f2py/__main__.pyc,,
 numpy/lib/tests/test__version.pyc,,
 numpy/testing/noseclasses.pyc,,

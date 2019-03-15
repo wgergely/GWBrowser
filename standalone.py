@@ -214,7 +214,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         if not index.isValid():
             return
         location = self.findChild(
-            FilesWidget).model().sourceModel().get_location()
+            FilesWidget).model().sourceModel().data_key()
 
         data = index.data(QtCore.Qt.StatusTipRole)
         if location == common.RendersFolder:

@@ -56,7 +56,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
             index, parent=parent)
         # Scenes
         if index.isValid():
-            if self.parent().model().sourceModel().get_location() == common.ScenesFolder:
+            if self.parent().model().sourceModel().data_key() == common.ScenesFolder:
                 self.add_scenes_menu()
         self.add_save_as_menu()
 
@@ -64,7 +64,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         # Caches
         if index.isValid():
-            if self.parent().model().sourceModel().get_location() == common.ExportsFolder:
+            if self.parent().model().sourceModel().data_key() == common.ExportsFolder:
                 self.add_readalembic_menu()
 
         self.add_writealembic_menu()
@@ -277,7 +277,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             self.customFilesContextMenuEvent)
 
         def open_scene(index):
-            if self.findChild(FilesWidget).model().sourceModel().get_location() != common.ScenesFolder:
+            if self.findChild(FilesWidget).model().sourceModel().data_key() != common.ScenesFolder:
                 return
             self.open_scene(index.data(QtCore.Qt.StatusTipRole))
         fileswidget.activated.connect(open_scene)

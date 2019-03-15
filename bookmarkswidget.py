@@ -14,7 +14,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import time
 import re
 import functools
 
@@ -26,6 +25,7 @@ from browser.basecontextmenu import BaseContextMenu
 from browser.baselistwidget import BaseInlineIconWidget
 from browser.baselistwidget import BaseModel
 from browser.settings import local_settings, Active, active_monitor
+from browser.settings import AssetSettings
 from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import BaseDelegate
@@ -109,6 +109,7 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         self.add_add_bookmark_menu()
         if index.isValid():
             self.add_mode_toggles_menu()
+            self.add_thumbnail_menu()
 
         self.add_separator()
 
@@ -131,7 +132,6 @@ class BookmarksModel(BaseModel):
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
-        self.__initdata__()
 
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
@@ -141,17 +141,19 @@ class BookmarksModel(BaseModel):
         in under windows.
 
         """
-        self.model_data = {}
-        active_paths = Active.get_active_paths()
+        self._data[self._datakey] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        active_paths = Active.paths()
 
         items = local_settings.value(
             u'bookmarks') if local_settings.value(u'bookmarks') else []
         items = [BookmarkInfo(items[k]) for k in items]
 
-        thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
-        thumbnail_image = ImageCache.instance().get(
-            thumbnail_path, rowsize.height() - 2)
+        default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        default_thumbnail_image = ImageCache.instance().get(
+            default_thumbnail_path, rowsize.height() - 2)
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists
@@ -185,7 +187,8 @@ class BookmarksModel(BaseModel):
             if not file_info.exists():
                 flags = QtCore.Qt.ItemIsSelectable | MarkedAsArchived
 
-            self.model_data[idx] = {
+            data = self.model_data()
+            data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -197,12 +200,28 @@ class BookmarksModel(BaseModel):
                 common.TodoCountRole: file_info.size(),
                 common.FileDetailsRole: file_info.size(),
                 common.TypeRole: common.BookmarkItem,
-                common.ThumbnailRole: thumbnail_image,
+                common.DefaultThumbnailRole: default_thumbnail_image,
+                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.ThumbnailRole: default_thumbnail_image,
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                common.SortByName: '{}{}{}{}'.format(file_info.server, file_info.job, file_info.root, file_info.size()),
+                common.SortByName: file_info.filePath(),
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: file_info.size(),
             }
+
+            # Thumbnail
+            index = self.index(idx, 0)
+            settings = AssetSettings(index)
+            image = ImageCache.instance().get(settings.thumbnail_path(), rowsize.height() - 2)
+            if not image:
+                continue
+            if image.isNull():
+                continue
+            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+            data[idx][common.ThumbnailRole] = image
+            data[idx][common.ThumbnailBackgroundRole] = color
+
+        self.endResetModel()
 
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():
@@ -257,7 +276,7 @@ class BookmarksModel(BaseModel):
     def supportedDropActions(self):
         return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
 
-    def get_location(self):
+    def data_key(self):
         """There is no location associated with the asset widget,
         Needed context menu functionality only."""
         return None
@@ -278,7 +297,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.context_menu_cls = BookmarksWidgetContextMenu
 
         self.set_model(BookmarksModel(parent=self))
-
 
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)
@@ -350,21 +368,19 @@ class BookmarksWidget(BaseInlineIconWidget):
         bookmarks.pop(k, None)
         local_settings.setValue(u'bookmarks', bookmarks)
 
-        self.refresh()
+        self.model().sourceModel().modelDataResetRequested.emit()
 
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""
         widget = AddBookmarkWidget(parent=self)
-
-        app = QtCore.QCoreApplication.instance()
         widget.show()
-
-        pos = self.parent().rect().center()
-        pos = self.parent().mapToGlobal(pos)
-        widget.move(
-            pos.x() - (widget.width() / 2.0),
-            pos.y() - (widget.height() / 2.0),
-        )
+        if self.parent():
+            pos = self.parent().rect().center()
+            pos = self.parent().mapToGlobal(pos)
+            widget.move(
+                pos.x() - (widget.width() / 2.0),
+                pos.y() - (widget.height() / 2.0),
+            )
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""
@@ -445,8 +461,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(AddBookmarkWidget, self).__init__(parent=parent)
         self._root = None  # The `root` folder
+        self._path = None
 
-        self.setMouseTracking(True)
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
@@ -454,6 +470,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self._createUI()
         common.set_custom_stylesheet(self)
         self.setWindowTitle(u'Add bookmark')
+        self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
@@ -605,7 +622,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
                 QtWidgets.QMessageBox.Ok,
                 parent=self
             ).exec_()
-
+        path = path.rstrip(u'/')
         bookmarks = local_settings.value(u'bookmarks')
         if not bookmarks:
             local_settings.setValue(u'bookmarks', bookmark)
@@ -613,29 +630,28 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             bookmarks[key] = bookmark[key]
             local_settings.setValue(u'bookmarks', bookmarks)
 
-        self.refresh(key)
-        self.close()
+        self._path = path
+        self.parent().model().sourceModel().modelReset.connect(self.select_item)
+        self.parent().model().sourceModel().modelReset.connect(self.close)
+        self.parent().model().sourceModel().modelReset.connect(self.deleteLater)
 
-    def refresh(self, path):
-        """Refreshes the parent widget and activates the new bookmark.
+        self.parent().model().sourceModel().modelDataResetRequested.emit()
 
-        Args:
-            key (str): The path/key to select.
+        # self.close()
 
-        """
+    def select_item(self):
+        """Selects the item based on the given path."""
         if not self.parent():
             return
-
-        self.parent().refresh()
-
         for n in xrange(self.parent().model().rowCount()):
-            index = self.parent().model().index(n, 0, parent=QtCore.QModelIndex())
-            if index.data(QtCore.Qt.StatusTipRole).lower() == path.lower():
+            index = self.parent().model().index(n, 0)
+            if index.data(QtCore.Qt.StatusTipRole) == self._path:
                 self.parent().selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
-                break
+                self.parent().scrollTo(index)
+                return
 
     def _add_servers(self):
         self.pick_server_widget.clear()
@@ -768,7 +784,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         """Sets the initial values in the widget."""
         self._add_servers()
 
-        local_paths = Active.get_active_paths()
+        local_paths = Active.paths()
 
         # Select the currently active server
         if local_paths[u'server']:

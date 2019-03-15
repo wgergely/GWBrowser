@@ -52,7 +52,7 @@ class Active(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(Active, self).__init__(parent=parent)
-        self._active_paths = self.get_active_paths()
+        self._active_paths = self.paths()
 
         self.timer = QtCore.QTimer()
         self.timer.setInterval(500)
@@ -63,7 +63,7 @@ class Active(QtCore.QObject):
         self._active_paths[k] = data
 
     def _check_change(self):
-        active_paths = self.get_active_paths()
+        active_paths = self.paths()
         if self._active_paths == active_paths:
             return
 
@@ -95,7 +95,7 @@ class Active(QtCore.QObject):
         self._active_paths = active_paths
 
     @classmethod
-    def get_active_paths(cls):
+    def paths(cls):
         """Returns the currently set ``active`` paths as a dictionary.
         Before returning the values we validate wheather the
         saved path refers to an existing folder. The invalid items will be unset.
@@ -134,7 +134,7 @@ class Active(QtCore.QObject):
 
         """
         paths = []
-        active_path = Active.get_active_paths()
+        active_path = Active.paths()
         for k in active_path:
             if not active_path[k]:
                 break

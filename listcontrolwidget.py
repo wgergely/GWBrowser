@@ -86,7 +86,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_toolbar_menu(self, menu_set):
-        active_paths = Active.get_active_paths()
+        active_paths = Active.paths()
         bookmark = (active_paths[u'server'],
                     active_paths[u'job'], active_paths[u'root'])
         asset = bookmark + (active_paths[u'asset'],)
@@ -259,12 +259,12 @@ class CollapseSequenceButton(ClickableLabel):
 
     def toggle(self):
         filewidget = self.parent().parent().findChild(FilesWidget)
-        grouped = filewidget.model().sourceModel().is_grouped()
+        grouped = filewidget.model().sourceModel().data_type()
         filewidget.model().sourceModel().set_collapsed(not grouped)
 
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().sourceModel().is_grouped():
+        if stackwidget.widget(idx).model().sourceModel().data_type():
             pixmap = ImageCache.get_rsc_pixmap(
                 u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
@@ -493,7 +493,7 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
             return
 
         parent = self.parent().parent()  # browserwidget
-        currentmode = parent.fileswidget.model().sourceModel().get_location()
+        currentmode = parent.fileswidget.model().sourceModel().data_key()
 
         active = currentmode.lower() == index.data(QtCore.Qt.DisplayRole).lower()
         active = active if parent.findChild(

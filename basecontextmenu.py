@@ -187,13 +187,12 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on_icon = ImageCache.get_rsc_pixmap(
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
+        sortorder = self.parent().model().get_sortorder()
         sortkey = self.parent().model().get_sortkey()
         sort_by_name = sortkey == common.SortByName
         sort_modified = sortkey == common.SortByLastModified
         sort_size = sortkey == common.SortBySize
 
-        sortorder = self.parent().model().get_sortorder()
-        setorder = self.parent().model().set_sortorder
         menu_set[u'Sort'] = collections.OrderedDict()
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
@@ -201,7 +200,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'ckeckable': True,
             u'checked': True if sortorder else False,
             u'icon': arrow_down_icon if sortorder else arrow_up_icon,
-            u'action': functools.partial(setorder, not sortorder)
+            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, sortkey, not sortorder)
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -210,22 +209,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': item_on_icon if sort_by_name else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_by_name else False,
-            u'action': functools.partial(
-                self.parent().model().set_sortkey, common.SortByName)
+            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortByName, sortorder)
         }
         menu_set[u'Sort'][u'Date modified'] = {
             u'icon': item_on_icon if sort_modified else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_modified else False,
-            u'action': functools.partial(self.parent().model().set_sortkey,
-                                         common.SortByLastModified)
+            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortByLastModified, sortorder)
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_size else False,
-            u'action': functools.partial(self.parent().model().set_sortkey,
-                                         common.SortBySize)
+            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortBySize, sortorder)
         }
         return menu_set
 
@@ -342,7 +338,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
-        if self.parent().model().sourceModel().get_location() == common.RendersFolder:
+        if self.parent().model().sourceModel().data_key() == common.RendersFolder:
             path = common.get_sequence_startpath(path)
         else:
             path = common.get_sequence_endpath(path)
@@ -422,33 +418,34 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
+
         favourite = self.parent().model().get_filterflag(Settings.MarkedAsFavourite)
         archived = self.parent().model().get_filterflag(Settings.MarkedAsArchived)
+        active = self.parent().model().get_filterflag(Settings.MarkedAsActive)
 
-        menu_set[u'toggle_favoruites'] = {
+        menu_set[u'toggle_active'] = {
+            u'text': 'Show active only',
+            u'icon': item_on if active else item_off,
+            u'checkable': True,
+            u'checked': active,
+            u'disabled': favourite,
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsActive, not active),
+        }
+        menu_set[u'toggle_favourites'] = {
             u'text': 'Show favourites only',
             u'icon': item_on if favourite else item_off,
             u'checkable': True,
             u'checked': favourite,
-            u'action':
-                functools.partial(
-                    self.parent().model().set_filterflag,
-                    u'favourite',
-                    not favourite
-                ),
+            u'disabled': active,
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not favourite),
         }
         menu_set[u'toggle_archived'] = {
             u'text': 'Show disabled',
             u'icon': item_on if archived else item_off,
             u'checkable': True,
-            u'checked': archived,
-            u'disabled': favourite,
-            u'action':
-                functools.partial(
-                    self.parent().model().set_filterflag,
-                    u'archived',
-                    not archived
-                ),
+            u'setChecked': archived,
+            u'disabled': active if active else favourite,
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not archived),
         }
         return menu_set
 
@@ -579,7 +576,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = ImageCache.get_rsc_pixmap(
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        collapsed = self.parent().model().sourceModel().is_grouped()
+        collapsed = self.parent().model().sourceModel().data_type()
 
         menu_set[u'collapse'] = {
             u'text': 'Show individual files' if collapsed else 'Group sequences together',
@@ -606,7 +603,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         parent = self.parent().parent().parent().listcontrolwidget
         for k in sorted(list(common.NameFilters)):
-            checked = self.parent().model().sourceModel().get_location() == k
+            checked = self.parent().model().sourceModel().data_key() == k
             menu_set[key][k] = {
                 u'text': k.title(),
                 u'checkable': True,

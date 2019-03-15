@@ -25,13 +25,13 @@ class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
     images.
 
-    All cached images are stored in ``ImageCache.__data`` `(dict)` object.
+    All cached images are stored in ``ImageCache._data`` `(dict)` object.
     To add an image to the cache you can use the ``ImageCache.cache_image()`` method.
     Loading and caching ui resource items is done by ``ImageCache.get_rsc_pixmap()``.
 
     """
     # Data and instance container
-    __data = {}
+    _data = {}
     __instance = None
 
     # Signals
@@ -61,35 +61,8 @@ class ImageCache(QtCore.QObject):
         for ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
             ImageCache.instance().get(rsc_path(__file__, ext), common.ROW_HEIGHT - 2)
 
-    def _reset_cached_item(self, path, removefile=True):
-        """Deletes any cached items containing `k`.
 
-        Args:
-            path (str): Normally, the path to the cached item.
-
-        """
-        file_ = QtCore.QFile(path)
-
-        if file_.exists() and removefile:
-            file_.remove()
-
-        keys = [k for k in self.__data if path.lower() in k.lower()]
-        for key in keys:
-            del self.__data[key]
-
-    def get(self, path, element):
-        """Main method to get a cached image. Automatically caches the element
-        if not already in the cache."""
-        k = '{}:{}'.format(path, element)
-        if k in self.__data:
-            return self.__data[k]
-        try:
-            element = int(element)
-        except ValueError:
-            return None
-        return self.cache_image(path, element)
-
-    def cache_image(self, path, height, overwrite=False):
+    def get(self, path, height, overwrite=False):
         """Saves a resized copy of path to the cache.
 
         Returns the cached image if it already is in the cache, or the placholder
@@ -105,16 +78,14 @@ class ImageCache(QtCore.QObject):
             QImage: The cached and resized QImage.
 
         """
-        height = int(height)
-
         k = u'{path}:{height}'.format(
             path=path,
             height=height
         )
 
         # Return cached item if exsits
-        if k in self.__data and not overwrite:
-            return self.__data[k]
+        if k in self._data and not overwrite:
+            return self._data[k]
 
         # If the file doesn't exist, return a placeholder
         file_info = QtCore.QFileInfo(path)
@@ -130,12 +101,12 @@ class ImageCache(QtCore.QObject):
         image = self.resize_image(image, height)
 
         # Saving the background color
-        self.__data[u'{k}:BackgroundColor'.format(
+        self._data[u'{k}:BackgroundColor'.format(
             k=path
         )] = self.get_color_average(image)
-        self.__data[k] = image
+        self._data[k] = image
 
-        return self.__data[k]
+        return self._data[k]
 
     @staticmethod
     def resize_image(image, size):
@@ -365,22 +336,38 @@ class ImageCache(QtCore.QObject):
         """Uses ``ScreenGrabber to save a custom screen-grab."""
         if not index.isValid():
             return
-        settings = AssetSettings(index)
 
         pixmap = ScreenGrabber.capture()
         if pixmap.isNull():
             return
-
         image = pixmap.toImage()
         image = self.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         if image.isNull():
             return
 
+        # data = index.model().sourceModel().model_data()
+        source_index = index.model().mapToSource(index)
+
+        settings = AssetSettings(index)
+        f = QtCore.QFile(settings.thumbnail_path())
+        if f.exists():
+            print settings.thumbnail_path()
+            f.remove()
         if not image.save(settings.thumbnail_path()):
             sys.stderr.write('# Capture thumnail error: Error saving {}.\n'.format(
                 settings.thumbnail_path()))
         else:
-            self.thumbnailChanged.emit(index)
+            image = self.get(
+                settings.thumbnail_path(),
+                index.data(QtCore.Qt.SizeHintRole).height() - 2,
+                overwrite=True)
+            color = self.get(
+                settings.thumbnail_path(),
+                'BackgroundColor',
+                overwrite=False)
+            source_index.model().setData(source_index, image, common.ThumbnailRole)
+            source_index.model().setData(source_index, color, common.ThumbnailBackgroundRole)
+
 
     def remove(self, index):
         """Deletes the thumbnail file from storage and the cached entry associated
@@ -392,8 +379,27 @@ class ImageCache(QtCore.QObject):
         if not index.isValid():
             return
         settings = AssetSettings(index)
-        self._reset_cached_item(settings.thumbnail_path(), removefile=True)
-        self.thumbnailChanged.emit(index)
+        file_ = QtCore.QFile(settings.thumbnail_path())
+
+        if file_.exists():
+            file_.remove()
+
+        keys = [k for k in self._data if settings.thumbnail_path().lower() in k.lower()]
+        for key in keys:
+            del self._data[key]
+
+        source_index = index.model().mapToSource(index)
+
+        source_index.model().setData(
+            source_index,
+            source_index.data(common.DefaultThumbnailRole),
+            common.ThumbnailRole)
+
+        source_index.model().setData(
+            source_index,
+            source_index.data(common.DefaultThumbnailBackgroundRole),
+            common.ThumbnailBackgroundRole)
+
 
     @classmethod
     def pick(cls, index):
@@ -436,8 +442,8 @@ class ImageCache(QtCore.QObject):
         k = u'{name}:{size}:{color}'.format(
             name=name, size=size, color=u'null' if not color else color.name())
 
-        if k in cls.__data:
-            return cls.__data[k]
+        if k in cls._data:
+            return cls._data[k]
 
         file_info = QtCore.QFileInfo(
             u'{}/../rsc/{}.png'.format(__file__, name))
@@ -478,8 +484,8 @@ class ImageCache(QtCore.QObject):
             pixmap = QtGui.QPixmap()
             pixmap.convertFromImage(image)
 
-        cls.__data[k] = pixmap
-        return cls.__data[k]
+        cls._data[k] = pixmap
+        return cls._data[k]
 
 
 class CacheWorkerSignals(QtCore.QObject):

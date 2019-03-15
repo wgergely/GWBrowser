@@ -326,7 +326,7 @@ class FilesModel(BaseModel):
             return
 
         server, job, root, asset = self.asset
-        location = self.get_location()
+        location = self.data_key()
         location_path = ('{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
@@ -445,7 +445,7 @@ class FilesModel(BaseModel):
                 v[common.TypeRole] = common.FileItem
             self._model_data[location][True][idx] = v
 
-        self.model_data = self._model_data[location][self.is_grouped()]
+        self.model_data = self._model_data[location][self.data_type()]
         self.endResetModel()
         common.ProgressMessage.instance().clear_message()
 
@@ -464,8 +464,8 @@ class FilesModel(BaseModel):
             for i in xrange(0, len(l), n):
                 yield l[i:i + n]
 
-        location = self.get_location()
-        groupping = self.is_grouped()
+        location = self.data_key()
+        groupping = self.data_type()
         if location not in self._model_data:
             self._model_data[location] = {True: {}, False: {}}
 
@@ -498,11 +498,11 @@ class FilesModel(BaseModel):
         self._model_data = {}
         self.modelDataResetRequested.emit()
 
-    def is_grouped(self):
+    def data_type(self):
         """Gathers sequences into a single file."""
         if self._isgrouped is None:
             cls = self.__class__.__name__
-            key = u'widget/{}/{}/iscollapsed'.format(cls, self.get_location())
+            key = u'widget/{}/{}/iscollapsed'.format(cls, self.data_key())
             val = local_settings.value(key)
             if val is None:
                 self._isgrouped = False
@@ -513,7 +513,7 @@ class FilesModel(BaseModel):
     def set_collapsed(self, val):
         """Sets the groupping mode."""
         cls = self.__class__.__name__
-        key = u'widget/{}/{}/iscollapsed'.format(cls, self.get_location())
+        key = u'widget/{}/{}/iscollapsed'.format(cls, self.data_key())
         cval = local_settings.value(key)
 
         if cval == val:
@@ -523,7 +523,7 @@ class FilesModel(BaseModel):
         local_settings.setValue(key, val)
         self.grouppingChanged.emit()
 
-    def get_location(self):
+    def data_key(self):
         """Get's the current ``location``."""
         val = local_settings.value(u'activepath/location')
         if not val:
@@ -551,7 +551,7 @@ class FilesModel(BaseModel):
         key = u'widget/{}/{}/iscollapsed'.format(cls, val)
         groupped = True if local_settings.value(key) else False
 
-        if self.is_grouped() == groupped:
+        if self.data_type() == groupped:
             return
 
         self._isgrouped = groupped
@@ -569,7 +569,7 @@ class FilesModel(BaseModel):
     def mimeData(self, indexes):
         index = next((f for f in indexes), None)
         mime = QtCore.QMimeData()
-        location = self.get_location()
+        location = self.data_key()
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
         if location == common.RendersFolder:  # first file

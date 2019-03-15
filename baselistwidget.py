@@ -7,7 +7,6 @@ found by the collector classes.
 
 import re
 from functools import wraps
-import time
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -30,18 +29,23 @@ def flagsmethod(func):
     return func_wrapper
 
 
-
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
-    """Proxy model responsible for filtering and sorting data."""
+    """Proxy model responsible for filtering and sorting source model data.
+
+    We can filter our data based on item flags, and path-segment strings.
+    The list can also be arranged by name, size, and modified timestamps."""
 
     filterTextChanged = QtCore.Signal(unicode)
-    filterFlagChanged = QtCore.Signal(int, bool) # FilterFlag, value
-    sortOrderChanged = QtCore.Signal(int, bool) # (SortKey, SortOrder)
+    filterFlagChanged = QtCore.Signal(int, bool)  # FilterFlag, value
+    sortOrderChanged = QtCore.Signal(int, bool)  # (SortKey, SortOrder)
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
         self.setSortLocaleAware(False)
+        self.setDynamicSortFilter(False)
+        self.setFilterRole(QtCore.Qt.StatusTipRole)
         self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
 
         self.parentwidget = parent
 
@@ -84,19 +88,21 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         """Returns the current flag-filter."""
         if self._filterflags[flag] is None:
             cls = self.__class__.__name__
-            val = local_settings.value(u'widget/{}/filterflag{}'.format(cls, flag))
+            val = local_settings.value(
+                u'widget/{}/filterflag{}'.format(cls, flag))
         else:
             val = self._filterflags[flag]
         return val if val else False
 
+    @QtCore.Slot(int, bool)
     def set_filterflag(self, flag, val):
         if self._filterflags[flag] == val:
             return
 
         self._filterflags[flag] = val
         cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/filterflag{}'.format(cls, flag), val)
-        self.filterFlagChanged.emit(flag, val)
+        local_settings.setValue(
+            u'widget/{}/filterflag{}'.format(cls, flag), val)
 
     def get_sortkey(self):
         """The sort-key used to determine the order of the list.
@@ -111,15 +117,18 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return val
         return common.SortByName
 
+    @QtCore.Slot(int)
     def set_sortkey(self, val):
         """Sets and saves the sort-key."""
         if val == self._sortkey:
             return
+        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
+            raise ValueError('Wrong value type for set_sortkey.')
 
         self._sortkey = val
+        self.setSortRole(val)
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
-        self.sortOrderChanged.emit(val, self.get_sortorder())
 
     def get_sortorder(self):
         """The order of the list, eg. ascending/descending."""
@@ -131,6 +140,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             val = self._sortorder
         return int(val) if val else False
 
+    @QtCore.Slot(bool)
     def set_sortorder(self, val):
         if val == self._sortorder:
             return
@@ -138,18 +148,24 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._sortorder = val
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
-        self.sortOrderChanged.emit(self.get_sortkey(), val)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True
 
     def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
         """The main method used to filter the elements using the flags and the filter string."""
-        flags = self.sourceModel().model_data[source_row][common.FlagsRole]
+        data = self.sourceModel().model_data()
+        flags = data[source_row][common.FlagsRole]
         archived = flags & Settings.MarkedAsArchived
         favourite = flags & Settings.MarkedAsFavourite
+        active = flags & Settings.MarkedAsActive
 
-        if self.get_filtertext().lower() not in self.sourceModel().model_data[source_row][QtCore.Qt.StatusTipRole].lower():
+        if self.get_filterflag(Settings.MarkedAsActive) and active:
+            return True
+        if self.get_filterflag(Settings.MarkedAsActive) and not active:
+            return False
+
+        if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
             return False
         if archived and not self.get_filterflag(Settings.MarkedAsFavourite):
             return False
@@ -157,15 +173,11 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return False
         return True
 
-    def sort(self, column=0):
-        order = QtCore.Qt.AscendingOrder if self.get_sortorder() else QtCore.Qt.DescendingOrder
-        super(FilterProxyModel, self).sort(column, order=order)
-
     def lessThan(self, source_left, source_right):
         """The main method responsible for sorting the items."""
         k = self.get_sortkey()
         if k == common.SortByName:
-            return common.namekey(source_left.data(common.SortByName)) < common.namekey(source_right.data(common.SortByName))
+            return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
         return source_left.data(k) < source_right.data(k)
 
 
@@ -188,8 +200,9 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.view = parent
         self.active = QtCore.QModelIndex()
 
-        self._model_data = {}
-        self.model_data = {}
+        self._data = {}
+        self._datakey = None
+        self._datatype = None
 
         # File-system monitor
         self._file_monitor = QtCore.QFileSystemWatcher()
@@ -207,13 +220,22 @@ class BaseModel(QtCore.QAbstractItemModel):
         if monitored:
             self._file_monitor.removePaths(monitored)
 
-        self.model_data = {}
+        self._data = {}
         self.__initdata__()
-        self.switch_model_data()
 
     def __initdata__(self):
-        raise NotImplementedError(u'__initdata__ is abstract and has to be defined in the subclass.')
+        raise NotImplementedError(
+            u'__initdata__ is abstract and has to be defined in the subclass.')
 
+    def model_data(self):
+        """A pointer to the current model dataset."""
+        k = self.data_key()
+        t = self.data_type()
+        if not k in self._data:
+            self._data[k] = {common.FileItem: {}, common.SequenceItem: {}}
+        return self._data[k][t]
+
+        # return self._model_data[self._]
     def active_index(self):
         """The model's active_index."""
         for n in xrange(self.rowCount()):
@@ -226,7 +248,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         return 1
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return len(list(self.model_data))
+        return len(list(self.model_data()))
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
         return self.createIndex(row, 0, parent=parent)
@@ -234,10 +256,11 @@ class BaseModel(QtCore.QAbstractItemModel):
     def data(self, index, role=QtCore.Qt.DisplayRole):
         if not index.isValid():
             return None
-        if index.row() not in self.model_data:
+        data = self.model_data()
+        if index.row() not in data:
             return None
-        if role in self.model_data[index.row()]:
-            return self.model_data[index.row()][role]
+        if role in data[index.row()]:
+            return data[index.row()][role]
 
     @flagsmethod
     def flags(self, index):
@@ -247,18 +270,18 @@ class BaseModel(QtCore.QAbstractItemModel):
         return QtCore.QModelIndex()
 
     def setData(self, index, data, role=QtCore.Qt.DisplayRole):
-        self.model_data[index.row()][role] = data
+        if not index.isValid():
+            return
+        self.model_data()[index.row()][role] = data
         self.dataChanged.emit(index, index)
 
-    def switch_model_data(self):
-        pass
+    def data_type(self):
+        if self._datatype is None:
+            return common.FileItem
+        return self._datatype
 
-    def is_grouped(self):
-        return False
-
-    def get_location(self):
-        return '/'
-
+    def data_key(self):
+        return self._datakey
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -274,7 +297,7 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).__init__(parent=parent)
 
         self._thumbnailvieweropen = None
-        self._previouspathtoselect = None
+        self._current_selection = None
         self._location = None
         self.collector_count = 0
         self.context_menu_cls = None
@@ -310,17 +333,56 @@ class BaseListWidget(QtWidgets.QListView):
     #     self.update(index)
 
     def set_model(self, model):
-        """Add a model to the view and connects all signals."""
-        proxy_model = FilterProxyModel(parent=self)
-        proxy_model.setSourceModel(model)
-        self.setModel(proxy_model)
+        """This is the main port of entry for the model.
 
-        self.model().sourceModel().modelDataResetRequested.connect(
-            self.__resetdata__, type=QtCore.Qt.DirectConnection)
+        The BaseModel subclasses are wrapped in a QSortFilterProxyModel and all
+        the needed signal connections are connected here."""
+
+        proxy = FilterProxyModel(parent=self)
+        proxy.setSourceModel(model)
+
+        self.setModel(proxy)
+
+        model.modelDataResetRequested.connect(
+            model.beginResetModel, type=QtCore.Qt.DirectConnection)
+        model.modelDataResetRequested.connect(
+            model.__resetdata__, type=QtCore.Qt.DirectConnection)
+
+        # Selection
+        self.selectionModel().currentChanged.connect(
+            self.save_selection, type=QtCore.Qt.QueuedConnection)
+        model.modelReset.connect(self.reselect_previous)
+
+        self.model().filterFlagChanged.connect(self.model().set_filterflag)
+        self.model().filterFlagChanged.connect(
+            lambda x, y: self.model().invalidateFilter(),
+            type=QtCore.Qt.QueuedConnection
+        )
+
+        self.model().filterTextChanged.connect(
+            self.model().set_filtertext,
+            type=QtCore.Qt.QueuedConnection)
+        self.model().sortOrderChanged.connect(
+            lambda x, y: self.model().set_sortkey(x))
+        self.model().sortOrderChanged.connect(
+            lambda x, y: self.model().set_sortorder(y))
+        self.model().sortOrderChanged.connect(
+            lambda x, y: self.model().sort(
+                0,
+                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+        self.model().modelReset.connect(
+            lambda: self.model().sort(
+                0,
+                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+
+        # key = self.get_sortkey()
+        # order =
+        # self.setSortRole(key)
+        # print super(FilterProxyModel, self).sort(column, order=order)
 
         # def timestamp():
         #     self.model().sourceModel()._last_refreshed[self.model(
-        #     ).sourceModel().get_location()] = time.time()
+        #     ).sourceModel().data_key()] = time.time()
         #
         # self.model().sourceModel().modelAboutToBeReset.connect(
         #     lambda: self.setUpdatesEnabled(False))
@@ -352,13 +414,39 @@ class BaseListWidget(QtWidgets.QListView):
         #     QtCore.QItemSelectionModel.ClearAndSelect
         # )
 
-    def store_previous_path(self):
+    @QtCore.Slot(QtCore.QModelIndex, QtCore.QModelIndex)
+    def save_selection(self, current, previous):
         """Saves the currently selected path."""
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            self._previouspathtoselect = None
+        if not current.isValid():
+            self._current_selection = None
             return
-        self._previouspathtoselect = index.data(QtCore.Qt.StatusTipRole)
+        self._current_selection = current.data(QtCore.Qt.StatusTipRole)
+        local_settings.setValue(
+            u'widget/{}/selected_item'.format(self.__class__.__name__),
+            current.data(QtCore.Qt.StatusTipRole)
+        )
+
+    @QtCore.Slot()
+    def reselect_previous(self):
+        val = local_settings.value(
+            u'widget/{}/selected_item'.format(self.__class__.__name__))
+        if not val:
+            return
+
+        seq = common.get_sequence(val)
+        if seq:
+            val = seq.expand(r'\1\3.\4')
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            path = index.data(QtCore.Qt.StatusTipRole)
+            seq = common.get_sequence(path)
+            if seq:
+                path = seq.expand(r'\1\3.\4')
+            if path == val:
+                self.selectionModel().setCurrentIndex(
+                    index, QtCore.QItemSelectionModel.ClearAndSelect)
+                self.scrollTo(index)
+                break
 
     def get_item_filter(self):
         """A path segment used to filter the collected items."""
@@ -369,6 +457,10 @@ class BaseListWidget(QtWidgets.QListView):
     def set_item_filter(self, val):
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/filter'.format(cls), val)
+
+    def showEvent(self, event):
+        if self.model().sourceModel().model_data() == {}:
+            self.model().sourceModel().modelDataResetRequested.emit()
 
     def toggle_favourite(self, index=None, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -468,35 +560,6 @@ class BaseListWidget(QtWidgets.QListView):
                     )
                     favourites.remove(file_info.filePath())
                     local_settings.setValue(u'favourites', favourites)
-
-    def reselect_previous_path(self, path=None):
-        """Selects an item of the given path if found. This method is called
-        by a few signals, usually after a refresh has been triggered.
-
-        ``_previouspathtoselect`` is automatically set when the ``modelAboutToBeReset``
-        signal is emited.
-
-        """
-        path = path if path else self._previouspathtoselect
-        if path is None:
-            return
-
-        path = common.get_sequence_endpath(path)
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-
-            data = index.data(QtCore.Qt.StatusTipRole)
-            if not data:
-                continue
-
-            if path != common.get_sequence_endpath(data):
-                continue
-
-            self.selectionModel().setCurrentIndex(
-                index,
-                QtCore.QItemSelectionModel.ClearAndSelect
-            )
-            self.scrollTo(index)
 
     def action_on_enter_key(self):
         self.activate_current_index()
@@ -733,7 +796,7 @@ class BaseListWidget(QtWidgets.QListView):
             return False
 
         self.activated.emit(index)
-        if index == self.active_index():
+        if index.flags() & Settings.MarkedAsActivated:
             return False
 
         self.unmark_active_index()
@@ -744,36 +807,6 @@ class BaseListWidget(QtWidgets.QListView):
             role=common.FlagsRole
         )
         return True
-
-    def showEvent(self, event):
-        """Show event will set the size of the widget."""
-        if self.active_index().isValid():
-            self.selectionModel().setCurrentIndex(
-                self.active_index(),
-                QtCore.QItemSelectionModel.ClearAndSelect
-            )
-            self.scrollTo(self.active_index())
-        else:
-            idx = local_settings.value(
-                u'widget/{}/selected_row'.format(self.__class__.__name__),
-            )
-            if not idx:
-                idx = 0
-            if self.model().rowCount():
-                self.selectionModel().setCurrentIndex(
-                    self.model().index(idx, 0),
-                    QtCore.QItemSelectionModel.ClearAndSelect
-                )
-                self.scrollTo(self.model().index(idx, 0))
-
-        super(BaseListWidget, self).showEvent(event)
-
-    def hideEvent(self, event):
-        """We're saving the selection upon hiding the widget."""
-        local_settings.setValue(
-            u'widget/{}/selected_row'.format(self.__class__.__name__),
-            self.selectionModel().currentIndex().row()
-        )
 
     def resizeEvent(self, event):
         """Custom resize event will emit the ``sizeChanged`` signal."""
@@ -1009,6 +1042,9 @@ class BaseInlineIconWidget(BaseListWidget):
                     index=source_index,
                     state=self.multi_toggle_items.pop(idx)
                 )
+
+    def show_todos(self):
+        pass
 
 
 class StackedWidget(QtWidgets.QStackedWidget):

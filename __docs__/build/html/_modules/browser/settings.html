@@ -192,7 +192,7 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">ActivePathMonitor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">get_active_paths</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">paths()</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns the currently set ``active`` paths as a dictionary.</span>
 <span class="sd">        Before returning the values we validate wheather the</span>
 <span class="sd">        saved path refers to an existing folder. The invalid items will be unset.</span>
@@ -231,7 +231,7 @@
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
-        <span class="n">active_path</span> <span class="o">=</span> <span class="n">ActivePathMonitor</span><span class="o">.</span><span class="n">get_active_paths</span><span class="p">()</span>
+        <span class="n">active_path</span> <span class="o">=</span> <span class="n">ActivePathMonitor</span><span class="o">.</span><span class="n">paths()</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">active_path</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">active_path</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
                 <span class="k">break</span>

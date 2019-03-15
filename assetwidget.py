@@ -69,7 +69,7 @@ class AssetModel(BaseModel):
         """
         self.beginResetModel()
         self.model_data = {}  # reset
-        active_paths = Active.get_active_paths()
+        active_paths = Active.paths()
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
@@ -222,7 +222,7 @@ class AssetWidget(BaseInlineIconWidget):
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         local_settings.setValue(u'activepath/asset', file_info.fileName())
-        Active.get_active_paths()  # Resetting invalid paths
+        Active.paths()  # Resetting invalid paths
 
         # By updating the saved state we're making sure the active_monit doesn't emit the assetChangedSignal
         # (we don't want to trigger two update model updates)

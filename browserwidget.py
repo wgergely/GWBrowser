@@ -88,7 +88,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Let's set the saved location
         self.listcontrolwidget.locationChanged.emit(
-            self.fileswidget.model().sourceModel().get_location())
+            self.fileswidget.model().sourceModel().data_key())
 
         self.bookmarkswidget.model().sourceModel().activeChanged.emit(
             self.bookmarkswidget.active_index())

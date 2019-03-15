@@ -180,11 +180,13 @@ StartpathRole = 1033
 EndpathRole = 1034
 ThumbnailRole = 1035
 ThumbnailBackgroundRole = 1036
-TypeRole = 1037
-#
-SortByName = 1038
-SortByLastModified = 1039
-SortBySize = 1041
+DefaultThumbnailRole = 1037
+DefaultThumbnailBackgroundRole = 1038
+TypeRole = 1039
+
+SortByName = 2048
+SortByLastModified = 2049
+SortBySize = 2050
 
 FileItem = 1100
 SequenceItem = 1200
