@@ -280,7 +280,7 @@ class BaseModel(QtCore.QAbstractItemModel):
     def data_key(self):
         """Current key to the data dictionary."""
         if self._datakey is None:
-            val = u'default_datakey'
+            val = None
             cls = self.__class__.__name__
             key = u'widget/{}/datakey'.format(cls)
             savedval = local_settings.value(key)
@@ -299,10 +299,25 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @QtCore.Slot(unicode)
     def set_data_key(self, val):
+        """Sets the ``key`` used to access the stored data.
+
+        Each subfolder inside the ``_parent_item`` corresponds to a `key`, hence
+        it's important to make sure the key we're about to be set corresponds to
+        an existing folder.
+
+        """
         if val == self._datakey:
             return
+
         cls = self.__class__.__name__
         key = u'widget/{}/datakey'.format(cls)
+
+        if not self._parent_item:
+            val = None
+            local_settings.setValue(key, val)
+            self._datakey = val
+            return
+
         local_settings.setValue(key, val)
         self._datakey = val
 
@@ -317,6 +332,20 @@ class BaseModel(QtCore.QAbstractItemModel):
         local_settings.setValue(key, val)
         self._datatype = val
 
+    def validate_key(self):
+        if not self._parent_item:
+            return
+        path = u'/'.join(self._parent_item)
+        dir_ = QtCore.QDir(path)
+        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
+
+        entries = dir_.entryList()
+        if not entries:
+            return
+
+        key = self.data_key()
+        if key not in sorted(entries):
+            self.set_data_key(entries[0])
 
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
@@ -399,20 +428,25 @@ class BaseListWidget(QtWidgets.QListView):
             lambda x, y: self.model().sort(
                 0,
                 QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
-        self.model().modelReset.connect(
-            lambda: self.model().sort(
-                0,
-                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+        # model.modelReset.connect(self.model().invalidate)
+            # lambda: self.model().sort(
+            #     0,
+            #     QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
 
-        self.model().sourceModel().activeChanged.connect(self.save_activated)
+        model.activeChanged.connect(self.save_activated)
 
-        self.model().sourceModel().dataKeyChanged.connect(self.model().sourceModel().set_data_key)
-        self.model().sourceModel().dataKeyChanged.connect(self._check_data)
-        self.model().sourceModel().dataKeyChanged.connect(lambda x: self.model().invalidate())
+        model.dataKeyChanged.connect(model.set_data_key)
+        model.dataKeyChanged.connect(self._check_data)
+        model.dataKeyChanged.connect(lambda x: self.model().invalidate())
 
-        self.model().sourceModel().dataTypeChanged.connect(self.model().sourceModel().set_data_type)
-        self.model().sourceModel().dataTypeChanged.connect(lambda x: self.model().invalidate())
+        model.dataTypeChanged.connect(model.set_data_type)
+        model.dataTypeChanged.connect(lambda x: self.model().invalidate())
 
+        model.modelAboutToBeReset.connect(
+            lambda: model.set_data_key(model.data_key()))
+        model.modelAboutToBeReset.connect(
+            lambda: model.set_data_type(model.data_type()))
+        model.modelAboutToBeReset.connect(model.validate_key)
 
     def _check_data(self, k):
         _data = self.model().sourceModel()._data
