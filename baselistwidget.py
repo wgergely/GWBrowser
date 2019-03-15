@@ -280,13 +280,12 @@ class BaseModel(QtCore.QAbstractItemModel):
     def data_key(self):
         """Current key to the data dictionary."""
         if self._datakey is None:
+            val = u'default_datakey'
             cls = self.__class__.__name__
             key = u'widget/{}/datakey'.format(cls)
-            val = local_settings.value(key)
-            if val:
-                return val
-            return u'default_datakey'
-        return self._data_key
+            savedval = local_settings.value(key)
+            return savedval if savedval else val
+        return self._datakey
 
     def data_type(self):
         """Returns the current data type: files or sequences."""
@@ -299,16 +298,21 @@ class BaseModel(QtCore.QAbstractItemModel):
             return common.FileItem
         return self._datatype
 
+    @QtCore.Slot(unicode)
     def set_data_key(self, val):
         if val == self._datakey:
             return
+        cls = self.__class__.__name__
+        key = u'widget/{}/datakey'.format(cls)
+        local_settings.setValue(key, val)
         self._datakey = val
 
+    @QtCore.Slot(int)
     def set_data_type(self, val):
         if val == self._datatype:
             return
         if val not in (common.FileItem, common.SequenceItem):
-            raise ValueError('Invalid value provided for `data_type`')
+            raise ValueError('Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
         self._datatype = val
 
 
@@ -399,9 +403,21 @@ class BaseListWidget(QtWidgets.QListView):
                 QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
 
         self.model().sourceModel().activeChanged.connect(self.save_activated)
-        self.model().sourceModel().dataKeyChanged.connect()
-    # dataKeyChanged = QtCore.Signal(unicode)
-    # dataTypeChanged = QtCore.Signal(int)
+
+        self.model().sourceModel().dataKeyChanged.connect(self.model().sourceModel().set_data_key)
+        self.model().sourceModel().dataKeyChanged.connect(self._check_data)
+            # lambda k: self.model().sourceModel().modelDataResetRequested.emit() if not self.model().sourceModel()._data[x][common.FileItem] else pass)
+
+        self.model().sourceModel().dataKeyChanged.connect(lambda x: self.model().invalidate())
+
+    def _check_data(self, k):
+        _data = self.model().sourceModel()._data
+        if not k in _data:
+            self.model().sourceModel().modelDataResetRequested.emit()
+            return
+        if not _data[k][common.FileItem]:
+            self.model().sourceModel().modelDataResetRequested.emit()
+
 
 
         # def timestamp():
