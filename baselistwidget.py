@@ -183,15 +183,13 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
-    grouppingChanged = QtCore.Signal()  # The sequence view mode
-    """Sequence view expanded/collapsed."""
-
     # Emit before the model is about to change
     modelDataResetRequested = QtCore.Signal()
     """Signal emited when all the data has to be refreshed."""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
-    """The active item has changed."""
+    dataKeyChanged = QtCore.Signal(unicode)
+    dataTypeChanged = QtCore.Signal(int)
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -205,12 +203,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         # File-system monitor
         self._file_monitor = QtCore.QFileSystemWatcher()
-        self._last_refreshed = {
-            common.RendersFolder: 0.0,
-            common.ScenesFolder: 0.0,
-            common.TexturesFolder: 0.0,
-            common.ExportsFolder: 0.0,
-        }
+        self._last_refreshed = {}
         self._last_changed = {}  # a dict of path/timestamp values
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -284,13 +277,39 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.model_data()[index.row()][role] = data
         self.dataChanged.emit(index, index)
 
+    def data_key(self):
+        """Current key to the data dictionary."""
+        if self._datakey is None:
+            cls = self.__class__.__name__
+            key = u'widget/{}/datakey'.format(cls)
+            val = local_settings.value(key)
+            if val:
+                return val
+            return u'default_datakey'
+        return self._data_key
+
     def data_type(self):
+        """Returns the current data type: files or sequences."""
         if self._datatype is None:
+            cls = self.__class__.__name__
+            key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
+            val = local_settings.value(key)
+            if val:
+                return val
             return common.FileItem
         return self._datatype
 
-    def data_key(self):
-        return self._datakey
+    def set_data_key(self, val):
+        if val == self._datakey:
+            return
+        self._datakey = val
+
+    def set_data_type(self, val):
+        if val == self._datatype:
+            return
+        if val not in (common.FileItem, common.SequenceItem):
+            raise ValueError('Invalid value provided for `data_type`')
+        self._datatype = val
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -380,6 +399,9 @@ class BaseListWidget(QtWidgets.QListView):
                 QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
 
         self.model().sourceModel().activeChanged.connect(self.save_activated)
+        self.model().sourceModel().dataKeyChanged.connect()
+    # dataKeyChanged = QtCore.Signal(unicode)
+    # dataTypeChanged = QtCore.Signal(int)
 
 
         # def timestamp():
@@ -422,9 +444,9 @@ class BaseListWidget(QtWidgets.QListView):
 
         """
         index = self.model().sourceModel().active_index()
-        if index.isValid():
-            return self.model().mapFromSource(index)
-        return QtCore.QModelIndex()
+        if not index.isValid():
+            return QtCore.QModelIndex()
+        return self.model().mapFromSource(index)
 
     def activate(self, index):
         """Sets the given index as ``active``.
@@ -486,7 +508,7 @@ class BaseListWidget(QtWidgets.QListView):
     def reselect_previous(self):
         """Slot called when the model has finished a reset operation.
         The method will try to reselect the previously selected path."""
-        
+
         val = local_settings.value(
             u'widget/{}/selected_item'.format(self.__class__.__name__))
         if not val:

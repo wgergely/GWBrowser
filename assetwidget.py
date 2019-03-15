@@ -190,7 +190,6 @@ class AssetModel(BaseModel):
                 filename, todocount)
             data[idx][common.SortBySize] = todocount
 
-        # file-monitor timestamp
         self.endResetModel()
 
 

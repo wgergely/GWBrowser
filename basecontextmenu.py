@@ -459,7 +459,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
         menu_set[u'Refresh'] = {
             u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
-            u'icon': refresh_pixmap
+            # u'icon': refresh_pixmap
         }
 
         return menu_set
@@ -576,7 +576,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = ImageCache.get_rsc_pixmap(
             u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        collapsed = self.parent().model().sourceModel().data_type()
+        collapsed = self.parent().model().sourceModel().data_type() == common.SequenceItem
 
         menu_set[u'collapse'] = {
             u'text': 'Show individual files' if collapsed else 'Group sequences together',
@@ -584,7 +584,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': True,
             u'checked': collapsed,
             u'action': functools.partial(
-                self.parent().model().sourceModel().set_collapsed, not collapsed)
+                self.parent().model().sourceModel().dataTypeChanged.emit, not collapsed)
         }
         return menu_set
 
@@ -601,14 +601,22 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
 
-        parent = self.parent().parent().parent().listcontrolwidget
-        for k in sorted(list(common.NameFilters)):
-            checked = self.parent().model().sourceModel().data_key() == k
-            menu_set[key][k] = {
-                u'text': k.title(),
+        parent_item = self.parent().model().sourceModel()._parent_item
+        if not parent_item:
+            return menu_set
+        if not all(parent_item):
+            return menu_set
+
+
+        dir_ = QtCore.QDir(u'/'.join(parent_item))
+        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
+        for entry in sorted(dir_.entryList()):
+            checked = self.parent().model().sourceModel().data_key() == entry
+            menu_set[key][entry] = {
+                u'text': entry.title(),
                 u'checkable': True,
                 u'checked': checked,
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
-                u'action': functools.partial(parent.locationChanged.emit, k)
+                u'action': functools.partial(self.parent().model().sourceModel().dataKeyChanged.emit, entry)
             }
         return menu_set

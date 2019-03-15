@@ -48,8 +48,9 @@ class FileInfoThread(QtCore.QThread):
         self.model = model
 
         app = QtWidgets.QApplication.instance()
-        app.aboutToQuit.connect(self.quit)
-        app.aboutToQuit.connect(self.deleteLater)
+        if app:
+            app.aboutToQuit.connect(self.quit)
+            app.aboutToQuit.connect(self.deleteLater)
 
     def run(self):
         self.worker = FileInfoWorker(self.model)
@@ -238,7 +239,6 @@ class FileInfoWorker(QtCore.QObject):
             self.model.model_data[idx][common.StatusRole] = True
 
             FileInfoWorker.remove_from_queue(idx)
-            # self.indexUpdated.emit(index)
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -276,34 +276,18 @@ class FilesModel(BaseModel):
     """Model with the file-data associated with asset `locations` and
     groupping modes.
 
-    The model stores information in the private `_model_data` dictionary. The items
-    returned by the model are read from the `model_data`.
-
-    Example:
-        self.model_data = self._model_data[location][grouppingMode]
+    The model stores information in the private `_data` dictionary, but the actual
+    data is querried from the _data[data_key][data_type] dictionary.
 
     """
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
-
-        self.asset = None
-        self.mode = None
-        self._isgrouped = None
-
         # Thread-worker reposinble for completing the model data
         self.threads = {}
-        self.threads[0] = FileInfoThread(self)
-        self.threads[0].thread_id = 0
-        self.threads[1] = FileInfoThread(self)
-        self.threads[1].thread_id = 1
-        self.threads[2] = FileInfoThread(self)
-        self.threads[2].thread_id = 2
-        self.threads[3] = FileInfoThread(self)
-        self.threads[3].thread_id = 3
-
-        self.grouppingChanged.connect(self.switch_model_data)
-        self.activeLocationChanged.connect(self.switch_model_data)
+        for n in xrange(4):
+            self.threads[n] = FileInfoThread(self)
+            self.threads[n].thread_id = n
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -314,27 +298,29 @@ class FilesModel(BaseModel):
         switch the model dataset.
 
         """
+        dkey = self.data_key()
+        self._data[dkey] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+        seqs = {}
+
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
         flags = (QtCore.Qt.ItemNeverHasChildren)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
         # Invalid asset, we'll do nothing.
-        if not self.asset:
+        if not self._parent_item:
             return
-        if not all(self.asset):
+        if not all(self._parent_item):
             return
 
-        server, job, root, asset = self.asset
+        server, job, root, asset = self._parent_item
         location = self.data_key()
         location_path = ('{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
 
         # Data-containers
-        self.beginResetModel()
-        self._model_data[location] = {True: {}, False: {}}
-        seqs = {}
 
         # Iterator
         itdir = QtCore.QDir(location_path)
@@ -367,8 +353,8 @@ class FilesModel(BaseModel):
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
 
-            idx = len(self._model_data[location][False])
-            self._model_data[location][False][idx] = {
+            idx = len(self._data[dkey][common.FileItem])
+            self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
@@ -427,12 +413,12 @@ class FilesModel(BaseModel):
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
-                seqs[filepath] = self._model_data[location][False][idx]
+                seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
         common.ProgressMessage.instance().set_message(u'Getting sequences...')
         for v in seqs.itervalues():
-            idx = len(self._model_data[location][True])
+            idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
                 filepath = v[common.SequenceRole].expand(r'\1{}\3.\4')
@@ -443,85 +429,50 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
-            self._model_data[location][True][idx] = v
+            self._data[dkey][common.SequenceItem][idx] = v
 
-        self.model_data = self._model_data[location][self.data_type()]
         self.endResetModel()
         common.ProgressMessage.instance().clear_message()
 
-    def switch_model_data(self):
-        """The data is stored is stored in the private ``_model_data`` object.
-        This object is not exposed to the model - this method will set the
-        ``model_data`` to the appropiate data-point.
-
-        The ``model_data`` is not fully loaded by the default. By switching the
-        dataset we will trigger a secondary thread to querry the file-system and
-        to load the missing pieces of data.
-
-        """
-        def chunks(l, n):
-            """Yields successive n-sized chunks of the given list."""
-            for i in xrange(0, len(l), n):
-                yield l[i:i + n]
-
-        location = self.data_key()
-        groupping = self.data_type()
-        if location not in self._model_data:
-            self._model_data[location] = {True: {}, False: {}}
-
-        if not self._model_data[location][groupping]:
-            self.__initdata__()
-        else:
-            self.beginResetModel()
-            self.model_data = self._model_data[location][groupping]
-            self.endResetModel()
-
-        idxs = [f for f in xrange(len(self.model_data))
-                if not self.model_data[f][common.StatusRole]]
-        if not idxs:
-            return
-
-        for idx, chunk in enumerate(chunks(idxs, int(math.ceil(len(idxs) / float(len(self.threads)))))):
-            FileInfoWorker.add_to_queue(chunk)
-            self.threads[idx].dataRequested.emit(chunk)
+    # def switch_model_data(self):
+    #     """The data is stored is stored in the private ``_model_data`` object.
+    #     This object is not exposed to the model - this method will set the
+    #     ``model_data`` to the appropiate data-point.
+    #
+    #     The ``model_data`` is not fully loaded by the default. By switching the
+    #     dataset we will trigger a secondary thread to querry the file-system and
+    #     to load the missing pieces of data.
+    #
+    #     """
+    #     def chunks(l, n):
+    #         """Yields successive n-sized chunks of the given list."""
+    #         for i in xrange(0, len(l), n):
+    #             yield l[i:i + n]
+    #
+    #     location = self.data_key()
+    #     groupping = self.data_type()
+    #     if location not in self._model_data:
+    #         self._model_data[location] = {True: {}, False: {}}
+    #
+    #     if not self._model_data[location][groupping]:
+    #         self.__initdata__()
+    #     else:
+    #         self.beginResetModel()
+    #         self.model_data = self._model_data[location][groupping]
+    #         self.endResetModel()
+    #
+    #     idxs = [f for f in xrange(len(self.model_data))
+    #             if not self.model_data[f][common.StatusRole]]
+    #     if not idxs:
+    #         return
+    #
+    #     for idx, chunk in enumerate(chunks(idxs, int(math.ceil(len(idxs) / float(len(self.threads)))))):
+    #         FileInfoWorker.add_to_queue(chunk)
+    #         self.threads[idx].dataRequested.emit(chunk)
 
     @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def setAsset(self, index):
-        """Sets a new asset for the model."""
-        if index.data(common.ParentRole) == self.asset:
-            return
-        self.asset = index.data(common.ParentRole)
-        self._model_data = {}
-        self.modelDataResetRequested.emit()
-
-    def data_type(self):
-        """Gathers sequences into a single file."""
-        if self._isgrouped is None:
-            cls = self.__class__.__name__
-            key = u'widget/{}/{}/iscollapsed'.format(cls, self.data_key())
-            val = local_settings.value(key)
-            if val is None:
-                self._isgrouped = False
-            else:
-                self._isgrouped = val
-        return self._isgrouped
-
-    def set_collapsed(self, val):
-        """Sets the groupping mode."""
-        cls = self.__class__.__name__
-        key = u'widget/{}/{}/iscollapsed'.format(cls, self.data_key())
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        self._isgrouped = val
-        local_settings.setValue(key, val)
-        self.grouppingChanged.emit()
 
     def data_key(self):
         """Get's the current ``location``."""
@@ -532,30 +483,6 @@ class FilesModel(BaseModel):
 
         return val if val else common.ScenesFolder
 
-    def set_location(self, val):
-        """Sets the location and emits the ``activeLocationChanged`` signal."""
-        if val is None:
-            return
-
-        key = u'activepath/location'
-        cval = local_settings.value(key)
-
-        if cval == val:
-            return
-
-        local_settings.setValue(key, val)
-        self.activeLocationChanged.emit(val)
-
-        # Updating the groupping of the files
-        cls = self.__class__.__name__
-        key = u'widget/{}/{}/iscollapsed'.format(cls, val)
-        groupped = True if local_settings.value(key) else False
-
-        if self.data_type() == groupped:
-            return
-
-        self._isgrouped = groupped
-        self.grouppingChanged.emit()
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -618,6 +545,8 @@ class FilesWidget(BaseInlineIconWidget):
         self.set_model(FilesModel(parent=self))
 
         def connectSignal(thread):
+            """This method will connect the signals needed to update the index
+            after the thread has started."""
             thread.worker.indexUpdated.connect(self.update)
             thread.worker.finished.connect(self.repaint)
 

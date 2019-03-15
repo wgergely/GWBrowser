@@ -1,6 +1,7 @@
 from PySide2 import QtWidgets
 from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
+from browser.fileswidget import FilesWidget
 
 app = QtWidgets.QApplication([])
 b = BookmarksWidget()
@@ -13,6 +14,11 @@ a.setFixedWidth(500)
 a.show()
 a.move(600, 50)
 
+f = FilesWidget()
+f.setFixedWidth(500)
+f.show()
+f.move(1150, 50)
+
 b.model().sourceModel().modelReset.connect(
     lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
 b.model().sourceModel().modelReset.connect(
@@ -22,6 +28,18 @@ b.model().sourceModel().activeChanged.connect(
     a.model().sourceModel().set_active)
 b.model().sourceModel().activeChanged.connect(
     lambda x: a.model().sourceModel().__resetdata__())
+
+
+a.model().sourceModel().modelReset.connect(
+    lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
+a.model().sourceModel().modelReset.connect(
+    f.model().sourceModel().__resetdata__)
+
+def _debug(model):
+    data = model.model_data()
+    print len(data)
+
+f.model().sourceModel().modelReset.connect(lambda: _debug(f.model().sourceModel()))
 
 
 app.processEvents()
