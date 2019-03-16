@@ -22,7 +22,7 @@ from browser.settings import AssetSettings
 
 
 class Progressbar(QtWidgets.QLabel):
-    """Custom loading indicator."""
+    """The widget responsible displaying progress messages."""
 
     def __init__(self, parent=None):
         super(Progressbar, self).__init__(parent=parent)
@@ -53,10 +53,12 @@ class Progressbar(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
         self.setText(u'')
-        common.ProgressMessage.instance().messageChanged.connect(self.setText, type=QtCore.Qt.QueuedConnection)
+        common.ProgressMessage.instance().messageChanged.connect(
+            self.setText, type=QtCore.Qt.QueuedConnection)
 
+    @QtCore.Slot()
     def set_visibility(self):
-        """Checks if the thread pool is has running threads."""
+        """Sets the progressbar's visibility."""
         if self.text():
             self.show()
         else:
@@ -211,19 +213,9 @@ class FilterButton(ClickableLabel):
         )
         self.clicked.connect(self.action)
 
+    @QtCore.Slot()
     def action(self):
-        widget = self.parent().parent().findChild(StackedWidget)
-        filtertext = widget.currentWidget().model().get_filtertext()
         editor = FilterEditor(filtertext, parent=widget)
-        editor.finished.connect(
-            widget.currentWidget().model().set_filtertext)
-        editor.finished.connect(lambda: self.update_(widget.currentIndex()))
-        editor.editor.textEdited.connect(
-            widget.currentWidget().model().invalidate)
-        editor.editor.textEdited.connect(
-            widget.currentWidget().model().set_filtertext)
-        editor.editor.textEdited.connect(
-            lambda s: self.update_(widget.currentIndex()))
 
         pos = self.rect().center()
         pos = self.mapToGlobal(pos)
@@ -254,9 +246,8 @@ class CollapseSequenceButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
         )
         self.clicked.connect(self.toggle)
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        self.clicked.connect(lambda: self.update_(stackwidget.currentIndex()))
 
+    @QtCore.Slot()
     def toggle(self):
         filewidget = self.parent().parent().findChild(FilesWidget)
         grouped = filewidget.model().sourceModel().data_type()
@@ -282,11 +273,8 @@ class ToggleArchivedButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
         )
-        self.clicked.connect(self.toggle)
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        self.clicked.connect(lambda: self.update_(stackwidget.currentIndex()))
 
-    def toggle(self):
+    def clicked(self):
         widget = self.parent().parent().findChild(StackedWidget)
         archived = widget.currentWidget().model().get_filtermode(u'archived')
         widget.currentWidget().model().set_filtermode(u'archived', not archived)
@@ -311,14 +299,12 @@ class ToggleFavouriteButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
         )
-        self.clicked.connect(self.toggle)
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        self.clicked.connect(lambda: self.update_(stackwidget.currentIndex()))
 
-    def toggle(self):
+    def clicked(self):
         widget = self.parent().parent().findChild(StackedWidget)
         favourite = widget.currentWidget().model().get_filtermode(u'favourite')
         widget.currentWidget().model().set_filtermode(u'favourite', not favourite)
+
 
     def update_(self, idx):
         stackwidget = self.parent().parent().findChild(StackedWidget)
@@ -350,115 +336,6 @@ class AddBookmarkButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
         )
-
-
-class ListControlWidget(QtWidgets.QWidget):
-    """The bar above the list to control the mode, filters and sorting."""
-
-    listChanged = QtCore.Signal(int)
-    locationChanged = QtCore.Signal(basestring)
-
-    def __init__(self, parent=None):
-        super(ListControlWidget, self).__init__(parent=parent)
-        self._createUI()
-        self._connectSignals()
-
-        self.findChild(ListControlDropdown).view.model().__initdata__()
-
-    def _createUI(self):
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-
-        # Listwidget
-        self.layout().addSpacing(common.MARGIN)
-        self.layout().addWidget(ListControlDropdown(parent=self))
-        self.layout().addStretch()
-        self.layout().addWidget(Progressbar(parent=self), 1)
-        self.layout().addWidget(AddBookmarkButton(parent=self))
-        self.layout().addWidget(CustomButton(parent=self))
-        self.layout().addWidget(FilterButton(parent=self))
-        self.layout().addWidget(CollapseSequenceButton(parent=self))
-        self.layout().addWidget(ToggleArchivedButton(parent=self))
-        self.layout().addWidget(ToggleFavouriteButton(parent=self))
-        self.layout().addSpacing(common.MARGIN)
-
-    def _connectSignals(self):
-        def locationChanged(location):
-            for n in xrange(controlbutton.view.model().rowCount()):
-                index = controlbutton.view.model().index(n, 0)
-                if index.data(QtCore.Qt.DisplayRole) == location:
-                    controlbutton.view.selectionModel().setCurrentIndex(
-                        index, QtCore.QItemSelectionModel.ClearAndSelect)
-                    return index.row()
-
-        addbookmarkbutton = self.findChild(AddBookmarkButton)
-        controlbutton = self.findChild(ListControlDropdown)
-        bookmarkswidget = self.parent().findChild(BookmarksWidget)
-
-        controlbutton.view.activated.connect(lambda index: self.update_controls(index.row()))
-        controlbutton.view.activated.connect(lambda index: self.listChanged.emit(index.row() if index.row() <= 2 else 2))
-        controlbutton.view.activated.connect(lambda index: self.locationChanged.emit(index.data(QtCore.Qt.DisplayRole) if index.row() > 1 else None))
-        controlbutton.view.activated.connect(controlbutton.repaint)
-        self.listChanged.connect(self.update_controls)
-        self.listChanged.connect(controlbutton.repaint)
-        self.locationChanged.connect(self.update_controls)
-        self.locationChanged.connect(controlbutton.repaint)
-        self.locationChanged.connect(locationChanged)
-
-        addbookmarkbutton.clicked.connect(
-            bookmarkswidget.show_add_bookmark_widget)
-
-    @QtCore.Slot(int)
-    def update_controls(self, mode):
-        """Sets the current mode of ``ListControlWidget`` and updates
-        all widgets accordingly."""
-        if mode > 2:
-            listcontrolmode = int(mode)
-            local_settings.setValue(u'widget/listcontrolmode', listcontrolmode)
-
-            self.update_controls(2)
-
-            listcontrol = self.findChild(ListControlDropdown)
-            index = listcontrol.view.model().index(listcontrolmode, 0)
-            model = self.parent().fileswidget.model().sourceModel()
-            model.set_location(index.data(QtCore.Qt.DisplayRole))
-
-        mode = mode if mode >= 0 else 0
-        mode = mode if mode <= 2 else 2
-
-        addbookmark = self.findChild(AddBookmarkButton)
-        filterbutton = self.findChild(FilterButton)
-        collapsesequence = self.findChild(CollapseSequenceButton)
-        togglearchived = self.findChild(ToggleArchivedButton)
-        togglefavourite = self.findChild(ToggleFavouriteButton)
-
-        if mode == 0:  # Bookmarks
-            addbookmark.setHidden(False)
-            filterbutton.setHidden(False)
-            collapsesequence.setHidden(True)
-            togglearchived.setHidden(False)
-            togglefavourite.setHidden(False)
-        elif mode == 1:  # Assets
-            addbookmark.setHidden(True)
-            togglearchived.setHidden(True)
-            filterbutton.setHidden(False)
-            collapsesequence.setHidden(True)
-            togglearchived.setHidden(False)
-            togglefavourite.setHidden(False)
-        elif mode == 2:  # Files
-            addbookmark.setHidden(True)
-            filterbutton.setHidden(False)
-            collapsesequence.setHidden(False)
-            togglearchived.setHidden(False)
-            togglefavourite.setHidden(False)
-
-        togglearchived.update_(mode)
-        filterbutton.update_(mode)
-        collapsesequence.update_(mode)
-        togglefavourite.update_(mode)
 
 
 class ListControlDelegate(QtWidgets.QStyledItemDelegate):
@@ -529,15 +406,6 @@ class ListControlDelegate(QtWidgets.QStyledItemDelegate):
         painter, option, index, _ = args
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         Mode = 1
-
-        if index.row() != Mode:
-            return
-
-        parent = self.parent().parent()  # browserwidget
-        currentmode = parent.findChild(StackedWidget).currentIndex()
-        active_index = parent.findChild(
-            StackedWidget).widget(Mode).active_index()
-        active = active_index.isValid()
 
         # Thumbnail
         rect = QtCore.QRect(option.rect)
@@ -709,97 +577,131 @@ class ListControlView(QtWidgets.QListView):
     def __init__(self, parent=None):
         super(ListControlView, self).__init__(parent=parent)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.activated.connect(self.close)
         self.clicked.connect(self.activated)
         self.clicked.connect(self.close)
+
+        self.setModel(ListControlModel())
+        self.model().modelReset.connect(self.adjust_size)
+        # self.setItemDelegate(ListControlDelegate(parent=self))
+
+    @QtCore.Slot()
+    def adjust_size(self):
+        # Setting the height based on the conents
+        height = 0
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            height += index.data(QtCore.Qt.SizeHintRole).height()
+        self.setFixedHeight(height)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.close()
 
+
 class ListControlModel(BaseModel):
     """The model responsible for storing the available modes to browse."""
-    static_string_list = (
-        'Bookmarks',
-        'Assets',
-        common.ExportsFolder,
-        common.RendersFolder,
-        common.ScenesFolder,
-        common.TexturesFolder,
-    )
-    """These are the static folders that will always be present."""
 
     def __init__(self, parent=None):
-        self.parentwidget = parent
         super(ListControlModel, self).__init__(parent=parent)
+        self._bookmark = None
+        self._asset = None
+        self._datakey = None
+
+        self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        self.model_data = {}  # resetting data
-        flags = (QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
-        # Dynamic folders - this list might change depending on the asset
-        active_asset = self.parentwidget.parent().assetswidget.active_index()
-        # Static folder - we're expecting these to be always present
-        for idx, item in enumerate(self.static_string_list):
-            exists = True
-            if idx > 1 and active_asset.isValid():
-                path = '{}/{}'.format(active_asset.data(QtCore.Qt.StatusTipRole), item)
-                exists = QtCore.QFileInfo(path).exists()
-            self.model_data[idx] = {
-                QtCore.Qt.DisplayRole: item,
-                QtCore.Qt.EditRole: item,
-                QtCore.Qt.StatusTipRole: item,
-                QtCore.Qt.ToolTipRole: item,
-                QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
-                common.FlagsRole: flags if exists else QtCore.Qt.NoItemFlags,
+        self._data[self.data_key()] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+
+        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        flags = (
+            QtCore.Qt.ItemIsSelectable
+            | QtCore.Qt.ItemIsEnabled
+            | QtCore.Qt.ItemIsDropEnabled
+            | QtCore.Qt.ItemIsEditable
+        )
+        data = self.model_data()
+        items = (
+            (u'Bookmarks', u'Show panel to browse, select and add bookmarks'),
+            (u'Assets', u'Show panel to browse, select assets'),
+        )
+
+
+        data[len(data)] = {QtCore.Qt.DisplayRole: u'{}'.format(self._bookmark),
+            common.FlagsRole: flags,
+            QtCore.Qt.SizeHintRole: rowsize,}
+        data[len(data)] = {QtCore.Qt.DisplayRole: u'{}'.format(self._asset),
+            common.FlagsRole: flags,
+            QtCore.Qt.SizeHintRole: rowsize,}
+        data[len(data)] = {QtCore.Qt.DisplayRole: u'{}'.format(self._datakey),
+            common.FlagsRole: flags,
+            QtCore.Qt.SizeHintRole: rowsize,}
+        data[len(data)] = {QtCore.Qt.DisplayRole: u'{}'.format(self._datatype),
+            common.FlagsRole: flags,
+            QtCore.Qt.SizeHintRole: rowsize,}
+
+
+
+        for item in items:
+            data[len(data)] = {
+                QtCore.Qt.DisplayRole: item[0],
+                QtCore.Qt.EditRole: item[0],
+                QtCore.Qt.StatusTipRole: item[1],
+                QtCore.Qt.ToolTipRole: item[1],
+                QtCore.Qt.SizeHintRole: rowsize,
+                common.FlagsRole: flags,
                 common.ParentRole: None,
-                common.DescriptionRole: item,
-                common.TodoCountRole: 0,
-                common.FileDetailsRole: None,
+            }
+        if not self._parent_item:
+            self.endResetModel()
+            return
+
+        parent_path = u'/'.join(self._parent_item)
+        dir_ = QtCore.QDir(parent_path)
+        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
+        for entry in sorted(dir_.entryList()):
+            data[len(data)] = {
+                QtCore.Qt.DisplayRole: entry,
+                QtCore.Qt.EditRole: entry,
+                QtCore.Qt.StatusTipRole: u'A folder inside the current asset.',
+                QtCore.Qt.ToolTipRole: u'A folder inside the current asset.',
+                QtCore.Qt.SizeHintRole: rowsize,
+                common.FlagsRole: flags,
+                common.ParentRole: None,
             }
 
-        if active_asset.isValid():
-            path = active_asset.data(QtCore.Qt.StatusTipRole)
-            dir_ = QtCore.QDir(path)
-            dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-
-            idx = len(self.static_string_list)
-            for item in sorted(dir_.entryList()):
-                if item in (f[QtCore.Qt.DisplayRole] for f in self.model_data.itervalues()):
-                    continue  # skipping existing items
-                self.model_data[idx] = {
-                    QtCore.Qt.DisplayRole: item,
-                    QtCore.Qt.EditRole: item,
-                    QtCore.Qt.StatusTipRole: item,
-                    QtCore.Qt.ToolTipRole: item,
-                    QtCore.Qt.SizeHintRole: QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT),
-                    common.FlagsRole: flags,
-                    common.ParentRole: None,
-                    common.DescriptionRole: item,
-                    common.TodoCountRole: 0,
-                    common.FileDetailsRole: None,
-                }
-                idx += 1
-
-    def rowCount(self, parent=QtCore.QModelIndex()):
-        """Sets the item flags based on the currently available active paths."""
-        active_bookmark = self.parentwidget.parent().bookmarkswidget.active_index()
-        if not active_bookmark.isValid():
-            return 1
-
-        active_asset = self.parentwidget.parent().assetswidget.active_index()
-        if not active_asset.isValid():
-            return 2
-
-        return len(self.model_data)
-
-    def __resetdata__(self):
-        """Resets the internal data."""
-        self.beginResetModel()
-        self.model_data = {}
         self.endResetModel()
 
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_bookmark(self, index):
+        if not index.isValid():
+            self._bookmark = None
+            return
+
+        self._bookmark = index.data(common.ParentRole)
+        data = self.model_data()
+        data[0][QtCore.Qt.DisplayRole] = u'{}'.format(self._bookmark)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_asset(self, index):
+        if not index.isValid():
+            self._asset = None
+            return
+            
+        self._asset = index.data(common.ParentRole)[-1]
+        data = self.model_data()
+        data[1][QtCore.Qt.DisplayRole] = u'{}'.format(self._asset)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_key(self, index):
+        pass
+        # self._asset = index.data(common.ParentRole)[-1]
+        # data[0][QtCore.Qt.DisplayRole] = u'{}'.format(self._bookmark)
 
 class ListControlDropdown(ClickableLabel):
     """Drop-down widget to switch between the list"""
@@ -808,13 +710,9 @@ class ListControlDropdown(ClickableLabel):
     def __init__(self, parent=None):
         super(ListControlDropdown, self).__init__(parent=parent)
         self.view = ListControlView(parent=parent)
-        self.view.setModel(ListControlModel(parent=parent))
-        self.view.setItemDelegate(ListControlDelegate(parent=parent))
-
-        self.activeAssetChanged.connect(self.assetChanged)
-        self.clicked.connect(self.showPopup)
-
         self.setFixedWidth(180)
+
+        self.clicked.connect(self.showPopup)
 
     def paintEvent(self, event):
         idx = self.parent().parent().stackedwidget.currentIndex()
@@ -832,39 +730,43 @@ class ListControlDropdown(ClickableLabel):
             painter, common.PrimaryFont, self.rect(), text, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, common.TEXT)
         painter.end()
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def assetChanged(self, index):
-        self.model().__resetdata__()
-        self.model().__initdata__()
-
     def showPopup(self):
         """Showing view."""
         pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
         self.view.move(pos)
         self.view.setFixedWidth(self.parent().rect().width())
-
-        # Setting the height based on the conents
-        height = 0
-        for n in xrange(self.view.model().rowCount()):
-            index = self.view.model().index(n,0, parent=QtCore.QModelIndex())
-            height += self.view.visualRect(index).height()
-        self.view.setFixedHeight(height)
-
-        # Selecting the current item
-        idx = self.parent().parent().stackedwidget.currentIndex()
-        if idx == 2 and self.parent().parent().assetswidget.active_index().isValid():
-            for n in xrange(self.view.model().rowCount()):
-                index = self.view.model().index(n, 0)
-                if index.data(QtCore.Qt.DisplayRole) == local_settings.value(u'activepath/location'):
-                    self.view.selectionModel().setCurrentIndex(
-                        index,
-                        QtCore.QItemSelectionModel.ClearAndSelect
-                    )
-                    break
-        else:
-            index = self.view.model().index(idx, 0, parent=QtCore.QModelIndex())
-            self.view.selectionModel().setCurrentIndex(
-                index,
-                QtCore.QItemSelectionModel.ClearAndSelect
-            )
         self.view.show()
+
+
+class ListControlWidget(QtWidgets.QWidget):
+    """The bar above the list to control the mode, filters and sorting."""
+
+    def __init__(self, parent=None):
+        super(ListControlWidget, self).__init__(parent=parent)
+        self._createUI()
+        self._connectSignals()
+
+        self.findChild(ListControlDropdown).view.model().__initdata__()
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+
+        # Listwidget
+        self.layout().addSpacing(common.MARGIN)
+        self.layout().addWidget(ListControlDropdown(parent=self))
+        self.layout().addStretch()
+        self.layout().addWidget(Progressbar(parent=self), 1)
+        self.layout().addWidget(AddBookmarkButton(parent=self))
+        self.layout().addWidget(CustomButton(parent=self))
+        self.layout().addWidget(FilterButton(parent=self))
+        self.layout().addWidget(CollapseSequenceButton(parent=self))
+        self.layout().addWidget(ToggleArchivedButton(parent=self))
+        self.layout().addWidget(ToggleFavouriteButton(parent=self))
+        self.layout().addSpacing(common.MARGIN)
+
+    def _connectSignals(self):
+        pass

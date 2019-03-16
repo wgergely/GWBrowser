@@ -2,6 +2,7 @@ from PySide2 import QtWidgets
 from browser.bookmarkswidget import BookmarksWidget
 from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
+from browser.listcontrolwidget import ListControlWidget, ListControlView
 
 app = QtWidgets.QApplication([])
 
@@ -30,7 +31,6 @@ b.model().sourceModel().activeChanged.connect(
 b.model().sourceModel().activeChanged.connect(
     lambda x: a.model().sourceModel().modelDataResetRequested.emit())
 
-
 a.model().sourceModel().modelReset.connect(
     lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
@@ -42,19 +42,29 @@ a.model().sourceModel().activeChanged.connect(
     lambda x: f.model().sourceModel().modelDataResetRequested.emit())
 
 
-
-# a.model().sourceModel().activeChanged.connect(
-#     lambda: f.model().sourceModel().set_data_key(None))
-# a.model().sourceModel().activeChanged.connect(
-#     lambda: f.model().sourceModel().set_data_type(None))
-
-# def _debug(model):
-#     print model
-#     data = model.model_data()
-#     print len(data)
-#     print a.model().sourceModel().active_index()
+l = ListControlView()
+l.show()
+l.setFixedWidth(500)
 #
-# a.model().sourceModel().modelReset.connect(lambda: _debug(f.model().sourceModel()))
+
+a.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_active(a.model().sourceModel().active_index()))
+a.model().sourceModel().modelReset.connect(
+    l.model().modelDataResetRequested.emit)
+a.model().sourceModel().activeChanged.connect(
+    lambda x: l.model().modelDataResetRequested.emit())
+a.model().sourceModel().activeChanged.connect(
+    l.model().set_active)
+
+
+b.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
+a.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_asset(a.model().sourceModel().active_index()))
+b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
+a.model().sourceModel().activeChanged.connect(l.model().set_asset)
+
+
 
 
 app.processEvents()

@@ -141,7 +141,7 @@ class BookmarksModel(BaseModel):
         in under windows.
 
         """
-        self._data[self._datakey] = {
+        self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
@@ -591,13 +591,14 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pathsettings.layout().addWidget(self.pick_root_widget)
 
     def _connectSignals(self):
-        self.pick_server_widget.currentIndexChanged.connect(self.serverChanged)
-        self.pick_job_widget.currentIndexChanged.connect(self.jobChanged)
-        self.pick_root_widget.pressed.connect(self._pick_root)
+        self.pick_server_widget.currentIndexChanged.connect(self.server_changed)
+        self.pick_job_widget.currentIndexChanged.connect(self.job_changed)
+        self.pick_root_widget.pressed.connect(self.pick_root)
 
         self.cancel_button.pressed.connect(self.close)
         self.ok_button.pressed.connect(self.action)
 
+    @QtCore.Slot()
     def action(self):
         """The action to execute when the `Ok` button has been pressed."""
         bookmark = self.get_bookmark()
@@ -639,8 +640,6 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.parent().model().sourceModel().modelReset.connect(self.deleteLater)
 
         self.parent().model().sourceModel().modelDataResetRequested.emit()
-
-        # self.close()
 
     def select_item(self):
         """Selects the item based on the given path."""
@@ -713,7 +712,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             item.setData(common.FlagsRole, item.flags())
             self.pick_job_widget.view().addItem(item)
 
-    def _pick_root(self):
+    @QtCore.Slot()
+    def pick_root(self):
         """Method to select a the root folder of the assets. Called by the Assets push button."""
         self._root = None
 
@@ -763,7 +763,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         path = u'{}:  {} assets'.format(path, count)
         self.pick_root_widget.setText(path)
 
-    def jobChanged(self, idx):
+    @QtCore.Slot(int)
+    def job_changed(self, idx):
         """Triggered when the pick_job_widget selection changes."""
         self._root = None
         stylesheet = u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
@@ -773,7 +774,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pick_root_widget.setStyleSheet(stylesheet)
         self.pick_root_widget.setText(u'Pick bookmark folder')
 
-    def serverChanged(self, idx):
+    @QtCore.Slot(int)
+    def server_changed(self, idx):
         """Triggered when the pick_server_widget selection changes."""
         if idx < 0:
             self.pick_job_widget.clear()
@@ -786,7 +788,6 @@ class AddBookmarkWidget(QtWidgets.QWidget):
     def _set_initial_values(self):
         """Sets the initial values in the widget."""
         self._add_servers()
-
         local_paths = Active.paths()
 
         # Select the currently active server

@@ -448,7 +448,12 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: model.set_data_type(model.data_type()))
         model.modelAboutToBeReset.connect(model.validate_key)
 
+    @QtCore.Slot(unicode)
     def _check_data(self, k):
+        """When setting the model data-key it is necessary to check if the data
+        has been initialized. If it hasn't, we will trigger a model reset here.
+
+        """
         _data = self.model().sourceModel()._data
         if not k in _data:
             self.model().sourceModel().modelDataResetRequested.emit()
@@ -1063,10 +1068,6 @@ class BaseInlineIconWidget(BaseListWidget):
 
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
-
-        app_ = QtWidgets.QApplication.instance()
-        # if (event.pos() - self.multi_toggle_pos).manhattanLength() < app_.startDragDistance():
-        #     return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()
         pos.setX(0)
