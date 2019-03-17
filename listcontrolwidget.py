@@ -321,10 +321,10 @@ class ListControlDelegate(BaseDelegate):
             color = common.BACKGROUND_SELECTED
 
         right_color = QtGui.QColor(color)
-        right_color.setAlpha(0.5)
+        right_color.setAlpha(200)
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0.3, color)
+        gradient.setColorAt(0.4, color)
         gradient.setColorAt(1, right_color)
         painter.setBrush(QtGui.QBrush(gradient))
 

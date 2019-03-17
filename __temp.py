@@ -80,7 +80,6 @@ f.model().sourceModel().dataKeyChanged.connect(lambda x: l.model().modelDataRese
 
 # Listcontrol signals
 lb = lc.control_button()
-
 l.clicked.connect(lambda x: lb.set_text(x.data(QtCore.Qt.DisplayRole)))
 
 

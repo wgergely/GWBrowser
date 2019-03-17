@@ -73,11 +73,17 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget = None
         self.fileswidget = None
 
+        active_monitor.timer.start()
+
         self._createUI()
         self._connectSignals()
-        self._add_shortcuts()
 
-        active_monitor.timer.start()
+        # app = QtWidgets.QApplication.instance()
+        # app.processEvents()
+        # self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
+
+        # self._add_shortcuts()
+
 
 
     def _createUI(self):
@@ -126,46 +132,108 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
-        """This is where the main all the models, views and control widget
-        signals are connected."""
+        """This is where the bulk of the model, view and control widget
+        signals and slots are connected. I tried coding the widgets in a
+        manner that they can all operate independently and the signal/slot
+        connections are not hard-coded.
+
+        """
+        b = self.bookmarkswidget
+        a = self.assetswidget
+        f = self.fileswidget
+        lc = self.listcontrolwidget
+        l = lc.control_view()
+        lb = lc.control_button()
+
+        # Signal/slot connections for the primary bookmark/asset and filemodels
+        b.model().sourceModel().modelReset.connect(
+            lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
+        b.model().sourceModel().modelReset.connect(
+            a.model().sourceModel().modelDataResetRequested.emit)
+
+        b.model().sourceModel().activeChanged.connect(
+            a.model().sourceModel().set_active)
+        b.model().sourceModel().activeChanged.connect(
+            lambda x: a.model().sourceModel().modelDataResetRequested.emit())
+
+        a.model().sourceModel().modelReset.connect(
+            lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
+        a.model().sourceModel().modelReset.connect(
+            f.model().sourceModel().modelDataResetRequested.emit)
+        a.model().sourceModel().modelReset.connect(f.model().invalidate)
+
+        a.model().sourceModel().activeChanged.connect(
+            f.model().sourceModel().set_active)
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: f.model().sourceModel().modelDataResetRequested.emit())
 
 
+        # Bookmark/Asset/FileModel/View  ->  ListControlModel/View
+
+        # These connections are responsible for keeping the ListControlModel updated
+        # when navigating the list widgets.
+        b.model().sourceModel().modelReset.connect(
+            l.model().modelDataResetRequested.emit)
+
+        a.model().sourceModel().modelReset.connect(
+            lambda: l.model().set_active(a.model().sourceModel().active_index()))
+        a.model().sourceModel().modelReset.connect(
+            l.model().modelDataResetRequested.emit)
+
+        a.model().sourceModel().activeChanged.connect(
+            l.model().set_active)
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: l.model().modelDataResetRequested.emit())
+
+        b.model().sourceModel().modelReset.connect(
+            lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
+
+        b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
+        f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
+        f.model().sourceModel().modelReset.connect(
+            lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
+        f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
+        f.model().sourceModel().dataKeyChanged.connect(lambda x: l.model().modelDataResetRequested.emit())
+
+        # Listcontrol signals
+        l.clicked.connect(lambda x: lb.set_text(x.data(QtCore.Qt.DisplayRole)))
 
         # Statusbar
-        self.bookmarkswidget.entered.connect(self.entered)
-        self.assetswidget.entered.connect(self.entered)
-        self.fileswidget.entered.connect(self.entered)
+        b.entered.connect(self.entered)
+        a.entered.connect(self.entered)
+        f.entered.connect(self.entered)
+        l.entered.connect(self.entered)
 
-    def _add_shortcuts(self):
-        # Show bookmarks shortcut
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+1'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(
-            lambda: self.listcontrolwidget.listChanged.emit(0))
-        # Show asset shortcut
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+2'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(
-            lambda: self.listcontrolwidget.listChanged.emit(1))
-        # Show files shortcut
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+3'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(
-            lambda: self.listcontrolwidget.listChanged.emit(2))
-        # Search
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+F'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-
-        filterbutton = self.listcontrolwidget.findChild(FilterButton)
-        shortcut.activated.connect(filterbutton.clicked)
+    # def _add_shortcuts(self):
+    #     # Show bookmarks shortcut
+    #     shortcut = QtWidgets.QShortcut(
+    #         QtGui.QKeySequence(u'Alt+1'), self)
+    #     shortcut.setAutoRepeat(False)
+    #     shortcut.setContext(QtCore.Qt.WindowShortcut)
+    #     shortcut.activated.connect(
+    #         lambda: self.listcontrolwidget.listChanged.emit(0))
+    #     # Show asset shortcut
+    #     shortcut = QtWidgets.QShortcut(
+    #         QtGui.QKeySequence(u'Alt+2'), self)
+    #     shortcut.setAutoRepeat(False)
+    #     shortcut.setContext(QtCore.Qt.WindowShortcut)
+    #     shortcut.activated.connect(
+    #         lambda: self.listcontrolwidget.listChanged.emit(1))
+    #     # Show files shortcut
+    #     shortcut = QtWidgets.QShortcut(
+    #         QtGui.QKeySequence(u'Alt+3'), self)
+    #     shortcut.setAutoRepeat(False)
+    #     shortcut.setContext(QtCore.Qt.WindowShortcut)
+    #     shortcut.activated.connect(
+    #         lambda: self.listcontrolwidget.listChanged.emit(2))
+    #     # Search
+    #     shortcut = QtWidgets.QShortcut(
+    #         QtGui.QKeySequence(u'Alt+F'), self)
+    #     shortcut.setAutoRepeat(False)
+    #     shortcut.setContext(QtCore.Qt.WindowShortcut)
+    #
+    #     filterbutton = self.listcontrolwidget.findChild(FilterButton)
+    #     shortcut.activated.connect(filterbutton.clicked)
 
 
     def entered(self, index):

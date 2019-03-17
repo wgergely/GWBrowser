@@ -408,8 +408,9 @@ class BaseListWidget(QtWidgets.QListView):
             model.__resetdata__, type=QtCore.Qt.DirectConnection)
 
         # Selection
-        self.selectionModel().currentChanged.connect(
-            self.save_selection, type=QtCore.Qt.QueuedConnection)
+        model.modelAboutToBeReset.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()),
+            type=QtCore.Qt.DirectConnection)
         model.modelReset.connect(self.reselect_previous)
 
         self.model().filterFlagChanged.connect(self.model().set_filterflag)
@@ -553,16 +554,17 @@ class BaseListWidget(QtWidgets.QListView):
         raise NotImplementedError(
             '`save_activated` is abstract and has to be implemented in the subclass.')
 
-    @QtCore.Slot(QtCore.QModelIndex, QtCore.QModelIndex)
-    def save_selection(self, current, previous):
+    @QtCore.Slot(QtCore.QModelIndex)
+    def save_selection(self, current):
         """Saves the currently selected path."""
         if not current.isValid():
             self._current_selection = None
             return
-        self._current_selection = current.data(QtCore.Qt.StatusTipRole)
+        val = current.data(QtCore.Qt.StatusTipRole)
+        self._current_selection = val
         local_settings.setValue(
             u'widget/{}/selected_item'.format(self.__class__.__name__),
-            current.data(QtCore.Qt.StatusTipRole)
+            val
         )
 
     @QtCore.Slot()
@@ -570,8 +572,10 @@ class BaseListWidget(QtWidgets.QListView):
         """Slot called when the model has finished a reset operation.
         The method will try to reselect the previously selected path."""
 
-        val = local_settings.value(
-            u'widget/{}/selected_item'.format(self.__class__.__name__))
+        val = self._current_selection
+        if val is None:
+            val = local_settings.value(
+                u'widget/{}/selected_item'.format(self.__class__.__name__))
         if not val:
             return
 
