@@ -242,7 +242,7 @@ class ControlButton(ClickableLabel):
         painter.end()
 
 
-class TodosButton(ControlButton):
+class TodoButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
 
@@ -256,18 +256,19 @@ class CollapseSequenceButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
 
+
 class ToggleArchivedButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
 
-
 class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
-
 
 
 class CollapseSequenceMenu(BaseContextMenu):
@@ -387,6 +388,7 @@ class ListControlDelegate(BaseDelegate):
 
 
 class ListControlView(QtWidgets.QListView):
+    textChanged = QtCore.Signal(unicode)
     listChanged = QtCore.Signal(int)
     dataKeyChanged = QtCore.Signal(unicode)
 
@@ -417,7 +419,7 @@ class ListControlView(QtWidgets.QListView):
         else:
             self.listChanged.emit(2)
             self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
-
+        self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
@@ -452,7 +454,6 @@ class ListControlModel(BaseModel):
         self._bookmark = None
         # Note: the asset is stored as `_active_item`
         self._datakey = None
-
         self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __initdata__(self):
@@ -548,8 +549,6 @@ class ListControlModel(BaseModel):
 
 class ListControlButton(ClickableLabel):
     """Drop-down widget to switch between the list"""
-    textChanged = QtCore.Signal(unicode)
-
     def __init__(self, parent=None):
         super(ListControlButton, self).__init__(parent=parent)
         self._view = None
@@ -623,20 +622,27 @@ class ListControlWidget(QtWidgets.QWidget):
         self._controlview = ListControlView(parent=self)
         self._controlbutton.set_view(self._controlview)
 
+        self._progressbar = Progressbar(parent=self)
+        self._bookmarkbutton = AddBookmarkButton(parent=self)
+        self._todobutton = TodoButton(parent=self)
+        self._filterbutton = FilterButton(parent=self)
+        self._collapsebutton = CollapseSequenceButton(parent=self)
+        self._archivedbutton = ToggleArchivedButton(parent=self)
+        self._favouritebutton = ToggleFavouriteButton(parent=self)
+        self._custombutton = CustomButton(parent=self)
+
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
-        self.layout().addWidget(Progressbar(parent=self), 1)
-        self.layout().addWidget(AddBookmarkButton(parent=self))
-        self.layout().addWidget(TodosButton(parent=self))
-        self.layout().addWidget(FilterButton(parent=self))
-        self.layout().addWidget(CollapseSequenceButton(parent=self))
-        self.layout().addWidget(ToggleArchivedButton(parent=self))
-        self.layout().addWidget(ToggleFavouriteButton(parent=self))
-        self.layout().addWidget(CustomButton(parent=self))
+        self.layout().addWidget(self._progressbar, 1)
+        self.layout().addWidget(self._bookmarkbutton)
+        self.layout().addWidget(self._todobutton)
+        self.layout().addWidget(self._filterbutton)
+        self.layout().addWidget(self._collapsebutton)
+        self.layout().addWidget(self._archivedbutton)
+        self.layout().addWidget(self._favouritebutton)
+        self.layout().addWidget(self._custombutton)
         self.layout().addSpacing(common.MARGIN)
-
-
 
     def _connectSignals(self):
         pass
