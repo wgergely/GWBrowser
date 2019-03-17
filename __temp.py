@@ -63,13 +63,18 @@ a.model().sourceModel().activeChanged.connect(
     lambda x: l.model().modelDataResetRequested.emit())
 
 
-
 b.model().sourceModel().modelReset.connect(
     lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
 
 b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
 f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
+f.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
 f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
+
+
+f.model().sourceModel().dataKeyChanged.connect(lambda x: l.model().modelDataResetRequested.emit())
+
 # f.model().sourceModel().modelReset.connect(
 #     lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
 # f.model().sourceModel().modelReset.connect(

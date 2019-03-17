@@ -345,9 +345,6 @@ class ListControlDelegate(BaseDelegate):
     def __init__(self, parent=None):
         super(ListControlDelegate, self).__init__(parent=parent)
 
-    def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().parent().width(), common.ROW_BUTTONS_HEIGHT)
-
     def paint(self, painter, option, index):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
@@ -399,13 +396,20 @@ class ListControlDelegate(BaseDelegate):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         color = common.TEXT_SELECTED if hover else common.TEXT
 
+        if index.row() >= 2:
+            current_key = index.data(QtCore.Qt.DisplayRole) == self.parent().model()._datakey
+            color = common.FAVOURITE if current_key else color
+
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
             common.INDICATOR_WIDTH +
             rect.height()
         )
         rect.setRight(rect.right() - common.MARGIN)
-        text = index.data(QtCore.Qt.DisplayRole).upper()
+        if not index.data(QtCore.Qt.DisplayRole):
+            text = u'Error.'
+        else:
+            text = index.data(QtCore.Qt.DisplayRole).upper()
 
         width = 0
         width = common.draw_aliased_text(
@@ -416,7 +420,6 @@ class ListControlDelegate(BaseDelegate):
         if index.row() == 0:
             if self.parent().model()._bookmark:
                 active_item = self.parent().model()._bookmark[-1]
-
         if index.row() == 1:
             active_item = self.parent().model()._parent_item[-1]
 
