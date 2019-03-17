@@ -77,23 +77,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self._connectSignals()
         self._add_shortcuts()
 
-
         active_monitor.timer.start()
 
-        # Mode
-        mode = local_settings.value(u'widget/mode')
-        mode = mode if mode else 0
-        mode = mode if mode >= 0 else 0
-        self.listcontrolwidget.listChanged.emit(mode)
-
-        # Let's set the saved location
-        self.listcontrolwidget.locationChanged.emit(
-            self.fileswidget.model().sourceModel().data_key())
-
-        self.bookmarkswidget.model().sourceModel().activeChanged.emit(
-            self.bookmarkswidget.active_index())
-        self.assetswidget.model().sourceModel().activeAssetChanged.emit(
-            self.fileswidget.active_index())
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -141,42 +126,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def _connectSignals(self):
-        self.bookmarkswidget.model().sourceModel().activeChanged.connect(
-            self.assetswidget.model().sourceModel().set_active)
-        self.assetswidget.model().sourceModel().activeAssetChanged.connect(
-            self.fileswidget.model().sourceModel().setAsset)
-
-        self.bookmarkswidget.model().sourceModel().activeChanged.connect(
-            lambda x: self.listcontrolwidget.listChanged.emit(1))
-        self.assetswidget.model().sourceModel().activeChanged.connect(
-            lambda x: self.listcontrolwidget.listChanged.emit(2))
-        self.fileswidget.model().sourceModel().activeLocationChanged.connect(
-            lambda x: self.listcontrolwidget.listChanged.emit(2))
-        self.fileswidget.model().sourceModel().grouppingChanged.connect(
-            lambda x: self.listcontrolwidget.listChanged.emit(2))
-
-        # These signals will keep the stackedwidget updated
-        self.listcontrolwidget.listChanged.connect(self.activate_widget,
-            type=QtCore.Qt.QueuedConnection)
-        self.bookmarkswidget.activated.connect(
-            lambda _: self.listcontrolwidget.listChanged.emit(1),
-            type=QtCore.Qt.QueuedConnection)
-        self.assetswidget.activated.connect(
-            lambda _: self.listcontrolwidget.listChanged.emit(2),
-            type=QtCore.Qt.QueuedConnection)
-        self.fileswidget.activated.connect(
-            lambda _: self.listcontrolwidget.listChanged.emit(2),
-            type=QtCore.Qt.QueuedConnection)
-
-        self.listcontrolwidget.locationChanged.connect(
-            self.fileswidget.model().sourceModel().set_location)
-
-        self.bookmarkswidget.model().filterModeChanged.connect(
-            lambda x: self.listcontrolwidget.update_controls(self.stackedwidget.currentIndex()))
-        self.fileswidget.model().filterModeChanged.connect(
-            lambda x: self.listcontrolwidget.update_controls(self.stackedwidget.currentIndex()))
-        self.assetswidget.model().filterModeChanged.connect(
-            lambda x: self.listcontrolwidget.update_controls(self.stackedwidget.currentIndex()))
+        """This is where the main all the models, views and control widget
+        signals are connected."""
 
 
 

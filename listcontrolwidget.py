@@ -206,118 +206,68 @@ class CustomButton(BrowserButton):
             lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
 
 
-class FilterButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
+class ControlButton(ClickableLabel):
 
     def __init__(self, parent=None):
-        super(FilterButton, self).__init__(parent=parent)
+        super(ControlButton, self).__init__(parent=parent)
+        self._model = None
+
         self.setFixedSize(
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
         )
         self.clicked.connect(self.action)
 
+    def pixmap(self, c):
+        return QtGui.QPixmap(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
+
+    def model(self):
+        return self._model
+
+    def set_model(self, model):
+        self._model = None
+
+    def state(self):
+        return False
+
     @QtCore.Slot()
     def action(self):
-        editor = FilterEditor(filtertext, parent=widget)
+        return NotImplemented
 
-        pos = self.rect().center()
-        pos = self.mapToGlobal(pos)
-        editor.move(
-            pos.x() - editor.width() + (self.width() / 2.0),
-            pos.y() - (editor.height() / 2.0)
-        )
-        editor.show()
-
-    def update_(self, idx):
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().get_filtertext() != u'/':
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'filter', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'filter', common.TEXT, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        color = common.FAVOURITE if self.state() else common.TEXT
+        painter.drawPixmap(self.rect(), self.pixmap(color), self.rect())
+        painter.end()
 
 
-class CollapseSequenceButton(ClickableLabel):
+class TodosButton(ControlButton):
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
+
+
+class FilterButton(ControlButton):
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
+
+
+class CollapseSequenceButton(ControlButton):
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
+
+class ToggleArchivedButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(CollapseSequenceButton, self).__init__(parent=parent)
-        self.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
-        self.clicked.connect(self.toggle)
-
-    @QtCore.Slot()
-    def toggle(self):
-        filewidget = self.parent().parent().findChild(FilesWidget)
-        grouped = filewidget.model().sourceModel().data_type()
-        filewidget.model().sourceModel().set_collapsed(not grouped)
-
-    def update_(self, idx):
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().sourceModel().data_type():
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'expand', common.TEXT, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
 
-class ToggleArchivedButton(ClickableLabel):
+
+class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
 
-    def __init__(self, parent=None):
-        super(ToggleArchivedButton, self).__init__(parent=parent)
-        self.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
-
-    def clicked(self):
-        widget = self.parent().parent().findChild(StackedWidget)
-        archived = widget.currentWidget().model().get_filtermode(u'archived')
-        widget.currentWidget().model().set_filtermode(u'archived', not archived)
-
-    def update_(self, idx):
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().get_filtermode(u'archived'):
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'active', common.TEXT, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
-
-class ToggleFavouriteButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(ToggleFavouriteButton, self).__init__(parent=parent)
-        self.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
-
-    def clicked(self):
-        widget = self.parent().parent().findChild(StackedWidget)
-        favourite = widget.currentWidget().model().get_filtermode(u'favourite')
-        widget.currentWidget().model().set_filtermode(u'favourite', not favourite)
-
-    def update_(self, idx):
-        stackwidget = self.parent().parent().findChild(StackedWidget)
-        if stackwidget.widget(idx).model().get_filtermode(u'favourite'):
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'favourite', common.TEXT, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
 
 
 class CollapseSequenceMenu(BaseContextMenu):
@@ -348,15 +298,6 @@ class ListControlDelegate(BaseDelegate):
     def paint(self, painter, option, index):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
-        #
-        # painter.setRenderHints(
-        #     QtGui.QPainter.TextAntialiasing |
-        #     QtGui.QPainter.Antialiasing |
-        #     QtGui.QPainter.SmoothPixmapTransform,
-        #     on=True
-        # )
-        # args = (painter, option, index, selected)
-
         self.paint_background(*args)
         if index.row() < 2:
             self.paint_thumbnail(*args)
@@ -391,13 +332,14 @@ class ListControlDelegate(BaseDelegate):
 
     @paintmethod
     def paint_name(self, *args):
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         color = common.TEXT_SELECTED if hover else common.TEXT
 
         if index.row() >= 2:
-            current_key = index.data(QtCore.Qt.DisplayRole) == self.parent().model()._datakey
+            current_key = index.data(
+                QtCore.Qt.DisplayRole) == self.parent().model()._datakey
             color = common.FAVOURITE if current_key else color
 
         rect = QtCore.QRect(option.rect)
@@ -430,7 +372,7 @@ class ListControlDelegate(BaseDelegate):
             rect.setLeft(rect.left() + width)
 
         if hover:
-            text = u':  {}'.format(index.data(QtCore.Qt.StatusTipRole))
+            text = u'  {}'.format(index.data(QtCore.Qt.StatusTipRole))
             width = common.draw_aliased_text(
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
 
@@ -463,6 +405,12 @@ class ListControlView(QtWidgets.QListView):
         self.setModel(ListControlModel())
         self.model().modelReset.connect(self.adjust_size)
         self.setItemDelegate(ListControlDelegate(parent=self))
+
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.hide()
+            return
+        super(ListControlView, self).keyPressEvent(event)
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -500,7 +448,8 @@ class ListControlModel(BaseModel):
             common.FileItem: {}, common.SequenceItem: {}}
 
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
-        secondary_rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
+        secondary_rowsize = QtCore.QSize(
+            common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
 
         flags = (
             QtCore.Qt.ItemIsSelectable
@@ -511,8 +460,10 @@ class ListControlModel(BaseModel):
         data = self.model_data()
 
         items = (
-            (u'Bookmarks', u'Show the list of available bookmarks', lambda c: ImageCache.get_rsc_pixmap('bookmark_sm', c, rowsize.height()).toImage()),
-            (u'Assets', u'Show the list of available assets', lambda c: ImageCache.get_rsc_pixmap('assets_sm', c, rowsize.height()).toImage()),
+            (u'Bookmarks', u'Show the list of available bookmarks', lambda c: ImageCache.get_rsc_pixmap(
+                'bookmark_sm', c, rowsize.height()).toImage()),
+            (u'Assets', u'Show the list of available assets', lambda c: ImageCache.get_rsc_pixmap(
+                'assets_sm', c, rowsize.height()).toImage()),
         )
 
         for item in items:
@@ -524,9 +475,9 @@ class ListControlModel(BaseModel):
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.DefaultThumbnailRole: item[2],
-                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0,0,0,0),
+                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 common.ThumbnailRole: item[2](common.TEXT),
-                common.ThumbnailBackgroundRole: QtGui.QColor(0,0,0,0),
+                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
                 common.ParentRole: None,
@@ -582,39 +533,56 @@ class ListControlModel(BaseModel):
         self._datatype = datatype
 
 
-class ListControlDropdown(ClickableLabel):
+class ListControlButton(ClickableLabel):
     """Drop-down widget to switch between the list"""
-    activeAssetChanged = QtCore.Signal(QtCore.QModelIndex)
+    textChanged = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
-        super(ListControlDropdown, self).__init__(parent=parent)
-        self.view = ListControlView(parent=parent)
-        self.setFixedWidth(180)
+        super(ListControlButton, self).__init__(parent=parent)
+        self._view = None
 
-        self.clicked.connect(self.showPopup)
+        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        self.setStyleSheet("""
+        QLabel {margin: 0px; padding: 0px}
+        """)
+        self.setFixedWidth(100)
+        self.clicked.connect(self.show_view)
+
+        self.setText('uninitialized')
 
     def paintEvent(self, event):
-        idx = self.parent().parent().stackedwidget.currentIndex()
-        active_asset = self.parent().parent().assetswidget.active_index()
-        if idx == 2 and active_asset.isValid():
-            text = u'{} / {}'.format(
-                active_asset.data(QtCore.Qt.DisplayRole).upper(),
-                local_settings.value(u'activepath/location').upper())
-        else:
-            text = self.view.model().index(idx, 0).data(QtCore.Qt.DisplayRole).upper()
-
         painter = QtGui.QPainter()
         painter.begin(self)
         common.draw_aliased_text(
-            painter, common.PrimaryFont, self.rect(), text, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, common.TEXT)
+            painter, common.PrimaryFont, self.rect(), self.text(), QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, common.TEXT)
         painter.end()
+
+    def set_view(self, widget):
+        self._view = widget
+
+    @QtCore.Slot()
+    def show_view(self):
+        if not self._view:
+            return
+        pos = self._view.parent().mapToGlobal(self._view.parent().rect().bottomLeft())
+        self._view.move(pos)
+
+        self._view.setFixedWidth(self._view.parent().rect().width())
+        self._view.show()
+
+    @QtCore.Slot(unicode)
+    def set_text(self, text):
+        self.setText(text.title())
+        metrics = QtGui.QFontMetrics(common.PrimaryFont)
+        width = metrics.width(self.text()) + 2
+        # width = width if width > 100 else 100
+        # print width
+        self.setFixedWidth(width)
 
     def showPopup(self):
         """Showing view."""
-        pos = self.parent().mapToGlobal(self.parent().rect().bottomLeft())
-        self.view.move(pos)
-        self.view.setFixedWidth(self.parent().rect().width())
-        self.view.show()
 
 
 class ListControlWidget(QtWidgets.QWidget):
@@ -622,10 +590,11 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
+        self._controlview = None
+        self._controlbutton = None
+
         self._createUI()
         self._connectSignals()
-
-        self.findChild(ListControlDropdown).view.model().__initdata__()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -634,18 +603,31 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
-        # Listwidget
+        # Control view/model/button
+        self._controlbutton = ListControlButton(parent=self)
+        self._controlview = ListControlView(parent=self)
+        self._controlbutton.set_view(self._controlview)
+
         self.layout().addSpacing(common.MARGIN)
-        self.layout().addWidget(ListControlDropdown(parent=self))
+        self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
         self.layout().addWidget(Progressbar(parent=self), 1)
         self.layout().addWidget(AddBookmarkButton(parent=self))
-        self.layout().addWidget(CustomButton(parent=self))
+        self.layout().addWidget(TodosButton(parent=self))
         self.layout().addWidget(FilterButton(parent=self))
         self.layout().addWidget(CollapseSequenceButton(parent=self))
         self.layout().addWidget(ToggleArchivedButton(parent=self))
         self.layout().addWidget(ToggleFavouriteButton(parent=self))
+        self.layout().addWidget(CustomButton(parent=self))
         self.layout().addSpacing(common.MARGIN)
+
+
 
     def _connectSignals(self):
         pass
+
+    def control_view(self):
+        return self._controlview
+
+    def control_button(self):
+        return self.findChild(ListControlButton)
