@@ -603,7 +603,8 @@ class ListControlView(QtWidgets.QListView):
 
 
 class ListControlModel(BaseModel):
-    """The model responsible for storing the available modes to browse."""
+    """This model holds all the necessary data needed to display items to
+    select for selecting the asset subfolders and/or bookmarks and assets."""
 
     def __init__(self, parent=None):
         super(ListControlModel, self).__init__(parent=parent)
@@ -646,7 +647,6 @@ class ListControlModel(BaseModel):
             QtCore.Qt.SizeHintRole: rowsize,}
 
 
-
         for item in items:
             data[len(data)] = {
                 QtCore.Qt.DisplayRole: item[0],
@@ -674,11 +674,11 @@ class ListControlModel(BaseModel):
                 common.FlagsRole: flags,
                 common.ParentRole: None,
             }
-
         self.endResetModel()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_bookmark(self, index):
+        """Stores the currently active bookmark."""
         if not index.isValid():
             self._bookmark = None
             return
@@ -692,14 +692,18 @@ class ListControlModel(BaseModel):
         if not index.isValid():
             self._asset = None
             return
-            
-        self._asset = index.data(common.ParentRole)[-1]
-        data = self.model_data()
-        data[1][QtCore.Qt.DisplayRole] = u'{}'.format(self._asset)
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def set_key(self, index):
-        pass
+    @QtCore.Slot(unicode)
+    def set_data_key(self, key):
+        self._datakey = key
+        data = self.model_data()
+        data[2][QtCore.Qt.DisplayRole] = key
+
+    @QtCore.Slot(int)
+    def set_data_type(self, datatype):
+        self._datatype = datatype
+        data = self.model_data()
+        data[3][QtCore.Qt.DisplayRole] = datatype
         # self._asset = index.data(common.ParentRole)[-1]
         # data[0][QtCore.Qt.DisplayRole] = u'{}'.format(self._bookmark)
 

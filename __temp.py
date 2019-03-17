@@ -61,8 +61,16 @@ b.model().sourceModel().modelReset.connect(
     lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
     lambda: l.model().set_asset(a.model().sourceModel().active_index()))
+
 b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
 a.model().sourceModel().activeChanged.connect(l.model().set_asset)
+f.model().sourceModel().activeChanged.connect(l.model().set_asset)
+f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
+f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
+f.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
+f.model().sourceModel().modelReset.connect(
+    lambda: l.model().set_data_type(f.model().sourceModel().data_type()))
 
 
 
