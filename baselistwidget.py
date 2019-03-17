@@ -220,17 +220,12 @@ class BaseModel(QtCore.QAbstractItemModel):
 
 
     @QtCore.Slot(unicode)
-    def check_data(self, k):
+    def check_data(self):
         """When setting the model data-key it is necessary to check if the data
-        has been initialized. If it hasn't, we will trigger a model reset here.
+        has been initialized. If it hasn't, we will trigger `__initdata__` here.
 
         """
-        _data = self._data
-        if not k in _data:
-            self.beginResetModel()
-            self.__initdata__()
-            return
-        if not _data[k][common.FileItem]:
+        if not self.model_data():
             self.beginResetModel()
             self.__initdata__()
 
@@ -465,7 +460,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.activeChanged.connect(self.save_activated)
 
         model.dataKeyChanged.connect(model.set_data_key)
-        model.dataKeyChanged.connect(model.check_data)
+        model.dataKeyChanged.connect(lambda x: model.check_data())
         model.dataKeyChanged.connect(lambda x: proxy.invalidate())
 
         model.dataTypeChanged.connect(model.set_data_type)
