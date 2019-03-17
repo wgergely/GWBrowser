@@ -35,6 +35,7 @@ a.model().sourceModel().modelReset.connect(
     lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
     f.model().sourceModel().modelDataResetRequested.emit)
+a.model().sourceModel().modelReset.connect(f.model().invalidate)
 
 a.model().sourceModel().activeChanged.connect(
     f.model().sourceModel().set_active)
@@ -47,32 +48,32 @@ l.show()
 l.setFixedWidth(500)
 #
 
+
+b.model().sourceModel().modelReset.connect(
+    l.model().modelDataResetRequested.emit)
+
 a.model().sourceModel().modelReset.connect(
     lambda: l.model().set_active(a.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
     l.model().modelDataResetRequested.emit)
-a.model().sourceModel().activeChanged.connect(
-    lambda x: l.model().modelDataResetRequested.emit())
+
 a.model().sourceModel().activeChanged.connect(
     l.model().set_active)
+a.model().sourceModel().activeChanged.connect(
+    lambda x: l.model().modelDataResetRequested.emit())
+
 
 
 b.model().sourceModel().modelReset.connect(
     lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
-a.model().sourceModel().modelReset.connect(
-    lambda: l.model().set_asset(a.model().sourceModel().active_index()))
 
 b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
-a.model().sourceModel().activeChanged.connect(l.model().set_asset)
-f.model().sourceModel().activeChanged.connect(l.model().set_asset)
 f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
 f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
-f.model().sourceModel().modelReset.connect(
-    lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
-f.model().sourceModel().modelReset.connect(
-    lambda: l.model().set_data_type(f.model().sourceModel().data_type()))
-
-
+# f.model().sourceModel().modelReset.connect(
+#     lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
+# f.model().sourceModel().modelReset.connect(
+#     lambda: l.model().set_data_type(f.model().sourceModel().data_type()))
 
 
 app.processEvents()

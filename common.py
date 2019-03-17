@@ -548,13 +548,14 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         text,
         elide,
         rect.width())
+    width = metrics.width(text)
 
     if QtCore.Qt.AlignLeft & align:
         x = rect.left()
     if QtCore.Qt.AlignRight & align:
-        x = rect.right() - metrics.width(text)
+        x = rect.right() - width
     if QtCore.Qt.AlignHCenter & align:
-        x = rect.left() + (rect.width() / 2.0) - (metrics.width(text) / 2.0)
+        x = rect.left() + (rect.width() / 2.0) - (width / 2.0)
 
     if QtCore.Qt.AlignTop & align:
         y = rect.top() + metrics.ascent()
@@ -572,6 +573,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     painter.drawPath(path)
 
     painter.restore()
+    return width
 
 
 class ProgressMessage(QtCore.QObject):

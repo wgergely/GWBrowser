@@ -210,7 +210,9 @@ class BaseModel(QtCore.QAbstractItemModel):
     def set_active(self, index):
         """Sets the given index's parent."""
         if not index.isValid():
+            self._parent_item = None
             return
+
         if index.data(common.ParentRole) == self._parent_item:
             return
         self._parent_item = index.data(common.ParentRole)

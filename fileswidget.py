@@ -5,7 +5,6 @@ found by the collector classes.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import math
 import sys
 import functools
 from PySide2 import QtWidgets, QtCore, QtGui
