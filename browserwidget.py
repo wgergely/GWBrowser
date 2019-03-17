@@ -78,19 +78,26 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self._add_shortcuts()
 
-        # Initiating model data...
-        self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
-        # Apply saved process
+        # Switching stacked widget to saved index...
         idx = local_settings.value(u'widget/mode')
         idx = 0 if idx is None else idx
         self.listcontrolwidget.control_view().listChanged.emit(idx)
-        # if idx == 1:
-        #     self.listcontrolwwidget
+        # Initiating model data...
+        self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
+        if idx == 0:
+            index = self.listcontrolwidget.control_view().model().index(0, 0)
+            text = index.data(QtCore.Qt.DisplayRole)
+        if idx == 1:
+            index = self.listcontrolwidget.control_view().model().index(1, 0)
+            text = index.data(QtCore.Qt.DisplayRole)
+        if idx == 2:
+            text = self.fileswidget.model().sourceModel().data_key()
+        self.listcontrolwidget.control_view().textChanged.emit(text)
+
+            # self.listcontrolwwidget
         # if idx == 2:
-
-
-        app = QtWidgets.QApplication.instance()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+        # app = QtWidgets.QApplication.instance()
+        # app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -212,6 +219,13 @@ class BrowserWidget(QtWidgets.QWidget):
         a.entered.connect(self.entered)
         f.entered.connect(self.entered)
         l.entered.connect(self.entered)
+
+        # # Control buttons
+        # def p():
+        #     print '!!'
+        # self.listcontrolwidget._archivedbutton.clicked.connect(
+        #     lambda: p()
+        # )
 
     def _add_shortcuts(self):
         for n in xrange(3):
