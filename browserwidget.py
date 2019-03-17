@@ -78,13 +78,10 @@ class BrowserWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
 
-        # app = QtWidgets.QApplication.instance()
-        # app.processEvents()
+        app = QtWidgets.QApplication.instance()
+        app.processEvents()
         # self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
-
         # self._add_shortcuts()
-
-
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -144,6 +141,7 @@ class BrowserWidget(QtWidgets.QWidget):
         lc = self.listcontrolwidget
         l = lc.control_view()
         lb = lc.control_button()
+        s = self.stackedwidget
 
         # Signal/slot connections for the primary bookmark/asset and filemodels
         b.model().sourceModel().modelReset.connect(
@@ -197,6 +195,12 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Listcontrol signals
         l.clicked.connect(lambda x: lb.set_text(x.data(QtCore.Qt.DisplayRole)))
+
+        # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
+        # These are the signals responsible for changing the active items & data keys.
+        l.listChanged.connect(s.setCurrentIndex)
+        l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
+
 
         # Statusbar
         b.entered.connect(self.entered)

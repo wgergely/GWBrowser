@@ -387,6 +387,9 @@ class ListControlDelegate(BaseDelegate):
 
 
 class ListControlView(QtWidgets.QListView):
+    listChanged = QtCore.Signal(int)
+    dataKeyChanged = QtCore.Signal(unicode)
+
     def __init__(self, parent=None):
         super(ListControlView, self).__init__(parent=parent)
         common.set_custom_stylesheet(self)
@@ -398,13 +401,23 @@ class ListControlView(QtWidgets.QListView):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
-        self.activated.connect(self.close)
+        # self.activated.connect(self.close)
         self.clicked.connect(self.activated)
         self.clicked.connect(self.close)
+        self.clicked.connect(self.signal_dispatcher)
 
         self.setModel(ListControlModel())
         self.model().modelReset.connect(self.adjust_size)
         self.setItemDelegate(ListControlDelegate(parent=self))
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def signal_dispatcher(self, index):
+        if index.row() < 2:
+            self.listChanged.emit(index.row())
+        else:
+            self.listChanged.emit(2)
+            self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
+
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
@@ -574,6 +587,8 @@ class ListControlButton(ClickableLabel):
 
     @QtCore.Slot(unicode)
     def set_text(self, text):
+        if text is None:
+            return
         self.setText(text.title())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
         width = metrics.width(self.text()) + 2

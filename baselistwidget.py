@@ -44,8 +44,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.setSortLocaleAware(False)
         self.setDynamicSortFilter(False)
         self.setFilterRole(QtCore.Qt.StatusTipRole)
-        self.setSortCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setSortCaseSensitivity(QtCore.Qt.CaseSensitive)
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitive)
 
         self.parentwidget = parent
 
@@ -66,6 +66,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self._filtertext is None:
             cls = self.__class__.__name__
             val = local_settings.value(u'widget/{}/filtertext'.format(cls))
+            if val is None:
+                self._filtertext = u'/'
+            else:
+                self._filtertext = val
         else:
             val = self._filtertext
         return val if val else u'/'
@@ -90,6 +94,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             cls = self.__class__.__name__
             val = local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, flag))
+            if val is None:
+                self._filterflags[flag] = False
+            else:
+                self._filterflags[flag] = val
         else:
             val = self._filterflags[flag]
         return val if val else False
@@ -111,6 +119,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self._sortkey is None:
             cls = self.__class__.__name__
             val = local_settings.value(u'widget/{}/sortkey'.format(cls))
+            if val is None:
+                self._sortkey = common.SortByName
+            else:
+                self._sortkey = val
         else:
             val = self._sortkey
         if val in (common.SortByName, common.SortByLastModified, common.SortBySize):
@@ -152,7 +164,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
         return True
 
-    def filterAcceptsRow(self, source_row, parent=QtCore.QModelIndex()):
+    def filterAcceptsRow(self, source_row, parent=None):
         """The main method used to filter the elements using the flags and the filter string."""
         data = self.sourceModel().model_data()
         flags = data[source_row][common.FlagsRole]
@@ -176,8 +188,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def lessThan(self, source_left, source_right):
         """The main method responsible for sorting the items."""
         k = self.get_sortkey()
-        if k == common.SortByName:
-            return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
+        # if k == common.SortByName:
+        #     return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
         return source_left.data(k) < source_right.data(k)
 
 
@@ -205,6 +217,22 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._file_monitor = QtCore.QFileSystemWatcher()
         self._last_refreshed = {}
         self._last_changed = {}  # a dict of path/timestamp values
+
+
+    @QtCore.Slot(unicode)
+    def check_data(self, k):
+        """When setting the model data-key it is necessary to check if the data
+        has been initialized. If it hasn't, we will trigger a model reset here.
+
+        """
+        _data = self._data
+        if not k in _data:
+            self.beginResetModel()
+            self.__initdata__()
+            return
+        if not _data[k][common.FileItem]:
+            self.beginResetModel()
+            self.__initdata__()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
@@ -407,62 +435,47 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelDataResetRequested.connect(
             model.__resetdata__, type=QtCore.Qt.DirectConnection)
 
+
         # Selection
         model.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()),
             type=QtCore.Qt.DirectConnection)
-        model.modelReset.connect(self.reselect_previous)
-
-        self.model().filterFlagChanged.connect(self.model().set_filterflag)
-        self.model().filterFlagChanged.connect(
-            lambda x, y: self.model().invalidateFilter(),
-            type=QtCore.Qt.QueuedConnection
-        )
-
-        # Sort/Filter signals
-        self.model().filterTextChanged.connect(
-            self.model().set_filtertext,
+        model.modelReset.connect(self.reselect_previous,
             type=QtCore.Qt.QueuedConnection)
-        self.model().sortOrderChanged.connect(
-            lambda x, y: self.model().set_sortkey(x))
-        self.model().sortOrderChanged.connect(
-            lambda x, y: self.model().set_sortorder(y))
-        self.model().sortOrderChanged.connect(
-            lambda x, y: self.model().sort(
-                0,
-                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+
+        proxy.filterFlagChanged.connect(proxy.set_filterflag)
+        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter())
+
+        # Sort/Filter signalsx
+        proxy.filterTextChanged.connect(
+            proxy.set_filtertext,
+            type=QtCore.Qt.QueuedConnection)
+        # Sorting
+        proxy.sortOrderChanged.connect(
+            lambda x, y: proxy.set_sortkey(x))
+        proxy.sortOrderChanged.connect(
+            lambda x, y: proxy.set_sortorder(y))
+        proxy.sortOrderChanged.connect(
+            lambda x, y: proxy.sort(
+                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder))
         model.modelReset.connect(
-            lambda: self.model().sort(
-                0,
-                QtCore.Qt.AscendingOrder if self.model().get_sortorder() else QtCore.Qt.DescendingOrder))
+            lambda: proxy.sort(
+                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder))
 
         model.activeChanged.connect(self.save_activated)
 
         model.dataKeyChanged.connect(model.set_data_key)
-        model.dataKeyChanged.connect(self._check_data)
-        model.dataKeyChanged.connect(lambda x: self.model().invalidate())
+        model.dataKeyChanged.connect(model.check_data)
+        model.dataKeyChanged.connect(lambda x: proxy.invalidate())
 
         model.dataTypeChanged.connect(model.set_data_type)
-        model.dataTypeChanged.connect(lambda x: self.model().invalidate())
+        model.dataTypeChanged.connect(lambda x: proxy.invalidate())
 
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
         model.modelAboutToBeReset.connect(model.validate_key)
-
-    @QtCore.Slot(unicode)
-    def _check_data(self, k):
-        """When setting the model data-key it is necessary to check if the data
-        has been initialized. If it hasn't, we will trigger a model reset here.
-
-        """
-        _data = self.model().sourceModel()._data
-        if not k in _data:
-            self.model().sourceModel().modelDataResetRequested.emit()
-            return
-        if not _data[k][common.FileItem]:
-            self.model().sourceModel().modelDataResetRequested.emit()
 
 
 

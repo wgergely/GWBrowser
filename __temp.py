@@ -35,7 +35,7 @@ a.model().sourceModel().modelReset.connect(
     lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
 a.model().sourceModel().modelReset.connect(
     f.model().sourceModel().modelDataResetRequested.emit)
-a.model().sourceModel().modelReset.connect(f.model().invalidate)
+# a.model().sourceModel().modelReset.connect(f.model().invalidate)
 
 a.model().sourceModel().activeChanged.connect(
     f.model().sourceModel().set_active)

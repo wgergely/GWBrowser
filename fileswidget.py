@@ -374,9 +374,9 @@ class FilesModel(BaseModel):
                 common.ThumbnailRole: None,
                 common.ThumbnailBackgroundRole: None,
                 common.TypeRole: common.FileItem,
-                common.SortByName: filename,
-                common.SortByLastModified: filename,
-                common.SortBySize: filename,
+                common.SortByName: filepath,
+                common.SortByLastModified: filepath,
+                common.SortBySize: filepath,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -417,7 +417,7 @@ class FilesModel(BaseModel):
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
-        common.ProgressMessage.instance().set_message(u'Getting sequences...')
+        common.ProgressMessage.instance().set_message(u'Loading...')
         for v in seqs.itervalues():
             idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!

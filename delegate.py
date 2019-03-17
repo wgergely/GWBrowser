@@ -825,7 +825,9 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_mode(self, *args):
         """Paints the FilesWidget's mode and the subfolders."""
         painter, option, index, _, _, _, _, _ = args
-
+        if index.data(common.ParentRole) is None:
+            return
+            
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)
