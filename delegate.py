@@ -719,14 +719,14 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
 
         #
-        if index.flags() & QtCore.Qt.ItemIsEnabled:
+        if index.data(common.StatusRole):
             self.paint_thumbnail(*args)
             self.paint_archived(*args)
             self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
-        if index.flags() & QtCore.Qt.ItemIsEnabled:
+        if index.data(common.StatusRole):
             self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
@@ -734,7 +734,7 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
         #
-        if index.flags() & QtCore.Qt.ItemIsEnabled:
+        if index.data(common.StatusRole):
             self.paint_selection_indicator(*args)
         #
         self.paint_uninitialized(*args)
@@ -742,7 +742,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_uninitialized(self, *args):
         painter, option, index, _, _, _, _, _ = args
-        if index.flags() & QtCore.Qt.ItemIsEnabled:
+        if index.data(common.StatusRole):
             return
 
         painter.setBrush(common.SEPARATOR)
@@ -827,7 +827,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, _, _, _ = args
         if index.data(common.ParentRole) is None:
             return
-            
+
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
         metrics = QtGui.QFontMetrics(font)

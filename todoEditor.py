@@ -865,7 +865,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if not self.index.isValid():
             return
         settings = AssetSettings(self.index)
-        settings.setValue(u'config/todos', self._collect_data())
+        todos = self._collect_data()
+        settings.setValue(u'config/todos', todos)
+
+        model = self.index.model()
+        model.setData(self.index, len(todos), role=common.TodoCountRole)
+        # data[self.index.row()][common.TodoCountRole] = len(todos)
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -958,8 +963,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def hideEvent(self, event):
         """Saving the contents on close/hide."""
         self.save_settings()
-        if self.parent():
-            self.parent().refresh()
 
     def focusOutEvent(self, event):
         if event.lostFocus():

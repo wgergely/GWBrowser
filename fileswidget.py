@@ -303,7 +303,7 @@ class FilesModel(BaseModel):
         seqs = {}
 
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        flags = (QtCore.Qt.ItemNeverHasChildren)
+        flags = (QtCore.Qt.ItemNeverHasChildren | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 

@@ -210,7 +210,7 @@ class ControlButton(ClickableLabel):
 
     def __init__(self, parent=None):
         super(ControlButton, self).__init__(parent=parent)
-        self._model = None
+        self._parent = None
 
         self.setFixedSize(
             common.INLINE_ICON_SIZE,
@@ -221,24 +221,27 @@ class ControlButton(ClickableLabel):
     def pixmap(self, c):
         return QtGui.QPixmap(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
 
-    def model(self):
-        return self._model
+    def current(self):
+        if not self._parent:
+            return None
+        return self._parent.currentWidget()
 
-    def set_model(self, model):
-        self._model = None
+    def set_parent(self, widget):
+        self._parent = widget
 
     def state(self):
         return False
 
     @QtCore.Slot()
     def action(self):
-        return NotImplemented
+        pass
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        color = common.FAVOURITE if self.state() else common.TEXT
-        painter.drawPixmap(self.rect(), self.pixmap(color), self.rect())
+        color = common.FAVOURITE if self.state() else common.SECONDARY_TEXT
+        pixmap = self.pixmap(color)
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
         painter.end()
 
 
@@ -246,15 +249,63 @@ class TodoButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
 
+    def state(self):
+        index = self._parent.widget(1).model().sourceModel().active_index()
+        if not index.isValid():
+            return
+        if index.data(common.TodoCountRole):
+            return True
+        return False
+
+    def action(self):
+        assetwidget = self._parent.widget(1)
+        index = assetwidget.model().sourceModel().active_index()
+        index = assetwidget.model().mapFromSource(index)
+        if not index.isValid():
+            return
+        assetwidget.show_todos(index)
+
+
+
 
 class FilterButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
 
+    def state(self):
+        filter_text = self.current().model().get_filtertext()
+        if not filter_text:
+            return False
+        if filter_text == u'/':
+            return False
+        return True
+
+    def action(self):
+        filter_text = self.current().model().get_filtertext()
+        editor = FilterEditor(filter_text, parent=self._parent)
+        editor.show()
+        pos = self._parent.rect().topLeft()
+        pos = self._parent.mapToGlobal(pos)
+
+        editor.move(pos)
+        editor.setFixedWidth(self._parent.rect().width())
+
+        editor.finished.connect(self.current().model().filterTextChanged.emit)
+        self.update()
+        # editor.setGeometry(self._parent.geometry())
+
+
 
 class CollapseSequenceButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
+
+
+class ToggleActiveButton(ControlButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'sort_up', c, common.INLINE_ICON_SIZE)
 
 
 class ToggleArchivedButton(ControlButton):
@@ -627,6 +678,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
         self._collapsebutton = CollapseSequenceButton(parent=self)
+        self._activebutton = ToggleActiveButton(parent=self)
         self._archivedbutton = ToggleArchivedButton(parent=self)
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._custombutton = CustomButton(parent=self)
@@ -639,6 +691,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)
         self.layout().addWidget(self._collapsebutton)
+        self.layout().addWidget(self._activebutton)
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._custombutton)

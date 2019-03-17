@@ -238,10 +238,11 @@ class AssetWidget(BaseInlineIconWidget):
         # (we don't want to trigger two update model updates)
         active_monitor.update_saved_state(u'asset', file_info.fileName())
 
-    def show_todos(self):
+    def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
         from browser.todoEditor import TodoEditorWidget
-        widget = TodoEditorWidget(self.currentIndex(), parent=self)
+        source_index = self.model().mapToSource(index)
+        widget = TodoEditorWidget(source_index, parent=self)
         widget.show()
 
     def mouseDoubleClickEvent(self, event):

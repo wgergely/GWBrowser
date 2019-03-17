@@ -323,23 +323,15 @@ class FilterListButton(ClickableLabel):
 
 class FilterEditor(QtWidgets.QWidget):
     """Editor widget used to set the filter for the current view."""
-    finished = QtCore.Signal(basestring)
+    finished = QtCore.Signal(unicode)
 
     def __init__(self, text, parent=None):
         super(FilterEditor, self).__init__(parent=parent)
         self.editor = None
 
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.Window |
-                            QtCore.Qt.FramelessWindowHint)
-
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-
         self._createUI()
         self._connectSignals()
-
         self.setFocusProxy(self.editor)
 
         if text == u'/':
@@ -349,6 +341,12 @@ class FilterEditor(QtWidgets.QWidget):
         self.editor.focusOutEvent = self.focusOutEvent
 
     def _createUI(self):
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setWindowFlags(QtCore.Qt.Window |
+                            QtCore.Qt.FramelessWindowHint)
+
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 4, 0)
         self.layout().setSpacing(0)
@@ -366,15 +364,15 @@ class FilterEditor(QtWidgets.QWidget):
 
         self.editor = QtWidgets.QLineEdit()
         self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.editor.setPlaceholderText('Find...')
-        self.setStyleSheet("""
+        self.editor.setPlaceholderText('Filter...')
+        self.editor.setStyleSheet("""
             QLineEdit {{
                 margin: 0px;
-                padding: 5px;
+                padding: 3px;
                 background-color: rgba(30,30,30, 255);
                 color: rgba(200,200,200,255);
                 font-family: "{}";
-                font-size: 11pt;
+                font-size: 10pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;
@@ -392,15 +390,29 @@ class FilterEditor(QtWidgets.QWidget):
         self.layout().addWidget(self.label, 0)
         self.layout().addWidget(self.editor, 1)
 
+        self.label.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.label.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+
     def _connectSignals(self):
         self.finished.connect(self.close)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
+
+        rect = self.rect()
+        # center = rect.center()
+        # rect.setWidth(rect.width() - 4)
+        # rect.setHeight(rect.height() - 4)
+        # rect.moveCenter(center)
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)
+        color = QtGui.QColor(common.SEPARATOR)
+        color.setAlpha(150)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundRect(self.rect(), 4, 4)
+        painter.drawRect(rect)
         painter.end()
 
     def keyPressEvent(self, event):

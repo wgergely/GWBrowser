@@ -389,7 +389,6 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         favourite = self.index.flags() & Settings.MarkedAsFavourite
         archived = self.index.flags() & Settings.MarkedAsArchived
-        source_index = self.parent().model().mapToSource(self.index)
 
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             text = u'Remove bookmark'
@@ -400,14 +399,14 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': archived_off_icon if archived else archived_on_icon,
             u'checkable': True,
             u'checked': archived,
-            u'action': functools.partial(self.parent().toggle_archived, index=source_index, state=not archived)
+            u'action': functools.partial(self.parent().toggle_archived, self.index, state=not archived)
         }
         menu_set[u'favourite'] = {
             u'text': 'Remove from favourites' if favourite else 'Favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
             u'checkable': True,
             u'checked': favourite,
-            u'action': functools.partial(self.parent().toggle_favourite, index=source_index, state=not favourite)
+            u'action': functools.partial(self.parent().toggle_favourite, self.index, state=not favourite)
         }
         return menu_set
 

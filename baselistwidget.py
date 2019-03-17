@@ -79,14 +79,17 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         Emits the ``filterTextChanged`` signal.
 
         """
-        val = val if val else u'/'
         if val == self._filtertext:
             return
 
-        self._filtertext = val
         cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/filtertext'.format(cls), val)
-        self.filterTextChanged.emit(val)
+        if val is None:
+            self._filtertext = None
+            local_settings.setValue(u'widget/{}/filtertext'.format(cls), None)
+        else:
+            val = val if val else u'/'
+            self._filtertext = val
+            local_settings.setValue(u'widget/{}/filtertext'.format(cls), val)
 
     def get_filterflag(self, flag):
         """Returns the current flag-filter."""
@@ -167,6 +170,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def filterAcceptsRow(self, source_row, parent=None):
         """The main method used to filter the elements using the flags and the filter string."""
         data = self.sourceModel().model_data()
+
         flags = data[source_row][common.FlagsRole]
         archived = flags & Settings.MarkedAsArchived
         favourite = flags & Settings.MarkedAsFavourite
@@ -179,7 +183,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
             return False
-        if archived and not self.get_filterflag(Settings.MarkedAsFavourite):
+        if archived and not self.get_filterflag(Settings.MarkedAsArchived):
             return False
         if not favourite and self.get_filterflag(Settings.MarkedAsFavourite):
             return False
@@ -439,12 +443,15 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.QueuedConnection)
 
         proxy.filterFlagChanged.connect(proxy.set_filterflag)
-        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter())
+        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidate())
 
         # Sort/Filter signalsx
         proxy.filterTextChanged.connect(
             proxy.set_filtertext,
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
+        proxy.filterTextChanged.connect(
+            lambda x: proxy.invalidate(),
+            type=QtCore.Qt.DirectConnection)
         # Sorting
         proxy.sortOrderChanged.connect(
             lambda x, y: proxy.set_sortkey(x))
@@ -472,41 +479,13 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: model.set_data_type(model.data_type()))
         model.modelAboutToBeReset.connect(model.validate_key)
 
-
-
         # def timestamp():
         #     self.model().sourceModel()._last_refreshed[self.model(
         #     ).sourceModel().data_key()] = time.time()
-        #
-        # self.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.setUpdatesEnabled(False))
-        # self.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.blockSignals(True))
-        # self.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.model().blockSignals(True))
-        # self.model().sourceModel().modelReset.connect(
-        #     lambda: self.setUpdatesEnabled(True))
-        # self.model().sourceModel().modelReset.connect(lambda: self.blockSignals(False))
-        # self.model().sourceModel().modelReset.connect(
         #     lambda: self.model().blockSignals(False))
         #
-        # self.model().sourceModel().modelAboutToBeReset.connect(self.store_previous_path)
-        # # self.model().sourceModel().modelReset.connect(self.model().reset, type=QtCore.Qt.QueuedConnection)
-        # self.model().sourceModel().modelReset.connect(
-        #     self.reselect_previous_path, type=QtCore.Qt.QueuedConnection)
         # self.model().sourceModel().modelReset.connect(
         #     timestamp, type=QtCore.Qt.QueuedConnection)
-        #
-        # self.model().sourceModel().modelAboutToBeReset.connect(self.model().beginResetModel)
-        # self.model().sourceModel().modelReset.connect(self.model().endResetModel)
-        # # self.model().sourceModel().modelReset.connect(self.model().invalidateFilter)
-        # # self.model().sourceModel().modelReset.connect(self.model().sort)
-        #
-        # # Select the active item
-        # self.selectionModel().setCurrentIndex(
-        #     self.active_index(),
-        #     QtCore.QItemSelectionModel.ClearAndSelect
-        # )
 
     def active_index(self):
         """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
@@ -608,7 +587,7 @@ class BaseListWidget(QtWidgets.QListView):
             self.scrollTo(index)
 
 
-    def toggle_favourite(self, index=None, state=None):
+    def toggle_favourite(self, index, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
         instead of the currentItem.
@@ -618,10 +597,6 @@ class BaseListWidget(QtWidgets.QListView):
             state (None or bool): The state to set.
 
         """
-        if not index:
-            index = self.selectionModel().currentIndex()
-            index = self.model().mapToSource(index)
-
         if not index.isValid():
             return
 
@@ -654,7 +629,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         local_settings.setValue(u'favourites', favourites)
 
-    def toggle_archived(self, index=None, state=None):
+    def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
         instead of the currentItem.
@@ -667,45 +642,41 @@ class BaseListWidget(QtWidgets.QListView):
             state (None or bool): The explicit state to set.
 
         """
-        if not index:
-            index = self.selectionModel().currentIndex()
-            index = self.model().mapToSource(index)
-
         if not index.isValid():
             return
+        source_index = self.model().mapToSource(index)
+        archived = source_index.flags() & Settings.MarkedAsArchived
+        file_info = QtCore.QFileInfo(source_index.data(QtCore.Qt.StatusTipRole))
 
-        archived = index.flags() & Settings.MarkedAsArchived
-
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        settings = AssetSettings(index)
-
+        settings = AssetSettings(source_index)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
         if archived:
             if state is None or state is False:  # clears flag
-                self.model().sourceModel().setData(
-                    index,
-                    index.flags() & ~Settings.MarkedAsArchived,
+                source_index.model().setData(
+                    source_index,
+                    source_index.flags() & ~Settings.MarkedAsArchived,
                     role=common.FlagsRole
                 )
                 settings.setValue(u'config/archived', False)
-        else:
-            if state is None or state is True:  # adds flag
-                settings.setValue(u'config/archived', True)
-                self.model().sourceModel().setData(
-                    index,
-                    index.flags() | Settings.MarkedAsArchived,
+                return
+
+        if state is None or state is True:
+            settings.setValue(u'config/archived', True)
+            source_index.model().setData(
+                source_index,
+                source_index.flags() | Settings.MarkedAsArchived,
+                role=common.FlagsRole
+            )
+            if file_info.filePath() in favourites:
+                source_index.model().setData(
+                    source_index,
+                    source_index.flags() & ~Settings.MarkedAsFavourite,
                     role=common.FlagsRole
                 )
-                if file_info.filePath() in favourites:
-                    self.model().sourceModel().setData(
-                        index,
-                        index.flags() & ~Settings.MarkedAsFavourite,
-                        role=common.FlagsRole
-                    )
-                    favourites.remove(file_info.filePath())
-                    local_settings.setValue(u'favourites', favourites)
+                favourites.remove(file_info.filePath())
+                local_settings.setValue(u'favourites', favourites)
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
@@ -1037,7 +1008,6 @@ class BaseInlineIconWidget(BaseListWidget):
             return None
 
         index = self.indexAt(event.pos())
-        source_index = self.model().mapToSource(index)
         rect = self.visualRect(index)
         idx = index.row()
 
@@ -1047,6 +1017,7 @@ class BaseInlineIconWidget(BaseListWidget):
         # Cheking the button
         if idx in self.multi_toggle_items:
             self._reset_multitoggle()
+            self.model().invalidate()
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
         for n in xrange(self.inline_icons_count()):
@@ -1057,16 +1028,22 @@ class BaseInlineIconWidget(BaseListWidget):
                 continue
 
             if n == 0:
-                self.toggle_favourite(index=source_index)
+                self.toggle_favourite(index)
+                self.save_selection(self.selectionModel().currentIndex())
+                self.model().invalidate()
+                self.reselect_previous()
                 break
             elif n == 1:
-                self.toggle_archived(index=source_index)
+                self.toggle_archived(index)
+                self.save_selection(self.selectionModel().currentIndex())
+                self.model().invalidate()
+                self.reselect_previous()
                 break
             elif n == 2:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
                 break
             elif n == 3:
-                self.show_todos()
+                self.show_todos(index)
                 break
 
         self._reset_multitoggle()
@@ -1086,7 +1063,6 @@ class BaseInlineIconWidget(BaseListWidget):
         pos = event.pos()
         pos.setX(0)
         index = self.indexAt(pos)
-        source_index = self.model().mapToSource(index)
         initial_index = self.indexAt(self.multi_toggle_pos)
         idx = index.row()
 
@@ -1106,33 +1082,21 @@ class BaseInlineIconWidget(BaseListWidget):
                 # A state
                 self.multi_toggle_items[idx] = favourite
                 # Apply first state
-                self.toggle_favourite(
-                    index=source_index,
-                    state=self.multi_toggle_state
-                )
+                self.toggle_favourite(index, state=self.multi_toggle_state)
             if self.multi_toggle_idx == 1:  # Archived button
                 # A state
                 self.multi_toggle_items[idx] = archived
                 # Apply first state
-                self.toggle_archived(
-                    index=source_index,
-                    state=self.multi_toggle_state
-                )
+                self.toggle_archived(index, state=self.multi_toggle_state)
         else:  # Reset state
             if index == initial_index:
                 return
             if self.multi_toggle_idx == 0:  # Favourite button
-                self.toggle_favourite(
-                    index=source_index,
-                    state=self.multi_toggle_items.pop(idx)
-                )
+                self.toggle_favourite(index, state=self.multi_toggle_items.pop(idx))
             elif self.multi_toggle_idx == 1:  # Favourite button
-                self.toggle_archived(
-                    index=source_index,
-                    state=self.multi_toggle_items.pop(idx)
-                )
+                self.toggle_archived(index=index, state=self.multi_toggle_items.pop(idx))
 
-    def show_todos(self):
+    def show_todos(self, index):
         pass
 
 

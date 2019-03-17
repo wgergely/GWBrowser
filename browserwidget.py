@@ -29,7 +29,7 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.listcontrolwidget import ListControlWidget
 from browser.listcontrolwidget import FilterButton
-
+import browser.settings as Settings
 from browser.imagecache import ImageCache
 from browser.settings import local_settings, Active, active_monitor
 
@@ -94,10 +94,6 @@ class BrowserWidget(QtWidgets.QWidget):
             text = self.fileswidget.model().sourceModel().data_key()
         self.listcontrolwidget.control_view().textChanged.emit(text)
 
-            # self.listcontrolwwidget
-        # if idx == 2:
-        # app = QtWidgets.QApplication.instance()
-        # app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -214,6 +210,12 @@ class BrowserWidget(QtWidgets.QWidget):
         l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
         l.textChanged.connect(lb.set_text)
 
+        # Stacked widget navigation
+        b.activated.connect(lambda: l.listChanged.emit(1))
+        b.activated.connect(lambda: l.textChanged.emit('Assets'))
+        a.activated.connect(lambda: l.listChanged.emit(2))
+        a.activated.connect(lambda: l.textChanged.emit(f.model().sourceModel().data_key()))
+
         # Statusbar
         b.entered.connect(self.entered)
         a.entered.connect(self.entered)
@@ -221,11 +223,29 @@ class BrowserWidget(QtWidgets.QWidget):
         l.entered.connect(self.entered)
 
         # # Control buttons
-        # def p():
-        #     print '!!'
-        # self.listcontrolwidget._archivedbutton.clicked.connect(
-        #     lambda: p()
-        # )
+        def toggle_filter(flag):
+            widget = self.stackedwidget.currentWidget()
+            val = widget.model().get_filterflag(flag)
+            widget.model().filterFlagChanged.emit(flag, not val)
+
+        self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
+        # a.clicked.connect(lambda: toggle_filter(Settings.MarkedAsArchived))
+
+        self.listcontrolwidget._todobutton.set_parent(self.stackedwidget)
+        self.listcontrolwidget._filterbutton.set_parent(self.stackedwidget)
+        self.listcontrolwidget._activebutton.set_parent(self.stackedwidget)
+        self.listcontrolwidget._collapsebutton.set_parent(self.stackedwidget)
+        self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
+        self.listcontrolwidget._favouritebutton.set_parent(self.stackedwidget)
+
+        # Updates the list-control buttons when changing lists
+        l.listChanged.connect(lambda x: self.listcontrolwidget._todobutton.repaint())
+        l.listChanged.connect(lambda x: self.listcontrolwidget._filterbutton.repaint())
+        l.listChanged.connect(lambda x: self.listcontrolwidget._activebutton.repaint())
+        l.listChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())
+        l.listChanged.connect(lambda x: self.listcontrolwidget._archivedbutton.repaint())
+        l.listChanged.connect(lambda x: self.listcontrolwidget._favouritebutton.repaint())
+
 
     def _add_shortcuts(self):
         for n in xrange(3):
