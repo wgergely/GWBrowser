@@ -336,7 +336,7 @@ class FilesModel(BaseModel):
         while it.hasNext():
             n += 1
             if n % nth == 0:
-                common.ProgressMessage.instance().set_message('{} files found...'.format(n - 1))
+                common.ProgressMessage.instance().set_message('Loading {} asset files...'.format(n - 1))
 
             filepath = it.next()
 

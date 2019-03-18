@@ -172,7 +172,11 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, parent=None):
         """The main method used to filter the elements using the flags and the filter string."""
+        # print 'Filtering {}...'.format(source_row)
         data = self.sourceModel().model_data()
+
+        if source_row not in data:
+            return False
 
         flags = data[source_row][common.FlagsRole]
         archived = flags & Settings.MarkedAsArchived
@@ -194,6 +198,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def lessThan(self, source_left, source_right):
         """The main method responsible for sorting the items."""
+        # print 'Sorting {}...'.format(source_left.row())
         k = self.get_sortkey()
         if k == common.SortByName:
             return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
@@ -437,7 +442,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelDataResetRequested.connect(
             model.__resetdata__, type=QtCore.Qt.DirectConnection)
 
-
         # Selection
         model.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()),
@@ -445,16 +449,19 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(self.reselect_previous,
             type=QtCore.Qt.QueuedConnection)
 
-        proxy.filterFlagChanged.connect(proxy.set_filterflag)
-        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidate())
+        proxy.filterFlagChanged.connect(proxy.set_filterflag,
+            type=QtCore.Qt.DirectConnection)
+        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter(),
+            type=QtCore.Qt.QueuedConnection)
 
         # Sort/Filter signalsx
         proxy.filterTextChanged.connect(
             proxy.set_filtertext,
-            type=QtCore.Qt.DirectConnection)
+            type=QtCore.Qt.QueuedConnection)
         proxy.filterTextChanged.connect(
-            lambda x: proxy.invalidate(),
-            type=QtCore.Qt.DirectConnection)
+            lambda x: proxy.invalidateFilter(),
+            type=QtCore.Qt.QueuedConnection)
+
         # Sorting
         proxy.sortOrderChanged.connect(
             lambda x, y: proxy.set_sortkey(x))
@@ -462,19 +469,23 @@ class BaseListWidget(QtWidgets.QListView):
             lambda x, y: proxy.set_sortorder(y))
         proxy.sortOrderChanged.connect(
             lambda x, y: proxy.sort(
-                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder))
+                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
+            type=QtCore.Qt.QueuedConnection)
         model.modelReset.connect(
             lambda: proxy.sort(
-                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder))
+                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
+            type=QtCore.Qt.QueuedConnection)
 
         model.activeChanged.connect(self.save_activated)
 
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(lambda x: model.check_data())
-        model.dataKeyChanged.connect(lambda x: proxy.invalidate())
+        model.dataKeyChanged.connect(lambda x: proxy.invalidate(),
+            type=QtCore.Qt.QueuedConnection)
 
         model.dataTypeChanged.connect(model.set_data_type)
-        model.dataTypeChanged.connect(lambda x: proxy.invalidate())
+        model.dataTypeChanged.connect(lambda x: proxy.invalidate(),
+            type=QtCore.Qt.QueuedConnection)
 
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))

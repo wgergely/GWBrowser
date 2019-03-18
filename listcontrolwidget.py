@@ -489,7 +489,7 @@ class ListControlView(QtWidgets.QListView):
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
-            self.close()
+            self.hide()
 
 
 class ListControlModel(BaseModel):
@@ -633,6 +633,8 @@ class ListControlButton(ClickableLabel):
 
         self._view.setFixedWidth(self._view.parent().rect().width())
         self._view.show()
+        self._view.raise_()
+        self._view.setFocus(QtCore.Qt.PopupFocusReason)
 
     @QtCore.Slot(unicode)
     def set_text(self, text):
