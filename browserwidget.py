@@ -31,6 +31,7 @@ from browser.listcontrolwidget import ListControlWidget
 from browser.listcontrolwidget import FilterButton
 from browser.imagecache import ImageCache
 from browser.settings import local_settings, Active, active_monitor
+import browser.settings as Settings
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
@@ -79,6 +80,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self._add_shortcuts()
 
     def initialize(self):
+        """Applying the saved values and initiating the model datas."""
         # Switching stacked widget to saved index...
         idx = local_settings.value(u'widget/mode')
         idx = 0 if idx is None else idx
@@ -93,12 +95,47 @@ class BrowserWidget(QtWidgets.QWidget):
             text = self.fileswidget.model().sourceModel().data_key()
         self.listcontrolwidget.control_view().textChanged.emit(text)
 
-        # Initiating model data...
-        self.bookmarkswidget.model().filterTextChanged.emit(self.bookmarkswidget.model().get_filtertext())
-        self.assetswidget.model().filterTextChanged.emit(self.assetswidget.model().get_filtertext())
-        self.fileswidget.model().filterTextChanged.emit(self.fileswidget.model().get_filtertext())
+        # Proxy model
+        b = self.bookmarkswidget
+        a = self.assetswidget
+        f = self.fileswidget
 
-        # self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
+        b.model().filterTextChanged.emit(b.model().get_filtertext())
+        a.model().filterTextChanged.emit(a.model().get_filtertext())
+        f.model().filterTextChanged.emit(f.model().get_filtertext())
+
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filterflag(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filterflag(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filterflag(Settings.MarkedAsFavourite))
+        #
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filterflag(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filterflag(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filterflag(Settings.MarkedAsFavourite))
+        #
+        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().get_filterflag(Settings.MarkedAsActive))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().get_filterflag(Settings.MarkedAsArchived))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().get_filterflag(Settings.MarkedAsFavourite))
+
+        b.model().sortOrderChanged.emit(
+            b.model().get_sortkey(),
+            b.model().get_sortorder())
+        a.model().sortOrderChanged.emit(
+            b.model().get_sortkey(),
+            b.model().get_sortorder())
+        f.model().sortOrderChanged.emit(
+            b.model().get_sortkey(),
+            b.model().get_sortorder())
+
+        # self.stackedwidget.currentChanged.emit(self.stackedwidget.currentIndex())
+
+        # Source model data
+        timer = QtCore.QTimer(parent=self)
+        timer.setSingleShot(True)
+        timer.setInterval(1000)
+        timer.timeout.connect(b.model().sourceModel().modelDataResetRequested.emit)
+        timer.timeout.connect(timer.deleteLater)
+        timer.start()
+        # b.model().sourceModel().modelDataResetRequested.emit()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -214,10 +251,14 @@ class BrowserWidget(QtWidgets.QWidget):
         l.listChanged.connect(s.setCurrentIndex)
         l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
         l.textChanged.connect(lb.set_text)
+        f.model().sourceModel().dataKeyChanged.connect(l.textChanged.emit)
+        l.listChanged.connect(lambda i: l.textChanged.emit(
+            u'Bookmarks' if i == 0 else (
+                u'Assets' if i == 1 else f.model().sourceModel().data_key())))
 
         # Stacked widget navigation
         b.activated.connect(lambda: l.listChanged.emit(1))
-        b.activated.connect(lambda: l.textChanged.emit('Assets'))
+        b.activated.connect(lambda: l.textChanged.emit(u'Assets'))
         a.activated.connect(lambda: l.listChanged.emit(2))
         a.activated.connect(lambda: l.textChanged.emit(f.model().sourceModel().data_key()))
 
@@ -227,14 +268,7 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
-        # # Control buttons
-        def toggle_filter(flag):
-            widget = self.stackedwidget.currentWidget()
-            val = widget.model().get_filterflag(flag)
-            widget.model().filterFlagChanged.emit(flag, not val)
-
         self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
-        # a.clicked.connect(lambda: toggle_filter(Settings.MarkedAsArchived))
 
         self.listcontrolwidget._todobutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._filterbutton.set_parent(self.stackedwidget)

@@ -151,6 +151,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             cls = self.__class__.__name__
             val = local_settings.value(
                 u'widget/{}/sortorder'.format(cls))
+            if val is None:
+                self._sortorder = False
+            else:
+                self._sortorder = val
         else:
             val = self._sortorder
         return int(val) if val else False
@@ -159,7 +163,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def set_sortorder(self, val):
         if val == self._sortorder:
             return
-
         self._sortorder = val
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
@@ -192,8 +195,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def lessThan(self, source_left, source_right):
         """The main method responsible for sorting the items."""
         k = self.get_sortkey()
-        # if k == common.SortByName:
-        #     return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
+        if k == common.SortByName:
+            return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
         return source_left.data(k) < source_right.data(k)
 
 
