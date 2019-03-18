@@ -29,7 +29,6 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.listcontrolwidget import ListControlWidget
 from browser.listcontrolwidget import FilterButton
-import browser.settings as Settings
 from browser.imagecache import ImageCache
 from browser.settings import local_settings, Active, active_monitor
 
@@ -64,13 +63,14 @@ class BrowserWidget(QtWidgets.QWidget):
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self._contextMenu = None
-
+        self._initialized = False
         self.stackedwidget = None
         self.bookmarkswidget = None
         self.listcontrolwidget = None
         self.assetswidget = None
         self.fileswidget = None
 
+        Active.paths()
         active_monitor.timer.start()
 
         self._createUI()
@@ -78,12 +78,11 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self._add_shortcuts()
 
+    def initialize(self):
         # Switching stacked widget to saved index...
         idx = local_settings.value(u'widget/mode')
         idx = 0 if idx is None else idx
         self.listcontrolwidget.control_view().listChanged.emit(idx)
-        # Initiating model data...
-        self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
         if idx == 0:
             index = self.listcontrolwidget.control_view().model().index(0, 0)
             text = index.data(QtCore.Qt.DisplayRole)
@@ -94,6 +93,12 @@ class BrowserWidget(QtWidgets.QWidget):
             text = self.fileswidget.model().sourceModel().data_key()
         self.listcontrolwidget.control_view().textChanged.emit(text)
 
+        # Initiating model data...
+        self.bookmarkswidget.model().filterTextChanged.emit(self.bookmarkswidget.model().get_filtertext())
+        self.assetswidget.model().filterTextChanged.emit(self.assetswidget.model().get_filtertext())
+        self.fileswidget.model().filterTextChanged.emit(self.fileswidget.model().get_filtertext())
+
+        # self.bookmarkswidget.model().sourceModel().modelDataResetRequested.emit()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -246,7 +251,6 @@ class BrowserWidget(QtWidgets.QWidget):
         l.listChanged.connect(lambda x: self.listcontrolwidget._archivedbutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._favouritebutton.repaint())
 
-
     def _add_shortcuts(self):
         for n in xrange(3):
             shortcut = QtWidgets.QShortcut(
@@ -275,6 +279,10 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
+
+    def showEvent(self, event):
+        if self._initialized is False:
+            self.initialize()
 
 
 if __name__ == '__main__':

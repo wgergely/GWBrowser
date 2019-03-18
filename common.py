@@ -210,11 +210,11 @@ def sort_alphanum_key(key):
 
 
 
-# alphanum = re.compile(r'([0-9]+)', flags=re.IGNORECASE)
-re_natural = re.compile('[0-9]+|[^0-9]+')
+alphanum = re.compile(r'([0-9]+)', flags=re.IGNORECASE)
+# re_natural = re.compile('[0-9]+|[^0-9]+')
 def namekey(s):
-    return [(1, int(c)) if c.isdigit() else (0, c.lower()) for c in re_natural.findall(s)] + [s]
-    # return [(int(f) if f.isdigit() else f) for f in alphanum.split(key)]
+    # return [(1, int(c)) if c.isdigit() else (0, c.lower()) for c in re_natural.findall(s)] + [s]
+    return [(int(f) if f.isdigit() else f) for f in alphanum.split(s)]
 
 def sort_last_modified_key(key):
     return key.lastModified().toMSecsSinceEpoch()

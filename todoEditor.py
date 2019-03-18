@@ -989,6 +989,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             )
 
 
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()

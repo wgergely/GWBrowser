@@ -64,7 +64,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         """
         if self._filtertext is None:
-            cls = self.__class__.__name__
+            cls = self.sourceModel().__class__.__name__
             val = local_settings.value(u'widget/{}/filtertext'.format(cls))
             if val is None:
                 self._filtertext = u'/'
@@ -82,7 +82,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if val == self._filtertext:
             return
 
-        cls = self.__class__.__name__
+        cls = self.sourceModel().__class__.__name__
         if val is None:
             self._filtertext = None
             local_settings.setValue(u'widget/{}/filtertext'.format(cls), None)
@@ -94,7 +94,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def get_filterflag(self, flag):
         """Returns the current flag-filter."""
         if self._filterflags[flag] is None:
-            cls = self.__class__.__name__
+            cls = self.sourceModel().__class__.__name__
             val = local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, flag))
             if val is None:
@@ -111,7 +111,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return
 
         self._filterflags[flag] = val
-        cls = self.__class__.__name__
+        cls = self.sourceModel().__class__.__name__
         local_settings.setValue(
             u'widget/{}/filterflag{}'.format(cls, flag), val)
 

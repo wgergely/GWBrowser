@@ -265,6 +265,42 @@ class TodoButton(ControlButton):
             return
         assetwidget.show_todos(index)
 
+    def paintEvent(self, event):
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        rect = QtCore.QRect(self.rect())
+        color = common.SECONDARY_TEXT if self.state() else common.SECONDARY_TEXT
+        pixmap = self.pixmap(color)
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+
+        assetwidget = self._parent.widget(1)
+
+        # index = assetwidget.model().sourceModel().active_index()
+        # if index.isValid():
+        #     painter.end()
+        #     return
+        #
+        # count_rect = QtCore.QRect(rect)
+        # count_rect.setWidth(8)
+        # count_rect.setHeight(8)
+        #
+        # count_rect.moveCenter(rect.bottomRight())
+        # font = QtGui.QFont(common.PrimaryFont)
+        # font.setPointSize(8.0)
+        # painter.setFont(font)
+        #
+        # pen = QtGui.QPen(common.FAVOURITE)
+        # pen.setWidth(8.0)
+        # painter.setPen(pen)
+        # painter.setBrush(QtGui.QBrush(common.FAVOURITE))
+        # painter.drawRoundedRect(
+        #     count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+        #
+        # text = u'{}'.format(index.data(common.TodoCountRole))
+        # common.draw_aliased_text(
+        #     painter, font, count_rect, text, QtCore.Qt.AlignCenter, common.TEXT)
+        painter.end()
 
 
 
