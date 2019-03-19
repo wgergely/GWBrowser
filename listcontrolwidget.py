@@ -421,7 +421,7 @@ class ListControlDelegate(BaseDelegate):
                 active_item = self.parent().model()._bookmark[-1]
         if index.row() == 1:
             _parent = self.parent().model()._parent_item
-            active_item = self.parent().model()._parent_item[-1] if _parent else None
+            active_item = _parent[-1] if _parent else None
 
         if active_item:
             text = u'  |  {}'.format(active_item).upper()

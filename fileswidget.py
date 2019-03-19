@@ -23,15 +23,19 @@ from browser.settings import AssetSettings
 from browser.settings import local_settings
 from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
+
 from browser.imagecache import ImageCache
+from browser.imagecache import ImageCacheWorker
 
 from browser.threads import BaseThread
 from browser.threads import BaseWorker
+from browser.threads import Unique
 
 
 
 class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
+    queue = Unique(999999)
 
     @QtCore.Slot(tuple)
     def begin_processing(self):
@@ -173,11 +177,7 @@ class FileInfoWorker(BaseWorker):
 
         # Item flags
         flags = index.flags()
-        flags = (flags
-                 | QtCore.Qt.ItemIsSelectable
-                 | QtCore.Qt.ItemIsEnabled
-                 | QtCore.Qt.ItemIsEditable
-                 | QtCore.Qt.ItemIsDragEnabled)
+        flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
 
         if settings.value(u'config/archived'):
             flags = flags | MarkedAsArchived
@@ -256,8 +256,11 @@ class FilesModel(BaseModel):
         seqs = {}
 
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        flags = (QtCore.Qt.ItemNeverHasChildren |
-                 QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
+        flags = (
+            QtCore.Qt.ItemNeverHasChildren |
+            QtCore.Qt.ItemIsEnabled |
+            QtCore.Qt.ItemIsSelectable
+        )
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
@@ -394,6 +397,10 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
+
+            if len(v[common.FramesRole]) == 0:
+                v[common.TypeRole] = common.FileItem
+
             self._data[dkey][common.SequenceItem][idx] = v
 
         self.endResetModel()
@@ -455,10 +462,10 @@ class FilesWidget(BaseInlineIconWidget):
         super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
+        self.setAcceptDrops(True)
         self.setDropIndicatorShown(False)
-        self.setAcceptDrops(False)
         self.setWindowTitle(u'Files')
-
+        self.setAutoScroll(True)
         # We have to disable tracking, as the valueChanged signals is
         # populating the FileInfoThread's queue
         # self.verticalScrollBar().setTracking(False)

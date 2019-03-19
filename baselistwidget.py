@@ -555,22 +555,22 @@ class BaseListWidget(QtWidgets.QListView):
         self.deactivate(self.active_index())
 
         source_index = self.model().mapToSource(index)
-        source_index.model().setData(
-            source_index,
-            source_index.flags() | Settings.MarkedAsActive,
-            role=common.FlagsRole
-        )
+        data = source_index.model().model_data()
+        data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsActive
+
+        source_index.model().dataChanged.emit(source_index, source_index)
         source_index.model().activeChanged.emit(source_index)
 
     def deactivate(self, index):
         """Unsets the active flag."""
         if not index.isValid():
             return
+
         source_index = self.model().mapToSource(index)
-        source_index.model().setData(
-            source_index,
-            source_index.flags() & ~Settings.MarkedAsActive,
-            role=common.FlagsRole)
+        data = source_index.model().model_data()
+        data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsActive
+
+        source_index.model().dataChanged.emit(source_index, source_index)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -614,13 +614,13 @@ class BaseListWidget(QtWidgets.QListView):
             if path == val:
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
-                self.scrollTo(index)
+                self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
         if self.model().rowCount():
             index = self.model().index(0, 0)
             self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
-            self.scrollTo(index)
+            self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
 
     def toggle_favourite(self, index, state=None):
@@ -635,6 +635,8 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
+        if not index.flags() & QtCore.Qt.ItemIsEditable:
+            return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
@@ -646,24 +648,20 @@ class BaseListWidget(QtWidgets.QListView):
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
+        source_index = self.model().mapToSource(index)
+        data = source_index.model().model_data()
+
         if file_info.filePath() in favourites:
             if state is None or state is False:  # clears flag
-                self.model().sourceModel().setData(
-                    index,
-                    index.flags() & ~Settings.MarkedAsFavourite,
-                    role=common.FlagsRole
-                )
                 favourites.remove(file_info.filePath())
+                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(file_info.filePath())
-                self.model().sourceModel().setData(
-                    index,
-                    index.flags() | Settings.MarkedAsFavourite,
-                    role=common.FlagsRole
-                )
+                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', favourites)
+        source_index.model().dataChanged.emit(source_index, source_index)
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -680,39 +678,35 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
-        source_index = self.model().mapToSource(index)
-        archived = source_index.flags() & Settings.MarkedAsArchived
-        file_info = QtCore.QFileInfo(source_index.data(QtCore.Qt.StatusTipRole))
+        if not index.flags() & QtCore.Qt.ItemIsEditable:
+            return
 
-        settings = AssetSettings(source_index)
+        archived = index.flags() & Settings.MarkedAsArchived
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+
+        settings = AssetSettings(index)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
+        source_index = self.model().mapToSource(index)
+        data = source_index.model().model_data()
         if archived:
             if state is None or state is False:  # clears flag
-                source_index.model().setData(
-                    source_index,
-                    source_index.flags() & ~Settings.MarkedAsArchived,
-                    role=common.FlagsRole
-                )
+                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsArchived
                 settings.setValue(u'config/archived', False)
+                source_index.model().dataChanged.emit(source_index, source_index)
                 return
 
         if state is None or state is True:
+            data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsArchived
             settings.setValue(u'config/archived', True)
-            source_index.model().setData(
-                source_index,
-                source_index.flags() | Settings.MarkedAsArchived,
-                role=common.FlagsRole
-            )
+
             if file_info.filePath() in favourites:
-                source_index.model().setData(
-                    source_index,
-                    source_index.flags() & ~Settings.MarkedAsFavourite,
-                    role=common.FlagsRole
-                )
+                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
                 favourites.remove(file_info.filePath())
                 local_settings.setValue(u'favourites', favourites)
+        source_index.model().dataChanged.emit(source_index, source_index)
+
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
@@ -893,9 +887,10 @@ class BaseListWidget(QtWidgets.QListView):
 
         if index.isValid():
             rect = self.visualRect(index)
+            gpos = self.viewport().mapToGlobal(event.pos())
             widget.move(
-                self.viewport().mapToGlobal(rect.bottomLeft()).x(),
-                self.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
+                gpos.x(),
+                self.viewport().mapToGlobal(rect.bottomLeft()).y(),
             )
         else:
             widget.move(QtGui.QCursor().pos())
@@ -1097,6 +1092,7 @@ class BaseInlineIconWidget(BaseListWidget):
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()
+
         pos.setX(0)
         index = self.indexAt(pos)
         initial_index = self.indexAt(self.multi_toggle_pos)

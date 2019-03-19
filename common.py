@@ -578,6 +578,27 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     return width
 
 
+def find_largest_file(index):
+    """Finds the sequence's largest file from sequence filepath.
+    The largest files of the sequence will probably hold enough visual information
+    to be used a s thumbnail image. :)
+
+    """
+    p = index.data(QtCore.Qt.StatusTipRole).split(u'/')
+    p.pop()
+    p = u'/'.join(p)
+
+    dir_ = QtCore.QDir(p)
+    dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+    f = index.data(SequenceRole).expand(r'\1{}\3.\4')
+    f = f.format(u'?' * (len(index.data(FramesRole)[-1])))
+    f = f.split('/')[-1]
+    dir_.setNameFilters((f,))
+    return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
+
+    # return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
+
+
 class ProgressMessage(QtCore.QObject):
     """Utiity class to store and emit thread-progress messages."""
 
@@ -610,14 +631,18 @@ class ProgressMessage(QtCore.QObject):
         text = text.encode('utf-8')
         self.messageChanged.emit(text)
         app = QtWidgets.QApplication.instance()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+        if app:
+            app.processEvents()
 
     @QtCore.Slot()
     def clear_message(self):
         app = QtWidgets.QApplication.instance()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+        if app:
+            app.processEvents()
         self.messageChanged.emit(u'')
         # self.msg = u''
+
+
 
 
 ProgressMessage.initialize()

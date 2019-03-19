@@ -1,29 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Module defines the QListWidget items used to browse the assets and the files
-found by the collector classes.
-
+"""The threads/worker classes supportin the data models are defined here.
 """
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
 import traceback
-import math
-import functools
 import Queue
 
-from PySide2 import QtWidgets, QtCore, QtGui
-
-from browser.basecontextmenu import BaseContextMenu
-from browser.baselistwidget import BaseInlineIconWidget
-from browser.baselistwidget import BaseModel
+from PySide2 import QtWidgets, QtCore
 
 import browser.common as common
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from browser.settings import AssetSettings
-from browser.settings import local_settings
-from browser.delegate import FilesWidgetDelegate
-import browser.editors as editors
-from browser.imagecache import ImageCache
+
 
 class Unique(Queue.Queue):
     """https://stackoverflow.com/questions/16506429/check-if-element-is-already-in-a-queue"""
@@ -37,17 +24,12 @@ class Unique(Queue.Queue):
 class BaseWorker(QtCore.QObject):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
-
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     finished = QtCore.Signal()
     error = QtCore.Signal(basestring)
 
-    def __init__(self, model, parent=None):
+    def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
-        self._model = model
-
-    def model(self):
-        return self._model
 
     @classmethod
     @QtCore.Slot(tuple)
@@ -120,11 +102,10 @@ class BaseThread(QtCore.QThread):
     __worker = None
     Worker = BaseWorker
 
-    def __init__(self, model, parent=None):
+    def __init__(self, parent=None):
         super(BaseThread, self).__init__(parent=parent)
         self.thread_id = None
         self.worker = None
-        self.model = model
 
         app = QtWidgets.QApplication.instance()
         if app:
@@ -132,9 +113,9 @@ class BaseThread(QtCore.QThread):
             app.aboutToQuit.connect(self.deleteLater)
 
     def run(self):
-        self.worker = self.Worker(self.model)
-        self.worker.begin_processing()
         sys.stderr.write(
-            '{}.run() -> {}\n'.format(self.__class__.__name__, QtCore.QThread.currentThread()))
+        '{}.run() -> {}\n'.format(self.__class__.__name__, QtCore.QThread.currentThread()))
+        self.worker = self.Worker()
+        self.worker.begin_processing()
         self.started.emit()
         self.exec_()

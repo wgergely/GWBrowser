@@ -411,21 +411,16 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[key][u'Capture new'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().capture, self.index)}
+            u'action': functools.partial(ImageCache.instance().capture, self.index.model().mapToSource(self.index))}
 
         menu_set[key][u'Pick new'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().pick, self.index)}
+            u'action': functools.partial(ImageCache.instance().pick, self.index.model().mapToSource(self.index))}
 
-        source_index = self.index.model().mapToSource(self.index)
         suffix = QtCore.QFileInfo(self.index.data(
             QtCore.Qt.StatusTipRole)).suffix()
         if suffix in common.get_oiio_namefilters(as_array=True):
             menu_set[key]['_separator_'] = {}
-
-            menu_set[key][u'generatethis'] = {
-                u'text': u'Make',
-                u'action': functools.partial(ImageCache.instance().generate_thumbnails, (source_index,), overwrite=True)}
 
             def generate_thumbnails(overwrite=False):
                 if overwrite:
@@ -445,12 +440,18 @@ class BaseContextMenu(QtWidgets.QMenu):
                     if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
                         return
 
-                indexes = []
+                source_indexes = []
                 for n in xrange(self.parent().model().rowCount()):
                     index = self.parent().model().index(n, 0)
                     source_index = index.model().mapToSource(index)
-                    indexes.append(source_index)
-                ImageCache.instance().generate_thumbnails(indexes, overwrite=overwrite)
+                    source_indexes.append(source_index)
+                ImageCache.instance().generate_thumbnails(source_indexes, overwrite=overwrite)
+
+            menu_set[key][u'generatethis'] = {
+                u'text': u'Make',
+                u'action': functools.partial(
+                    ImageCache.instance().generate_thumbnails,
+                    (self.index.model().mapToSource(self.index),), overwrite=True)}
 
             menu_set[key][u'generatemissing'] = {
                 u'text': u'Make missing',
@@ -465,7 +466,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
-                u'action': functools.partial(ImageCache.instance().remove, source_index),
+                u'action': functools.partial(ImageCache.instance().remove, self.index.model().mapToSource(self.index)),
                 u'icon': remove_thumbnail_pixmap
             }
         return menu_set

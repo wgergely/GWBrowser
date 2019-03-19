@@ -21,120 +21,29 @@ import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
 
-class ImageCacheThread(QtCore.QThread):
-    __worker = None
-    dataRequested = QtCore.Signal(tuple)
-    singleDataRequested = QtCore.Signal(QtCore.QModelIndex, unicode)
-
-    def __init__(self, model, parent=None):
-        super(ImageCacheThread, self).__init__(parent=parent)
-        self.thread_id = None
-        self.worker = None
-        self.model = model
-
-        app = QtWidgets.QApplication.instance()
-        if app:
-            app.aboutToQuit.connect(self.quit)
-            app.aboutToQuit.connect(self.deleteLater)
-
-    def run(self):
-        self.worker = ImageCacheWorker(self.model)
-        self.dataRequested.connect(
-            self.worker.process_indexes, type=QtCore.Qt.QueuedConnection)
-        self.dataRequested.connect(
-            self.worker.add_to_queue, type=QtCore.Qt.QueuedConnection)
-
-        self.singleDataRequested.connect(
-            self.worker.process_indexes, type=QtCore.Qt.QueuedConnection)
-        ImageCache.instance().thumbnailChanged.connect(
-            lambda index: self.worker.process_indexes((index,)), type=QtCore.Qt.QueuedConnection)
-        sys.stderr.write(
-            '{}.run() -> {}\n'.format(self.__class__.__name__, QtCore.QThread.currentThread()))
-        self.started.emit()
-        self.exec_()
+from browser.threads import BaseThread
+from browser.threads import BaseWorker
+from browser.threads import Unique
 
 
-class ImageCacheWorker(QtCore.QObject):
+class ImageCacheWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
-
-    mutex = QtCore.QMutex()
-    queue = []
-
-    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
-    finished = QtCore.Signal()
-    error = QtCore.Signal(basestring)
-
-    def __init__(self, model, parent=None):
-        super(ImageCacheWorker, self).__init__(parent=parent)
-
-    @classmethod
-    def queue_count(cls):
-        return len(cls.queue)
-
-    @classmethod
-    @QtCore.Slot(tuple)
-    def add_to_queue(cls, items):
-        cls.mutex.lock()
-        cls.queue += items
-        cls.mutex.unlock()
-
-    @classmethod
-    def remove_from_queue(cls, idx):
-        cls.mutex.lock()
-        del cls.queue[cls.queue.index(idx)]
-        cls.mutex.unlock()
-
-    @QtCore.Slot(tuple)
-    def process_indexes(self, indexes):
-        """Gets and sets the missing information for each index in a background
-        thread.
-
-        """
-        try:
-            nth = 7
-            n = 0
-            for index in indexes:
-                if n % nth == 0:
-                    common.ProgressMessage.instance().set_message(
-                        'Processing items ({} left)...'.format(ImageCacheWorker.queue_count()))
-                self.process_index(index, None)
-                ImageCacheWorker.remove_from_queue(index)
-                n += 1
-        except RuntimeError as err:
-            errstr = '\nRuntimeError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            self.error.emit(errstr)
-        except ValueError as err:
-            errstr = '\nValueError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            self.error.emit(errstr)
-        except Exception as err:
-            errstr = '\nError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            self.error.emit(errstr)
-        finally:
-            common.ProgressMessage.instance().clear_message()
-            self.finished.emit()
+    queue = Unique(999999)
 
     @QtCore.Slot(QtCore.QModelIndex)
-    @QtCore.Slot(unicode)
-    def process_index(self, index, source):
+    def process_index(self, index):
         """The actual processing happens here."""
         if not index.isValid():
             return
 
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
-        path = index.data(QtCore.Qt.StatusTipRole)
-        if not source:
-            if common.is_collapsed(path):
-                source = ImageCache._find_largest_file(index)
-
-        source = source if source else index.data(QtCore.Qt.StatusTipRole)
+        source = index.data(QtCore.Qt.StatusTipRole)
+        if common.is_collapsed(source):
+            source = common.find_largest_file(index)
         dest = index.data(common.ThumbnailPathRole)
+        if not dest:
+            return
 
         # First let's check if the file is competible with OpenImageIO
         i = oiio.ImageInput.open(source)
@@ -240,6 +149,9 @@ class ImageCacheWorker(QtCore.QObject):
             data[index.row()][common.ThumbnailBackgroundRole] = color
             index.model().dataChanged.emit(index, index)
 
+
+class ImageCacheThread(BaseThread):
+    Worker = ImageCacheWorker
 
 
 
@@ -391,38 +303,9 @@ class ImageCache(QtCore.QObject):
         average_color.setAlpha(average_color.alpha() / 2.0)
         return average_color
 
-    @staticmethod
-    def _find_largest_file(index):
-        """Finds the sequence's largest file from sequence filepath.
-        The largest files of the sequence will probably hold enough visual information
-        to be used a s thumbnail image. :)
-
-        """
-        path = index.data(QtCore.Qt.StatusTipRole)
-        path = common.get_sequence_startpath(path)
-
-        file_info = QtCore.QFileInfo(path)
-        match = common.get_sequence(file_info.fileName())
-        if not match:  # File is not a sequence
-            return path
-
-        dir_ = file_info.dir()
-        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        f = u'{}{}{}.{}'.format(
-            match.group(1),
-            u'?' * (len(match.group(2))),
-            match.group(3),
-            match.group(4),
-        )
-        dir_.setNameFilters((f,))
-        return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
 
     def generate_thumbnails(self, indexes, overwrite=False):
         """Takes a list of index values and generates thumbnails for them."""
-        def chunks(l, n):
-            """Yields successive n-sized chunks of the given list."""
-            for i in xrange(0, len(l), n):
-                yield l[i:i + n]
 
         def filtered(indexes, overwrite=overwrite):
             """Filter method for making sure only acceptable files types will be querried."""
@@ -430,15 +313,13 @@ class ImageCache(QtCore.QObject):
                 ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
                 if ext not in common._oiio_formats:
                     continue
-                dest = index.data(common.ThumbnailPathRole)
+                dest = AssetSettings(index).thumbnail_path()
                 if not overwrite and QtCore.QFileInfo(dest).exists():
                     continue
                 yield index
 
-        count = int(math.ceil(len(indexes) / float(len(self.threads))))
-        _filtered = list(filtered(indexes, overwrite=overwrite))
-        for idx, chunk in enumerate(chunks(_filtered, count)):
-            self.threads[idx].dataRequested.emit(chunk)
+        indexes = list(filtered(indexes, overwrite=overwrite))
+        ImageCacheWorker.add_to_queue(indexes)
 
 
     @classmethod
@@ -475,6 +356,7 @@ class ImageCache(QtCore.QObject):
             index.data(common.ThumbnailPathRole),
             'BackgroundColor',
             overwrite=False)
+
 
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
@@ -527,8 +409,7 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
-        source_index = index.model().mapToSource(index)
-        cls.generate(source_index, source=dialog.selectedFiles()[0])
+        cls.generate(index, source=dialog.selectedFiles()[0])
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0):
