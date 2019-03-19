@@ -6,8 +6,11 @@ found by the collector classes.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
+import traceback
 import math
 import functools
+import Queue
+
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from browser.basecontextmenu import BaseContextMenu
@@ -22,116 +25,54 @@ from browser.delegate import FilesWidgetDelegate
 import browser.editors as editors
 from browser.imagecache import ImageCache
 
-
-mutex = QtCore.QMutex()
-"""The mutex reposinble for guarding the model data."""
-
-
-class FileInfoThread(QtCore.QThread):
-    """The thread responsible for updating the file-list with the missing
-    information. I can't get threads to work using the documented way -
-    depending on conditions I don't understand, the thread sometimes executes
-    the worker, sometimes the `started` signal doesn't fire when the Worker is
-    created outside the thread.
-
-    The thread.start() is called when the ``FileModel`` is initialized.
-
-    """
-    __worker = None
-
-    dataRequested = QtCore.Signal(tuple)
-
-    def __init__(self, model, parent=None):
-        super(FileInfoThread, self).__init__(parent=parent)
-        self.thread_id = None
-        self.worker = None
-        self.model = model
-
-        app = QtWidgets.QApplication.instance()
-        if app:
-            app.aboutToQuit.connect(self.quit)
-            app.aboutToQuit.connect(self.deleteLater)
-
-    def run(self):
-        self.worker = FileInfoWorker(self.model)
-        self.dataRequested.connect(
-            self.worker.processIndexes, type=QtCore.Qt.QueuedConnection)
-        ImageCache.instance().thumbnailChanged.connect(
-            lambda index: self.worker.processIndexes((index,)), type=QtCore.Qt.QueuedConnection)
-        sys.stderr.write(
-            'FileInfoThread.run() -> {}\n'.format(QtCore.QThread.currentThread()))
-        self.started.emit()
-        self.exec_()
+from browser.threads import BaseThread
+from browser.threads import BaseWorker
 
 
-class FileInfoWorker(QtCore.QObject):
+
+class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
-    mutex = QtCore.QMutex()
-    queue = []
-
-    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
-    finished = QtCore.Signal()
-    error = QtCore.Signal(basestring)
-
-    def __init__(self, model, parent=None):
-        super(FileInfoWorker, self).__init__(parent=parent)
-        self._model = model
-
-    def model(self):
-        return self._model
-
-    @classmethod
-    def queue_count(cls):
-        return len(cls.queue)
-
-    @classmethod
-    def add_to_queue(cls, items):
-        cls.mutex.lock()
-        cls.queue += items
-        cls.mutex.unlock()
-
-    @classmethod
-    def remove_from_queue(cls, idx):
-        cls.mutex.lock()
-        del cls.queue[cls.queue.index(idx)]
-        cls.mutex.unlock()
 
     @QtCore.Slot(tuple)
-    def processIndexes(self, idxs):
+    def begin_processing(self):
         """Gets and sets the missing information for each index in a background
         thread.
 
         """
+        n = 0
+        nth = 9
         try:
-            nth = 789
-            n = 0
-            for idx in idxs:
-                if n % nth == 0:
-                    common.ProgressMessage.instance().set_message(
-                        'Processing items ({} left)...'.format(FileInfoWorker.queue_count()))
-                index = self.model().index(idx, 0)
-                self.process_index(index)
-                FileInfoWorker.remove_from_queue(idx)
+            while True:
                 n += 1
+                if FileInfoWorker.queue.qsize():
+                    if n % nth == 0:
+                        common.ProgressMessage.instance().set_message(
+                            'Processing ({} left)...'.format(FileInfoWorker.queue.qsize()))
+                else:
+                    common.ProgressMessage.instance().clear_message()
+                self.process_index(FileInfoWorker.queue.get(True))
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
+            traceback.print_exc()
             self.error.emit(errstr)
         except ValueError as err:
             errstr = '\nValueError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
+            traceback.print_exc()
             self.error.emit(errstr)
         except Exception as err:
             errstr = '\nError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
+            traceback.print_exc()
             self.error.emit(errstr)
         finally:
-            common.ProgressMessage.instance().clear_message()
-            self.finished.emit()
+            self.begin_processing()
 
+    @QtCore.Slot(QtCore.QModelIndex)
     def process_index(self, index):
         """The actual processing happens here."""
         if not index.isValid():
@@ -208,25 +149,27 @@ class FileInfoWorker(QtCore.QObject):
 
         # Thumbnail
         height = data[QtCore.Qt.SizeHintRole].height() - 2
+        def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+        ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
+        placeholder_color = QtGui.QColor(0, 0, 0, 0)
+
+        if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+            placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), height)
+        else:
+            placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+
         image = ImageCache.instance().get(settings.thumbnail_path(), height)
         if not image:
-            def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
-            ext = data[QtCore.Qt.StatusTipRole].split(
-                '.')[-1]
-            color = QtGui.QColor(0, 0, 0, 0)
-
-            if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-                image = ImageCache.instance().get(rsc_path(__file__, ext), height)
-            else:
-                image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+            image = placeholder_image
+            color = placeholder_color
         else:
             color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
+        data[common.DefaultThumbnailRole] = placeholder_image
+        data[common.DefaultThumbnailBackgroundRole] = placeholder_color
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
-        data[common.DefaultThumbnailRole] = image
-        data[common.DefaultThumbnailBackgroundRole] = QtGui.QColor(0, 0, 0, 0)
 
         # Item flags
         flags = index.flags()
@@ -240,6 +183,13 @@ class FileInfoWorker(QtCore.QObject):
             flags = flags | MarkedAsArchived
         data[common.FlagsRole] = flags
         data[common.StatusRole] = True
+
+        index.model().dataChanged.emit(index, index)
+
+
+class FileInfoThread(BaseThread):
+    Worker = FileInfoWorker
+
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -284,7 +234,7 @@ class FilesModel(BaseModel):
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
-        self.modelReset.connect(self.dispatch_chunks)
+
         # Thread-worker reposinble for completing the model data
         self.threads = {}
         for n in xrange(4):
@@ -337,6 +287,9 @@ class FilesModel(BaseModel):
         nth = 789
         n = 0
 
+        def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+        placeholder_color = QtGui.QColor(0,0,0,0)
+
         while it.hasNext():
             n += 1
             if n % nth == 0:
@@ -355,6 +308,12 @@ class FilesModel(BaseModel):
 
             seq = common.get_sequence(filepath)
             filename = it.fileName()
+            ext = filename.split('.')[-1]
+            if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+                placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), rowsize.height())
+            else:
+                placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), rowsize.height())
+
 
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
@@ -376,8 +335,8 @@ class FilesModel(BaseModel):
                 common.StatusRole: False,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
-                common.ThumbnailRole: None,
-                common.ThumbnailBackgroundRole: None,
+                common.ThumbnailRole: placeholder_image,
+                common.ThumbnailBackgroundRole: placeholder_color,
                 common.TypeRole: common.FileItem,
                 common.SortByName: filepath,
                 common.SortByLastModified: filepath,
@@ -410,8 +369,8 @@ class FilesModel(BaseModel):
                         common.StatusRole: False,
                         common.StartpathRole: None,
                         common.EndpathRole: None,
-                        common.ThumbnailRole: None,
-                        common.ThumbnailBackgroundRole: None,
+                        common.ThumbnailRole: placeholder_image,
+                        common.ThumbnailBackgroundRole: placeholder_color,
                         common.TypeRole: common.SequenceItem,
                         common.SortByName: seqname,
                         common.SortByLastModified: seqname,
@@ -439,31 +398,6 @@ class FilesModel(BaseModel):
 
         self.endResetModel()
         common.ProgressMessage.instance().clear_message()
-
-    def dispatch_chunks(self):
-        """The data is stored is stored in the private ``_model_data`` object.
-        This object is not exposed to the model - this method will set the
-        ``model_data`` to the appropiate data-point.
-
-        The ``model_data`` is not fully loaded by the default. By switching the
-        dataset we will trigger a secondary thread to querry the file-system and
-        to load the missing pieces of data.
-
-        """
-        def chunks(l, n):
-            """Yields successive n-sized chunks of the given list."""
-            for i in xrange(0, len(l), n):
-                yield l[i:i + n]
-
-        data = self.model_data()
-        idxs = [f for f in xrange(len(data))
-                if not data[f][common.StatusRole]]
-        if not idxs:
-            return
-
-        for idx, chunk in enumerate(chunks(idxs, int(math.ceil(len(idxs) / float(len(self.threads)))))):
-            FileInfoWorker.add_to_queue(chunk)
-            self.threads[idx].dataRequested.emit(chunk)
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -523,8 +457,12 @@ class FilesWidget(BaseInlineIconWidget):
         self.setDragEnabled(True)
         self.setDropIndicatorShown(False)
         self.setAcceptDrops(False)
-
         self.setWindowTitle(u'Files')
+
+        # We have to disable tracking, as the valueChanged signals is
+        # populating the FileInfoThread's queue
+        # self.verticalScrollBar().setTracking(False)
+
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel(parent=self))
@@ -532,12 +470,52 @@ class FilesWidget(BaseInlineIconWidget):
         def connectSignal(thread):
             """This method will connect the signals needed to update the index
             after the thread has started."""
-            thread.worker.indexUpdated.connect(self.update)
-            thread.worker.finished.connect(self.repaint)
+            # thread.worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
 
         for thread in self.model().sourceModel().threads.itervalues():
             thread.started.connect(functools.partial(connectSignal, thread))
             thread.start()
+
+        self.model().modelAboutToBeReset.connect(self.reset_queue)
+        self.model().modelReset.connect(
+            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+        self.verticalScrollBar().valueChanged.connect(
+            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+
+    @QtCore.Slot()
+    def reset_queue(self):
+        FileInfoWorker.reset_queue()
+
+    @QtCore.Slot()
+    def queue_indexes(self):
+        """The sourceModel() loads it's data in two steps, there's a single-threaded
+        data-collections, and a threaded second pass to load thumbnails and
+        descriptions.
+
+        To optimize the second pass we will only queue items that are visible
+        in the view.
+
+        """
+        # m = self.model().sourceModel()
+        # data = m._data[datakey][datatype]
+        app = QtWidgets.QApplication.instance()
+        app.processEvents()
+
+        indexes = []
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            if index.data(common.StatusRole):
+                continue
+            rect = self.visualRect(index)
+            if not self.viewport().rect().contains(rect.topLeft()):
+                continue
+            source_index = self.model().mapToSource(index)
+            indexes.append(source_index)
+        FileInfoWorker.add_to_queue(indexes)
+
+
+        # indexes = [m.index(f, 0) for f in xrange(len(data))
+        #         if not data[f][common.StatusRole]]
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

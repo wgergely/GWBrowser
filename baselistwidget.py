@@ -481,6 +481,11 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.QueuedConnection)
 
         # Sorting
+        proxy.layoutAboutToBeChanged.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()),
+            type=QtCore.Qt.DirectConnection)
+        proxy.layoutChanged.connect(self.reselect_previous, type=QtCore.Qt.QueuedConnection)
+
         proxy.sortingChanged.connect(
             lambda x, y: proxy.setSortRole(x))
         proxy.sortingChanged.connect(
@@ -489,10 +494,7 @@ class BaseListWidget(QtWidgets.QListView):
             lambda x, y: proxy.sort(
                 0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
             type=QtCore.Qt.QueuedConnection)
-        # model.modelReset.connect(
-        #     lambda: proxy.sort(
-        #         0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
-        #     type=QtCore.Qt.QueuedConnection)
+
 
         model.activeChanged.connect(self.save_activated)
 
@@ -502,8 +504,10 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.QueuedConnection)
 
         model.dataTypeChanged.connect(model.set_data_type)
-        model.dataTypeChanged.connect(lambda x: proxy.invalidate(),
-            type=QtCore.Qt.QueuedConnection)
+        # model.dataTypeChanged.connect(lambda x: proxy.invalidate(),
+        #     type=QtCore.Qt.DirectConnection)
+        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
+        model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))

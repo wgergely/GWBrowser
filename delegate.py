@@ -571,8 +571,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(r'[\W\d\_]+', '', text)
-        text = u'  {}  |  {}  '.format(index.data(common.ParentRole)[
-                                       0].strip('/').lower(), text.upper())
+        text = u'  {}  |  {}  '.format(
+            text, index.data(common.ParentRole)[-1].upper())
         width = metrics.width(text)
         rect.setWidth(width)
 
@@ -588,15 +588,46 @@ class BookmarksWidgetDelegate(BaseDelegate):
         pen.setWidth(offset)
         painter.setPen(pen)
         painter.drawRoundedRect(rect, 2, 2)
-        common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
+        _text = text.split(u'/')
+        text_ = _text.pop()
+        _text = '/'.join(_text)
+
+        if _text:
+            t1, t2 = _text.split(u'|')
+        else:
+            t1, t2 = text_.split(u'|')
+        color = QtGui.QColor(common.TEXT)
+        color.setAlpha(200)
+
+        width = common.draw_aliased_text(
+            painter, font, rect, t1, QtCore.Qt.AlignLeft, common.TEXT_SELECTED)
+        rect.setLeft(rect.left() + width)
+
+
+        width = common.draw_aliased_text(
+            painter, font, rect, u'|', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
+        rect.setLeft(rect.left() + width)
+        if not _text:
+            color = common.TEXT_SELECTED
+        width = common.draw_aliased_text(
+            painter, font, rect, t2, QtCore.Qt.AlignLeft, color)
+        rect.setLeft(rect.left() + width)
+
+        if _text:
+            width = common.draw_aliased_text(
+                painter, font, rect, u'/', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
+            rect.setLeft(rect.left() + width)
+
+            text_ = '{}'.format(text_)
+
+            width = common.draw_aliased_text(
+                painter, font, rect, text_, QtCore.Qt.AlignLeft, common.TEXT_SELECTED)
+
 
         color = self.get_state_color(option, index, common.TEXT)
         rect.moveLeft(rect.right() + common.MARGIN)
 
-        text = index.data(common.ParentRole)[2]
-        text = re.sub(r'[_]+', ' ', text.upper())
-
+        text = index.data(common.DescriptionRole)
         if option.rect.width() < 360.0:
             rect.setRight(option.rect.right() - common.MARGIN)
         else:
@@ -714,15 +745,18 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
+        if index.data(QtCore.Qt.DisplayRole) is None:
+            return
+
         args = self._get_paint_args(painter, option, index)
         #
         self.paint_background(*args)
 
         #
+        self.paint_thumbnail(*args)
         if index.data(common.StatusRole):
-            self.paint_thumbnail(*args)
             self.paint_archived(*args)
-            self.paint_thumbnail_shadow(*args)
+        self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)

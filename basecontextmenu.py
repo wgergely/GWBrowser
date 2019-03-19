@@ -178,14 +178,14 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
         sort_menu_icon = ImageCache.get_rsc_pixmap(
-            u'sort', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'sort', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         arrow_up_icon = ImageCache.get_rsc_pixmap(
-            u'arrow_up', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'arrow_up', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         arrow_down_icon = ImageCache.get_rsc_pixmap(
-            u'arrow_down', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'arrow_down', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off_icon = QtGui.QPixmap()
         item_on_icon = ImageCache.get_rsc_pixmap(
-            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'check', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         sortorder = self.parent().model().get_sortorder()
         sortkey = self.parent().model().sortRole()
@@ -244,7 +244,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         copy_icon = ImageCache.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         copy_icon2 = ImageCache.get_rsc_pixmap(
-            u'copy', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         if self.parent().model().sourceModel().data_key() == common.RendersFolder:
@@ -294,7 +294,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived_on_icon = ImageCache.get_rsc_pixmap(
             u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
         archived_off_icon = ImageCache.get_rsc_pixmap(
-            u'archived', common.TEXT, common.INLINE_ICON_SIZE)
+            u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & Settings.MarkedAsFavourite
         archived = self.index.flags() & Settings.MarkedAsArchived
@@ -323,7 +323,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = ImageCache.get_rsc_pixmap(
-            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
 
@@ -365,9 +365,14 @@ class BaseContextMenu(QtWidgets.QMenu):
             menu_set[u'Activate'] = {
                 u'action': lambda: self.parent().activate(self.index)
             }
+
+        def refresh():
+            self.parent().model().sourceModel().beginResetModel()
+            self.parent().model().sourceModel().__initdata__()
+
         menu_set[u'Refresh'] = {
-            u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
-            # u'icon': refresh_pixmap
+            u'action': self.parent().model().sourceModel().__initdata__,
+            u'icon': refresh_pixmap
         }
 
         return menu_set
@@ -376,13 +381,13 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'capture_thumbnail', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'todo_remove', QtGui.QColor(200, 50,50), common.INLINE_ICON_SIZE)
         show_thumbnail = ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         addpixmap = ImageCache.get_rsc_pixmap(
@@ -412,17 +417,17 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, self.index)}
 
+        source_index = self.index.model().mapToSource(self.index)
         suffix = QtCore.QFileInfo(self.index.data(
             QtCore.Qt.StatusTipRole)).suffix()
         if suffix in common.get_oiio_namefilters(as_array=True):
             menu_set[key]['_separator_'] = {}
 
             menu_set[key][u'generatethis'] = {
-                u'icon': addpixmap,
-                u'text': u'Create',
-                u'action': functools.partial(ImageCache.instance().generate_all, (QtCore.QPersistentModelIndex(self.index), ), overwrite=True)}
+                u'text': u'Make',
+                u'action': functools.partial(ImageCache.instance().generate_thumbnails, (source_index,), overwrite=True)}
 
-            def generate_all(overwrite=False):
+            def generate_thumbnails(overwrite=False):
                 if overwrite:
                     mbox = QtWidgets.QMessageBox()
                     mbox.setWindowTitle(u'Re-generate all thumbnails?')
@@ -443,25 +448,24 @@ class BaseContextMenu(QtWidgets.QMenu):
                 indexes = []
                 for n in xrange(self.parent().model().rowCount()):
                     index = self.parent().model().index(n, 0)
-                    indexes.append(QtCore.QPersistentModelIndex(index))
-                ImageCache.instance().generate_all(indexes, overwrite=overwrite)
+                    source_index = index.model().mapToSource(index)
+                    indexes.append(source_index)
+                ImageCache.instance().generate_thumbnails(indexes, overwrite=overwrite)
 
             menu_set[key][u'generatemissing'] = {
-                u'icon': addpixmap,
-                u'text': u'Create missing',
-                u'action': functools.partial(generate_all, overwrite=False)
+                u'text': u'Make missing',
+                u'action': functools.partial(generate_thumbnails, overwrite=False)
             }
 
             menu_set[key][u'generateall'] = {
-                u'icon': addpixmap,
-                u'text': u'Generate all',
-                u'action': functools.partial(generate_all, overwrite=True)
+                u'text': u'Re-make all',
+                u'action': functools.partial(generate_thumbnails, overwrite=True)
             }
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
-                u'action': functools.partial(ImageCache.instance().remove, self.index),
+                u'action': functools.partial(ImageCache.instance().remove, source_index),
                 u'icon': remove_thumbnail_pixmap
             }
         return menu_set
@@ -469,7 +473,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
         pixmap = ImageCache.get_rsc_pixmap(
-            'todo_add', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            'todo_add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'icon': pixmap,
@@ -490,7 +494,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         groupped = currenttype == common.SequenceItem
 
         menu_set[u'collapse'] = {
-            u'text': 'Show individual files' if groupped else 'Group sequences together',
+            u'text': 'Show all files' if groupped else 'Group into sequence',
             u'icon': expand_pixmap if groupped else collapse_pixmap,
             u'checkable': True,
             u'checked': groupped,
@@ -503,9 +507,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
         locations_icon_pixmap = ImageCache.get_rsc_pixmap(
-            u'location', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'location', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_on_pixmap = ImageCache.get_rsc_pixmap(
-            u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+            u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off_pixmap = QtGui.QPixmap()
 
         key = u'Change file folder'

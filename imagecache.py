@@ -21,6 +21,228 @@ import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
 
+class ImageCacheThread(QtCore.QThread):
+    __worker = None
+    dataRequested = QtCore.Signal(tuple)
+    singleDataRequested = QtCore.Signal(QtCore.QModelIndex, unicode)
+
+    def __init__(self, model, parent=None):
+        super(ImageCacheThread, self).__init__(parent=parent)
+        self.thread_id = None
+        self.worker = None
+        self.model = model
+
+        app = QtWidgets.QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self.quit)
+            app.aboutToQuit.connect(self.deleteLater)
+
+    def run(self):
+        self.worker = ImageCacheWorker(self.model)
+        self.dataRequested.connect(
+            self.worker.process_indexes, type=QtCore.Qt.QueuedConnection)
+        self.dataRequested.connect(
+            self.worker.add_to_queue, type=QtCore.Qt.QueuedConnection)
+
+        self.singleDataRequested.connect(
+            self.worker.process_indexes, type=QtCore.Qt.QueuedConnection)
+        ImageCache.instance().thumbnailChanged.connect(
+            lambda index: self.worker.process_indexes((index,)), type=QtCore.Qt.QueuedConnection)
+        sys.stderr.write(
+            '{}.run() -> {}\n'.format(self.__class__.__name__, QtCore.QThread.currentThread()))
+        self.started.emit()
+        self.exec_()
+
+
+class ImageCacheWorker(QtCore.QObject):
+    """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
+
+    mutex = QtCore.QMutex()
+    queue = []
+
+    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
+    finished = QtCore.Signal()
+    error = QtCore.Signal(basestring)
+
+    def __init__(self, model, parent=None):
+        super(ImageCacheWorker, self).__init__(parent=parent)
+
+    @classmethod
+    def queue_count(cls):
+        return len(cls.queue)
+
+    @classmethod
+    @QtCore.Slot(tuple)
+    def add_to_queue(cls, items):
+        cls.mutex.lock()
+        cls.queue += items
+        cls.mutex.unlock()
+
+    @classmethod
+    def remove_from_queue(cls, idx):
+        cls.mutex.lock()
+        del cls.queue[cls.queue.index(idx)]
+        cls.mutex.unlock()
+
+    @QtCore.Slot(tuple)
+    def process_indexes(self, indexes):
+        """Gets and sets the missing information for each index in a background
+        thread.
+
+        """
+        try:
+            nth = 7
+            n = 0
+            for index in indexes:
+                if n % nth == 0:
+                    common.ProgressMessage.instance().set_message(
+                        'Processing items ({} left)...'.format(ImageCacheWorker.queue_count()))
+                self.process_index(index, None)
+                ImageCacheWorker.remove_from_queue(index)
+                n += 1
+        except RuntimeError as err:
+            errstr = '\nRuntimeError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        except ValueError as err:
+            errstr = '\nValueError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        except Exception as err:
+            errstr = '\nError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            sys.stderr.write(errstr)
+            self.error.emit(errstr)
+        finally:
+            common.ProgressMessage.instance().clear_message()
+            self.finished.emit()
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    @QtCore.Slot(unicode)
+    def process_index(self, index, source):
+        """The actual processing happens here."""
+        if not index.isValid():
+            return
+
+        # If it's a sequence, we will find the largest file in the sequence and
+        # generate the thumbnail for that item
+        path = index.data(QtCore.Qt.StatusTipRole)
+        if not source:
+            if common.is_collapsed(path):
+                source = ImageCache._find_largest_file(index)
+
+        source = source if source else index.data(QtCore.Qt.StatusTipRole)
+        dest = index.data(common.ThumbnailPathRole)
+
+        # First let's check if the file is competible with OpenImageIO
+        i = oiio.ImageInput.open(source)
+        if not i:
+            sys.stderr.write(oiio.geterror())
+            return  # the file is not understood by OenImageIO
+        i.close()
+
+        img = ImageBuf(source)
+
+        if img.has_error:
+            sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(
+                source, img.geterror()))
+            return
+
+        # Deep
+        if img.spec().deep:
+            img = ImageBufAlgo.flatten(img)
+
+        size = int(common.THUMBNAIL_IMAGE_SIZE)
+        spec = ImageSpec(size, size, 4, "uint8")
+        spec.channelnames = ('R', 'G', 'B', 'A')
+        spec.alpha_channel = 3
+        spec.attribute('oiio:ColorSpace', 'Linear')
+        b = ImageBuf(spec)
+        b.set_write_format('uint8')
+
+        oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
+        ImageBufAlgo.fit(b, img)
+
+        spec = b.spec()
+        if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+            roi = oiio.get_roi(b.spec())
+            roi.chbegin = 0
+            roi.chend = 3
+            ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
+
+        if int(spec.nchannels) < 3:
+            b = ImageBufAlgo.channels(
+                b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+        elif int(spec.nchannels) > 4:
+            if spec.channelindex('A') > -1:
+                b = ImageBufAlgo.channels(
+                    b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+            else:
+                b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+        if b.has_error:
+            sys.stderr.write(
+                '# OpenImageIO: Channel error {}.\n'.format(b.geterror()))
+
+        # There seems to be a problem with the ICC profile exported from Adobe
+        # applications and the PNG library. The sRGB profile seems to be out of date
+        # and pnglib crashes when encounters an invalid profile.
+        # Removing the ICC profile seems to fix the issue. Annoying!
+
+        # First, rebuilding the attributes as a modified xml tree
+        modified = False
+
+        from xml.etree import ElementTree
+        root = ElementTree.fromstring(b.spec().to_xml())
+        for attrib in root.findall('attrib'):
+            if attrib.attrib['name'] == 'ICCProfile':
+                root.remove(attrib)
+                modified = True
+                break
+
+        if modified:
+            xml = ElementTree.tostring(root)
+            # Initiating a new spec with the modified xml
+            spec = oiio.ImageSpec()
+            spec.from_xml(xml)
+
+            # Lastly, copying the pixels over from the old to the new buffer.
+            _b = ImageBuf(spec)
+            pixels = b.get_pixels()
+            _b.set_write_format('uint8')
+            _b.set_pixels(oiio.get_roi(spec), pixels)
+            if _b.has_error:
+                sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
+                    dest, _b.geterror(), oiio.geterror()))
+        else:
+            _b = b
+
+        # Ready to write
+        if not _b.write(dest, dtype='uint8'):
+            sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
+                dest, _b.geterror(), oiio.geterror()))
+            QtCore.QFile(dest).remove()  # removing failed thumbnail save
+            return
+
+        else:
+            image = ImageCache.instance().get(
+                index.data(common.ThumbnailPathRole),
+                index.data(QtCore.Qt.SizeHintRole).height() - 2,
+                overwrite=True)
+            color = ImageCache.instance().get(
+                index.data(common.ThumbnailPathRole),
+                'BackgroundColor',
+                overwrite=False)
+            data = index.model().model_data()
+            data[index.row()][common.ThumbnailRole] = image
+            data[index.row()][common.ThumbnailBackgroundRole] = color
+            index.model().dataChanged.emit(index, index)
+
+
+
+
 class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
     images.
@@ -57,9 +279,15 @@ class ImageCache(QtCore.QObject):
         super(ImageCache, self).__init__(parent=parent)
         ImageCache.__instance = self
 
-        rsc_path = lambda f, n: u'{}/../rsc/{}.png'.format(f, n)
-        for ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-            ImageCache.instance().get(rsc_path(__file__, ext), common.ROW_HEIGHT - 2)
+        # This will cache all the thuimbnail images
+        rsc_path = lambda f: u'{}/../rsc/placeholder.png'.format(f)
+        ImageCache.instance().get(rsc_path(__file__), common.ROW_HEIGHT - 2)
+
+        self.threads = {}
+        for n in xrange(4):
+            self.threads[n] = ImageCacheThread(self)
+            self.threads[n].thread_id = n
+            self.threads[n].start()
 
 
     def get(self, path, height, overwrite=False):
@@ -189,158 +417,34 @@ class ImageCache(QtCore.QObject):
         dir_.setNameFilters((f,))
         return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
 
-    def generate_all(self, indexes, overwrite=False):
-        """Generate"""
-        def g(indexes, overwrite=overwrite):
+    def generate_thumbnails(self, indexes, overwrite=False):
+        """Takes a list of index values and generates thumbnails for them."""
+        def chunks(l, n):
+            """Yields successive n-sized chunks of the given list."""
+            for i in xrange(0, len(l), n):
+                yield l[i:i + n]
+
+        def filtered(indexes, overwrite=overwrite):
+            """Filter method for making sure only acceptable files types will be querried."""
             for index in indexes:
-                dest = AssetSettings(index).thumbnail_path()
+                ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
+                if ext not in common._oiio_formats:
+                    continue
+                dest = index.data(common.ThumbnailPathRole)
                 if not overwrite and QtCore.QFileInfo(dest).exists():
                     continue
                 yield index
 
-        def chunks(l, n):
-            """Yield successive n-sized chunks from l."""
-            for i in xrange(0, len(l), n):
-                yield l[i:i + n]
+        count = int(math.ceil(len(indexes) / float(len(self.threads))))
+        _filtered = list(filtered(indexes, overwrite=overwrite))
+        for idx, chunk in enumerate(chunks(_filtered, count)):
+            self.threads[idx].dataRequested.emit(chunk)
 
-        idtc = QtCore.QThread.idealThreadCount()
-        tc = idtc if idtc < 4 else 4
-        # A list of QPersistentModelIndexes
-        l = [f for f in g(indexes, overwrite=overwrite)]
-        if not l:
-            return
-        # Chunks for the thread
-        chunks = chunks(l, int(math.ceil(float(len(l)) / float(tc))))
-
-        app = QtWidgets.QApplication.instance()
-        parent = [f for f in app.allWidgets() if f.objectName()
-                  == u'BrowserStackedWidget']
-        parent = next((f for f in parent), None)
-
-        common.ProgressMessage.instance().set_message(u'Processing thumbnails...')
-
-        # Creating threads
-        for chunk in chunks:
-            worker = CacheWorker(chunk)
-            worker.signals.update.connect(common.ProgressMessage.instance().set_message)
-            QtCore.QThreadPool.globalInstance().start(worker)
 
     @classmethod
     def generate(cls, index, source=None):
         """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
-        if not index.isValid():
-            return
-
-        # If it's a sequence, we will find the largest file in the sequence and
-        # generate the thumbnail for that item
-        path = index.data(QtCore.Qt.StatusTipRole)
-        if not source:
-            if common.is_collapsed(path):
-                source = ImageCache._find_largest_file(index)
-
-        source = source if source else index.data(QtCore.Qt.StatusTipRole)
-        dest = index.data(common.ThumbnailPathRole)
-
-        # First let's check if the file is competible with OpenImageIO
-        i = oiio.ImageInput.open(source)
-        if not i:
-            sys.stderr.write(oiio.geterror())
-            return  # the file is not understood by OenImageIO
-        i.close()
-
-        img = ImageBuf(source)
-
-        if img.has_error:
-            sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(
-                source, img.geterror()))
-            return
-
-        # Deep
-        if img.spec().deep:
-            img = ImageBufAlgo.flatten(img)
-
-        size = int(common.THUMBNAIL_IMAGE_SIZE)
-        spec = ImageSpec(size, size, 4, "uint8")
-        spec.channelnames = ('R', 'G', 'B', 'A')
-        spec.alpha_channel = 3
-        spec.attribute('oiio:ColorSpace', 'Linear')
-        b = ImageBuf(spec)
-        b.set_write_format('uint8')
-
-        oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
-        ImageBufAlgo.fit(b, img)
-
-        spec = b.spec()
-        if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
-            roi = oiio.get_roi(b.spec())
-            roi.chbegin = 0
-            roi.chend = 3
-            ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
-
-        if int(spec.nchannels) < 3:
-            b = ImageBufAlgo.channels(
-                b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
-        elif int(spec.nchannels) > 4:
-            if spec.channelindex('A') > -1:
-                b = ImageBufAlgo.channels(
-                    b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
-            else:
-                b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
-
-        if b.has_error:
-            sys.stderr.write(
-                '# OpenImageIO: Channel error {}.\n'.format(b.geterror()))
-
-        # There seems to be a problem with the ICC profile exported from Adobe
-        # applications and the PNG library. The sRGB profile seems to be out of date
-        # and pnglib crashes when encounters an invalid profile.
-        # Removing the ICC profile seems to fix the issue. Annoying!
-
-        # First, rebuilding the attributes as a modified xml tree
-        modified = False
-
-        from xml.etree import ElementTree
-        root = ElementTree.fromstring(b.spec().to_xml())
-        for attrib in root.findall('attrib'):
-            if attrib.attrib['name'] == 'ICCProfile':
-                root.remove(attrib)
-                modified = True
-                break
-
-        if modified:
-            xml = ElementTree.tostring(root)
-            # Initiating a new spec with the modified xml
-            spec = oiio.ImageSpec()
-            spec.from_xml(xml)
-
-            # Lastly, copying the pixels over from the old to the new buffer.
-            _b = ImageBuf(spec)
-            pixels = b.get_pixels()
-            _b.set_write_format('uint8')
-            _b.set_pixels(oiio.get_roi(spec), pixels)
-            if _b.has_error:
-                sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
-                    dest, _b.geterror(), oiio.geterror()))
-        else:
-            _b = b
-
-        # Ready to write
-        if not _b.write(dest, dtype='uint8'):
-            sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
-                dest, _b.geterror(), oiio.geterror()))
-            QtCore.QFile(dest).remove()  # removing failed thumbnail save
-        else:
-            image = cls.instance().get(
-                index.data(common.ThumbnailPathRole),
-                index.data(QtCore.Qt.SizeHintRole).height() - 2,
-                overwrite=True)
-            color = cls.instance().get(
-                index.data(common.ThumbnailPathRole),
-                'BackgroundColor',
-                overwrite=False)
-            index.model().setData(index, image, common.ThumbnailRole)
-            index.model().setData(index, color, common.ThumbnailBackgroundRole)
-
+        raise DeprecationWarning('obsolete call, update!')
 
     def capture(self, index):
         """Uses ``ScreenGrabber to save a custom screen-grab."""
@@ -354,9 +458,6 @@ class ImageCache(QtCore.QObject):
         image = self.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         if image.isNull():
             return
-
-        # data = index.model().sourceModel().model_data()
-        source_index = index.model().mapToSource(index)
 
         f = QtCore.QFile(index.data(common.ThumbnailPathRole))
         if f.exists():
@@ -374,8 +475,11 @@ class ImageCache(QtCore.QObject):
             index.data(common.ThumbnailPathRole),
             'BackgroundColor',
             overwrite=False)
-        source_index.model().setData(source_index, image, common.ThumbnailRole)
-        source_index.model().setData(source_index, color, common.ThumbnailBackgroundRole)
+
+        data = index.model().model_data()
+        data[index.row()][common.ThumbnailRole] = image
+        data[index.row()][common.ThumbnailBackgroundRole] = color
+        index.model().dataChanged.emit(index, index)
 
 
     def remove(self, index):
@@ -387,27 +491,20 @@ class ImageCache(QtCore.QObject):
         """
         if not index.isValid():
             return
-        settings = AssetSettings(index)
-        file_ = QtCore.QFile(settings.thumbnail_path())
+
+        file_ = QtCore.QFile(index.data(common.ThumbnailPathRole))
 
         if file_.exists():
             file_.remove()
 
-        keys = [k for k in self._data if settings.thumbnail_path().lower() in k.lower()]
+        keys = [k for k in self._data if index.data(common.ThumbnailPathRole).lower() in k.lower()]
         for key in keys:
             del self._data[key]
 
-        source_index = index.model().mapToSource(index)
-
-        source_index.model().setData(
-            source_index,
-            source_index.data(common.DefaultThumbnailRole),
-            common.ThumbnailRole)
-
-        source_index.model().setData(
-            source_index,
-            source_index.data(common.DefaultThumbnailBackgroundRole),
-            common.ThumbnailBackgroundRole)
+        data = index.model().model_data()
+        data[index.row()][common.ThumbnailRole] = data[index.row()][common.DefaultThumbnailRole]
+        data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()][common.DefaultThumbnailBackgroundRole]
+        index.model().dataChanged.emit(index, index)
 
 
     @classmethod
@@ -496,27 +593,27 @@ class ImageCache(QtCore.QObject):
         return cls._data[k]
 
 
-class CacheWorkerSignals(QtCore.QObject):
-    finished = QtCore.Signal()
-    update = QtCore.Signal(unicode)
+# class CacheWorkerSignals(QtCore.QObject):
+#     finished = QtCore.Signal()
+#     update = QtCore.Signal(unicode)
 
-
-class CacheWorker(QtCore.QRunnable):
-    """Generic QRunnable, taking an index as it's first argument."""
-
-    def __init__(self, chunk):
-        super(CacheWorker, self).__init__()
-        self.chunk = chunk
-        self.signals = CacheWorkerSignals()
-
-    @QtCore.Slot()
-    def run(self):
-        """The main work method run in a secondary thread."""
-        for index in self.chunk:
-            filename = QtCore.QFileInfo(index.data(
-                QtCore.Qt.StatusTipRole)).fileName()
-            ImageCache.generate(index)
-        self.signals.finished.emit()
+#
+# class CacheWorker(QtCore.QRunnable):
+#     """Generic QRunnable, taking an index as it's first argument."""
+#
+#     def __init__(self, chunk):
+#         super(CacheWorker, self).__init__()
+#         self.chunk = chunk
+#         self.signals = CacheWorkerSignals()
+#
+#     @QtCore.Slot()
+#     def run(self):
+#         """The main work method run in a secondary thread."""
+#         for index in self.chunk:
+#             filename = QtCore.QFileInfo(index.data(
+#                 QtCore.Qt.StatusTipRole)).fileName()
+#             ImageCache.generate(index)
+#         self.signals.finished.emit()
 
 
 # Initializing the ImageCache:

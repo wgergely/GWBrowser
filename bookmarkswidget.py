@@ -188,6 +188,7 @@ class BookmarksModel(BaseModel):
             if not file_info.exists():
                 flags = QtCore.Qt.ItemIsSelectable | MarkedAsArchived
 
+
             data = self.model_data()
             data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
@@ -198,7 +199,7 @@ class BookmarksModel(BaseModel):
                 #
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
-                common.DescriptionRole: u'Bookmark:  {}'.format(file_info.filePath()),
+                common.DescriptionRole: None,
                 common.TodoCountRole: file_info.size(),
                 common.FileDetailsRole: file_info.size(),
                 #
@@ -217,8 +218,8 @@ class BookmarksModel(BaseModel):
 
             # Thumbnail
             index = self.index(idx, 0)
-            data[idx][common.ThumbnailPathRole] = AssetSettings(
-                index).thumbnail_path()
+            settings = AssetSettings(index)
+            data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
             image = ImageCache.instance().get(
                 data[idx][common.ThumbnailPathRole],
                 rowsize.height() - 2)
@@ -234,6 +235,13 @@ class BookmarksModel(BaseModel):
 
             data[idx][common.ThumbnailRole] = image
             data[idx][common.ThumbnailBackgroundRole] = color
+
+            description = settings.value(u'config/description')
+            if not description:
+                data[idx][common.DescriptionRole] = file_info.filePath()
+                settings.setValue(u'config/description', file_info.filePath())
+            else:
+                data[idx][common.DescriptionRole] = description
 
         self.endResetModel()
 

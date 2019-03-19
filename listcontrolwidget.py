@@ -420,7 +420,8 @@ class ListControlDelegate(BaseDelegate):
             if self.parent().model()._bookmark:
                 active_item = self.parent().model()._bookmark[-1]
         if index.row() == 1:
-            active_item = self.parent().model()._parent_item[-1]
+            _parent = self.parent().model()._parent_item
+            active_item = self.parent().model()._parent_item[-1] if _parent else None
 
         if active_item:
             text = u'  |  {}'.format(active_item).upper()
@@ -699,6 +700,9 @@ class ListControlButton(ClickableLabel):
             text = u'Bookmarks' if i == 0 else (
                 u'Assets' if i == 1 else s.currentWidget().model().sourceModel().data_key())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
+
+        if not text:
+            text = u'Bookmarks'
 
         self.setText(text.title())
         width = metrics.width(self.text()) + 2
