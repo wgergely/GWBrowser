@@ -307,13 +307,14 @@ class ImageCache(QtCore.QObject):
     def generate_thumbnails(self, indexes, overwrite=False):
         """Takes a list of index values and generates thumbnails for them."""
 
-        def filtered(indexes, overwrite=overwrite):
+        def filtered(indexes, overwrite=None):
             """Filter method for making sure only acceptable files types will be querried."""
             for index in indexes:
                 ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
                 if ext not in common._oiio_formats:
                     continue
                 dest = AssetSettings(index).thumbnail_path()
+                print dest
                 if not overwrite and QtCore.QFileInfo(dest).exists():
                     continue
                 yield index

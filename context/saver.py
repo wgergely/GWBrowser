@@ -510,8 +510,9 @@ class SaverWidget(QtWidgets.QDialog):
         else:
             self.findChild(Custom).setHidden(False)
 
+        bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
         bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
-        assetbutton.view().model().sourceModel().activeAssetChanged.emit(assetbutton.view().model().sourceModel().active_index())
+        assetbutton.view().model().sourceModel().activeChanged.emit(assetbutton.view().model().sourceModel().active_index())
 
         # self.update_filepath_display()
         # self.update_filename_display()
@@ -700,14 +701,14 @@ class SaverWidget(QtWidgets.QDialog):
 
 
         bookmarkbutton.view().model().sourceModel().activeChanged.connect(assetbutton.view().model().sourceModel().set_active)
-        assetbutton.view().model().sourceModel().activeAssetChanged.connect(foldersbutton.view().set_asset)
+        assetbutton.view().model().sourceModel().activeChanged.connect(foldersbutton.view().set_asset)
 
-        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
+        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
 
         bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
         bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
-        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filename_display())
-        assetbutton.view().model().sourceModel().activeAssetChanged.connect(lambda i: self.update_filepath_display())
+        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
+        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
 
         closebutton = self.findChild(CloseButton)
         thumbnailbutton = self.findChild(ThumbnailButton)

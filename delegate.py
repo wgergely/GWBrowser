@@ -768,25 +768,7 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_favourite_icon(*args)
         self.paint_archived_icon(*args)
         #
-        if index.data(common.StatusRole):
-            self.paint_selection_indicator(*args)
-        #
-        self.paint_uninitialized(*args)
-
-    @paintmethod
-    def paint_uninitialized(self, *args):
-        painter, option, index, _, _, _, _, _ = args
-        if index.data(common.StatusRole):
-            return
-
-        painter.setBrush(common.SEPARATOR)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setOpacity(0.1)
-        rect = QtCore.QRect(option.rect)
-        center = rect.center()
-        rect.setHeight(rect.height() - 2)
-        rect.moveCenter(center)
-        painter.drawRect(rect)
+        self.paint_selection_indicator(*args)
 
     def _draw(self, painter, font, rect, text, align, color, option, left):
         """Draws a sequence element."""

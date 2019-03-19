@@ -461,30 +461,24 @@ class BaseListWidget(QtWidgets.QListView):
             model.__resetdata__, type=QtCore.Qt.DirectConnection)
 
         # Selection
-        model.modelDataResetRequested.connect(
+        model.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()),
             type=QtCore.Qt.DirectConnection)
         model.modelReset.connect(self.reselect_previous,
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
 
         proxy.filterFlagChanged.connect(proxy.set_filter_flag_value,
             type=QtCore.Qt.DirectConnection)
         proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter(),
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
 
         # Sort/Filter signalsx
         proxy.filterTextChanged.connect(
             proxy.set_filtertext,
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
         proxy.filterTextChanged.connect(
             lambda x: proxy.invalidateFilter(),
-            type=QtCore.Qt.QueuedConnection)
-
-        # Sorting
-        proxy.layoutAboutToBeChanged.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()),
             type=QtCore.Qt.DirectConnection)
-        proxy.layoutChanged.connect(self.reselect_previous, type=QtCore.Qt.QueuedConnection)
 
         proxy.sortingChanged.connect(
             lambda x, y: proxy.setSortRole(x))
@@ -493,7 +487,12 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.sortingChanged.connect(
             lambda x, y: proxy.sort(
                 0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
+        proxy.modelReset.connect(
+            lambda: proxy.sort(
+                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
+            type=QtCore.Qt.DirectConnection)
+        proxy.modelReset.connect(self.model().invalidateFilter())
 
 
         model.activeChanged.connect(self.save_activated)
@@ -501,7 +500,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(lambda x: model.check_data())
         model.dataKeyChanged.connect(lambda x: proxy.invalidate(),
-            type=QtCore.Qt.QueuedConnection)
+            type=QtCore.Qt.DirectConnection)
 
         model.dataTypeChanged.connect(model.set_data_type)
         # model.dataTypeChanged.connect(lambda x: proxy.invalidate(),
@@ -514,14 +513,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
         model.modelAboutToBeReset.connect(model.validate_key)
-
-        # def timestamp():
-        #     self.model().sourceModel()._last_refreshed[self.model(
-        #     ).sourceModel().data_key()] = time.time()
-        #     lambda: self.model().blockSignals(False))
-        #
-        # self.model().sourceModel().modelReset.connect(
-        #     timestamp, type=QtCore.Qt.QueuedConnection)
 
     def active_index(self):
         """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
@@ -1048,7 +1039,7 @@ class BaseInlineIconWidget(BaseListWidget):
         # Cheking the button
         if idx in self.multi_toggle_items:
             self._reset_multitoggle()
-            self.model().invalidate()
+            self.model().invalidateFilter()
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
         for n in xrange(self.inline_icons_count()):
@@ -1060,13 +1051,13 @@ class BaseInlineIconWidget(BaseListWidget):
 
             if n == 0:
                 self.toggle_favourite(index)
-                self.save_selection(self.selectionModel().currentIndex())
+                self.save_selection(index)
                 self.model().invalidate()
                 self.reselect_previous()
                 break
             elif n == 1:
                 self.toggle_archived(index)
-                self.save_selection(self.selectionModel().currentIndex())
+                self.save_selection(index)
                 self.model().invalidate()
                 self.reselect_previous()
                 break

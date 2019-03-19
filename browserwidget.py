@@ -223,35 +223,33 @@ class BrowserWidget(QtWidgets.QWidget):
         # These connections are responsible for keeping the ListControlModel updated
         # when navigating the list widgets.
         b.model().sourceModel().modelReset.connect(
-            l.model().modelDataResetRequested.emit)
+            l.model().modelDataResetRequested)
 
         a.model().sourceModel().modelReset.connect(
             lambda: l.model().set_active(a.model().sourceModel().active_index()))
-        a.model().sourceModel().modelReset.connect(
-            l.model().modelDataResetRequested.emit)
-
-        a.model().sourceModel().activeChanged.connect(
-            l.model().set_active)
-        a.model().sourceModel().activeChanged.connect(
-            lambda x: l.model().modelDataResetRequested.emit())
-
         b.model().sourceModel().modelReset.connect(
             lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
 
+        a.model().sourceModel().activeChanged.connect(
+            l.model().set_active)
         b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
+
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: l.model().modelDataResetRequested.emit())
+
         f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
+        f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
         f.model().sourceModel().modelReset.connect(
             lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
-        f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: l.model().modelDataResetRequested.emit())
+        # f.model().sourceModel().dataKeyChanged.connect(
+        #     lambda x: l.model().modelDataResetRequested.emit())
 
         # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
         # These are the signals responsible for changing the active items & data keys.
+        l.textChanged.connect(lb.set_text)
         l.listChanged.connect(s.setCurrentIndex)
         l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
-        l.textChanged.connect(lb.set_text)
-        f.model().sourceModel().dataKeyChanged.connect(l.textChanged.emit)
+        l.dataKeyChanged.connect(l.textChanged)
         l.listChanged.connect(lambda i: l.textChanged.emit(
             u'Bookmarks' if i == 0 else (
                 u'Assets' if i == 1 else f.model().sourceModel().data_key())))
@@ -272,7 +270,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.listcontrolwidget._todobutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._filterbutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._activebutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._collapsebutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._favouritebutton.set_parent(self.stackedwidget)
@@ -280,10 +277,17 @@ class BrowserWidget(QtWidgets.QWidget):
         # Updates the list-control buttons when changing lists
         l.listChanged.connect(lambda x: self.listcontrolwidget._todobutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._filterbutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._activebutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._archivedbutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._favouritebutton.repaint())
+
+        f.model().sourceModel().dataTypeChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())
+        b.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
+        a.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
+        f.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
+        b.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
+        a.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
+        f.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
 
     def _add_shortcuts(self):
         for n in xrange(3):

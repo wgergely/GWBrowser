@@ -23,6 +23,7 @@ from browser.editors import ClickableLabel
 from browser.imagecache import ImageCache
 from browser.settings import local_settings
 from browser.settings import AssetSettings
+import browser.settings as Settings
 
 
 class Progressbar(QtWidgets.QLabel):
@@ -154,10 +155,10 @@ class BrowserButton(ClickableLabel):
         self.setPixmap(pixmap)
 
     def enterEvent(self, event):
-        self.update()
+        self.repaint()
 
     def leaveEvent(self, event):
-        self.update()
+        self.repaint()
 
     def paintEvent(self, event):
         option = QtWidgets.QStyleOption()
@@ -297,12 +298,22 @@ class CollapseSequenceButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
 
+    def state(self):
+        datatype = self.current().model().sourceModel().data_type()
+        if datatype == common.FileItem:
+            return False
+        return True
 
-class ToggleActiveButton(ControlButton):
-    """Custom QLabel with a `clicked` signal."""
+    @QtCore.Slot()
+    def action(self):
+        if self._parent.currentIndex() != 2:
+            return
 
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'sort_up', c, common.INLINE_ICON_SIZE)
+        datatype = self.current().model().sourceModel().data_type()
+        if datatype == common.FileItem:
+            self.current().model().sourceModel().dataTypeChanged.emit(common.SequenceItem)
+        else:
+            self.current().model().sourceModel().dataTypeChanged.emit(common.FileItem)
 
 
 class ToggleArchivedButton(ControlButton):
@@ -311,12 +322,29 @@ class ToggleArchivedButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
+    def state(self):
+        val = self.current().model().get_filter_flag_value(Settings.MarkedAsArchived)
+        return val
+
+    @QtCore.Slot()
+    def action(self):
+        val = self.current().model().get_filter_flag_value(Settings.MarkedAsArchived)
+        self.current().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not val)
 
 class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
+
+    def state(self):
+        val = self.current().model().get_filter_flag_value(Settings.MarkedAsFavourite)
+        return val
+
+    @QtCore.Slot()
+    def action(self):
+        val = self.current().model().get_filter_flag_value(Settings.MarkedAsFavourite)
+        self.current().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not val)
 
 
 class CollapseSequenceMenu(BaseContextMenu):
@@ -358,21 +386,10 @@ class ListControlDelegate(BaseDelegate):
         painter, option, index, selected, _, _, _, _ = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
-        painter.setBrush(common.SEPARATOR)
-        painter.drawRect(option.rect)
-
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
-        center = rect.center()
-        rect.setHeight(rect.height() - 2)
-        rect.moveCenter(center)
-        rect.setRight(rect.right() - common.INDICATOR_WIDTH)
 
         if index.row() >= 2:
-            rect.setLeft(
-                rect.height()
-                - common.INDICATOR_WIDTH)
             color = common.SECONDARY_BACKGROUND
         else:
             color = common.BACKGROUND
@@ -381,8 +398,7 @@ class ListControlDelegate(BaseDelegate):
             color = common.BACKGROUND_SELECTED
 
         painter.setBrush(color)
-        painter.setOpacity(0.5)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRect(rect)
 
     @paintmethod
     def paint_name(self, *args):
@@ -399,8 +415,6 @@ class ListControlDelegate(BaseDelegate):
                 QtCore.Qt.DisplayRole) == self.parent().model()._datakey
             color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
             color = common.FAVOURITE if current_key else color
-        else:
-            font.setPointSize(11)
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
@@ -437,13 +451,13 @@ class ListControlDelegate(BaseDelegate):
     def sizeHint(self, option, index):
         if not index:
             return QtCore.QSize(
-                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
 
         if index.row() <= 1:
-            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
         else:
             return QtCore.QSize(
-                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
 
 
 class ListControlContextMenu(BaseContextMenu):
@@ -464,10 +478,10 @@ class ListControlView(QtWidgets.QListView):
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
         self.context_menu_cls = ListControlContextMenu
@@ -504,8 +518,8 @@ class ListControlView(QtWidgets.QListView):
             index = self.model().index(n, 0)
             height += index.data(QtCore.Qt.SizeHintRole).height()
         if height < 1:
-            height = common.BOOKMARK_ROW_HEIGHT * 2
-        self.setFixedHeight(height)
+            height = (common.BOOKMARK_ROW_HEIGHT / 1.5) * 2
+        self.setFixedHeight(height + common.MARGIN)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -554,14 +568,19 @@ class ListControlModel(BaseModel):
         self._datakey = None
         self.modelDataResetRequested.connect(self.__resetdata__)
 
+    def data_key(self):
+        return 'default'
+    def data_type(self):
+        return common.FileItem
+
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
         secondary_rowsize = QtCore.QSize(
-            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
 
         flags = (
             QtCore.Qt.ItemIsSelectable |
@@ -741,7 +760,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
         self._collapsebutton = CollapseSequenceButton(parent=self)
-        self._activebutton = ToggleActiveButton(parent=self)
         self._archivedbutton = ToggleArchivedButton(parent=self)
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._custombutton = CustomButton(parent=self)
@@ -754,7 +772,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)
         self.layout().addWidget(self._collapsebutton)
-        self.layout().addWidget(self._activebutton)
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._custombutton)

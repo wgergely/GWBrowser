@@ -160,7 +160,6 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.setRootIsDecorated(False)
         common.set_custom_stylesheet(self)
 
-
         self.clicked.connect(lambda i: self.collapse(
             i) if self.isExpanded(i) else self.expand(i))
         self.clicked.connect(self.index_expanded)
@@ -473,11 +472,13 @@ class SelectAssetView(BaseListWidget):
         self.setItemDelegate(SelectAssetDelegate(parent=self))
         common.set_custom_stylesheet(self)
         self.set_model(AssetModel())
-        self.activated.connect(self.hide)
-        self.activated.connect(self.model().sourceModel().activeAssetChanged.emit)
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+
+        self.activated.connect(self.hide)
+        self.activated.connect(self.model().sourceModel().activeChanged)
+
 
     def showEvent(self, event):
         self.widgetShown.emit()
@@ -520,10 +521,10 @@ class SelectAssetButton(SelectFolderButton):
         self._view.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
-        widget.model().sourceModel().activeAssetChanged.connect(self.activeAssetChanged)
+        widget.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
         widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset...'))
         widget.model().sourceModel().modelReset.connect(
-            lambda: widget.model().sourceModel().activeAssetChanged.emit(widget.active_index()))
+            lambda: widget.model().sourceModel().activeChanged.emit(widget.active_index()))
 
     def paintEvent(self, event):
         option = QtWidgets.QStyleOption()
@@ -596,6 +597,8 @@ class SelectBookmarkView(SelectAssetView):
         self.activated.connect(self.model().sourceModel().activeChanged.emit)
 
 
+
+
 class SelectBookmarkButton(SelectAssetButton):
     """The button responsible for showing the assets view."""
 
@@ -606,10 +609,11 @@ class SelectBookmarkButton(SelectAssetButton):
 
     def set_view(self, widget):
         super(SelectBookmarkButton, self).set_view(widget)
-        widget.model().sourceModel().activeChanged.connect(self.activeChanged)
+        widget.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
+        widget.model().sourceModel().modelDataResetRequested.emit()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def activeChanged(self, index):
+    def activeAssetChanged(self, index):
         if not index.isValid():
             return
         parent = index.data(common.ParentRole)

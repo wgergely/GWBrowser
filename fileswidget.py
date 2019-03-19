@@ -240,6 +240,7 @@ class FilesModel(BaseModel):
         for n in xrange(4):
             self.threads[n] = FileInfoThread(self)
             self.threads[n].thread_id = n
+            self.threads[n].start()
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -474,17 +475,11 @@ class FilesWidget(BaseInlineIconWidget):
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel(parent=self))
 
-        def connectSignal(thread):
-            """This method will connect the signals needed to update the index
-            after the thread has started."""
-            # thread.worker.indexUpdated.connect(self.update, type=QtCore.Qt.QueuedConnection)
-
-        for thread in self.model().sourceModel().threads.itervalues():
-            thread.started.connect(functools.partial(connectSignal, thread))
-            thread.start()
 
         self.model().modelAboutToBeReset.connect(self.reset_queue)
         self.model().modelReset.connect(
+            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+        self.model().layoutChanged.connect(
             self.queue_indexes, type=QtCore.Qt.QueuedConnection)
         self.verticalScrollBar().valueChanged.connect(
             self.queue_indexes, type=QtCore.Qt.QueuedConnection)
@@ -503,21 +498,29 @@ class FilesWidget(BaseInlineIconWidget):
         in the view.
 
         """
-        # m = self.model().sourceModel()
-        # data = m._data[datakey][datatype]
         app = QtWidgets.QApplication.instance()
         app.processEvents()
 
         indexes = []
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0)
-            if index.data(common.StatusRole):
-                continue
-            rect = self.visualRect(index)
-            if not self.viewport().rect().contains(rect.topLeft()):
-                continue
+        index = self.indexAt(self.rect().topLeft())
+        if not index.isValid():
+            return
+
+        rect = self.visualRect(index)
+        while self.rect().contains(rect):
             source_index = self.model().mapToSource(index)
             indexes.append(source_index)
+
+            rect.moveTop(rect.top() + rect.height())
+            index = self.indexAt(rect.topLeft())
+            if not index.isValid():
+                break
+        index = self.indexAt(self.rect().bottomLeft())
+        if index.isValid():
+            source_index = self.model().mapToSource(index)
+            if source_index not in indexes:
+                indexes.append(source_index)
+
         FileInfoWorker.add_to_queue(indexes)
 
 
