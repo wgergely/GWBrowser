@@ -188,7 +188,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'check', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
 
         sortorder = self.parent().model().get_sortorder()
-        sortkey = self.parent().model().get_sortkey()
+        sortkey = self.parent().model().sortRole()
         sort_by_name = sortkey == common.SortByName
         sort_modified = sortkey == common.SortByLastModified
         sort_size = sortkey == common.SortBySize
@@ -200,7 +200,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'ckeckable': True,
             u'checked': True if sortorder else False,
             u'icon': arrow_down_icon if sortorder else arrow_up_icon,
-            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, sortkey, not sortorder)
+            u'action': functools.partial(self.parent().model().sortingChanged.emit, sortkey, not sortorder)
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -209,19 +209,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': item_on_icon if sort_by_name else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_by_name else False,
-            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortByName, sortorder)
+            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortByName, sortorder)
         }
         menu_set[u'Sort'][u'Date modified'] = {
             u'icon': item_on_icon if sort_modified else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_modified else False,
-            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortByLastModified, sortorder)
+            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortByLastModified, sortorder)
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_size else False,
-            u'action': functools.partial(self.parent().model().sortOrderChanged.emit, common.SortBySize, sortorder)
+            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortBySize, sortorder)
         }
         return menu_set
 
@@ -302,7 +302,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             it.next()
             items.append(it.fileInfo())
 
-        sortkey = self.parent().model().get_sortkey()
+        sortkey = self.parent().model().sortRole()
         if not sortkey:
             items = sorted(
                 items, key=common.sort_keys[common.SortByName])
@@ -418,9 +418,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_off = QtGui.QPixmap()
 
 
-        favourite = self.parent().model().get_filterflag(Settings.MarkedAsFavourite)
-        archived = self.parent().model().get_filterflag(Settings.MarkedAsArchived)
-        active = self.parent().model().get_filterflag(Settings.MarkedAsActive)
+        favourite = self.parent().model().get_filter_flag_value(Settings.MarkedAsFavourite)
+        archived = self.parent().model().get_filter_flag_value(Settings.MarkedAsArchived)
+        active = self.parent().model().get_filter_flag_value(Settings.MarkedAsActive)
 
         menu_set[u'toggle_active'] = {
             u'text': 'Show active only',

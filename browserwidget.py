@@ -104,26 +104,26 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().filterTextChanged.emit(a.model().get_filtertext())
         f.model().filterTextChanged.emit(f.model().get_filtertext())
 
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filterflag(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filterflag(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filterflag(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filter_flag_value(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filter_flag_value(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filter_flag_value(Settings.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filterflag(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filterflag(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filterflag(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filter_flag_value(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filter_flag_value(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filter_flag_value(Settings.MarkedAsFavourite))
         #
-        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().get_filterflag(Settings.MarkedAsActive))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().get_filterflag(Settings.MarkedAsArchived))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().get_filterflag(Settings.MarkedAsFavourite))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().get_filter_flag_value(Settings.MarkedAsActive))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().get_filter_flag_value(Settings.MarkedAsArchived))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().get_filter_flag_value(Settings.MarkedAsFavourite))
 
-        b.model().sortOrderChanged.emit(
-            b.model().get_sortkey(),
+        b.model().sortingChanged.emit(
+            b.model().sortRole(),
             b.model().get_sortorder())
-        a.model().sortOrderChanged.emit(
-            b.model().get_sortkey(),
+        a.model().sortingChanged.emit(
+            b.model().sortRole(),
             b.model().get_sortorder())
-        f.model().sortOrderChanged.emit(
-            b.model().get_sortkey(),
+        f.model().sortingChanged.emit(
+            b.model().sortRole(),
             b.model().get_sortorder())
 
         # self.stackedwidget.currentChanged.emit(self.stackedwidget.currentIndex())

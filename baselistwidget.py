@@ -37,19 +37,20 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     filterTextChanged = QtCore.Signal(unicode)
     filterFlagChanged = QtCore.Signal(int, bool)  # FilterFlag, value
-    sortOrderChanged = QtCore.Signal(int, bool)  # (SortKey, SortOrder)
+    sortingChanged = QtCore.Signal(int, bool)  # (SortKey, SortOrder)
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
         self.setSortLocaleAware(False)
         self.setDynamicSortFilter(False)
+        self.setRecursiveFilteringEnabled(False)
+
         self.setFilterRole(QtCore.Qt.StatusTipRole)
         self.setSortCaseSensitivity(QtCore.Qt.CaseSensitive)
         self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitive)
 
         self.parentwidget = parent
 
-        self._sortkey = None  # Alphabetical/Modified...etc.
         self._sortorder = None  # Ascending/descending
         self._filtertext = None  # Ascending/descending
 
@@ -59,20 +60,30 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             Settings.MarkedAsFavourite: None,
         }
 
+        self.setSortRole(self.sortRole())
+        self.set_filtertext(self.get_filtertext())
+        for k in self._filterflags:
+            self.set_filter_flag_value(k, self.get_filter_flag_value(k))
+
     def get_filtertext(self):
         """Filters the list of items containing this path segment.
 
         """
         if self._filtertext is None:
             cls = self.sourceModel().__class__.__name__
-            val = local_settings.value(u'widget/{}/filtertext'.format(cls))
+            k = u'widget/{}/filtertext'.format(cls)
+            val = local_settings.value(k)
             if val is None:
+                val = local_settings.setValue(k, u'/')
                 self._filtertext = u'/'
-            else:
-                self._filtertext = val
+                return self._filtertext
         else:
             val = self._filtertext
-        return val if val else u'/'
+
+        if not val:
+            self._filtertext = u'/'
+
+        return self._filtertext
 
     def set_filtertext(self, val):
         """Sets the path-segment to use as a filter.
@@ -83,30 +94,34 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return
 
         cls = self.sourceModel().__class__.__name__
-        if val is None:
-            self._filtertext = None
-            local_settings.setValue(u'widget/{}/filtertext'.format(cls), None)
-        else:
-            val = val if val else u'/'
-            self._filtertext = val
-            local_settings.setValue(u'widget/{}/filtertext'.format(cls), val)
+        k = u'widget/{}/filtertext'.format(cls)
 
-    def get_filterflag(self, flag):
+        if not val:
+            self._filtertext = u'/'
+            local_settings.setValue(k, u'/')
+            return
+
+        self._filtertext = val
+        local_settings.setValue(k, val)
+
+    def get_filter_flag_value(self, flag):
         """Returns the current flag-filter."""
         if self._filterflags[flag] is None:
             cls = self.sourceModel().__class__.__name__
-            val = local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, flag))
+            k = u'widget/{}/filterflag{}'.format(cls, flag)
+            val = local_settings.value(k)
             if val is None:
+                val = local_settings.setValue(k, False)
                 self._filterflags[flag] = False
-            else:
-                self._filterflags[flag] = val
+                return False
+            val = False
         else:
             val = self._filterflags[flag]
+
         return val if val else False
 
     @QtCore.Slot(int, bool)
-    def set_filterflag(self, flag, val):
+    def set_filter_flag_value(self, flag, val):
         if self._filterflags[flag] == val:
             return
 
@@ -115,33 +130,37 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         local_settings.setValue(
             u'widget/{}/filterflag{}'.format(cls, flag), val)
 
-    def get_sortkey(self):
-        """The sort-key used to determine the order of the list.
+    def sortRole(self):
+        """Sort role with saved/default value.
 
         """
-        if self._sortkey is None:
+        if super(FilterProxyModel, self).sortRole() == QtCore.Qt.DisplayRole:
             cls = self.__class__.__name__
-            val = local_settings.value(u'widget/{}/sortkey'.format(cls))
+            k = u'widget/{}/sortkey'.format(cls)
+            val = local_settings.value(k)
             if val is None:
-                self._sortkey = common.SortByName
-            else:
-                self._sortkey = val
+                val = common.SortByName
+                local_settings.setValue(k, val)
+            super(FilterProxyModel, self).setSortRole(val)
         else:
-            val = self._sortkey
-        if val in (common.SortByName, common.SortByLastModified, common.SortBySize):
-            return val
-        return common.SortByName
+            val = super(FilterProxyModel, self).sortRole()
+            if val not in (common.SortByName, common.SortByLastModified, common.SortBySize):
+                super(FilterProxyModel, self).setSortRole(common.SortByName)
+                cls = self.__class__.__name__
+                k = u'widget/{}/sortkey'.format(cls)
+                local_settings.setValue(k, common.SortByName)
+        return super(FilterProxyModel, self).sortRole()
 
     @QtCore.Slot(int)
-    def set_sortkey(self, val):
+    def setSortRole(self, val):
         """Sets and saves the sort-key."""
-        if val == self._sortkey:
+        if val == super(FilterProxyModel, self).sortRole():
             return
-        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
-            raise ValueError('Wrong value type for set_sortkey.')
 
-        self._sortkey = val
-        self.setSortRole(val)
+        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
+            val = common.SortByName
+
+        super(FilterProxyModel, self).setSortRole(val)
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
 
@@ -183,26 +202,26 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         favourite = flags & Settings.MarkedAsFavourite
         active = flags & Settings.MarkedAsActive
 
-        if self.get_filterflag(Settings.MarkedAsActive) and active:
+        if self.get_filter_flag_value(Settings.MarkedAsActive) and active:
             return True
-        if self.get_filterflag(Settings.MarkedAsActive) and not active:
+        if self.get_filter_flag_value(Settings.MarkedAsActive) and not active:
             return False
 
         if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
             return False
-        if archived and not self.get_filterflag(Settings.MarkedAsArchived):
+        if archived and not self.get_filter_flag_value(Settings.MarkedAsArchived):
             return False
-        if not favourite and self.get_filterflag(Settings.MarkedAsFavourite):
+        if not favourite and self.get_filter_flag_value(Settings.MarkedAsFavourite):
             return False
         return True
 
-    def lessThan(self, source_left, source_right):
-        """The main method responsible for sorting the items."""
-        # print 'Sorting {}...'.format(source_left.row())
-        k = self.get_sortkey()
-        if k == common.SortByName:
-            return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
-        return source_left.data(k) < source_right.data(k)
+    # def lessThan(self, source_left, source_right):
+    #     """The main method responsible for sorting the items."""
+    #     # print 'Sorting {}...'.format(source_left.row())
+    #     k = self.sortRole()
+    #     if k == common.SortByName:
+    #         return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
+    #     return source_left.data(k) < source_right.data(k)
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -443,13 +462,13 @@ class BaseListWidget(QtWidgets.QListView):
             model.__resetdata__, type=QtCore.Qt.DirectConnection)
 
         # Selection
-        model.modelAboutToBeReset.connect(
+        model.modelDataResetRequested.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()),
             type=QtCore.Qt.DirectConnection)
         model.modelReset.connect(self.reselect_previous,
             type=QtCore.Qt.QueuedConnection)
 
-        proxy.filterFlagChanged.connect(proxy.set_filterflag,
+        proxy.filterFlagChanged.connect(proxy.set_filter_flag_value,
             type=QtCore.Qt.DirectConnection)
         proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter(),
             type=QtCore.Qt.QueuedConnection)
@@ -463,18 +482,18 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.QueuedConnection)
 
         # Sorting
-        proxy.sortOrderChanged.connect(
-            lambda x, y: proxy.set_sortkey(x))
-        proxy.sortOrderChanged.connect(
+        proxy.sortingChanged.connect(
+            lambda x, y: proxy.setSortRole(x))
+        proxy.sortingChanged.connect(
             lambda x, y: proxy.set_sortorder(y))
-        proxy.sortOrderChanged.connect(
+        proxy.sortingChanged.connect(
             lambda x, y: proxy.sort(
                 0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
             type=QtCore.Qt.QueuedConnection)
-        model.modelReset.connect(
-            lambda: proxy.sort(
-                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
-            type=QtCore.Qt.QueuedConnection)
+        # model.modelReset.connect(
+        #     lambda: proxy.sort(
+        #         0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
+        #     type=QtCore.Qt.QueuedConnection)
 
         model.activeChanged.connect(self.save_activated)
 
@@ -924,7 +943,7 @@ class BaseListWidget(QtWidgets.QListView):
                 sizehint.height() - common.INDICATOR_WIDTH
             )
 
-            favourite_mode = self.model().get_filterflag(Settings.MarkedAsFavourite)
+            favourite_mode = self.model().get_filter_flag_value(Settings.MarkedAsFavourite)
 
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
