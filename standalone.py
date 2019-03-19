@@ -250,10 +250,10 @@ class StandaloneBrowserWidget(BrowserWidget):
         local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
         local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
 
-        super(BrowserWidget, self).hideEvent(event)
+        super(StandaloneBrowserWidget, self).hideEvent(event)
 
     def showEvent(self, event):
-        super(BrowserWidget, self).showEvent(event)
+        super(StandaloneBrowserWidget, self).showEvent(event)
         cls = self.__class__.__name__
 
         width = local_settings.value(u'widget/{}/width'.format(cls))
