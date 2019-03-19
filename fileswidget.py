@@ -6,6 +6,7 @@ found by the collector classes.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
+import math
 import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -67,7 +68,6 @@ class FileInfoWorker(QtCore.QObject):
     """Thread-worker class responsible for updating the given indexes."""
     mutex = QtCore.QMutex()
     queue = []
-    queue = []
 
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     finished = QtCore.Signal()
@@ -75,7 +75,10 @@ class FileInfoWorker(QtCore.QObject):
 
     def __init__(self, model, parent=None):
         super(FileInfoWorker, self).__init__(parent=parent)
-        self.model = model
+        self._model = model
+
+    def model(self):
+        return self._model
 
     @classmethod
     def queue_count(cls):
@@ -94,13 +97,22 @@ class FileInfoWorker(QtCore.QObject):
         cls.mutex.unlock()
 
     @QtCore.Slot(tuple)
-    def processIndexes(self, datachunk):
+    def processIndexes(self, idxs):
         """Gets and sets the missing information for each index in a background
         thread.
 
         """
         try:
-            self._process_data(datachunk)
+            nth = 789
+            n = 0
+            for idx in idxs:
+                if n % nth == 0:
+                    common.ProgressMessage.instance().set_message(
+                        'Processing items ({} left)...'.format(FileInfoWorker.queue_count()))
+                index = self.model().index(idx, 0)
+                self.process_index(index)
+                FileInfoWorker.remove_from_queue(idx)
+                n += 1
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
@@ -120,124 +132,114 @@ class FileInfoWorker(QtCore.QObject):
             common.ProgressMessage.instance().clear_message()
             self.finished.emit()
 
-    def _process_data(self, datachunk):
+    def process_index(self, index):
         """The actual processing happens here."""
-        nth = 789
-        n = 0
-        for idx in datachunk:
-            n += 1
-            if n % nth == 0:
-                common.ProgressMessage.instance().set_message(
-                    'Processing items ({} left)...'.format(FileInfoWorker.queue_count()))
+        if not index.isValid():
+            return
 
-            index = self.model.index(idx, 0)
-            if not index.isValid():
-                continue
+        # Item description
+        settings = AssetSettings(index)
+        description = settings.value(u'config/description')
+        data = index.model().model_data()[index.row()]
+        if description:
+            data[common.DescriptionRole] = description
 
-            settings = AssetSettings(index)
+        # Sequence path and name
+        if data[common.TypeRole] == common.SequenceItem:
+            frames = sorted(data[common.FramesRole])
+            intframes = [int(f) for f in frames]
+            rangestring = common.get_ranges(intframes, len(frames[0]))
 
-            # Item description
-            description = settings.value(u'config/description')
-            if description:
-                self.model.model_data[idx][common.DescriptionRole] = description
+            p = data[common.SequenceRole].expand(
+                r'\1{}\3.\4')
+            startpath = p.format(
+                unicode(min(intframes)).zfill(len(frames[0])))
+            endpath = p.format(
+                unicode(max(intframes)).zfill(len(frames[0])))
+            seqpath = p.format('[{}]'.format(rangestring))
+            seqname = seqpath.split(u'/')[-1]
 
-            # Sequence path and name
-            if self.model.model_data[idx][common.TypeRole] == common.SequenceItem:
-                frames = sorted(self.model.model_data[idx][common.FramesRole])
-                intframes = [int(f) for f in frames]
-                rangestring = common.get_ranges(intframes, len(frames[0]))
+            data[common.StartpathRole] = startpath
+            data[common.EndpathRole] = endpath
+            data[QtCore.Qt.StatusTipRole] = seqpath
+            data[QtCore.Qt.ToolTipRole] = seqpath
+            data[QtCore.Qt.DisplayRole] = seqname
+            data[QtCore.Qt.EditRole] = seqname
 
-                p = self.model.model_data[idx][common.SequenceRole].expand(
-                    r'\1{}\3.\4')
-                startpath = p.format(
-                    unicode(min(intframes)).zfill(len(frames[0])))
-                endpath = p.format(
-                    unicode(max(intframes)).zfill(len(frames[0])))
-                seqpath = p.format('[{}]'.format(rangestring))
-                seqname = seqpath.split(u'/')[-1]
+            # File description string
+            size = 0
+            last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
+            for frame in frames:
+                framepath = p.format(frame)
+                file_info = QtCore.QFileInfo(framepath)
+                size += file_info.size()
+                last_modified = file_info.lastModified() if file_info.lastModified(
+                ).toTime_t() > last_modified.toTime_t() else last_modified
 
-                self.model.model_data[idx][common.StartpathRole] = startpath
-                self.model.model_data[idx][common.EndpathRole] = endpath
-                self.model.model_data[idx][QtCore.Qt.StatusTipRole] = seqpath
-                self.model.model_data[idx][QtCore.Qt.ToolTipRole] = seqpath
-                self.model.model_data[idx][QtCore.Qt.DisplayRole] = seqname
-                self.model.model_data[idx][QtCore.Qt.EditRole] = seqname
-
-                # File description string
-                size = 0
-                last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
-                for frame in frames:
-                    framepath = p.format(frame)
-                    file_info = QtCore.QFileInfo(framepath)
-                    size += file_info.size()
-                    last_modified = file_info.lastModified() if file_info.lastModified(
-                    ).toTime_t() > last_modified.toTime_t() else last_modified
-
-                info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                    count=len(frames),
-                    day=last_modified.toString(u'dd'),
-                    month=last_modified.toString(u'MM'),
-                    year=last_modified.toString(u'yyyy'),
-                    hour=last_modified.toString(u'hh'),
-                    minute=last_modified.toString(u'mm'),
-                    size=common.byte_to_string(size)
-                )
-            else:
-                file_info = QtCore.QFileInfo(
-                    self.model.model_data[idx][QtCore.Qt.StatusTipRole])
-                size = file_info.size()
-                last_modified = file_info.lastModified()
-                info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                    day=last_modified.toString(u'dd'),
-                    month=last_modified.toString(u'MM'),
-                    year=last_modified.toString(u'yyyy'),
-                    hour=last_modified.toString(u'hh'),
-                    minute=last_modified.toString(u'mm'),
-                    size=common.byte_to_string(size)
-                )
-            self.model.model_data[idx][common.FileDetailsRole] = info_string
-
-            # Sort values
-            # self.model.model_data[idx][common.SortByName] = fileroot
-            self.model.model_data[idx][common.SortByLastModified] = last_modified.toMSecsSinceEpoch(
+            info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                count=len(frames),
+                day=last_modified.toString(u'dd'),
+                month=last_modified.toString(u'MM'),
+                year=last_modified.toString(u'yyyy'),
+                hour=last_modified.toString(u'hh'),
+                minute=last_modified.toString(u'mm'),
+                size=common.byte_to_string(size)
             )
-            self.model.model_data[idx][common.SortBySize] = size
+        else:
+            file_info = QtCore.QFileInfo(
+                data[QtCore.Qt.StatusTipRole])
+            size = file_info.size()
+            last_modified = file_info.lastModified()
+            info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
+                day=last_modified.toString(u'dd'),
+                month=last_modified.toString(u'MM'),
+                year=last_modified.toString(u'yyyy'),
+                hour=last_modified.toString(u'hh'),
+                minute=last_modified.toString(u'mm'),
+                size=common.byte_to_string(size)
+            )
+        data[common.FileDetailsRole] = info_string
 
-            # Thumbnail
-            height = self.model.model_data[idx][QtCore.Qt.SizeHintRole].height(
-            ) - 2
-            image = ImageCache.instance().get(settings.thumbnail_path(), height)
-            if not image:
-                def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
-                ext = self.model.model_data[idx][QtCore.Qt.StatusTipRole].split(
-                    '.')[-1]
-                color = QtGui.QColor(0, 0, 0, 0)
+        # Sort values
+        # data[common.SortByName] = fileroot
+        data[common.SortByLastModified] = last_modified.toMSecsSinceEpoch(
+        )
+        data[common.SortBySize] = size
 
-                if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-                    image = ImageCache.instance().get(rsc_path(__file__, ext), height)
-                else:
-                    image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+        # Thumbnail
+        height = data[QtCore.Qt.SizeHintRole].height() - 2
+        image = ImageCache.instance().get(settings.thumbnail_path(), height)
+        if not image:
+            def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+            ext = data[QtCore.Qt.StatusTipRole].split(
+                '.')[-1]
+            color = QtGui.QColor(0, 0, 0, 0)
+
+            if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+                image = ImageCache.instance().get(rsc_path(__file__, ext), height)
             else:
+                image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+        else:
+            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
 
-                color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+        data[common.ThumbnailPathRole] = settings.thumbnail_path()
+        data[common.ThumbnailRole] = image
+        data[common.ThumbnailBackgroundRole] = color
+        data[common.DefaultThumbnailRole] = image
+        data[common.DefaultThumbnailBackgroundRole] = QtGui.QColor(0, 0, 0, 0)
 
-            self.model.model_data[idx][common.ThumbnailRole] = image
-            self.model.model_data[idx][common.ThumbnailBackgroundRole] = color
+        # Item flags
+        flags = index.flags()
+        flags = (flags
+                 | QtCore.Qt.ItemIsSelectable
+                 | QtCore.Qt.ItemIsEnabled
+                 | QtCore.Qt.ItemIsEditable
+                 | QtCore.Qt.ItemIsDragEnabled)
 
-            # Item flags
-            flags = index.flags()
-            flags = (flags |
-                     QtCore.Qt.ItemIsSelectable |
-                     QtCore.Qt.ItemIsEnabled |
-                     QtCore.Qt.ItemIsEditable |
-                     QtCore.Qt.ItemIsDragEnabled)
-
-            if settings.value(u'config/archived'):
-                flags = flags | MarkedAsArchived
-            self.model.model_data[idx][common.FlagsRole] = flags
-            self.model.model_data[idx][common.StatusRole] = True
-
-            FileInfoWorker.remove_from_queue(idx)
+        if settings.value(u'config/archived'):
+            flags = flags | MarkedAsArchived
+        data[common.FlagsRole] = flags
+        data[common.StatusRole] = True
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -257,7 +259,7 @@ class FilesWidgetContextMenu(BaseContextMenu):
         self.add_separator()
 
         if index.isValid():
-            self.add_reveal_folder_menu()
+            self.add_reveal_item_menu()
             self.add_copy_menu()
 
         self.add_separator()
@@ -282,6 +284,7 @@ class FilesModel(BaseModel):
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
+        self.modelReset.connect(self.dispatch_chunks)
         # Thread-worker reposinble for completing the model data
         self.threads = {}
         for n in xrange(4):
@@ -303,7 +306,8 @@ class FilesModel(BaseModel):
         seqs = {}
 
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        flags = (QtCore.Qt.ItemNeverHasChildren | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
+        flags = (QtCore.Qt.ItemNeverHasChildren |
+                 QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
@@ -336,7 +340,8 @@ class FilesModel(BaseModel):
         while it.hasNext():
             n += 1
             if n % nth == 0:
-                common.ProgressMessage.instance().set_message('Loading {} asset files...'.format(n - 1))
+                common.ProgressMessage.instance().set_message(
+                    'Loading {} asset files...'.format(n - 1))
 
             filepath = it.next()
 
@@ -435,41 +440,30 @@ class FilesModel(BaseModel):
         self.endResetModel()
         common.ProgressMessage.instance().clear_message()
 
-    # def switch_model_data(self):
-    #     """The data is stored is stored in the private ``_model_data`` object.
-    #     This object is not exposed to the model - this method will set the
-    #     ``model_data`` to the appropiate data-point.
-    #
-    #     The ``model_data`` is not fully loaded by the default. By switching the
-    #     dataset we will trigger a secondary thread to querry the file-system and
-    #     to load the missing pieces of data.
-    #
-    #     """
-    #     def chunks(l, n):
-    #         """Yields successive n-sized chunks of the given list."""
-    #         for i in xrange(0, len(l), n):
-    #             yield l[i:i + n]
-    #
-    #     location = self.data_key()
-    #     groupping = self.data_type()
-    #     if location not in self._model_data:
-    #         self._model_data[location] = {True: {}, False: {}}
-    #
-    #     if not self._model_data[location][groupping]:
-    #         self.__initdata__()
-    #     else:
-    #         self.beginResetModel()
-    #         self.model_data = self._model_data[location][groupping]
-    #         self.endResetModel()
-    #
-    #     idxs = [f for f in xrange(len(self.model_data))
-    #             if not self.model_data[f][common.StatusRole]]
-    #     if not idxs:
-    #         return
-    #
-    #     for idx, chunk in enumerate(chunks(idxs, int(math.ceil(len(idxs) / float(len(self.threads)))))):
-    #         FileInfoWorker.add_to_queue(chunk)
-    #         self.threads[idx].dataRequested.emit(chunk)
+    def dispatch_chunks(self):
+        """The data is stored is stored in the private ``_model_data`` object.
+        This object is not exposed to the model - this method will set the
+        ``model_data`` to the appropiate data-point.
+
+        The ``model_data`` is not fully loaded by the default. By switching the
+        dataset we will trigger a secondary thread to querry the file-system and
+        to load the missing pieces of data.
+
+        """
+        def chunks(l, n):
+            """Yields successive n-sized chunks of the given list."""
+            for i in xrange(0, len(l), n):
+                yield l[i:i + n]
+
+        data = self.model_data()
+        idxs = [f for f in xrange(len(data))
+                if not data[f][common.StatusRole]]
+        if not idxs:
+            return
+
+        for idx, chunk in enumerate(chunks(idxs, int(math.ceil(len(idxs) / float(len(self.threads)))))):
+            FileInfoWorker.add_to_queue(chunk)
+            self.threads[idx].dataRequested.emit(chunk)
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -599,9 +593,9 @@ class FilesWidget(BaseInlineIconWidget):
 
         name_rect = QtCore.QRect(rect)
         name_rect.setLeft(
-            common.INDICATOR_WIDTH +
-            name_rect.height() +
-            common.MARGIN
+            common.INDICATOR_WIDTH
+            + name_rect.height()
+            + common.MARGIN
         )
         name_rect.setRight(name_rect.right() - common.MARGIN)
         #

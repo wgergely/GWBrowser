@@ -40,7 +40,7 @@ class AssetWidgetContextMenu(BaseContextMenu):
         self.add_separator()
 
         if index.isValid():
-            self.add_reveal_folder_menu()
+            self.add_reveal_item_menu()
             self.add_copy_menu()
 
         self.add_separator()

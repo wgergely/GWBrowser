@@ -30,10 +30,10 @@ class SelectFolderContextMenu(BaseContextMenu):
     def __init__(self, parent=None):
         super(SelectFolderContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
-        self.add_reveal_folder_menu()
+        self.add_reveal_item_menu()
 
     @contextmenu
-    def add_reveal_folder_menu(self, menu_set):
+    def add_reveal_item_menu(self, menu_set):
         """Menu for thumbnail operations."""
         asset = self.parent().view().model().asset()
         if asset.isValid():

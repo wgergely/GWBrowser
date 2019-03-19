@@ -139,8 +139,8 @@ class BrowserButton(ClickableLabel):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setWindowFlags(
-            QtCore.Qt.Widget |
-            QtCore.Qt.FramelessWindowHint
+            QtCore.Qt.Widget
+            | QtCore.Qt.FramelessWindowHint
         )
         pixmap = ImageCache.get_rsc_pixmap(
             u'custom', None, height)
@@ -266,7 +266,6 @@ class TodoButton(ControlButton):
         assetwidget.show_todos(index)
 
 
-
 class FilterButton(ControlButton):
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
@@ -292,7 +291,6 @@ class FilterButton(ControlButton):
         editor.finished.connect(self.current().model().filterTextChanged.emit)
         self.update()
         # editor.setGeometry(self._parent.geometry())
-
 
 
 class CollapseSequenceButton(ControlButton):
@@ -360,10 +358,21 @@ class ListControlDelegate(BaseDelegate):
         painter, option, index, selected, _, _, _, _ = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRect(option.rect)
+
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.moveCenter(center)
+        rect.setRight(rect.right() - common.INDICATOR_WIDTH)
 
         if index.row() >= 2:
+            rect.setLeft(
+                rect.height()
+                - common.INDICATOR_WIDTH)
             color = common.SECONDARY_BACKGROUND
         else:
             color = common.BACKGROUND
@@ -371,42 +380,39 @@ class ListControlDelegate(BaseDelegate):
         if selected or hover:
             color = common.BACKGROUND_SELECTED
 
-        right_color = QtGui.QColor(color)
-        right_color.setAlpha(200)
-        gradient = QtGui.QLinearGradient(
-            rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0.4, color)
-        gradient.setColorAt(1, right_color)
-        painter.setBrush(QtGui.QBrush(gradient))
-
-        painter.drawRect(rect)
+        painter.setBrush(color)
+        painter.setOpacity(0.5)
+        painter.drawRoundedRect(rect, 4, 4)
 
     @paintmethod
     def paint_name(self, *args):
         painter, option, index, _, _, _, _, _ = args
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         color = common.TEXT_SELECTED if hover else common.TEXT
 
+        font = QtGui.QFont(common.PrimaryFont)
         if index.row() >= 2:
             current_key = index.data(
                 QtCore.Qt.DisplayRole) == self.parent().model()._datakey
+            color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
             color = common.FAVOURITE if current_key else color
+        else:
+            font.setPointSize(11)
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height()
+            common.INDICATOR_WIDTH
+            + rect.height()
         )
         rect.setRight(rect.right() - common.MARGIN)
-        if not index.data(QtCore.Qt.DisplayRole):
-            text = u'Error.'
-        else:
-            text = index.data(QtCore.Qt.DisplayRole).upper()
 
+        text = index.data(QtCore.Qt.DisplayRole).upper()
         width = 0
         width = common.draw_aliased_text(
-            painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
 
         active_item = None
@@ -417,24 +423,33 @@ class ListControlDelegate(BaseDelegate):
             active_item = self.parent().model()._parent_item[-1]
 
         if active_item:
-            text = u'  ({})'.format(active_item).upper()
+            text = u'  |  {}'.format(active_item).upper()
             width = common.draw_aliased_text(
-                painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.FAVOURITE)
+                painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.FAVOURITE)
             rect.setLeft(rect.left() + width)
 
         if hover:
-            text = u'  {}'.format(index.data(QtCore.Qt.StatusTipRole))
+            text = u'  {}'.format(index.data(QtCore.Qt.ToolTipRole))
             width = common.draw_aliased_text(
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
 
     def sizeHint(self, option, index):
         if not index:
-            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
+            return QtCore.QSize(
+                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
         if index.row() <= 1:
             return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
         else:
-            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
+            return QtCore.QSize(
+                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+
+
+class ListControlContextMenu(BaseContextMenu):
+    def __init__(self, index, parent=None):
+        super(ListControlContextMenu, self).__init__(index, parent=parent)
+        if index.row() > 1:
+            self.add_reveal_item_menu()
 
 
 class ListControlView(QtWidgets.QListView):
@@ -452,10 +467,13 @@ class ListControlView(QtWidgets.QListView):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
+        self.context_menu_cls = ListControlContextMenu
+        self._context_menu_active = False
         # self.activated.connect(self.close)
         self.clicked.connect(self.activated)
-        self.clicked.connect(self.close)
+        self.clicked.connect(self.hide)
         self.clicked.connect(self.signal_dispatcher)
 
         self.setModel(ListControlModel())
@@ -484,12 +502,41 @@ class ListControlView(QtWidgets.QListView):
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
             height += index.data(QtCore.Qt.SizeHintRole).height()
+        if height < 1:
+            height = common.BOOKMARK_ROW_HEIGHT * 2
         self.setFixedHeight(height)
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
+        if self._context_menu_active:
+            return
         if event.lostFocus():
             self.hide()
+
+    def contextMenuEvent(self, event):
+        """Custom context menu event."""
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            return
+        if index.row() <= 1:
+            return
+
+        width = self.viewport().geometry().width()
+
+        widget = self.context_menu_cls(index, parent=self)
+        rect = self.visualRect(index)
+        offset = self.visualRect(index).height() - common.INDICATOR_WIDTH
+        widget.move(
+            self.viewport().mapToGlobal(rect.bottomLeft()).x() + offset,
+            self.viewport().mapToGlobal(rect.bottomLeft()).y() + 1,
+        )
+
+        widget.setFixedWidth(width - offset)
+        common.move_widget_to_available_geo(widget)
+
+        self._context_menu_active = True
+        widget.exec_()
+        self._context_menu_active = False
 
 
 class ListControlModel(BaseModel):
@@ -513,13 +560,13 @@ class ListControlModel(BaseModel):
 
         rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
         secondary_rowsize = QtCore.QSize(
-            common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 2)
+            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
         flags = (
-            QtCore.Qt.ItemIsSelectable
-            | QtCore.Qt.ItemIsEnabled
-            | QtCore.Qt.ItemIsDropEnabled
-            | QtCore.Qt.ItemIsEditable
+            QtCore.Qt.ItemIsSelectable |
+            QtCore.Qt.ItemIsEnabled |
+            QtCore.Qt.ItemIsDropEnabled |
+            QtCore.Qt.ItemIsEditable
         )
         data = self.model_data()
 
@@ -554,21 +601,21 @@ class ListControlModel(BaseModel):
         dir_ = QtCore.QDir(parent_path)
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
 
-        for entry in sorted(dir_.entryList()):
+        for file_info in sorted(dir_.entryInfoList(), key=lambda x: x.fileName()):
             description = u'Show files'
-            if entry == common.ExportsFolder:
+            if file_info.fileName() == common.ExportsFolder:
                 description = u'Folder for data and cache files'
-            if entry == common.ScenesFolder:
+            if file_info.fileName() == common.ScenesFolder:
                 description = u'Folder for storing project and scene files'
-            if entry == common.RendersFolder:
+            if file_info.fileName() == common.RendersFolder:
                 description = u'Folder for storing output images'
-            if entry == common.TexturesFolder:
+            if file_info.fileName() == common.TexturesFolder:
                 description = u'Folder for storing texture-files used by scenes'
 
             data[len(data)] = {
-                QtCore.Qt.DisplayRole: entry,
-                QtCore.Qt.EditRole: entry,
-                QtCore.Qt.StatusTipRole: description,
+                QtCore.Qt.DisplayRole: file_info.fileName(),
+                QtCore.Qt.EditRole: file_info.fileName(),
+                QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: description,
                 QtCore.Qt.SizeHintRole: secondary_rowsize,
                 #
@@ -599,6 +646,7 @@ class ListControlModel(BaseModel):
 
 class ListControlButton(ClickableLabel):
     """Drop-down widget to switch between the list"""
+
     def __init__(self, parent=None):
         super(ListControlButton, self).__init__(parent=parent)
         self._view = None
@@ -614,6 +662,9 @@ class ListControlButton(ClickableLabel):
 
         self.setText('uninitialized')
 
+    def view(self):
+        return self._view
+
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
@@ -626,25 +677,32 @@ class ListControlButton(ClickableLabel):
 
     @QtCore.Slot()
     def show_view(self):
-        if not self._view:
+        if not self.view():
             return
-        pos = self._view.parent().mapToGlobal(self._view.parent().rect().bottomLeft())
-        self._view.move(pos)
+        pos = self.view().parent().mapToGlobal(self.view().parent().rect().bottomLeft())
+        self.view().move(
+            pos.x(),
+            pos.y()
+        )
 
-        self._view.setFixedWidth(self._view.parent().rect().width())
-        self._view.show()
-        self._view.raise_()
-        self._view.setFocus(QtCore.Qt.PopupFocusReason)
+        self.view().setFixedWidth(self.view().parent().rect().width())
+        self.view().show()
+        self.view().raise_()
+        common.move_widget_to_available_geo(self.view())
+        self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
     @QtCore.Slot(unicode)
     def set_text(self, text):
-        if text is None:
-            return
-        self.setText(text.title())
+        s = self.view().parent().parent().stackedwidget
+        i = s.currentIndex()
+        if not text:
+            text = u'Bookmarks' if i == 0 else (
+                u'Assets' if i == 1 else s.currentWidget().model().sourceModel().data_key())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
+
+        self.setText(text.title())
         width = metrics.width(self.text()) + 2
-        # width = width if width > 100 else 100
-        # print width
+        width = width if width > 80 else 80
         self.setFixedWidth(width)
 
     def showPopup(self):

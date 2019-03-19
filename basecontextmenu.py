@@ -226,107 +226,16 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_reveal_folder_menu(self, menu_set):
+    def add_reveal_item_menu(self, menu_set):
         """Creates a menu containing"""
-        folder_icon = ImageCache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        folder_icon2 = ImageCache.get_rsc_pixmap(
-            u'folder', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        key = u'Reveal'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = folder_icon
-
-        if len(self.index.data(common.ParentRole)) >= 4:
-            file_info = QtCore.QFileInfo(
-                self.index.data(QtCore.Qt.StatusTipRole))
-            menu_set[key][u'file'] = {
-                u'text': 'Show file',
-                u'icon': folder_icon2,
-                u'action': functools.partial(
-                    common.reveal,
-                    u'/'.join(self.index.data(common.ParentRole)))
-            }
-            path = u'{}/{}/{}/{}'.format(
-                self.index.data(common.ParentRole)[0],
-                self.index.data(common.ParentRole)[1],
-                self.index.data(common.ParentRole)[2],
-                self.index.data(common.ParentRole)[3],
-            )
-            menu_set[key][u'asset'] = {
-                u'text': 'Show asset',
-                u'icon': folder_icon2,
-                u'action': functools.partial(
-                    common.reveal, path)
-            }
-        elif len(self.index.data(common.ParentRole)) == 3:
-            menu_set[key][u'asset'] = {
-                u'text': 'Show asset',
-                u'icon': folder_icon2,
-                u'action': functools.partial(common.reveal,
-                                             self.index.data(QtCore.Qt.StatusTipRole))
-            }
-        menu_set[key][u'root'] = {
-            u'text': 'Show bookmark',
-            u'icon': folder_icon2,
-            u'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo(u'{}/{}/{}'.format(
-                    self.index.data(common.ParentRole)[0],
-                    self.index.data(common.ParentRole)[1],
-                    self.index.data(common.ParentRole)[2]
-                )).filePath()),
+        path = common.get_sequence_startpath(self.index.data(QtCore.Qt.StatusTipRole))
+        menu_set['Show in file manager'] = {
+            u'icon': pixmap,
+            u'action': functools.partial(common.reveal, path)
         }
-        menu_set[key][u'separator.'] = {}
-        menu_set[key][u'job'] = {
-            u'text': 'Show job folder',
-            u'icon': folder_icon2,
-            u'action': functools.partial(
-                common.reveal,
-                QtCore.QFileInfo(u'{}/{}'.format(
-                    self.index.data(common.ParentRole)[0],
-                    self.index.data(common.ParentRole)[1]
-                )).filePath())
-        }
-
-        menu_set[key][u'separator'] = {}
-
-        dir_ = QtCore.QDir(u'/'.join(self.index.data(common.ParentRole)))
-        dir_.setFilter(QtCore.QDir.NoDotAndDotDot |
-                       QtCore.QDir.Dirs |
-                       QtCore.QDir.Readable)
-        it = QtCore.QDirIterator(
-            dir_, flags=QtCore.QDirIterator.NoIteratorFlags)
-        items = []
-        while it.hasNext():
-            it.next()
-            items.append(it.fileInfo())
-
-        sortkey = self.parent().model().sortRole()
-        if not sortkey:
-            items = sorted(
-                items, key=common.sort_keys[common.SortByName])
-        else:
-            if not self.parent().model().get_sortorder():
-                items = sorted(
-                    items, key=common.sort_keys[sortkey])
-            else:
-                items = list(
-                    reversed(sorted(items, key=common.sort_keys[sortkey])))
-
-        for file_info in items:
-            if file_info.fileName()[0] == u'.':
-                continue
-            if not file_info.isDir():
-                continue
-
-            menu_set[key][file_info.fileName()] = {
-                u'text': file_info.fileName().upper(),
-                u'icon': folder_icon,
-                u'action': functools.partial(
-                    common.reveal,
-                    file_info.filePath())
-            }
         return menu_set
 
     @contextmenu

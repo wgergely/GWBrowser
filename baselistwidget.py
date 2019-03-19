@@ -43,7 +43,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         super(FilterProxyModel, self).__init__(parent=parent)
         self.setSortLocaleAware(False)
         self.setDynamicSortFilter(False)
-        self.setRecursiveFilteringEnabled(False)
 
         self.setFilterRole(QtCore.Qt.StatusTipRole)
         self.setSortCaseSensitivity(QtCore.Qt.CaseSensitive)
