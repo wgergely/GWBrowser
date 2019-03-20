@@ -478,11 +478,11 @@ class FilesWidget(BaseInlineIconWidget):
 
         self.model().modelAboutToBeReset.connect(self.reset_queue)
         self.model().modelReset.connect(
-            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+            self.queue_indexes)
         self.model().layoutChanged.connect(
-            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+            self.queue_indexes)
         self.verticalScrollBar().valueChanged.connect(
-            self.queue_indexes, type=QtCore.Qt.QueuedConnection)
+            self.queue_indexes)
 
     @QtCore.Slot()
     def reset_queue(self):

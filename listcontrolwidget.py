@@ -59,7 +59,7 @@ class Progressbar(QtWidgets.QLabel):
 
         self.setText(u'')
         common.ProgressMessage.instance().messageChanged.connect(
-            self.setText, type=QtCore.Qt.QueuedConnection)
+            self.setText)
 
     @QtCore.Slot()
     def set_visibility(self):
@@ -354,18 +354,50 @@ class CollapseSequenceMenu(BaseContextMenu):
         self.add_collapse_sequence_menu()
 
 
-class AddBookmarkButton(ClickableLabel):
+class AddButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
 
     def __init__(self, parent=None):
-        super(AddBookmarkButton, self).__init__(parent=parent)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_add', common.TEXT, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-        self.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
+        super(AddButton, self).__init__(parent=parent)
+
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'todo_add', c, common.INLINE_ICON_SIZE)
+
+    def state(self):
+        if self._parent.currentIndex() == 0:
+            return True
+        if self._parent.currentIndex() == 2:
+            return True
+        return False
+
+    @QtCore.Slot()
+    def action(self):
+        if self._parent.currentIndex() == 0:
+            self.current().show_add_bookmark_widget()
+            return
+        if self._parent.currentIndex() == 1:
+            return
+        if self._parent.currentIndex() == 2:
+            import browser.context.saver as saver
+            print self.current().model().sourceModel().data_key()
+            widget = saver.SaverWidget(u'tempfile', self.current().model().sourceModel().data_key(), currentfile=None)
+
+
+            def create_file(path):
+                f = QtCore.QFile(path)
+                if not f.exists():
+                    f.open(QtCore.QIODevice.ReadWrite)
+                    f.close()
+
+                path = QtCore.QDir.toNativeSeparators(path)
+                QtGui.QClipboard().setText(path)
+                common.reveal(path)
+
+
+
+            widget.fileSaveRequested.connect(create_file)
+            widget.exec_()
+
 
 
 class ListControlDelegate(BaseDelegate):
@@ -756,7 +788,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._controlbutton.set_view(self._controlview)
 
         self._progressbar = Progressbar(parent=self)
-        self._bookmarkbutton = AddBookmarkButton(parent=self)
+        self._addbutton = AddButton(parent=self)
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
         self._collapsebutton = CollapseSequenceButton(parent=self)
@@ -768,7 +800,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
         self.layout().addWidget(self._progressbar, 1)
-        self.layout().addWidget(self._bookmarkbutton)
+        self.layout().addWidget(self._addbutton)
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)
         self.layout().addWidget(self._collapsebutton)

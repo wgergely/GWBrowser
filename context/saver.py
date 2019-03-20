@@ -37,7 +37,7 @@ from browser.assetwidget import AssetModel
 from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
 
 from browser.capture import ScreenGrabber
-from browser.settings import MarkedAsActive, MarkedAsArchived
+import browser.settings as Settings
 
 from browser.settings import AssetSettings
 from browser.imagecache import ImageCache
@@ -145,20 +145,29 @@ class SaverFileInfo(QtCore.QObject):
 
     def _new(self):
         """Creates a new filename based on the currently set properties."""
-        paths = self._paths()
+        job = None
+        asset = None
+        location = self.parent().window().location
+
+        buttons = self.parent().window().findChildren(SelectFolderButton)
+        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
+        a = assetbutton.view()
+
+        index = a.model().sourceModel().active_index()
+        if index.isValid():
+            job = index.data(common.ParentRole)[1]
+            asset = index.data(common.ParentRole)[-1]
 
         custom = self.parent().window().findChild(Custom).text()
         regex = re.compile(r'[^0-9a-z]+', flags=re.IGNORECASE)
-        job = regex.sub(u'', paths[u'job'])[
-            :3] if paths[u'job'] else u'gw'
+        job = regex.sub(u'', job)[
+            :3] if job else u'gw'
 
-        asset = regex.sub(u'', paths[u'asset'])[
-            :12] if paths[u'asset'] else u'sandbox'
+        asset = regex.sub(u'', asset)[
+            :12] if asset else u'sandbox'
 
-        folder = paths['folder'].split(
-            u'/')[0] if paths['folder'] else self.parent().window().location
-        folder = regex.sub(u'', folder)[
-            :12] if folder else self.parent().window().location
+        folder = regex.sub(u'', location)[
+            :12]
 
         custom = custom if custom else u'untitled'
         custom = regex.sub(u'-', custom)[:25]
@@ -172,7 +181,7 @@ class SaverFileInfo(QtCore.QObject):
         # Numbers are not allowed in the username
         user = re.sub(r'[0-9]+', u'', user)
 
-        isexport = self.parent().window().location == common.ExportsFolder
+        isexport = location == common.ExportsFolder
         folder = self.parent().window().extension if isexport else folder
         return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
             job=job,
@@ -203,12 +212,8 @@ class SaverFileInfo(QtCore.QObject):
     def path(self):
         """Returns the path() element of the set path."""
         buttons = self.parent().window().findChildren(SelectFolderButton)
-        # bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        # assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
         foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
-
         return foldersbutton.view().model().destination()
-        # return u'/'.join(arr).rstrip(u'/')
 
     def fileName(self, style=common.LowerCase):
         """The main method to get the new file's filename."""
@@ -387,7 +392,7 @@ class SaverWidget(QtWidgets.QDialog):
 
         self._createUI()
         self._connectSignals()
-        self._set_initial_state()
+        self.initialize()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -489,12 +494,109 @@ class SaverWidget(QtWidgets.QDialog):
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(statusbar, 1)
 
-    def _set_initial_state(self):
+
+    def _connectSignals(self):
+        buttons = self.findChildren(SelectFolderButton)
+        bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
+        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        header = self.findChild(SaverHeaderWidget)
+
+        b = bookmarkbutton.view()
+        a = assetbutton.view()
+        f = foldersbutton.view()
+
+        b.widgetShown.connect(b.hide)
+        a.widgetShown.connect(f.hide)
+        b.widgetShown.connect(a.hide)
+        b.widgetShown.connect(f.hide)
+        f.widgetShown.connect(b.hide)
+        f.widgetShown.connect(a.hide)
+
+        header.widgetMoved.connect(a.move)
+        header.widgetMoved.connect(b.move)
+        header.widgetMoved.connect(f.move)
+
+        # Signal/slot connections for the primary bookmark/asset and filemodels
+        b.model().sourceModel().modelReset.connect(
+            lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
+        b.model().sourceModel().modelReset.connect(
+            a.model().sourceModel().modelDataResetRequested.emit)
+        b.model().sourceModel().activeChanged.connect(
+            a.model().sourceModel().set_active)
+        b.model().sourceModel().activeChanged.connect(
+            lambda x: a.model().sourceModel().modelDataResetRequested.emit())
+
+
+        a.model().sourceModel().activeChanged.connect(f.set_asset)
+        a.model().sourceModel().activeChanged.connect(lambda i: f.model().fileTypeChanged.emit(self.extension))
+
+        b.model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
+        b.model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
+        a.model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
+        a.model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
+
+        b.model().sourceModel().modelReset.connect(self.update_filename_display)
+        b.model().sourceModel().modelReset.connect(self.update_filepath_display)
+        a.model().sourceModel().modelReset.connect(self.update_filename_display)
+        a.model().sourceModel().modelReset.connect(self.update_filepath_display)
+        f.model().modelReset.connect(self.update_filename_display)
+        f.model().modelReset.connect(self.update_filepath_display)
+
+        closebutton = self.findChild(CloseButton)
+        thumbnailbutton = self.findChild(ThumbnailButton)
+        custom = self.findChild(Custom)
+        check = self.findChild(Check)
+
+        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
+        closebutton.clicked.connect(
+            lambda: self.done(QtWidgets.QDialog.Rejected))
+        # Picks a thumbnail
+        thumbnailbutton.clicked.connect(self.pick_thumbnail)
+
+        # Filename
+        b.activated.connect(self.update_filename_display)
+        a.activated.connect(self.update_filename_display)
+        f.activated.connect(self.update_filename_display)
+        f.model().destinationChanged.connect(lambda x: self.update_filename_display)
+        f.model().fileTypeChanged.connect(lambda x: self.update_filename_display)
+        custom.textChanged.connect(self.update_filename_display)
+        # Filepath
+        b.activated.connect(self.update_filepath_display)
+        a.activated.connect(self.update_filepath_display)
+        f.activated.connect(self.update_filepath_display)
+        f.model().destinationChanged.connect(lambda x: self.update_filepath_display)
+        f.model().fileTypeChanged.connect(lambda x: self.update_filepath_display)
+        custom.textChanged.connect(self.update_filepath_display)
+
+    def initialize(self):
         """Checks the models' active items and sets the ui elements accordingly."""
         buttons = self.findChildren(SelectFolderButton)
         bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
         assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
         foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+
+        b = bookmarkbutton.view()
+        a = assetbutton.view()
+        f = foldersbutton.view()
+
+        b.model().filterTextChanged.emit(b.model().get_filtertext())
+        a.model().filterTextChanged.emit(a.model().get_filtertext())
+        #
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filter_flag_value(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filter_flag_value(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        #
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filter_flag_value(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filter_flag_value(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        #
+        b.model().sortingChanged.emit(
+            b.model().sortRole(),
+            b.model().get_sortorder())
+        a.model().sortingChanged.emit(
+            b.model().sortRole(),
+            b.model().get_sortorder())
 
         if self.currentfile:
             # Checking if the reference file has a valid pattern
@@ -510,12 +612,19 @@ class SaverWidget(QtWidgets.QDialog):
         else:
             self.findChild(Custom).setHidden(False)
 
+
+
         bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
         bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
         assetbutton.view().model().sourceModel().activeChanged.emit(assetbutton.view().model().sourceModel().active_index())
 
-        # self.update_filepath_display()
-        # self.update_filename_display()
+        if self.location:
+            if not f.model().asset().isValid():
+                return  # can't set the destination without the asset
+            path = list(f.model().asset().data(common.ParentRole)) + [self.location, ]
+            path = u'/'.join(path)
+            index = f.model().index(path)
+            f.model().destinationChanged.emit(index)
 
     def pick_thumbnail(self):
         """Prompt to select an image file."""
@@ -681,64 +790,12 @@ class SaverWidget(QtWidgets.QDialog):
 
         super(SaverWidget, self).done(result)
 
-    def _connectSignals(self):
-        buttons = self.findChildren(SelectFolderButton)
-        bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
-        header = self.findChild(SaverHeaderWidget)
-
-        assetbutton.view().widgetShown.connect(bookmarkbutton.view().hide)
-        assetbutton.view().widgetShown.connect(foldersbutton.view().hide)
-        bookmarkbutton.view().widgetShown.connect(assetbutton.view().hide)
-        bookmarkbutton.view().widgetShown.connect(foldersbutton.view().hide)
-        foldersbutton.view().widgetShown.connect(bookmarkbutton.view().hide)
-        foldersbutton.view().widgetShown.connect(assetbutton.view().hide)
-
-        header.widgetMoved.connect(assetbutton.view().move)
-        header.widgetMoved.connect(bookmarkbutton.view().move)
-        header.widgetMoved.connect(foldersbutton.view().move)
-
-
-        bookmarkbutton.view().model().sourceModel().activeChanged.connect(assetbutton.view().model().sourceModel().set_active)
-        assetbutton.view().model().sourceModel().activeChanged.connect(foldersbutton.view().set_asset)
-
-        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: foldersbutton.view().model().fileTypeChanged.emit(u'ma'))
-
-        bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
-        bookmarkbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
-        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
-        assetbutton.view().model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
-
-        closebutton = self.findChild(CloseButton)
-        thumbnailbutton = self.findChild(ThumbnailButton)
-        custom = self.findChild(Custom)
-        check = self.findChild(Check)
-
-        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
-        closebutton.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Rejected))
-        # Picks a thumbnail
-        thumbnailbutton.clicked.connect(self.pick_thumbnail)
-
-        # Filename
-        bookmarkbutton.view().activated.connect(self.update_filename_display)
-        assetbutton.view().activated.connect(self.update_filename_display)
-        foldersbutton.view().activated.connect(self.update_filename_display)
-        custom.textChanged.connect(self.update_filename_display)
-        # Filepath
-        bookmarkbutton.view().activated.connect(self.update_filepath_display)
-        assetbutton.view().activated.connect(self.update_filepath_display)
-        foldersbutton.view().activated.connect(self.update_filepath_display)
-        custom.textChanged.connect(self.update_filepath_display)
-
-
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     currentfile = '//gordo/jobs/bemusic_8283/assets/trumpet/exports/bem_trumpet_scenes_untitled_001_freelance.obj'
 
-    widget = SaverWidget(u'obj', common.ExportsFolder, currentfile=currentfile)
+    widget = SaverWidget(u'psd', common.ScenesFolder, currentfile=None)
 
     def func(path):
         print path

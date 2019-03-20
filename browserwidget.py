@@ -202,7 +202,6 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
         b.model().sourceModel().modelReset.connect(
             a.model().sourceModel().modelDataResetRequested.emit)
-
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().set_active)
         b.model().sourceModel().activeChanged.connect(
@@ -266,6 +265,7 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
+        self.listcontrolwidget._addbutton.set_parent(self.stackedwidget)
         self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
 
         self.listcontrolwidget._todobutton.set_parent(self.stackedwidget)
@@ -275,6 +275,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget._favouritebutton.set_parent(self.stackedwidget)
 
         # Updates the list-control buttons when changing lists
+        l.listChanged.connect(lambda x: self.listcontrolwidget._addbutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._todobutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._filterbutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())

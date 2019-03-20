@@ -647,7 +647,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.parent().model().sourceModel().modelReset.connect(self.close)
         self.parent().model().sourceModel().modelReset.connect(self.deleteLater)
 
-        self.parent().model().sourceModel().modelDataResetRequested.emit()
+        self.parent().model().sourceModel().beginResetModel()
+        self.parent().model().sourceModel().__initdata__()
 
     def select_item(self):
         """Selects the item based on the given path."""

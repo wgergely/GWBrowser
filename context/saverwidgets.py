@@ -170,7 +170,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.model().directoryLoaded.connect(self.index_expanded)
         root_index = self.model().index(self.model().rootPath())
         self.setRootIndex(root_index)
-        self.activated.connect(self.model().destinationChanged.emit)
+        self.activated.connect(self.model().destinationChanged)
 
     def index_expanded(self, index):
         self.adjust_height()
@@ -228,7 +228,6 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
         super(SelectFolderModel, self).__init__(parent=parent)
         self.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         self._asset = QtCore.QModelIndex()
-        self._location = None
         self._destination = None
 
         self.destinationChanged.connect(self.set_destination)
@@ -294,14 +293,6 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
         """The active asset."""
         return self._asset
 
-    def location(self):
-        """Location is automatically set based on the reference file's type."""
-        return self._location
-
-    @QtCore.Slot(unicode)
-    def set_location(self, location):
-        self._location = location
-
     def columnCount(self, index, parent=QtCore.QModelIndex()):
         return 1
 
@@ -344,9 +335,10 @@ class SelectFolderButton(ClickableLabel):
         self.setMouseTracking(True)
         self.setText(u'Select destination folder...')
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.clicked.connect(self.show_view)
         self.setObjectName(u'SelectFolderButton')
         self.setFixedHeight(36)
+
+        self.clicked.connect(self.show_view)
 
     def contextMenuEvent(self, event):
         widget = SelectFolderContextMenu(parent=self)
@@ -374,6 +366,7 @@ class SelectFolderButton(ClickableLabel):
         if self.view().isVisible():
             self.view().hide()
             return
+
         pos = self.rect().bottomLeft()
         y = self.mapToGlobal(pos).y()
         pos = self.parent().window().rect().bottomLeft()
@@ -383,6 +376,7 @@ class SelectFolderButton(ClickableLabel):
         self.view().move(x, y)
         self.view().setFixedWidth(width)
         self.view().show()
+        self.view().setFocus()
         self.view().raise_()
 
     def showEvent(self, event):
@@ -463,22 +457,17 @@ class SelectAssetDelegate(AssetWidgetDelegate):
         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
 
 
-class SelectAssetView(BaseListWidget):
-    """Simple tree view for browsing the available assets."""
+class SaverListView(BaseListWidget):
     widgetShown = QtCore.Signal()
 
     def __init__(self, parent=None):
-        super(SelectAssetView, self).__init__(parent=parent)
-        self.setItemDelegate(SelectAssetDelegate(parent=self))
+        super(SaverListView, self).__init__(parent=parent)
         common.set_custom_stylesheet(self)
-        self.set_model(AssetModel())
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
-
-        self.activated.connect(self.hide)
-        self.activated.connect(self.model().sourceModel().activeChanged)
-
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
 
     def showEvent(self, event):
         self.widgetShown.emit()
@@ -486,25 +475,39 @@ class SelectAssetView(BaseListWidget):
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):
-        """Adjusts the size of the view to fix the items exactly."""
+        """Adjusts the size of the view to fit the contents exactly."""
         height = 0
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(None, None).height()
+        if height == 0:
+            height += self.itemDelegate().sizeHint(None, None).height()
         self.setFixedHeight(height)
 
-    # def focusOutEvent(self, event):
-    #     """Closes the editor on focus loss."""
-    #     if event.lostFocus():
-    #         self.hide()
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
 
     def mouseDoubleClickEvent(self, event):
         self.activate(self.selectionModel().currentIndex())
 
     def inline_icons_count(self):
         return 0
+
+
+class SelectAssetView(SaverListView):
+    """Simple tree view for browsing the available assets."""
+
+    def __init__(self, parent=None):
+        super(SelectAssetView, self).__init__(parent=parent)
+        self.setItemDelegate(SelectAssetDelegate(parent=self))
+        self.set_model(AssetModel())
+
+        self.clicked.connect(self.activate)
+        self.clicked.connect(self.hide)
 
 
 class SelectAssetButton(SelectFolderButton):
@@ -524,7 +527,7 @@ class SelectAssetButton(SelectFolderButton):
         widget.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
         widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset...'))
         widget.model().sourceModel().modelReset.connect(
-            lambda: widget.model().sourceModel().activeChanged.emit(widget.active_index()))
+            lambda: widget.model().sourceModel().activeChanged.emit(widget.model().sourceModel().active_index()))
 
     def paintEvent(self, event):
         option = QtWidgets.QStyleOption()
@@ -586,16 +589,45 @@ class SelectBookmarkDelegate(BookmarksWidgetDelegate):
         return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
 
 
-class SelectBookmarkView(SelectAssetView):
+class SelectBookmarkView(SaverListView):
     """Simple tree view for browsing the available assets."""
 
     def __init__(self, parent=None):
         super(SelectBookmarkView, self).__init__(parent=parent)
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
         self.set_model(BookmarksModel())
-        self.activated.connect(self.hide)
-        self.activated.connect(self.model().sourceModel().activeChanged.emit)
 
+        self.clicked.connect(self.activate)
+        self.clicked.connect(self.hide)
+
+    def showEvent(self, event):
+        self.widgetShown.emit()
+
+        self.adjust_height()
+
+    @QtCore.Slot()
+    def adjust_height(self, *args, **kwargs):
+        """Adjusts the size of the view to fit the contents exactly."""
+        height = 0
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            if not index.isValid():
+                break
+            height += self.itemDelegate().sizeHint(None, None).height()
+        if height == 0:
+            height += self.itemDelegate().sizeHint(None, None).height()
+        self.setFixedHeight(height)
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
+
+    def mouseDoubleClickEvent(self, event):
+        self.activate(self.selectionModel().currentIndex())
+
+    def inline_icons_count(self):
+        return 0
 
 
 

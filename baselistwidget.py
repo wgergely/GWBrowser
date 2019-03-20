@@ -206,8 +206,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self.get_filter_flag_value(Settings.MarkedAsActive) and not active:
             return False
 
-        if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
-            return False
+        if self.get_filtertext() and data[source_row][QtCore.Qt.StatusTipRole]:
+            if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
+                return False
         if archived and not self.get_filter_flag_value(Settings.MarkedAsArchived):
             return False
         if not favourite and self.get_filter_flag_value(Settings.MarkedAsFavourite):
@@ -492,7 +493,7 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: proxy.sort(
                 0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
             type=QtCore.Qt.DirectConnection)
-        proxy.modelReset.connect(self.model().invalidateFilter())
+        proxy.modelReset.connect(self.model().invalidateFilter)
 
 
         model.activeChanged.connect(self.save_activated)
@@ -565,8 +566,8 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
-        raise NotImplementedError(
-            '`save_activated` is abstract and has to be implemented in the subclass.')
+        """"`save_activated` is abstract and has to be implemented in the subclass."""
+        pass
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_selection(self, current):
