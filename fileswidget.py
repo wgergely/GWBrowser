@@ -43,17 +43,8 @@ class FileInfoWorker(BaseWorker):
         thread.
 
         """
-        n = 0
-        nth = 9
         try:
             while True:
-                n += 1
-                if FileInfoWorker.queue.qsize():
-                    if n % nth == 0:
-                        common.ProgressMessage.instance().set_message(
-                            'Processing ({} left)...'.format(FileInfoWorker.queue.qsize()))
-                else:
-                    common.ProgressMessage.instance().clear_message()
                 self.process_index(FileInfoWorker.queue.get(True))
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
@@ -234,13 +225,15 @@ class FilesModel(BaseModel):
 
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
-
-        # Thread-worker reposinble for completing the model data
         self.threads = {}
+
         for n in xrange(4):
             self.threads[n] = FileInfoThread(self)
             self.threads[n].thread_id = n
             self.threads[n].start()
+
+        self.modelDataResetRequested.connect(FileInfoWorker.reset_queue)
+        self.modelDataResetRequested.connect(ImageCacheWorker.reset_queue)
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
