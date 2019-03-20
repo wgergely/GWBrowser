@@ -425,13 +425,16 @@ TodoItemEditor {{
 	outline: 0;
 	color: rgba(0,0,0,255);
 	font-family: "Roboto Medium";
-	font-size: 12pt;
+	font-size: 11pt;
 }}
 
 CheckBoxButton, DragIndicatorButton{{
 	background-color: rgba(235,235,235,255);
 	margin: 0px;
 	padding-left: 10px;
+}}
+CheckBoxButton:disabled, DragIndicatorButton:disabled {{
+	background-color: rgba(0,0,0,0);
 }}
 
 TodoItemEditor:focus {{
