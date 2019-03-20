@@ -6,7 +6,3 @@ __pycache__/
 
 # Sys
 Thumbs.db
-
-
-# !/modules/*
-!modules/**
