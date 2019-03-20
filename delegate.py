@@ -311,14 +311,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pos = self.parent().mapFromGlobal(pos)
 
         # Icon
-        color = common.FAVOURITE if archived else common.SEPARATOR
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
+        color = common.FAVOURITE if archived else sep
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(color))
 
         if archived:
             pixmap = ImageCache.get_rsc_pixmap(
                 u'archived', color, common.INLINE_ICON_SIZE)
-            painter.setBrush(common.SEPARATOR)
+            painter.setBrush(sep)
             painter.drawRoundedRect(
                 bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
         else:
@@ -337,8 +339,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 2)
+
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
+
         pixmap = ImageCache.get_rsc_pixmap(
-            u'folder', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            u'folder', sep, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
@@ -353,9 +359,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect, _ = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 3)
-
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            u'todo', sep, common.INLINE_ICON_SIZE)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
@@ -398,6 +405,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = QtGui.QColor(common.FAVOURITE)
         else:
             color = QtGui.QColor(common.SEPARATOR)
+            color.setAlpha(150)
 
         pos = QtGui.QCursor().pos()
         pos = self.parent().mapFromGlobal(pos)
@@ -448,11 +456,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             else:
                 color = QtGui.QColor(common.BACKGROUND)
 
-            color.setHsl(
-                color.hue(),
-                color.saturation(),
-                color.lightness() - 0
-            )
+
             painter.setBrush(color)
             painter.drawRect(bg_rect)
 
@@ -650,8 +654,10 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
 
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
         if count:
-            pen = QtGui.QPen(common.SEPARATOR)
+            pen = QtGui.QPen(sep)
             pen.setWidth(2)
             painter.setPen(pen)
             painter.setBrush(common.SECONDARY_BACKGROUND)
@@ -663,7 +669,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = u'{}'.format(count)
         common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else common.SEPARATOR)
+            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else sep)
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""

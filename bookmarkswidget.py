@@ -30,6 +30,7 @@ from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from browser.delegate import BookmarksWidgetDelegate
 from browser.delegate import BaseDelegate
 from browser.delegate import paintmethod
+import browser.editors as editors
 
 
 class ImageDownloader(QtCore.QObject):
@@ -395,11 +396,30 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""
-        index = self.selectionModel().currentIndex()
+        index = self.indexAt(event.pos())
+        rect = self.visualRect(index)
+        if not index.isValid():
+            return
         if index.flags() & MarkedAsArchived:
+            return
+
+
+        description_rect = QtCore.QRect(rect)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSize(11)
+        metrics = QtGui.QFontMetrics(font)
+
+        center = description_rect.center()
+        description_rect.setHeight(metrics.height())
+        description_rect.moveCenter(center)
+
+        if description_rect.contains(event.pos()):
+            widget = editors.DescriptionEditorWidget(index, parent=self)
+            widget.show()
             return
         if not index.data(common.TodoCountRole):
             return common.reveal(index.data(QtCore.Qt.StatusTipRole))
+            
         self.activate(self.selectionModel().currentIndex())
 
 

@@ -274,7 +274,7 @@ class ControlButton(ClickableLabel):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        color = common.FAVOURITE if self.state() else common.SECONDARY_TEXT
+        color = common.FAVOURITE if self.state() else QtGui.QColor(255,255,255,50)
         pixmap = self.pixmap(color)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
         painter.end()
