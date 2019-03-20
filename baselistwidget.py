@@ -630,8 +630,6 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.flags() & QtCore.Qt.ItemIsEditable:
             return
 
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-
         # Favouriting archived items are not allowed
         archived = index.flags() & Settings.MarkedAsArchived
         if archived:
@@ -643,17 +641,17 @@ class BaseListWidget(QtWidgets.QListView):
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
 
-        if file_info.filePath() in favourites:
+        if index.data(QtCore.Qt.StatusTipRole) in favourites:
             if state is None or state is False:  # clears flag
-                favourites.remove(file_info.filePath())
+                favourites.remove(index.data(QtCore.Qt.StatusTipRole))
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
-                favourites.append(file_info.filePath())
+                favourites.append(index.data(QtCore.Qt.StatusTipRole))
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', favourites)
-        source_index.model().dataChanged.emit(source_index, source_index)
+        # source_index.model().dataChanged.emit(source_index, source_index)
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1032,13 +1030,16 @@ class BaseInlineIconWidget(BaseListWidget):
 
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
-        idx = index.row()
+        # idx = index.row()
 
         if self.viewport().width() < 360.0:
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
         # Cheking the button
-        if idx in self.multi_toggle_items:
+        if self.multi_toggle_items:
+            for n in self.multi_toggle_items:
+                index = self.model().index(n, 0)
+                self.model().dataChanged.emit(index, index)
             self._reset_multitoggle()
             self.model().invalidateFilter()
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
@@ -1052,15 +1053,11 @@ class BaseInlineIconWidget(BaseListWidget):
 
             if n == 0:
                 self.toggle_favourite(index)
-                self.save_selection(index)
-                self.model().invalidate()
-                self.reselect_previous()
+                self.model().dataChanged.emit(index, index)
                 break
             elif n == 1:
                 self.toggle_archived(index)
-                self.save_selection(index)
-                self.model().invalidate()
-                self.reselect_previous()
+                self.model().dataChanged.emit(index, index)
                 break
             elif n == 2:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
@@ -1107,6 +1104,7 @@ class BaseInlineIconWidget(BaseListWidget):
                 self.multi_toggle_items[idx] = favourite
                 # Apply first state
                 self.toggle_favourite(index, state=self.multi_toggle_state)
+
             if self.multi_toggle_idx == 1:  # Archived button
                 # A state
                 self.multi_toggle_items[idx] = archived
@@ -1115,6 +1113,7 @@ class BaseInlineIconWidget(BaseListWidget):
         else:  # Reset state
             if index == initial_index:
                 return
+
             if self.multi_toggle_idx == 0:  # Favourite button
                 self.toggle_favourite(index, state=self.multi_toggle_items.pop(idx))
             elif self.multi_toggle_idx == 1:  # Favourite button
