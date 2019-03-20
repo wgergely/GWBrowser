@@ -17,7 +17,9 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser import common
 from browser.settings import AssetSettings
+from browser.settings import local_settings
 from browser.imagecache import ImageCache
+
 
 class Highlighter(QtGui.QSyntaxHighlighter):
     """Class responsible for highlighting urls"""
@@ -122,7 +124,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         # font
         font = QtGui.QFont(common.SecondaryFont)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(12.0)
+        font.setPointSizeF(11.0)
         self.document().setDefaultFont(font)
 
         self.highlighter = Highlighter(self.document())
@@ -144,11 +146,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setMouseTracking(True)
-        self.document().setPlainText(text)
-        # self.setAlignment(QtCore.Qt.AlignJustify | QtCore.Qt.AlignVCenter)
 
-        self.document().contentsChanged.connect(self._contentChanged)
-        self.anchorClicked.connect(self._anchorClicked)
+        self.document().contentsChanged.connect(self.contentChanged)
+        self.document().setPlainText(text)
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
@@ -159,7 +159,8 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             font.setStrikeOut(True)
         self.document().setDefaultFont(font)
 
-    def _contentChanged(self):
+    @QtCore.Slot()
+    def contentChanged(self):
         """Sets the height of the editor."""
         self.setFixedHeight(
             self.heightForWidth(self.width())
@@ -176,7 +177,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         """Returns the desired minimum height of the editor."""
         margins = self.contentsMargins()
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = (metrics.height() + metrics.leading()) * 48  # Lines tall
+        line_height = (metrics.height() + metrics.leading()) * 35  # Lines tall
         return line_height + margins.top() + margins.bottom()
 
     def heightForWidth(self, width):
@@ -220,8 +221,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def sizeHint(self):
         return QtCore.QSize(200, self.heightForWidth(200))
 
-    def _anchorClicked(self):
-        print 'click'
+
+
+
 
 
 class AddButton(QtWidgets.QLabel):
@@ -597,6 +599,7 @@ class TodoEditors(QtWidgets.QWidget):
 
 class MoveWidget(QtWidgets.QWidget):
     """Widget used to move the editor window."""
+    widgetMoved = QtCore.Signal(QtCore.QPoint)
 
     def __init__(self, parent=None):
         super(MoveWidget, self).__init__(parent=parent)
@@ -617,7 +620,9 @@ class MoveWidget(QtWidgets.QWidget):
             return
         if self.move_start_widget_pos:
             offset = (event.pos() - self.move_start_event_pos)
-            self.parent().move(self.mapToGlobal(self.geometry().topLeft()) + offset)
+            pos = self.mapToGlobal(self.geometry().topLeft()) + offset
+            self.parent().move(pos)
+            self.widgetMoved.emit(pos)
 
 
 class ResizeWidget(QtWidgets.QWidget):
@@ -964,6 +969,14 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saving the contents on close/hide."""
         self.save_settings()
 
+        cls = self.__class__.__name__
+        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
+        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
+
+        pos = self.mapToGlobal(self.rect().topLeft())
+        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
+        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
+
     def focusOutEvent(self, event):
         if event.lostFocus():
             self.close()
@@ -988,6 +1001,21 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 (geo.height() / 2) - (self.height() / 2)
             )
 
+        cls = self.__class__.__name__
+        width = local_settings.value(u'widget/{}/width'.format(cls))
+        height = local_settings.value(u'widget/{}/height'.format(cls))
+        x = local_settings.value(u'widget/{}/x'.format(cls))
+        y = local_settings.value(u'widget/{}/y'.format(cls))
+
+        if not all((width, height, x, y)):  # skip if not saved yet
+            return
+        size = QtCore.QSize(width, height)
+        pos = QtCore.QPoint(x, y)
+
+        self.resize(size)
+        self.move(pos)
+        common.move_widget_to_available_geo(self)
+
 
 
 
@@ -996,7 +1024,7 @@ if __name__ == '__main__':
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
     item = widget.add_item(
-        text=u'This is a test link:\nClick this: file://gordo/jobs')
+        text=u'This is a test link:\n\n\n\nClick this: file://gordo/jobs')
     # print item.editor.document().setPlainText('Hullo')
     widget.show()
     app.exec_()

@@ -268,6 +268,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.resize(size)
         self.move(pos)
+        common.move_widget_to_available_geo(self)
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""
