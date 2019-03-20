@@ -992,6 +992,7 @@ class BaseInlineIconWidget(BaseListWidget):
         """The custom mousePressEvent initiates the multi-toggle operation.
         Only the `favourite` and `archived` buttons are multi-toggle capable."""
         index = self.indexAt(event.pos())
+        source_index = self.model().mapToSource(index)
         rect = self.visualRect(index)
 
         if self.viewport().width() < 360.0:
@@ -1002,16 +1003,14 @@ class BaseInlineIconWidget(BaseListWidget):
         for n in xrange(self.inline_icons_count()):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                 rect, common.INLINE_ICON_SIZE, n)
-
-            # Beginning multi-toggle operation
             if not bg_rect.contains(event.pos()):
                 continue
-
             self.multi_toggle_pos = event.pos()
+
             if n == 0:  # Favourite button
-                self.multi_toggle_state = not index.flags() & Settings.MarkedAsFavourite
+                self.multi_toggle_state = not source_index.flags() & Settings.MarkedAsFavourite
             elif n == 1:  # Archive button
-                self.multi_toggle_state = not index.flags() & Settings.MarkedAsArchived
+                self.multi_toggle_state = not source_index.flags() & Settings.MarkedAsArchived
             elif n == 2:  # Reveal button
                 continue
             elif n == 3:  # Todo button

@@ -625,11 +625,12 @@ class ProgressMessage(QtCore.QObject):
         super(ProgressMessage, self).__init__(parent=parent)
         ProgressMessage.__instance = self
 
+        self.messageChanged.connect(self.set_message, type=QtCore.Qt.QueuedConnection)
+
     @QtCore.Slot(unicode)
     def set_message(self, text):
         """Slot to update the progress bar message."""
         text = text.encode('utf-8')
-        self.messageChanged.emit(text)
         app = QtWidgets.QApplication.instance()
         if app:
             app.processEvents()

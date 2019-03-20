@@ -31,14 +31,16 @@ class ImageCacheWorker(BaseWorker):
     queue = Unique(999999)
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(self, index):
+    @QtCore.Slot(unicode)
+    @classmethod
+    def process_index(cls, index, source=None):
         """The actual processing happens here."""
         if not index.isValid():
             return
 
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
-        source = index.data(QtCore.Qt.StatusTipRole)
+        source = source if source else index.data(QtCore.Qt.StatusTipRole)
         if common.is_collapsed(source):
             source = common.find_largest_file(index)
         dest = index.data(common.ThumbnailPathRole)
@@ -314,7 +316,6 @@ class ImageCache(QtCore.QObject):
                 if ext not in common._oiio_formats:
                     continue
                 dest = AssetSettings(index).thumbnail_path()
-                print dest
                 if not overwrite and QtCore.QFileInfo(dest).exists():
                     continue
                 yield index
@@ -410,7 +411,8 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
-        cls.generate(index, source=dialog.selectedFiles()[0])
+        ImageCacheWorker.process_index(index, source=dialog.selectedFiles()[0])
+        index.model().dataChanged.emit(index, index)
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0):

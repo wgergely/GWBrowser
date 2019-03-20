@@ -397,13 +397,14 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
 
-        settings = AssetSettings(self.index)
+        source_index = self.index.model().mapToSource(self.index)
+        settings = AssetSettings(source_index)
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'Show'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
-                    self.index,
+                    source_index,
                     parent=self.parent()
                 )
             }
@@ -411,13 +412,13 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[key][u'Capture new'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().capture, self.index.model().mapToSource(self.index))}
+            u'action': functools.partial(ImageCache.instance().capture, source_index)}
 
         menu_set[key][u'Pick new'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().pick, self.index.model().mapToSource(self.index))}
+            u'action': functools.partial(ImageCache.instance().pick, source_index)}
 
-        suffix = QtCore.QFileInfo(self.index.data(
+        suffix = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix()
         if suffix in common.get_oiio_namefilters(as_array=True):
             menu_set[key]['_separator_'] = {}
@@ -441,7 +442,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                         return
 
                 source_indexes = []
-                for n in xrange(self.parent().model().rowCount()):
+                for n in xrange(self.index.model().rowCount()):
                     index = self.parent().model().index(n, 0)
                     source_index = index.model().mapToSource(index)
                     source_indexes.append(source_index)
@@ -451,7 +452,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'text': u'Make',
                 u'action': functools.partial(
                     ImageCache.instance().generate_thumbnails,
-                    (self.index.model().mapToSource(self.index),), overwrite=True)}
+                    (source_index,), overwrite=True)}
 
             menu_set[key][u'generatemissing'] = {
                 u'text': u'Make missing',
@@ -466,7 +467,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
             menu_set[key][u'Remove'] = {
-                u'action': functools.partial(ImageCache.instance().remove, self.index.model().mapToSource(self.index)),
+                u'action': functools.partial(ImageCache.instance().remove, source_index),
                 u'icon': remove_thumbnail_pixmap
             }
         return menu_set

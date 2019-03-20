@@ -4,38 +4,56 @@
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
 import functools
+import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from browser.settings import Active
 import browser.common as common
 from browser.delegate import paintmethod
 from browser.basecontextmenu import BaseContextMenu, contextmenu
-from browser.baselistwidget import StackedWidget
 from browser.baselistwidget import BaseModel
 
 from browser.delegate import BaseDelegate
-from browser.delegate import paintmethod
 
-from browser.bookmarkswidget import BookmarksWidget
-from browser.fileswidget import FilesWidget
 from browser.editors import FilterEditor
 from browser.editors import ClickableLabel
-from browser.imagecache import ImageCache
-from browser.settings import local_settings
-from browser.settings import AssetSettings
 import browser.settings as Settings
 
+from browser.imagecache import ImageCache
+from browser.imagecache import ImageCacheWorker
+from browser.fileswidget import FileInfoWorker
 
-class Progressbar(QtWidgets.QLabel):
+
+class Progresslabel(QtWidgets.QLabel):
     """The widget responsible displaying progress messages."""
 
+    messageChanged = QtCore.Signal(unicode)
+    __instance = None
+
+    @staticmethod
+    def instance():
+        """ Static access method. """
+        if Progresslabel.__instance == None:
+            Progresslabel()
+        return Progresslabel.__instance
+
+    @classmethod
+    def initialize(cls, *args, **kwargs):
+        """ Static create method. """
+        cls(*args, **kwargs)
+        return Progresslabel.__instance
+
     def __init__(self, parent=None):
-        super(Progressbar, self).__init__(parent=parent)
-        self.processmonitor = QtCore.QTimer()
-        self.processmonitor.setSingleShot(False)
-        self.processmonitor.setInterval(120)
-        self.processmonitor.timeout.connect(self.set_visibility)
-        self.processmonitor.start()
+        if Progresslabel.__instance != None:
+            raise RuntimeError(u'\n# {} already initialized.\n# Use Progresslabel.instance() instead.'.format(
+                self.__class__.__name__))
+        super(Progresslabel, self).__init__(parent=parent)
+
+        self.progress_monitor = QtCore.QTimer()
+        self.progress_monitor.setSingleShot(False)
+        self.progress_monitor.setInterval(1000)
+        self.progress_monitor.timeout.connect(self.check_progress)
+        self.progress_monitor.start()
 
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.setStyleSheet("""
@@ -57,18 +75,34 @@ class Progressbar(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
+        self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sitems\sleft)', flags=re.IGNORECASE)
+
         self.setText(u'')
-        common.ProgressMessage.instance().messageChanged.connect(
-            self.setText)
+        self.messageChanged.connect(self.setText, type=QtCore.Qt.QueuedConnection)
+        self.messageChanged.connect(
+            lambda x: QtWidgets.QApplication.instance().processEvents,
+            type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
-    def set_visibility(self):
-        """Sets the progressbar's visibility."""
+    def check_progress(self):
+        """Sets the Progresslabel's visibility."""
+        qsize = ImageCacheWorker.queue.qsize() + FileInfoWorker.queue.qsize()
+        text = self.text()
+        match = self.qre.match(text)
+        if match:
+            if match.group(1) == 'Processing':
+                text = ''
+            else:
+                text = match.expand(r'\1')
+
+        if qsize:
+            text = u'{} - {} items left'.format(text if text else u'Processing', qsize)
+
+        self.setText(text)
         if self.text():
             self.show()
         else:
             self.hide()
-            common.ProgressMessage.instance().clear_message()
 
 
 class BrowserButtonContextMenu(BaseContextMenu):
@@ -144,14 +178,14 @@ class BrowserButton(ClickableLabel):
             | QtCore.Qt.FramelessWindowHint
         )
         pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', None, height)
+            u'custom_bw', common.SECONDARY_TEXT, height)
         self.setPixmap(pixmap)
 
     def set_size(self, size):
         self.setFixedWidth(int(size))
         self.setFixedHeight(int(size))
         pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', None, int(size))
+            u'custom_bw', common.SECONDARY_TEXT, int(size))
         self.setPixmap(pixmap)
 
     def enterEvent(self, event):
@@ -787,7 +821,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._controlview = ListControlView(parent=self)
         self._controlbutton.set_view(self._controlview)
 
-        self._progressbar = Progressbar(parent=self)
+        self._Progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
@@ -799,7 +833,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
-        self.layout().addWidget(self._progressbar, 1)
+        self.layout().addWidget(self._Progresslabel, 1)
         self.layout().addWidget(self._addbutton)
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)

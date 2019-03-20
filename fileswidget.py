@@ -281,18 +281,10 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(
             itdir, flags=QtCore.QDirIterator.Subdirectories)
 
-        nth = 789
-        n = 0
-
         def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
         placeholder_color = QtGui.QColor(0,0,0,0)
 
         while it.hasNext():
-            n += 1
-            if n % nth == 0:
-                common.ProgressMessage.instance().set_message(
-                    'Loading {} asset files...'.format(n - 1))
-
             filepath = it.next()
 
             # File-filter:
@@ -378,7 +370,6 @@ class FilesModel(BaseModel):
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
-        common.ProgressMessage.instance().set_message(u'Loading...')
         for v in seqs.itervalues():
             idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!
@@ -398,7 +389,6 @@ class FilesModel(BaseModel):
             self._data[dkey][common.SequenceItem][idx] = v
 
         self.endResetModel()
-        common.ProgressMessage.instance().clear_message()
 
     @QtCore.Slot()
     def delete_thread(self, thread):

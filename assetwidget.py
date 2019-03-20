@@ -285,13 +285,12 @@ class AssetWidget(BaseInlineIconWidget):
         description_rect.moveTop(description_rect.top(
         ) - (description_rect.height() / 2.0) + metrics.lineSpacing())
 
+        source_index = self.model().mapToSource(index)
         if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(index, parent=self)
+            widget = editors.DescriptionEditorWidget(source_index, parent=self)
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            ImageCache.instance().pick(index)
+            ImageCache.instance().pick(source_index)
             return
-        else:
-            self.activate(self.selectionModel().currentIndex())
-            return
+        self.activate(self.selectionModel().currentIndex())

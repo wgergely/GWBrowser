@@ -44,21 +44,18 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot(tuple)
     def begin_processing(self):
-        """Gets and sets the missing information for each index in a background
-        thread.
+        """Starts the processing queue of this worker.
+
+        Each worker class is assigned a Queue, the process will automatically
+        take the item as it becomes available.
+
+        Note:
+            get(True) will block the thread until a new item is available in
+            the queue.
 
         """
-        n = 0
-        nth = 9
         try:
             while True:
-                n += 1
-                if self.queue.qsize():
-                    if n % nth == 0:
-                        common.ProgressMessage.instance().set_message(
-                            'Processing ({} left)...'.format(self.queue.qsize()))
-                else:
-                    common.ProgressMessage.instance().clear_message()
                 self.process_index(self.queue.get(True))
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
