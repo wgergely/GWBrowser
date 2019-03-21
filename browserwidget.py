@@ -29,6 +29,7 @@ from browser.assetwidget import AssetWidget
 from browser.fileswidget import FilesWidget
 from browser.listcontrolwidget import ListControlWidget
 from browser.listcontrolwidget import FilterButton
+from browser.listcontrolwidget import Progresslabel
 from browser.imagecache import ImageCache
 from browser.settings import local_settings, Active, active_monitor
 import browser.settings as Settings
@@ -196,6 +197,7 @@ class BrowserWidget(QtWidgets.QWidget):
         l = lc.control_view()
         lb = lc.control_button()
         s = self.stackedwidget
+        m = self.listcontrolwidget.findChild(Progresslabel)
 
         # Signal/slot connections for the primary bookmark/asset and filemodels
         b.model().sourceModel().modelReset.connect(
@@ -245,6 +247,16 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().layoutChanged.connect(f.initialize_visible_indexes)
         f.model().modelReset.connect(f.initialize_visible_indexes)
         f.model().sourceModel().modelReset.connect(f.initialize_visible_indexes)
+
+
+        # Status message when querrying files
+        f.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading...'))
+        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        a.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading...'))
+        a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+
+        f.model().layoutAboutToBeChanged.connect(lambda: m.messageChanged.emit(u'Sorting...'))
+        f.model().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
         # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
         # These are the signals responsible for changing the active items & data keys.

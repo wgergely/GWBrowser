@@ -255,6 +255,8 @@ class FilesModel(BaseModel):
         switch the model dataset.
 
         """
+        QtWidgets.QApplication.instance().processEvents()
+
         dkey = self.data_key()
         self._data[dkey] = {
             common.FileItem: {}, common.SequenceItem: {}}

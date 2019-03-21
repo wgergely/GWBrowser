@@ -504,10 +504,8 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.DirectConnection)
 
         model.dataTypeChanged.connect(model.set_data_type)
-        # model.dataTypeChanged.connect(lambda x: proxy.invalidate(),
-        #     type=QtCore.Qt.DirectConnection)
-        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
-        model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
+        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel(), type=QtCore.Qt.DirectConnection)
+        model.dataTypeChanged.connect(lambda x: proxy.endResetModel(), type=QtCore.Qt.QueuedConnection)
 
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))

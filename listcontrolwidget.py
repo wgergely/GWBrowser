@@ -28,25 +28,8 @@ class Progresslabel(QtWidgets.QLabel):
     """The widget responsible displaying progress messages."""
 
     messageChanged = QtCore.Signal(unicode)
-    __instance = None
-
-    @staticmethod
-    def instance():
-        """ Static access method. """
-        if Progresslabel.__instance == None:
-            Progresslabel()
-        return Progresslabel.__instance
-
-    @classmethod
-    def initialize(cls, *args, **kwargs):
-        """ Static create method. """
-        cls(*args, **kwargs)
-        return Progresslabel.__instance
 
     def __init__(self, parent=None):
-        if Progresslabel.__instance != None:
-            raise RuntimeError(u'\n# {} already initialized.\n# Use Progresslabel.instance() instead.'.format(
-                self.__class__.__name__))
         super(Progresslabel, self).__init__(parent=parent)
 
         self.progress_monitor = QtCore.QTimer()
@@ -78,10 +61,10 @@ class Progresslabel(QtWidgets.QLabel):
         self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sitems\sleft)', flags=re.IGNORECASE)
 
         self.setText(u'')
-        self.messageChanged.connect(self.setText, type=QtCore.Qt.QueuedConnection)
-        self.messageChanged.connect(
-            lambda x: QtWidgets.QApplication.instance().processEvents,
-            type=QtCore.Qt.QueuedConnection)
+        self.messageChanged.connect(self.setText, type=QtCore.Qt.DirectConnection)
+        # self.messageChanged.connect(
+        #     lambda x: QtWidgets.QApplication.instance().processEvents,
+        #     type=QtCore.Qt.DirectConnection)
 
     @QtCore.Slot()
     def check_progress(self):
@@ -99,10 +82,10 @@ class Progresslabel(QtWidgets.QLabel):
             text = u'{} - {} items left'.format(text if text else u'Processing', qsize)
 
         self.setText(text)
-        if self.text():
-            self.show()
-        else:
-            self.hide()
+        # if self.text():
+        #     self.show()
+        # else:
+        #     self.hide()
 
 
 class BrowserButtonContextMenu(BaseContextMenu):
