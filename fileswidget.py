@@ -489,22 +489,28 @@ class FilesWidget(BaseInlineIconWidget):
         if not index.isValid():
             return
 
+        # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
         while self.rect().contains(rect):
             source_index = self.model().mapToSource(index)
-            indexes.append(source_index)
+            if not index.data(common.StatusRole):
+                indexes.append(source_index)
 
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
             if not index.isValid():
                 break
+
+        # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
         if index.isValid():
-            source_index = self.model().mapToSource(index)
-            if source_index not in indexes:
-                indexes.append(source_index)
+            if not index.data(common.StatusRole):
+                source_index = self.model().mapToSource(index)
+                if source_index not in indexes:
+                    indexes.append(source_index)
 
-        FileInfoWorker.add_to_queue(indexes)
+        if indexes:
+            FileInfoWorker.add_to_queue(indexes)
 
 
         # indexes = [m.index(f, 0) for f in xrange(len(data))
