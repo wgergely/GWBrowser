@@ -199,6 +199,11 @@ class BrowserWidget(QtWidgets.QWidget):
         s = self.stackedwidget
         m = self.listcontrolwidget.findChild(Progresslabel)
 
+        # Signals responsible for saveing the activation changes
+        b.model().sourceModel().activeChanged.connect(b.save_activated)
+        a.model().sourceModel().activeChanged.connect(a.save_activated)
+        f.model().sourceModel().activeChanged.connect(f.save_activated)
+
         # Signal/slot connections for the primary bookmark/asset and filemodels
         b.model().sourceModel().modelReset.connect(
             lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))

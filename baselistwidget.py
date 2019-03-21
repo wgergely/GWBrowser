@@ -495,9 +495,6 @@ class BaseListWidget(QtWidgets.QListView):
             type=QtCore.Qt.DirectConnection)
         proxy.modelReset.connect(self.model().invalidateFilter)
 
-
-        model.activeChanged.connect(self.save_activated)
-
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(lambda x: model.check_data())
         model.dataKeyChanged.connect(lambda x: proxy.invalidate(),
