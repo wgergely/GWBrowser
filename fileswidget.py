@@ -490,6 +490,8 @@ class FilesWidget(BaseInlineIconWidget):
             self.initialize_visible_indexes)
         self.verticalScrollBar().valueChanged.connect(
             self.initialize_visible_indexes)
+        self.verticalScrollBar().sliderReleased.connect(
+            self.initialize_visible_indexes)
 
     @QtCore.Slot()
     def reset_queue(self):
@@ -505,6 +507,9 @@ class FilesWidget(BaseInlineIconWidget):
         in the view.
 
         """
+        if self.verticalScrollBar().isSliderDown():
+            return
+
         app = QtWidgets.QApplication.instance()
         app.processEvents()
 
