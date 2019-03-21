@@ -67,10 +67,21 @@ class FileInfoWorker(BaseWorker):
         finally:
             self.begin_processing()
 
+    @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(self, index):
-        """The actual processing happens here."""
+    def process_index(index):
+        """This static method is reponsible for populating an index's data
+        with the description, file information,  thumbnail data.
+
+        This process is automatically called by the `start_processing` method,
+        and will push any index in the thread's Queue to this method.
+
+        """
         if not index.isValid():
+            return
+
+        # To be on the save-side let's skip initiated items
+        if index.data(common.StatusRole):
             return
 
         # Item description
@@ -461,18 +472,18 @@ class FilesWidget(BaseInlineIconWidget):
 
         self.model().modelAboutToBeReset.connect(self.reset_queue)
         self.model().modelReset.connect(
-            self.queue_indexes)
+            self.initialize_visible_indexes)
         self.model().layoutChanged.connect(
-            self.queue_indexes)
+            self.initialize_visible_indexes)
         self.verticalScrollBar().valueChanged.connect(
-            self.queue_indexes)
+            self.initialize_visible_indexes)
 
     @QtCore.Slot()
     def reset_queue(self):
         FileInfoWorker.reset_queue()
 
     @QtCore.Slot()
-    def queue_indexes(self):
+    def initialize_visible_indexes(self):
         """The sourceModel() loads it's data in two steps, there's a single-threaded
         data-collections, and a threaded second pass to load thumbnails and
         descriptions.
