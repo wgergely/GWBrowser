@@ -199,6 +199,8 @@ class SelectFolderView(QtWidgets.QTreeView):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(QtCore.QModelIndex()).height()
+            if height > 300:
+                break
         self.setFixedHeight(height)
 
     # def focusOutEvent(self, event):
@@ -379,6 +381,22 @@ class SelectFolderButton(ClickableLabel):
         self.view().setFocus()
         self.view().raise_()
 
+        index = QtCore.QModelIndex()
+        if hasattr(self.view().model(), 'sourceModel'):
+            source_index = self.view().model().sourceModel().active_index()
+            if not source_index.isValid():
+                return
+            index = self.view().model().mapFromSource(source_index)
+        else:
+            dest = self.view().model().destination()
+            if dest:
+                index = self.view().model().index(dest)
+
+        self.view().selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.view().scrollTo(
+            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
     def showEvent(self, event):
         return super(SelectFolderButton, self).showEvent(event)
 
@@ -482,6 +500,8 @@ class SaverListView(BaseListWidget):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(None, None).height()
+            if height > 300:
+                break
         if height == 0:
             height += self.itemDelegate().sizeHint(None, None).height()
         self.setFixedHeight(height)
@@ -614,6 +634,8 @@ class SelectBookmarkView(SaverListView):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(None, None).height()
+            if height > 300:
+                break
         if height == 0:
             height += self.itemDelegate().sizeHint(None, None).height()
         self.setFixedHeight(height)
