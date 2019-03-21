@@ -8,7 +8,6 @@ the image cache and the OpenImageIO-based thmbnail generator methods.
 """
 
 import sys
-import math
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -37,6 +36,8 @@ class ImageCacheWorker(BaseWorker):
         """The actual processing happens here."""
         if not index.isValid():
             return
+        if not index.data(common.StatusRole):
+            return
 
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
@@ -44,8 +45,6 @@ class ImageCacheWorker(BaseWorker):
         if common.is_collapsed(source):
             source = common.find_largest_file(index)
         dest = index.data(common.ThumbnailPathRole)
-        if not dest:
-            return
 
         # First let's check if the file is competible with OpenImageIO
         i = oiio.ImageInput.open(source)
