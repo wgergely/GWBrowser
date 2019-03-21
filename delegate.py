@@ -416,7 +416,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtCore.Qt.NoPen)
 
         if favourite:
-            painter.setBrush(common.SEPARATOR)
+            sep = QtGui.QColor(common.SEPARATOR)
+            sep.setAlpha(150)
+            painter.setBrush(sep)
             painter.drawRoundedRect(
                 bg_rect, bg_rect.width() / 2, bg_rect.width() / 2)
 
@@ -500,7 +502,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         rect.setRight(rect.right() - common.MARGIN)
 
-        font = QtGui.QFont(common.SecondaryFont)
+        font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
 
         rect.moveTop(rect.top() + (rect.height() / 2.0))
