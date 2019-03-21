@@ -241,8 +241,10 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().modelReset.connect(
             lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
 
-        # let's initialize the visible indexes upon the model has been reset
+        # Initialize the visible indexes upon the model has been loaded
         f.model().layoutChanged.connect(f.initialize_visible_indexes)
+        f.model().modelReset.connect(f.initialize_visible_indexes)
+        f.model().sourceModel().modelReset.connect(f.initialize_visible_indexes)
 
         # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
         # These are the signals responsible for changing the active items & data keys.
