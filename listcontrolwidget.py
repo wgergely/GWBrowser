@@ -62,9 +62,9 @@ class Progresslabel(QtWidgets.QLabel):
 
         self.setText(u'')
         self.messageChanged.connect(self.setText, type=QtCore.Qt.DirectConnection)
-        # self.messageChanged.connect(
-        #     lambda x: QtWidgets.QApplication.instance().processEvents,
-        #     type=QtCore.Qt.DirectConnection)
+        self.messageChanged.connect(
+            lambda x: QtWidgets.QApplication.instance().processEvents,
+            type=QtCore.Qt.DirectConnection)
 
     @QtCore.Slot()
     def check_progress(self):

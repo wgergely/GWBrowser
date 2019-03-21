@@ -164,8 +164,15 @@ class FileInfoWorker(BaseWorker):
         else:
             placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
 
+        # THUMBNAILS
+        needs_thumbnail = False
         image = ImageCache.instance().get(settings.thumbnail_path(), height)
-        if not image:
+        if not image: # The item doesn't not have a saved thumbnail...
+            ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
+            if ext in common._oiio_formats:
+                # ...but we can generate a thumbnail for it
+                needs_thumbnail = True
+
             image = placeholder_image
             color = placeholder_color
         else:
@@ -187,6 +194,10 @@ class FileInfoWorker(BaseWorker):
         data[common.StatusRole] = True
 
         index.model().dataChanged.emit(index, index)
+
+        # Let's generate the thumbnail
+        if needs_thumbnail:
+            ImageCacheWorker.add_to_queue((index,))
 
 
 class FileInfoThread(BaseThread):
@@ -525,9 +536,6 @@ class FilesWidget(BaseInlineIconWidget):
         if indexes:
             FileInfoWorker.add_to_queue(indexes)
 
-
-        # indexes = [m.index(f, 0) for f in xrange(len(data))
-        #         if not data[f][common.StatusRole]]
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

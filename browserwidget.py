@@ -250,9 +250,9 @@ class BrowserWidget(QtWidgets.QWidget):
 
 
         # Status message when querrying files
-        f.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading...'))
+        f.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading files...'))
         f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        a.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading...'))
+        a.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading assets...'))
         a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
 
         f.model().layoutAboutToBeChanged.connect(lambda: m.messageChanged.emit(u'Sorting...'))

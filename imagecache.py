@@ -305,9 +305,14 @@ class ImageCache(QtCore.QObject):
         average_color.setAlpha(average_color.alpha() / 2.0)
         return average_color
 
-
     def generate_thumbnails(self, indexes, overwrite=False):
-        """Takes a list of index values and generates thumbnails for them."""
+        """Takes a list of index values and generates thumbnails for them.
+
+        Note:
+            This method is affiliated with the main GUI thread, but the images
+            are generated in worker threads.
+
+        """
 
         def filtered(indexes, overwrite=None):
             """Filter method for making sure only acceptable files types will be querried."""
@@ -315,13 +320,14 @@ class ImageCache(QtCore.QObject):
                 ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
                 if ext not in common._oiio_formats:
                     continue
+                if not index.data(common.StatusRole):
+                    continue
                 dest = AssetSettings(index).thumbnail_path()
                 if not overwrite and QtCore.QFileInfo(dest).exists():
                     continue
                 yield index
 
-        indexes = list(filtered(indexes, overwrite=overwrite))
-        ImageCacheWorker.add_to_queue(indexes)
+        ImageCacheWorker.add_to_queue(filtered(indexes, overwrite=overwrite))
 
 
     @classmethod
