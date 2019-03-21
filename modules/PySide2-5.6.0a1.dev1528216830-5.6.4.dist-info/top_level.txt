@@ -1,3 +1,0 @@
-PySide2
-QtCore
-pyside2uic

@@ -98,7 +98,6 @@ def get_oiio_namefilters(as_array=False):
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    import browser.modules  # pylint: disable=E0401
     import oiio.OpenImageIO as oiio
 
     formatlist = oiio.get_string_attribute("extension_list").split(';')

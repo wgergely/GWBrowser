@@ -15,7 +15,6 @@ from browser.capture import ScreenGrabber
 from browser.settings import AssetSettings
 import browser.common as common
 
-import browser.modules  # loads the numpy, oiio libraries
 import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 

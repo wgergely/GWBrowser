@@ -7,7 +7,6 @@ import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
 import browser.common as common
-import browser.modules
 from alembic.Abc import IArchive, GetArchiveInfo
 
 class Node(QtCore.QObject):
