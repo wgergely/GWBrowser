@@ -18,17 +18,17 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-import browser.common as common
-from browser.imagecache import ImageCache
-from browser.basecontextmenu import BaseContextMenu
-from browser.browserwidget import BrowserWidget, ListControlWidget
-from browser.listcontrolwidget import BrowserButton
-from browser.assetwidget import AssetWidget
-from browser.fileswidget import FilesWidget
-from browser.settings import local_settings
-from browser.context.saver import SaverWidget, SaverFileInfo, Custom
-from browser.context.mayaexporter import BaseExporter, AlembicExport
-from browser.settings import AssetSettings
+import gwbrowser.common as common
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.browserwidget import BrowserWidget, ListControlWidget
+from gwbrowser.listcontrolwidget import BrowserButton
+from gwbrowser.assetwidget import AssetWidget
+from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.settings import local_settings
+from gwbrowser.context.saver import SaverWidget, SaverFileInfo, Custom
+from gwbrowser.context.mayaexporter import BaseExporter, AlembicExport
+from gwbrowser.settings import AssetSettings
 
 
 def contextmenu(func):

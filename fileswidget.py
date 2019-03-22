@@ -13,23 +13,23 @@ import Queue
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.basecontextmenu import BaseContextMenu
-from browser.baselistwidget import BaseInlineIconWidget
-from browser.baselistwidget import BaseModel
+from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.baselistwidget import BaseModel
 
-import browser.common as common
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from browser.settings import AssetSettings
-from browser.settings import local_settings
-from browser.delegate import FilesWidgetDelegate
-import browser.editors as editors
+import gwbrowser.common as common
+from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from gwbrowser.settings import AssetSettings
+from gwbrowser.settings import local_settings
+from gwbrowser.delegate import FilesWidgetDelegate
+import gwbrowser.editors as editors
 
-from browser.imagecache import ImageCache
-from browser.imagecache import ImageCacheWorker
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.imagecache import ImageCacheWorker
 
-from browser.threads import BaseThread
-from browser.threads import BaseWorker
-from browser.threads import Unique
+from gwbrowser.threads import BaseThread
+from gwbrowser.threads import BaseWorker
+from gwbrowser.threads import Unique
 
 
 

@@ -7,14 +7,14 @@
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.browserwidget import BrowserWidget, SizeGrip
-from browser.listcontrolwidget import BrowserButtonContextMenu
-from browser.fileswidget import FilesWidget
-from browser.editors import ClickableLabel
-from browser.basecontextmenu import contextmenu
-import browser.common as common
-from browser.settings import local_settings
-from browser.imagecache import ImageCache
+from gwbrowser.browserwidget import BrowserWidget, SizeGrip
+from gwbrowser.listcontrolwidget import BrowserButtonContextMenu
+from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.editors import ClickableLabel
+from gwbrowser.basecontextmenu import contextmenu
+import gwbrowser.common as common
+from gwbrowser.settings import local_settings
+from gwbrowser.imagecache import ImageCache
 
 
 class TrayMenu(BrowserButtonContextMenu):

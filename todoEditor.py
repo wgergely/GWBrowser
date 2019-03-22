@@ -15,10 +15,10 @@ Methods:
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser import common
-from browser.settings import AssetSettings
-from browser.settings import local_settings
-from browser.imagecache import ImageCache
+from gwbrowser import common
+from gwbrowser.settings import AssetSettings
+from gwbrowser.settings import local_settings
+from gwbrowser.imagecache import ImageCache
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):

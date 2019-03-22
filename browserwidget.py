@@ -10,7 +10,7 @@ Example:
 .. code-block:: python
     :linenos:
 
-    from browser.toolbar import BrowserWidget
+    from gwbrowser.toolbar import BrowserWidget
     widget = BrowserWidget()
     widget.show()
 
@@ -22,17 +22,17 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import browser.common as common
-from browser.baselistwidget import StackedWidget
-from browser.bookmarkswidget import BookmarksWidget
-from browser.assetwidget import AssetWidget
-from browser.fileswidget import FilesWidget
-from browser.listcontrolwidget import ListControlWidget
-from browser.listcontrolwidget import FilterButton
-from browser.listcontrolwidget import Progresslabel
-from browser.imagecache import ImageCache
-from browser.settings import local_settings, Active, active_monitor
-import browser.settings as Settings
+import gwbrowser.common as common
+from gwbrowser.baselistwidget import StackedWidget
+from gwbrowser.bookmarkswidget import BookmarksWidget
+from gwbrowser.assetwidget import AssetWidget
+from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.listcontrolwidget import ListControlWidget
+from gwbrowser.listcontrolwidget import FilterButton
+from gwbrowser.listcontrolwidget import Progresslabel
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.settings import local_settings, Active, active_monitor
+import gwbrowser.settings as Settings
 
 
 class SizeGrip(QtWidgets.QSizeGrip):

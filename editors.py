@@ -6,9 +6,9 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import browser.common as common
-from browser.settings import AssetSettings
-from browser.imagecache import ImageCache
+import gwbrowser.common as common
+from gwbrowser.settings import AssetSettings
+from gwbrowser.imagecache import ImageCache
 
 
 class ClickableLabel(QtWidgets.QLabel):

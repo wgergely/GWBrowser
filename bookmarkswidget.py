@@ -19,18 +19,18 @@ import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
-from browser.imagecache import ImageCache
-import browser.common as common
-from browser.basecontextmenu import BaseContextMenu
-from browser.baselistwidget import BaseInlineIconWidget
-from browser.baselistwidget import BaseModel
-from browser.settings import local_settings, Active, active_monitor
-from browser.settings import AssetSettings
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
-from browser.delegate import BookmarksWidgetDelegate
-from browser.delegate import BaseDelegate
-from browser.delegate import paintmethod
-import browser.editors as editors
+from gwbrowser.imagecache import ImageCache
+import gwbrowser.common as common
+from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import AssetSettings
+from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from gwbrowser.delegate import BookmarksWidgetDelegate
+from gwbrowser.delegate import BaseDelegate
+from gwbrowser.delegate import paintmethod
+import gwbrowser.editors as editors
 
 
 class ImageDownloader(QtCore.QObject):

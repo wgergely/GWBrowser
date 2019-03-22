@@ -1,8 +1,8 @@
 from PySide2 import QtWidgets, QtCore
-from browser.bookmarkswidget import BookmarksWidget
-from browser.assetwidget import AssetWidget
-from browser.fileswidget import FilesWidget
-from browser.listcontrolwidget import ListControlWidget
+from gwbrowser.bookmarkswidget import BookmarksWidget
+from gwbrowser.assetwidget import AssetWidget
+from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.listcontrolwidget import ListControlWidget
 
 app = QtWidgets.QApplication([])
 

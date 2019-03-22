@@ -7,10 +7,10 @@ import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import browser.common as common
-from browser.imagecache import ImageCache
-from browser.settings import AssetSettings
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+import gwbrowser.common as common
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.settings import AssetSettings
+from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 def paintmethod(func):

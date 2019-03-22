@@ -32,7 +32,7 @@ Important:
     After copying, you can test by your setup by trying to import 'browser'
     by running in the script editor:
 
-        import browser
+        import gwbrowser
 
     If you get any error messages something went south.
 
@@ -64,7 +64,7 @@ def initializePlugin(plugin):
         plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
-        from browser.context.mayabrowserwidget import MayaBrowserButton
+        from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
         cmds.evalDeferred(MayaBrowserButton)
         sys.stdout.write('\n\n# Browser: Plugin loaded.\n\n')
     except ImportError as err:
@@ -95,13 +95,13 @@ def uninitializePlugin(plugin):
         plugin, vendor='Gergely Wootsch', version='0.2.0')
 
     try:
-        from browser.settings import active_monitor
+        from gwbrowser.settings import active_monitor
         active_monitor.timer.stop()
     except Exception as err:
         sys.stdout.write('# Browser: Failed stop timer.\n')
 
     try:
-        from browser.context.mayabrowserwidget import MayaBrowserButton
+        from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
         ptr = OpenMayaUI.MQtUtil.findControl('ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
         widget = widget.findChild(MayaBrowserButton)

@@ -15,17 +15,17 @@ values are stored in the ``bookmark/.browser`` folder.
 import time
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from browser.imagecache import ImageCache
-import browser.common as common
-from browser.basecontextmenu import BaseContextMenu
-from browser.baselistwidget import BaseInlineIconWidget
-from browser.baselistwidget import BaseModel
-import browser.editors as editors
-from browser.delegate import AssetWidgetDelegate
+from gwbrowser.imagecache import ImageCache
+import gwbrowser.common as common
+from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.baselistwidget import BaseModel
+import gwbrowser.editors as editors
+from gwbrowser.delegate import AssetWidgetDelegate
 
-from browser.settings import AssetSettings
-from browser.settings import local_settings, Active, active_monitor
-from browser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from gwbrowser.settings import AssetSettings
+from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class AssetWidgetContextMenu(BaseContextMenu):
@@ -240,7 +240,7 @@ class AssetWidget(BaseInlineIconWidget):
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
-        from browser.todoEditor import TodoEditorWidget
+        from gwbrowser.todoEditor import TodoEditorWidget
         source_index = self.model().mapToSource(index)
         widget = TodoEditorWidget(source_index, parent=self)
         widget.show()

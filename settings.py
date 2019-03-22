@@ -20,7 +20,7 @@ import hashlib
 import collections
 from PySide2 import QtCore
 
-import browser.common as common
+import gwbrowser.common as common
 
 
 # Flags

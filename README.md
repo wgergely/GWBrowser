@@ -42,7 +42,7 @@ After copying, you can test by your setup by trying to import `browser`
 to Maya. Run this in the Maya Script Editor:
 
 ```python
-import browser
+import gwbrowser
 ```
 
 If you get any error messages something went south, no message is good.

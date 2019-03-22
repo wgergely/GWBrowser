@@ -9,7 +9,7 @@ import Queue
 
 from PySide2 import QtWidgets, QtCore
 
-import browser.common as common
+import gwbrowser.common as common
 
 
 class Unique(Queue.Queue):

@@ -8,11 +8,11 @@ import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import browser.common as common
-import browser.editors as editors
-from browser.imagecache import ImageCache
-import browser.settings as Settings
-from browser.settings import AssetSettings
+import gwbrowser.common as common
+import gwbrowser.editors as editors
+from gwbrowser.imagecache import ImageCache
+import gwbrowser.settings as Settings
+from gwbrowser.settings import AssetSettings
 
 
 def contextmenu(func):

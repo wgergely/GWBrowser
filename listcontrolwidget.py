@@ -7,25 +7,25 @@ import functools
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.settings import Active
-import browser.common as common
-from browser.delegate import paintmethod
-from browser.basecontextmenu import BaseContextMenu, contextmenu
-from browser.baselistwidget import BaseModel
+from gwbrowser.settings import Active
+import gwbrowser.common as common
+from gwbrowser.delegate import paintmethod
+from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
+from gwbrowser.baselistwidget import BaseModel
 
-from browser.delegate import BaseDelegate
+from gwbrowser.delegate import BaseDelegate
 
-from browser.editors import FilterEditor
-from browser.editors import ClickableLabel
-import browser.settings as Settings
+from gwbrowser.editors import FilterEditor
+from gwbrowser.editors import ClickableLabel
+import gwbrowser.settings as Settings
 
-from browser.imagecache import ImageCache
-from browser.imagecache import ImageCacheWorker
-from browser.fileswidget import FileInfoWorker
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.imagecache import ImageCacheWorker
+from gwbrowser.fileswidget import FileInfoWorker
 
-from browser.threads import BaseThread
-from browser.threads import BaseWorker
-from browser.threads import Unique
+from gwbrowser.threads import BaseThread
+from gwbrowser.threads import BaseWorker
+from gwbrowser.threads import Unique
 
 
 class ListInfoWorker(BaseWorker):
@@ -435,7 +435,7 @@ class AddButton(ControlButton):
         if self._parent.currentIndex() == 1:
             return
         if self._parent.currentIndex() == 2:
-            import browser.context.saver as saver
+            import gwbrowser.context.saver as saver
             print self.current().model().sourceModel().data_key()
             widget = saver.SaverWidget(u'tempfile', self.current().model().sourceModel().data_key(), currentfile=None)
 

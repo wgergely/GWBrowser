@@ -165,7 +165,7 @@ class AlembicExport(BaseExporter):
                 '# Alembic export: No valid root nodes were specified.\n')
             return
 
-        perframecallback = '"import browser.context.mayabrowserwidget as mb; mb.AlembicExport.instance().progress.emit({}, #FRAME#, {})"'.format(
+        perframecallback = '"import gwbrowser.context.mayabrowserwidget as mb; mb.AlembicExport.instance().progress.emit({}, #FRAME#, {})"'.format(
             int(startframe), int(endframe))
         kwargs = {
             'jobArg': '{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {ef} {df} {pfc} {ppc}'.format(

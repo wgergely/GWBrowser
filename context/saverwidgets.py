@@ -8,17 +8,17 @@ import functools
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import browser.common as common
-from browser.editors import ClickableLabel
-from browser.delegate import BaseDelegate
-from browser.delegate import paintmethod
-from browser.settings import MarkedAsActive
-from browser.basecontextmenu import BaseContextMenu, contextmenu
-from browser.delegate import AssetWidgetDelegate
-from browser.delegate import BookmarksWidgetDelegate
-from browser.assetwidget import AssetModel
-from browser.bookmarkswidget import BookmarksModel
-from browser.baselistwidget import BaseListWidget
+import gwbrowser.common as common
+from gwbrowser.editors import ClickableLabel
+from gwbrowser.delegate import BaseDelegate
+from gwbrowser.delegate import paintmethod
+from gwbrowser.settings import MarkedAsActive
+from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
+from gwbrowser.delegate import AssetWidgetDelegate
+from gwbrowser.delegate import BookmarksWidgetDelegate
+from gwbrowser.assetwidget import AssetModel
+from gwbrowser.bookmarkswidget import BookmarksModel
+from gwbrowser.baselistwidget import BaseListWidget
 
 # ++++++++++++++++++++++++++++++
 # FOLDER

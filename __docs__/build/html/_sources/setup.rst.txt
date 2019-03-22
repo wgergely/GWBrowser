@@ -48,7 +48,7 @@ To test your installation, try importing Browser in the Maya Script Editor. Afte
 .. code-block:: python
     :linenos:
 
-    import browser
+    import gwbrowser
 
 Finally, you have to load the plug-in via the `Plug-in Manager`, where the plug-in should be listed as `browserPlugin.py`.
 Check ``load`` and ``auto-load``.

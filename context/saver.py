@@ -27,30 +27,30 @@ import collections
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import browser.common as common
+import gwbrowser.common as common
 
-from browser.editors import ClickableLabel
+from gwbrowser.editors import ClickableLabel
 
-from browser.basecontextmenu import BaseContextMenu, contextmenu
-from browser.bookmarkswidget import BookmarksModel
-from browser.assetwidget import AssetModel
-from browser.standalone import HeaderWidget, CloseButton, MinimizeButton
+from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
+from gwbrowser.bookmarkswidget import BookmarksModel
+from gwbrowser.assetwidget import AssetModel
+from gwbrowser.standalone import HeaderWidget, CloseButton, MinimizeButton
 
-from browser.capture import ScreenGrabber
-import browser.settings as Settings
+from gwbrowser.capture import ScreenGrabber
+import gwbrowser.settings as Settings
 
-from browser.settings import AssetSettings
-from browser.imagecache import ImageCache
+from gwbrowser.settings import AssetSettings
+from gwbrowser.imagecache import ImageCache
 
-from browser.context.saverwidgets import SelectBookmarkButton
-from browser.context.saverwidgets import SelectBookmarkView
+from gwbrowser.context.saverwidgets import SelectBookmarkButton
+from gwbrowser.context.saverwidgets import SelectBookmarkView
 
-from browser.context.saverwidgets import SelectAssetButton
-from browser.context.saverwidgets import SelectAssetView
+from gwbrowser.context.saverwidgets import SelectAssetButton
+from gwbrowser.context.saverwidgets import SelectAssetView
 
-from browser.context.saverwidgets import SelectFolderButton
-from browser.context.saverwidgets import SelectFolderView
-from browser.context.saverwidgets import SelectFolderModel
+from gwbrowser.context.saverwidgets import SelectFolderButton
+from gwbrowser.context.saverwidgets import SelectFolderView
+from gwbrowser.context.saverwidgets import SelectFolderModel
 
 
 class ThumbnailContextMenu(BaseContextMenu):

@@ -11,17 +11,17 @@ import sys
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from browser.capture import ScreenGrabber
-from browser.settings import AssetSettings
-import browser.common as common
+from gwbrowser.capture import ScreenGrabber
+from gwbrowser.settings import AssetSettings
+import gwbrowser.common as common
 
 import oiio.OpenImageIO as oiio
 from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
 
 
-from browser.threads import BaseThread
-from browser.threads import BaseWorker
-from browser.threads import Unique
+from gwbrowser.threads import BaseThread
+from gwbrowser.threads import BaseWorker
+from gwbrowser.threads import Unique
 
 
 class ImageCacheWorker(BaseWorker):
