@@ -300,7 +300,7 @@ class ImageCache(QtCore.QObject):
                 sum(g) / float(len(g)),
                 sum(b) / float(len(b))
             )
-        average_color.setAlpha(average_color.alpha() / 2.0)
+        average_color.setAlpha(int(average_color.alpha() / 2))
         return average_color
 
     def generate_thumbnails(self, indexes, overwrite=False):

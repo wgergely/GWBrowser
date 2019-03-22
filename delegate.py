@@ -634,6 +634,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveLeft(rect.right() + common.MARGIN)
 
         text = index.data(common.DescriptionRole)
+        print text
         if option.rect.width() < 360.0:
             rect.setRight(option.rect.right() - common.MARGIN)
         else:

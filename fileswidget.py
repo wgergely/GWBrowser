@@ -585,14 +585,16 @@ class FilesWidget(BaseInlineIconWidget):
 
         """
         index = self.indexAt(event.pos())
+        if not index.isValid():
+            return
+        if index.flags() & MarkedAsArchived:
+            return
+
         rect = self.visualRect(index)
 
         thumbnail_rect = QtCore.QRect(rect)
         thumbnail_rect.setWidth(rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
-
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
 
         name_rect = QtCore.QRect(rect)
         name_rect.setLeft(
@@ -601,28 +603,32 @@ class FilesWidget(BaseInlineIconWidget):
             + common.MARGIN
         )
         name_rect.setRight(name_rect.right() - common.MARGIN)
-        #
+
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
+
         description_rect = QtCore.QRect(name_rect)
-        #
+
         name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
         name_rect.setHeight(metrics.height())
         name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
-        #
+
+        # Moving the rectangle down one line
         description_rect.moveTop(
             description_rect.top() + (description_rect.height() / 2.0))
         description_rect.setHeight(metrics.height())
         description_rect.moveTop(description_rect.top(
         ) - (description_rect.height() / 2.0) + metrics.lineSpacing())
 
+        source_index = self.model().mapToSource(index)
         if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(index, parent=self)
+            widget = editors.DescriptionEditorWidget(source_index, parent=self)
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
-            ImageCache.instance().pick(index)
+            ImageCache.instance().pick(source_index)
             return
-
-        self.activated.emit(index)
+        self.activate(self.selectionModel().currentIndex())
 
 
 if __name__ == '__main__':

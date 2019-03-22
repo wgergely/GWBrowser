@@ -254,12 +254,17 @@ class AssetWidget(BaseInlineIconWidget):
 
         """
         index = self.indexAt(event.pos())
+        if not index.isValid():
+            return
+        if index.flags() & MarkedAsArchived:
+            return
+            
         rect = self.visualRect(index)
-        #
+
         thumbnail_rect = QtCore.QRect(rect)
         thumbnail_rect.setWidth(rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
-        #
+
         name_rect = QtCore.QRect(rect)
         name_rect.setLeft(
             common.INDICATOR_WIDTH
@@ -274,7 +279,7 @@ class AssetWidget(BaseInlineIconWidget):
         name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
         name_rect.setHeight(metrics.height())
         name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
-        #
+
         description_rect = QtCore.QRect(rect)
         font = QtGui.QFont(common.SecondaryFont)
         metrics = QtGui.QFontMetrics(font)
@@ -287,7 +292,7 @@ class AssetWidget(BaseInlineIconWidget):
 
         source_index = self.model().mapToSource(index)
         if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(index, parent=self)
+            widget = editors.DescriptionEditorWidget(source_index, parent=self)
             widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):

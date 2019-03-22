@@ -397,29 +397,58 @@ class BookmarksWidget(BaseInlineIconWidget):
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""
         index = self.indexAt(event.pos())
-        rect = self.visualRect(index)
         if not index.isValid():
             return
         if index.flags() & MarkedAsArchived:
             return
 
+        rect = self.visualRect(index)
 
-        description_rect = QtCore.QRect(rect)
+        thumbnail_rect = QtCore.QRect(rect)
+        thumbnail_rect.setWidth(rect.height())
+        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
+
+        # description_rect = QtCore.QRect(rect)
+        # font = QtGui.QFont(common.PrimaryFont)
+        # font.setPointSize(11)
+        # metrics = QtGui.QFontMetrics(font)
+        #
+        # center = description_rect.center()
+        # description_rect.setHeight(metrics.height())
+        # description_rect.moveCenter(center)
+
+
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(11)
         metrics = QtGui.QFontMetrics(font)
 
-        center = description_rect.center()
-        description_rect.setHeight(metrics.height())
-        description_rect.moveCenter(center)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN - 2
+        )
+        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        rect.setHeight(common.INLINE_ICON_SIZE)
+        rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(index, parent=self)
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = re.sub(r'[\W\d\_]+', '', text)
+        text = u'  {}  |  {}  '.format(
+            text, index.data(common.ParentRole)[-1].upper())
+
+        width = metrics.width(text)
+        rect.moveLeft(rect.left() + width)
+
+        source_index = self.model().mapToSource(index)
+        if rect.contains(event.pos()):
+            widget = editors.DescriptionEditorWidget(source_index, parent=self)
             widget.show()
+            return
+        elif thumbnail_rect.contains(event.pos()):
+            ImageCache.instance().pick(source_index)
             return
         if not index.data(common.TodoCountRole):
             return common.reveal(index.data(QtCore.Qt.StatusTipRole))
-            
+
         self.activate(self.selectionModel().currentIndex())
 
 

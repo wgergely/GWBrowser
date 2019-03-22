@@ -180,7 +180,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
     def set_size(self, size):
         """Sets the widget size."""
-        rect = QtCore.QRect(self.parent().visualRect(self._index))
+        index = self.parent().model().mapFromSource(self._index)
+        rect = QtCore.QRect(self.parent().visualRect(index))
         rect.setLeft(rect.left() + common.INDICATOR_WIDTH +
                      (rect.height() - 2))
         self.move(rect.left(), rect.top())
@@ -307,9 +308,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.close()
             return
 
-        source_index = self.parent().model().mapToSource(self._index)
-        self.parent().model().sourceModel().setData(
-            source_index,
+        self._index.model().setData(
+            self._index,
             self.editor.text(),
             role=common.DescriptionRole
         )
