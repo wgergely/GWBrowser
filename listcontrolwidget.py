@@ -23,6 +23,46 @@ from browser.imagecache import ImageCache
 from browser.imagecache import ImageCacheWorker
 from browser.fileswidget import FileInfoWorker
 
+from browser.threads import BaseThread
+from browser.threads import BaseWorker
+from browser.threads import Unique
+
+
+class ListInfoWorker(BaseWorker):
+    """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
+    queue = Unique(999999)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    @QtCore.Slot(unicode)
+    @classmethod
+    def process_index(cls, index):
+        """The actual processing happens here."""
+        if not index.isValid():
+            return
+
+        # Iterator
+        itdir = QtCore.QDir(index.data(QtCore.Qt.StatusTipRole))
+        itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        itdir.setSorting(QtCore.QDir.Unsorted)
+        it = QtCore.QDirIterator(
+            itdir, flags=QtCore.QDirIterator.Subdirectories)
+
+        count = 0
+        while it.hasNext():
+            it.next()
+            count += 1
+            if count > 9999:
+                break
+
+        data = index.model().model_data()
+        data[index.row()][common.TodoCountRole] = count
+        index.model().dataChanged.emit(index, index)
+
+
+class ListInfoThread(BaseThread):
+    Worker = ListInfoWorker
+
+
 
 class Progresslabel(QtWidgets.QLabel):
     """The widget responsible displaying progress messages."""
@@ -492,6 +532,15 @@ class ListControlDelegate(BaseDelegate):
                 painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.FAVOURITE)
             rect.setLeft(rect.left() + width)
 
+        if index.data(common.TodoCountRole):
+            if index.data(common.TodoCountRole) >= 9999:
+                text = u' (9999+ files)'
+            else:
+                text = u' ({} files)'.format(index.data(common.TodoCountRole))
+            width = common.draw_aliased_text(
+                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
+            rect.setLeft(rect.left() + width)
+
         if hover:
             text = u'  {}'.format(index.data(QtCore.Qt.ToolTipRole))
             width = common.draw_aliased_text(
@@ -617,6 +666,11 @@ class ListControlModel(BaseModel):
         self._datakey = None
         self.modelDataResetRequested.connect(self.__resetdata__)
 
+        self.threads = {}
+
+        self.threads[1] = ListInfoThread()
+        self.threads[1].start()
+
     def data_key(self):
         return 'default'
     def data_type(self):
@@ -624,6 +678,8 @@ class ListControlModel(BaseModel):
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
+        ListInfoWorker.reset_queue()
+
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
@@ -647,7 +703,8 @@ class ListControlModel(BaseModel):
         )
 
         for item in items:
-            data[len(data)] = {
+            idx = len(data)
+            data[idx] = {
                 QtCore.Qt.DisplayRole: item[0],
                 QtCore.Qt.EditRole: item[0],
                 QtCore.Qt.StatusTipRole: item[1],
@@ -661,6 +718,9 @@ class ListControlModel(BaseModel):
                 #
                 common.FlagsRole: flags,
                 common.ParentRole: None,
+                #
+                common.StatusRole: False,
+                common.TodoCountRole: 0,
             }
         if not self._parent_item:
             self.endResetModel()
@@ -669,7 +729,7 @@ class ListControlModel(BaseModel):
         parent_path = u'/'.join(self._parent_item)
         dir_ = QtCore.QDir(parent_path)
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-
+        indexes = []
         for file_info in sorted(dir_.entryInfoList(), key=lambda x: x.fileName()):
             description = u'Show files'
             if file_info.fileName() == common.ExportsFolder:
@@ -681,7 +741,8 @@ class ListControlModel(BaseModel):
             if file_info.fileName() == common.TexturesFolder:
                 description = u'Folder for storing texture-files used by scenes'
 
-            data[len(data)] = {
+            idx = len(data)
+            data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.fileName(),
                 QtCore.Qt.EditRole: file_info.fileName(),
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
@@ -690,8 +751,14 @@ class ListControlModel(BaseModel):
                 #
                 common.FlagsRole: flags,
                 common.ParentRole: None,
+                #
+                common.StatusRole: False,
+                common.TodoCountRole: 0,
             }
+            indexes.append(idx)
+
         self.endResetModel()
+        ListInfoWorker.add_to_queue([self.index(f, 0) for f in indexes])
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_bookmark(self, index):
