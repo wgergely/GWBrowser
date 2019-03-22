@@ -50,11 +50,22 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.index = index
         self.setToolTipsVisible(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        shadow_offset = 6;
         self.setWindowFlags(
             QtCore.Qt.NoDropShadowWindowHint |
             QtCore.Qt.Popup |
             QtCore.Qt.FramelessWindowHint
         )
+        self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.effect.setBlurRadius(shadow_offset)
+        self.effect.setXOffset(0)
+        self.effect.setYOffset(0)
+        self.effect.setColor(QtGui.QColor(0, 0, 0, 80))
+        self.setGraphicsEffect(self.effect)
 
     @contextmenu
     def add_separator(self, menu_set):
@@ -94,6 +105,20 @@ class BaseContextMenu(QtWidgets.QMenu):
             # Recursive menu creation
             if isinstance(menu_set[k], collections.OrderedDict):
                 parent = QtWidgets.QMenu(k, parent=self)
+                parent.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+                parent.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+                shadow_offset = 5
+                parent.setWindowFlags(
+                    QtCore.Qt.NoDropShadowWindowHint |
+                    QtCore.Qt.Popup |
+                    QtCore.Qt.FramelessWindowHint
+                )
+                parent.effect = QtWidgets.QGraphicsDropShadowEffect(parent)
+                parent.effect.setBlurRadius(shadow_offset)
+                parent.effect.setXOffset(0)
+                parent.effect.setYOffset(0)
+                parent.effect.setColor(QtGui.QColor(0, 0, 0, 80))
+                parent.setGraphicsEffect(parent.effect)
 
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])

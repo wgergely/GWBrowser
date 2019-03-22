@@ -354,10 +354,17 @@ QLabel:disabled {{
 
 QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+		font-family: "Roboto Medium";
+		font-size: 9pt;
+		margin: 6px;
+		border: none;
+		border-radius: 3px;
 }}
 QMenu::item {{
-	padding: 8px 30px 8px 30px;
-	margin: 0;
+	padding: 6px 30px 6px 30px;
+	margin: 3px;
+	border: none;
+	border-radius: 2px;
 }}
 QMenu::icon {{
 	padding: 8px 8px 8px 6px;
@@ -374,7 +381,7 @@ QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
     background-color: rgba({BACKGROUND_SELECTED});
 }}
 QMenu::SEPARATOR {{
-    height: 1px;
+    height: 2px;
     background: rgba({SEPARATOR});
     margin-left: 30px;
     margin-right: 30px;
