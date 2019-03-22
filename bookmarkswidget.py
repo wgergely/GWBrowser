@@ -211,6 +211,7 @@ class BookmarksModel(BaseModel):
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.BookmarkItem,
+                common.StatusRole: True,
                 #
                 common.SortByName: file_info.filePath(),
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),

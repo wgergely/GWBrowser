@@ -329,7 +329,7 @@ class FilterButton(ControlButton):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
 
     def state(self):
-        filter_text = self.current().model().get_filtertext()
+        filter_text = self.current().model().filterText()
         if not filter_text:
             return False
         if filter_text == u'/':
@@ -337,7 +337,7 @@ class FilterButton(ControlButton):
         return True
 
     def action(self):
-        filter_text = self.current().model().get_filtertext()
+        filter_text = self.current().model().filterText()
         editor = FilterEditor(filter_text, parent=self._parent)
         editor.show()
         pos = self._parent.rect().topLeft()
@@ -380,12 +380,12 @@ class ToggleArchivedButton(ControlButton):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
     def state(self):
-        val = self.current().model().get_filter_flag_value(Settings.MarkedAsArchived)
+        val = self.current().model().filterFlag(Settings.MarkedAsArchived)
         return val
 
     @QtCore.Slot()
     def action(self):
-        val = self.current().model().get_filter_flag_value(Settings.MarkedAsArchived)
+        val = self.current().model().filterFlag(Settings.MarkedAsArchived)
         self.current().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not val)
 
 class ToggleFavouriteButton(ControlButton):
@@ -395,12 +395,12 @@ class ToggleFavouriteButton(ControlButton):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
 
     def state(self):
-        val = self.current().model().get_filter_flag_value(Settings.MarkedAsFavourite)
+        val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
         return val
 
     @QtCore.Slot()
     def action(self):
-        val = self.current().model().get_filter_flag_value(Settings.MarkedAsFavourite)
+        val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
         self.current().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not val)
 
 
@@ -436,7 +436,6 @@ class AddButton(ControlButton):
             return
         if self._parent.currentIndex() == 2:
             import gwbrowser.context.saver as saver
-            print self.current().model().sourceModel().data_key()
             widget = saver.SaverWidget(u'tempfile', self.current().model().sourceModel().data_key(), currentfile=None)
 
 

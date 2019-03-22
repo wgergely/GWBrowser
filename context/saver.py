@@ -580,23 +580,23 @@ class SaverWidget(QtWidgets.QDialog):
         a = assetbutton.view()
         f = foldersbutton.view()
 
-        b.model().filterTextChanged.emit(b.model().get_filtertext())
-        a.model().filterTextChanged.emit(a.model().get_filtertext())
+        b.model().filterTextChanged.emit(b.model().filterText())
+        a.model().filterTextChanged.emit(a.model().filterText())
         #
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filter_flag_value(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filter_flag_value(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().filterFlag(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().filterFlag(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filter_flag_value(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filter_flag_value(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().filterFlag(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
         #
         b.model().sortingChanged.emit(
             b.model().sortRole(),
-            b.model().get_sortorder())
+            b.model().sortOrder())
         a.model().sortingChanged.emit(
             b.model().sortRole(),
-            b.model().get_sortorder())
+            b.model().sortOrder())
 
         if self.currentfile:
             # Checking if the reference file has a valid pattern

@@ -101,31 +101,31 @@ class BrowserWidget(QtWidgets.QWidget):
         a = self.assetswidget
         f = self.fileswidget
 
-        b.model().filterTextChanged.emit(b.model().get_filtertext())
-        a.model().filterTextChanged.emit(a.model().get_filtertext())
-        f.model().filterTextChanged.emit(f.model().get_filtertext())
+        b.model().filterTextChanged.emit(b.model().filterText())
+        a.model().filterTextChanged.emit(a.model().filterText())
+        f.model().filterTextChanged.emit(f.model().filterText())
 
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().get_filter_flag_value(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().get_filter_flag_value(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().filterFlag(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().filterFlag(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().get_filter_flag_value(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().get_filter_flag_value(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().filterFlag(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().get_filter_flag_value(Settings.MarkedAsActive))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().get_filter_flag_value(Settings.MarkedAsArchived))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().get_filter_flag_value(Settings.MarkedAsFavourite))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().filterFlag(Settings.MarkedAsActive))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().filterFlag(Settings.MarkedAsArchived))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().filterFlag(Settings.MarkedAsFavourite))
 
         b.model().sortingChanged.emit(
             b.model().sortRole(),
-            b.model().get_sortorder())
+            b.model().sortOrder())
         a.model().sortingChanged.emit(
             b.model().sortRole(),
-            b.model().get_sortorder())
+            b.model().sortOrder())
         f.model().sortingChanged.emit(
             b.model().sortRole(),
-            b.model().get_sortorder())
+            b.model().sortOrder())
 
         # self.stackedwidget.currentChanged.emit(self.stackedwidget.currentIndex())
 
@@ -249,7 +249,7 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
 
         # Initialize the visible indexes upon the model has been loaded
-        f.model().layoutChanged.connect(f.initialize_visible_indexes)
+        # f.model().layoutChanged.connect(f.initialize_visible_indexes)
         f.model().modelReset.connect(f.initialize_visible_indexes)
         f.model().sourceModel().modelReset.connect(f.initialize_visible_indexes)
 

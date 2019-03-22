@@ -212,20 +212,22 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on_icon = ImageCache.get_rsc_pixmap(
             u'check', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        sortorder = self.parent().model().get_sortorder()
-        sortkey = self.parent().model().sortRole()
-        sort_by_name = sortkey == common.SortByName
-        sort_modified = sortkey == common.SortByLastModified
-        sort_size = sortkey == common.SortBySize
+        sortorder = self.parent().model().sortOrder()
+        sortrole = self.parent().model().sortRole()
+        sort_by_name = sortrole == common.SortByName
+        sort_modified = sortrole == common.SortByLastModified
+        sort_size = sortrole == common.SortBySize
+
+        nsort = QtCore.Qt.AscendingOrder if sortorder == QtCore.Qt.DescendingOrder else QtCore.Qt.DescendingOrder
 
         menu_set[u'Sort'] = collections.OrderedDict()
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
-            u'text': u'Ascending' if sortorder else u'Descending',
+            u'text': u'Ascending' if sortorder == QtCore.Qt.AscendingOrder else u'Descending',
             u'ckeckable': True,
-            u'checked': True if sortorder else False,
-            u'icon': arrow_down_icon if sortorder else arrow_up_icon,
-            u'action': functools.partial(self.parent().model().sortingChanged.emit, sortkey, not sortorder)
+            u'checked': True if sortorder == QtCore.Qt.AscendingOrder else False,
+            u'icon': arrow_down_icon if sortorder == QtCore.Qt.AscendingOrder else arrow_up_icon,
+            u'action': functools.partial(self.parent().model().sortingChanged.emit, sortrole, nsort)
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -352,9 +354,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_off = QtGui.QPixmap()
 
 
-        favourite = self.parent().model().get_filter_flag_value(Settings.MarkedAsFavourite)
-        archived = self.parent().model().get_filter_flag_value(Settings.MarkedAsArchived)
-        active = self.parent().model().get_filter_flag_value(Settings.MarkedAsActive)
+        favourite = self.parent().model().filterFlag(Settings.MarkedAsFavourite)
+        archived = self.parent().model().filterFlag(Settings.MarkedAsArchived)
+        active = self.parent().model().filterFlag(Settings.MarkedAsActive)
 
         menu_set[u'toggle_active'] = {
             u'text': 'Show active only',

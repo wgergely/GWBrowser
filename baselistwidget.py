@@ -6,6 +6,7 @@ found by the collector classes.
 """
 
 import re
+import sys
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -35,9 +36,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     We can filter our data based on item flags, and path-segment strings.
     The list can also be arranged by name, size, and modified timestamps."""
 
-    filterTextChanged = QtCore.Signal(unicode)
     filterFlagChanged = QtCore.Signal(int, bool)  # FilterFlag, value
-    sortingChanged = QtCore.Signal(int, bool)  # (SortKey, SortOrder)
+    filterTextChanged = QtCore.Signal(unicode)
+    sortingChanged = QtCore.Signal(int, QtCore.Qt.SortOrder)  # (SortRole, SortOrder)
 
     def __init__(self, parent=None):
         super(FilterProxyModel, self).__init__(parent=parent)
@@ -50,105 +51,93 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self.parentwidget = parent
 
-        self._sortorder = None  # Ascending/descending
-        self._filtertext = None  # Ascending/descending
-
+        self._filtertext = None
         self._filterflags = {
             Settings.MarkedAsActive: None,
             Settings.MarkedAsArchived: None,
             Settings.MarkedAsFavourite: None,
         }
+        self._sortrole = None
+        self._sortorder = None
 
-        self.setSortRole(self.sortRole())
-        self.set_filtertext(self.get_filtertext())
-        for k in self._filterflags:
-            self.set_filter_flag_value(k, self.get_filter_flag_value(k))
-
-    def get_filtertext(self):
-        """Filters the list of items containing this path segment.
+    def initialize_filter_values(self):
+        """We're settings the settings saved in the local settings, and optional
+        default values if the settings has not yet been saved.
 
         """
+        cls = self.sourceModel().__class__.__name__
+        self._filtertext = local_settings.value(u'widget/{}/filtertext'.format(cls))
+        self._filterflags = {
+            Settings.MarkedAsActive: local_settings.value(
+                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsActive)
+            ),
+            Settings.MarkedAsArchived: local_settings.value(
+                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsArchived)
+            ),
+            Settings.MarkedAsFavourite: local_settings.value(
+                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsFavourite)
+            ),
+        }
+        k = u'widget/{}/sortrole'.format(cls)
+        val = local_settings.value(k)
+        self._sortrole = val
+
+        k = u'widget/{}/sortorder'.format(cls)
+        val = local_settings.value(k)
+        val = QtCore.Qt.AscendingOrder if val == 0 else QtCore.Qt.DescendingOrder
+        self._sortorder = val
+
         if self._filtertext is None:
-            cls = self.sourceModel().__class__.__name__
-            k = u'widget/{}/filtertext'.format(cls)
-            val = local_settings.value(k)
-            if val is None:
-                val = local_settings.setValue(k, u'/')
-                self._filtertext = u'/'
-                return self._filtertext
-        else:
-            val = self._filtertext
+            self._filtertext = None
 
-        if not val:
-            self._filtertext = u'/'
+        if self._filterflags[Settings.MarkedAsActive] is None:
+            self._filterflags[Settings.MarkedAsActive] = False
+        if self._filterflags[Settings.MarkedAsArchived] is None:
+            self._filterflags[Settings.MarkedAsArchived] = False
+        if self._filterflags[Settings.MarkedAsFavourite] is None:
+            self._filterflags[Settings.MarkedAsFavourite] = False
 
+        if self._sortrole is None:
+            self._sortrole = common.SortByName
+
+        if self._sortorder is None:
+            self._sortorder = QtCore.Qt.AscendingOrder
+
+
+    def filterText(self):
+        """Filters the list of items containing this path segment."""
         return self._filtertext
 
-    def set_filtertext(self, val):
-        """Sets the path-segment to use as a filter.
-        Emits the ``filterTextChanged`` signal.
-
-        """
+    @QtCore.Slot(unicode)
+    def setFilterText(self, val):
+        """Sets the path-segment to use as a filter."""
         if val == self._filtertext:
             return
 
+        self._filtertext = val
+
         cls = self.sourceModel().__class__.__name__
         k = u'widget/{}/filtertext'.format(cls)
+        local_settings.setValue(k, self._filtertext)
 
-        if not val:
-            self._filtertext = u'/'
-            local_settings.setValue(k, u'/')
-            return
-
-        self._filtertext = val
-        local_settings.setValue(k, val)
-
-    def get_filter_flag_value(self, flag):
+    def filterFlag(self, flag):
         """Returns the current flag-filter."""
-        if self._filterflags[flag] is None:
-            cls = self.sourceModel().__class__.__name__
-            k = u'widget/{}/filterflag{}'.format(cls, flag)
-            val = local_settings.value(k)
-            if val is None:
-                val = local_settings.setValue(k, False)
-                self._filterflags[flag] = False
-                return False
-            val = False
-        else:
-            val = self._filterflags[flag]
-
-        return val if val else False
+        return self._filterflags[flag]
 
     @QtCore.Slot(int, bool)
-    def set_filter_flag_value(self, flag, val):
+    def setFilterFlag(self, flag, val):
         if self._filterflags[flag] == val:
             return
 
         self._filterflags[flag] = val
+
         cls = self.sourceModel().__class__.__name__
         local_settings.setValue(
             u'widget/{}/filterflag{}'.format(cls, flag), val)
 
     def sortRole(self):
-        """Sort role with saved/default value.
-
-        """
-        if super(FilterProxyModel, self).sortRole() == QtCore.Qt.DisplayRole:
-            cls = self.__class__.__name__
-            k = u'widget/{}/sortkey'.format(cls)
-            val = local_settings.value(k)
-            if val is None:
-                val = common.SortByName
-                local_settings.setValue(k, val)
-            super(FilterProxyModel, self).setSortRole(val)
-        else:
-            val = super(FilterProxyModel, self).sortRole()
-            if val not in (common.SortByName, common.SortByLastModified, common.SortBySize):
-                super(FilterProxyModel, self).setSortRole(common.SortByName)
-                cls = self.__class__.__name__
-                k = u'widget/{}/sortkey'.format(cls)
-                local_settings.setValue(k, common.SortByName)
-        return super(FilterProxyModel, self).sortRole()
+        """Sort role with saved/default value."""
+        return self._sortrole
 
     @QtCore.Slot(int)
     def setSortRole(self, val):
@@ -156,33 +145,23 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if val == super(FilterProxyModel, self).sortRole():
             return
 
-        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
-            val = common.SortByName
+        self._sortrole = val
 
-        super(FilterProxyModel, self).setSortRole(val)
-        cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/sortkey'.format(cls), val)
+        cls = self.sourceModel().__class__.__name__
+        local_settings.setValue(u'widget/{}/sortrole'.format(cls), val)
 
-    def get_sortorder(self):
-        """The order of the list, eg. ascending/descending."""
-        if self._sortorder is None:
-            cls = self.__class__.__name__
-            val = local_settings.value(
-                u'widget/{}/sortorder'.format(cls))
-            if val is None:
-                self._sortorder = False
-            else:
-                self._sortorder = val
-        else:
-            val = self._sortorder
-        return int(val) if val else False
+    def sortOrder(self):
+        return self._sortorder
 
-    @QtCore.Slot(bool)
-    def set_sortorder(self, val):
-        if val == self._sortorder:
+    @QtCore.Slot(int)
+    def setSortOrder(self, val):
+        """Sets and saves the sort-key."""
+        if val == super(FilterProxyModel, self).sortOrder():
             return
+
         self._sortorder = val
-        cls = self.__class__.__name__
+
+        cls = self.sourceModel().__class__.__name__
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
@@ -201,27 +180,27 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         favourite = flags & Settings.MarkedAsFavourite
         active = flags & Settings.MarkedAsActive
 
-        if self.get_filter_flag_value(Settings.MarkedAsActive) and active:
+        if self.filterFlag(Settings.MarkedAsActive) and active:
             return True
-        if self.get_filter_flag_value(Settings.MarkedAsActive) and not active:
+        if self.filterFlag(Settings.MarkedAsActive) and not active:
             return False
 
-        if self.get_filtertext() and data[source_row][QtCore.Qt.StatusTipRole]:
-            if self.get_filtertext().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
+        if self.filterText():
+            if self.filterText().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
                 return False
-        if archived and not self.get_filter_flag_value(Settings.MarkedAsArchived):
+        if archived and not self.filterFlag(Settings.MarkedAsArchived):
             return False
-        if not favourite and self.get_filter_flag_value(Settings.MarkedAsFavourite):
+        if not favourite and self.filterFlag(Settings.MarkedAsFavourite):
             return False
         return True
 
-    # def lessThan(self, source_left, source_right):
-    #     """The main method responsible for sorting the items."""
-    #     # print 'Sorting {}...'.format(source_left.row())
-    #     k = self.sortRole()
-    #     if k == common.SortByName:
-    #         return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
-    #     return source_left.data(k) < source_right.data(k)
+    def lessThan(self, source_left, source_right):
+        """The main method responsible for sorting the items."""
+        # print 'Sorting {}...'.format(source_left.row())
+        k = self.sortRole()
+        if k == common.SortByName:
+            return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
+        return source_left.data(k) < source_right.data(k)
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -453,62 +432,105 @@ class BaseListWidget(QtWidgets.QListView):
 
         proxy = FilterProxyModel(parent=self)
         proxy.setSourceModel(model)
+        proxy.initialize_filter_values()
 
         self.setModel(proxy)
 
+
         model.modelDataResetRequested.connect(
-            model.beginResetModel, type=QtCore.Qt.DirectConnection)
+            model.beginResetModel)
         model.modelDataResetRequested.connect(
-            model.__resetdata__, type=QtCore.Qt.DirectConnection)
+            model.__resetdata__)
 
         # Selection
         model.modelAboutToBeReset.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()),
+            lambda: self.save_selection(self.selectionModel().currentIndex()))
+        proxy.modelAboutToBeReset.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()))
+        proxy.modelReset.connect(self.reselect_previous,
             type=QtCore.Qt.DirectConnection)
-        model.modelReset.connect(self.reselect_previous,
+        proxy.layoutChanged.connect(self.reselect_previous,
             type=QtCore.Qt.DirectConnection)
-
-        proxy.filterFlagChanged.connect(proxy.set_filter_flag_value,
-            type=QtCore.Qt.DirectConnection)
-        proxy.filterFlagChanged.connect(lambda x, y: proxy.invalidateFilter(),
-            type=QtCore.Qt.DirectConnection)
-
-        # Sort/Filter signalsx
-        proxy.filterTextChanged.connect(
-            proxy.set_filtertext,
-            type=QtCore.Qt.DirectConnection)
-        proxy.filterTextChanged.connect(
-            lambda x: proxy.invalidateFilter(),
-            type=QtCore.Qt.DirectConnection)
-
-        proxy.sortingChanged.connect(
-            lambda x, y: proxy.setSortRole(x))
-        proxy.sortingChanged.connect(
-            lambda x, y: proxy.set_sortorder(y))
-        proxy.sortingChanged.connect(
-            lambda x, y: proxy.sort(
-                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
-            type=QtCore.Qt.DirectConnection)
-        proxy.modelReset.connect(
-            lambda: proxy.sort(
-                0, QtCore.Qt.AscendingOrder if proxy.get_sortorder() else QtCore.Qt.DescendingOrder),
-            type=QtCore.Qt.DirectConnection)
-        proxy.modelReset.connect(self.model().invalidateFilter)
 
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(lambda x: model.check_data())
-        model.dataKeyChanged.connect(lambda x: proxy.invalidate(),
-            type=QtCore.Qt.DirectConnection)
 
+        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(model.set_data_type)
-        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel(), type=QtCore.Qt.DirectConnection)
-        model.dataTypeChanged.connect(lambda x: proxy.endResetModel(), type=QtCore.Qt.QueuedConnection)
+        model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
         model.modelAboutToBeReset.connect(model.validate_key)
+
+        QtCore.Slot()
+        def proxy_layoutAboutToBeChanged(*args):
+            sys.stderr.write('proxy_layoutAboutToBeChanged\n')
+            sys.stderr.write('{}\n'.format(proxy))
+        QtCore.Slot()
+        def model_layoutAboutToBeChanged(*args):
+            sys.stderr.write('model_layoutAboutToBeChanged\n')
+            sys.stderr.write('{}\n'.format(model))
+        QtCore.Slot()
+        def proxy_layoutChanged(*args):
+            sys.stderr.write('proxy_layoutChanged\n')
+            sys.stderr.write('{}\n'.format(proxy))
+        QtCore.Slot()
+        def model_layoutChanged(*args):
+            sys.stderr.write('model_layoutChanged\n')
+            sys.stderr.write('{}\n'.format(model))
+        QtCore.Slot()
+        def proxy_modelAboutToBeReset(*args):
+            sys.stderr.write('proxy_modelAboutToBeReset\n')
+            sys.stderr.write('{}\n'.format(proxy))
+        QtCore.Slot()
+        def model_modelAboutToBeReset(*args):
+            sys.stderr.write('model_modelAboutToBeReset\n')
+            sys.stderr.write('{}\n'.format(model))
+        QtCore.Slot()
+        def proxy_modelReset(*args):
+            sys.stderr.write('proxy_modelReset\n')
+            sys.stderr.write('{}\n'.format(proxy))
+        QtCore.Slot()
+        def model_modelReset(*args):
+            sys.stderr.write('model_modelReset\n')
+            sys.stderr.write('{}\n'.format(model))
+        QtCore.Slot()
+        def proxy_dataChanged(*args):
+            sys.stderr.write('proxy_dataChanged\n')
+            sys.stderr.write('{}\n'.format(model))
+
+        # let's debug
+        # proxy.layoutAboutToBeChanged.connect(proxy_layoutAboutToBeChanged)
+        # model.layoutAboutToBeChanged.connect(model_layoutAboutToBeChanged)
+        # proxy.layoutChanged.connect(proxy_layoutChanged)
+        # model.layoutChanged.connect(model_layoutChanged)
+        # proxy.modelAboutToBeReset.connect(proxy_modelAboutToBeReset)
+        # model.modelAboutToBeReset.connect(model_modelAboutToBeReset)
+        # proxy.modelReset.connect(proxy_modelReset)
+        # model.modelReset.connect(model_modelReset)
+        # proxy.dataChanged.connect(proxy_dataChanged)
+
+        proxy.filterTextChanged.connect(proxy.setFilterText)
+        proxy.filterTextChanged.connect(proxy.invalidateFilter)
+
+        proxy.filterFlagChanged.connect(proxy.setFilterFlag)
+        proxy.filterFlagChanged.connect(proxy.invalidateFilter)
+
+        proxy.sortingChanged.connect(lambda x, y: proxy.setSortRole(x))
+        proxy.sortingChanged.connect(lambda x, y: proxy.setSortOrder(y))
+        proxy.sortingChanged.connect(lambda x, y: proxy.sort(0, order=y))
+        # proxy.sortingChanged.connect(proxy.invalidateFilter)
+
+        proxy.modelReset.connect(lambda: proxy.sortingChanged.emit(
+                proxy.sortOrder(), proxy.sortRole()))
+
+        # Multitoggle
+        proxy.modelAboutToBeReset.connect(self.reset_multitoggle)
+        proxy.modelReset.connect(self.reset_multitoggle)
+        proxy.layoutChanged.connect(self.reset_multitoggle)
 
     def active_index(self):
         """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
@@ -622,7 +644,7 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
-        if not index.flags() & QtCore.Qt.ItemIsEditable:
+        if not index.data(common.StatusRole):
             return
 
         # Favouriting archived items are not allowed
@@ -636,16 +658,22 @@ class BaseListWidget(QtWidgets.QListView):
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
 
-        if index.data(QtCore.Qt.StatusTipRole) in favourites:
+        key = index.data(QtCore.Qt.StatusTipRole)
+        collapsed = common.is_collapsed(key)
+        if collapsed:
+            key = key.expand(r'\1\3')
+
+        if key in favourites:
             if state is None or state is False:  # clears flag
-                favourites.remove(index.data(QtCore.Qt.StatusTipRole))
+                favourites.remove(key)
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
-                favourites.append(index.data(QtCore.Qt.StatusTipRole))
+                favourites.append(key)
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', favourites)
+        index.model().dataChanged.emit(index, index)
         # source_index.model().dataChanged.emit(source_index, source_index)
 
     def toggle_archived(self, index, state=None):
@@ -663,11 +691,10 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
-        if not index.flags() & QtCore.Qt.ItemIsEditable:
+        if not index.data(common.StatusRole):
             return
 
         archived = index.flags() & Settings.MarkedAsArchived
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
         settings = AssetSettings(index)
         favourites = local_settings.value(u'favourites')
@@ -679,18 +706,23 @@ class BaseListWidget(QtWidgets.QListView):
             if state is None or state is False:  # clears flag
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsArchived
                 settings.setValue(u'config/archived', False)
-                source_index.model().dataChanged.emit(source_index, source_index)
+                index.model().dataChanged.emit(index, index)
                 return
 
         if state is None or state is True:
             data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsArchived
             settings.setValue(u'config/archived', True)
 
-            if file_info.filePath() in favourites:
+            key = index.data(QtCore.Qt.StatusTipRole)
+            collapsed = common.is_collapsed(key)
+            if collapsed:
+                key = key.expand(r'\1\3')
+            if key in favourites:
                 data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
-                favourites.remove(file_info.filePath())
+
+                favourites.remove(key)
                 local_settings.setValue(u'favourites', favourites)
-        source_index.model().dataChanged.emit(source_index, source_index)
+        index.model().dataChanged.emit(index, index)
 
 
     def key_down(self):
@@ -896,7 +928,7 @@ class BaseListWidget(QtWidgets.QListView):
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
         if not isinstance(event, QtGui.QMouseEvent):
-            self._reset_multitoggle()
+            self.reset_multitoggle()
             return None
 
         index = self.indexAt(event.pos())
@@ -926,7 +958,7 @@ class BaseListWidget(QtWidgets.QListView):
                 sizehint.height() - common.INDICATOR_WIDTH
             )
 
-            favourite_mode = self.model().get_filter_flag_value(Settings.MarkedAsFavourite)
+            favourite_mode = self.model().filterFlag(Settings.MarkedAsFavourite)
 
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
@@ -976,7 +1008,7 @@ class BaseInlineIconWidget(BaseListWidget):
         """The numberof inline icons."""
         raise NotImplementedError(u'method is abstract.')
 
-    def _reset_multitoggle(self):
+    def reset_multitoggle(self):
         self.multi_toggle_pos = None
         self.multi_toggle_state = None
         self.multi_toggle_idx = None
@@ -993,7 +1025,7 @@ class BaseInlineIconWidget(BaseListWidget):
         if self.viewport().width() < 360.0:
             return super(BaseInlineIconWidget, self).mousePressEvent(event)
 
-        self._reset_multitoggle()
+        self.reset_multitoggle()
 
         for n in xrange(self.inline_icons_count()):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(
@@ -1019,7 +1051,7 @@ class BaseInlineIconWidget(BaseListWidget):
     def mouseReleaseEvent(self, event):
         """Inline-button methods are triggered here."""
         if not isinstance(event, QtGui.QMouseEvent):
-            self._reset_multitoggle()
+            self.reset_multitoggle()
             return None
 
         index = self.indexAt(event.pos())
@@ -1034,7 +1066,7 @@ class BaseInlineIconWidget(BaseListWidget):
             for n in self.multi_toggle_items:
                 index = self.model().index(n, 0)
                 self.model().dataChanged.emit(index, index)
-            self._reset_multitoggle()
+            self.reset_multitoggle()
             self.model().invalidateFilter()
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
@@ -1047,11 +1079,11 @@ class BaseInlineIconWidget(BaseListWidget):
 
             if n == 0:
                 self.toggle_favourite(index)
-                self.model().dataChanged.emit(index, index)
+                # self.model().dataChanged.emit(index, index)
                 break
             elif n == 1:
                 self.toggle_archived(index)
-                self.model().dataChanged.emit(index, index)
+                # self.model().dataChanged.emit(index, index)
                 break
             elif n == 2:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
@@ -1060,18 +1092,18 @@ class BaseInlineIconWidget(BaseListWidget):
                 self.show_todos(index)
                 break
 
-        self._reset_multitoggle()
+        self.reset_multitoggle()
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
         """Multi-toggle is handled here."""
+        if self.multi_toggle_pos is None:
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
         if self.viewport().width() < 360.0:
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
-
-        if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()
