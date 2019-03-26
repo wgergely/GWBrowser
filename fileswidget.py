@@ -253,11 +253,11 @@ class FilesModel(BaseModel):
 
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, threads=4, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         self.threads = {}
 
-        for n in xrange(4):
+        for n in xrange(threads):
             self.threads[n] = FileInfoThread(self)
             self.threads[n].thread_id = n
             self.threads[n].start()
@@ -272,7 +272,10 @@ class FilesModel(BaseModel):
 
         """
         FileInfoWorker.reset_queue()
-        QtWidgets.QApplication.instance().processEvents()
+
+        app = QtWidgets.QApplication.instance()
+        if app:
+            app.processEvents()
 
         dkey = self.data_key()
         self._data[dkey] = {

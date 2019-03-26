@@ -24,9 +24,10 @@ class Unique(Queue.Queue):
 class BaseWorker(QtCore.QObject):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
+    queueFinished = QtCore.Signal()
+
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
-    finished = QtCore.Signal()
-    error = QtCore.Signal(basestring)
+    # queueError = QtCore.Signal(basestring)
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)

@@ -60,6 +60,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._sortrole = None
         self._sortorder = None
 
+    def sort(self, column, order=QtCore.Qt.AscendingOrder):
+        raise NotImplementedError('Sorting on the proxy model is not implemented.')
+
     def initialize_filter_values(self):
         """We're settings the settings saved in the local settings, and optional
         default values if the settings has not yet been saved.
@@ -521,7 +524,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         proxy.sortingChanged.connect(lambda x, y: proxy.setSortRole(x))
         proxy.sortingChanged.connect(lambda x, y: proxy.setSortOrder(y))
-        proxy.sortingChanged.connect(lambda x, y: proxy.sort(0, order=y))
+        # proxy.sortingChanged.connect(lambda x, y: proxy.sort(0, order=y))
         # proxy.sortingChanged.connect(proxy.invalidateFilter)
 
         proxy.modelReset.connect(lambda: proxy.sortingChanged.emit(
