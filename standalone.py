@@ -166,6 +166,9 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NativeWindow)
+        self.setAttribute(QtCore.Qt.WA_NativeWindow)
+
         shadow_offset = common.INDICATOR_WIDTH * 2
         self.layout().setContentsMargins(common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
                                          common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)

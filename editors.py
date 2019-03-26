@@ -218,8 +218,9 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.action()
             self.parent().key_down()
             self.parent().key_tab()
+            source_index = self.parent().model().mapToSource(self.parent().currentIndex())
             widget = DescriptionEditorWidget(
-                self.parent().currentIndex(), parent=self.parent())
+                source_index, parent=self.parent())
             widget.show()
             return True
 
@@ -227,8 +228,9 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.action()
             self.parent().key_up()
             self.parent().key_tab()
+            source_index = self.parent().model().mapToSource(self.parent().currentIndex())
             widget = DescriptionEditorWidget(
-                self.parent().currentIndex(), parent=self.parent())
+                source_index, parent=self.parent())
             widget.show()
             return True
 

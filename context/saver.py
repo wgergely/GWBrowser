@@ -590,13 +590,6 @@ class SaverWidget(QtWidgets.QDialog):
         a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().filterFlag(Settings.MarkedAsActive))
         a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
         a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
-        #
-        b.model().sortingChanged.emit(
-            b.model().sortRole(),
-            b.model().sortOrder())
-        a.model().sortingChanged.emit(
-            b.model().sortRole(),
-            b.model().sortOrder())
 
         if self.currentfile:
             # Checking if the reference file has a valid pattern

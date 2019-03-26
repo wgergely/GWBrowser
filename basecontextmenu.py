@@ -212,22 +212,22 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on_icon = ImageCache.get_rsc_pixmap(
             u'check', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        sortorder = self.parent().model().sortOrder()
-        sortrole = self.parent().model().sortRole()
+        sortorder = self.parent().model().sourceModel().sortOrder()
+        sortrole = self.parent().model().sourceModel().sortRole()
+
         sort_by_name = sortrole == common.SortByName
         sort_modified = sortrole == common.SortByLastModified
         sort_size = sortrole == common.SortBySize
 
-        nsort = QtCore.Qt.AscendingOrder if sortorder == QtCore.Qt.DescendingOrder else QtCore.Qt.DescendingOrder
-
+        m = self.parent().model().sourceModel()
         menu_set[u'Sort'] = collections.OrderedDict()
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
-            u'text': u'Ascending' if sortorder == QtCore.Qt.AscendingOrder else u'Descending',
+            u'text': u'Ascending' if sortorder else u'Descending',
             u'ckeckable': True,
-            u'checked': True if sortorder == QtCore.Qt.AscendingOrder else False,
-            u'icon': arrow_down_icon if sortorder == QtCore.Qt.AscendingOrder else arrow_up_icon,
-            u'action': functools.partial(self.parent().model().sortingChanged.emit, sortrole, nsort)
+            u'checked': sortorder,
+            u'icon': arrow_down_icon if sortorder else arrow_up_icon,
+            u'action': lambda: m.sortingChanged.emit(m.sortRole(), not m.sortOrder())
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -236,19 +236,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': item_on_icon if sort_by_name else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_by_name else False,
-            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortByName, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortByName, m.sortOrder())
         }
         menu_set[u'Sort'][u'Date modified'] = {
             u'icon': item_on_icon if sort_modified else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_modified else False,
-            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortByLastModified, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, m.sortOrder())
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_size else False,
-            u'action': functools.partial(self.parent().model().sortingChanged.emit, common.SortBySize, sortorder)
+            u'action': lambda: m.sortingChanged.emit(common.SortBySize, m.sortOrder())
         }
         return menu_set
 

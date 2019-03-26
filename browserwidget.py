@@ -117,18 +117,6 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().filterFlag(Settings.MarkedAsArchived))
         f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().filterFlag(Settings.MarkedAsFavourite))
 
-        b.model().sortingChanged.emit(
-            b.model().sortRole(),
-            b.model().sortOrder())
-        a.model().sortingChanged.emit(
-            b.model().sortRole(),
-            b.model().sortOrder())
-        f.model().sortingChanged.emit(
-            b.model().sortRole(),
-            b.model().sortOrder())
-
-        # self.stackedwidget.currentChanged.emit(self.stackedwidget.currentIndex())
-
         # Source model data
         timer = QtCore.QTimer(parent=self)
         timer.setSingleShot(True)
@@ -136,7 +124,6 @@ class BrowserWidget(QtWidgets.QWidget):
         timer.timeout.connect(b.model().sourceModel().modelDataResetRequested.emit)
         timer.timeout.connect(timer.deleteLater)
         timer.start()
-        # b.model().sourceModel().modelDataResetRequested.emit()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -208,7 +195,7 @@ class BrowserWidget(QtWidgets.QWidget):
         b.model().sourceModel().modelReset.connect(
             lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
         b.model().sourceModel().modelReset.connect(
-            a.model().sourceModel().modelDataResetRequested.emit)
+            a.model().sourceModel().modelDataResetRequested)
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().set_active)
         b.model().sourceModel().activeChanged.connect(
@@ -217,13 +204,15 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().modelReset.connect(
             lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
         a.model().sourceModel().modelReset.connect(
-            f.model().sourceModel().modelDataResetRequested.emit)
-        a.model().sourceModel().modelReset.connect(f.model().invalidate)
+            f.model().sourceModel().modelDataResetRequested)
 
         a.model().sourceModel().activeChanged.connect(
             f.model().sourceModel().set_active)
         a.model().sourceModel().activeChanged.connect(
             lambda x: f.model().sourceModel().modelDataResetRequested.emit())
+
+        a.model().sourceModel().modelReset.connect(f.model().invalidateFilter)
+
 
         # Bookmark/Asset/FileModel/View  ->  ListControlModel/View
         # These connections are responsible for keeping the ListControlModel updated
@@ -245,23 +234,21 @@ class BrowserWidget(QtWidgets.QWidget):
 
         f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
         f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
-        f.model().sourceModel().modelReset.connect(
-            lambda: l.model().set_data_key(f.model().sourceModel().data_key()))
-
-        # Initialize the visible indexes upon the model has been loaded
-        # f.model().layoutChanged.connect(f.initialize_visible_indexes)
-        f.model().modelReset.connect(f.initialize_visible_indexes)
-        f.model().sourceModel().modelReset.connect(f.initialize_visible_indexes)
-
 
         # Status message when querrying files
         f.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading files...'))
         f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        f.model().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
         a.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading assets...'))
         a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
 
-        f.model().layoutAboutToBeChanged.connect(lambda: m.messageChanged.emit(u'Sorting...'))
-        f.model().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
+        b.model().modelReset.connect(lb.repaint)
+        b.model().layoutChanged.connect(lb.repaint)
+        a.model().modelReset.connect(lb.repaint)
+        a.model().layoutChanged.connect(lb.repaint)
+        f.model().modelReset.connect(lb.repaint)
+        f.model().layoutChanged.connect(lb.repaint)
 
         # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
         # These are the signals responsible for changing the active items & data keys.
@@ -269,6 +256,8 @@ class BrowserWidget(QtWidgets.QWidget):
         l.listChanged.connect(s.setCurrentIndex)
         l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
         l.dataKeyChanged.connect(l.textChanged)
+        f.model().sourceModel().dataKeyChanged.connect(l.textChanged)
+
         l.listChanged.connect(lambda i: l.textChanged.emit(
             u'Bookmarks' if i == 0 else (
                 u'Assets' if i == 1 else f.model().sourceModel().data_key())))
@@ -295,6 +284,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget._favouritebutton.set_parent(self.stackedwidget)
 
         # Updates the list-control buttons when changing lists
+        l.listChanged.connect(lambda x: lb.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._addbutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._todobutton.repaint())
         l.listChanged.connect(lambda x: self.listcontrolwidget._filterbutton.repaint())

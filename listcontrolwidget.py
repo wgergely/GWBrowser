@@ -842,6 +842,7 @@ class ListControlButton(ClickableLabel):
         width = metrics.width(self.text()) + 2
         width = width if width > 80 else 80
         self.setFixedWidth(width)
+        self.repaint()
 
     def showPopup(self):
         """Showing view."""

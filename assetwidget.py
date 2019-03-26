@@ -190,6 +190,7 @@ class AssetModel(BaseModel):
                 filename, todocount)
             data[idx][common.SortBySize] = todocount
 
+        self.generate_proxy_idxs()
         self.endResetModel()
 
 
@@ -258,7 +259,7 @@ class AssetWidget(BaseInlineIconWidget):
             return
         if index.flags() & MarkedAsArchived:
             return
-            
+
         rect = self.visualRect(index)
 
         thumbnail_rect = QtCore.QRect(rect)

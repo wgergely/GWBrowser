@@ -45,31 +45,23 @@ class FileInfoWorker(BaseWorker):
         """
         try:
             while True:
-                # When all threads reported an empty queue let's emit
-                if not self.queue.qsize():
-                    self.queueFinished.emit()
-
                 index = FileInfoWorker.queue.get(True)
                 self.process_index(index)
-
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
             traceback.print_exc()
-            self.error.emit(errstr)
         except ValueError as err:
             errstr = '\nValueError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
             traceback.print_exc()
-            self.error.emit(errstr)
         except Exception as err:
             errstr = '\nError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
             traceback.print_exc()
-            self.error.emit(errstr)
         finally:
             self.begin_processing()
 
@@ -159,6 +151,13 @@ class FileInfoWorker(BaseWorker):
         data[common.SortByLastModified] = last_modified.toMSecsSinceEpoch(
         )
         data[common.SortBySize] = size
+        # Item flags
+        flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
+        #
+        if settings.value(u'config/archived'):
+            flags = flags | MarkedAsArchived
+        data[common.FlagsRole] = flags
+        data[common.StatusRole] = True
 
         # Thumbnail
         height = data[QtCore.Qt.SizeHintRole].height() - 2
@@ -193,19 +192,11 @@ class FileInfoWorker(BaseWorker):
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
 
-        # Item flags
-        flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
-        #
-        if settings.value(u'config/archived'):
-            flags = flags | MarkedAsArchived
-        data[common.FlagsRole] = flags
-        data[common.StatusRole] = True
-
-        # index.model().dataChanged.emit(index, index)
-
         # Let's generate the thumbnail
         if needs_thumbnail:
             ImageCacheWorker.add_to_queue((index,))
+
+        index.model().dataChanged.emit(index, index)
 
 
 class FileInfoThread(BaseThread):
@@ -262,6 +253,12 @@ class FilesModel(BaseModel):
             self.threads[n].thread_id = n
             self.threads[n].start()
 
+        self.sortingChanged.connect(lambda x, _: self.setSortRole(x))
+        self.sortingChanged.connect(lambda _, y: self.setSortOrder(y))
+        self.sortingChanged.connect(lambda x, y: self.generate_proxy_idxs(
+            reverse=(True if self.sortOrder() == 0 else False)
+        ))
+
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
         definitions by running a recursive QDirIterator from the location-folder.
@@ -273,13 +270,23 @@ class FilesModel(BaseModel):
         """
         FileInfoWorker.reset_queue()
 
-        app = QtWidgets.QApplication.instance()
-        if app:
-            app.processEvents()
-
         dkey = self.data_key()
         self._data[dkey] = {
             common.FileItem: {}, common.SequenceItem: {}}
+
+        self._proxy_idxs[dkey] = {
+            common.FileItem: {
+                common.SortByName: [],
+                common.SortBySize: [],
+                common.SortByLastModified: [],
+            },
+            common.SequenceItem: {
+                common.SortByName: [],
+                common.SortBySize: [],
+                common.SortByLastModified: [],
+            },
+        }
+
         seqs = {}
 
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -337,6 +344,7 @@ class FilesModel(BaseModel):
                 placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), rowsize.height())
 
             flags = dflags()
+
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
 
@@ -420,12 +428,24 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
 
+                flags = dflags()
+                if filepath in favourites:
+                    flags = flags | MarkedAsFavourite
+                v[common.FlagsRole] = flags
+
             if len(v[common.FramesRole]) == 0:
                 v[common.TypeRole] = common.FileItem
 
             self._data[dkey][common.SequenceItem][idx] = v
 
+        self.generate_proxy_idxs()
         self.endResetModel()
+
+    def index(self, row, column, parent=QtCore.QModelIndex()):
+        proxy_rows = self.proxy_idxs()
+        if proxy_rows:
+            row = proxy_rows[row]
+        return self.createIndex(row, 0, parent=parent)
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -487,34 +507,27 @@ class FilesWidget(BaseInlineIconWidget):
         self.setDropIndicatorShown(False)
         self.setWindowTitle(u'Files')
         self.setAutoScroll(True)
-        # We have to disable tracking, as the valueChanged signals is
-        # populating the FileInfoThread's queue
-        # self.verticalScrollBar().setTracking(False)
 
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.context_menu_cls = FilesWidgetContextMenu
         self.set_model(FilesModel(parent=self))
 
+        self._index_timer = QtCore.QTimer()
+        self._index_timer.setInterval(1000)
+        self._index_timer.setSingleShot(False)
+        self._index_timer.timeout.connect(self.initialize_visible_indexes)
 
-        self.model().modelAboutToBeReset.connect(self.reset_queue)
+        self.model().sourceModel().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
+        self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
+        self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
 
-        self.model().modelReset.connect(
-            self.initialize_visible_indexes)
-        self.model().layoutChanged.connect(
-            self.initialize_visible_indexes)
-        self.verticalScrollBar().valueChanged.connect(
-            self.initialize_visible_indexes)
-        self.verticalScrollBar().sliderReleased.connect(
-            self.initialize_visible_indexes)
+        # self.model().layoutChanged.connect(self.initialize_visible_indexes)
+        self.model().modelAboutToBeReset.connect(self._index_timer.stop)
+        self.model().modelReset.connect(self._index_timer.start)
 
-        for n in self.model().sourceModel().threads:
-            self.model().sourceModel().threads[n].worker.queueFinished.connect(self.model().invalidateFilter)
-            self.model().sourceModel().threads[n].worker.queueFinished.connect(
-                lambda: self.model().sortingChanged.emit(
-                    self.model().sortOrder(), self.model().sortRole()))
 
     @QtCore.Slot()
-    def reset_queue(self):
+    def reset_thread_worker_queues(self):
         FileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
@@ -528,6 +541,9 @@ class FilesWidget(BaseInlineIconWidget):
         in the view.
 
         """
+        indexes = []
+        _indexes = []
+
         if self.verticalScrollBar().isSliderDown():
             return
 
@@ -535,10 +551,6 @@ class FilesWidget(BaseInlineIconWidget):
         FileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
-        app = QtWidgets.QApplication.instance()
-        app.processEvents()
-
-        indexes = []
         index = self.indexAt(self.rect().topLeft())
         if not index.isValid():
             return
@@ -547,6 +559,7 @@ class FilesWidget(BaseInlineIconWidget):
         rect = self.visualRect(index)
         while self.rect().contains(rect):
             # source_index = self.model().mapToSource(index)
+            _indexes.append(index)
             if not index.data(common.StatusRole):
                 indexes.append(index)
 
@@ -555,11 +568,19 @@ class FilesWidget(BaseInlineIconWidget):
             if not index.isValid():
                 break
 
+        if _indexes:
+            # Let's make sure the archived items don't creep in when they have
+            # their flags updated
+            if not self.model().filterFlag(MarkedAsArchived):
+                for _index in _indexes:
+                    if _index.flags() & MarkedAsArchived:
+                        self.model().invalidateFilter()
+                        return
+
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
         if index.isValid():
             if not index.data(common.StatusRole):
-                # source_index = self.model().mapToSource(index)
                 if index not in indexes:
                     indexes.append(index)
 
@@ -654,6 +675,18 @@ class FilesWidget(BaseInlineIconWidget):
             ImageCache.instance().pick(source_index)
             return
         self.activate(self.selectionModel().currentIndex())
+
+    def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self._index_timer.stop()
+        super(FilesWidget, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self._index_timer.start()
+        super(FilesWidget, self).mouseReleaseEvent(event)
 
 
 if __name__ == '__main__':
