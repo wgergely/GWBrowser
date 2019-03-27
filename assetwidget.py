@@ -138,9 +138,9 @@ class AssetModel(BaseModel):
                 #
                 common.TypeRole: common.AssetItem,
                 #
-                common.SortByName: filename,
-                common.SortByLastModified: it.fileInfo().lastModified().toMSecsSinceEpoch(),
-                common.SortBySize: None,
+                common.SortByName: filepath,
+                common.SortByLastModified: filepath,
+                common.SortBySize: filepath,
             }
 
             index = self.index(idx, 0)
@@ -186,11 +186,8 @@ class AssetModel(BaseModel):
 
             description = settings.value(u'config/description')
             data[idx][common.DescriptionRole] = description
-            data[idx][common.SortByName] = '{}{}'.format(
-                filename, todocount)
-            data[idx][common.SortBySize] = todocount
+            data[idx][common.SortBySize] = u'{}'.format(todocount)
 
-        self.sort_data()
         self.endResetModel()
 
 

@@ -198,39 +198,9 @@ UpperCase = 1
 """Filename styles"""
 
 
-def sort_alphanum_key(key):
-    def _convert(text):
-        return int(text) if text.isdigit() else text
-
-    def _split(key):
-        return re.split(r'([0-9]+)', key.filePath())
-
-    return [_convert(f) for f in _split(key)]
-
-
-
-alphanum = re.compile(r'([0-9]+)', flags=re.IGNORECASE)
-# re_natural = re.compile('[0-9]+|[^0-9]+')
-def namekey(s):
-    # return [(1, int(c)) if c.isdigit() else (0, c.lower()) for c in re_natural.findall(s)] + [s]
-    return [(int(f) if f.isdigit() else f) for f in alphanum.split(s)]
-
-def sort_last_modified_key(key):
-    return key.lastModified().toMSecsSinceEpoch()
-
-
-def sort_size_key(key):
-    return key.size()
-
-
-sort_keys = {
-    SortByName: sort_alphanum_key,
-    SortByLastModified: sort_last_modified_key,
-    SortBySize: sort_size_key,
-}
-"""These are the methods/keys used to sort lists."""
-
-
+def namekey(s, _nsre=re.compile('([0-9]+)')):
+    return [int(text) if text.isdigit() else text.lower()
+            for text in _nsre.split(s)]
 
 def move_widget_to_available_geo(widget):
     """Moves the widget inside the available screen geomtery, if any of the edges

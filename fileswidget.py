@@ -148,8 +148,8 @@ class FileInfoWorker(BaseWorker):
 
         # Sort values
         # data[common.SortByName] = fileroot
-        data[common.SortByLastModified] = last_modified.toMSecsSinceEpoch()
-        data[common.SortBySize] = size
+        data[common.SortByLastModified] = u'{}'.format(last_modified.toMSecsSinceEpoch())
+        data[common.SortBySize] = u'{}'.format(size)
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
         #
@@ -350,9 +350,9 @@ class FilesModel(BaseModel):
                 common.ThumbnailRole: placeholder_image,
                 common.ThumbnailBackgroundRole: placeholder_color,
                 common.TypeRole: common.FileItem,
-                common.SortByName: common.namekey(filepath.lower()),
-                common.SortByLastModified: common.namekey(filepath.lower()),
-                common.SortBySize: common.namekey(filepath.lower()),
+                common.SortByName: filepath,
+                common.SortByLastModified: filepath,
+                common.SortBySize: filepath,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -388,9 +388,9 @@ class FilesModel(BaseModel):
                         common.ThumbnailRole: placeholder_image,
                         common.ThumbnailBackgroundRole: placeholder_color,
                         common.TypeRole: common.SequenceItem,
-                        common.SortByName: common.namekey(key.lower()),
-                        common.SortByLastModified: common.namekey(key.lower()),
-                        common.SortBySize: common.namekey(key.lower()),
+                        common.SortByName: seqpath,
+                        common.SortByLastModified: seqpath,
+                        common.SortBySize: seqpath,
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
@@ -409,9 +409,9 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
-                v[common.SortByName] = common.namekey(filename.lower())
-                v[common.SortByLastModified] = common.namekey(filename.lower())
-                v[common.SortBySize] = common.namekey(filename.lower())
+                v[common.SortByName] = filepath
+                v[common.SortByLastModified] = filepath
+                v[common.SortBySize] = filepath
 
                 flags = dflags()
                 if filepath in favourites:
@@ -423,7 +423,6 @@ class FilesModel(BaseModel):
 
             self._data[dkey][common.SequenceItem][idx] = v
 
-        self.sort_data()
         self.endResetModel()
 
     @QtCore.Slot()

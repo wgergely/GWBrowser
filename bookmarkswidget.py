@@ -214,8 +214,8 @@ class BookmarksModel(BaseModel):
                 common.StatusRole: True,
                 #
                 common.SortByName: file_info.filePath(),
-                common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
-                common.SortBySize: file_info.size(),
+                common.SortByLastModified: file_info.filePath(),
+                common.SortBySize: u'{}'.format(file_info.size()),
             }
 
             # Thumbnail
@@ -242,7 +242,6 @@ class BookmarksModel(BaseModel):
             else:
                 data[idx][common.DescriptionRole] = description
 
-        self.sort_data()
         self.endResetModel()
 
     def canDropMimeData(self, data, action, row, column, parent):

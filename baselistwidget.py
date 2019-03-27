@@ -178,7 +178,9 @@ class BaseModel(QtCore.QAbstractItemModel):
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
     dataKeyChanged = QtCore.Signal(unicode)
     dataTypeChanged = QtCore.Signal(int)
+
     sortingChanged = QtCore.Signal(int, bool)  # (SortRole, SortOrder)
+    dataSorted = QtCore.Signal()  # (SortRole, SortOrder)
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -269,31 +271,27 @@ class BaseModel(QtCore.QAbstractItemModel):
         data = self.model_data()
 
         sortrole = self.sortRole()
-        print sortrole
+        if sortrole not in (common.SortByName, common.SortBySize, common.SortByLastModified):
+            sortrole = common.SortByName
         sortorder = self.sortOrder()
-        print sortorder
 
         sorted_idxs = sorted(
             data,
-            key=lambda x: data[x][sortrole],
+            key=lambda idx: common.namekey(data[idx][sortrole]),
             reverse=sortorder
         )
 
-        # Copying the dataf
+        # Copy
         __data = {}
-        for idx, v in data.iteritems():
-            __data[sorted_idxs[idx]] = v
+        for n, idx in enumerate(sorted_idxs):
+            __data[n] = data[idx]
+        # for idx, v in data.iteritems():
+        #     __data[sorted_idxs[idx]] = v
 
         k = self.data_key()
         t = self.data_type()
         self._data[k][t] = __data
-
-
-        # self._proxy_idxs[k][t] = {
-        #     common.SortByName: SortByName,
-        #     common.SortBySize: SortBySize,
-        #     common.SortByLastModified: SortByLastModified,
-        # }
+        self.dataSorted.emit()
 
 
     @QtCore.Slot(unicode)
@@ -524,7 +522,7 @@ class BaseListWidget(QtWidgets.QListView):
         # Selection
         model.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
-        proxy.modelAboutToBeReset.connect(
+        proxy.layoutAboutToBeChanged.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
         proxy.modelReset.connect(self.reselect_previous,
             type=QtCore.Qt.DirectConnection)
@@ -560,9 +558,18 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.modelReset.connect(self.reset_multitoggle)
         proxy.layoutChanged.connect(self.reset_multitoggle)
 
+        model.sortingChanged.connect(
+            lambda x, y: self.save_selection(self.selectionModel().currentIndex()))
         model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
+        model.dataKeyChanged.connect(lambda x: model.sort_data())
+        model.dataTypeChanged.connect(lambda x: model.sort_data())
+
+        model.modelReset.connect(model.sort_data)
+        model.dataSorted.connect(proxy.invalidateFilter)
+        model.dataSorted.connect(self.reselect_previous)
+        # model.sortingChanged.connect(lambda x, y: proxy.invalidateFilter())
 
 
     def active_index(self):
