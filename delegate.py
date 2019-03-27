@@ -797,7 +797,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_description(self, *args, **kwargs):
         """Paints the item description inside the ``FilesWidget``."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
@@ -835,9 +835,13 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         if index.data(common.DescriptionRole):
+            if selected:
+                color = common.TEXT_SELECTED
+            else:
+                color = common.FAVOURITE
             text = u'{}  |  \n'.format(index.data(common.DescriptionRole))
             rect = self._draw(painter, font, rect, text, align,
-                              common.FAVOURITE, option, kwargs['left'])
+                              color, option, kwargs['left'])
         elif not index.data(common.DescriptionRole) and hover:
             color = QtGui.QColor(common.SECONDARY_TEXT)
             color.setAlpha(150)

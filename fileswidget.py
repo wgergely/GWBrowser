@@ -148,8 +148,7 @@ class FileInfoWorker(BaseWorker):
 
         # Sort values
         # data[common.SortByName] = fileroot
-        data[common.SortByLastModified] = last_modified.toMSecsSinceEpoch(
-        )
+        data[common.SortByLastModified] = last_modified.toMSecsSinceEpoch()
         data[common.SortBySize] = size
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
@@ -253,11 +252,6 @@ class FilesModel(BaseModel):
             self.threads[n].thread_id = n
             self.threads[n].start()
 
-        self.sortingChanged.connect(lambda x, _: self.setSortRole(x))
-        self.sortingChanged.connect(lambda _, y: self.setSortOrder(y))
-        self.sortingChanged.connect(lambda x, y: self.generate_proxy_idxs(
-            reverse=(True if self.sortOrder() == 0 else False)
-        ))
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -269,23 +263,11 @@ class FilesModel(BaseModel):
 
         """
         FileInfoWorker.reset_queue()
+        ImageCacheWorker.reset_queue()
 
         dkey = self.data_key()
         self._data[dkey] = {
             common.FileItem: {}, common.SequenceItem: {}}
-
-        self._proxy_idxs[dkey] = {
-            common.FileItem: {
-                common.SortByName: [],
-                common.SortBySize: [],
-                common.SortByLastModified: [],
-            },
-            common.SequenceItem: {
-                common.SortByName: [],
-                common.SortBySize: [],
-                common.SortByLastModified: [],
-            },
-        }
 
         seqs = {}
 
@@ -368,9 +350,9 @@ class FilesModel(BaseModel):
                 common.ThumbnailRole: placeholder_image,
                 common.ThumbnailBackgroundRole: placeholder_color,
                 common.TypeRole: common.FileItem,
-                common.SortByName: filepath,
-                common.SortByLastModified: filepath,
-                common.SortBySize: filepath,
+                common.SortByName: common.namekey(filepath.lower()),
+                common.SortByLastModified: common.namekey(filepath.lower()),
+                common.SortBySize: common.namekey(filepath.lower()),
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -406,9 +388,9 @@ class FilesModel(BaseModel):
                         common.ThumbnailRole: placeholder_image,
                         common.ThumbnailBackgroundRole: placeholder_color,
                         common.TypeRole: common.SequenceItem,
-                        common.SortByName: seqname,
-                        common.SortByLastModified: seqname,
-                        common.SortBySize: seqname,
+                        common.SortByName: common.namekey(key.lower()),
+                        common.SortByLastModified: common.namekey(key.lower()),
+                        common.SortBySize: common.namekey(key.lower()),
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
@@ -427,6 +409,9 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.StatusTipRole] = filepath
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
+                v[common.SortByName] = common.namekey(filename.lower())
+                v[common.SortByLastModified] = common.namekey(filename.lower())
+                v[common.SortBySize] = common.namekey(filename.lower())
 
                 flags = dflags()
                 if filepath in favourites:
@@ -438,14 +423,8 @@ class FilesModel(BaseModel):
 
             self._data[dkey][common.SequenceItem][idx] = v
 
-        self.generate_proxy_idxs()
+        self.sort_data()
         self.endResetModel()
-
-    def index(self, row, column, parent=QtCore.QModelIndex()):
-        proxy_rows = self.proxy_idxs()
-        if proxy_rows:
-            row = proxy_rows[row]
-        return self.createIndex(row, 0, parent=parent)
 
     @QtCore.Slot()
     def delete_thread(self, thread):

@@ -142,8 +142,19 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return False
 
         if self.filterText():
-            if self.filterText().lower() not in data[source_row][QtCore.Qt.StatusTipRole].lower():
-                return False
+            searchable = u'{}\n{}\n{}'.format(
+                data[source_row][QtCore.Qt.StatusTipRole],
+                data[source_row][common.DescriptionRole],
+                data[source_row][common.FileDetailsRole]
+            )
+            try:
+                match = re.search(self.filterText(), searchable, flags=re.IGNORECASE | re.MULTILINE)
+                if not match:
+                    return False
+            except:
+                if self.filterText().lower() not in searchable.lower():
+                    return False
+
         if archived and not self.filterFlag(Settings.MarkedAsArchived):
             return False
         if not favourite and self.filterFlag(Settings.MarkedAsFavourite):
@@ -194,10 +205,14 @@ class BaseModel(QtCore.QAbstractItemModel):
         cls = self.__class__.__name__
         k = u'widget/{}/sortrole'.format(cls)
         val = local_settings.value(k)
+        if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
+            val = common.SortByName
         self._sortrole = val
 
         k = u'widget/{}/sortorder'.format(cls)
         val = local_settings.value(k)
+        if val not in (True, False):
+            val = False
         self._sortorder = val
 
         if self._sortrole is None:
@@ -236,6 +251,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
 
     def proxy_idxs(self):
+        """This is no implemented or used at the moment."""
         k = self.data_key()
         t = self.data_type()
         if k not in self._proxy_idxs:
@@ -248,29 +264,36 @@ class BaseModel(QtCore.QAbstractItemModel):
         return self._proxy_idxs[k][t][self.sortRole()]
 
     @QtCore.Slot()
-    def generate_proxy_idxs(self, reverse=False):
+    def sort_data(self):
         """We're making a list of proxy data indexes to map to sorted items."""
         data = self.model_data()
-        SortByName = sorted(
+
+        sortrole = self.sortRole()
+        print sortrole
+        sortorder = self.sortOrder()
+        print sortorder
+
+        sorted_idxs = sorted(
             data,
-            key=lambda x: common.namekey(data[x][common.SortByName]),
-            reverse=reverse)
-        SortBySize = sorted(
-            data,
-            key=lambda x: data[x][common.SortBySize],
-            reverse=reverse)
-        SortByLastModified = sorted(
-            data,
-            key=lambda x: data[x][common.SortByLastModified],
-            reverse=not reverse)
+            key=lambda x: data[x][sortrole],
+            reverse=sortorder
+        )
+
+        # Copying the dataf
+        __data = {}
+        for idx, v in data.iteritems():
+            __data[sorted_idxs[idx]] = v
 
         k = self.data_key()
         t = self.data_type()
-        self._proxy_idxs[k][t] = {
-            common.SortByName: SortByName,
-            common.SortBySize: SortBySize,
-            common.SortByLastModified: SortByLastModified,
-        }
+        self._data[k][t] = __data
+
+
+        # self._proxy_idxs[k][t] = {
+        #     common.SortByName: SortByName,
+        #     common.SortBySize: SortBySize,
+        #     common.SortByLastModified: SortByLastModified,
+        # }
 
 
     @QtCore.Slot(unicode)
@@ -532,14 +555,15 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
-
-
-
-
         # Multitoggle
         proxy.modelAboutToBeReset.connect(self.reset_multitoggle)
         proxy.modelReset.connect(self.reset_multitoggle)
         proxy.layoutChanged.connect(self.reset_multitoggle)
+
+        model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
+        model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
+        model.sortingChanged.connect(lambda x, y: model.sort_data())
+
 
     def active_index(self):
         """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``

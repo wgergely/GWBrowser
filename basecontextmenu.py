@@ -223,10 +223,10 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Sort'] = collections.OrderedDict()
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
-            u'text': u'Ascending' if sortorder else u'Descending',
+            u'text': u'Ascending' if not sortorder else u'Descending',
             u'ckeckable': True,
-            u'checked': sortorder,
-            u'icon': arrow_down_icon if sortorder else arrow_up_icon,
+            u'checked': not sortorder,
+            u'icon': arrow_down_icon if not sortorder else arrow_up_icon,
             u'action': lambda: m.sortingChanged.emit(m.sortRole(), not m.sortOrder())
         }
 

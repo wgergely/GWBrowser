@@ -226,17 +226,14 @@ class BookmarksModel(BaseModel):
                 data[idx][common.ThumbnailPathRole],
                 rowsize.height() - 2)
 
-            if not image:
-                continue
-            if image.isNull():
-                continue
+            if image:
+                if not image.isNull():
+                    color = ImageCache.instance().get(
+                        data[idx][common.ThumbnailPathRole],
+                        'BackgroundColor')
 
-            color = ImageCache.instance().get(
-                data[idx][common.ThumbnailPathRole],
-                'BackgroundColor')
-
-            data[idx][common.ThumbnailRole] = image
-            data[idx][common.ThumbnailBackgroundRole] = color
+                    data[idx][common.ThumbnailRole] = image
+                    data[idx][common.ThumbnailBackgroundRole] = color
 
             description = settings.value(u'config/description')
             if not description:
@@ -244,7 +241,8 @@ class BookmarksModel(BaseModel):
                 settings.setValue(u'config/description', file_info.filePath())
             else:
                 data[idx][common.DescriptionRole] = description
-        self.generate_proxy_idxs()
+
+        self.sort_data()
         self.endResetModel()
 
     def canDropMimeData(self, data, action, row, column, parent):

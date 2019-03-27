@@ -190,7 +190,7 @@ class AssetModel(BaseModel):
                 filename, todocount)
             data[idx][common.SortBySize] = todocount
 
-        self.generate_proxy_idxs()
+        self.sort_data()
         self.endResetModel()
 
 
