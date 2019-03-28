@@ -167,7 +167,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NativeWindow)
-        self.setAttribute(QtCore.Qt.WA_NativeWindow)
 
         shadow_offset = common.INDICATOR_WIDTH * 2
         self.layout().setContentsMargins(common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
@@ -182,6 +181,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     def _createUI(self):
         super(StandaloneBrowserWidget, self)._createUI()
+
         self.headerwidget = HeaderWidget(parent=self)
         self.layout().insertWidget(0, self.headerwidget)
         grip = self.statusbar.findChild(SizeGrip)
@@ -299,9 +299,9 @@ class StandaloneApp(QtWidgets.QApplication):
     def exec_(self):
         """Shows the ``StandaloneBrowserWidget`` on execution."""
         widget = StandaloneBrowserWidget()
-        widget.showNormal()
-        widget.activateWindow()
-        widget.raise_()
+        widget.show()
+        # widget.activateWindow()
+        # widget.raise_()
         super(StandaloneApp, self).exec_()
 
     def set_model_id(self):
