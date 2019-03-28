@@ -339,17 +339,17 @@ class FilterButton(ControlButton):
     def action(self):
         filter_text = self.current().model().filterText()
         editor = FilterEditor(filter_text, parent=self._parent)
-        editor.show()
         pos = self._parent.rect().topLeft()
         pos = self._parent.mapToGlobal(pos)
 
         editor.move(pos)
         editor.setFixedWidth(self._parent.rect().width())
 
-        editor.finished.connect(self.current().model().filterTextChanged.emit)
-        self.update()
-        # editor.setGeometry(self._parent.geometry())
+        editor.finished.connect(self.current().model().filterTextChanged)
+        editor.finished.connect(self.repaint)
+        editor.finished.connect(editor.deleteLater)
 
+        editor.show()
 
 class CollapseSequenceButton(ControlButton):
     def pixmap(self, c):

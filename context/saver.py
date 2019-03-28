@@ -506,15 +506,17 @@ class SaverWidget(QtWidgets.QDialog):
         a = assetbutton.view()
         f = foldersbutton.view()
 
-        b.widgetShown.connect(b.hide)
-        a.widgetShown.connect(f.hide)
         b.widgetShown.connect(a.hide)
         b.widgetShown.connect(f.hide)
-        f.widgetShown.connect(b.hide)
-        f.widgetShown.connect(a.hide)
 
-        header.widgetMoved.connect(a.move)
+        a.widgetShown.connect(b.hide)
+        a.widgetShown.connect(f.hide)
+
+        f.widgetShown.connect(a.hide)
+        f.widgetShown.connect(b.hide)
+
         header.widgetMoved.connect(b.move)
+        header.widgetMoved.connect(a.move)
         header.widgetMoved.connect(f.move)
 
         # Signal/slot connections for the primary bookmark/asset and filemodels

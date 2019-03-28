@@ -6,14 +6,12 @@ found by the collector classes.
 """
 
 import re
-import sys
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 import gwbrowser.editors as editors
-from gwbrowser.imagecache import ImageCache
 import gwbrowser.settings as Settings
 from gwbrowser.settings import local_settings
 from gwbrowser.settings import AssetSettings
@@ -58,7 +56,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         }
 
     def sort(self, column, order=QtCore.Qt.AscendingOrder):
-        raise NotImplementedError('Sorting on the proxy model is not implemented.')
+        raise NotImplementedError(
+            'Sorting on the proxy model is not implemented.')
 
     def initialize_filter_values(self):
         """We're settings the settings saved in the local settings, and optional
@@ -66,16 +65,19 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         """
         cls = self.sourceModel().__class__.__name__
-        self._filtertext = local_settings.value(u'widget/{}/filtertext'.format(cls))
+        self._filtertext = local_settings.value(
+            u'widget/{}/filtertext'.format(cls))
         self._filterflags = {
             Settings.MarkedAsActive: local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsActive)
             ),
             Settings.MarkedAsArchived: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsArchived)
+                u'widget/{}/filterflag{}'.format(cls,
+                                                 Settings.MarkedAsArchived)
             ),
             Settings.MarkedAsFavourite: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsFavourite)
+                u'widget/{}/filterflag{}'.format(cls,
+                                                 Settings.MarkedAsFavourite)
             ),
         }
 
@@ -88,9 +90,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             self._filterflags[Settings.MarkedAsArchived] = False
         if self._filterflags[Settings.MarkedAsFavourite] is None:
             self._filterflags[Settings.MarkedAsFavourite] = False
-
-
-
 
     def filterText(self):
         """Filters the list of items containing this path segment."""
@@ -148,7 +147,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
                 data[source_row][common.FileDetailsRole]
             )
             try:
-                match = re.search(self.filterText(), searchable, flags=re.IGNORECASE | re.MULTILINE)
+                match = re.search(self.filterText(), searchable,
+                                  flags=re.IGNORECASE | re.MULTILINE)
                 if not match:
                     return False
             except:
@@ -160,13 +160,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if not favourite and self.filterFlag(Settings.MarkedAsFavourite):
             return False
         return True
-
-    # def lessThan(self, source_left, source_right):
-    #     """The main method responsible for sorting the items."""
-    #     k = self.sortRole()
-    #     if k == common.SortByName:
-    #         return common.namekey(source_left.data(k)) < common.namekey(source_right.data(k))
-    #     return source_left.data(k) < source_right.data(k)
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -293,7 +286,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data[k][t] = __data
         self.dataSorted.emit()
 
-
     @QtCore.Slot(unicode)
     def check_data(self):
         """When setting the model data-key it is necessary to check if the data
@@ -314,7 +306,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         if index.data(common.ParentRole) == self._parent_item:
             return
         self._parent_item = index.data(common.ParentRole)
-
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -439,7 +430,8 @@ class BaseModel(QtCore.QAbstractItemModel):
         if val == self._datatype:
             return
         if val not in (common.FileItem, common.SequenceItem):
-            raise ValueError('Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
+            raise ValueError(
+                'Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
         cls = self.__class__.__name__
         key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
         local_settings.setValue(key, val)
@@ -460,13 +452,12 @@ class BaseModel(QtCore.QAbstractItemModel):
         if key not in sorted(entries):
             self.set_data_key(entries[0])
 
+
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
-
-    # Signals
     sizeChanged = QtCore.Signal(QtCore.QSize)
 
     def __init__(self, parent=None):
@@ -525,9 +516,9 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.layoutAboutToBeChanged.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
         proxy.modelReset.connect(self.reselect_previous,
-            type=QtCore.Qt.DirectConnection)
+                                 type=QtCore.Qt.DirectConnection)
         proxy.layoutChanged.connect(self.reselect_previous,
-            type=QtCore.Qt.DirectConnection)
+                                    type=QtCore.Qt.DirectConnection)
 
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(lambda x: model.check_data())
@@ -569,8 +560,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(model.sort_data)
         model.dataSorted.connect(proxy.invalidateFilter)
         model.dataSorted.connect(self.reselect_previous)
-        # model.sortingChanged.connect(lambda x, y: proxy.invalidateFilter())
-
 
     def active_index(self):
         """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
@@ -605,7 +594,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
-        data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsActive
+        data[source_index.row()][common.FlagsRole] = data[source_index.row()
+                                                          ][common.FlagsRole] | Settings.MarkedAsActive
 
         source_index.model().dataChanged.emit(source_index, source_index)
         source_index.model().activeChanged.emit(source_index)
@@ -617,7 +607,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
-        data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsActive
+        data[source_index.row()][common.FlagsRole] = data[source_index.row()
+                                                          ][common.FlagsRole] & ~Settings.MarkedAsActive
 
         source_index.model().dataChanged.emit(source_index, source_index)
 
@@ -663,14 +654,15 @@ class BaseListWidget(QtWidgets.QListView):
             if path == val:
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
-                self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                self.scrollTo(
+                    index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
         if self.model().rowCount():
             index = self.model().index(0, 0)
-            self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+            self.selectionModel().setCurrentIndex(
+                index, QtCore.QItemSelectionModel.ClearAndSelect)
             self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
-
 
     def toggle_favourite(self, index, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -706,15 +698,16 @@ class BaseListWidget(QtWidgets.QListView):
         if key in favourites:
             if state is None or state is False:  # clears flag
                 favourites.remove(key)
-                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
+                data[source_index.row()][common.FlagsRole] = data[source_index.row(
+                )][common.FlagsRole] & ~Settings.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(key)
-                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsFavourite
+                data[source_index.row()][common.FlagsRole] = data[source_index.row(
+                )][common.FlagsRole] | Settings.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', favourites)
         index.model().dataChanged.emit(index, index)
-        # source_index.model().dataChanged.emit(source_index, source_index)
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -744,13 +737,15 @@ class BaseListWidget(QtWidgets.QListView):
         data = source_index.model().model_data()
         if archived:
             if state is None or state is False:  # clears flag
-                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsArchived
+                data[source_index.row()][common.FlagsRole] = data[source_index.row(
+                )][common.FlagsRole] & ~Settings.MarkedAsArchived
                 settings.setValue(u'config/archived', False)
                 index.model().dataChanged.emit(index, index)
                 return
 
         if state is None or state is True:
-            data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] | Settings.MarkedAsArchived
+            data[source_index.row()][common.FlagsRole] = data[source_index.row()
+                                                              ][common.FlagsRole] | Settings.MarkedAsArchived
             settings.setValue(u'config/archived', True)
 
             key = index.data(QtCore.Qt.StatusTipRole)
@@ -758,12 +753,12 @@ class BaseListWidget(QtWidgets.QListView):
             if collapsed:
                 key = collapsed.expand(r'\1\3')
             if key in favourites:
-                data[source_index.row()][common.FlagsRole] = data[source_index.row()][common.FlagsRole] & ~Settings.MarkedAsFavourite
+                data[source_index.row()][common.FlagsRole] = data[source_index.row(
+                )][common.FlagsRole] & ~Settings.MarkedAsFavourite
 
                 favourites.remove(key)
                 local_settings.setValue(u'favourites', favourites)
         index.model().dataChanged.emit(index, index)
-
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
@@ -999,6 +994,8 @@ class BaseListWidget(QtWidgets.QListView):
             )
 
             favourite_mode = self.model().filterFlag(Settings.MarkedAsFavourite)
+            archived_mode = self.model().filterFlag(Settings.MarkedAsArchived)
+            active_mode = self.model().filterFlag(Settings.MarkedAsActive)
 
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
@@ -1012,20 +1009,41 @@ class BaseListWidget(QtWidgets.QListView):
             font.setPointSize(8)
 
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+            if self.model().sourceModel().rowCount() == 0:
+                text = u'No items to show.'
+                common.draw_aliased_text(
+                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                return True
+
+            # if self.model().rowCount() == 0:
+            #     text = u'{} items are hidden'.format(
+            #         self.model().sourceModel().rowCount() - self.model().rowCount())
+            #     common.draw_aliased_text(
+            #         painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
+
             for n in xrange((self.height() / sizehint.height()) + 1):
                 if n >= self.model().rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
                     rect_.setWidth(sizehint.height() - 2)
-                if n == 0 and not favourite_mode:  # Empty model
-                    text = u'No items to show.'
-                    common.draw_aliased_text(
-                        painter, font, text_rect, text, align, common.TEXT_DISABLED)
-                elif n == self.model().rowCount():  # filter mode
+
+                if n == self.model().rowCount():  # filter mode
+                    hidden_count = self.model().sourceModel().rowCount() - self.model().rowCount()
+                    filtext = u''
+                    favtext = u''
+                    acttext = u''
+                    hidtext = u''
+
+                    if self.model().filterText() is not None and len(self.model().filterText()) > 0:
+                        filtext = u'"{}" |'.format(self.model().filterText())
                     if favourite_mode:
-                        text = u'{} items are hidden'.format(
-                            self.model().sourceModel().rowCount() - self.model().rowCount())
-                        common.draw_aliased_text(
-                            painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
+                        favtext = u'Showing favourites only'
+                    if active_mode:
+                        acttext = u'Showing active item only'
+                    if hidden_count:
+                        hidtext = '({} items are hidden)'.format(hidden_count)
+                    text = '{} {} {} {}'.format(filtext, favtext, acttext, hidtext)
+                    common.draw_aliased_text(
+                        painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())
@@ -1120,12 +1138,10 @@ class BaseInlineIconWidget(BaseListWidget):
             if n == 0:
                 self.toggle_favourite(index)
                 self.model().invalidateFilter()
-                # self.model().dataChanged.emit(index, index)
                 break
             elif n == 1:
                 self.toggle_archived(index)
                 self.model().invalidateFilter()
-                # self.model().dataChanged.emit(index, index)
                 break
             elif n == 2:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
@@ -1183,9 +1199,11 @@ class BaseInlineIconWidget(BaseListWidget):
                 return
 
             if self.multi_toggle_idx == 0:  # Favourite button
-                self.toggle_favourite(index, state=self.multi_toggle_items.pop(idx))
+                self.toggle_favourite(
+                    index, state=self.multi_toggle_items.pop(idx))
             elif self.multi_toggle_idx == 1:  # Favourite button
-                self.toggle_archived(index=index, state=self.multi_toggle_items.pop(idx))
+                self.toggle_archived(
+                    index=index, state=self.multi_toggle_items.pop(idx))
 
     def show_todos(self, index):
         pass

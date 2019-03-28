@@ -18,11 +18,8 @@ from gwbrowser.delegate import AssetWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.assetwidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
-from gwbrowser.baselistwidget import BaseListWidget
+from gwbrowser.baselistwidget import BaseInlineIconWidget
 
-# ++++++++++++++++++++++++++++++
-# FOLDER
-# ++++++++++++++++++++++++++++++
 
 class SelectFolderContextMenu(BaseContextMenu):
     """Context menu associated with the thumbnail."""
@@ -449,10 +446,6 @@ class SelectFolderButton(ClickableLabel):
         painter.end()
 
 
-# ++++++++++++++++++++++++++++++
-# ASSET
-# ++++++++++++++++++++++++++++++
-
 class SelectAssetDelegate(AssetWidgetDelegate):
     """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
 
@@ -475,7 +468,7 @@ class SelectAssetDelegate(AssetWidgetDelegate):
         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
 
 
-class SaverListView(BaseListWidget):
+class SaverListView(BaseInlineIconWidget):
     widgetShown = QtCore.Signal()
 
     def __init__(self, parent=None):
@@ -527,7 +520,7 @@ class SelectAssetView(SaverListView):
         self.set_model(AssetModel())
 
         self.clicked.connect(self.activate)
-        self.clicked.connect(self.hide)
+        # self.clicked.connect(self.hide)
 
 
 class SelectAssetButton(SelectFolderButton):
@@ -618,11 +611,10 @@ class SelectBookmarkView(SaverListView):
         self.set_model(BookmarksModel())
 
         self.clicked.connect(self.activate)
-        self.clicked.connect(self.hide)
+        # self.clicked.connect(self.hide)
 
     def showEvent(self, event):
         self.widgetShown.emit()
-
         self.adjust_height()
 
     @QtCore.Slot()
