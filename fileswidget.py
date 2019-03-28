@@ -526,8 +526,8 @@ class FilesWidget(BaseInlineIconWidget):
             return
 
         # First let's remove the queued items
-        FileInfoWorker.reset_queue()
-        ImageCacheWorker.reset_queue()
+        if FileInfoWorker.queue.qsize() > 99:
+            return
 
         index = self.indexAt(self.rect().topLeft())
         if not index.isValid():
@@ -536,7 +536,6 @@ class FilesWidget(BaseInlineIconWidget):
         # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
         while self.rect().contains(rect):
-            # source_index = self.model().mapToSource(index)
             _indexes.append(index)
             if not index.data(common.StatusRole):
                 indexes.append(index)
