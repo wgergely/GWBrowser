@@ -15,9 +15,7 @@ from gwbrowser.capture import ScreenGrabber
 from gwbrowser.settings import AssetSettings
 import gwbrowser.common as common
 
-import oiio.OpenImageIO as oiio
-from oiio.OpenImageIO import ImageBuf, ImageSpec, ImageBufAlgo
-
+import OpenImageIO.OpenImageIO as OpenImageIO
 
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
@@ -46,13 +44,13 @@ class ImageCacheWorker(BaseWorker):
         dest = index.data(common.ThumbnailPathRole)
 
         # First let's check if the file is competible with OpenImageIO
-        i = oiio.ImageInput.open(source)
+        i = OpenImageIO.ImageInput.open(source)
         if not i:
-            sys.stderr.write(oiio.geterror())
+            sys.stderr.write(OpenImageIO.geterror())
             return  # the file is not understood by OenImageIO
         i.close()
 
-        img = ImageBuf(source)
+        img = OpenImageIO.ImageBuf(source)
 
         if img.has_error:
             sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(
@@ -61,35 +59,35 @@ class ImageCacheWorker(BaseWorker):
 
         # Deep
         if img.spec().deep:
-            img = ImageBufAlgo.flatten(img)
+            img = OpenImageIO.ImageBufAlgo.flatten(img)
 
         size = int(common.THUMBNAIL_IMAGE_SIZE)
-        spec = ImageSpec(size, size, 4, "uint8")
+        spec = OpenImageIO.ImageSpec(size, size, 4, "uint8")
         spec.channelnames = ('R', 'G', 'B', 'A')
         spec.alpha_channel = 3
         spec.attribute('oiio:ColorSpace', 'Linear')
-        b = ImageBuf(spec)
+        b = OpenImageIO.ImageBuf(spec)
         b.set_write_format('uint8')
 
-        oiio.set_roi_full(img.spec(), oiio.get_roi(img.spec()))
-        ImageBufAlgo.fit(b, img)
+        OpenImageIO.set_roi_full(img.spec(), OpenImageIO.get_roi(img.spec()))
+        OpenImageIO.ImageBufAlgo.fit(b, img)
 
         spec = b.spec()
         if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
-            roi = oiio.get_roi(b.spec())
+            roi = OpenImageIO.get_roi(b.spec())
             roi.chbegin = 0
             roi.chend = 3
-            ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
+            OpenImageIO.ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
 
         if int(spec.nchannels) < 3:
-            b = ImageBufAlgo.channels(
+            b = OpenImageIO.ImageBufAlgo.channels(
                 b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
         elif int(spec.nchannels) > 4:
             if spec.channelindex('A') > -1:
-                b = ImageBufAlgo.channels(
+                b = OpenImageIO.ImageBufAlgo.channels(
                     b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
             else:
-                b = ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+                b = OpenImageIO.ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
 
         if b.has_error:
             sys.stderr.write(
@@ -114,24 +112,24 @@ class ImageCacheWorker(BaseWorker):
         if modified:
             xml = ElementTree.tostring(root)
             # Initiating a new spec with the modified xml
-            spec = oiio.ImageSpec()
+            spec = OpenImageIO.ImageSpec()
             spec.from_xml(xml)
 
             # Lastly, copying the pixels over from the old to the new buffer.
-            _b = ImageBuf(spec)
+            _b = OpenImageIO.ImageBuf(spec)
             pixels = b.get_pixels()
             _b.set_write_format('uint8')
-            _b.set_pixels(oiio.get_roi(spec), pixels)
+            _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
             if _b.has_error:
                 sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
-                    dest, _b.geterror(), oiio.geterror()))
+                    dest, _b.geterror(), OpenImageIO.geterror()))
         else:
             _b = b
 
         # Ready to write
         if not _b.write(dest, dtype='uint8'):
             sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
-                dest, _b.geterror(), oiio.geterror()))
+                dest, _b.geterror(), OpenImageIO.geterror()))
             QtCore.QFile(dest).remove()  # removing failed thumbnail save
             return
 
@@ -479,29 +477,6 @@ class ImageCache(QtCore.QObject):
 
         cls._data[k] = pixmap
         return cls._data[k]
-
-
-# class CacheWorkerSignals(QtCore.QObject):
-#     finished = QtCore.Signal()
-#     update = QtCore.Signal(unicode)
-
-#
-# class CacheWorker(QtCore.QRunnable):
-#     """Generic QRunnable, taking an index as it's first argument."""
-#
-#     def __init__(self, chunk):
-#         super(CacheWorker, self).__init__()
-#         self.chunk = chunk
-#         self.signals = CacheWorkerSignals()
-#
-#     @QtCore.Slot()
-#     def run(self):
-#         """The main work method run in a secondary thread."""
-#         for index in self.chunk:
-#             filename = QtCore.QFileInfo(index.data(
-#                 QtCore.Qt.StatusTipRole)).fileName()
-#             ImageCache.generate(index)
-#         self.signals.finished.emit()
 
 
 # Initializing the ImageCache:

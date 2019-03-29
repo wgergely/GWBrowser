@@ -98,9 +98,9 @@ def get_oiio_namefilters(as_array=False):
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    import oiio.OpenImageIO as oiio
+    import OpenImageIO.OpenImageIO as OpenImageIO
 
-    formatlist = oiio.get_string_attribute("extension_list").split(';')
+    formatlist = OpenImageIO.get_string_attribute("extension_list").split(';')
     namefilters = []
     arr = []
     for exts in formatlist:
