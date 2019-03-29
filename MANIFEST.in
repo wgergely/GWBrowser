@@ -1,1 +1,2 @@
-recursive-include module *.py *.png *.css *.ttf *.ico
+recursive-include gwbrowser *.py *.png *.css *.ttf *.ico
+recursive-include gwbrowser/rsc *.py *.png *.css *.ttf *.ico
