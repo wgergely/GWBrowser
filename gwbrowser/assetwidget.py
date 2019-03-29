@@ -211,7 +211,7 @@ class AssetWidget(BaseInlineIconWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'assets', QtGui.QColor(0, 0, 0, 10), 200)
+                'assets', QtGui.QColor(0, 0, 0, 10), 64)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -251,6 +251,8 @@ class AssetWidget(BaseInlineIconWidget):
         the double-click location before deciding what action to take.
 
         """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         index = self.indexAt(event.pos())
         if not index.isValid():
             return

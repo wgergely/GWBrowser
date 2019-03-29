@@ -328,7 +328,7 @@ class BookmarksWidget(BaseInlineIconWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'bookmark', QtGui.QColor(0, 0, 0, 10), 200)
+                'bookmark', QtGui.QColor(0, 0, 0, 10), 64)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -393,6 +393,8 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         index = self.indexAt(event.pos())
         if not index.isValid():
             return
@@ -864,11 +866,15 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             self.pick_job_widget.setCurrentIndex(idx)
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.move_in_progress = True
         self.move_start_event_pos = event.pos()
         self.move_start_widget_pos = self.mapToGlobal(self.rect().topLeft())
 
     def mouseMoveEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.buttons() == QtCore.Qt.NoButton:
             return
         if self.move_start_widget_pos:
@@ -876,6 +882,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
             self.move(self.mapToGlobal(self.rect().topLeft()) + offset)
 
     def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_widget_pos = None

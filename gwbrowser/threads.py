@@ -110,8 +110,6 @@ class BaseThread(QtCore.QThread):
             app.aboutToQuit.connect(self.deleteLater)
 
     def run(self):
-        sys.stderr.write(
-        '{}.run() -> {}\n'.format(self.__class__.__name__, QtCore.QThread.currentThread()))
         self.worker = self.Worker()
         self.worker.begin_processing()
         self.started.emit()

@@ -34,7 +34,7 @@ from gwbrowser.editors import ClickableLabel
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.bookmarkswidget import BookmarksModel
 from gwbrowser.assetwidget import AssetModel
-from gwbrowser.standalone import HeaderWidget, CloseButton, MinimizeButton
+from gwbrowser.standalonewidgets import HeaderWidget, CloseButton, MinimizeButton
 
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.settings as Settings

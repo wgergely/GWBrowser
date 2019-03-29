@@ -505,6 +505,8 @@ class SaverListView(BaseInlineIconWidget):
             self.hide()
 
     def mouseDoubleClickEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.activate(self.selectionModel().currentIndex())
 
     def inline_icons_count(self):
@@ -638,6 +640,8 @@ class SelectBookmarkView(SaverListView):
             self.hide()
 
     def mouseDoubleClickEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.activate(self.selectionModel().currentIndex())
 
     def inline_icons_count(self):

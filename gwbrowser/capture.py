@@ -111,6 +111,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         Mouse click event
         """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.button() == QtCore.Qt.LeftButton:
             # Begin click drag operation
             self._click_pos = event.globalPos()
@@ -122,6 +124,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         Mouse release event
         """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.button() == QtCore.Qt.LeftButton and self._click_pos is not None:
             # End click drag operation and commit the current capture rect
             self._capture_rect = QtCore.QRect(
@@ -137,8 +141,9 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         Mouse move event
         """
-
-        app = QtGui.QGuiApplication.instance()
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        app = QtGui.QApplication.instance()
         modifiers = app.queryKeyboardModifiers()
 
         no_modifier = modifiers == QtCore.Qt.NoModifier

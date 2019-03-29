@@ -22,6 +22,8 @@ class ClickableLabel(QtWidgets.QLabel):
 
     def mouseReleaseEvent(self, event):
         """Only triggered when the left buttons is pressed."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.button() == QtCore.Qt.LeftButton:
             self.clicked.emit()
 
@@ -134,6 +136,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.parent()._thumbnailvieweropen = None
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.close()
 
     def focusOutEvent(self, event):
@@ -354,12 +358,11 @@ class FilterEditor(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        self.setFixedWidth(300)
         self.label = FilterListButton()
         self.label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
         self.label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 2.0)
+            u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
         self.label.setPixmap(pixmap)
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -370,11 +373,11 @@ class FilterEditor(QtWidgets.QWidget):
         self.editor.setStyleSheet("""
             QLineEdit {{
                 margin: 0px;
-                padding: 3px;
+                padding: 5px;
                 background-color: rgba(30,30,30, 255);
                 color: rgba(200,200,200,255);
                 font-family: "{}";
-                font-size: 10pt;
+                font-size: 11pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;

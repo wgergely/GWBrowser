@@ -66,7 +66,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         """
         cls = self.sourceModel().__class__.__name__
         self._filtertext = local_settings.value(
-            u'widget/{}/filtertext'.format(cls))
+            u'widget/{}/{}/filtertext'.format(
+                cls, self.sourceModel().data_key()))
         self._filterflags = {
             Settings.MarkedAsActive: local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsActive)
@@ -104,7 +105,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._filtertext = val
 
         cls = self.sourceModel().__class__.__name__
-        k = u'widget/{}/filtertext'.format(cls)
+        k = u'widget/{}/{}/filtertext'.format(cls, self.sourceModel().data_key())
         local_settings.setValue(k, self._filtertext)
 
     def filterFlag(self, flag):
@@ -521,6 +522,11 @@ class BaseListWidget(QtWidgets.QListView):
                                     type=QtCore.Qt.DirectConnection)
 
         model.dataKeyChanged.connect(model.set_data_key)
+        model.dataKeyChanged.connect(
+            lambda x: proxy.setFilterText(
+                local_settings.value(u'widget/{}/{}/filtertext'.format(
+                     model.__class__.__name__, x))
+            ))
         model.dataKeyChanged.connect(lambda x: model.check_data())
 
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
@@ -1034,7 +1040,7 @@ class BaseListWidget(QtWidgets.QListView):
                     hidtext = u''
 
                     if self.model().filterText() is not None and len(self.model().filterText()) > 0:
-                        filtext = u'"{}" |'.format(self.model().filterText())
+                        filtext = u'"{}"'.format(self.model().filterText())
                     if favourite_mode:
                         favtext = u'Showing favourites only'
                     if active_mode:
@@ -1076,6 +1082,8 @@ class BaseInlineIconWidget(BaseListWidget):
     def mousePressEvent(self, event):
         """The custom mousePressEvent initiates the multi-toggle operation.
         Only the `favourite` and `archived` buttons are multi-toggle capable."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         index = self.indexAt(event.pos())
         source_index = self.model().mapToSource(index)
         rect = self.visualRect(index)

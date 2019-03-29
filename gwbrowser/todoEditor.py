@@ -242,6 +242,8 @@ class AddButton(QtWidgets.QLabel):
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
     def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.pressed.emit()
 
 
@@ -261,6 +263,8 @@ class RemoveButton(QtWidgets.QLabel):
 
     def mouseReleaseEvent(self, event):
         """We're handling the close event here."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.parent().parent().close()
 
     def dragEnterEvent(self, event):
@@ -316,12 +320,15 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
     def mousePressEvent(self, event):
         """Setting the starting drag position here."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.dragStartPosition = event.pos()
 
     def mouseMoveEvent(self, event):
         """The drag operation is initiated here."""
-        app = QtCore.QCoreApplication.instance()
-
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        app = QtCore.QApplication.instance()
         left_button = event.buttons() & QtCore.Qt.LeftButton
         if not left_button:
             return
@@ -428,6 +435,8 @@ class CheckBoxButton(QtWidgets.QLabel):
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self._checked = not self._checked
         self.clicked.emit(self._checked)
 
@@ -610,12 +619,16 @@ class MoveWidget(QtWidgets.QWidget):
         self.move_start_widget_pos = None
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.move_in_progress = True
         self.move_start_event_pos = event.pos()
         self.move_start_widget_pos = self.mapToGlobal(
             self.geometry().topLeft())
 
     def mouseMoveEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.buttons() == QtCore.Qt.NoButton:
             return
         if self.move_start_widget_pos:
@@ -637,11 +650,15 @@ class ResizeWidget(QtWidgets.QWidget):
         self.move_start_geo = None
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.move_in_progress = True
         self.move_start_event_pos = event.pos()
         self.move_start_geo = self.parent().rect()
 
     def mouseMoveEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if event.buttons() == QtCore.Qt.NoButton:
             return
 
@@ -654,6 +671,8 @@ class ResizeWidget(QtWidgets.QWidget):
             self.parent().setGeometry(rect)
 
     def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_geo = None

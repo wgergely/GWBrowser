@@ -338,6 +338,12 @@ class FilterButton(ControlButton):
 
     def action(self):
         filter_text = self.current().model().filterText()
+        if not filter_text:
+            filter_text = u''
+        else:
+            filter_text = re.sub(r'[\\]+', '', filter_text)
+            filter_text = re.sub(r'[^0-9\-\_\/a-zA-Z]+', ' ', filter_text)
+            filter_text = re.sub(r'\s', ' ', filter_text)
         editor = FilterEditor(filter_text, parent=self._parent)
         pos = self._parent.rect().topLeft()
         pos = self._parent.mapToGlobal(pos)
@@ -345,7 +351,15 @@ class FilterButton(ControlButton):
         editor.move(pos)
         editor.setFixedWidth(self._parent.rect().width())
 
-        editor.finished.connect(self.current().model().filterTextChanged)
+        def func(filter_text):
+            filter_text = re.sub(r'[^0-9\.\-\_\/a-zA-Z]+', ' ', filter_text)
+            filter_text = re.sub(r'\s\s+', ' ', filter_text)
+            # filter_text = re.sub(r'([^\s])', r'\\\1', filter_text)
+            filter_text = re.sub(r'\s', '.*', filter_text)
+
+            self.current().model().filterTextChanged.emit(filter_text)
+
+        editor.finished.connect(func)
         editor.finished.connect(self.repaint)
         editor.finished.connect(editor.deleteLater)
 

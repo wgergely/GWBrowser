@@ -53,6 +53,7 @@ class SizeGrip(QtWidgets.QSizeGrip):
 
 class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
+    initialized = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
@@ -72,16 +73,27 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget = None
         self.fileswidget = None
 
-        Active.paths()
-        active_monitor.timer.start()
+        self.initializer = QtCore.QTimer()
+        self.initializer.setSingleShot(True)
+        self.initializer.setInterval(200)
+        self.initializer.timeout.connect(self.initialize)
+        self.initializer.timeout.connect(self.initializer.deleteLater)
+
+        self.init_progress = u'Loading...'
+        self.repaint()
+
+    @QtCore.Slot()
+    def initialize(self):
+        """Applying the saved values and initiating the model datas."""
+        if self._initialized:
+            return
 
         self._createUI()
         self._connectSignals()
-
         self._add_shortcuts()
 
-    def initialize(self):
-        """Applying the saved values and initiating the model datas."""
+        Active.paths()
+
         # Switching stacked widget to saved index...
         idx = local_settings.value(u'widget/mode')
         idx = 0 if idx is None else idx
@@ -121,9 +133,12 @@ class BrowserWidget(QtWidgets.QWidget):
         timer = QtCore.QTimer(parent=self)
         timer.setSingleShot(True)
         timer.setInterval(1000)
-        timer.timeout.connect(b.model().sourceModel().modelDataResetRequested.emit)
+        timer.timeout.connect(b.model().sourceModel().modelDataResetRequested)
         timer.timeout.connect(timer.deleteLater)
         timer.start()
+
+        self._initialized = True
+        self.initialized.emit()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -139,15 +154,27 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred
         )
 
-        self.bookmarkswidget = BookmarksWidget(parent=self)
-        self.assetswidget = AssetWidget(parent=self)
-        self.fileswidget = FilesWidget(parent=self)
-
         self.stackedwidget = StackedWidget(parent=self)
+
+        self.init_progress = u'Creating bookmarks tab...'
+        self.repaint()
+
+        self.bookmarkswidget = BookmarksWidget(parent=self)
+
+        self.init_progress = u'Creating assets tab...'
+        self.repaint()
+        self.assetswidget = AssetWidget(parent=self)
+
+        self.init_progress = u'Creating files tab...'
+        self.repaint()
+
+        self.fileswidget = FilesWidget(parent=self)
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
 
+        self.init_progress = u'Finishing...'
+        self.repaint()
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.statusbar = QtWidgets.QStatusBar()
@@ -160,11 +187,12 @@ class BrowserWidget(QtWidgets.QWidget):
         )
         self.statusbar.setSizeGripEnabled(False)
 
+        # Swapping the default grip with my custom one
+        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
+        if grip:
+            grip.deleteLater()
         grip = SizeGrip(self)
         self.statusbar.addPermanentWidget(grip)
-
-        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
-        grip.hide()
 
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
@@ -274,31 +302,62 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
-        self.listcontrolwidget._addbutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
+        lc._addbutton.set_parent(self.stackedwidget)
+        lc._archivedbutton.set_parent(self.stackedwidget)
 
-        self.listcontrolwidget._todobutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._filterbutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._collapsebutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._archivedbutton.set_parent(self.stackedwidget)
-        self.listcontrolwidget._favouritebutton.set_parent(self.stackedwidget)
+        lc._todobutton.set_parent(self.stackedwidget)
+        lc._filterbutton.set_parent(self.stackedwidget)
+        lc._collapsebutton.set_parent(self.stackedwidget)
+        lc._archivedbutton.set_parent(self.stackedwidget)
+        lc._favouritebutton.set_parent(self.stackedwidget)
 
         # Updates the list-control buttons when changing lists
         l.listChanged.connect(lambda x: lb.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._addbutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._todobutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._filterbutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._archivedbutton.repaint())
-        l.listChanged.connect(lambda x: self.listcontrolwidget._favouritebutton.repaint())
+        l.listChanged.connect(lambda x: lc._addbutton.repaint())
+        l.listChanged.connect(lambda x: lc._todobutton.repaint())
+        l.listChanged.connect(lambda x: lc._filterbutton.repaint())
+        l.listChanged.connect(lambda x: lc._collapsebutton.repaint())
+        l.listChanged.connect(lambda x: lc._archivedbutton.repaint())
+        l.listChanged.connect(lambda x: lc._favouritebutton.repaint())
 
-        f.model().sourceModel().dataTypeChanged.connect(lambda x: self.listcontrolwidget._collapsebutton.repaint())
-        b.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
-        a.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
-        f.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._archivedbutton.repaint())
-        b.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
-        a.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
-        f.model().filterFlagChanged.connect(lambda x, y: self.listcontrolwidget._favouritebutton.repaint())
+        f.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
+        b.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
+        a.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
+        f.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
+        b.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
+        a.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
+        f.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
+        b.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
+        a.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
+        f.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
+
+        b.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
+        a.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
+        f.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
+
+        b.model().modelReset.connect(lc._archivedbutton.repaint)
+        a.model().modelReset.connect(lc._archivedbutton.repaint)
+        f.model().modelReset.connect(lc._archivedbutton.repaint)
+        b.model().modelReset.connect(lc._favouritebutton.repaint)
+        a.model().modelReset.connect(lc._favouritebutton.repaint)
+        f.model().modelReset.connect(lc._favouritebutton.repaint)
+        b.model().modelReset.connect(lc._filterbutton.repaint)
+        a.model().modelReset.connect(lc._filterbutton.repaint)
+        f.model().modelReset.connect(lc._filterbutton.repaint)
+
+        b.model().layoutChanged.connect(lc._archivedbutton.repaint)
+        a.model().layoutChanged.connect(lc._archivedbutton.repaint)
+        f.model().layoutChanged.connect(lc._archivedbutton.repaint)
+        b.model().layoutChanged.connect(lc._favouritebutton.repaint)
+        a.model().layoutChanged.connect(lc._favouritebutton.repaint)
+        f.model().layoutChanged.connect(lc._favouritebutton.repaint)
+        b.model().layoutChanged.connect(lc._filterbutton.repaint)
+        a.model().layoutChanged.connect(lc._filterbutton.repaint)
+        f.model().layoutChanged.connect(lc._filterbutton.repaint)
+
+        b.model().layoutChanged.connect(b.repaint)
+        a.model().layoutChanged.connect(a.repaint)
+        f.model().layoutChanged.connect(f.repaint)
 
     def _add_shortcuts(self):
         for n in xrange(3):
@@ -317,6 +376,46 @@ class BrowserWidget(QtWidgets.QWidget):
         filterbutton = self.listcontrolwidget.findChild(FilterButton)
         shortcut.activated.connect(filterbutton.clicked)
 
+    def paintEvent(self, event):
+        """Drawing a rounded background help to identify that the widget
+        is in standalone mode."""
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        rect = QtCore.QRect(self.rect())
+        center = rect.center()
+        rect.setWidth(rect.width() - (common.MARGIN / 2))
+        rect.setHeight(rect.height() - (common.MARGIN / 2))
+        rect.moveCenter(center)
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRoundedRect(rect,5,5)
+
+        if not self._initialized:
+            font = QtGui.QFont(common.PrimaryFont)
+            font.setPointSize(10)
+
+            rect = QtCore.QRect(self.rect())
+            align = QtCore.Qt.AlignCenter
+            color = QtGui.QColor(255,255,255,80)
+
+            pixmaprect = QtCore.QRect(rect)
+            center = pixmaprect.center()
+            pixmaprect.setWidth(64)
+            pixmaprect.setHeight(64)
+            pixmaprect.moveCenter(center)
+
+            pixmap = ImageCache.get_rsc_pixmap(
+                'custom_bw', QtGui.QColor(0, 0, 0, 50), 64)
+            painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
+            rect.setTop(pixmaprect.bottom() + common.INDICATOR_WIDTH)
+            common.draw_aliased_text(painter, font, rect, self.init_progress, align, color)
+
+        painter.end()
+
     def entered(self, index):
         """Custom itemEntered signal."""
         message = index.data(QtCore.Qt.StatusTipRole)
@@ -330,9 +429,8 @@ class BrowserWidget(QtWidgets.QWidget):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
     def showEvent(self, event):
-        if self._initialized is False:
-            self.initialize()
-
+        if not self._initialized:
+            self.initializer.start()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
