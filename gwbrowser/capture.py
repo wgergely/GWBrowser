@@ -143,7 +143,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        app = QtGui.QApplication.instance()
+        app = QtWidgets.QApplication.instance()
         modifiers = app.queryKeyboardModifiers()
 
         no_modifier = modifiers == QtCore.Qt.NoModifier

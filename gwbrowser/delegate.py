@@ -155,7 +155,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             rect.setTop(rect.top() + 1)
             rect.setBottom(rect.bottom() - 1)
 
-            painter.setOpacity(0.2)
+            painter.setOpacity(0.5)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
 
@@ -416,11 +416,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtCore.Qt.NoPen)
 
         if favourite:
-            sep = QtGui.QColor(common.SEPARATOR)
-            sep.setAlpha(150)
-            painter.setBrush(sep)
-            painter.drawRoundedRect(
-                bg_rect, bg_rect.width() / 2, bg_rect.width() / 2)
+            # sep = QtGui.QColor(common.SEPARATOR)
+            # sep.setAlpha(150)
+            # painter.setBrush(sep)
+            # painter.drawRoundedRect(
+            #     bg_rect, bg_rect.width() / 2, bg_rect.width() / 2)
 
             rect2 = QtCore.QRect(option.rect)
             rect2.setTop(rect2.top() + 1)
@@ -467,7 +467,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
 
-            painter.setOpacity(0.2)
+            painter.setOpacity(0.5)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(bg_rect)
             painter.setOpacity(1)
@@ -634,6 +634,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveLeft(rect.right() + common.MARGIN)
 
         text = index.data(common.DescriptionRole)
+        if not text:
+            return
 
         if option.rect.width() < 360.0:
             rect.setRight(option.rect.right() - common.MARGIN)
@@ -642,7 +644,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
         common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignLeft, color)
+            painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, common.SECONDARY_TEXT)
 
     @paintmethod
     def paint_count_icon(self, *args):
@@ -663,7 +665,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
             pen = QtGui.QPen(sep)
             pen.setWidth(2)
             painter.setPen(pen)
-            painter.setBrush(common.SECONDARY_BACKGROUND)
+            painter.setBrush(common.FAVOURITE)
             painter.drawRoundedRect(
                 rect, rect.height() / 2.0, rect.height() / 2.0)
 

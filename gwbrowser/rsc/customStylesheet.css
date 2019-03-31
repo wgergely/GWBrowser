@@ -168,12 +168,12 @@ ListControlButton {{
 	padding: 0px;
 	color: rgba({TEXT});
 	background-color: rgba(0,0,0,0);
-	border-bottom: 3px solid rgba({SECONDARY_TEXT});
+	/* border-bottom: 3px solid rgba({SECONDARY_TEXT}); */
 }}
 ListControlButton:active {{
 	background-color: rgba(0,0,0,0);
 	color: rgb({TEXT_SELECTED});
-	border-bottom: 3px solid rgba({TEXT_SELECTED});
+	/* border-bottom: 3px solid rgba({TEXT_SELECTED}); */
 }}
 ListControlButton:hover {{
 	background-color: rgba(0,0,0,0);
@@ -182,27 +182,6 @@ ListControlButton:hover {{
 ListControlButton:focus {{
 	background-color: rgba(0,0,0,0);
 }}
-
-LocationsButton QLabel {{
-	font-size: 10pt;
-	text-align: left;
-	margin: 0px;
-	padding: 0px;
-	color: rgba({TEXT});
-	background-color: rgba(0,0,0,0);
-}}
-LocationsButton QLabel:active {{
-	background-color: rgba(0,0,0,0);
-	color: rgb({TEXT_SELECTED});
-}}
-LocationsButton QLabel:hover {{
-	background-color: rgba(0,0,0,0);
-	color: rgb({TEXT_SELECTED});
-}}
-LocationsButton QLabel:focus {{
-	background-color: rgba(0,0,0,0);
-}}
-
 
 QLineEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});

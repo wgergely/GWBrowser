@@ -86,9 +86,9 @@ class CloseButton(ClickableLabel):
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
-        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
-                          common.ROW_BUTTONS_HEIGHT / 1.5)
+            u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 2,
+                          common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -101,9 +101,9 @@ class MinimizeButton(ClickableLabel):
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 1.5)
-        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 1.5,
-                          common.ROW_BUTTONS_HEIGHT / 1.5)
+            u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
+        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 2,
+                          common.ROW_BUTTONS_HEIGHT / 2)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -134,7 +134,7 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 1.5)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2)
 
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
@@ -192,7 +192,10 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
         self.initialized.connect(self.tweak_ui)
+        self.initialized.connect(self.showNormal)
+        self.initialized.connect(self.activateWindow)
 
     @QtCore.Slot()
     def tweak_ui(self):
@@ -202,16 +205,17 @@ class StandaloneBrowserWidget(BrowserWidget):
         grip = self.statusbar.findChild(SizeGrip)
         grip.show()
 
-        shadow_offset = common.INDICATOR_WIDTH * 2
+        shadow_offset = 0
+        # shadow_offset = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(
             common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
             common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)
-        self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
-        self.effect.setBlurRadius(shadow_offset)
-        self.effect.setXOffset(0)
-        self.effect.setYOffset(0)
-        self.effect.setColor(QtGui.QColor(0, 0, 0, 150))
-        self.setGraphicsEffect(self.effect)
+        # self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
+        # self.effect.setBlurRadius(shadow_offset)
+        # self.effect.setXOffset(0)
+        # self.effect.setYOffset(0)
+        # self.effect.setColor(QtGui.QColor(0, 0, 0, 150))
+        # self.setGraphicsEffect(self.effect)
 
         self.findChild(MinimizeButton).clicked.connect(self.showMinimized)
         self.findChild(CloseButton).clicked.connect(self.close)

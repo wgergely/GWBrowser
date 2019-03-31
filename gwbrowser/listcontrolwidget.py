@@ -504,12 +504,13 @@ class ListControlDelegate(BaseDelegate):
 
     @paintmethod
     def paint_name(self, *args):
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
         if index.row() >= 2:
@@ -517,6 +518,7 @@ class ListControlDelegate(BaseDelegate):
                 QtCore.Qt.DisplayRole) == self.parent().model()._datakey
             color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
             color = common.FAVOURITE if current_key else color
+            color = common.TEXT_SELECTED if selected else color
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
@@ -541,8 +543,10 @@ class ListControlDelegate(BaseDelegate):
 
         if active_item:
             text = u'  |  {}'.format(active_item).upper()
+            color = common.TEXT_SELECTED if selected else common.FAVOURITE
+            color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
-                painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.FAVOURITE)
+                painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
         if index.data(common.TodoCountRole):
@@ -550,14 +554,18 @@ class ListControlDelegate(BaseDelegate):
                 text = u' (9999+ files)'
             else:
                 text = u' ({} files)'.format(index.data(common.TodoCountRole))
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
+                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
         if hover:
             text = u'  {}'.format(index.data(QtCore.Qt.ToolTipRole))
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
+                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         if not index:
@@ -809,7 +817,7 @@ class ListControlButton(ClickableLabel):
         self.setFixedWidth(100)
         self.clicked.connect(self.show_view)
 
-        self.setText('uninitialized')
+        self.setText('Loading...')
 
     def view(self):
         return self._view
@@ -894,7 +902,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._custombutton = CustomButton(parent=self)
 
-        self.layout().addSpacing(common.MARGIN)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
         self.layout().addWidget(self._Progresslabel, 1)
@@ -905,7 +913,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._custombutton)
-        self.layout().addSpacing(common.MARGIN)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
 
     def _connectSignals(self):
         pass

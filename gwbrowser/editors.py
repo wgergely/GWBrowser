@@ -354,7 +354,7 @@ class FilterEditor(QtWidgets.QWidget):
                             QtCore.Qt.FramelessWindowHint)
 
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 4, 0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
@@ -368,16 +368,16 @@ class FilterEditor(QtWidgets.QWidget):
         self.label.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.editor = QtWidgets.QLineEdit()
-        self.editor.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.editor.setAlignment(QtCore.Qt.AlignCenter)
         self.editor.setPlaceholderText('Filter...')
         self.editor.setStyleSheet("""
             QLineEdit {{
-                margin: 0px;
-                padding: 5px;
-                background-color: rgba(30,30,30, 255);
-                color: rgba(200,200,200,255);
+                margin: 4px;
+                padding: 4px;
+                background-color: rgba(38,38,38, 255);
+                color: rgba(230,230,230,255);
                 font-family: "{}";
-                font-size: 11pt;
+                font-size: 10pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;

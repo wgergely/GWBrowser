@@ -141,6 +141,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initialized.emit()
 
     def _createUI(self):
+        app = QtWidgets.QApplication.instance()
         common.set_custom_stylesheet(self)
 
         # Main layout
@@ -158,24 +159,34 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Creating bookmarks tab...'
         self.repaint()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.bookmarkswidget = BookmarksWidget(parent=self)
 
         self.init_progress = u'Creating assets tab...'
         self.repaint()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+
         self.assetswidget = AssetWidget(parent=self)
 
         self.init_progress = u'Creating files tab...'
         self.repaint()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.fileswidget = FilesWidget(parent=self)
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
 
+        self.init_progress = u'Adding top bar...'
+        self.repaint()
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
+
+        self.listcontrolwidget = ListControlWidget(parent=self)
+
         self.init_progress = u'Finishing...'
         self.repaint()
-        self.listcontrolwidget = ListControlWidget(parent=self)
+        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.statusbar = QtWidgets.QStatusBar()
         self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -383,16 +394,16 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        center = rect.center()
-        rect.setWidth(rect.width() - (common.MARGIN / 2))
-        rect.setHeight(rect.height() - (common.MARGIN / 2))
-        rect.moveCenter(center)
+        # center = rect.center()
+        # rect.setWidth(rect.width() - (common.MARGIN / 2))
+        # rect.setHeight(rect.height() - (common.MARGIN / 2))
+        # rect.moveCenter(center)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect,5,5)
+        painter.drawRoundedRect(rect, 3, 3)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)

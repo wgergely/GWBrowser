@@ -166,8 +166,11 @@ class SaverFileInfo(QtCore.QObject):
         asset = regex.sub(u'', asset)[
             :12] if asset else u'sandbox'
 
-        folder = regex.sub(u'', location)[
-            :12]
+        if location:
+            folder = regex.sub(u'', location)[
+                :12]
+        else:
+            folder = 'temp'
 
         custom = custom if custom else u'untitled'
         custom = regex.sub(u'-', custom)[:25]

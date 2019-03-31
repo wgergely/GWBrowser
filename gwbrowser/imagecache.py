@@ -199,8 +199,8 @@ class ImageCache(QtCore.QObject):
             self.threads[n].thread_id = n
             self.threads[n].start()
 
-
-    def get(self, path, height, overwrite=False):
+    @staticmethod
+    def get(path, height, overwrite=False):
         """Saves a resized copy of path to the cache.
 
         Returns the cached image if it already is in the cache, or the placholder
@@ -222,29 +222,34 @@ class ImageCache(QtCore.QObject):
         )
 
         # Return cached item if exsits
-        if k in self._data and not overwrite:
-            return self._data[k]
+        if k in ImageCache._data and not overwrite:
+            return ImageCache._data[k]
 
         # If the file doesn't exist, return a placeholder
-        file_info = QtCore.QFileInfo(path)
-        if not file_info.exists():
+        # file_info = QtCore.QFileInfo(path)
+        # if not file_info.exists():
+        #     return None
+
+        i = OpenImageIO.ImageInput.open(path)
+        if not i:
             return None
+        i.close()
 
         image = QtGui.QImage()
-        image.load(file_info.filePath())
+        image.load(path)
         if image.isNull():
             return None
 
         image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
-        image = self.resize_image(image, height)
+        image = ImageCache.resize_image(image, height)
 
         # Saving the background color
-        self._data[u'{k}:BackgroundColor'.format(
+        ImageCache._data[u'{k}:BackgroundColor'.format(
             k=path
-        )] = self.get_color_average(image)
-        self._data[k] = image
+        )] = ImageCache.get_color_average(image)
+        ImageCache._data[k] = image
 
-        return self._data[k]
+        return ImageCache._data[k]
 
     @staticmethod
     def resize_image(image, size):
