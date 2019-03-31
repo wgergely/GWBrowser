@@ -120,34 +120,35 @@ def get_oiio_namefilters(as_array=False):
     return namefilters
 
 _creative_cloud_formats = (
-    u'psd',
-    u'psb',
     u'aep',
     u'ai',
     u'eps',
-    u'prproj',
-    u'ppj',
-    u'psq',
     u'fla',
+    u'ppj',
+    u'prproj',
+    u'psb',
+    u'psd',
+    u'psq',
     u'xfl',
 )
 _exports_formats = (
     u'abc', # Alembic
-    u'obj',
-    u'fbx',
+    u'ass', # Arnold
     u'bgeo', # Houdini
+    u'fbx',
     u'geo', # Houdini
+    u'obj',
+    u'rs', # Redshift cache file
     u'sim', # Houdini
     u'vdb', # OpenVDB cache file
-    u'rs', # Redshift cache file
-    u'ass', # Arnold
 )
 _scene_formats = (
-    u'ma',
-    u'mb',
     u'c4d',
     u'hud',
+    u'ma',
+    u'mb',
     u'nk',
+    u'~nk',
     u'rv'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))

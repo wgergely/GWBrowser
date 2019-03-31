@@ -195,19 +195,27 @@ class AssetSettings(QtCore.QSettings):
 
     """
 
-    def __init__(self, index, parent=None):
+    def __init__(self, index, args=None, parent=None):
         """Primarily expects a QModelIndex but when it's not possible to provide,
         it takes a tuple bookmark tuple of server, job, root and a full filepath.
 
         """
-        bookmark = u'{}/{}/{}'.format(
-            index.data(common.ParentRole)[0],
-            index.data(common.ParentRole)[1],
-            index.data(common.ParentRole)[2],
-        )
-        filepath = index.data(QtCore.Qt.StatusTipRole)
-        collapsed = common.is_collapsed(filepath)
+        if args is None:
+            bookmark = u'{}/{}/{}'.format(
+                index.data(common.ParentRole)[0],
+                index.data(common.ParentRole)[1],
+                index.data(common.ParentRole)[2],
+            )
+            filepath = index.data(QtCore.Qt.StatusTipRole)
+        else:
+            bookmark = u'{}/{}/{}'.format(
+                args[0],
+                args[1],
+                args[2],
+            )
+            filepath = args[3]
 
+        collapsed = common.is_collapsed(filepath)
         if collapsed:
             filepath = collapsed.expand(r'\1[0]\3')
 
@@ -224,13 +232,13 @@ class AssetSettings(QtCore.QSettings):
 
         self.setFallbacksEnabled(False)
 
-
     def conf_path(self):
         """The configuration files associated with assets are stored in
         the root folder of the current bookmark.
 
         For example:
-            //server/job/root/.browser/986613d368816aa7e0ae9144c65107ee0a1b10bdba14177f2f35ee0dfd863297.conf
+            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.conf
+            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.png
 
         Returns:
             str: The path to the configuration file as a string.

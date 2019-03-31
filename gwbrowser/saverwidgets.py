@@ -229,9 +229,6 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
         self._asset = QtCore.QModelIndex()
         self._destination = None
 
-        self.destinationChanged.connect(self.set_destination)
-        self.fileTypeChanged.connect(self.set_filetype)
-
     @QtCore.Slot(unicode)
     def set_filetype(self, suffix):
         """Setting a filetype will automatically define a default location

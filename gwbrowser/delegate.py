@@ -126,35 +126,30 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = QtGui.QColor(common.BACKGROUND)
 
         rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.setWidth(rect.height())
+        rect.moveCenter(center)
+        rect.moveLeft(common.INDICATOR_WIDTH)
 
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setWidth(option.rect.height() - 1)
-
-        color.setHsl(
+        thumbcolor = QtGui.QColor(color)
+        thumbcolor.setHsl(
             color.hue(),
             color.saturation(),
             color.lightness() - 10
         )
-        painter.setBrush(QtGui.QBrush(color))
+        painter.setBrush(thumbcolor)
+        painter.drawRect(rect)
+
+        rect.setRight(option.rect.right())
+
+        painter.setBrush(color)
         painter.drawRect(rect)
 
         if active:
             color = self.get_state_color(option, index, common.SELECTION)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
-
-            rect = QtCore.QRect(option.rect)
-            rect.setTop(rect.top() + 1)
-            rect.setBottom(rect.bottom() - 1)
-
             painter.setOpacity(0.5)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
@@ -185,11 +180,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Background rectangle
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(option.rect.left() + common.INDICATOR_WIDTH)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setRight(option.rect.left() +
-                      common.INDICATOR_WIDTH + rect.height())
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.setWidth(rect.height())
+        rect.moveCenter(center)
+
+        rect.moveLeft(common.INDICATOR_WIDTH)
 
         image = index.data(common.ThumbnailRole)
         color = index.data(common.ThumbnailBackgroundRole)
@@ -199,14 +195,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(color)
         painter.drawRect(rect)
 
-        # Resizing the rectangle to accommodate the image's aspect ration
+        # Resizing the rectangle to accommodate the image's aspect ratio
         longer = float(max(image.rect().width(), image.rect().height()))
         factor = float(rect.width() / float(longer))
         center = rect.center()
         if image.rect().width() < image.rect().height():
-            rect.setWidth(int(image.rect().width() * factor) - 2)
+            rect.setWidth(int(image.rect().width() * factor))
         else:
-            rect.setHeight(int(image.rect().height() * factor) - 2)
+            rect.setHeight(int(image.rect().height() * factor))
         rect.moveCenter(center)
         painter.drawImage(
             rect,
@@ -222,14 +218,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         rect = QtCore.QRect(option.rect)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
-        rect.setLeft(
-            option.rect.left() +
-            common.INDICATOR_WIDTH +
-            rect.height() + 1
-        )
-        rect.setRight(rect.left() + common.ROW_HEIGHT)
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.setWidth(rect.height())
+        rect.moveCenter(center)
+        rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
+
+        # rect.setRight(rect.left() + common.ROW_HEIGHT)
 
         gradient = QtGui.QLinearGradient(
             rect.topLeft(), rect.topRight())
@@ -543,6 +538,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         #
         self.paint_thumbnail(*args)
         self.paint_archived(*args)
+        self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
         #

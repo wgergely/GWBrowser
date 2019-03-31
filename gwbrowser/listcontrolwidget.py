@@ -22,6 +22,7 @@ import gwbrowser.settings as Settings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.fileswidget import FileInfoWorker
+from gwbrowser.fileswidget import FilesWidget
 
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
@@ -449,11 +450,11 @@ class AddButton(ControlButton):
         if self._parent.currentIndex() == 1:
             return
         if self._parent.currentIndex() == 2:
-            import gwbrowser.context.saver as saver
+            import gwbrowser.saver as saver
             widget = saver.SaverWidget(u'tempfile', self.current().model().sourceModel().data_key(), currentfile=None)
 
-
-            def create_file(path):
+            @QtCore.Slot(unicode)
+            def fileSaveRequested(path):
                 f = QtCore.QFile(path)
                 if not f.exists():
                     f.open(QtCore.QIODevice.ReadWrite)
@@ -463,9 +464,30 @@ class AddButton(ControlButton):
                 QtGui.QClipboard().setText(path)
                 common.reveal(path)
 
+            @QtCore.Slot(tuple)
+            def fileDescriptionAdded(args):
+                """Slot responsible for saving the description"""
+                server, job, root, filepath, description = args
+                settings = Settings.AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+                settings.setValue(u'config/description', description)
 
+            @QtCore.Slot(tuple)
+            def fileThumbnailAdded(args):
+                server, job, root, filepath, image = args
+                settings = Settings.AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+                if not image.isNull():
+                    image.save(settings.thumbnail_path())
 
-            widget.fileSaveRequested.connect(create_file)
+                fileswidget = self.parent().parent().findChild(FilesWidget)
+                sizehint = fileswidget.itemDelegate().sizeHint(None, None)
+                height = sizehint.height() - 2
+                ImageCache.instance().cache_image(settings.thumbnail_path(), height, overwrite=True)
+
+                self.parent().parent().findChild(FilesWidget).model().sourceModel().modelDataResetRequested.emit()
+
+            widget.fileSaveRequested.connect(fileSaveRequested)
+            widget.fileDescriptionAdded.connect(fileDescriptionAdded)
+            widget.fileThumbnailAdded.connect(fileThumbnailAdded)
             widget.exec_()
 
 

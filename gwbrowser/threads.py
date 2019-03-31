@@ -90,8 +90,8 @@ class BaseThread(QtCore.QThread):
     the worker, sometimes the `started` signal doesn't fire when the Worker is
     created outside the thread.
 
-    This is custom implementation - the worker is created in start(),
-    this seems to take care of thread affinity (moveToThread didn't work for me).
+    This is a custom implementation - the worker is created in start() amking sure,
+    it is affiliated with the thread (moveToThread didn't work for me).
 
     The thread.start() is called when the ``FileModel`` is initialized.
 
@@ -106,7 +106,8 @@ class BaseThread(QtCore.QThread):
 
         app = QtWidgets.QApplication.instance()
         if app:
-            app.aboutToQuit.connect(self.quit)
+            app.aboutToQuit.connect(self.terminate)
+            app.aboutToQuit.connect(self.wait)
             app.aboutToQuit.connect(self.deleteLater)
 
     def run(self):

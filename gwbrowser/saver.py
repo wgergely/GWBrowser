@@ -22,8 +22,10 @@ Note:
 
 
 import re
+import sys
 import uuid
 import collections
+import functools
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
@@ -41,16 +43,17 @@ import gwbrowser.settings as Settings
 
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
+from gwbrowser.imagecache import ImageCacheWorker
 
-from gwbrowser.context.saverwidgets import SelectBookmarkButton
-from gwbrowser.context.saverwidgets import SelectBookmarkView
+from gwbrowser.saverwidgets import SelectBookmarkButton
+from gwbrowser.saverwidgets import SelectBookmarkView
 
-from gwbrowser.context.saverwidgets import SelectAssetButton
-from gwbrowser.context.saverwidgets import SelectAssetView
+from gwbrowser.saverwidgets import SelectAssetButton
+from gwbrowser.saverwidgets import SelectAssetView
 
-from gwbrowser.context.saverwidgets import SelectFolderButton
-from gwbrowser.context.saverwidgets import SelectFolderView
-from gwbrowser.context.saverwidgets import SelectFolderModel
+from gwbrowser.saverwidgets import SelectFolderButton
+from gwbrowser.saverwidgets import SelectFolderView
+from gwbrowser.saverwidgets import SelectFolderModel
 
 
 class ThumbnailContextMenu(BaseContextMenu):
@@ -84,6 +87,64 @@ class ThumbnailContextMenu(BaseContextMenu):
             u'icon': remove_thumbnail_pixmap,
             u'action': self.parent().reset
         }
+        return menu_set
+
+
+class SaverContextMenu(BaseContextMenu):
+    """Context menu associated with the thumbnail."""
+
+    def __init__(self, parent=None):
+        super(SaverContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+        self.add_fileformat_menu()
+
+    @contextmenu
+    def add_fileformat_menu(self, menu_set):
+        """Menu for thumbnail operations."""
+        menu_set[u'Change file-type'] = {
+            u'text': u'Select file-type to save',
+            u'disabled': True,
+        }
+
+        # Parent
+        buttons = self.parent().window().findChildren(SelectFolderButton)
+        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        f = foldersbutton.view()
+
+        menu_set['Image files:'] = {
+            'disabled': True
+        }
+        for ext in common._oiio_formats:
+            menu_set[ext] = {
+                u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
+            }
+        menu_set[u'separator0'] = {}
+
+        menu_set['Cache files'] = {
+            'disabled': True
+        }
+        for ext in common._exports_formats:
+            menu_set[ext] = {
+                u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
+            }
+        menu_set[u'separator1'] = {}
+
+        menu_set['Scene files'] = {
+            'disabled': True
+        }
+        for ext in common._creative_cloud_formats:
+            menu_set[ext] = {
+                u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
+            }
+        menu_set[u'separator2'] = {}
+
+        menu_set['3D scene files'] = {
+            'disabled': True
+        }
+        for ext in common._scene_formats:
+            menu_set[ext] = {
+                u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
+            }
         return menu_set
 
 
@@ -392,10 +453,21 @@ class SaverWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self._createUI()
         self._connectSignals()
         self.initialize()
+
+    @QtCore.Slot(unicode)
+    def set_extension(self, ext):
+        self.extension = ext
+
+    def contextMenuEvent(self, event):
+        menu = SaverContextMenu(parent=self)
+        pos = self.rect().center()
+        pos = self.mapToGlobal(pos)
+        menu.move(pos)
+        menu.exec_()
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -532,7 +604,6 @@ class SaverWidget(QtWidgets.QDialog):
         b.model().sourceModel().activeChanged.connect(
             lambda x: a.model().sourceModel().modelDataResetRequested.emit())
 
-
         a.model().sourceModel().activeChanged.connect(f.set_asset)
         a.model().sourceModel().activeChanged.connect(lambda i: f.model().fileTypeChanged.emit(self.extension))
 
@@ -563,16 +634,27 @@ class SaverWidget(QtWidgets.QDialog):
         b.activated.connect(self.update_filename_display)
         a.activated.connect(self.update_filename_display)
         f.activated.connect(self.update_filename_display)
-        f.model().destinationChanged.connect(lambda x: self.update_filename_display)
-        f.model().fileTypeChanged.connect(lambda x: self.update_filename_display)
+
+        f.model().fileTypeChanged.connect(self.set_extension)
+        f.model().fileTypeChanged.connect(f.model().set_filetype)
+        f.model().fileTypeChanged.connect(lambda x: self.update_filepath_display())
+        f.model().fileTypeChanged.connect(lambda x: self.update_filename_display())
+
+        f.model().destinationChanged.connect(f.model().set_destination)
+        f.model().destinationChanged.connect(lambda x: self.update_filepath_display())
+        f.model().destinationChanged.connect(lambda x: self.update_filename_display())
+
+        custom.textChanged.connect(self.update_filepath_display)
         custom.textChanged.connect(self.update_filename_display)
+
         # Filepath
         b.activated.connect(self.update_filepath_display)
         a.activated.connect(self.update_filepath_display)
         f.activated.connect(self.update_filepath_display)
-        f.model().destinationChanged.connect(lambda x: self.update_filepath_display)
-        f.model().fileTypeChanged.connect(lambda x: self.update_filepath_display)
-        custom.textChanged.connect(self.update_filepath_display)
+
+        b.activated.connect(self.update_filename_display)
+        a.activated.connect(self.update_filename_display)
+        f.activated.connect(self.update_filename_display)
 
     def initialize(self):
         """Checks the models' active items and sets the ui elements accordingly."""
@@ -645,10 +727,20 @@ class SaverWidget(QtWidgets.QDialog):
 
         temp_path = '{}/browser_temp_thumbnail_{}.png'.format(
             QtCore.QDir.tempPath(), uuid.uuid1())
-        generate_thumbnail(next(f for f in dialog.selectedFiles()), temp_path)
 
-        self.thumbnail_image = QtGui.QImage()
-        self.thumbnail_image.load(temp_path)
+        ImageCacheWorker.process_index(
+            QtCore.QModelIndex(),
+            source=next(f for f in dialog.selectedFiles()),
+            dest=temp_path
+        )
+
+        image = QtGui.QImage()
+        image.load(temp_path)
+        if image.isNull():
+            sys.stdout.write('Could not load image.\n')
+            return
+
+        self.thumbnail_image = image
         self.update_thumbnail_preview()
 
     def capture_thumbnail(self):
@@ -660,7 +752,7 @@ class SaverWidget(QtWidgets.QDialog):
         if pixmap.isNull():
             return
 
-        image = common.resize_image(
+        image = ImageCache.resize_image(
             pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
         self.thumbnail_image = image
         self.update_thumbnail_preview()
@@ -673,11 +765,11 @@ class SaverWidget(QtWidgets.QDialog):
             return
         # Resizing for display
         thumbnail = self.findChild(ThumbnailButton)
-        image = common.resize_image(self.thumbnail_image, thumbnail.height())
+        image = ImageCache.resize_image(self.thumbnail_image, thumbnail.height())
 
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
-        background = common.get_color_average(image)
+        background = ImageCache.get_color_average(image)
 
         thumbnail.setPixmap(pixmap)
         thumbnail.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
@@ -695,6 +787,7 @@ class SaverWidget(QtWidgets.QDialog):
             self.window().rect().width() - common.MARGIN
         )
         self.findChild(QtWidgets.QStatusBar).showMessage(text)
+        self.findChild(QtWidgets.QStatusBar).repaint()
 
     def update_filename_display(self, *args, **kwargs):
         """Slot responsible for updating the Prefix, Custom, and Suffix widgets."""
@@ -717,6 +810,9 @@ class SaverWidget(QtWidgets.QDialog):
             prefix, suffix = self.prefix_suffix(match, increment=False)
             self.findChild(Prefix).setText(prefix)
             self.findChild(Suffix).setText(suffix)
+
+        self.findChild(Prefix).repaint()
+        self.findChild(Suffix).repaint()
 
     def prefix_suffix(self, match, increment=True):
         prefix = match.expand(r'\1_\2_\3_')

@@ -16,6 +16,31 @@ def check_dependency(module):
         sys.stderr.write('\n\n# Missing dependency: Unabled to import {}:\n# {}\n'.format(module, err))
         return False
 
+def run():
+    try:
+        from PySide2 import QtCore
+        import functools
+        import gwbrowser.standalonewidgets
+        sys.stdout.write('# Starting Standalone app...\n')
+        app = gwbrowser.standalonewidgets.StandaloneApp(sys.argv)
+    except Exception as err:
+        try:
+            import traceback
+            from PySide2 import QtWidgets
+            app = QtWidgets.QApplication([])
+            res = QtWidgets.QMessageBox(
+                QtWidgets.QMessageBox.Warning,
+                u'Could not start GWBrowser',
+                u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(err, traceback.format_exc()),
+                QtWidgets.QMessageBox.Ok)
+            return res.exec_()
+        except Exception as err:
+            raise RuntimeError('# An error occured starting GWBrowser:\n{}'.format(err))
+
+    sys.stdout.write('# Making window...\n')
+    widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
+    widget.show()
+    app.exec_()
 
 if __name__ == '__main__':
     import sys
@@ -37,26 +62,5 @@ if __name__ == '__main__':
     if not dependencies_present:
         raise ImportError('# Unable to start GWBrowser.')
 
-    try:
-        from PySide2 import QtCore
-        import functools
-        import gwbrowser.standalonewidgets
-        app = gwbrowser.standalonewidgets.StandaloneApp(sys.argv)
-    except Exception as err:
-        try:
-            import traceback
-            from PySide2 import QtWidgets
-            app = QtWidgets.QApplication([])
-            res = QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                u'Could not start GWBrowser',
-                u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(err, traceback.format_exc()),
-                QtWidgets.QMessageBox.Ok)
-            res.exec_()
-        except Exception as err:
-            raise RuntimeError('# An error occured starting GWBrowser:\n{}'.format(err))
-
-    sys.stdout.write('# Starting GWBrowser...\n')
-    widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
-    widget.show()
-    app.exec_()
+    res = run()
+    sys.stdout.write('Browser exited with code {}'.format(res))

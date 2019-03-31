@@ -29,19 +29,20 @@ class ImageCacheWorker(BaseWorker):
     @QtCore.Slot(QtCore.QModelIndex)
     @QtCore.Slot(unicode)
     @classmethod
-    def process_index(cls, index, source=None):
+    def process_index(cls, index, source=None, dest=None):
         """The actual processing happens here."""
-        if not index.isValid():
-            return
-        if not index.data(common.StatusRole):
-            return
+        if not source and not dest:
+            if not index.isValid():
+                return
+            if not index.data(common.StatusRole):
+                return
 
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
         source = source if source else index.data(QtCore.Qt.StatusTipRole)
         if common.is_collapsed(source):
             source = common.find_largest_file(index)
-        dest = index.data(common.ThumbnailPathRole)
+        dest = dest if dest else index.data(common.ThumbnailPathRole)
 
         # First let's check if the file is competible with OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
@@ -132,8 +133,9 @@ class ImageCacheWorker(BaseWorker):
                 dest, _b.geterror(), OpenImageIO.geterror()))
             QtCore.QFile(dest).remove()  # removing failed thumbnail save
             return
-
         else:
+            if not index.isValid():
+                return
             image = ImageCache.instance().get(
                 index.data(common.ThumbnailPathRole),
                 index.data(QtCore.Qt.SizeHintRole).height() - 2,

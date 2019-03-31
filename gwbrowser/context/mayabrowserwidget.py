@@ -1,6 +1,10 @@
+import sys
+sys.path.insert(0, r'C:\dev\gwbrowser')
+
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, E0401
 """Maya wrapper for the BrowserWidget."""
+
 
 import re
 import os
@@ -26,9 +30,10 @@ from gwbrowser.listcontrolwidget import BrowserButton
 from gwbrowser.assetwidget import AssetWidget
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.settings import local_settings
-from gwbrowser.context.saver import SaverWidget, SaverFileInfo, Custom
+from gwbrowser.saver import SaverWidget, SaverFileInfo, Custom
 from gwbrowser.context.mayaexporter import BaseExporter, AlembicExport
 from gwbrowser.settings import AssetSettings
+import gwbrowser.settings as Settings
 
 
 def contextmenu(func):
@@ -192,8 +197,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         super(MayaBrowserWidget, self).__init__(parent=parent)
         # Overriding the default name-filters
         common.NameFilters[common.ScenesFolder] = (
-            u'*.ma',  # Maya ASCII
-            u'*.mb',  # Maya Binary
+            u'ma',  # Maya ASCII
+            u'mb',  # Maya Binary
         )
 
         self._workspacecontrol = None
@@ -203,11 +208,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.setWindowTitle(u'Browser')
 
         self._createUI()
-        self._connectSignals()
-        self.add_context_callbacks()
 
-        self.unmark_active()
-        self.mark_current_as_active()
+        self.findChild(BrowserWidget).initialized.connect(self.connectSignals)
+        self.findChild(BrowserWidget).initialized.connect(self.add_context_callbacks)
+        self.findChild(BrowserWidget).initialize()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -220,32 +224,45 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     def unmark_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
-        self.findChild(FilesWidget).unmark_active_index()
+        f = self.findChild(FilesWidget)
+        if not f:
+            return
+        if not f.active_index().isValid():
+            return
+        f.deactivate(f.active_index())
 
-    def mark_current_as_active(self, *args):
+    @QtCore.Slot()
+    def update_active_item(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
 
         scene = common.get_sequence_endpath(
             cmds.file(query=True, expandName=True))
-        fileswidget = self.findChild(FilesWidget)
+        f = self.findChild(FilesWidget)
+        if not f:
+            return
 
-        for n in xrange(fileswidget.model().rowCount()):
-            index = fileswidget.model().index(n, 0, parent=QtCore.QModelIndex())
+        if f.active_index().isValid():
+            f.deactivate(f.active_index())
+
+        for n in xrange(f.model().rowCount()):
+            index = f.model().index(n, 0, parent=QtCore.QModelIndex())
             data = common.get_sequence_endpath(
                 index.data(QtCore.Qt.StatusTipRole))
 
             if data == scene:
-                fileswidget.selectionModel().setCurrentIndex(
+                f.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
-                fileswidget.scrollTo(index)
-                fileswidget.activate(index)
+                f.scrollTo(index)
+                source_index = index.model().mapToSource(index)
+                flags = source_index.flags() | Settings.MarkedAsActive
+                source_index.model().setData(source_index, flags, role=common.FlagsRole)
                 break
 
     def add_context_callbacks(self):
         """This method is called by the Maya plug-in when initializing."""
 
         callback = OpenMaya.MSceneMessage.addCallback(
-            OpenMaya.MSceneMessage.kAfterOpen, self.mark_current_as_active)
+            OpenMaya.MSceneMessage.kAfterOpen, self.update_active_item)
         self._callbacks.append(callback)
 
         callback = OpenMaya.MSceneMessage.addCallback(
@@ -264,28 +281,28 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             sys.stdout.write('# Callback status {}\n'.format(res))
         self._callbacks = []
 
-    def _connectSignals(self):
+    @QtCore.Slot()
+    def connectSignals(self):
         browserwidget = self.findChild(BrowserWidget)
         assetswidget = self.findChild(AssetWidget)
         fileswidget = self.findChild(FilesWidget)
 
         # Asset/project
-        assetswidget.model().sourceModel().activeAssetChanged.connect(self.set_workspace)
+        assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
 
         # Context menu
         fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
-        def open_scene(index):
-            if self.findChild(FilesWidget).model().sourceModel().data_key() != common.ScenesFolder:
-                return
-            self.open_scene(index.data(QtCore.Qt.StatusTipRole))
-        fileswidget.activated.connect(open_scene)
+        fileswidget.activated.connect(lambda x: self.open_scene(common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
+        fileswidget.model().sourceModel().modelReset.connect(self.unmark_active)
+        fileswidget.model().sourceModel().modelReset.connect(self.update_active_item)
 
+    @QtCore.Slot(tuple)
     def fileThumbnailAdded(self, args):
         """Slot called by the Saver when finished."""
         server, job, root, filepath, image = args
-        settings = AssetSettings((server, job, root, filepath))
+        settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
         if not image.isNull():
             image.save(settings.thumbnail_path())
 
@@ -368,16 +385,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
             # Refresh the view and select the added path
             fileswidget = self.findChild(FilesWidget)
-            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
-            fileswidget.refresh()
-            fileswidget.select_path(path=filepath)
+            fileswidget.model().sourceModel().dataKeyChanged.emit(common.ExportsFolder)
+            fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
             sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(path))
 
         def fileDescriptionAdded(args):
             """Slot called by the Saver when finished."""
             server, job, root, filepath, description = args
-            settings = AssetSettings((server, job, root, filepath))
+            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
         # Start save
@@ -408,10 +424,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
             # Refresh the view and select the added path
             fileswidget = self.findChild(FilesWidget)
-            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
-            fileswidget.refresh()
-            fileswidget.select_path(path=filepath)
-
+            fileswidget.model().sourceModel().dataKeyChanged.emit(common.ExportsFolder)
+            fileswidget.model().sourceModel().modelDataResetRequested.emit()
             sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(path))
 
         def fileDescriptionAdded(args):
@@ -426,7 +440,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             else:
                 annotation = GetArchiveInfo(abc)['userDescription']
 
-            settings = AssetSettings((server, job, root, filepath))
+            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
             description = '{} - {}'.format(description, annotation)
             settings.setValue(u'config/description', description)
 
@@ -459,11 +473,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         common.move_widget_to_available_geo(widget)
         widget.show()
 
-    def set_workspace(self, asset):
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_workspace(self, index):
         """Slot responsible for updating the maya worspace."""
-        if not all(asset):
+        parent = index.data(common.ParentRole)
+        if not all(parent):
             return
-        file_info = QtCore.QFileInfo(u'/'.join(asset))
+        file_info = QtCore.QFileInfo(u'/'.join(parent))
         cmds.workspace(file_info.filePath(), openWorkspace=True)
 
     def floatingChanged(self, isFloating):
@@ -492,10 +508,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def show(self, *args, **kwargs):
         """Initializes the Maya workspace control on show."""
         cls = self.__class__.__name__
-
-        key = u'widget/{}/isFloating'.format(cls)
-        isFloating = local_settings.value(key)
-
         kwargs = {
             u'dockable': True,
             # u'floating': isFloating if isFloating else True,
@@ -522,16 +534,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
             # Refresh the view and select the added path
             fileswidget = self.findChild(FilesWidget)
-            fileswidget.model().sourceModel().set_location(common.ExportsFolder)
-            fileswidget.refresh()
-            fileswidget.select_path(path=filepath)
+            fileswidget.model().sourceModel().dataKeyChanged.emit(common.ScenesFolder)
+            fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
             sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(filepath))
 
         def fileDescriptionAdded(args):
             """Slot responsible for saving the description"""
             server, job, root, filepath, description = args
-            settings = AssetSettings((server, job, root, filepath))
+            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
 
@@ -544,9 +555,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
 
-        self.findChild(FilesWidget).refresh()
-
-
+        self.findChild(FilesWidget).model().sourceModel().modelDataResetRequested.emit()
 
     def open_scene(self, path):
         """Opens the given scene."""
@@ -750,31 +759,32 @@ if __name__ == '__main__':
     os.environ['PYMEL_SKIP_MEL_INIT'] = '0'
     os.environ['MAYA_SKIP_USERSETUP_PY'] = '0'
 
-    def load_plugins():
-        MEL_SCRIPTS = ('createPreferencesOptVars.mel',
-                       'createGlobalOptVars.mel',
-                       'initialPlugins.mel',
-                       'namedCommandSetup.mel',)
-        for script in MEL_SCRIPTS:
-            cmds.evalDeferred(lambda script: maya.mel.eval(
-                'source "{}"'.format(script)))
+    # def load_plugins():
+    #     MEL_SCRIPTS = ('createPreferencesOptVars.mel',
+    #                    'createGlobalOptVars.mel',
+    #                    'initialPlugins.mel',
+    #                    'namedCommandSetup.mel',)
+    #     for script in MEL_SCRIPTS:
+    #         cmds.evalDeferred(lambda script: maya.mel.eval(
+    #             'source "{}"'.format(script)))
 
-        dir_ = QtCore.QDir(r'C:\dev\PyMaya2018\plug-ins')
-        dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dir_.setNameFilters(('*.mll',))
-        for plugin in dir_.entryInfoList():
-            maya.cmds.loadPlugin(plugin.completeBaseName(), quiet=True)
-        maya.cmds.loadPlugin('mtoa', quiet=True)
+        # dir_ = QtCore.QDir(r'C:\dev\PyMaya2018\plug-ins')
+        # dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        # dir_.setNameFilters(('*.mll',))
+        # for plugin in dir_.entryInfoList():
+        #     maya.cmds.loadPlugin(plugin.completeBaseName(), quiet=True)
+        # maya.cmds.loadPlugin('mtoa', quiet=True)
 
     maya.standalone.initialize(name='python')
-    load_plugins()
+    # load_plugins()
 
     widget = MayaBrowserWidget()
-    path = r'\\gordo\jobs\tkwwbk_8077\films\prologue\shots\sh_210\scenes\animation\_sh_210_v012.ma'
-    cmds.file(QtCore.QFileInfo(path).filePath(), open=True, force=True)
+    widget.show()
+    # path = r'\\gordo\jobs\tkwwbk_8077\films\prologue\shots\sh_210\scenes\animation\_sh_210_v012.ma'
+    # cmds.file(QtCore.QFileInfo(path).filePath(), open=True, force=True)
 
     sys.stdout.write('\n# Opening scene...\n\n')
-    cmds.evalDeferred(lambda: widget.show())
+    # cmds.evalDeferred(lambda: widget.show())
 
     # maya.standalone.uninitialize()
     app.exec_()
