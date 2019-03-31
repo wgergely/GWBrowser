@@ -309,7 +309,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         fileswidget = self.findChild(FilesWidget)
         sizehint = fileswidget.itemDelegate().sizeHint(None, None)
         height = sizehint.height() - 2
-        ImageCache.instance().cache_image(settings.thumbnail_path(), height, overwrite=True)
+        ImageCache.get(settings.thumbnail_path(), height, overwrite=True)
 
     def _get_saver_for_objectset(self, ext, key, location):
         """Returns a saver instance after checked for existing versions."""

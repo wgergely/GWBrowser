@@ -160,7 +160,7 @@ class ImageCache(QtCore.QObject):
     images.
 
     All cached images are stored in ``ImageCache._data`` `(dict)` object.
-    To add an image to the cache you can use the ``ImageCache.cache_image()`` method.
+    To add an image to the cache you can use the ``ImageCache.get()`` method.
     Loading and caching ui resource items is done by ``ImageCache.get_rsc_pixmap()``.
 
     """

@@ -481,7 +481,7 @@ class AddButton(ControlButton):
                 fileswidget = self.parent().parent().findChild(FilesWidget)
                 sizehint = fileswidget.itemDelegate().sizeHint(None, None)
                 height = sizehint.height() - 2
-                ImageCache.instance().cache_image(settings.thumbnail_path(), height, overwrite=True)
+                ImageCache.get(settings.thumbnail_path(), height, overwrite=True)
 
                 self.parent().parent().findChild(FilesWidget).model().sourceModel().modelDataResetRequested.emit()
 
