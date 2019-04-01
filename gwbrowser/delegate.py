@@ -920,7 +920,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, active, _, _ = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
@@ -963,19 +963,23 @@ class FilesWidgetDelegate(BaseDelegate):
             )
 
             # The extension and the suffix
+            color = common.TEXT_SELECTED if selected else common.TEXT
             rect = self._draw(painter, font, rect, text, align,
-                              common.TEXT, option, kwargs['left'])
+                              color, option, kwargs['left'])
 
             # The frame-range - this can get quite long - we're trimming it to
             # avoid long and meaningless names
             frange = match.group(2).upper()
             if len(frange) > 17:
                 frange = '{}...{}'.format(frange[0:8], frange[-8:])
-            rect = self._draw(painter, font, rect, frange, align, common.FAVOURITE, option, kwargs['left'])
+            color = common.TEXT_SELECTED if selected else common.FAVOURITE
+            color = common.TEXT_SELECTED if active else color
+            rect = self._draw(painter, font, rect, frange, align, color, option, kwargs['left'])
 
             # The prefix
+            color = common.TEXT_SELECTED if selected else common.TEXT
             rect = self._draw(painter, font, rect, match.group(
-                1).upper(), align, common.TEXT, option, kwargs['left'])
+                1).upper(), align, color, option, kwargs['left'])
             return
 
         match = common.get_sequence(text)
@@ -983,22 +987,27 @@ class FilesWidgetDelegate(BaseDelegate):
             # The extension and the suffix
             text = u'{}.{}'.format(match.group(
                 3).upper(), match.group(4).lower())
+            color = common.TEXT_SELECTED if selected else common.TEXT
             rect = self._draw(painter, font, rect, text, align,
-                              common.TEXT, option, kwargs['left'])
+                              color, option, kwargs['left'])
             # The frame-range
-            rect = self._draw(painter, font, rect, match.group(2).upper(), align, common.FAVOURITE, option, kwargs['left'])
+            color = common.TEXT_SELECTED if selected else common.FAVOURITE
+            color = common.TEXT_SELECTED if active else color
+            rect = self._draw(painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
 
             # The prefix
+            color = common.TEXT_SELECTED if selected else common.TEXT
             rect = self._draw(painter, font, rect, match.group(
-                1).upper(), align, common.TEXT, option, kwargs['left'])
+                1).upper(), align, color, option, kwargs['left'])
             return
         text = text.split(u'.')
         text = u'{suffix}.{ext}'.format(
             ext=text.pop().lower(),
             suffix=u'.'.join(text).upper()
         )
+        color = common.TEXT_SELECTED if selected else common.TEXT
         self._draw(painter, font, rect, text, align,
-                   common.TEXT, option, kwargs['left'])
+                   color, option, kwargs['left'])
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
