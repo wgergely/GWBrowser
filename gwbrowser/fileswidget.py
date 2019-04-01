@@ -78,6 +78,9 @@ class FileInfoWorker(BaseWorker):
         if not index.isValid():
             return
 
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
+
         index = index.model().mapToSource(index)
         # To be on the save-side let's skip initiated items
         if index.data(common.StatusRole):

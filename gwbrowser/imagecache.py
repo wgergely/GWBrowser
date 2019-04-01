@@ -37,6 +37,10 @@ class ImageCacheWorker(BaseWorker):
             if not index.data(common.StatusRole):
                 return
 
+        if index.isValid():
+            if not index.data(QtCore.Qt.StatusTipRole):
+                return
+
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
         source = source if source else index.data(QtCore.Qt.StatusTipRole)
@@ -136,6 +140,13 @@ class ImageCacheWorker(BaseWorker):
         else:
             if not index.isValid():
                 return
+
+            if index.isValid():
+                if not index.data(QtCore.Qt.SizeHintRole):
+                    return
+                if not index.data(common.ThumbnailPathRole):
+                    return
+
             image = ImageCache.instance().get(
                 index.data(common.ThumbnailPathRole),
                 index.data(QtCore.Qt.SizeHintRole).height() - 2,

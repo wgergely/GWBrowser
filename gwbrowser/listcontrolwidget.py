@@ -41,6 +41,9 @@ class ListInfoWorker(BaseWorker):
         if not index.isValid():
             return
 
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
+
         # Iterator
         itdir = QtCore.QDir(index.data(QtCore.Qt.StatusTipRole))
         itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
