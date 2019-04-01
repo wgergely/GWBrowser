@@ -924,7 +924,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._custombutton = CustomButton(parent=self)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
         self.layout().addWidget(self._Progresslabel, 1)
@@ -935,7 +935,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._custombutton)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
     def _connectSignals(self):
         pass
