@@ -150,6 +150,7 @@ class FileInfoWorker(BaseWorker):
         # data[common.SortByName] = fileroot
         data[common.SortByLastModified] = u'{}'.format(last_modified.toMSecsSinceEpoch())
         data[common.SortBySize] = u'{}'.format(size)
+
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
         #
@@ -279,6 +280,7 @@ class FilesModel(BaseModel):
         )
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        activefile = local_settings.value('activepath/file')
 
         # Invalid asset, we'll do nothing.
         if not self._parent_item:
@@ -329,6 +331,10 @@ class FilesModel(BaseModel):
 
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
+
+            if activefile:
+                if activefile in filepath:
+                    flags = flags | MarkedAsActive
 
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
@@ -416,10 +422,21 @@ class FilesModel(BaseModel):
                 flags = dflags()
                 if filepath in favourites:
                     flags = flags | MarkedAsFavourite
+
+                if activefile:
+                    if activefile in filepath:
+                        flags = flags | MarkedAsActive
+
                 v[common.FlagsRole] = flags
 
-            if len(v[common.FramesRole]) == 0:
+            elif len(v[common.FramesRole]) == 0:
                 v[common.TypeRole] = common.FileItem
+            else:
+                if activefile:
+                    _firsframe = v[common.SequenceRole].expand(r'\1{}\3.\4')
+                    _firsframe = _firsframe.format(min(v[common.FramesRole]))
+                    if activefile in _firsframe:
+                        v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
 
             self._data[dkey][common.SequenceItem][idx] = v
 
@@ -594,10 +611,14 @@ class FilesWidget(BaseInlineIconWidget):
         emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
 
         """
+        local_settings.setValue(u'activepath/location', index.data(common.ParentRole)[4])
+
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        fileroot = index.data(common.ParentRole)[5]
-        activefilepath = u'{}/{}'.format(fileroot, file_info.fileName())
-        local_settings.setValue(u'activepath/file', activefilepath)
+        filepath = u'{}/{}'.format( # location/subdir/filename.ext
+            index.data(common.ParentRole)[5],
+            common.get_sequence_startpath(file_info.fileName()))
+        local_settings.setValue(u'activepath/file', filepath)
+
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.

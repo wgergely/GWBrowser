@@ -228,13 +228,8 @@ class AssetWidget(BaseInlineIconWidget):
         emits the ``activeChanged`` signal.
 
         """
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        local_settings.setValue(u'activepath/asset', file_info.fileName())
+        local_settings.setValue(u'activepath/asset', index.data(QtCore.Qt.StatusTipRole))
         Active.paths()  # Resetting invalid paths
-
-        # By updating the saved state we're making sure the active_monit doesn't emit the assetChangedSignal
-        # (we don't want to trigger two update model updates)
-        active_monitor.update_saved_state(u'asset', file_info.fileName())
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""

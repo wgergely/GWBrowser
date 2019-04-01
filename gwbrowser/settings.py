@@ -43,10 +43,10 @@ class Active(QtCore.QObject):
 
     """
     # Signals
-    activeBookmarkChanged = QtCore.Signal(tuple)
-    activeAssetChanged = QtCore.Signal(tuple)
-    activeLocationChanged = QtCore.Signal(basestring)
-    activeFileChanged = QtCore.Signal(basestring)
+    activeBookmarkChanged = QtCore.Signal()
+    activeAssetChanged = QtCore.Signal()
+    activeLocationChanged = QtCore.Signal()
+    activeFileChanged = QtCore.Signal()
 
     keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
 
@@ -57,12 +57,19 @@ class Active(QtCore.QObject):
         self.timer = QtCore.QTimer()
         self.timer.setInterval(500)
         self.timer.setSingleShot(False)
-        self.timer.timeout.connect(self._check_change)
+        self.timer.timeout.connect(self.check)
 
-    def update_saved_state(self, k, data):
-        self._active_paths[k] = data
+    def update_saved_state(self, k, d):
+        self._active_paths[k] = d
 
-    def _check_change(self):
+    @QtCore.Slot()
+    def check(self):
+        """This method is called by the timeout slot of the `Active.timer` and
+        check the currently set active item. Emits a changed signal if the
+        current state differs from the saved state.
+
+        """
+
         active_paths = self.paths()
         if self._active_paths == active_paths:
             return
@@ -74,23 +81,17 @@ class Active(QtCore.QObject):
         locationChanged = self._active_paths[u'location'] != active_paths[u'location']
         fileChanged = self._active_paths[u'file'] != active_paths[u'file']
 
-        if serverChanged or jobChanged or rootChanged:
-            self.activeBookmarkChanged.emit((
-                active_paths[u'server'],
-                active_paths[u'job'],
-                active_paths[u'root'],
-            ))
+        if any((serverChanged, jobChanged, rootChanged)):
+            self.activeBookmarkChanged.emit()
+
         if assetChanged:
-            self.activeAssetChanged.emit((
-                active_paths[u'server'],
-                active_paths[u'job'],
-                active_paths[u'root'],
-                active_paths[u'asset'],
-            ))
+            self.activeAssetChanged.emit()
+
         if locationChanged:
-            self.activeLocationChanged.emit(active_paths[u'location'])
+            self.activeLocationChanged.emit()
+
         if fileChanged:
-            self.activeFileChanged.emit(active_paths[u'file'])
+            self.activeFileChanged.emit()
 
         self._active_paths = active_paths
 

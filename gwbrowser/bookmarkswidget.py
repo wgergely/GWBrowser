@@ -345,9 +345,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         local_settings.setValue(u'activepath/server', server)
         local_settings.setValue(u'activepath/job', job)
         local_settings.setValue(u'activepath/root', root)
-        active_monitor.update_saved_state(u'server', server)
-        active_monitor.update_saved_state(u'job', job)
-        active_monitor.update_saved_state(u'root', root)
+        Active.paths()  # Resetting invalid paths
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
