@@ -387,6 +387,7 @@ class BrowserWidget(QtWidgets.QWidget):
         b.activated.connect(
             lambda x: active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
         active_monitor.activeBookmarkChanged.connect(b.model().sourceModel().modelDataResetRequested)
+        active_monitor.activeBookmarkChanged.connect(lambda: l.listChanged.emit(1))
 
         a.activated.connect(
             lambda x: active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
@@ -394,10 +395,15 @@ class BrowserWidget(QtWidgets.QWidget):
         active_monitor.activeAssetChanged.connect(lambda: l.listChanged.emit(1))
 
         f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
+        l.dataKeyChanged.connect(f.save_data_key)
+
         f.model().sourceModel().dataKeyChanged.connect(
             lambda x: active_monitor.save_state(u'location', x))
-        active_monitor.activeLocationChanged.connect(f.model().sourceModel().dataKeyChanged)
-        active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2))
+        l.dataKeyChanged.connect(
+            lambda x: active_monitor.save_state(u'location', x))
+
+        active_monitor.activeLocationChanged.connect(l.dataKeyChanged)
+        active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2) if x else l.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
 
     def _add_shortcuts(self):

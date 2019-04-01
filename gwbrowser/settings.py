@@ -81,9 +81,13 @@ class Active(QtCore.QObject):
 
         if serverChanged or jobChanged or rootChanged:
             self.activeBookmarkChanged.emit()
+            self._active_paths = active_paths
+            return
 
         if assetChanged:
             self.activeAssetChanged.emit()
+            self._active_paths = active_paths
+            return
 
         if locationChanged:
             self.activeLocationChanged.emit(active_paths[u'location'])
