@@ -211,7 +211,7 @@ class AssetWidget(BaseInlineIconWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'assets', QtGui.QColor(0, 0, 0, 10), 64)
+                'assets', QtGui.QColor(0, 0, 0, 10), 128)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -228,7 +228,7 @@ class AssetWidget(BaseInlineIconWidget):
         emits the ``activeChanged`` signal.
 
         """
-        local_settings.setValue(u'activepath/asset', index.data(QtCore.Qt.StatusTipRole))
+        local_settings.setValue(u'activepath/asset', index.data(common.ParentRole)[-1])
         Active.paths()  # Resetting invalid paths
 
     def show_todos(self, index):

@@ -369,9 +369,12 @@ QMenu::SEPARATOR {{
 
 QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
+	color: rgba({SECONDARY_TEXT});
 	font-size: 9pt;
+	outline: none;
+	margin: 10px;
+	padding: 0px;
 }}
-
 
 
 TodoEditorWidget {{

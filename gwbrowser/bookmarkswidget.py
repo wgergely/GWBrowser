@@ -328,7 +328,7 @@ class BookmarksWidget(BaseInlineIconWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'bookmark', QtGui.QColor(0, 0, 0, 10), 64)
+                'bookmark', QtGui.QColor(0, 0, 0, 10), 128)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())

@@ -73,10 +73,17 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget = None
         self.fileswidget = None
 
+        self.settingstimer = QtCore.QTimer(parent=self)
+        self.settingstimer.setInterval(1000)
+        self.settingstimer.setSingleShot(False)
+        self.settingstimer.setTimerType(QtCore.Qt.CoarseTimer)
+        self.settingstimer.timeout.connect(active_monitor.check_state)
+
         self.initializer = QtCore.QTimer()
         self.initializer.setSingleShot(True)
         self.initializer.setInterval(200)
         self.initializer.timeout.connect(self.initialize)
+        self.initializer.timeout.connect(self.settingstimer.start)
         self.initializer.timeout.connect(self.initializer.deleteLater)
 
         self.init_progress = u'Loading...'
@@ -220,8 +227,10 @@ class BrowserWidget(QtWidgets.QWidget):
         a = self.assetswidget
         f = self.fileswidget
         lc = self.listcontrolwidget
+
         l = lc.control_view()
         lb = lc.control_button()
+
         s = self.stackedwidget
         m = self.listcontrolwidget.findChild(Progresslabel)
 
@@ -369,6 +378,27 @@ class BrowserWidget(QtWidgets.QWidget):
         b.model().layoutChanged.connect(b.repaint)
         a.model().layoutChanged.connect(a.repaint)
         f.model().layoutChanged.connect(f.repaint)
+
+        # Active monitor
+        b.activated.connect(
+            lambda x: active_monitor.save_state(u'server', x.data(common.ParentRole)[0]))
+        b.activated.connect(
+            lambda x: active_monitor.save_state(u'job', x.data(common.ParentRole)[1]))
+        b.activated.connect(
+            lambda x: active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
+        active_monitor.activeBookmarkChanged.connect(b.model().sourceModel().modelDataResetRequested)
+
+        a.activated.connect(
+            lambda x: active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
+        active_monitor.activeAssetChanged.connect(a.model().sourceModel().modelDataResetRequested)
+        active_monitor.activeAssetChanged.connect(lambda: l.listChanged.emit(1))
+
+        f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: active_monitor.save_state(u'location', x))
+        active_monitor.activeLocationChanged.connect(f.model().sourceModel().dataKeyChanged)
+        active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2))
+        # I don't think we have to respond to any active file changes
 
     def _add_shortcuts(self):
         for n in xrange(3):

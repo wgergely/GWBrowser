@@ -45,8 +45,8 @@ class Active(QtCore.QObject):
     # Signals
     activeBookmarkChanged = QtCore.Signal()
     activeAssetChanged = QtCore.Signal()
-    activeLocationChanged = QtCore.Signal()
-    activeFileChanged = QtCore.Signal()
+    activeLocationChanged = QtCore.Signal(unicode)
+    activeFileChanged = QtCore.Signal(unicode)
 
     keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
 
@@ -54,16 +54,13 @@ class Active(QtCore.QObject):
         super(Active, self).__init__(parent=parent)
         self._active_paths = self.paths()
 
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(500)
-        self.timer.setSingleShot(False)
-        self.timer.timeout.connect(self.check)
-
-    def update_saved_state(self, k, d):
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(unicode)
+    def save_state(self, k, d):
         self._active_paths[k] = d
 
     @QtCore.Slot()
-    def check(self):
+    def check_state(self):
         """This method is called by the timeout slot of the `Active.timer` and
         check the currently set active item. Emits a changed signal if the
         current state differs from the saved state.
@@ -71,6 +68,7 @@ class Active(QtCore.QObject):
         """
 
         active_paths = self.paths()
+
         if self._active_paths == active_paths:
             return
 
@@ -81,17 +79,17 @@ class Active(QtCore.QObject):
         locationChanged = self._active_paths[u'location'] != active_paths[u'location']
         fileChanged = self._active_paths[u'file'] != active_paths[u'file']
 
-        if any((serverChanged, jobChanged, rootChanged)):
+        if serverChanged or jobChanged or rootChanged:
             self.activeBookmarkChanged.emit()
 
         if assetChanged:
             self.activeAssetChanged.emit()
 
         if locationChanged:
-            self.activeLocationChanged.emit()
+            self.activeLocationChanged.emit(active_paths[u'location'])
 
         if fileChanged:
-            self.activeFileChanged.emit()
+            self.activeFileChanged.emit(active_paths[u'file'])
 
         self._active_paths = active_paths
 

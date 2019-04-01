@@ -57,10 +57,14 @@ class ListInfoWorker(BaseWorker):
             count += 1
             if count > 9999:
                 break
-
-        data = index.model().model_data()
-        data[index.row()][common.TodoCountRole] = count
-        index.model().dataChanged.emit(index, index)
+                
+        # The underlying data can change whilst the calculating
+        try:
+            data = index.model().model_data()
+            data[index.row()][common.TodoCountRole] = count
+            index.model().dataChanged.emit(index, index)
+        except Exception:
+            return
 
 
 class ListInfoThread(BaseThread):

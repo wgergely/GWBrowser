@@ -594,7 +594,7 @@ class FilesWidget(BaseInlineIconWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'files', QtGui.QColor(0, 0, 0, 10), 64)
+                'files', QtGui.QColor(0, 0, 0, 10), 128)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -608,6 +608,10 @@ class FilesWidget(BaseInlineIconWidget):
     def action_on_enter_key(self):
         index = self.selectionModel().currentIndex()
         self.activated.emit(index)
+
+
+    def save_data_key(self, key):
+        local_settings.setValue(u'activepath/location', key)
 
     def save_activated(self, index):
         """Sets the current item item as ``active`` and
