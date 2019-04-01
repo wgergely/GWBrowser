@@ -962,29 +962,31 @@ class FilesWidgetDelegate(BaseDelegate):
                 suffix=u'.'.join(text).upper()
             )
 
-            rect = self._draw(painter, font, rect, text, align,
-                              common.TEXT, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(
-                2).upper(), align, common.FAVOURITE, option, kwargs['left'])
-            rect = self._draw(painter, font, rect, match.group(
-                1).upper(), align, common.TEXT, option, kwargs['left'])
-            return
-
-        match = index.data(common.SequenceRole)
-        if match:
-
             # The extension and the suffix
-            text = u'{}.{}'.format(match.group(
-                3).upper(), match.group(4).lower())
             rect = self._draw(painter, font, rect, text, align,
                               common.TEXT, option, kwargs['left'])
 
             # The frame-range - this can get quite long - we're trimming it to
             # avoid long and meaningless names
-            text = match.group(2).upper()
-            if len(text) > 16:
-                text = '{}...{}'.format(text[0:8], text[-8:])
-            rect = self._draw(painter, font, rect, text, align, common.FAVOURITE, option, kwargs['left'])
+            frange = match.group(2).upper()
+            if len(frange) > 17:
+                frange = '{}...{}'.format(frange[0:8], frange[-8:])
+            rect = self._draw(painter, font, rect, frange, align, common.FAVOURITE, option, kwargs['left'])
+
+            # The prefix
+            rect = self._draw(painter, font, rect, match.group(
+                1).upper(), align, common.TEXT, option, kwargs['left'])
+            return
+
+        match = common.get_sequence(text)
+        if match:
+            # The extension and the suffix
+            text = u'{}.{}'.format(match.group(
+                3).upper(), match.group(4).lower())
+            rect = self._draw(painter, font, rect, text, align,
+                              common.TEXT, option, kwargs['left'])
+            # The frame-range
+            rect = self._draw(painter, font, rect, match.group(2).upper(), align, common.FAVOURITE, option, kwargs['left'])
 
             # The prefix
             rect = self._draw(painter, font, rect, match.group(
