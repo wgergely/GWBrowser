@@ -4,7 +4,7 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='gwbrowser-pkg',
+    name='gwbrowser',
     version='0.1.31',
     author='Gergely Wootsch',
     author_email='hello@gergely-wootsch.com',
