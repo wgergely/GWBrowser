@@ -140,24 +140,29 @@ _exports_formats = (
     u'obj',
     u'rs', # Redshift cache file
     u'sim', # Houdini
+    u'sc', # Houdini
     u'vdb', # OpenVDB cache file
+    u'ifd', # Houdini
 )
 _scene_formats = (
     u'c4d',
     u'hud',
+    u'hip',
     u'ma',
     u'mb',
     u'nk',
     u'~nk',
+    u'mocha',
     u'rv'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))
+_all_formats = list(_creative_cloud_formats) + list(_scene_formats) + list(_oiio_formats) + list(_exports_formats)
 
 NameFilters = {
-    ExportsFolder: _exports_formats,
-    ScenesFolder: _creative_cloud_formats + _scene_formats + _oiio_formats,
-    RendersFolder: _oiio_formats,
-    TexturesFolder: _oiio_formats,
+    ExportsFolder: _all_formats,
+    ScenesFolder: _all_formats,
+    RendersFolder: _all_formats,
+    TexturesFolder: _all_formats,
 }
 """A list of expected file-formats associated with the location."""
 
