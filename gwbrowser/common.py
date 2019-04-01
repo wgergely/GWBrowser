@@ -151,9 +151,10 @@ _scene_formats = (
     u'ma',
     u'mb',
     u'nk',
-    u'~nk',
+    u'nk~',
     u'mocha',
-    u'rv'
+    u'rv',
+    u'autosave'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))
 _all_formats = list(_creative_cloud_formats) + list(_scene_formats) + list(_oiio_formats) + list(_exports_formats)
