@@ -706,13 +706,56 @@ class BaseListWidget(QtWidgets.QListView):
                 favourites.remove(key)
                 data[source_index.row()][common.FlagsRole] = data[source_index.row(
                 )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+
+            # When toggling a sequence item, we will toggle all the individual sequence items as well
+            if self.model().sourceModel().data_type() == common.SequenceItem:
+                m = self.model().sourceModel()
+                k = m.data_key()
+                t = common.FileItem
+                _data = m._data[k][t]
+
+                # Let's find the item in the model data
+                for frame in data[source_index.row()][common.FramesRole]:
+                    _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
+                    _path = _path.format(frame)
+                    _index = None
+                    for val in _data.itervalues():
+                        if val[QtCore.Qt.StatusTipRole] == _path:
+                            _index = val # Found it!
+                            break
+                    if _index:
+                        if _index[QtCore.Qt.StatusTipRole] in favourites:
+                            favourites.remove(_index[QtCore.Qt.StatusTipRole])
+                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
+
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(key)
                 data[source_index.row()][common.FlagsRole] = data[source_index.row(
                 )][common.FlagsRole] | Settings.MarkedAsFavourite
 
-        local_settings.setValue(u'favourites', favourites)
+            # When toggling a sequence item, we will toggle all the individual sequence items as well
+            if self.model().sourceModel().data_type() == common.SequenceItem:
+                m = self.model().sourceModel()
+                k = m.data_key()
+                t = common.FileItem
+                _data = m._data[k][t]
+
+                # Let's find the item in the model data
+                for frame in data[source_index.row()][common.FramesRole]:
+                    _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
+                    _path = _path.format(frame)
+                    _index = None
+                    for val in _data.itervalues():
+                        if val[QtCore.Qt.StatusTipRole] == _path:
+                            _index = val # Found it!
+                            break
+                    if _index:
+                        favourites.append(_index[QtCore.Qt.StatusTipRole])
+                        _index[common.FlagsRole] = _index[common.FlagsRole] | Settings.MarkedAsFavourite
+
+
+        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         index.model().dataChanged.emit(index, index)
 
     def toggle_archived(self, index, state=None):
