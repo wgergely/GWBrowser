@@ -1031,8 +1031,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         size = QtCore.QSize(width, height)
         pos = QtCore.QPoint(x, y)
 
-        self.resize(size)
         self.move(pos)
+        self.resize(size)
         common.move_widget_to_available_geo(self)
 
 
