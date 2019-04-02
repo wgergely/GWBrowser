@@ -355,6 +355,8 @@ class ImageCache(QtCore.QObject):
             return
 
         pixmap = ScreenGrabber.capture()
+        if not pixmap:
+            return
         if pixmap.isNull():
             return
         image = pixmap.toImage()

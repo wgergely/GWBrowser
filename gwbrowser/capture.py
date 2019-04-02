@@ -32,6 +32,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         super(ScreenGrabber, self).__init__(parent=parent)
 
         self._opacity = 1
+        self._mouse_pos = None
         self._click_pos = None
         self._offset_pos = None
 
@@ -46,7 +47,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         self.setMouseTracking(True)
         self.installEventFilter(self)
 
-        app = QtCore.QCoreApplication.instance()
+        app = QtWidgets.QApplication.instance()
         app.desktop().resized.connect(self._fit_screen_geometry)
         app.desktop().screenCountChanged.connect(self._fit_screen_geometry)
 
@@ -60,7 +61,11 @@ class ScreenGrabber(QtWidgets.QDialog):
         Paint event.
         """
         # Convert click and current mouse positions to local space.
-        mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        if not self._mouse_pos:
+            mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        else:
+            mouse_pos = self.mapFromGlobal(self._mouse_pos)
+
         click_pos = None
         if self._click_pos is not None:
             click_pos = self.mapFromGlobal(self._click_pos)
@@ -126,6 +131,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         if not isinstance(event, QtGui.QMouseEvent):
             return
+
+
         if event.button() == QtCore.Qt.LeftButton and self._click_pos is not None:
             # End click drag operation and commit the current capture rect
             self._capture_rect = QtCore.QRect(
@@ -134,6 +141,7 @@ class ScreenGrabber(QtWidgets.QDialog):
             ).normalized()
             self._click_pos = None
             self._offset_pos = None
+            self._mouse_pos = None
 
         self.accept()
 
@@ -141,49 +149,52 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         Mouse move event
         """
+        self.repaint()
+
         if not isinstance(event, QtGui.QMouseEvent):
-            return
-        app = QtWidgets.QApplication.instance()
-        modifiers = app.queryKeyboardModifiers()
-
-        no_modifier = modifiers == QtCore.Qt.NoModifier
-        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
-        control_modifier = modifiers & QtCore.Qt.ControlModifier
-        alt_modifier = modifiers & QtCore.Qt.AltModifier
-
-        if no_modifier:
-            self.__click_pos = None
-            self._offset_pos = None
-            self.repaint()
             return
 
         if not self._click_pos:
             return
 
+        self._mouse_pos = event.globalPos()
+
+        app = QtWidgets.QApplication.instance()
+        modifiers = app.queryKeyboardModifiers()
+
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+
+        const_mod = modifiers & QtCore.Qt.ShiftModifier
+        move_mod = (not not control_modifier) or (not not alt_modifier)
+
+        if no_modifier:
+            self.__click_pos = None
+            self._offset_pos = None
+            return
+
         # Allowing the shifting of the rectagle with the modifier keys
-        if (shift_modifier and (control_modifier or alt_modifier)) or control_modifier or alt_modifier:
+        if move_mod:
             if not self._offset_pos:
                 self.__click_pos = QtCore.QPoint(self._click_pos)
                 self._offset_pos = QtCore.QPoint(event.globalPos())
 
-            cursor_pos = QtGui.QCursor().pos()
             self._click_pos = QtCore.QPoint(
                 self.__click_pos.x() - (self._offset_pos.x() - event.globalPos().x()),
                 self.__click_pos.y() - (self._offset_pos.y() - event.globalPos().y())
             )
-            self.repaint()
+
 
         # Shift constrains the rectangle to a square
-        if shift_modifier:
-            cursor = QtGui.QCursor()
+        if const_mod:
             rect = QtCore.QRect()
             rect.setTopLeft(self._click_pos)
             rect.setBottomRight(event.globalPos())
             rect.setHeight(rect.width())
+            self._mouse_pos = rect.bottomRight()
 
-            cursor.setPos(rect.bottomRight())
-
-            self.repaint()
 
     @classmethod
     def screen_capture(cls):
@@ -228,7 +239,7 @@ class ScreenGrabber(QtWidgets.QDialog):
 
     def _fit_screen_geometry(self):
         # Compute the union of all screen geometries, and resize to fit.
-        app = QtCore.QCoreApplication.instance()
+        app = QtWidgets.QApplication.instance()
         workspace_rect = QtCore.QRect()
         for i in xrange(app.desktop().screenCount()):
             workspace_rect = workspace_rect.united(
@@ -245,7 +256,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         :returns: Captured image
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
-        app = QtCore.QCoreApplication.instance()
+        app = QtWidgets.QApplication.instance()
         return QtGui.QPixmap.grabWindow(
             app.desktop().winId(),
             rect.x(),
