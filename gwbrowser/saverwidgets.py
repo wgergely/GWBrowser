@@ -341,6 +341,7 @@ class SelectFolderButton(ClickableLabel):
         pos = self.rect().bottomLeft()
         pos = self.mapToGlobal(pos)
         widget.move(pos)
+        common.move_widget_to_available_geo(widget)
         widget.exec_()
 
     def set_view(self, widget):
