@@ -173,6 +173,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         if no_modifier:
             self.__click_pos = None
             self._offset_pos = None
+            self.repaint()
             return
 
         # Allowing the shifting of the rectagle with the modifier keys
@@ -195,6 +196,7 @@ class ScreenGrabber(QtWidgets.QDialog):
             rect.setHeight(rect.width())
             self._mouse_pos = rect.bottomRight()
 
+        self.repaint()
 
     @classmethod
     def screen_capture(cls):
