@@ -57,7 +57,7 @@ class ListInfoWorker(BaseWorker):
             count += 1
             if count > 9999:
                 break
-                
+
         # The underlying data can change whilst the calculating
         try:
             data = index.model().model_data()
@@ -86,7 +86,7 @@ class Progresslabel(QtWidgets.QLabel):
         self.progress_monitor.timeout.connect(self.check_progress)
         self.progress_monitor.start()
 
-        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
         self.setStyleSheet("""
             QLabel {{
                 font-family: "{}";
@@ -98,15 +98,15 @@ class Progresslabel(QtWidgets.QLabel):
                 margin: 0px;
             }}
         """.format(
-            common.SecondaryFont.family(),
-            u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()))
+            common.PrimaryFont.family(),
+            u'{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()))
         )
 
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
 
-        self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sitems\sleft)', flags=re.IGNORECASE)
+        self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sleft)', flags=re.IGNORECASE)
 
         self.setText(u'')
         self.messageChanged.connect(self.setText, type=QtCore.Qt.DirectConnection)
@@ -121,19 +121,20 @@ class Progresslabel(QtWidgets.QLabel):
         text = self.text()
         match = self.qre.match(text)
         if match:
-            if match.group(1) == 'Processing':
+            if match.group(1) == u'Loading items' or match.group(1) == u'Processing thumbnails':
                 text = ''
             else:
                 text = match.expand(r'\1')
 
-        if qsize:
-            text = u'{} - {} items left'.format(text if text else u'Processing', qsize)
 
-        self.setText(text)
-        # if self.text():
-        #     self.show()
-        # else:
-        #     self.hide()
+        if ImageCacheWorker.queue.qsize():
+            text = u'{} - {} left'.format(text if text else u'Processing thumbnails', qsize)
+        else:
+            if FileInfoWorker.queue.qsize():
+                text = u'{} - {} left'.format(text if text else u'Loading items', qsize)
+
+        self.messageChanged.emit(text)
+        # self.setText(text)
 
 
 class BrowserButtonContextMenu(BaseContextMenu):
@@ -277,7 +278,6 @@ class ControlButton(ClickableLabel):
     def __init__(self, parent=None):
         super(ControlButton, self).__init__(parent=parent)
         self._parent = None
-
         self.setFixedSize(
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
@@ -312,6 +312,14 @@ class ControlButton(ClickableLabel):
 
 
 class TodoButton(ControlButton):
+    """The button for showing the todo editor."""
+
+    def __init__(self, parent=None):
+        super(TodoButton, self).__init__(parent=parent)
+        description = u'Show the Todo & Note editor'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
 
@@ -333,6 +341,14 @@ class TodoButton(ControlButton):
 
 
 class FilterButton(ControlButton):
+    """Button for showing the filter editor."""
+
+    def __init__(self, parent=None):
+        super(FilterButton, self).__init__(parent=parent)
+        description = u'Edit the current list filter'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
 
@@ -374,6 +390,13 @@ class FilterButton(ControlButton):
         editor.show()
 
 class CollapseSequenceButton(ControlButton):
+
+    def __init__(self, parent=None):
+        super(CollapseSequenceButton, self).__init__(parent=parent)
+        description = u'Toggle sequence display'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
 
@@ -398,6 +421,12 @@ class CollapseSequenceButton(ControlButton):
 class ToggleArchivedButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
 
+    def __init__(self, parent=None):
+        super(ToggleArchivedButton, self).__init__(parent=parent)
+        description = u'Show archived items in the list'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
@@ -410,8 +439,15 @@ class ToggleArchivedButton(ControlButton):
         val = self.current().model().filterFlag(Settings.MarkedAsArchived)
         self.current().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not val)
 
+
 class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(ToggleFavouriteButton, self).__init__(parent=parent)
+        description = u'Show only items marked as favourite'
+        self.setToolTip(description)
+        self.setStatusTip(description)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
@@ -435,6 +471,12 @@ class CollapseSequenceMenu(BaseContextMenu):
 
 class AddButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(AddButton, self).__init__(parent=parent)
+        description = u'Adds a new item'
+        self.setToolTip(description)
+        self.setStatusTip(description)
 
     def __init__(self, parent=None):
         super(AddButton, self).__init__(parent=parent)
@@ -700,6 +742,7 @@ class ListControlView(QtWidgets.QListView):
         self._context_menu_active = True
         widget.exec_()
         self._context_menu_active = False
+        self.hide()
 
 
 class ListControlModel(BaseModel):
@@ -922,7 +965,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._controlview = ListControlView(parent=self)
         self._controlbutton.set_view(self._controlview)
 
-        self._Progresslabel = Progresslabel(parent=self)
+        self._progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
@@ -934,7 +977,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().addWidget(self._controlbutton)
         self.layout().addStretch()
-        self.layout().addWidget(self._Progresslabel, 1)
+        self.layout().addWidget(self._progresslabel, 1)
         self.layout().addWidget(self._addbutton)
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)
