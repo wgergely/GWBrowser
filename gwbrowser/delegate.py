@@ -189,6 +189,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         image = index.data(common.ThumbnailRole)
         color = index.data(common.ThumbnailBackgroundRole)
+        color = color if color else QtGui.QColor(0,0,0,0)
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
@@ -220,26 +221,27 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(option.rect)
         center = rect.center()
         rect.setHeight(rect.height() - 2)
-        rect.setWidth(rect.height())
+        rect.setWidth(rect.height() * 2)
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
 
-        # rect.setRight(rect.left() + common.ROW_HEIGHT)
-
-        gradient = QtGui.QLinearGradient(
-            rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
-        gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(rect)
-
-        gradient = QtGui.QLinearGradient(
-            rect.topLeft(), rect.topRight())
-        gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
-        gradient.setColorAt(0.3, QtGui.QColor(0, 0, 0, 0))
-        painter.setBrush(QtGui.QBrush(gradient))
-        painter.drawRect(rect)
+         # name, color, size, opacity=1.0
+        pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+        # gradient = QtGui.QLinearGradient(
+        #     rect.topLeft(), rect.topRight())
+        # gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 15))
+        # gradient.setColorAt(1, QtGui.QColor(0, 0, 0, 0))
+        # painter.setPen(QtCore.Qt.NoPen)
+        # painter.setBrush(QtGui.QBrush(gradient))
+        # painter.drawRect(rect)
+        #
+        # gradient = QtGui.QLinearGradient(
+        #     rect.topLeft(), rect.topRight())
+        # gradient.setColorAt(0, QtGui.QColor(0, 0, 0, 30))
+        # gradient.setColorAt(0.15, QtGui.QColor(0, 0, 0, 0))
+        # painter.setBrush(QtGui.QBrush(gradient))
+        # painter.drawRect(rect)
 
     @paintmethod
     def paint_data(self, *args):
@@ -851,7 +853,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_mode(self, *args):
         """Paints the FilesWidget's mode and the subfolders."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
         if index.data(common.ParentRole) is None:
             return
 
@@ -893,8 +895,10 @@ class FilesWidgetDelegate(BaseDelegate):
 
             if n == 0:
                 bg_color = common.FAVOURITE
+            elif n == 2:
+                bg_color = QtGui.QColor(85, 85, 85)
             else:
-                bg_color = QtGui.QColor(75, 75, 75)
+                bg_color = QtGui.QColor(85, 85, 85)
 
             pen = QtGui.QPen(bg_color)
             pen.setWidth(padding)
@@ -907,8 +911,12 @@ class FilesWidgetDelegate(BaseDelegate):
 
             if n == 0:
                 color = QtGui.QColor(common.TEXT)
-            else:
+                color = common.TEXT_SELECTED if selected else color
+            elif n == 2:
                 color = QtGui.QColor(common.TEXT_DISABLED)
+            else:
+                color = QtGui.QColor(common.SECONDARY_TEXT)
+                color = common.TEXT if selected else color
 
             common.draw_aliased_text(
                 painter, font, rect, text, QtCore.Qt.AlignCenter, color)
