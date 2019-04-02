@@ -169,6 +169,7 @@ class HeaderWidget(QtWidgets.QWidget):
         widget = TrayMenu(parent=self.window())
         pos = self.window().mapToGlobal(event.pos())
         widget.move(pos)
+        common.move_widget_to_available_geo(widget)
         widget.show()
 
 
@@ -221,6 +222,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.findChild(CloseButton).clicked.connect(self.close)
         self.findChild(FilesWidget).activated.connect(
             self.index_activated)
+        app = QtWidgets.QApplication.instance().aboutToQuit.connect(
+            self.save_widget_settings)
 
 
     def index_activated(self, index):
@@ -255,12 +258,22 @@ class StandaloneBrowserWidget(BrowserWidget):
         if reason == QtWidgets.QSystemTrayIcon.MiddleClick:
             return
 
-    def hideEvent(self, event):
+    def save_widget_settings(self):
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
         local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
 
         pos = self.mapToGlobal(self.rect().topLeft())
+        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
+        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
+
+    def hideEvent(self, event):
+        cls = self.__class__.__name__
+        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
+        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
+
+        # pos = self.mapToGlobal(self.rect().topLeft())
+        pos = QtCore.QPoint(x, y)
         local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
         local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
 
@@ -279,10 +292,11 @@ class StandaloneBrowserWidget(BrowserWidget):
             return
         size = QtCore.QSize(width, height)
         pos = QtCore.QPoint(x, y)
-
+        # pos = self.mapFromGlobal(pos)
         self.resize(size)
         self.move(pos)
         common.move_widget_to_available_geo(self)
+
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""
@@ -303,7 +317,7 @@ class StandaloneApp(QtWidgets.QApplication):
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
         self.setApplicationName(u'Browser')
-        self.setApplicationVersion(u'0.1.31')
+        self.setApplicationVersion(u'0.1.32')
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
