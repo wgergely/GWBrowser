@@ -283,14 +283,6 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
         f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
 
-        # Status message when querrying files
-        f.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading files...'))
-        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        f.model().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
-        a.model().sourceModel().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Loading assets...'))
-        a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-
         b.model().modelReset.connect(lb.repaint)
         b.model().layoutChanged.connect(lb.repaint)
         a.model().modelReset.connect(lb.repaint)
@@ -405,6 +397,28 @@ class BrowserWidget(QtWidgets.QWidget):
         active_monitor.activeLocationChanged.connect(l.dataKeyChanged)
         active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2) if x else l.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
+
+        # Progresslabel
+        b.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting bookmarks...'))
+        b.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting bookmarks...'))
+        b.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        b.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+
+        a.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting assets...'))
+        a.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting assets...'))
+        a.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        a.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+
+        # f.model().sourceModel().modelDataResetRequested.connect(lambda: m.messageChanged.emit(u'3Getting files...'))
+        f.model().sourceModel().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'4Getting files...'))
+        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
+
+        f.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting files...'))
+        f.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
+        f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        f.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+
 
     def _add_shortcuts(self):
         for n in xrange(3):
