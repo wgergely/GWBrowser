@@ -137,7 +137,7 @@ class ScreenGrabber(QtWidgets.QDialog):
             # End click drag operation and commit the current capture rect
             self._capture_rect = QtCore.QRect(
                 self._click_pos,
-                event.globalPos()
+                self._mouse_pos
             ).normalized()
             self._click_pos = None
             self._offset_pos = None
