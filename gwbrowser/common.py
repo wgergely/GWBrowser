@@ -83,7 +83,7 @@ TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
-SEPARATOR = QtGui.QColor(55, 55, 55)
+SEPARATOR = QtGui.QColor(48, 48, 48)
 SELECTION = QtGui.QColor(140, 120, 233)
 FAVOURITE = QtGui.QColor(140, 120, 233)
 
@@ -214,9 +214,9 @@ def move_widget_to_available_geo(widget):
     fall outside.
 
     """
-    app = QtCore.QCoreApplication.instance()
-    if widget.parentWidget():
-        screenID = app.desktop().screenNumber(widget.parentWidget())
+    app = QtWidgets.QApplication.instance()
+    if widget.window():
+        screenID = app.desktop().screenNumber(widget.window())
     else:
         screenID = app.desktop().primaryScreen()
 
