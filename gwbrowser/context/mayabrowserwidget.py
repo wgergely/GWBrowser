@@ -491,7 +491,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         local_settings.setValue(key, isFloating)
 
         wpcs = (f for f in mixinWorkspaceControls if u'MayaBrowserWidget' in f)
-        if isFloating == u'0':  # why'o'why, this is a unicode value
+        if isFloating == u'0':  # why'o'why, is this a unicode value
             pass  # I can't implement this shit.
 
     def dockCloseEventTriggered(self):
@@ -686,12 +686,11 @@ class MayaBrowserButton(BrowserButton):
 
     def __init__(self, parent=None):
         super(MayaBrowserButton, self).__init__(parent=parent)
-        self.firstshow = True
-
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setToolTip(u'Browser')
         self.clicked.connect(self.show_browser)
 
+    def initialize(self):
         # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)
@@ -699,20 +698,14 @@ class MayaBrowserButton(BrowserButton):
         self.set_size(widget.width())
         self.update()
 
-    def showEvent(self, event):
-        """The first time the widget is shown is when the main MayaBrowser widget
-        will be initialized.
-
-        """
         # Unlocking showing widget
-        if self.firstshow:
-            currentval = cmds.optionVar(q='workspacesLockDocking')
-            cmds.optionVar(intValue=(u'workspacesLockDocking', False))
-            cmds.evalDeferred(self.show_browser)
-            cmds.evalDeferred(functools.partial(
-                cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
-            self.firstshow = False
+        currentval = cmds.optionVar(q='workspacesLockDocking')
+        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
+        cmds.evalDeferred(self.show_browser)
+        cmds.evalDeferred(functools.partial(
+            cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
 
+    @QtCore.Slot()
     def show_browser(self):
         """Slot responsible showing the maya browser widget."""
         app = QtWidgets.QApplication.instance()

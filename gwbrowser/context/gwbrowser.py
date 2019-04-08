@@ -18,7 +18,7 @@ Installation:
     In Maya load the plug-in via the Plug-in Manager.
 
 Important:
-    Before loading the plug-in make sure the main 'Browser' module is placed in
+    Before loading the plug-in make sure the main 'gwbrowser' module is placed in
     one of the python script directories. You can get them by running:
 
     import sys
@@ -29,7 +29,7 @@ Important:
         C:/Users/[user name]/Documents/maya/[version]/scripts
         C:/Users/[user name]/Documents/maya/scripts
 
-    After copying, you can test by your setup by trying to import 'browser'
+    After copying, you can test by your setup by trying to import 'gwbrowser'
     by running in the script editor:
 
         import gwbrowser
@@ -37,13 +37,16 @@ Important:
     If you get any error messages something went south.
 
 Credits:
-    Gergely Wootsch, 2019, February.
+    Gergely Wootsch, 2019, April.
     hello@gergely-wootsch.com
     http://gergely-wootsch.com
 
 """
 
 import sys
+
+
+__version__ = u'0.1.32'
 
 
 def maya_useNewAPI():
@@ -60,12 +63,16 @@ def initializePlugin(plugin):
     from PySide2 import QtWidgets
     import maya.api.OpenMaya as OpenMaya
     import maya.cmds as cmds
+
+    sys.path.append(r'\\sloth\3d_share\GWBrowser\python\Lib\site-packages')
+
     pluginFn = OpenMaya.MFnPlugin(
-        plugin, vendor='Gergely Wootsch', version='0.2.0')
+        plugin, vendor='Gergely Wootsch', version=__version__)
 
     try:
         from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
-        cmds.evalDeferred(MayaBrowserButton)
+        btn = MayaBrowserButton()
+        cmds.evalDeferred(btn.initialize)
         sys.stdout.write('\n\n# Browser: Plugin loaded.\n\n')
     except ImportError as err:
         sys.stderr.write(err)
@@ -92,13 +99,7 @@ def uninitializePlugin(plugin):
 
 
     pluginFn = OpenMaya.MFnPlugin(
-        plugin, vendor='Gergely Wootsch', version='0.2.0')
-
-    try:
-        from gwbrowser.settings import active_monitor
-        active_monitor.timer.stop()
-    except Exception as err:
-        sys.stdout.write('# Browser: Failed stop timer.\n')
+        plugin, vendor='Gergely Wootsch', version=__version__)
 
     try:
         from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
@@ -132,9 +133,9 @@ def uninitializePlugin(plugin):
         sys.stdout.write('# Browser: Failed to delete the workspace control.\n')
 
     try:
-        del sys.modules['browser']
+        del sys.modules['gwbrowser']
         for k in sys.modules.items():
-            if 'browser.' in k:
+            if 'gwbrowser.' in k:
                 del sys.modules[k]
     except Exception as err:
         sys.stdout.write('# Browser: Failed unload the python modules.\n')
