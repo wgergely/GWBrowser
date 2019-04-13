@@ -624,8 +624,7 @@ class DataKeyViewDelegate(BaseDelegate):
 class ListControlContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(ListControlContextMenu, self).__init__(index, parent=parent)
-        if index.row() > 1:
-            self.add_reveal_item_menu()
+        self.add_reveal_item_menu()
 
 
 class DataKeyView(QtWidgets.QListView):
@@ -676,9 +675,6 @@ class DataKeyView(QtWidgets.QListView):
         index = self.indexAt(event.pos())
         if not index.isValid():
             return
-        if index.row() <= 1:
-            return
-
         width = self.viewport().geometry().width()
 
         widget = self.context_menu_cls(index, parent=self)
@@ -695,7 +691,7 @@ class DataKeyView(QtWidgets.QListView):
         self._context_menu_active = True
         widget.exec_()
         self._context_menu_active = False
-        self.hide()
+        # self.hide()
 
 
 class DataKeyModel(BaseModel):
