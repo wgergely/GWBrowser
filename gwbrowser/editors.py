@@ -335,7 +335,7 @@ class FilterEditor(QtWidgets.QWidget):
         super(FilterEditor, self).__init__(parent=parent)
         self.editor = None
 
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 2)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 1.5)
         self._createUI()
         self._connectSignals()
         self.setFocusProxy(self.editor)
@@ -359,7 +359,7 @@ class FilterEditor(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
         self.label = FilterListButton()
-        self.label.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 1.5)
+        self.label.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 1.3)
         self.label.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
         pixmap = ImageCache.get_rsc_pixmap(
             u'filter', common.FAVOURITE, common.ROW_BUTTONS_HEIGHT / 1.5)
@@ -372,12 +372,12 @@ class FilterEditor(QtWidgets.QWidget):
         self.editor.setPlaceholderText('Filter...')
         self.editor.setStyleSheet("""
             QLineEdit {{
-                margin: 4px;
-                padding: 4px;
+                margin: 6px;
+                padding: 6px;
                 background-color: rgba(38,38,38, 255);
                 color: rgba(230,230,230,255);
                 font-family: "{}";
-                font-size: 10pt;
+                font-size: 11pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;

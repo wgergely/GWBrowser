@@ -541,16 +541,17 @@ class AddButton(ControlButton):
 
 
 
-class ListControlDelegate(BaseDelegate):
+class DataKeyViewDelegate(BaseDelegate):
+    """The delegate used to paint the available subfolders inside the asset folder."""
+
     def __init__(self, parent=None):
-        super(ListControlDelegate, self).__init__(parent=parent)
+        super(DataKeyViewDelegate, self).__init__(parent=parent)
 
     def paint(self, painter, option, index):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
-        if index.row() < 2:
-            self.paint_thumbnail(*args)
+        self.paint_thumbnail(*args)
         self.paint_name(*args)
 
     @paintmethod
@@ -558,38 +559,32 @@ class ListControlDelegate(BaseDelegate):
         """Paints the background."""
         painter, option, index, selected, _, _, _, _ = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
+        center = rect.center()
+        rect.setHeight(rect.height() - 2)
+        rect.moveCenter(center)
 
-        if index.row() >= 2:
-            color = common.SECONDARY_BACKGROUND
-        else:
-            color = common.BACKGROUND
-
-        if selected or hover:
-            color = common.BACKGROUND_SELECTED
-
+        background = QtGui.QColor(common.BACKGROUND)
+        background.setAlpha(50)
+        color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
-        painter.drawRect(rect)
+        painter.drawRoundedRect(rect, 3, 3)
 
     @paintmethod
     def paint_name(self, *args):
+        """Paints the name and the number of files available for the given data-key."""
         painter, option, index, selected, _, _, _, _ = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
         color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
-        if index.row() >= 2:
-            current_key = index.data(
-                QtCore.Qt.DisplayRole) == self.parent().model()._datakey
-            color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
-            color = common.FAVOURITE if current_key else color
-            color = common.TEXT_SELECTED if selected else color
+        current_key = index.data(
+            QtCore.Qt.DisplayRole) == self.parent().model()._datakey
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
@@ -603,22 +598,6 @@ class ListControlDelegate(BaseDelegate):
         width = common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
-
-        active_item = None
-        if index.row() == 0:
-            if self.parent().model()._bookmark:
-                active_item = self.parent().model()._bookmark[-1]
-        if index.row() == 1:
-            _parent = self.parent().model()._parent_item
-            active_item = _parent[-1] if _parent else None
-
-        if active_item:
-            text = u'  |  {}'.format(active_item).upper()
-            color = common.TEXT_SELECTED if selected else common.FAVOURITE
-            color = common.TEXT_SELECTED if hover else color
-            width = common.draw_aliased_text(
-                painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
-            rect.setLeft(rect.left() + width)
 
         if index.data(common.TodoCountRole):
             if index.data(common.TodoCountRole) >= 9999:
@@ -636,18 +615,10 @@ class ListControlDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
             color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, color)
 
     def sizeHint(self, option, index):
-        if not index:
-            return QtCore.QSize(
-                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
-
-        if index.row() <= 1:
-            return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
-        else:
-            return QtCore.QSize(
-                common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
+        return QtCore.QSize(common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
 
 class ListControlContextMenu(BaseContextMenu):
@@ -657,48 +628,32 @@ class ListControlContextMenu(BaseContextMenu):
             self.add_reveal_item_menu()
 
 
-class ListControlView(QtWidgets.QListView):
-    textChanged = QtCore.Signal(unicode)
-    listChanged = QtCore.Signal(int)
-    dataKeyChanged = QtCore.Signal(unicode)
+class DataKeyView(QtWidgets.QListView):
+    """The view responsonsible for displaying the available data-keys."""
 
     def __init__(self, parent=None):
-        super(ListControlView, self).__init__(parent=parent)
+        super(DataKeyView, self).__init__(parent=parent)
         common.set_custom_stylesheet(self)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
         self.context_menu_cls = ListControlContextMenu
         self._context_menu_active = False
-        # self.activated.connect(self.close)
         self.clicked.connect(self.activated)
         self.clicked.connect(self.hide)
-        self.clicked.connect(self.signal_dispatcher)
+        self.clicked.connect(self.parent().signal_dispatcher)
 
-        self.setModel(ListControlModel())
+        self.setModel(DataKeyModel())
         self.model().modelReset.connect(self.adjust_size)
-        self.setItemDelegate(ListControlDelegate(parent=self))
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def signal_dispatcher(self, index):
-        if index.row() < 2:
-            self.listChanged.emit(index.row())
-        else:
-            self.listChanged.emit(2)
-            self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
-        self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
+        self.setItemDelegate(DataKeyViewDelegate(parent=self))
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
             self.hide()
             return
-        super(ListControlView, self).keyPressEvent(event)
+        super(DataKeyView, self).keyPressEvent(event)
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -706,10 +661,8 @@ class ListControlView(QtWidgets.QListView):
         height = 0
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
-            height += index.data(QtCore.Qt.SizeHintRole).height()
-        if height < 1:
-            height = (common.BOOKMARK_ROW_HEIGHT / 1.5) * 2
-        self.setFixedHeight(height + common.MARGIN)
+            height += self.itemDelegate().sizeHint(None, None).height()
+        self.setFixedHeight(height + 8) # hardcoded padding from stylesheet
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -745,7 +698,7 @@ class ListControlView(QtWidgets.QListView):
         self.hide()
 
 
-class ListControlModel(BaseModel):
+class DataKeyModel(BaseModel):
     """This model holds all the necessary data needed to display items to
     select for selecting the asset subfolders and/or bookmarks and assets.
 
@@ -753,9 +706,10 @@ class ListControlModel(BaseModel):
     via the signals and slots."""
 
     def __init__(self, parent=None):
-        super(ListControlModel, self).__init__(parent=parent)
+        super(DataKeyModel, self).__init__(parent=parent)
         self._bookmark = None
-        # Note: the asset is stored as `_active_item`
+
+        # Note: the asset is stored as the `_active_item`
         self._datakey = None
         self.modelDataResetRequested.connect(self.__resetdata__)
 
@@ -766,11 +720,13 @@ class ListControlModel(BaseModel):
 
     def data_key(self):
         return 'default'
+
     def data_type(self):
         return common.FileItem
 
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
+        # Empties the thread's queue
         ListInfoWorker.reset_queue()
 
         self._data[self.data_key()] = {
@@ -788,36 +744,21 @@ class ListControlModel(BaseModel):
         )
         data = self.model_data()
 
-        items = (
-            (u'Bookmarks', u'Show the list of available bookmarks', lambda c: ImageCache.get_rsc_pixmap(
-                'bookmark_sm', c, rowsize.height()).toImage()),
-            (u'Assets', u'Show the list of available assets', lambda c: ImageCache.get_rsc_pixmap(
-                'assets_sm', c, rowsize.height()).toImage()),
-        )
-
-        for item in items:
-            idx = len(data)
-            data[idx] = {
-                QtCore.Qt.DisplayRole: item[0],
-                QtCore.Qt.EditRole: item[0],
-                QtCore.Qt.StatusTipRole: item[1],
-                QtCore.Qt.ToolTipRole: item[1],
-                QtCore.Qt.SizeHintRole: rowsize,
-                #
-                common.DefaultThumbnailRole: item[2],
-                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                common.ThumbnailRole: item[2](common.TEXT),
-                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                #
-                common.FlagsRole: flags,
-                common.ParentRole: None,
-                #
-                common.StatusRole: False,
-                common.TodoCountRole: 0,
-            }
         if not self._parent_item:
             self.endResetModel()
             return
+
+        # Thumbnail image
+        default_thumbnail = ImageCache.instance().get_rsc_pixmap(
+            u'assets_sm',
+            common.SECONDARY_BACKGROUND,
+            (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
+        default_thumbnail = default_thumbnail.toImage()
+        thumbnail = ImageCache.instance().get_rsc_pixmap(
+            u'assets_sm',
+            common.SECONDARY_TEXT,
+            (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
+        thumbnail = thumbnail.toImage()
 
         parent_path = u'/'.join(self._parent_item)
         dir_ = QtCore.QDir(parent_path)
@@ -841,6 +782,11 @@ class ListControlModel(BaseModel):
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: description,
                 QtCore.Qt.SizeHintRole: secondary_rowsize,
+                #
+                common.DefaultThumbnailRole: thumbnail,
+                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.ThumbnailRole: thumbnail,
+                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
                 common.ParentRole: None,
@@ -873,33 +819,104 @@ class ListControlModel(BaseModel):
         self._datatype = datatype
 
 
-class ListControlButton(ClickableLabel):
+
+class BaseControlButton(ClickableLabel):
+
+    def __init__(self, parent=None):
+        super(BaseControlButton, self).__init__(parent=parent)
+        self._parent = None
+        self.index = 0
+
+        self.setMouseTracking(True)
+
+    def set_parent(self, widget):
+        self._parent = widget
+
+    def set_text(self, text):
+        self.setText(text.title())
+        metrics = QtGui.QFontMetrics(common.PrimaryFont)
+        width = metrics.width(self.text()) + common.INDICATOR_WIDTH
+        self.setFixedWidth(width)
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        if not self._parent:
+            painter.end()
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        if self._parent.currentIndex() == self.index:
+            color = common.TEXT_SELECTED if hover else common.TEXT
+        else:
+            color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
+
+        common.draw_aliased_text(
+            painter,
+            common.PrimaryFont,
+            self.rect(),
+            self.text(),
+            QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
+            color
+        )
+
+
+        if self._parent.currentIndex() == self.index:
+            metrics = QtGui.QFontMetrics(common.PrimaryFont)
+            rect = QtCore.QRect(self.rect())
+            center = rect.center()
+            rect.setHeight(3)
+            rect.moveCenter(center)
+            rect.moveTop(rect.top() + (metrics.height() / 2) + 3)
+            rect.setWidth(metrics.width(self.text()))
+            painter.setBrush(color)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRoundedRect(rect, 1, 1)
+
+
+        painter.end()
+
+
+
+class BookmarksButton(BaseControlButton):
+    def __init__(self, parent=None):
+        super(BookmarksButton, self).__init__(parent=parent)
+        self.index = 0
+        self.set_text(u'Bookmarks')
+
+
+class AssetsButton(BaseControlButton):
+    def __init__(self, parent=None):
+        super(AssetsButton, self).__init__(parent=parent)
+        self.index = 1
+        self.set_text(u'Assets')
+
+
+
+class FilesButton(BaseControlButton):
     """Drop-down widget to switch between the list"""
 
     def __init__(self, parent=None):
-        super(ListControlButton, self).__init__(parent=parent)
         self._view = None
+        super(FilesButton, self).__init__(parent=parent)
+        self.index = 2
+        self.set_text(u'Files')
 
-        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        self.setStyleSheet("""
-        QLabel {margin: 0px; padding: 0px}
-        """)
-        self.setFixedWidth(100)
         self.clicked.connect(self.show_view)
-
-        self.setText('Loading...')
 
     def view(self):
         return self._view
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        common.draw_aliased_text(
-            painter, common.PrimaryFont, self.rect(), self.text(), QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, common.TEXT)
-        painter.end()
 
     def set_view(self, widget):
         self._view = widget
@@ -920,35 +937,18 @@ class ListControlButton(ClickableLabel):
         common.move_widget_to_available_geo(self.view())
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
-    @QtCore.Slot(unicode)
-    def set_text(self, text):
-        s = self.view().parent().parent().stackedwidget
-        i = s.currentIndex()
-        if not text:
-            text = u'Bookmarks' if i == 0 else (
-                u'Assets' if i == 1 else s.currentWidget().model().sourceModel().data_key())
-        metrics = QtGui.QFontMetrics(common.PrimaryFont)
-
-        if not text:
-            text = u'Bookmarks'
-
-        self.setText(text.title())
-        width = metrics.width(self.text()) + 2
-        width = width if width > 80 else 80
-        self.setFixedWidth(width)
-        self.repaint()
-
-    def showPopup(self):
-        """Showing view."""
-
 
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the list to control the mode, filters and sorting."""
 
+    textChanged = QtCore.Signal(unicode)
+    listChanged = QtCore.Signal(int)
+    dataKeyChanged = QtCore.Signal(unicode)
+
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
         self._controlview = None
-        self._controlbutton = None
+        self._filesbutton = None
 
         self._createUI()
         self._connectSignals()
@@ -961,9 +961,11 @@ class ListControlWidget(QtWidgets.QWidget):
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
 
         # Control view/model/button
-        self._controlbutton = ListControlButton(parent=self)
-        self._controlview = ListControlView(parent=self)
-        self._controlbutton.set_view(self._controlview)
+        self._bookmarksbutton = BookmarksButton(parent=self)
+        self._assetsbutton = AssetsButton(parent=self)
+        self._filesbutton = FilesButton(parent=self)
+        self._controlview = DataKeyView(parent=self)
+        self._filesbutton.set_view(self._controlview)
 
         self._progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
@@ -975,7 +977,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self._custombutton = CustomButton(parent=self)
 
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.layout().addWidget(self._controlbutton)
+        self.layout().addWidget(self._bookmarksbutton)
+        self.layout().addWidget(self._assetsbutton)
+        self.layout().addWidget(self._filesbutton)
         self.layout().addStretch()
         self.layout().addWidget(self._progresslabel, 1)
         self.layout().addWidget(self._addbutton)
@@ -987,6 +991,12 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._custombutton)
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
+    @QtCore.Slot(QtCore.QModelIndex)
+    def signal_dispatcher(self, index):
+        self.listChanged.emit(2)
+        self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
+        self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
+
     def _connectSignals(self):
         pass
 
@@ -994,4 +1004,4 @@ class ListControlWidget(QtWidgets.QWidget):
         return self._controlview
 
     def control_button(self):
-        return self.findChild(ListControlButton)
+        return self.findChild(FilesButton)

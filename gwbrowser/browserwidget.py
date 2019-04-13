@@ -104,16 +104,10 @@ class BrowserWidget(QtWidgets.QWidget):
         # Switching stacked widget to saved index...
         idx = local_settings.value(u'widget/mode')
         idx = 0 if idx is None else idx
-        self.listcontrolwidget.control_view().listChanged.emit(idx)
-        if idx == 0:
-            index = self.listcontrolwidget.control_view().model().index(0, 0)
-            text = index.data(QtCore.Qt.DisplayRole)
-        if idx == 1:
-            index = self.listcontrolwidget.control_view().model().index(1, 0)
-            text = index.data(QtCore.Qt.DisplayRole)
+        self.listcontrolwidget.listChanged.emit(idx)
         if idx == 2:
             text = self.fileswidget.model().sourceModel().data_key()
-        self.listcontrolwidget.control_view().textChanged.emit(text)
+            self.listcontrolwidget.textChanged.emit(text.title())
 
         # Proxy model
         b = self.bookmarkswidget
@@ -262,8 +256,8 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().modelReset.connect(f.model().invalidateFilter)
 
 
-        # Bookmark/Asset/FileModel/View  ->  ListControlModel/View
-        # These connections are responsible for keeping the ListControlModel updated
+        # Bookmark/Asset/FileModel/View  ->  DataKeyModel/View
+        # These connections are responsible for keeping the DataKeyModel updated
         # when navigating the list widgets.
         b.model().sourceModel().modelReset.connect(
             l.model().modelDataResetRequested)
@@ -290,23 +284,20 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().modelReset.connect(lb.repaint)
         f.model().layoutChanged.connect(lb.repaint)
 
-        # Bookmark/Asset/FileModel/View  <-  ListControlModel/View
+        # Bookmark/Asset/FileModel/View  <-  DataKeyModel/View
         # These are the signals responsible for changing the active items & data keys.
-        l.textChanged.connect(lb.set_text)
-        l.listChanged.connect(s.setCurrentIndex)
-        l.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
-        l.dataKeyChanged.connect(l.textChanged)
-        f.model().sourceModel().dataKeyChanged.connect(l.textChanged)
-
-        l.listChanged.connect(lambda i: l.textChanged.emit(
-            u'Bookmarks' if i == 0 else (
-                u'Assets' if i == 1 else f.model().sourceModel().data_key())))
+        lc.textChanged.connect(lb.set_text)
+        lc.listChanged.connect(s.setCurrentIndex)
+        lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
+        lc.dataKeyChanged.connect(lc.textChanged)
+        f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
 
         # Stacked widget navigation
-        b.activated.connect(lambda: l.listChanged.emit(1))
-        b.activated.connect(lambda: l.textChanged.emit(u'Assets'))
-        a.activated.connect(lambda: l.listChanged.emit(2))
-        a.activated.connect(lambda: l.textChanged.emit(f.model().sourceModel().data_key()))
+        b.activated.connect(lambda: lc.listChanged.emit(1))
+        # b.activated.connect(lambda: lc.textChanged.emit(u'Assets'))
+        a.activated.connect(lambda: lc.listChanged.emit(2))
+        a.activated.connect(
+            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else None)
 
         # Statusbar
         b.entered.connect(self.entered)
@@ -314,6 +305,9 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
+        lc._bookmarksbutton.set_parent(self.stackedwidget)
+        lc._assetsbutton.set_parent(self.stackedwidget)
+        lc._filesbutton.set_parent(self.stackedwidget)
         lc._addbutton.set_parent(self.stackedwidget)
         lc._archivedbutton.set_parent(self.stackedwidget)
 
@@ -323,14 +317,31 @@ class BrowserWidget(QtWidgets.QWidget):
         lc._archivedbutton.set_parent(self.stackedwidget)
         lc._favouritebutton.set_parent(self.stackedwidget)
 
+        # Controlbutton text should be invisible when there's no active asset set
+        b.model().sourceModel().activeChanged.connect(
+            lambda x: lc.textChanged.emit(u''))
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: self.fileswidget.model().sourceModel().data_key())
+
+        lc._bookmarksbutton.clicked.connect(lambda: lc.listChanged.emit(0))
+        lc._assetsbutton.clicked.connect(lambda: lc.listChanged.emit(1))
+        lc._filesbutton.clicked.connect(lambda: lc.listChanged.emit(2))
+
         # Updates the list-control buttons when changing lists
-        l.listChanged.connect(lambda x: lb.repaint())
-        l.listChanged.connect(lambda x: lc._addbutton.repaint())
-        l.listChanged.connect(lambda x: lc._todobutton.repaint())
-        l.listChanged.connect(lambda x: lc._filterbutton.repaint())
-        l.listChanged.connect(lambda x: lc._collapsebutton.repaint())
-        l.listChanged.connect(lambda x: lc._archivedbutton.repaint())
-        l.listChanged.connect(lambda x: lc._favouritebutton.repaint())
+        lc.listChanged.connect(lambda x: lb.repaint())
+        lc.listChanged.connect(lambda x: lc._bookmarksbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._assetsbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._filesbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._addbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._todobutton.repaint())
+        lc.listChanged.connect(lambda x: lc._filterbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._collapsebutton.repaint())
+        lc.listChanged.connect(lambda x: lc._archivedbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._favouritebutton.repaint())
+
+        s.currentChanged.connect(lambda x: lc._bookmarksbutton.repaint())
+        s.currentChanged.connect(lambda x: lc._assetsbutton.repaint())
+        s.currentChanged.connect(lambda x: lc._filesbutton.repaint())
 
         f.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
         b.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
@@ -379,23 +390,23 @@ class BrowserWidget(QtWidgets.QWidget):
         b.activated.connect(
             lambda x: active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
         active_monitor.activeBookmarkChanged.connect(b.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeBookmarkChanged.connect(lambda: l.listChanged.emit(1))
+        active_monitor.activeBookmarkChanged.connect(lambda: lc.listChanged.emit(1))
 
         a.activated.connect(
             lambda x: active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
         active_monitor.activeAssetChanged.connect(a.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeAssetChanged.connect(lambda: l.listChanged.emit(1))
+        active_monitor.activeAssetChanged.connect(lambda: lc.listChanged.emit(1))
 
         f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
-        l.dataKeyChanged.connect(f.save_data_key)
+        lc.dataKeyChanged.connect(f.save_data_key)
 
         f.model().sourceModel().dataKeyChanged.connect(
             lambda x: active_monitor.save_state(u'location', x))
-        l.dataKeyChanged.connect(
+        lc.dataKeyChanged.connect(
             lambda x: active_monitor.save_state(u'location', x))
 
-        active_monitor.activeLocationChanged.connect(l.dataKeyChanged)
-        active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2) if x else l.listChanged.emit(1))
+        active_monitor.activeLocationChanged.connect(lc.dataKeyChanged)
+        active_monitor.activeLocationChanged.connect(lambda x: lc.listChanged.emit(2) if x else lc.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
 
         # Progresslabel
@@ -427,7 +438,7 @@ class BrowserWidget(QtWidgets.QWidget):
             shortcut.setAutoRepeat(False)
             shortcut.setContext(QtCore.Qt.WindowShortcut)
             shortcut.activated.connect(
-                functools.partial(self.listcontrolwidget.control_view().listChanged.emit, n))
+                functools.partial(self.listcontrolwidget.listChanged.emit, n))
 
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+F'), self)
@@ -477,7 +488,14 @@ class BrowserWidget(QtWidgets.QWidget):
 
         painter.end()
 
+    @QtCore.Slot(QtCore.QModelIndex)
     def entered(self, index):
+        """Custom itemEntered signal."""
+        message = index.data(QtCore.Qt.StatusTipRole)
+        self.statusbar.showMessage(message, timeout=1500)
+
+    @QtCore.Slot(unicode)
+    def entered2(self, index):
         """Custom itemEntered signal."""
         message = index.data(QtCore.Qt.StatusTipRole)
         self.statusbar.showMessage(message, timeout=1500)

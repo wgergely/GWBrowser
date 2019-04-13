@@ -153,10 +153,20 @@ class BookmarksModel(BaseModel):
         items = [BookmarkInfo(items[k]) for k in items]
         items = sorted(items, key=lambda x: x.filePath())
 
-        default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
-        default_thumbnail_image = ImageCache.instance().get(
-            default_thumbnail_path, rowsize.height() - 2)
-        default_background_color = QtGui.QColor(0, 0, 0, 0)
+
+        thumbcolor = QtGui.QColor(common.SEPARATOR)
+        thumbcolor.setAlpha(100)
+        default_thumbnail_image = ImageCache.instance().get_rsc_pixmap(
+            u'bookmark_sm',
+            thumbcolor,
+            common.BOOKMARK_ROW_HEIGHT - 2)
+        default_thumbnail_image = default_thumbnail_image.toImage()
+
+
+        # default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        # default_thumbnail_image = ImageCache.instance().get(
+        #     default_thumbnail_path, rowsize.height() - 2)
+        default_background_color = QtGui.QColor(0, 0, 0, 55)
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists

@@ -161,28 +161,6 @@ QComboBox::drop-down:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 
-ListControlButton {{
-	font-size: 10pt;
-	text-align: left;
-	margin: 0px;
-	padding: 0px;
-	color: rgba({TEXT});
-	background-color: rgba(0,0,0,0);
-	/* border-bottom: 3px solid rgba({SECONDARY_TEXT}); */
-}}
-ListControlButton:active {{
-	background-color: rgba(0,0,0,0);
-	color: rgb({TEXT_SELECTED});
-	/* border-bottom: 3px solid rgba({TEXT_SELECTED}); */
-}}
-ListControlButton:hover {{
-	background-color: rgba(0,0,0,0);
-	color: rgb({TEXT_SELECTED});
-}}
-ListControlButton:focus {{
-	background-color: rgba(0,0,0,0);
-}}
-
 QLineEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
@@ -264,9 +242,9 @@ QListWidget::item:selected {{
 QListView {{
 	background: rgba({SECONDARY_BACKGROUND});
 }}
-ListControlView {{
-	margin:0px;
-	padding: 9px;
+DataKeyView {{
+	margin: 0px;
+	padding: 0px 4px 4px 4px;
 	background: rgba({SEPARATOR});
 }}
 

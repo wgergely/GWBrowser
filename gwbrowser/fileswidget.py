@@ -166,7 +166,7 @@ class FileInfoWorker(BaseWorker):
         height = data[QtCore.Qt.SizeHintRole].height() - 2
         def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
-        placeholder_color = QtGui.QColor(0, 0, 0, 0)
+        placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
             placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), height)
@@ -309,7 +309,7 @@ class FilesModel(BaseModel):
             itdir, flags=QtCore.QDirIterator.Subdirectories)
 
         def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
-        placeholder_color = QtGui.QColor(0,0,0,0)
+        placeholder_color = QtGui.QColor(0,0,0,55)
 
         while it.hasNext():
             filepath = it.next()

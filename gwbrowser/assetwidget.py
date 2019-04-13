@@ -95,7 +95,7 @@ class AssetModel(BaseModel):
         default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
         default_thumbnail_image = ImageCache.instance().get(
             default_thumbnail_path, rowsize.height() - 2)
-        default_background_color = QtGui.QColor(0, 0, 0, 0)
+        default_background_color = QtGui.QColor(0, 0, 0, 55)
 
         while it.hasNext():
             filepath = it.next()
