@@ -20,7 +20,7 @@ Global Variables
     root of the ``asset`` folder.
 
 Sequence-recognition
-    The regexes we're using to validate file-names are aslo defined here.
+    The regexes we're` using to validate file-names are aslo defined here.
     `get_sequence` is the regex method that checks if a filename can be incremented.
     For instance, it will understand sequences with the `v` prefix, eg v001, v002,
     but works without the prefix as well. Eg. 001, 002.
@@ -255,14 +255,14 @@ def _add_custom_fonts():
     )
     d.setNameFilters((u'*.ttf',))
 
-    font_families = []
+    # font_families = []
     for f in d.entryInfoList(
         QtCore.QDir.Files |
         QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
-        font_families.append(
-            QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+        # font_families.append(
+            # QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
 
 
 def set_custom_stylesheet(widget):
