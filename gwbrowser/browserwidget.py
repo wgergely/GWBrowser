@@ -306,8 +306,15 @@ class BrowserWidget(QtWidgets.QWidget):
         b.activated.connect(lambda: lc.listChanged.emit(1))
         # b.activated.connect(lambda: lc.textChanged.emit(u'Assets'))
         a.activated.connect(lambda: lc.listChanged.emit(2))
+
+        b.activated.connect(
+            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        b.model().sourceModel().activeChanged.connect(
+            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
         a.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else None)
+            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
 
         # Statusbar
         b.entered.connect(self.entered)
@@ -329,7 +336,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Controlbutton text should be invisible when there's no active asset set
         b.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(u''))
+            lambda x: lc.textChanged.emit(u'Files'))
         a.model().sourceModel().activeChanged.connect(
             lambda x: self.fileswidget.model().sourceModel().data_key())
 
