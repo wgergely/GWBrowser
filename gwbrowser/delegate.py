@@ -93,7 +93,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Vertical
         center = rect.center()
-        rect.setHeight(size)
+        rect.setHeight(int(size))
         rect.moveCenter(center)
         # Horizontal
         rect.setLeft(rect.right() - size)
@@ -103,10 +103,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             rect.moveRight(
                 rect.right() - common.INDICATOR_WIDTH - size - (common.INDICATOR_WIDTH * 2))
 
+        rect.setWidth(int(size))
+        center = rect.center()
+
         # Background
         size = max(rect.width(), rect.height())
         bg_rect = QtCore.QRect(rect)
-        center = rect.center()
+        # center = rect.center()
         bg_rect.setWidth(size + int(common.INDICATOR_WIDTH * 1.5))
         bg_rect.setHeight(size + int(common.INDICATOR_WIDTH * 1.5))
         bg_rect.moveCenter(center)
@@ -588,19 +591,16 @@ class BookmarksWidgetDelegate(BaseDelegate):
             t1, t2 = _text.split(u'|')
         else:
             t1, t2 = text_.split(u'|')
-        color = QtGui.QColor(common.TEXT)
-        color.setAlpha(200)
 
+        color = common.TEXT_SELECTED if selected else common.TEXT
         width = common.draw_aliased_text(
-            painter, font, rect, t1, QtCore.Qt.AlignLeft, common.TEXT)
+            painter, font, rect, t1, QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
 
 
         width = common.draw_aliased_text(
             painter, font, rect, u'|', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
         rect.setLeft(rect.left() + width)
-        if not _text:
-            color = common.TEXT
         width = common.draw_aliased_text(
             painter, font, rect, t2, QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
@@ -613,10 +613,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
             text_ = '{}'.format(text_)
 
             width = common.draw_aliased_text(
-                painter, font, rect, text_, QtCore.Qt.AlignLeft, common.TEXT)
+                painter, font, rect, text_, QtCore.Qt.AlignLeft, color)
 
 
-        color = self.get_state_color(option, index, common.TEXT)
         rect.moveLeft(rect.right() + common.MARGIN)
 
         text = index.data(common.DescriptionRole)
@@ -629,7 +628,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-        color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
         font.setPointSize(9)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, color)
@@ -637,7 +635,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_count_icon(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _ = args
         # Count
         if option.rect.width() < 360.0:
             return
@@ -647,15 +645,21 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
 
-        color = QtGui.QColor(common.FAVOURITE)
-        color.setAlpha(150)
+        w = float(bg_rect.width() - 4)
+        bg_rect.setHeight(w)
+        bg_rect.setWidth(w)
+        bg_rect.moveCenter(rect.center())
+
+        color = QtGui.QColor(common.TEXT_SELECTED) if selected else QtGui.QColor(common.FAVOURITE)
+        color.setAlpha(175)
+
         if count:
-            # pen = QtGui.QPen(color)
-            # pen.setWidth(2)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(color)
+            pen = QtGui.QPen(color)
+            pen.setWidth(2)
+            painter.setPen(pen)
+            painter.setBrush(QtCore.Qt.NoBrush)
             painter.drawRoundedRect(
-                bg_rect, int(bg_rect.height() / 2.0), (bg_rect.height() / 2.0))
+                bg_rect, float(bg_rect.height() / 2.0), float(bg_rect.height() / 2.0))
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(8)
@@ -861,7 +865,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Resizing the height and Centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(metrics.height())
+        rect.setHeight(metrics.height() + common.INDICATOR_WIDTH)
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         modes = index.data(common.ParentRole)[-1]
@@ -873,12 +877,13 @@ class FilesWidgetDelegate(BaseDelegate):
         if option.rect.width() < 360.0:
             return rect.right()
 
+        max_depth = 4
         padding = common.INDICATOR_WIDTH
         for n, text in enumerate(modes):
-            if n > 3:  # Not painting folders deeper than this...
+            if n > max_depth:  # Not painting folders deeper than this...
                 return rect.right() - common.MARGIN
 
-            if n == 3:
+            if n == max_depth:
                 text = u'...'
             else:
                 text = u'{}'.format(text.upper())
@@ -889,18 +894,18 @@ class FilesWidgetDelegate(BaseDelegate):
                 bg_color = QtGui.QColor(85, 85, 85)
 
             pen = QtGui.QPen(bg_color)
-            pen.setWidth(padding)
+            pen.setWidth(common.INDICATOR_WIDTH)
             painter.setPen(pen)
             painter.setBrush(QtGui.QBrush(bg_color))
 
-            rect.setWidth(metrics.width(text) + (padding * 2))
-            # rect.moveLeft(rect.left() + (padding * 3))
-            painter.drawRoundedRect(rect, 1.0, 1.0)
+            rect.setWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
+            # rect.moveLeft(rect.left() + (common.INDICATOR_WIDTH * 3))
+            painter.drawRoundedRect(rect, 3.0, 3.0)
 
             if n == 0:
                 color = QtGui.QColor(common.TEXT)
                 color = common.TEXT_SELECTED if selected else color
-            elif n == 3:
+            elif n == max_depth:
                 color = QtGui.QColor(common.TEXT_DISABLED)
             else:
                 color = QtGui.QColor(common.SECONDARY_TEXT)
@@ -911,7 +916,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
             if len(modes) - 1 == n:
                 return rect.right()
-            rect.moveLeft(rect.right() + padding + common.INDICATOR_WIDTH)
+            rect.moveLeft(rect.right() + (common.INDICATOR_WIDTH * 2))
 
     @paintmethod
     def paint_name(self, *args, **kwargs):

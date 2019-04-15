@@ -114,7 +114,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setDocumentMargin(common.MARGIN * 2)
+        self.document().setDocumentMargin(common.MARGIN)
         # option
         option = QtGui.QTextOption()
         option.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
@@ -170,7 +170,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         """Returns the desired minimum height of the editor."""
         margins = self.contentsMargins()
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = (metrics.height() + metrics.leading()) * 4  # Lines tall
+        line_height = (metrics.height() + metrics.leading()) * 1  # Lines tall
         return line_height + margins.top() + margins.bottom()
 
     def get_maxHeight(self):
@@ -328,7 +328,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """The drag operation is initiated here."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        app = QtCore.QApplication.instance()
+        app = QtWidgets.QApplication.instance()
         left_button = event.buttons() & QtCore.Qt.LeftButton
         if not left_button:
             return
@@ -782,6 +782,11 @@ class TodoEditorWidget(QtWidgets.QWidget):
             editor = item.findChild(TodoItemEditor)
             checkbox = item.findChild(CheckBoxButton)
             if editor.hasFocus():
+                if not editor.document().toPlainText():
+                    idx = self.editors.items.index(editor.parent())
+                    row = self.editors.items.pop(idx)
+                    self.editors.layout().removeWidget(row)
+                    row.deleteLater()
                 checkbox.clicked.emit(not checkbox.checked)
                 break
 
@@ -857,6 +862,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         item.layout().addWidget(checkbox)
         item.layout().addWidget(drag)
+        item.layout().addSpacing(20)
         item.layout().addWidget(editor, 1)
 
         item.effect = QtWidgets.QGraphicsOpacityEffect(item)

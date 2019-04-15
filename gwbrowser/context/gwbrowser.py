@@ -46,9 +46,6 @@ Credits:
 import sys
 
 
-__version__ = u'0.1.32'
-
-
 def maya_useNewAPI():
     """
     The presence of this function tells Maya that the plugin produces, and
@@ -66,8 +63,16 @@ def initializePlugin(plugin):
 
     sys.path.append(r'\\sloth\3d_share\GWBrowser\python\Lib\site-packages')
 
-    pluginFn = OpenMaya.MFnPlugin(
-        plugin, vendor='Gergely Wootsch', version=__version__)
+    try:
+        import gwbrowser
+        pluginFn = OpenMaya.MFnPlugin(
+            plugin, vendor='Gergely Wootsch', version=gwbrowser.__version__)
+    except ImportError as err:
+        errStr = '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
+        errStr += '# Browser: Make sure the "gwbrowser" python module has been added to Maya\'s python path.\n'
+        errStr += '# Browser: {}'.format(err)
+        raise ImportError(errStr)
+
 
     try:
         from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
@@ -77,7 +82,7 @@ def initializePlugin(plugin):
     except ImportError as err:
         sys.stderr.write(err)
         errStr = '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
-        errStr += '# Browser: Make sure the "browser" python module has been added to Maya\'s python path.\n'
+        errStr += '# Browser: Make sure the "gwbrowser" python module has been added to Maya\'s python path.\n'
         errStr += '# Browser: {}'.format(err)
         raise ImportError(errStr)
     except Exception as err:

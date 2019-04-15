@@ -272,8 +272,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
         local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
 
-        # pos = self.mapToGlobal(self.rect().topLeft())
-        pos = QtCore.QPoint(x, y)
+        pos = self.mapToGlobal(self.rect().topLeft())
+        # pos = QtCore.QPoint(pos)
         local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
         local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
 
@@ -317,7 +317,10 @@ class StandaloneApp(QtWidgets.QApplication):
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
         self.setApplicationName(u'Browser')
-        self.setApplicationVersion(u'0.1.32')
+
+        import gwbrowser
+        self.setApplicationVersion(gwbrowser.__version__)
+
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))

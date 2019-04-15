@@ -610,7 +610,7 @@ class DataKeyViewDelegate(BaseDelegate):
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
-        if hover:
+        if hover or selected:
             text = u'  {}'.format(index.data(QtCore.Qt.ToolTipRole))
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
             color = common.TEXT_SELECTED if hover else color
@@ -921,6 +921,18 @@ class FilesButton(BaseControlButton):
     def show_view(self):
         if not self.view():
             return
+
+        s = self.view().parent().parent().stackedwidget
+        if s.currentIndex() != 2:
+            return
+        key = s.currentWidget().model().sourceModel().data_key()
+        if key:
+            for n in xrange(self.view().model().rowCount()):
+                index = self.view().model().index(n, 0)
+                if key.lower() == index.data(QtCore.Qt.DisplayRole).lower():
+                    self.view().selectionModel().setCurrentIndex(
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
+
         pos = self.view().parent().mapToGlobal(self.view().parent().rect().bottomLeft())
         self.view().move(
             pos.x(),
@@ -932,6 +944,7 @@ class FilesButton(BaseControlButton):
         self.view().raise_()
         common.move_widget_to_available_geo(self.view())
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
+
 
 
 class ListControlWidget(QtWidgets.QWidget):

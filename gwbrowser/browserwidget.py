@@ -19,6 +19,8 @@ and ```collector.FilesCollector`` classes. The gathered files then are displayed
 in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` items.
 
 """
+
+
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -204,6 +206,14 @@ class BrowserWidget(QtWidgets.QWidget):
         if grip:
             grip.deleteLater()
         grip = SizeGrip(self)
+
+        # Small label to display the current version number
+        import gwbrowser
+        version_label = QtWidgets.QLabel()
+        version_label.setText(
+            u'<font color=gray size=9pt>{}</font>'.format(gwbrowser.__version__))
+        self.statusbar.addPermanentWidget(version_label)
+
         self.statusbar.addPermanentWidget(grip)
 
         self.layout().addWidget(self.listcontrolwidget)
@@ -464,7 +474,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 3, 3)
+        painter.drawRoundedRect(rect, 7, 7)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)
