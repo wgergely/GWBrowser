@@ -1,8 +1,6 @@
-import sys
-sys.path.insert(0, r'C:\dev\gwbrowser')
-
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, E0401
+
 """Maya wrapper for the BrowserWidget."""
 
 
@@ -311,12 +309,17 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         height = sizehint.height() - 2
         ImageCache.get(settings.thumbnail_path(), height, overwrite=True)
 
-    def _get_saver_for_objectset(self, ext, key, location):
+    def _get_saver_for_objectset(self, ext, key, subfolder):
         """Returns a saver instance after checked for existing versions."""
         # Creating the saver with no current file set will generate a new filename
         # we can use to query the exports folder
-        saver = SaverWidget(u'{}'.format(ext), '{}'.format(
-            location), currentfile=None)
+        saver = SaverWidget(
+            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            ext,
+            subfolder,
+            currentfile=None
+        )
         saver.findChild(Custom).setText(key)  # Setting the group name
 
         # Proposed filename - we're going to check in a bit if newer versions
@@ -329,9 +332,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         if not dir_.exists():
             raise RuntimeError(
                 'The export destination path {} does not exist.'.format(dir_.path()))
+
         # Let's check if the current name is a sequence
         current_filename_match = common.get_sequence(file_info.fileName())
         path = file_info.fileName()
+
         if current_filename_match:  # sequence
             versions = []
 
@@ -360,7 +365,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 path = current_filename_match.expand(
                     r'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
 
-        saver = SaverWidget(u'{}'.format(ext), location, currentfile=path)
+        saver = SaverWidget(
+            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            ext,
+            location,
+            currentfile=path
+        )
         return saver
 
     def init_obj_export(self, key, value):
@@ -548,14 +559,30 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
-        saver = SaverWidget(u'ma', common.ScenesFolder, currentfile=currentfile)
+        data_key = self.findChild(Browserwidget).fileswidget.model().sourceModel().data_key()
+        subfolder = common.ScenesFolder
+
+        if currentfile and data_key:
+            subfolder = currentfile.split(data_key).pop()
+            subfolder = subfolder.split(u'/')
+            subfolder.pop()
+            subfolder = u'/'.join(subfolder).strip(u'/')
+        subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
+
+        saver = SaverWidget(
+            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            u'ma',
+            subfolder,
+            currentfile=currentfile
+        )
 
         saver.fileSaveRequested.connect(fileSaveRequested)
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
 
-        self.findChild(FilesWidget).model().sourceModel().modelDataResetRequested.emit()
+        self.fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
     def open_scene(self, path):
         """Opens the given scene."""

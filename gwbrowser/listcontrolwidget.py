@@ -520,9 +520,10 @@ class AddButton(ControlButton):
             bookmark_model = BookmarksModel()
             asset_model = AssetModel()
 
-            extension = u'ext'
+            extension = u'ext' # This is a generic extension that can be overriden
             currentfile = None
-            location = self.current().model().sourceModel().data_key()
+            data_key = self.current().model().sourceModel().data_key()
+            subfolder = u'/'
 
             if index.isValid():
                 if not index.data(common.StatusRole):
@@ -538,13 +539,21 @@ class AddButton(ControlButton):
                     currentfile = common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
                 extension = currentfile.split(u'.').pop()
 
-            currentfile = QtCore.QFileInfo(currentfile).fileName()
-
+            # If both the currentfile and the data_key are valid we'll set
+            # the default location to be the subfolder of the current file.
+            # This is a
+            if currentfile and data_key:
+                subfolder = currentfile.split(data_key).pop()
+                subfolder = subfolder.split(u'/')
+                subfolder.pop()
+                subfolder = u'/'.join(subfolder).strip(u'/')
+            subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
+            #
             widget = saver.SaverWidget(
                 bookmark_model,
                 asset_model,
                 extension,
-                location,
+                subfolder, # location is the subfolder
                 currentfile=currentfile
             )
 
