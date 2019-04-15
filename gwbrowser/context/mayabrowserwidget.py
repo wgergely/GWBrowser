@@ -25,8 +25,13 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.browserwidget import BrowserWidget, ListControlWidget
 from gwbrowser.listcontrolwidget import BrowserButton
+
+from gwbrowser.bookmarkswidget import BookmarksModel
+from gwbrowser.assetwidget import AssetModel
+
 from gwbrowser.assetwidget import AssetWidget
 from gwbrowser.fileswidget import FilesWidget
+
 from gwbrowser.settings import local_settings
 from gwbrowser.saver import SaverWidget, SaverFileInfo, Custom
 from gwbrowser.context.mayaexporter import BaseExporter, AlembicExport
@@ -314,8 +319,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         # Creating the saver with no current file set will generate a new filename
         # we can use to query the exports folder
         saver = SaverWidget(
-            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
+            BookmarksModel(),
+            AssetModel(),
             ext,
             subfolder,
             currentfile=None
@@ -366,8 +371,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                     r'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
 
         saver = SaverWidget(
-            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
+            BookmarksModel(),
+            AssetModel(),
             ext,
             location,
             currentfile=path
@@ -564,8 +569,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
 
         saver = SaverWidget(
-            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
+            BookmarksModel(),
+            AssetModel(),
             u'ma',
             subfolder,
             currentfile=currentfile
