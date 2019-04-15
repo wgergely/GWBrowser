@@ -462,6 +462,16 @@ class SaverWidget(QtWidgets.QDialog):
     def set_extension(self, ext):
         self.extension = ext
 
+    @QtCore.Slot(unicode)
+    def set_location(self, filepath):
+        if not filepath:
+            return
+
+        filepath = filepath.split(u'/')
+        filepath = filepath[-1] # settings the immediate parent-folder as location
+
+        self.location = filepath
+
     def contextMenuEvent(self, event):
         menu = SaverContextMenu(parent=self)
         pos = self.rect().center()
@@ -642,6 +652,8 @@ class SaverWidget(QtWidgets.QDialog):
         f.model().fileTypeChanged.connect(lambda x: self.update_filename_display())
 
         f.model().destinationChanged.connect(f.model().set_destination)
+        f.model().destinationChanged.connect( # Passing the filepath
+            lambda x: self.set_location(f.model().filePath(x)))
         f.model().destinationChanged.connect(lambda x: self.update_filepath_display())
         f.model().destinationChanged.connect(lambda x: self.update_filename_display())
 
@@ -800,7 +812,7 @@ class SaverWidget(QtWidgets.QDialog):
         if self.currentfile and not match:
             self.findChild(Prefix).setText(file_info.completeBaseName())
             self.findChild(Suffix).setText(
-                '.{}'.format(file_info.completeSuffix()))
+                '.{}'.format(file_info.suffix()))
         elif self.currentfile and match:
             prefix, suffix = self.prefix_suffix(match, increment=True)
             self.findChild(Prefix).setText(prefix)

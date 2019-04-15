@@ -235,7 +235,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
 
         if suffix in common._exports_formats:
             location = common.ExportsFolder
-            destination = '/'.join(parent + [common.ExportsFolder, suffix])
+            destination = u'/'.join(parent + [common.ExportsFolder, suffix])
             destination_dir = QtCore.QDir(destination)
             if not destination_dir.exists():
                 if not self.create_folder(location, suffix, destination_dir):
@@ -243,14 +243,14 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
             index = self.index(destination)
         elif suffix in (list(common._scene_formats) + list(common._creative_cloud_formats)):
             location = common.ScenesFolder
-            destination = '/'.join(parent + [common.ScenesFolder])
+            destination = u'/'.join(parent + [common.ScenesFolder])
             destination_dir = QtCore.QDir(destination)
             if not destination_dir.exists():
                 if not self.create_folder(location, suffix, destination_dir):
                     return
             index = self.index(destination)
         else:
-            destination = '/'.join(parent)
+            destination = u'/'.join(parent)
             index = self.index(destination)
         if index.isValid():
             self.destinationChanged.emit(index)

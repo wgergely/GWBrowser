@@ -566,7 +566,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             subfolder = subfolder.split(u'/')
             subfolder.pop()
             subfolder = u'/'.join(subfolder).strip(u'/')
-        subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
+
+        if data_key == subfolder:
+            subfolder = data_key
+        else:
+            subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
 
         saver = SaverWidget(
             BookmarksModel(),
@@ -580,8 +584,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
-
-        self.fileswidget.model().sourceModel().modelDataResetRequested.emit()
+        self.findChild(BrowserWidget).fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
     def open_scene(self, path):
         """Opens the given scene."""
