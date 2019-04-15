@@ -314,8 +314,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         # Creating the saver with no current file set will generate a new filename
         # we can use to query the exports folder
         saver = SaverWidget(
-            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
             ext,
             subfolder,
             currentfile=None
@@ -366,8 +366,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                     r'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
 
         saver = SaverWidget(
-            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
             ext,
             location,
             currentfile=path
@@ -521,14 +521,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         cls = self.__class__.__name__
         kwargs = {
             u'dockable': True,
-            # u'floating': isFloating if isFloating else True,
-            # u'area': None,
             u'allowedArea': None,
-            # u'minWidth': 200,
-            # u'widthSizingProperty': None,
-            # u'heightSizingProperty': None,
             u'retain': True,
-            # u'closeCallback': None
         }
         super(MayaBrowserWidget, self).show(**kwargs)
 
@@ -559,7 +553,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
-        data_key = self.findChild(Browserwidget).fileswidget.model().sourceModel().data_key()
+        data_key = self.findChild(BrowserWidget).fileswidget.model().sourceModel().data_key()
         subfolder = common.ScenesFolder
 
         if currentfile and data_key:
@@ -570,8 +564,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
 
         saver = SaverWidget(
-            self.findChild(Browserwidget).bookmarkswidget.model().sourceModel(),
-            self.findChild(Browserwidget).assetswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).bookmarkswidget.model().sourceModel(),
+            self.findChild(BrowserWidget).assetswidget.model().sourceModel(),
             u'ma',
             subfolder,
             currentfile=currentfile
@@ -768,43 +762,3 @@ class MayaBrowserButton(BrowserButton):
         except Exception as err:
             sys.stdout.write(
                 '# Browser: Could not show widget:\n{}\n'.format(err))
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    import maya.standalone
-    import maya.mel
-    import maya.cmds
-
-    os.environ['PYMEL_SKIP_MEL_INIT'] = '0'
-    os.environ['MAYA_SKIP_USERSETUP_PY'] = '0'
-
-    # def load_plugins():
-    #     MEL_SCRIPTS = ('createPreferencesOptVars.mel',
-    #                    'createGlobalOptVars.mel',
-    #                    'initialPlugins.mel',
-    #                    'namedCommandSetup.mel',)
-    #     for script in MEL_SCRIPTS:
-    #         cmds.evalDeferred(lambda script: maya.mel.eval(
-    #             'source "{}"'.format(script)))
-
-        # dir_ = QtCore.QDir(r'C:\dev\PyMaya2018\plug-ins')
-        # dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        # dir_.setNameFilters(('*.mll',))
-        # for plugin in dir_.entryInfoList():
-        #     maya.cmds.loadPlugin(plugin.completeBaseName(), quiet=True)
-        # maya.cmds.loadPlugin('mtoa', quiet=True)
-
-    maya.standalone.initialize(name='python')
-    # load_plugins()
-
-    widget = MayaBrowserWidget()
-    widget.show()
-    # path = r'\\gordo\jobs\tkwwbk_8077\films\prologue\shots\sh_210\scenes\animation\_sh_210_v012.ma'
-    # cmds.file(QtCore.QFileInfo(path).filePath(), open=True, force=True)
-
-    sys.stdout.write('\n# Opening scene...\n\n')
-    # cmds.evalDeferred(lambda: widget.show())
-
-    # maya.standalone.uninitialize()
-    app.exec_()

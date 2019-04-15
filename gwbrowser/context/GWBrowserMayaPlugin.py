@@ -63,33 +63,24 @@ def initializePlugin(plugin):
 
     sys.path.append(r'\\sloth\3d_share\GWBrowser\python\Lib\site-packages')
 
-    try:
-        import gwbrowser
-        pluginFn = OpenMaya.MFnPlugin(
-            plugin, vendor='Gergely Wootsch', version=gwbrowser.__version__)
-    except ImportError as err:
-        errStr = '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
-        errStr += '# Browser: Make sure the "gwbrowser" python module has been added to Maya\'s python path.\n'
-        errStr += '# Browser: {}'.format(err)
-        raise ImportError(errStr)
-
+    pluginFn = OpenMaya.MFnPlugin(
+        plugin, vendor='Gergely Wootsch', version=u'0.1.41')
 
     try:
         from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
         btn = MayaBrowserButton()
         cmds.evalDeferred(btn.initialize)
-        sys.stdout.write('\n\n# Browser: Plugin loaded.\n\n')
+        sys.stdout.write('\n\n# GWBrowser: Plugin loaded.\n\n')
     except ImportError as err:
         sys.stderr.write(err)
-        errStr = '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
-        errStr += '# Browser: Make sure the "gwbrowser" python module has been added to Maya\'s python path.\n'
-        errStr += '# Browser: {}'.format(err)
+        errStr = '# GWBrowser: Unable to import the "MayaBrowserButton" from the "gwbrowser" module.\n'
+        errStr += '# GWBrowser: Make sure the "gwbrowser" python module has been added to Maya\'s python path.\n'
+        errStr += '# GWBrowser: {}'.format(err)
         raise ImportError(errStr)
     except Exception as err:
         errStr = '# Borwser plug-in load error:\n\n{}\n'.format(err)
         sys.stderr.write(errStr)
-        errStr += '# Browser: Unable to import the "mayabrowser" from the "browser" module.\n'
-        errStr += '# Browser: {}\n'.format(err)
+        errStr += '# GWBrowser: {}\n'.format(err)
         raise Exception(err)
 
 
@@ -113,7 +104,7 @@ def uninitializePlugin(plugin):
         widget = widget.findChild(MayaBrowserButton)
         widget.deleteLater()
     except Exception as err:
-        sys.stdout.write('# Browser: Failed to delete the tool button.\n')
+        sys.stdout.write('# GWBrowser: Failed to delete the tool button.\n')
 
     app = QtWidgets.QApplication.instance()
     try:
@@ -128,14 +119,14 @@ def uninitializePlugin(plugin):
                 widget.deleteLater()
                 continue
     except Exception as err:
-        sys.stdout.write('# Browser: Failed to delete the Browser window.\n')
+        sys.stdout.write('# GWBrowser: Failed to delete the Browser window.\n')
 
     try:
         for k in mixinWorkspaceControls.items():
             if u'MayaBrowserWidget' in k:
                 del mixinWorkspaceControls[k]
     except Exception as err:
-        sys.stdout.write('# Browser: Failed to delete the workspace control.\n')
+        sys.stdout.write('# GWBrowser: Failed to delete the workspace control.\n')
 
     try:
         del sys.modules['gwbrowser']
@@ -143,4 +134,4 @@ def uninitializePlugin(plugin):
             if 'gwbrowser.' in k:
                 del sys.modules[k]
     except Exception as err:
-        sys.stdout.write('# Browser: Failed unload the python modules.\n')
+        sys.stdout.write('# GWBrowser: Failed unload the python modules.\n')
