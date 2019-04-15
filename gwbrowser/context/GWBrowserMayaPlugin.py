@@ -63,8 +63,9 @@ def initializePlugin(plugin):
 
     sys.path.append(r'\\sloth\3d_share\GWBrowser\python\Lib\site-packages')
 
+    import gwbrowser
     pluginFn = OpenMaya.MFnPlugin(
-        plugin, vendor='Gergely Wootsch', version=u'0.1.41')
+        plugin, vendor='Gergely Wootsch', version=gwbrowser.__version__)
 
     try:
         from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
