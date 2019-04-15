@@ -555,22 +555,19 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
-
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
         data_key = self.findChild(BrowserWidget).fileswidget.model().sourceModel().data_key()
-        subfolder = common.ScenesFolder
+        subfolder = data_key if data_key else common.ScenesFolder
 
-        if currentfile and data_key:
-            subfolder = currentfile.split(data_key).pop()
-            subfolder = subfolder.split(u'/')
-            subfolder.pop()
-            subfolder = u'/'.join(subfolder).strip(u'/')
-
-        if data_key == subfolder:
-            subfolder = data_key
-        else:
-            subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
+        if currentfile:
+            index = self.findChild(BrowserWidget).assetswidget.model().sourceModel().active_index()
+            if index.isValid():
+                if index.data(QtCore.Qt.StatusTipRole) in currentfile:
+                    subfolder = currentfile.replace(index.data(QtCore.Qt.StatusTipRole), u'')
+                    subfolder = subfolder.split(u'/')
+                    subfolder.pop()
+                    subfolder = u'/'.join(subfolder).strip('/')
 
         saver = SaverWidget(
             BookmarksModel(),
