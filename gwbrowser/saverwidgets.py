@@ -16,8 +16,6 @@ from gwbrowser.settings import MarkedAsActive
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.delegate import AssetWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
-from gwbrowser.assetwidget import AssetModel
-from gwbrowser.bookmarkswidget import BookmarksModel
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
 
@@ -199,11 +197,6 @@ class SelectFolderView(QtWidgets.QTreeView):
             if height > 300:
                 break
         self.setFixedHeight(height)
-
-    # def focusOutEvent(self, event):
-    #     """Closes the editor on focus loss."""
-    #     if event.lostFocus():
-    #         self.hide()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_asset(self, index):
@@ -516,11 +509,7 @@ class SelectAssetView(SaverListView):
 
     def __init__(self, parent=None):
         super(SelectAssetView, self).__init__(parent=parent)
-        self.setItemDelegate(SelectAssetDelegate(parent=self))
-        self.set_model(AssetModel())
-
         self.clicked.connect(self.activate)
-        # self.clicked.connect(self.hide)
 
 
 class SelectAssetButton(SelectFolderButton):
@@ -608,10 +597,7 @@ class SelectBookmarkView(SaverListView):
     def __init__(self, parent=None):
         super(SelectBookmarkView, self).__init__(parent=parent)
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
-        self.set_model(BookmarksModel())
-
         self.clicked.connect(self.activate)
-        # self.clicked.connect(self.hide)
 
     def showEvent(self, event):
         self.widgetShown.emit()

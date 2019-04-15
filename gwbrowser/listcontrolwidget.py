@@ -28,6 +28,9 @@ from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
+from gwbrowser.assetwidget import AssetModel
+from gwbrowser.bookmarkswidget import BookmarksModel
+
 
 class ListInfoWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
@@ -493,14 +496,61 @@ class AddButton(ControlButton):
 
     @QtCore.Slot()
     def action(self):
+        """Action to take when the plus icon is clicked.
+
+        Note:
+            Adding assets is not yet implemented. I'll work this out for a future
+            release.
+
+        """
         if self._parent.currentIndex() == 0:
             self.current().show_add_bookmark_widget()
             return
         if self._parent.currentIndex() == 1:
             return
+
+
+        index = self._parent.currentWidget().selectionModel().currentIndex()
+
+        # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
             import gwbrowser.saver as saver
-            widget = saver.SaverWidget(u'tempfile', self.current().model().sourceModel().data_key(), currentfile=None)
+
+            # I'm deleting
+            bookmark_model = BookmarksModel()
+            asset_model = AssetModel()
+
+            extension = u'ext'
+            currentfile = None
+            location = self.current().model().sourceModel().data_key()
+
+            if index.isValid():
+                if not index.data(common.StatusRole):
+                    return
+
+            if index.isValid():
+                # Incrementing the currently selected file if it is a sequence
+                iscollapsed = common.is_collapsed(index.data(QtCore.Qt.StatusTipRole))
+                if iscollapsed:
+                    currentfile = iscollapsed.expand(r'\1{}\3')
+                    currentfile = currentfile.format(u'#' * len(index.data(common.FramesRole)[-1]))
+                else:
+                    currentfile = common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
+                extension = currentfile.split(u'.').pop()
+
+            currentfile = QtCore.QFileInfo(currentfile).fileName()
+
+            widget = saver.SaverWidget(
+                bookmark_model,
+                asset_model,
+                extension,
+                location,
+                currentfile=currentfile
+            )
+
+            widget.finished.connect(bookmark_model.deleteLater)
+            widget.finished.connect(asset_model.deleteLater)
+            widget.finished.connect(widget.deleteLater)
 
             @QtCore.Slot(unicode)
             def fileSaveRequested(path):

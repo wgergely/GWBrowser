@@ -395,7 +395,7 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: active_monitor.save_state(u'location', x))
 
         active_monitor.activeLocationChanged.connect(l.dataKeyChanged)
-        active_monitor.activeLocationChanged.connect(lambda: l.listChanged.emit(2) if x else l.listChanged.emit(1))
+        active_monitor.activeLocationChanged.connect(lambda x: l.listChanged.emit(2) if x else l.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
 
         # Progresslabel
