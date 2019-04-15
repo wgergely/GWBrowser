@@ -443,7 +443,7 @@ class SaverWidget(QtWidgets.QDialog):
     fileDescriptionAdded = QtCore.Signal(tuple)
     fileThumbnailAdded = QtCore.Signal(tuple)
 
-    def __init__(self, extension, location, currentfile=None, parent=None):
+    def __init__(self, bookmark_model, asset_model, extension, location, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
         self.extension = extension
         self.currentfile = currentfile
@@ -454,7 +454,7 @@ class SaverWidget(QtWidgets.QDialog):
         self.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self._createUI()
+        self._createUI(bookmark_model, asset_model)
         self._connectSignals()
         self.initialize()
 
@@ -469,7 +469,7 @@ class SaverWidget(QtWidgets.QDialog):
         menu.move(pos)
         menu.exec_()
 
-    def _createUI(self):
+    def _createUI(self, bookmark_model, asset_model):
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
@@ -505,18 +505,19 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setSpacing(common.INDICATOR_WIDTH)
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
         column.layout().addWidget(row, 1)
-        # #
-        #
+
         editor = DescriptionEditor(parent=self)
         row.layout().addWidget(editor, 1)
 
 
         bookmarkbutton = SelectBookmarkButton(parent=self)
         bookmarkview = SelectBookmarkView()
+        bookmarkview.set_model(bookmark_model)
         bookmarkbutton.set_view(bookmarkview)
 
         assetbutton = SelectAssetButton(parent=self)
         assetview = SelectAssetView()
+        assetview.set_model(asset_model)
         assetbutton.set_view(assetview)
 
         foldersbutton = SelectFolderButton(parent=self)
