@@ -259,7 +259,6 @@ def _add_custom_fonts():
         QtCore.QDir.NoDotAndDotDot
     ):
         idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
-        print QtGui.QFontDatabase().applicationFontFamilies(idx)
         # font_families.append(
             # QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
 
