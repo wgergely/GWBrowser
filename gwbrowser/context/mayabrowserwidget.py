@@ -292,6 +292,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         # Asset/project
         assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
+        # Once the widget is initialized we'll set the workspace to the active asset
+        self.findChild(BrowserWidget).initialized.connect(
+            lambda: self.set_workspace(assetswidget.model().sourceModel().active_index()))
 
         # Context menu
         fileswidget.customContextMenuRequested.connect(
