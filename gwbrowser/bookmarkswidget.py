@@ -213,8 +213,9 @@ class BookmarksModel(BaseModel):
                 common.FlagsRole: flags,
                 common.ParentRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: None,
-                common.TodoCountRole: file_info.size(),
+                common.TodoCountRole: 0,
                 common.FileDetailsRole: file_info.size(),
+                common.AssetCountRole: file_info.size(),
                 #
                 common.DefaultThumbnailRole: default_thumbnail_image,
                 common.DefaultThumbnailBackgroundRole: default_background_color,
@@ -253,6 +254,17 @@ class BookmarksModel(BaseModel):
                 settings.setValue(u'config/description', file_info.filePath())
             else:
                 data[idx][common.DescriptionRole] = description
+
+            # Todos
+            todos = settings.value(u'config/todos')
+            todocount = 0
+            if todos:
+                todocount = len([k for k in todos if not todos[k]
+                                 [u'checked'] and todos[k][u'text']])
+            else:
+                todocount = 0
+            data[idx][common.TodoCountRole] = todocount
+
 
         self.endResetModel()
 
@@ -349,7 +361,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         return False
 
     def inline_icons_count(self):
-        return 4
+        return 5
 
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
@@ -454,7 +466,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         elif thumbnail_rect.contains(event.pos()):
             ImageCache.instance().pick(source_index)
             return
-        if not index.data(common.TodoCountRole):
+        if not index.data(common.AssetCountRole):
             return common.reveal(index.data(QtCore.Qt.StatusTipRole))
 
         self.activate(self.selectionModel().currentIndex())
