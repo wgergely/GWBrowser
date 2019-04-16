@@ -537,7 +537,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         self._createUI()
         common.set_custom_stylesheet(self)
-        self.setWindowTitle(u'Add bookmark')
+        self.setWindowTitle(u'GWBrowser: Add bookmark')
         self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setWindowFlags(
@@ -572,16 +572,14 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # top label
         label = QtWidgets.QLabel()
-        label.setText(u'Add bookmark')
+        label.setText(
+            u'<p style="font-size: 14pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Add bookmark</p>'.format(*common.TEXT.getRgb()))
+        label.setAlignment(QtCore.Qt.AlignJustify)
+        label.setWordWrap(True)
         self.layout().addWidget(label, 0)
-        label.setStyleSheet("""
-            QLabel {{
-                font-family: "{}";
-                font-size: 12pt;
-            }}
-        """.format(common.PrimaryFont.family()))
 
         self.pathsettings = QtWidgets.QWidget()
+        self.pathsettings.setMinimumWidth(300)
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
         self.pathsettings.layout().setSpacing(common.INDICATOR_WIDTH)
@@ -618,41 +616,65 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         # Adding it all together
         main_widget = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(main_widget)
+
         self.label = QtWidgets.QLabel()
+        label.setAlignment(QtCore.Qt.AlignJustify)
+        label.setWordWrap(True)
+
         pixmap = ImageCache.get_rsc_pixmap(
             u'bookmark', common.SECONDARY_TEXT, 128)
         self.label.setPixmap(pixmap)
         main_widget.layout().addWidget(self.label)
         main_widget.layout().addSpacing(common.MARGIN)
-        main_widget.layout().addWidget(self.pathsettings)
+        main_widget.layout().addWidget(self.pathsettings, 1)
         self.layout().addWidget(main_widget)
-        self.layout().addWidget(row)
 
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Server'))
-        label = QtWidgets.QLabel(
-            u'The bookmark\'s server')
+        # Server Header
+        self.layout().addWidget(row)
+        label = QtWidgets.QLabel(u'<p style="font-size: 11pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Server</p>'.format(*common.TEXT.getRgb()))
+        label.setAlignment(QtCore.Qt.AlignJustify)
         label.setWordWrap(True)
-        label.setStyleSheet(
-            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
         self.pathsettings.layout().addWidget(label)
+
+        # Server description
+        label = QtWidgets.QLabel(
+            u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the server the bookmark is located at:</p>'.format(*common.BACKGROUND.getRgb()))
+        label.setAlignment(QtCore.Qt.AlignJustify)
+        label.setWordWrap(True)
+        self.pathsettings.layout().addWidget(label)
+
         self.pathsettings.layout().addWidget(self.pick_server_widget)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Job'))
+
+        # Job header
         label = QtWidgets.QLabel(
-            u'The bookmark\'s job')
+            u'<p style="font-size: 11pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Job</p>'.format(*common.TEXT.getRgb()))
         label.setWordWrap(True)
-        label.setStyleSheet(
-            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+        label.setAlignment(QtCore.Qt.AlignJustify)
+        self.pathsettings.layout().addWidget(label)
+
+        # Job description
+        label = QtWidgets.QLabel(
+            u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the name of the job:</p>'.format(*common.BACKGROUND.getRgb()))
+        label.setWordWrap(True)
+        label.setAlignment(QtCore.Qt.AlignJustify)
+
         self.pathsettings.layout().addWidget(label)
         self.pathsettings.layout().addWidget(self.pick_job_widget)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.pathsettings.layout().addWidget(QtWidgets.QLabel(u'Bookmark folder'))
-        label = QtWidgets.QLabel(
-            u'The folder to bookmark, found inside the job folder.')
+
+        label = QtWidgets.QLabel(u'<p style="font-size: 11pt; font-family:"Roboto Black"">Bookmark folder</span>')
         label.setWordWrap(True)
-        label.setStyleSheet(
-            u'color: rgba({},{},{},{});'.format(*common.BACKGROUND.getRgb()))
+        label.setAlignment(QtCore.Qt.AlignJustify)
         self.pathsettings.layout().addWidget(label)
+
+        s = u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the folder inside the job to be bookmarked.<br/><br/>'
+        s += 'Any folder inside the job can be bookmarked but only folders containing <span style="color: silver;">assets</span> are considered valid:</p>'
+        label = QtWidgets.QLabel(s.format(*common.BACKGROUND.getRgb()))
+        label.setWordWrap(True)
+        label.setAlignment(QtCore.Qt.AlignJustify)
+        self.pathsettings.layout().addWidget(label)
+
         self.pathsettings.layout().addWidget(self.pick_root_widget)
 
     def _connectSignals(self):
@@ -818,13 +840,12 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self._root = path
 
         if count:
-            self.pick_root_widget.setStyleSheet(
-                u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb()))
+            stylesheet = u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
+            stylesheet += u'background-color: "green";'
+            self.pick_root_widget.setStyleSheet(stylesheet)
         else:
             stylesheet = u'color: rgba({},{},{},{});'.format(
                 *common.TEXT.getRgb())
-            stylesheet += u'background-color: rgba({},{},{},{});'.format(
-                *common.FAVOURITE.getRgb())
             self.pick_root_widget.setStyleSheet(stylesheet)
 
         path = u'{}:  {} assets'.format(path, count)
@@ -836,7 +857,7 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self._root = None
         stylesheet = u'color: rgba({},{},{},{});'.format(*common.TEXT.getRgb())
         stylesheet += u'background-color: rgba({},{},{},{});'.format(
-            *common.FAVOURITE.getRgb())
+            *common.SECONDARY_TEXT.getRgb())
 
         self.pick_root_widget.setStyleSheet(stylesheet)
         self.pick_root_widget.setText(u'Pick bookmark folder')

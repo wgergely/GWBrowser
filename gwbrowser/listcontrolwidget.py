@@ -368,6 +368,7 @@ class FilterButton(ControlButton):
         if not filter_text:
             filter_text = u''
         else:
+            filter_text = re.sub('\[\\\S\\\s\]\*', ' ', filter_text)
             filter_text = re.sub(r'[\\]+', '', filter_text)
             filter_text = re.sub(r'[^0-9\-\_\/a-zA-Z]+', ' ', filter_text)
             filter_text = re.sub(r'\s', ' ', filter_text)
@@ -380,10 +381,9 @@ class FilterButton(ControlButton):
 
         def func(filter_text):
             filter_text = re.sub(r'[^0-9\.\-\_\/a-zA-Z]+', ' ', filter_text)
-            filter_text = re.sub(r'\s\s+', ' ', filter_text)
+            filter_text = re.sub(r'\s\s*', ' ', filter_text)
             # filter_text = re.sub(r'([^\s])', r'\\\1', filter_text)
-            filter_text = re.sub(r'\s', '.*', filter_text)
-
+            filter_text = re.sub(r'\s', r'[\S\s]*', filter_text)
             self.current().model().filterTextChanged.emit(filter_text)
 
         editor.finished.connect(func)

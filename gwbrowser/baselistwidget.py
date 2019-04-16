@@ -127,6 +127,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filterAcceptsRow(self, source_row, parent=None):
+        """The main method responsible for filtering rows in the proxy model."""
+
         data = self.sourceModel().model_data()
         if source_row not in data:
             return False
@@ -165,6 +167,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
 class BaseModel(QtCore.QAbstractItemModel):
     """Flat base-model for storing items."""
+
     # Emit before the model is about to change
     modelDataResetRequested = QtCore.Signal()
     """Signal emited when all the data has to be refreshed."""
