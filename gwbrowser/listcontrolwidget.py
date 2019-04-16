@@ -380,7 +380,7 @@ class FilterButton(ControlButton):
         editor.setFixedWidth(self._parent.rect().width())
 
         def func(filter_text):
-            filter_text = re.sub(r'[^0-9\.\-\_\/a-zA-Z]+', ' ', filter_text)
+            filter_text = re.sub(r'[^0-9\.\#\-\_\/a-zA-Z]+', ' ', filter_text)
             filter_text = re.sub(r'\s\s*', ' ', filter_text)
             # filter_text = re.sub(r'([^\s])', r'\\\1', filter_text)
             filter_text = re.sub(r'\s', r'[\S\s]*', filter_text)
