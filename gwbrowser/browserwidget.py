@@ -432,21 +432,25 @@ class BrowserWidget(QtWidgets.QWidget):
         b.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting bookmarks...'))
         b.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         b.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+        b.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        b.model().sourceModel().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
 
         a.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting assets...'))
         a.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting assets...'))
         a.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         a.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+        a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        a.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
         # f.model().sourceModel().modelDataResetRequested.connect(lambda: m.messageChanged.emit(u'3Getting files...'))
-        f.model().sourceModel().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'4Getting files...'))
-        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
         f.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting files...'))
         f.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
         f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         f.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+        f.model().sourceModel().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
+        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+        f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
 
     def _add_shortcuts(self):
