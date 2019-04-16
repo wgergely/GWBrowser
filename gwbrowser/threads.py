@@ -107,7 +107,7 @@ class BaseThread(QtCore.QThread):
         app = QtWidgets.QApplication.instance()
         if app:
             app.aboutToQuit.connect(self.terminate)
-            app.aboutToQuit.connect(self.wait)
+            # app.aboutToQuit.connect(self.wait)
             app.aboutToQuit.connect(self.deleteLater)
 
     def run(self):
