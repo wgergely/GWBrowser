@@ -536,6 +536,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_name(*args)
         #
         self.paint_inline_icons_background(*args)
+        self.paint_todo_icon(*args)
         self.paint_folder_icon(*args)
         self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
@@ -640,7 +641,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         if option.rect.width() < 360.0:
             return
 
-        count = index.data(common.TodoCountRole)
+        count = index.data(common.AssetCountRole)
 
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
