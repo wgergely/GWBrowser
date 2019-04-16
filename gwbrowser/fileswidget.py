@@ -318,7 +318,14 @@ class FilesModel(BaseModel):
             return path
         placeholder_color = QtGui.QColor(0,0,0,55)
 
+        __n = 500
+        __c = 0
+        app = QtWidgets.QApplication.instance()
         while it.hasNext():
+            __c += 1
+            if __c % __n == 0:
+                app.processEvents()
+
             filepath = it.next()
 
             # File-filter:
