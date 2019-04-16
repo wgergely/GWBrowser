@@ -148,7 +148,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.setMouseTracking(True)
 
         self.document().contentsChanged.connect(self.contentChanged)
-        self.document().setPlainText(text)
+        self.document().setHtml(text)
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
@@ -536,7 +536,7 @@ class TodoEditors(QtWidgets.QWidget):
 
         # Drag from another todo list
         if event.source() not in self.items:
-            text = event.source().findChild(TodoItemEditor).document().toPlainText()
+            text = event.source().findChild(TodoItemEditor).document().toHtml()
             self.parent().parent().parent().add_item(idx=0, text=text, checked=False)
             self.separator.setHidden(True)
             return
@@ -986,7 +986,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 continue
             data[n] = {
                 u'checked': not checkbox.checked,
-                u'text': editor.document().toPlainText(),
+                u'text': editor.document().toHtml(),
             }
         return data
 
@@ -1050,6 +1050,6 @@ if __name__ == '__main__':
     widget = TodoEditorWidget(index)
     item = widget.add_item(
         text=u'This is a test link:\n\n\n\nClick this: file://gordo/jobs')
-    # print item.editor.document().setPlainText('Hullo')
+    # print item.editor.document().setHtml('Hullo')
     widget.show()
     app.exec_()
