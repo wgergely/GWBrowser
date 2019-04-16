@@ -190,6 +190,9 @@ class AssetModel(BaseModel):
             data[idx][common.DescriptionRole] = description
             data[idx][common.SortBySize] = u'{}'.format(todocount)
 
+            # Only including this for compatibility with the methods used by the file-items
+            data[idx][common.StatusRole] = True
+
         self.endResetModel()
 
 
@@ -232,13 +235,6 @@ class AssetWidget(BaseInlineIconWidget):
         """
         local_settings.setValue(u'activepath/asset', index.data(common.ParentRole)[-1])
         Active.paths()  # Resetting invalid paths
-
-    def show_todos(self, index):
-        """Shows the ``TodoEditorWidget`` for the current item."""
-        from gwbrowser.todoEditor import TodoEditorWidget
-        source_index = self.model().mapToSource(index)
-        widget = TodoEditorWidget(source_index, parent=self)
-        widget.show()
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
