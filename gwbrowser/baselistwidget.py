@@ -1260,7 +1260,11 @@ class BaseInlineIconWidget(BaseListWidget):
                     index=index, state=self.multi_toggle_items.pop(idx))
 
     def show_todos(self, index):
-        pass
+        """Shows the ``TodoEditorWidget`` for the current item."""
+        from gwbrowser.todoEditor import TodoEditorWidget
+        source_index = self.model().mapToSource(index)
+        widget = TodoEditorWidget(source_index, parent=self)
+        widget.show()
 
 
 class StackedWidget(QtWidgets.QStackedWidget):
