@@ -266,6 +266,13 @@ class ScreenGrabber(QtWidgets.QDialog):
             rect.width(),
             rect.height()
         )
+        # return QtGui.QPixmap.grab(
+        #     app.desktop().winId(),
+        #     rect.x(),
+        #     rect.y(),
+        #     rect.width(),
+        #     rect.height()
+        # )
 
     @classmethod
     def capture(cls, output_path=None):

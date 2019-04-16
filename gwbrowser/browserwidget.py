@@ -109,7 +109,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.listcontrolwidget.listChanged.emit(idx)
         if idx == 2:
             text = self.fileswidget.model().sourceModel().data_key()
-            self.listcontrolwidget.textChanged.emit(text.title())
+            text = text.title() if text else None
+            self.listcontrolwidget.textChanged.emit(text)
 
         # Proxy model
         b = self.bookmarkswidget

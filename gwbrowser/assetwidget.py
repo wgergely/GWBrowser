@@ -13,6 +13,7 @@ values are stored in the ``bookmark/.browser`` folder.
 """
 
 import time
+import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -93,6 +94,7 @@ class AssetModel(BaseModel):
                                  flags=QtCore.QDirIterator.NoIteratorFlags)
 
         default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        default_thumbnail_path = os.path.normpath(os.path.abspath(default_thumbnail_path))
         default_thumbnail_image = ImageCache.instance().get(
             default_thumbnail_path, rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)

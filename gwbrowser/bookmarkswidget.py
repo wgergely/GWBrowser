@@ -15,6 +15,7 @@ The actual name of these folders can be customized in the ``common.py`` module.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import re
+import os
 import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
@@ -164,6 +165,7 @@ class BookmarksModel(BaseModel):
 
 
         # default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
+        # default_thumbnail_path = os.path.normpath(os.path.abspath(default_thumbnail_path))
         # default_thumbnail_image = ImageCache.instance().get(
         #     default_thumbnail_path, rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)

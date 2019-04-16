@@ -8,6 +8,7 @@ the image cache and the OpenImageIO-based thmbnail generator methods.
 """
 
 import sys
+import os
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -203,7 +204,7 @@ class ImageCache(QtCore.QObject):
         ImageCache.__instance = self
 
         # This will cache all the thuimbnail images
-        rsc_path = lambda f: u'{}/../rsc/placeholder.png'.format(f)
+        rsc_path = lambda f: os.path.normpath(os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
         ImageCache.instance().get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
         self.threads = {}
@@ -253,7 +254,7 @@ class ImageCache(QtCore.QObject):
         if image.isNull():
             return None
 
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
+        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
         image = ImageCache.resize_image(image, height)
 
         # Saving the background color
@@ -456,18 +457,19 @@ class ImageCache(QtCore.QObject):
         if k in cls._data:
             return cls._data[k]
 
-        file_info = QtCore.QFileInfo(
-            u'{}/../rsc/{}.png'.format(__file__, name))
+        path = u'{}/../rsc/{}.png'.format(__file__, name)
+        path = os.path.normpath(os.path.abspath(path))
+        file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
             return QtGui.QPixmap(size, size)
 
         image = QtGui.QImage()
-        image.load(file_info.filePath())
+        image.load(file_info.absoluteFilePath())
 
         if image.isNull():
             return QtGui.QPixmap(size, size)
 
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32_Premultiplied)
+        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
         if color is not None:
             painter = QtGui.QPainter()
             painter.begin(image)
@@ -483,7 +485,7 @@ class ImageCache(QtCore.QObject):
         # Setting transparency
         if opacity < 1.0:
             image = QtGui.QImage(
-                pixmap.size(), QtGui.QImage.Format_ARGB32_Premultiplied)
+                pixmap.size(), QtGui.QImage.Format_ARGB32)
             image.fill(QtCore.Qt.transparent)
 
             painter = QtGui.QPainter()

@@ -6,6 +6,7 @@ found by the collector classes.
 # pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
+import os
 import traceback
 import math
 import functools
@@ -164,7 +165,10 @@ class FileInfoWorker(BaseWorker):
 
         # Thumbnail
         height = data[QtCore.Qt.SizeHintRole].height() - 2
-        def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+        def rsc_path(f, n):
+            path = u'{}/../rsc/{}.png'.format(f, n)
+            path = os.path.normpath(os.path.abspath(path))
+            return path
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
@@ -308,7 +312,10 @@ class FilesModel(BaseModel):
         it = QtCore.QDirIterator(
             itdir, flags=QtCore.QDirIterator.Subdirectories)
 
-        def rsc_path(f, n): return u'{}/../rsc/{}.png'.format(f, n)
+        def rsc_path(f, n):
+            path = u'{}/../rsc/{}.png'.format(f, n)
+            path = os.path.normpath(os.path.abspath(path))
+            return path
         placeholder_color = QtGui.QColor(0,0,0,55)
 
         while it.hasNext():

@@ -38,11 +38,11 @@ import re
 from PySide2 import QtGui, QtCore, QtWidgets
 
 
-
+drives = QtCore.QStorageInfo.mountedVolumes()
 SERVERS = [
     {u'path': u'//gordo/jobs', u'nickname': u'Gordo'},
     {u'path': u'//sloth/jobs', u'nickname': u'Sloth'},
-    {u'path': u'//localhost/c$/temp', u'nickname': u'Local Drive'},
+    {u'path': drives[0].rootPath(), u'nickname': u'Local Drive'},
 ]
 
 ASSET_IDENTIFIER = u'workspace.mel'
@@ -248,11 +248,9 @@ def move_widget_to_available_geo(widget):
 def _add_custom_fonts():
     """Adds custom fonts to the application."""
 
-    d = QtCore.QDir(
-        u'{}/rsc/fonts'.format(
-            QtCore.QFileInfo(__file__).dir().path()
-        )
-    )
+    path = u'{}/../rsc/fonts'.format(__file__)
+    path = os.path.normpath(os.path.abspath(path))
+    d = QtCore.QDir(path)
     d.setNameFilters((u'*.ttf',))
 
     # font_families = []
@@ -260,7 +258,8 @@ def _add_custom_fonts():
         QtCore.QDir.Files |
         QtCore.QDir.NoDotAndDotDot
     ):
-        idx = QtGui.QFontDatabase().addApplicationFont(f.filePath())
+        idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
+        print QtGui.QFontDatabase().applicationFontFamilies(idx)
         # font_families.append(
             # QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
 
