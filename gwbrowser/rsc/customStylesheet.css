@@ -39,9 +39,9 @@ QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "{fontFamily}";
-	font-size: 7pt;
-	margin: 0px;
-	padding: 6px;
+	font-size: 9pt;
+	margin: 4px;
+	padding: 4px;
 	height: 36px;
 }}
 QStatusBar::item {{
