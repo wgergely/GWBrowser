@@ -195,6 +195,7 @@ ThumbnailBackgroundRole = 1037
 DefaultThumbnailRole = 1038
 DefaultThumbnailBackgroundRole = 1039
 TypeRole = 1040
+AssetCountRole = 1041
 
 SortByName = 2048
 SortByLastModified = 2049
