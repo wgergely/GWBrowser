@@ -9,6 +9,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
+from gwbrowser.alembicpreview import get_alembic_thumbnail
 
 
 class ClickableLabel(QtWidgets.QLabel):
@@ -33,6 +34,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def __init__(self, index, parent=None):
         super(ThumbnailViewer, self).__init__(parent=parent)
+        self._secondarywidget = None
+
         self.setWindowFlags(
             QtCore.Qt.Dialog |
             QtCore.Qt.FramelessWindowHint |
@@ -40,34 +43,70 @@ class ThumbnailViewer(QtWidgets.QLabel):
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
         self.setAlignment(QtCore.Qt.AlignCenter)
 
-        # self.setFocusProxy(self.parent())
-        self.reset_pixmap()
         self.show()
+        self.reset_pixmap()
+
 
     def reset_pixmap(self):
         self.setStyleSheet(
             u'QLabel {background-color: rgba(50,50,50,50); color:rgba(200,200,200,255);}')
         index = self.parent().selectionModel().currentIndex()
+        path = index.data(QtCore.Qt.StatusTipRole)
+        path = common.get_sequence_endpath(path)
+
+        if self._secondarywidget:
+            self._secondarywidget.deleteLater()
+            self._secondarywidget = None
+
+        if path.split('.').pop() == u'abc':
+            self.clear()
+
+            file_info = QtCore.QFileInfo(path)
+            if not file_info.exists():
+                self.clear()
+                self.setText(u'Alembic not found.')
+                return
+
+            path = str(file_info.filePath())
+
+            alembicwidget = get_alembic_thumbnail(path)
+            alembicwidget.setParent(self)
+            alembicwidget.show()
+            # alembicwidget.setFocusProxy(self)
+            alembicwidget.setFocusPolicy(QtCore.Qt.NoFocus)
+
+            alembicwidget.move(
+                self.rect().center().x() - (alembicwidget.width() / 2),
+                self.rect().center().y() - (alembicwidget.height() / 2)
+            )
+            # print alembicwidget.rect()
+
+            self._secondarywidget = alembicwidget
+            alembicwidget.show()
+
+            return
+
         settings = AssetSettings(index)
         file_info = QtCore.QFileInfo(settings.thumbnail_path())
 
         if not index.isValid():
             self.clear()
-            self.setText('Invalid selection.')
+            self.setText(u'Invalid selection.')
             return
 
         if not file_info.exists():
             self.clear()
-            self.setText('No thumbnail found.')
+            self.setText(u'No thumbnail found.')
             return
 
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
         if pixmap.isNull():
             self.clear()
-            self.setText('Unable to load pixmap.')
+            self.setText(u'Unable to load pixmap.')
             return
 
         self.clear()

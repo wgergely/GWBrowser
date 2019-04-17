@@ -41,7 +41,7 @@ try:
     # Maya's PySide2 flavour does not implement QStorageInfo, go figure!!
     drives = QtCore.QStorageInfo.mountedVolumes()
     local = drives[0].rootPath()
-except:
+except (RuntimeError, ValueError, AttributeError):
     local = u'/'
 
 SERVERS = [
@@ -124,6 +124,7 @@ def get_oiio_namefilters(as_array=False):
     namefilters.insert(0, 'All files ({})'.format(' '.join(e)))
     return namefilters
 
+
 _creative_cloud_formats = (
     u'aep',
     u'ai',
@@ -137,17 +138,17 @@ _creative_cloud_formats = (
     u'xfl',
 )
 _exports_formats = (
-    u'abc', # Alembic
-    u'ass', # Arnold
-    u'bgeo', # Houdini
+    u'abc',  # Alembic
+    u'ass',  # Arnold
+    u'bgeo',  # Houdini
     u'fbx',
-    u'geo', # Houdini
+    u'geo',  # Houdini
     u'obj',
-    u'rs', # Redshift cache file
-    u'sim', # Houdini
-    u'sc', # Houdini
-    u'vdb', # OpenVDB cache file
-    u'ifd', # Houdini
+    u'rs',  # Redshift cache file
+    u'sim',  # Houdini
+    u'sc',  # Houdini
+    u'vdb',  # OpenVDB cache file
+    u'ifd',  # Houdini
 )
 _scene_formats = (
     u'c4d',
@@ -162,7 +163,8 @@ _scene_formats = (
     u'autosave'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))
-_all_formats = list(_creative_cloud_formats) + list(_scene_formats) + list(_oiio_formats) + list(_exports_formats)
+_all_formats = list(_creative_cloud_formats) + list(_scene_formats) + \
+    list(_oiio_formats) + list(_exports_formats)
 
 NameFilters = {
     ExportsFolder: _all_formats,
@@ -184,8 +186,8 @@ TodoCountRole = 1028
 """Asset role used to store the number of todos."""
 FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
-SequenceRole = 1030 # SRE Match object
-FramesRole = 1031 # List of frame names
+SequenceRole = 1030  # SRE Match object
+FramesRole = 1031  # List of frame names
 StatusRole = 1032
 StartpathRole = 1033
 EndpathRole = 1034
@@ -211,12 +213,15 @@ UpperCase = 1
 """Filename styles"""
 
 
-FilterText = re.compile(r'[^0-9\.\#\-\_\/a-zA-Z]+')
+FilterTextRegex = re.compile(r'[^0-9\.\#\-\_\/a-zA-Z]+')
 """This is the valid string accepted by the filter editor."""
 
+
 def namekey(s, _nsre=re.compile('([0-9]+)')):
+    """Key function used to sort alphanumeric filenames."""
     return [int(text) if text.isdigit() else text.lower()
             for text in _nsre.split(s)]
+
 
 def move_widget_to_available_geo(widget):
     """Moves the widget inside the available screen geomtery, if any of the edges
@@ -263,13 +268,8 @@ def _add_custom_fonts():
     d.setNameFilters((u'*.ttf',))
 
     # font_families = []
-    for f in d.entryInfoList(
-        QtCore.QDir.Files |
-        QtCore.QDir.NoDotAndDotDot
-    ):
-        idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
-        # font_families.append(
-            # QtGui.QFontDatabase().applicationFontFamilies(idx)[0])
+    for f in d.entryInfoList(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot):
+        QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
 
 
 def set_custom_stylesheet(widget):
@@ -327,16 +327,23 @@ def reveal(path):
 
     """
     path = get_sequence_endpath(path)
-    if QtCore.QSysInfo().productType() in (u'windows', u'winrt'):
+    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
-    if QtCore.QSysInfo().productType() == u'osx':
-        args = [u'-e', u'tell application "Finder"', u'-e', u'activate', u'-e', u'select POSIX file "{}"'.format(
+
+    if QtCore.QSysInfo().productType().lower() in (u'macosx', u'macos', u'mac os x', u'macos x'):
+        args = [
+            u'-e',
+            u'tell application "Finder"',
+            u'-e',
+            u'activate',
+            u'-e',
+            u'select POSIX file "{}"'.format(
                 QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
         return QtCore.QProcess.startDetached(u'osascript', args)
-    else:
-        raise NotImplementedError('{} os has not been implemented.'.format(
-            QtCore.QSysInfo().productType()))
+
+    raise NotImplementedError('{} os has not been implemented.'.format(
+        QtCore.QSysInfo().productType()))
 
 
 NoHighlightFlag = 0b000000
@@ -348,35 +355,51 @@ ItalicHighlight = 0b010000
 
 HIGHLIGHT_RULES = {
     u'spaces': {
-        u're': re.compile(r'([\s\t\n\r]*)', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'([\s\t\n\r]*)',
+            flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'file_path': {
-        u're': re.compile(r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*',
+            flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'folder_path': {
-        u're': re.compile(r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)',
+            flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'quotes': {
-        u're': re.compile(r'([\"\']+[^\"\']+[\'\"]+)', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'([\"\']+[^\"\']+[\'\"]+)',
+            flags=re.IGNORECASE),
         u'flag': CodeHighlight
     },
     u'bold': {
-        u're': re.compile(r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})',
+            flags=re.IGNORECASE),
         u'flag': BoldHighlight
     },
     u'italicized': {
-        u're': re.compile(r'([\*_]{1})([^\*_]+)([\*_]{1})', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'([\*_]{1})([^\*_]+)([\*_]{1})',
+            flags=re.IGNORECASE),
         u'flag': ItalicHighlight
     },
     u'heading': {
-        u're': re.compile(r'^([#]{1,6})', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'^([#]{1,6})',
+            flags=re.IGNORECASE),
         u'flag': HeadingHighlight
     },
     u'quote': {
-        u're': re.compile(r'^([>]{1})', flags=re.IGNORECASE),
+        u're': re.compile(
+            r'^([>]{1})',
+            flags=re.IGNORECASE),
         u'flag': QuoteHighlight
     },
 }
@@ -407,14 +430,18 @@ def get_ranges(arr, padding):
 
 
 ValidFilenameRegex = re.compile(
-    r'\/([^_]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$', flags=re.IGNORECASE)
+    r'\/([^_]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
+    flags=re.IGNORECASE)
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
 SequenceStartRegex = re.compile(
-    r'^(.*)\[([0-9]+).*\](.*)$', flags=re.IGNORECASE)
+    r'^(.*)\[([0-9]+).*\](.*)$',
+    flags=re.IGNORECASE)
 SequenceEndRegex = re.compile(
-    r'^(.*)\[.*?([0-9]+)\](.*)$', flags=re.IGNORECASE)
+    r'^(.*)\[.*?([0-9]+)\](.*)$',
+    flags=re.IGNORECASE)
 GetSequenceRegex = re.compile(
-    r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$', flags=re.IGNORECASE)
+    r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
+    flags=re.IGNORECASE)
 
 
 def get_valid_filename(text):

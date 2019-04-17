@@ -3,17 +3,15 @@
 """http://docs.alembic.io/python/abc.html#alembic.Abc"""
 
 import sys
+from PySide2 import QtCore, QtWidgets, QtGui
+import alembic.alembic as alembic
 
-from PySide2 import QtCore, QtGui, QtWidgets
 
-import gwbrowser.common as common
-from alembic.Abc import IArchive, GetArchiveInfo
-
-class Node(QtCore.QObject):
+class AlembicNode(QtCore.QObject):
     """Small wrapper around the iobject hierarchy to display it in a QTreeView."""
 
     def __init__(self, iobject=None, parentNode=None, parent=None):
-        super(Node, self).__init__(parent=parent)
+        super(AlembicNode, self).__init__(parent=parent)
 
         self.iobject = iobject
         self._children = []
@@ -25,9 +23,19 @@ class Node(QtCore.QObject):
     @property
     def name(self):
         """The name of this node."""
+        props = self.iobject.getProperties()
+        props.getNumProperties()
+        name = self.iobject.getName()
+        name = u'{} ({})'.format(
+            self.iobject.getName(), props.getPropertyHeader(0))
+        return name
+
+    @property
+    def fullname(self):
+        """The name of this node."""
         if not self.iobject:
             return 'rootNode'
-        return self.iobject.getName()
+        return self.iobject.getFullName()
 
     def removeSelf(self):
         """Removes itself from the parent's children."""
@@ -150,6 +158,8 @@ class AlembicModel(QtCore.QAbstractItemModel):
         node = index.internalPointer()
         if role == QtCore.Qt.DisplayRole:
             return node.name
+        if role == QtCore.Qt.SizeHintRole:
+            return QtCore.QSize(300, 28)
 
     def headerData(self, section, orientation, role):  # pylint: disable=W0613
         """Static header data."""
@@ -170,39 +180,98 @@ class AlembicModel(QtCore.QAbstractItemModel):
 class AlembicView(QtWidgets.QTreeView):
     def __init__(self, path, parent=None):
         super(AlembicView, self).__init__(parent=parent)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
 
         if not QtCore.QFileInfo(path).exists():
             return
-        self._abc = IArchive(path)
+        self._abc = alembic.Abc.IArchive(path)
         node = self.alembic_to_nodes()
         model = AlembicModel(node)
         self.setModel(model)
         self.setRootNode(model.rootNode)
+        self.expandAll()
 
         self.setHeaderHidden(False)
         # self.header().setSortIndicatorShown(False)
         self.setSortingEnabled(False)
-        self.setItemsExpandable(True)
+        self.setItemsExpandable(False)
+        self.setRootIsDecorated(False)
+
+        self.setStyleSheet("""
+QWidget {
+	border-width: 0px;
+	border: none;
+	margin: 0px;
+	padding: 0px;
+	outline: 0;
+    font-size: 11pt;
+    font-family: sans-serif;
+}
+QTreeView {
+    padding: 12px;
+    background-color: rgba(100,100,100,150);
+    color: rgba(255,255,255,250);
+    show-decoration-selected: 0;
+}
+
+QTreeView::item {
+    background: rgba(78,78,78,255);
+    border: none;
+    padding-left: 12px;
+}
+
+QTreeView::item:hover {
+    background: rgba(150,150,150,255);
+    border: none;
+}
+
+QTreeView::item:selected {
+    background: rgba(150,150,150,255);
+    color: rgba(250,250,250,250);
+}
+
+QTreeView::item:selected:active{
+    background: rgba(180,180,180,255);
+}
+
+QTreeView::item:selected:!active {
+    background: rgba(180,180,180,255);
+}
+
+QTreeView::branch {
+    background: rgba(78,78,78,255);
+}
+QTreeView::branch:hover {
+    background: rgba(78,78,78,255);
+}
+
+        """)
+
+        self.setFixedWidth(1024)
+        self.setFixedHeight(1024)
 
     def alembic_to_nodes(self):
         """Builds the internal node-structure needed to make the alembic model."""
         def _get_children(node):
             for idx in xrange(node.iobject.getNumChildren()):
                 child = node.iobject.getChild(idx)
-                nnode = Node(child, parentNode=node)
+                nnode = AlembicNode(child, parentNode=node)
                 _get_children(nnode)
 
-        rootNode = Node('rootNode')
-        if not abc.valid():
+        rootNode = AlembicNode('rootNode')
+
+        if not self._abc.valid():
             return rootNode
 
-        node = Node(self._abc.getTop(), parentNode=rootNode)
+        node = AlembicNode(self._abc.getTop(), parentNode=rootNode)
+
         # Info
-        if abc.valid():
-            _get_children(node)
-        else:
-            sys.stderr.write(
-                '# {} does not seem to be a valid alembic archive.\n'.format(path))
+        _get_children(node)
         return rootNode
 
     @property
@@ -272,9 +341,33 @@ class AlembicView(QtWidgets.QTreeView):
         return text.encode('utf-8')
 
 
+def get_alembic_thumbnail(path):
+    """Renders the alembic structure as a QImage."""
+    widget = AlembicView(path)
+    pixmap = QtGui.QPixmap(1024, 1024)
+    painter = QtGui.QPainter()
+    painter.begin(pixmap)
+    widget.render(painter, widget.rect().topLeft(), widget.rect())
+    painter.end()
+
+    return widget
+
+
 if __name__ == '__main__':
-    path = r'\\gordo\jobs\bemusic_8283\assets\trumpet\exports\abc\bem_trumpet_abc_girlyeti2-knight-geo_003_freelance.abc'
+    path = r'\\sloth\jobs\audible_8100\films\vignettes\shots\AU_dragon_lady\exports\abc\head_from_rig_v005.abc'
     app = QtWidgets.QApplication([])
     widget = AlembicView(path)
-    widget.show()
+    # widget.show()
+
+    pixmap = QtGui.QPixmap(1024, 1024)
+    painter = QtGui.QPainter()
+    painter.begin(pixmap)
+    widget.render(painter, widget.rect().topLeft(), widget.rect())
+    painter.end()
+
+    label = QtWidgets.QLabel()
+    label.setFixedWidth(1024)
+    label.setFixedHeight(1024)
+    label.setPixmap(pixmap)
+    label.show()
     app.exec_()
