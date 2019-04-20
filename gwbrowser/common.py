@@ -78,7 +78,7 @@ LARGE_FONT_SIZE = 12.0
 pscale = 1.0
 
 
-def psize(n): return n * 1.5 if sys.platform == 'darwin' else pscale
+def psize(n): return n * 1.5 if sys.platform == 'darwin' else n * pscale
 
 
 """On macosx the font size seem to be smaller - using this function we
