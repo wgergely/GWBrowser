@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101
+
+
 """A modal widget to capture a section of the screen.
 
 The ScreenGrabber code has been borrowed from the Shotgun Github page, hence I don't
@@ -15,7 +18,12 @@ Example:
 
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
+
+
+import sys
+import os
+import tempfile
+
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
@@ -255,10 +263,37 @@ class ScreenGrabber(QtWidgets.QDialog):
 
         :param rect: Rectangle to capture
         :type rect: :class:`~PySide.QtCore.QRect`
-        :returns: Captured image
+        :returns: Captured image as a pixmap
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
         app = QtWidgets.QApplication.instance()
+
+        # On macosx we're using the built-in capture-tool, grab window doesn't
+        # seem to work.
+        if 'darwin' in sys.platform.lower():
+            temppath = tempfile.NamedTemporaryFile(
+                suffix='.png',
+                prefix='gwbrowser_screencapture_',
+                delete=False
+            ).name
+
+            res = os.system('screencapture -m -i -s {}'.format(temppath))
+            if res != 0:
+                sys.stderr.write(u'Error occured capturing the desktop./n')
+                return None
+
+            pixmap = QtGui.QPixmap(temppath)
+            if pixmap.isNull():
+                sys.stderr.write(u'Error occured loading the temp capture-file./n')
+                return None
+
+            pixmap = pixmap.copy(rect)
+            if pixmap.isNull():
+                sys.stderr.write(u'Error occured cropping the./n')
+                return None
+
+
+
         return QtGui.QPixmap.grabWindow(
             app.desktop().winId(),
             rect.x(),
@@ -266,13 +301,6 @@ class ScreenGrabber(QtWidgets.QDialog):
             rect.width(),
             rect.height()
         )
-        # return QtGui.QPixmap.grab(
-        #     app.desktop().winId(),
-        #     rect.x(),
-        #     rect.y(),
-        #     rect.width(),
-        #     rect.height()
-        # )
 
     @classmethod
     def capture(cls, output_path=None):
