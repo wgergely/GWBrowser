@@ -1,10 +1,17 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0201
-"""http://docs.alembic.io/python/abc.html#alembic.Abc"""
+
+
+"""Widget responsible for displaying the contents of an alembic file."""
+
 
 import sys
+
 from PySide2 import QtCore, QtWidgets, QtGui
+
 import alembic.alembic as alembic
+import gwbrowser.common as common
+
 
 
 class AlembicNode(QtCore.QObject):
@@ -203,54 +210,58 @@ class AlembicView(QtWidgets.QTreeView):
         self.setRootIsDecorated(False)
 
         self.setStyleSheet("""
-QWidget {
+QWidget {{
 	border-width: 0px;
 	border: none;
 	margin: 0px;
 	padding: 0px;
 	outline: 0;
-    font-size: 11pt;
-    font-family: sans-serif;
-}
-QTreeView {
+    font-size: {MEDIUM_FONT_SIZE}pt;
+    font-family: "{PRIMARY_FONT}";
+}}
+QTreeView {{
     padding: 12px;
     background-color: rgba(100,100,100,150);
     color: rgba(255,255,255,250);
     show-decoration-selected: 0;
-}
+}}
 
-QTreeView::item {
+QTreeView::item {{
     background: rgba(78,78,78,255);
     border: none;
     padding-left: 12px;
-}
+}}
 
-QTreeView::item:hover {
+QTreeView::item:hover {{
     background: rgba(150,150,150,255);
     border: none;
-}
+}}
 
-QTreeView::item:selected {
+QTreeView::item:selected {{
     background: rgba(150,150,150,255);
     color: rgba(250,250,250,250);
-}
+}}
 
-QTreeView::item:selected:active{
+QTreeView::item:selected:active {{
     background: rgba(180,180,180,255);
-}
+}}
 
-QTreeView::item:selected:!active {
+QTreeView::item:selected:!active {{
     background: rgba(180,180,180,255);
-}
+}}
 
-QTreeView::branch {
+QTreeView::branch {{
     background: rgba(78,78,78,255);
-}
-QTreeView::branch:hover {
+}}
+QTreeView::branch:hover {{
     background: rgba(78,78,78,255);
-}
+}}
 
-        """)
+        """.format(
+            MEDIUM_FONT_SIZE=common.MEDIUM_FONT_SIZE,
+            PRIMARY_FONT=common.PrimaryFont.family()
+
+        ))
 
         self.setFixedWidth(1024)
         self.setFixedHeight(1024)

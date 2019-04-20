@@ -479,15 +479,19 @@ class SaverListView(BaseInlineIconWidget):
     def adjust_height(self, *args, **kwargs):
         """Adjusts the size of the view to fit the contents exactly."""
         height = 0
+
+        option = QtWidgets.QStyleOptionViewItem()
+        option.initFrom(self)
+
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
             if not index.isValid():
                 break
-            height += self.itemDelegate().sizeHint(None, None).height()
+            height += self.itemDelegate().sizeHint(option, index).height()
             if height > 300:
                 break
         if height == 0:
-            height += self.itemDelegate().sizeHint(None, None).height()
+            height += self.itemDelegate().sizeHint(option, index).height()
         self.setFixedHeight(height)
 
     def focusOutEvent(self, event):

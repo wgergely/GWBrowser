@@ -6,8 +6,8 @@ QWidget {{
 	margin: 0px;
 	padding: 0px;
 	outline: 0;
-	font-family: "{fontFamily}";
-	font-size: {fontSize}pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 
 QWidget:disabled {{
@@ -38,8 +38,8 @@ QStackedWidget:focus {{
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
-	font-family: "{fontFamily}";
-	font-size: 9pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 	margin: 4px;
 	padding: 4px;
 	height: 36px;
@@ -102,8 +102,8 @@ QPushButton {{
 		padding-right: 10px;
 		border-style: solid;
 		background-color: rgba({BACKGROUND_SELECTED});
-		font-family: "{fontFamily}";
-		font-size: 8pt;
+		font-family: "{PRIMARY_FONT}";
+		font-size: {MEDIUM_FONT_SIZE}pt;
 		height: 24px;
 }}
 QPushButton:disabled {{
@@ -131,8 +131,8 @@ QComboBox {{
 	padding-right: 10px;
 	border-style: solid;
 	background-color: rgba({BACKGROUND_SELECTED});
-	font-family: "{fontFamily}";
-	font-size: 8pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 QComboBox:hover {{
 		color: rgb({TEXT_SELECTED});
@@ -311,8 +311,8 @@ QLabel:disabled {{
 
 QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
-		font-family: "Roboto Medium";
-		font-size: 9pt;
+		font-family: "{SECONDARY_FONT}";
+		font-size: {MEDIUM_FONT_SIZE}pt;
 		margin: 6px;
 		border: none;
 		border-radius: 3px;
@@ -348,8 +348,8 @@ QMenu::SEPARATOR {{
 QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	color: rgba({TEXT});
-	font-family: "{fontFamily}";
-	font-size: 8pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {SMALL_FONT_SIZE}pt;
 	alignment: center;
 	text-align: center;
 	outline: none;
@@ -367,8 +367,8 @@ TodoEditorWidget {{
 	margin: 0px;
 	padding: 0px;
 	outline: 0;
-	font-family: "{fontFamily}";
-	font-size: {fontSize}pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 
 TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
@@ -395,8 +395,8 @@ TodoItemEditor {{
 	padding: 0px;
 	outline: 0;
 	color: rgba(0,0,0,255);
-	font-family: "Roboto Medium";
-	font-size: 11pt;
+	font-family: "{SECONDARY_FONT}";
+	font-size: {LARGE_FONT_SIZE}pt;
 }}
 
 CheckBoxButton, DragIndicatorButton{{
@@ -434,8 +434,8 @@ AddBookmarkWidget {{
 	margin: 0px;
 	padding: 0px;
 	outline: 0;
-	font-family: "{fontFamily}";
-	font-size: {fontSize}pt;
+	font-family: "{PRIMARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 
 

@@ -362,7 +362,7 @@ class Custom(QtWidgets.QLineEdit):
 
         self.setMaxLength(25)
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(11)
+        font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
         self.setPlaceholderText('untitled')
@@ -379,7 +379,7 @@ class Custom(QtWidgets.QLineEdit):
             common.PrimaryFont.family()))
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(12)
+        font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
         self.setFixedWidth(metrics.width('untitled'))
 
@@ -395,7 +395,7 @@ class Custom(QtWidgets.QLineEdit):
 
     def resizeLineEditToContents(self, text):
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(12)
+        font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
         width = metrics.width(text)
         minwidth = metrics.width('untitled')
@@ -792,7 +792,7 @@ class SaverWidget(QtWidgets.QDialog):
     def update_filepath_display(self, *args, **kwargs):
         """Slot responsible for updating the file-path display."""
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8)
+        font.setPointSize(common.MEDIUM_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
         text = metrics.elidedText(
             SaverFileInfo(self).fileInfo().filePath(),

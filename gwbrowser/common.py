@@ -66,6 +66,18 @@ ROW_HEIGHT = 54.0
 BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
 
+# Font scaling seems at best random given platform differences.
+# Programmatically scaling might fix matters...
+SMALL_FONT_SIZE = 8.0
+MEDIUM_FONT_SIZE = 9.0
+LARGE_FONT_SIZE = 11.0
+
+pscale = 1.0
+psize = lambda n: n * 1.5 if sys.platform == 'darwin' else pscale
+"""On macosx the font size seem to be smaller - using this function we
+can scale the fonts to an acceptable size. I haven't figured out
+where the difference comes from."""
+
 MARGIN = 18.0
 
 INDICATOR_WIDTH = 4.0
@@ -93,9 +105,9 @@ SELECTION = QtGui.QColor(140, 120, 233)
 FAVOURITE = QtGui.QColor(140, 120, 233)
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
-PrimaryFont.setPointSize(9)
+PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
-SecondaryFont.setPointSize(8)
+SecondaryFont.setPointSize(SMALL_FONT_SIZE)
 
 
 def get_oiio_namefilters(as_array=False):
@@ -292,8 +304,11 @@ def set_custom_stylesheet(widget):
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
         qss = qss.format(
-            fontFamily=PrimaryFont.family(),
-            fontSize=9,
+            PRIMARY_FONT=PrimaryFont.family(),
+            SECONDARY_FONT=SecondaryFont.family(),
+            SMALL_FONT_SIZE=SMALL_FONT_SIZE,
+            MEDIUM_FONT_SIZE=MEDIUM_FONT_SIZE,
+            LARGE_FONT_SIZE=LARGE_FONT_SIZE,
             BACKGROUND=u'{},{},{},{}'.format(*BACKGROUND.getRgb()),
             BACKGROUND_SELECTED=u'{},{},{},{}'.format(
                 *BACKGROUND_SELECTED.getRgb()),

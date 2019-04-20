@@ -362,7 +362,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         count_rect.moveCenter(rect.bottomRight())
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8.0)
+        font.setPointSize(common.SMALL_FONT_SIZE)
         painter.setFont(font)
 
         pen = QtGui.QPen(common.FAVOURITE)
@@ -491,6 +491,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setRight(rect.right() - common.MARGIN)
 
         font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetrics(font)
 
         rect.moveTop(rect.top() + (rect.height() / 2.0))
@@ -619,9 +620,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         rect.moveLeft(rect.right() + common.MARGIN)
 
+        # Paint description
         text = index.data(common.DescriptionRole)
         if not text:
             return
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
 
         if option.rect.width() < 360.0:
             rect.setRight(option.rect.right() - common.MARGIN)
@@ -629,7 +634,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             rect.setRight(icon_rect.left() - common.MARGIN)
-        font.setPointSize(9)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, color)
 
@@ -663,7 +667,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 bg_rect, float(bg_rect.height() / 2.0), float(bg_rect.height() / 2.0))
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8)
+        font.setPointSize(common.SMALL_FONT_SIZE)
 
         text = u'{}'.format(count)
         common.draw_aliased_text(
@@ -797,7 +801,7 @@ class FilesWidgetDelegate(BaseDelegate):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8.0)
+        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)
@@ -853,7 +857,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(8)
+        font.setPointSize(common.MEDIUM_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)
@@ -927,7 +931,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(8.5)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)

@@ -429,15 +429,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         thumbnail_rect.setWidth(rect.height())
         thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
 
-        # description_rect = QtCore.QRect(rect)
-        # font = QtGui.QFont(common.PrimaryFont)
-        # font.setPointSize(11)
-        # metrics = QtGui.QFontMetrics(font)
-        #
-        # center = description_rect.center()
-        # description_rect.setHeight(metrics.height())
-        # description_rect.moveCenter(center)
-
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
 
@@ -584,8 +575,15 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # top label
         label = QtWidgets.QLabel()
-        label.setText(
-            u'<p style="font-size: 14pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Add bookmark</p>'.format(*common.TEXT.getRgb()))
+
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family:"{f}"">Add bookmark</p>'
+        text = text.format(
+            *common.TEXT.getRgb(),
+            s=common.LARGE_FONT_SIZE * 1.5,
+            f=common.PrimaryFont.family()
+        )
+        label.setText(text)
+
         label.setAlignment(QtCore.Qt.AlignJustify)
         label.setWordWrap(True)
         self.layout().addWidget(label, 0)

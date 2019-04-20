@@ -490,7 +490,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSize(10)
+            font.setPointSize(common.MEDIUM_FONT_SIZE)
 
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter

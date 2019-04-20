@@ -1058,7 +1058,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSize(8)
+            font.setPointSize(common.SMALL_FONT_SIZE)
 
             align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
             if self.model().sourceModel().rowCount() == 0:

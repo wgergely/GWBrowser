@@ -124,7 +124,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         # font
         font = QtGui.QFont(common.SecondaryFont)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(11.0)
+        font.setPointSizeF(common.LARGE_FONT_SIZE)
         self.document().setDefaultFont(font)
 
         self.highlighter = Highlighter(self.document())
@@ -154,7 +154,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         super(TodoItemEditor, self).setDisabled(b)
         font = QtGui.QFont(common.SecondaryFont)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(12.0)
+        font.setPointSizeF(common.LARGE_FONT_SIZE)
         if b:
             font.setStrikeOut(True)
         self.document().setDefaultFont(font)
@@ -724,7 +724,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter.begin(self)
             painter.setPen(common.FAVOURITE)
             font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSize(10.0)
+            font.setPointSize(common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
             painter.drawText(
                 self.rect(),
