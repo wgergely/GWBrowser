@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='gwbrowser',
-    version='0.1.42',
+    version='0.1.43',
     author='Gergely Wootsch',
     author_email='hello@gergely-wootsch.com',
     description='Glassworks Pipeline Browser',
