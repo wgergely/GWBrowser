@@ -319,10 +319,11 @@ class DescriptionEditor(QtWidgets.QLineEdit):
             margin: 0px;
             color: rgba({});
             font-family: "{}";
-            font-size: 11pt;
+            font-size: {}pt;
         }}""".format(
             '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            common.PrimaryFont.family()
+            common.PrimaryFont.family(),
+            common.psize(common.MEDIUM_FONT_SIZE)
         ))
         self.setFixedHeight(36)
 
@@ -340,8 +341,11 @@ class BaseNameLabel(QtWidgets.QLabel):
             """QLabel{{
                 background-color: rgba(0,0,0,0);
                 font-family: "{}";
-                font-size: 11pt;
-            }}""".format(common.PrimaryFont.family())
+                font-size: {}pt;
+            }}""".format(
+                common.PrimaryFont.family(),
+                common.psize(common.MEDIUM_FONT_SIZE)
+            )
         )
 
 
@@ -373,10 +377,12 @@ class Custom(QtWidgets.QLineEdit):
             margin: 0px;
             color: rgba({});
             font-family: "{}";
-            font-size: 11pt;
+            font-size: {}pt;
         }}""".format(
             '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
-            common.PrimaryFont.family()))
+            common.PrimaryFont.family(),
+            common.psize(common.MEDIUM_FONT_SIZE)
+        ))
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(common.LARGE_FONT_SIZE)
@@ -564,10 +570,11 @@ class SaverWidget(QtWidgets.QDialog):
             background-color: rgba(0,0,0,0);
             color: rgba({color});
             font-family: "{family}";
-            font-size: 8pt;
+            font-size: {size}pt;
         }}""".format(
             color='{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()),
-            family=common.PrimaryFont.family()
+            family=common.PrimaryFont.family(),
+            size=common.psize(common.SMALL_FONT_SIZE)
         ))
 
         statusbar.layout().setContentsMargins(20, 20, 20, 20)

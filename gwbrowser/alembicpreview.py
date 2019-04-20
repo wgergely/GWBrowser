@@ -258,7 +258,7 @@ QTreeView::branch:hover {{
 }}
 
         """.format(
-            MEDIUM_FONT_SIZE=common.MEDIUM_FONT_SIZE,
+            MEDIUM_FONT_SIZE=common.psize(common.MEDIUM_FONT_SIZE),
             PRIMARY_FONT=common.PrimaryFont.family()
 
         ))

@@ -576,10 +576,10 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         # top label
         label = QtWidgets.QLabel()
 
-        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family:"{f}"">Add bookmark</p>'
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Add bookmark</p>'
         text = text.format(
             *common.TEXT.getRgb(),
-            s=common.LARGE_FONT_SIZE * 1.5,
+            s=common.psize(common.LARGE_FONT_SIZE),
             f=common.PrimaryFont.family()
         )
         label.setText(text)
@@ -641,14 +641,25 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # Server Header
         self.layout().addWidget(row)
-        label = QtWidgets.QLabel(u'<p style="font-size: 11pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Server</p>'.format(*common.TEXT.getRgb()))
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Server</p>'
+        text = text.format(
+            *common.TEXT.getRgb(),
+            s=common.psize(common.MEDIUM_FONT_SIZE),
+            f=common.PrimaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setAlignment(QtCore.Qt.AlignJustify)
         label.setWordWrap(True)
         self.pathsettings.layout().addWidget(label)
 
         # Server description
-        label = QtWidgets.QLabel(
-            u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the server the bookmark is located at:</p>'.format(*common.BACKGROUND.getRgb()))
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Select the server the bookmark is located at:</p>'
+        text = text.format(
+            *common.BACKGROUND.getRgb(),
+            s=common.psize(common.SMALL_FONT_SIZE),
+            f=common.SecondaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setAlignment(QtCore.Qt.AlignJustify)
         label.setWordWrap(True)
         self.pathsettings.layout().addWidget(label)
@@ -657,15 +668,25 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
         # Job header
-        label = QtWidgets.QLabel(
-            u'<p style="font-size: 11pt; color: rgba({},{},{},{}); font-family:"Roboto Black"">Job</p>'.format(*common.TEXT.getRgb()))
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Job</p>'
+        text = text.format(
+            *common.TEXT.getRgb(),
+            s=common.psize(common.MEDIUM_FONT_SIZE),
+            f=common.PrimaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setWordWrap(True)
         label.setAlignment(QtCore.Qt.AlignJustify)
         self.pathsettings.layout().addWidget(label)
 
         # Job description
-        label = QtWidgets.QLabel(
-            u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the name of the job:</p>'.format(*common.BACKGROUND.getRgb()))
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Select the name of the job:</p>'
+        text = text.format(
+            *common.BACKGROUND.getRgb(),
+            s=common.psize(common.SMALL_FONT_SIZE),
+            f=common.SecondaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setWordWrap(True)
         label.setAlignment(QtCore.Qt.AlignJustify)
 
@@ -673,14 +694,28 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pathsettings.layout().addWidget(self.pick_job_widget)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
-        label = QtWidgets.QLabel(u'<p style="font-size: 11pt; font-family:"Roboto Black"">Bookmark folder</span>')
+        # Bookmarks header
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Bookmark folder</span>'
+        text = text.format(
+            *common.TEXT.getRgb(),
+            s=common.psize(common.MEDIUM_FONT_SIZE),
+            f=common.PrimaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setWordWrap(True)
         label.setAlignment(QtCore.Qt.AlignJustify)
         self.pathsettings.layout().addWidget(label)
 
-        s = u'<p style="font-size: 10pt; color: rgba({},{},{},{}); font-family:"Roboto Medium"">Select the folder inside the job to be bookmarked.<br/><br/>'
-        s += 'Any folder inside the job can be bookmarked but only folders containing <span style="color: silver;">assets</span> are considered valid:</p>'
-        label = QtWidgets.QLabel(s.format(*common.BACKGROUND.getRgb()))
+        # Bookmarks description
+
+        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">Select the folder inside the job to be bookmarked.<br/><br/>'
+        text += 'Any folder inside the job can be bookmarked but only folders containing <span style="color: silver;">assets</span> are considered valid:</p>'
+        text = text.format(
+            *common.BACKGROUND.getRgb(),
+            s=common.psize(common.SMALL_FONT_SIZE),
+            f=common.SecondaryFont.family()
+        )
+        label = QtWidgets.QLabel(text)
         label.setWordWrap(True)
         label.setAlignment(QtCore.Qt.AlignJustify)
         self.pathsettings.layout().addWidget(label)

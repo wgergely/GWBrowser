@@ -38,8 +38,8 @@ QStackedWidget:focus {{
 QStatusBar {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SEPARATOR});
-	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
+	font-family: "{SECONDARY_FONT}";
+	font-size: {SMALL_FONT_SIZE}pt;
 	margin: 4px;
 	padding: 4px;
 	height: 36px;
@@ -312,7 +312,7 @@ QLabel:disabled {{
 QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 		font-family: "{SECONDARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}pt;
+		font-size: {SMALL_FONT_SIZE}pt;
 		margin: 6px;
 		border: none;
 		border-radius: 3px;
@@ -396,7 +396,7 @@ TodoItemEditor {{
 	outline: 0;
 	color: rgba(0,0,0,255);
 	font-family: "{SECONDARY_FONT}";
-	font-size: {LARGE_FONT_SIZE}pt;
+	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 
 CheckBoxButton, DragIndicatorButton{{

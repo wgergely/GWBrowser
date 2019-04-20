@@ -93,7 +93,7 @@ class Progresslabel(QtWidgets.QLabel):
         self.setStyleSheet("""
             QLabel {{
                 font-family: "{}";
-                font-size: 8pt;
+                font-size: {}pt;
                 color: rgba({});
                 background-color: rgba(0,0,0,0);
             	border: 0px solid;
@@ -101,6 +101,7 @@ class Progresslabel(QtWidgets.QLabel):
                 margin: 0px;
             }}
         """.format(
+            common.psize(common.SMALL_FONT_SIZE),
             common.PrimaryFont.family(),
             u'{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()))
         )

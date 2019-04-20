@@ -306,9 +306,10 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
         self.editor.setStyleSheet(
             'background-color: rgb(50,50,50);\
-            font-family: "{}"; font-size: 8pt;\
+            font-family: "{}"; font-size: {}pt;\
             color: rgba({},{},{},{});'.format(
                 common.SecondaryFont.family(),
+                common.psize(common.SMALL_FONT_SIZE),
                 *common.TEXT_NOTE.getRgb()
             ))
 
@@ -316,9 +317,10 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         label.setStyleSheet(
             'font-family: "{}";\
-            font-size: 8pt;\
+            font-size: {}pt;\
             color: rgba({},{},{},{});'.format(
                 common.PrimaryFont.family(),
+                common.psize(common.SMALL_FONT_SIZE),
                 *common.TEXT.getRgb()
             ))
 
@@ -416,7 +418,7 @@ class FilterEditor(QtWidgets.QWidget):
                 background-color: rgba(38,38,38, 255);
                 color: rgba(230,230,230,255);
                 font-family: "{}";
-                font-size: 11pt;
+                font-size: {}pt;
             	border-width: 0px;
             	border: none;
             	outline: 0;
@@ -430,7 +432,10 @@ class FilterEditor(QtWidgets.QWidget):
             	border: none;
             	outline: 0;
             }}
-        """.format(common.PrimaryFont.family()))
+        """.format(
+            common.PrimaryFont.family(),
+            common.psize(common.MEDIUM_FONT_SIZE)
+        ))
         self.layout().addWidget(self.label, 0)
         self.layout().addWidget(self.editor, 1)
 

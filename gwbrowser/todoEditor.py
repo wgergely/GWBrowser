@@ -124,7 +124,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         # font
         font = QtGui.QFont(common.SecondaryFont)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(common.LARGE_FONT_SIZE)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         self.document().setDefaultFont(font)
 
         self.highlighter = Highlighter(self.document())
@@ -154,7 +154,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         super(TodoItemEditor, self).setDisabled(b)
         font = QtGui.QFont(common.SecondaryFont)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(common.LARGE_FONT_SIZE)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         if b:
             font.setStrikeOut(True)
         self.document().setDefaultFont(font)
@@ -948,12 +948,15 @@ class TodoEditorWidget(QtWidgets.QWidget):
         )
         label.setAlignment(QtCore.Qt.AlignCenter)
         label.setStyleSheet("""
-        QLabel {{
-            color: rgb(30,30,30);
-        	font-family: "{}";
-        	font-size: 11pt;
-        }}
-        """.format(common.SecondaryFont.family()))
+QLabel {{
+    color: rgb(30,30,30);
+	font-family: "{}";
+	font-size: {}pt;
+}}
+            """.format(
+                common.SecondaryFont.family(),
+                common.psize(common.LARGE_FONT_SIZE)
+            ))
         row.layout().addWidget(label, 1)
         row.layout().addWidget(self.remove_button, 0)
 

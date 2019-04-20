@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, R0903
+
+
 """Module used to define common variables and methods used across the project.
 
 Global Variables
@@ -33,6 +35,7 @@ Sequence-recognition
 """
 
 import os
+import sys
 import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
@@ -70,10 +73,14 @@ ASSET_ROW_HEIGHT = 84.0
 # Programmatically scaling might fix matters...
 SMALL_FONT_SIZE = 8.0
 MEDIUM_FONT_SIZE = 9.0
-LARGE_FONT_SIZE = 11.0
+LARGE_FONT_SIZE = 12.0
 
 pscale = 1.0
-psize = lambda n: n * 1.5 if sys.platform == 'darwin' else pscale
+
+
+def psize(n): return n * 1.5 if sys.platform == 'darwin' else pscale
+
+
 """On macosx the font size seem to be smaller - using this function we
 can scale the fonts to an acceptable size. I haven't figured out
 where the difference comes from."""
@@ -271,7 +278,10 @@ def move_widget_to_available_geo(widget):
     widget.move(x, y)
 
 
-def _add_custom_fonts():
+_families = []
+
+
+def _add_custom_fonts(families=_families):
     """Adds custom fonts to the application."""
 
     path = u'{}/../rsc/fonts'.format(__file__)
@@ -279,9 +289,11 @@ def _add_custom_fonts():
     d = QtCore.QDir(path)
     d.setNameFilters((u'*.ttf',))
 
-    # font_families = []
     for f in d.entryInfoList(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot):
-        QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
+        idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
+        family = QtGui.QFontDatabase.applicationFontFamilies(idx)
+        if family not in families:
+            families.append(family)
 
 
 def set_custom_stylesheet(widget):
@@ -306,9 +318,9 @@ def set_custom_stylesheet(widget):
         qss = qss.format(
             PRIMARY_FONT=PrimaryFont.family(),
             SECONDARY_FONT=SecondaryFont.family(),
-            SMALL_FONT_SIZE=SMALL_FONT_SIZE,
-            MEDIUM_FONT_SIZE=MEDIUM_FONT_SIZE,
-            LARGE_FONT_SIZE=LARGE_FONT_SIZE,
+            SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
+            MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
+            LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
             BACKGROUND=u'{},{},{},{}'.format(*BACKGROUND.getRgb()),
             BACKGROUND_SELECTED=u'{},{},{},{}'.format(
                 *BACKGROUND_SELECTED.getRgb()),
