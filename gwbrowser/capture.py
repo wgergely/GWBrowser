@@ -140,7 +140,6 @@ class ScreenGrabber(QtWidgets.QDialog):
         if not isinstance(event, QtGui.QMouseEvent):
             return
 
-
         if event.button() == QtCore.Qt.LeftButton and self._click_pos is not None:
             # End click drag operation and commit the current capture rect
             self._capture_rect = QtCore.QRect(
@@ -195,7 +194,6 @@ class ScreenGrabber(QtWidgets.QDialog):
                 self.__click_pos.y() - (self._offset_pos.y() - event.globalPos().y())
             )
 
-
         # Shift constrains the rectangle to a square
         if const_mod:
             rect = QtCore.QRect()
@@ -214,6 +212,28 @@ class ScreenGrabber(QtWidgets.QDialog):
         :returns: Captured screen
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
+
+        # On macosx we're using the built-in capture-tool, grab window doesn't
+        # seem to work.
+        if 'darwin' in sys.platform.lower():
+            temppath = tempfile.NamedTemporaryFile(
+                suffix='.png',
+                prefix='gwbrowser_screencapture_',
+                delete=False
+            ).name
+
+            res = os.system('screencapture -m -i -s {}'.format(temppath))
+            if res != 0:
+                sys.stderr.write(u'Error occured capturing the desktop./n')
+                return None
+
+            pixmap = QtGui.QPixmap(temppath)
+            if pixmap.isNull():
+                sys.stderr.write(
+                    u'Error occured loading the temp capture-file./n')
+                return None
+            return pixmap
+
         tool = cls()
         if tool.exec_():
             return cls.get_desktop_pixmap(tool.capture_rect)
@@ -267,33 +287,6 @@ class ScreenGrabber(QtWidgets.QDialog):
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
         app = QtWidgets.QApplication.instance()
-
-        # On macosx we're using the built-in capture-tool, grab window doesn't
-        # seem to work.
-        if 'darwin' in sys.platform.lower():
-            temppath = tempfile.NamedTemporaryFile(
-                suffix='.png',
-                prefix='gwbrowser_screencapture_',
-                delete=False
-            ).name
-
-            res = os.system('screencapture -m -i -s {}'.format(temppath))
-            if res != 0:
-                sys.stderr.write(u'Error occured capturing the desktop./n')
-                return None
-
-            pixmap = QtGui.QPixmap(temppath)
-            if pixmap.isNull():
-                sys.stderr.write(u'Error occured loading the temp capture-file./n')
-                return None
-
-            pixmap = pixmap.copy(rect)
-            if pixmap.isNull():
-                sys.stderr.write(u'Error occured cropping the./n')
-                return None
-
-
-
         return QtGui.QPixmap.grabWindow(
             app.desktop().winId(),
             rect.x(),
