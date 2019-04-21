@@ -23,13 +23,30 @@ class Unique(Queue.Queue):
 
 class BaseWorker(QtCore.QObject):
     """Thread-worker class responsible for updating the given indexes."""
+
     queue = Unique(999999)
     queueFinished = QtCore.Signal()
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     queueError = QtCore.Signal(basestring)
+    finished = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
+        self._shutdown = False
+
+    @QtCore.Slot()
+    def shutdown(self):
+        """Quits the index-processing block.
+        We're using the built-in python Queue.get(True) method - it blocks the
+        executing thread until there's an available queue item to get.
+
+        To break the lock it is necessary to add a dummy-item to the queue.
+
+        """
+        # Adding a dummy object should clear the get() block
+        sys.stdout.write('# Stopping {} worker...\n'.format(self.__class__.__name__))
+        self._shutdown = True
+        self.queue.put(QtCore.QModelIndex())
 
     @classmethod
     @QtCore.Slot(tuple)
@@ -42,7 +59,7 @@ class BaseWorker(QtCore.QObject):
         while not cls.queue.empty():
             cls.queue.get(False)
 
-    @QtCore.Slot(tuple)
+    @QtCore.Slot()
     def begin_processing(self):
         """Starts the processing queue of this worker.
 
@@ -55,7 +72,7 @@ class BaseWorker(QtCore.QObject):
 
         """
         try:
-            while True:
+            while not self._shutdown:
                 self.process_index(self.queue.get(True))
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
@@ -73,14 +90,16 @@ class BaseWorker(QtCore.QObject):
             traceback.print_exc()
             self.error.emit(errstr)
         finally:
+            if self._shutdown:
+                sys.stdout.write('# {} worker finished processing.\n'.format(self.__class__.__name__))
+                self.finished.emit()
+                return
             self.begin_processing()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(self, index):
         """The actual processing happens here."""
         raise NotImplementedError('process_index must to be subclassed.')
-
-
 
 
 class BaseThread(QtCore.QThread):
@@ -101,17 +120,14 @@ class BaseThread(QtCore.QThread):
 
     def __init__(self, parent=None):
         super(BaseThread, self).__init__(parent=parent)
+        self.setTerminationEnabled(True)
+
         self.thread_id = None
         self.worker = None
 
-        app = QtWidgets.QApplication.instance()
-        if app:
-            app.aboutToQuit.connect(self.terminate)
-            # app.aboutToQuit.connect(self.wait)
-            app.aboutToQuit.connect(self.deleteLater)
-
     def run(self):
         self.worker = self.Worker()
-        self.worker.begin_processing()
+        self.worker.finished.connect(self.quit)
         self.started.emit()
+        self.worker.begin_processing()
         self.exec_()

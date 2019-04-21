@@ -22,6 +22,8 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 
 
 import functools
+import sys
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
@@ -56,6 +58,7 @@ class SizeGrip(QtWidgets.QSizeGrip):
 class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
     initialized = QtCore.Signal()
+    shutdown = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
@@ -87,6 +90,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initializer.timeout.connect(self.initialize)
         self.initializer.timeout.connect(self.settingstimer.start)
         self.initializer.timeout.connect(self.initializer.deleteLater)
+
+        # Shutdown monitor - we will exit the application when all the threads
+        # have finished running
+        self.shutdown_timer = QtCore.QTimer()
+        self.shutdown_timer.setInterval(250)
+        self.shutdown_timer.setSingleShot(False)
 
         self.init_progress = u'Loading...'
         self.repaint()
@@ -238,6 +247,41 @@ class BrowserWidget(QtWidgets.QWidget):
 
         s = self.stackedwidget
         m = self.listcontrolwidget.findChild(Progresslabel)
+
+        # Shutdown signals
+        #
+        # I have to make sure not to exit the main application before the threads
+        # stopped running. First the workers have to be terminated, then When
+        # all the threads stopped running we will quit the application.
+
+        threadpool = (
+            list(f.model().sourceModel().threads.itervalues()) +
+            list(ImageCache.instance().threads.itervalues()) +
+            list(l.model().threads.itervalues())
+        )
+
+        @QtCore.Slot()
+        def quit():
+            """When all the threads quit, we'll exit the main application too."""
+            for thread in threadpool:
+                if thread.isRunning():
+                    thread.worker.shutdown()
+                    thread.quit()
+
+            if all([not f.isRunning() for f in threadpool]):
+                sys.stdout.write('All threads finished.')
+                QtWidgets.QApplication.instance().quit()
+
+        @QtCore.Slot()
+        def finished(thread):
+            sys.stdout.write('{} shut down.\n'.format(thread.__class__.__name__))
+
+        self.shutdown_timer.timeout.connect(quit)
+        self.shutdown.connect(lambda: m.messageChanged.emit(u'Quitting...'))
+        self.shutdown.connect(self.shutdown_timer.start)
+        for thread in threadpool:
+            self.shutdown.connect(thread.worker.shutdown)
+            thread.finished.connect(functools.partial(finished, thread))
 
         # Signals responsible for saveing the activation changes
         b.model().sourceModel().activeChanged.connect(b.save_activated)

@@ -75,7 +75,7 @@ class TrayMenu(BrowserButtonContextMenu):
         }
         menu_set['separator1'] = {}
         menu_set['Quit'] = {
-            'action': lambda: QtWidgets.QApplication.instance().quit()
+            'action': lambda: self.parent().shutdown.emit()
         }
         return menu_set
 

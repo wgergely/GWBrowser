@@ -857,7 +857,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(common.MEDIUM_FONT_SIZE)
+        font.setPointSize(common.SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
         rect = QtCore.QRect(option.rect)

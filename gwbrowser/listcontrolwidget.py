@@ -37,7 +37,6 @@ class ListInfoWorker(BaseWorker):
     queue = Unique(999999)
 
     @QtCore.Slot(QtCore.QModelIndex)
-    @QtCore.Slot(unicode)
     @classmethod
     def process_index(cls, index):
         """The actual processing happens here."""

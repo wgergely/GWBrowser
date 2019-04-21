@@ -38,14 +38,14 @@ class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
 
-    @QtCore.Slot(tuple)
+    @QtCore.Slot()
     def begin_processing(self):
         """Gets and sets the missing information for each index in a background
         thread.
 
         """
         try:
-            while True:
+            while not self._shutdown:
                 index = FileInfoWorker.queue.get(True)
                 self.process_index(index)
         except RuntimeError as err:
@@ -64,6 +64,10 @@ class FileInfoWorker(BaseWorker):
             sys.stderr.write(errstr)
             traceback.print_exc()
         finally:
+            if self._shutdown:
+                sys.stdout.write('# {} worker finished processing.\n'.format(self.__class__.__name__))
+                self.finished.emit()
+                return
             self.begin_processing()
 
     @staticmethod
