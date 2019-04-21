@@ -76,9 +76,9 @@ MEDIUM_FONT_SIZE = 9.0
 LARGE_FONT_SIZE = 12.0
 
 pscale = 1.0
+osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 
-
-def psize(n): return n * 1.5 if sys.platform == 'darwin' else n * pscale
+def psize(n): return n * 1.5 if osx else n * pscale
 
 
 """On macosx the font size seem to be smaller - using this function we
@@ -358,7 +358,7 @@ def reveal(path):
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
-    if QtCore.QSysInfo().productType().lower() in (u'macosx', u'macos', u'mac os x', u'macos x'):
+    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
         args = [
             u'-e',
             u'tell application "Finder"',

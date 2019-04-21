@@ -215,7 +215,7 @@ class ScreenGrabber(QtWidgets.QDialog):
 
         # On macosx we're using the built-in capture-tool, grab window doesn't
         # seem to work.
-        if 'darwin' in sys.platform.lower():
+        if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
             temppath = tempfile.NamedTemporaryFile(
                 suffix='.png',
                 prefix='gwbrowser_screencapture_',

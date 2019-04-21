@@ -495,6 +495,10 @@ class FilesModel(BaseModel):
 
         url = QtCore.QUrl.fromLocalFile(filepath)
         mime.setUrls((url,))
+
+        osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+        windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
+
         mime.setData(
             u'application/x-qt-windows-mime;value="FileName"',
             QtCore.QDir.toNativeSeparators(filepath))
