@@ -493,8 +493,13 @@ class FilesModel(BaseModel):
         else:
             filepath = common.get_sequence_endpath(file_info.filePath())
 
+        filepath = QtCore.QFileInfo(filepath).absoluteFilePath()
+        filepath = QtCore.QDir.toNativeSeparators(filepath)
+
         url = QtCore.QUrl.fromLocalFile(filepath)
-        mime.setUrls((url,))
+        mime.setUrls((
+            url,
+        ))
 
         osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
         windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
@@ -506,6 +511,7 @@ class FilesModel(BaseModel):
         mime.setData(
             u'application/x-qt-windows-mime;value="FileNameW"',
             QtCore.QDir.toNativeSeparators(filepath))
+
         return mime
 
 
