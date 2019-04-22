@@ -53,17 +53,6 @@ class TrayMenu(BrowserButtonContextMenu):
             self.parent().showNormal()
             self.parent().activateWindow()
 
-            # if self.stays_on_top:
-            #     self.parent().setWindowFlags(
-            #         QtCore.Qt.Window
-            #         | QtCore.Qt.FramelessWindowHint)
-            # else:
-            #     self.parent().setWindowFlags(
-            #         QtCore.Qt.Window
-            #         | QtCore.Qt.FramelessWindowHint
-            #         | QtCore.Qt.WindowStaysOnTopHint
-            #         | QtCore.Qt.X11BypassWindowManagerHint)
-            # # self.stays_on_top = not self.stays_on_top
 
         menu_set['Keep on top of other windows'] = {
             'checkable': True,
