@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
-"""The threads/worker classes supportin the data models are defined here.
-"""
 # pylint: disable=E1101, C0103, R0913, I1101
+
+"""The threads and the associated workers are defined here.
+
+GWBrowser does OpenImageIO and file-load operations on separate threads
+controlled by QThread.
+
+Each thread is assigned a single Worker - usually responsible for taking
+QModelIndexes from the thread's python Queue.
+
+"""
 
 import sys
 import traceback
@@ -14,21 +22,31 @@ import gwbrowser.common as common
 
 class Unique(Queue.Queue):
     """https://stackoverflow.com/questions/16506429/check-if-element-is-already-in-a-queue"""
+
     def _init(self, maxsize):
         self.queue = set()
+
     def _put(self, item):
         self.queue.add(item)
+
     def _get(self):
         return self.queue.pop()
 
+
 class BaseWorker(QtCore.QObject):
-    """Thread-worker class responsible for updating the given indexes."""
+    """The base for all workers associated with a QThread.
+    `begin_processing` is a blocking function and will take any QModelIndexes found
+    in the `BaseWorker.Unique`.
+
+    """
 
     queue = Unique(999999)
+
     queueFinished = QtCore.Signal()
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     queueError = QtCore.Signal(basestring)
     finished = QtCore.Signal()
+
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
@@ -68,7 +86,7 @@ class BaseWorker(QtCore.QObject):
 
         Note:
             get(True) will block the thread until a new item is available in
-            the queue.
+            the queue. On any Exceptions the function will call itself again.
 
         """
         try:
@@ -98,7 +116,10 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(self, index):
-        """The actual processing happens here."""
+        """The actual processing happens here.
+        Make sure this overriden in the subclass.
+
+        """
         raise NotImplementedError('process_index must to be subclassed.')
 
 
@@ -109,12 +130,13 @@ class BaseThread(QtCore.QThread):
     the worker, sometimes the `started` signal doesn't fire when the Worker is
     created outside the thread.
 
-    This is a custom implementation - the worker is created in start() amking sure,
-    it is affiliated with the thread (moveToThread didn't work for me).
+    This is a custom implementation - the worker is created in start() making sure
+    it is affiliated with the thread (qobject.moveToThread didn't work for me).
 
     The thread.start() is called when the ``FileModel`` is initialized.
 
     """
+
     __worker = None
     Worker = BaseWorker
 

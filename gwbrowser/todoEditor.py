@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 
-"""Defines the widgets needed to add and modify notes and todo type annotions
-for an asset.
+"""Defines the widgets needed to add and modify notes and todo-type annotions
+for an Bookmark or an Asset.
 
 `TodoEditorWidget` is the top widget. It reads the asset configuration file
-and loads all stored todo items. It currently does no support rich text editing
-features but would be nice to implement this in the future.
+and loads stored todo items. The todo items support basic HTML elements but
+embedding media resources are not supported.
 
 Methods:
     TodoEditorWidget.add_item(): Main function to add a new todo item.
@@ -25,7 +25,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
     """Class responsible for highlighting urls"""
 
     def highlightBlock(self, text):
-        """Custom stlyes are applied here."""
         """The highlighting cases are defined in the common module.
         In general we're tying to replicate the ``Markdown`` syntax rendering.
 
@@ -97,7 +96,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             if flags & common.ItalicHighlight:
                 char_format.setFontItalic(True)
                 self.setFormat(start, end, char_format)
-
         return
 
 

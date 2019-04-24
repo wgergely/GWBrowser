@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
-"""When GWBrowser is running in standalone-mode we're running a modified
-browserwidget as the main-window.
-
-He change between a context or standalone mode is the addittion of the TrayMenu,
-and header to help move or resize the window.
-
-"""
+"""The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
 from PySide2 import QtWidgets, QtGui, QtCore
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
-"""Config file reader for maya assets.
+"""Config file reader for index-based elements.
 
 The ConfigParser allows setting comments and custom properties
 for individual scene files or assets.
