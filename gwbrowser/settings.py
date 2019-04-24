@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
+
 """Config file reader for index-based elements.
 
 The ConfigParser allows setting comments and custom properties
@@ -209,10 +210,18 @@ class AssetSettings(QtCore.QSettings):
                 index.data(common.ParentRole)[1],
                 index.data(common.ParentRole)[2],
             )
+            _bookmark = u'{}/{}'.format(
+                index.data(common.ParentRole)[1],
+                index.data(common.ParentRole)[2],
+            )
             filepath = index.data(QtCore.Qt.StatusTipRole)
         else:
             bookmark = u'{}/{}/{}'.format(
                 args[0],
+                args[1],
+                args[2],
+            )
+            _bookmark = u'{}/{}'.format(
                 args[1],
                 args[2],
             )
@@ -222,8 +231,11 @@ class AssetSettings(QtCore.QSettings):
         if collapsed:
             filepath = collapsed.expand(r'\1[0]\3')
 
-        path = filepath.replace(bookmark, u'').strip(u'/')
+        path = '{}/{}'.format(
+            _bookmark,
+            filepath.replace(bookmark, u'').strip(u'/')).strip(u'/')
         path = hashlib.md5(path.encode('utf-8')).hexdigest()
+
         self._conf_path = u'{}/.browser/{}.conf'.format(bookmark, path)
         self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
 
