@@ -100,8 +100,8 @@ class Progresslabel(QtWidgets.QLabel):
                 margin: 0px;
             }}
         """.format(
-            common.psize(common.SMALL_FONT_SIZE),
             common.PrimaryFont.family(),
+            common.psize(common.SMALL_FONT_SIZE - 1),
             u'{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()))
         )
 
