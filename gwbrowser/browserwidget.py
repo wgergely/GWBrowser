@@ -97,6 +97,14 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shutdown_timer.setInterval(250)
         self.shutdown_timer.setSingleShot(False)
 
+        self.macos_mount_timer = QtCore.QTimer()
+        self.macos_mount_timer.setInterval(2000)
+        self.macos_mount_timer.setSingleShot(False)
+        self.macos_mount_timer.timeout.connect(common.mount)
+
+        common.mount()
+        self.macos_mount_timer.start()
+
         self.init_progress = u'Loading...'
         self.repaint()
 

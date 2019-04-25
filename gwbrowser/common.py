@@ -34,6 +34,7 @@ Sequence-recognition
 
 """
 
+
 import os
 import sys
 import re
@@ -41,20 +42,26 @@ import re
 from PySide2 import QtGui, QtCore, QtWidgets
 
 osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+
+default_server = u'sloth'
+legacy_server = u'gordo'
+default_username = u'render'
+default_password = u'render'
+
 if osx:
     local = u'/jobs'
     sloth = '/Volumes/jobs'
     gordo = '/Volumes/jobs'
 else:
     local = u'//localhost/c$/jobs'
-    sloth = u'//sloth/jobs'
-    gordo = u'//gordo/jobs'
+    sloth = u'//{}/jobs'.format(default_server)
+    gordo = u'//{}/jobs'.format(legacy_server)
 
 
 SERVERS = [
     {u'path': gordo, u'nickname': u'Gordo'},
     {u'path': jobs, u'nickname': u'Sloth'},
-    {u'path': local, u'nickname': u'Local Drive'},
+    {u'path': local, u'nickname': u'Local Jobs'},
 ]
 
 ASSET_IDENTIFIER = u'workspace.mel'
@@ -376,6 +383,32 @@ def reveal(path):
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
 
+def mount(path):
+    """Mounts the server in macosx if it isn't mounted already.
+
+    Args:
+        name (str): A path to the file.
+
+    """
+    path = get_sequence_endpath(path)
+    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+        args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
+        return QtCore.QProcess.startDetached(u'explorer', args)
+
+    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
+        args = [
+            u'-e',
+            u'tell application "Finder"',
+            u'-e',
+            u'activate',
+            u'-e',
+            u'select POSIX file "{}"'.format(
+                QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
+        return QtCore.QProcess.startDetached(u'osascript', args)
+
+    raise NotImplementedError('{} os has not been implemented.'.format(
+        QtCore.QSysInfo().productType()))
+
 
 NoHighlightFlag = 0b000000
 HeadingHighlight = 0b000001
@@ -637,4 +670,28 @@ def find_largest_file(index):
     dir_.setNameFilters((f,))
     return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
 
-    # return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
+
+def mount(server=default_server, username=default_username, password=default_password):
+    """Mounts the server in macosx if it isn't mounted already. The password
+    abd
+
+    """
+    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+        return
+
+    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
+        for d in QtCore.QStorageInfo.mountedVolumes():
+            if d.rootPath().lower() == u'/volumes/jobs':
+                return # the server is already mounted
+        args = [u'-e', u'mount volume "smb://{username}:{password}@{server}/jobs/"'.format(
+            server=server,
+            username=username,
+            password=password
+        )]
+        process = QtCore.QProcess()
+        process.start(u'osascript', args)
+        process.waitForFinished()
+        return
+
+    raise NotImplementedError('{} os has not been implemented.'.format(
+        QtCore.QSysInfo().productType()))
