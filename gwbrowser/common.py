@@ -60,7 +60,7 @@ else:
 
 SERVERS = [
     {u'path': gordo, u'nickname': u'Gordo'},
-    {u'path': jobs, u'nickname': u'Sloth'},
+    {u'path': sloth, u'nickname': u'Sloth'},
     {u'path': local, u'nickname': u'Local Jobs'},
 ]
 
