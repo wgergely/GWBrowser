@@ -40,16 +40,20 @@ import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
 
-try:
-    # Maya's PySide2 flavour does not implement QStorageInfo, go figure!!
-    drives = QtCore.QStorageInfo.mountedVolumes()
-    local = drives[0].rootPath()
-except (RuntimeError, ValueError, AttributeError):
-    local = u'/'
+osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+if osx:
+    local = u'/jobs'
+    sloth = '/Volumes/jobs'
+    gordo = '/Volumes/jobs'
+else:
+    local = u'//localhost/c$/jobs'
+    sloth = u'//sloth/jobs'
+    gordo = u'//gordo/jobs'
+
 
 SERVERS = [
-    {u'path': u'//gordo/jobs', u'nickname': u'Gordo'},
-    {u'path': u'//sloth/jobs', u'nickname': u'Sloth'},
+    {u'path': gordo, u'nickname': u'Gordo'},
+    {u'path': jobs, u'nickname': u'Sloth'},
     {u'path': local, u'nickname': u'Local Drive'},
 ]
 
