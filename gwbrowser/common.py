@@ -690,7 +690,11 @@ def mount(server=default_server, username=default_username, password=default_pas
         )]
         process = QtCore.QProcess()
         process.start(u'osascript', args)
-        process.waitForFinished()
+        process.waitForFinished(-1)
+        while True:
+            for d in QtCore.QStorageInfo.mountedVolumes():
+                if d.rootPath().lower() == u'/volumes/jobs':
+                    return # the server is mounted and available
         return
 
     raise NotImplementedError('{} os has not been implemented.'.format(
