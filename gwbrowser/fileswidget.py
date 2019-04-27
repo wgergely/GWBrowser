@@ -507,12 +507,12 @@ class FilesModel(BaseModel):
         windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
         mime.setData(
-            u'application/x-qt-windows-mime;value="FileName"',
-            QtCore.QDir.toNativeSeparators(filepath))
+            'application/x-qt-windows-mime;value="FileName"',
+            QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(filepath))))
 
         mime.setData(
-            u'application/x-qt-windows-mime;value="FileNameW"',
-            QtCore.QDir.toNativeSeparators(filepath))
+            'application/x-qt-windows-mime;value="FileNameW"',
+            QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(filepath))))
 
         return mime
 
