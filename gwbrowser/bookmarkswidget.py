@@ -593,6 +593,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
         self.pathsettings.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.pathsettings.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.pathsettings.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         # Server
         self.pick_server_widget = QtWidgets.QComboBox()
@@ -614,6 +616,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
         self.pick_root_widget = QtWidgets.QPushButton(u'Pick bookmark folder')
 
         row = QtWidgets.QWidget()
+        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         QtWidgets.QHBoxLayout(row)
 
         self.ok_button = QtWidgets.QPushButton(u'Add bookmark')
@@ -625,6 +629,8 @@ class AddBookmarkWidget(QtWidgets.QWidget):
 
         # Adding it all together
         main_widget = QtWidgets.QWidget()
+        main_widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        main_widget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         QtWidgets.QHBoxLayout(main_widget)
 
         self.label = QtWidgets.QLabel()

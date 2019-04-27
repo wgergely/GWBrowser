@@ -865,7 +865,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         item.effect = QtWidgets.QGraphicsOpacityEffect(item)
         item.effect.setOpacity(1.0)
-        item.animation = QtCore.QPropertyAnimation(item.effect, u'opacity')
+        item.animation = QtCore.QPropertyAnimation(item.effect, QtCore.QByteArray('opacity'))
         item.animation.setDuration(1500)
         item.animation.setKeyValueAt(0, 0)
         item.animation.setKeyValueAt(0.5, 0.8)
@@ -1012,7 +1012,7 @@ QLabel {{
 
     def showEvent(self, event):
         animation = QtCore.QPropertyAnimation(
-            self, u'windowOpacity', parent=self)
+            self, QtCore.QByteArray('windowOpacity'), parent=self)
         animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
         animation.setDuration(150)
         animation.setStartValue(0.01)

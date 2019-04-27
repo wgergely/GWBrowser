@@ -920,7 +920,6 @@ class BaseControlButton(ClickableLabel):
             color
         )
 
-
         if self._parent.currentIndex() == self.index:
             metrics = QtGui.QFontMetrics(common.PrimaryFont)
             rect = QtCore.QRect(self.rect())
@@ -932,8 +931,6 @@ class BaseControlButton(ClickableLabel):
             painter.setBrush(color)
             painter.setPen(QtCore.Qt.NoPen)
             painter.drawRoundedRect(rect, 1, 1)
-
-
         painter.end()
 
 
@@ -950,7 +947,6 @@ class AssetsButton(BaseControlButton):
         super(AssetsButton, self).__init__(parent=parent)
         self.index = 1
         self.set_text(u'Assets')
-
 
 
 class FilesButton(BaseControlButton):
@@ -999,6 +995,14 @@ class FilesButton(BaseControlButton):
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
 
+class FavouritesButton(BaseControlButton):
+    """Drop-down widget to switch between the list"""
+
+    def __init__(self, parent=None):
+        super(FavouritesButton, self).__init__(parent=parent)
+        self.index = 3
+        self.set_text(u'Favourites')
+
 
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the list to control the mode, filters and sorting."""
@@ -1009,9 +1013,6 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
-        self._controlview = None
-        self._filesbutton = None
-
         self._createUI()
         self._connectSignals()
 
@@ -1028,6 +1029,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._filesbutton = FilesButton(parent=self)
         self._controlview = DataKeyView(parent=self)
         self._filesbutton.set_view(self._controlview)
+        self._favouritesbutton = FavouritesButton(parent=self)
 
         self._progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
@@ -1042,6 +1044,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._bookmarksbutton)
         self.layout().addWidget(self._assetsbutton)
         self.layout().addWidget(self._filesbutton)
+        self.layout().addWidget(self._favouritesbutton)
         self.layout().addStretch()
         self.layout().addWidget(self._progresslabel, 1)
         self.layout().addWidget(self._addbutton)
