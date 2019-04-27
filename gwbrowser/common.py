@@ -699,3 +699,26 @@ def mount(server=default_server, username=default_username, password=default_pas
 
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
+
+
+def file_iterator(path):
+    """Platform dependent file iterator."""
+
+    osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+
+    if osx:
+        it = scandir.walk(path, followlinks=False)
+        for root, directories, files in it:
+            for f in files:
+                yield '{}/{}'.format(root, f)
+
+    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+        itdir = QtCore.QDir(path)
+        itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        itdir.setSorting(QtCore.QDir.Unsorted)
+
+        it = QtCore.QDirIterator(
+            itdir, flags=QtCore.QDirIterator.Subdirectories)
+
+        while it.hasNext():
+            yield it.next()

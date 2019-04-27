@@ -33,7 +33,6 @@ from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
 
-
 class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
@@ -65,7 +64,8 @@ class FileInfoWorker(BaseWorker):
             traceback.print_exc()
         finally:
             if self._shutdown:
-                sys.stdout.write('# {} worker finished processing.\n'.format(self.__class__.__name__))
+                sys.stdout.write('# {} worker finished processing.\n'.format(
+                    self.__class__.__name__))
                 self.finished.emit()
                 return
             self.begin_processing()
@@ -156,7 +156,8 @@ class FileInfoWorker(BaseWorker):
 
         # Sort values
         # data[common.SortByName] = fileroot
-        data[common.SortByLastModified] = u'{}'.format(last_modified.toMSecsSinceEpoch())
+        data[common.SortByLastModified] = u'{}'.format(
+            last_modified.toMSecsSinceEpoch())
         data[common.SortBySize] = u'{}'.format(size)
 
         # Item flags
@@ -169,6 +170,7 @@ class FileInfoWorker(BaseWorker):
 
         # Thumbnail
         height = data[QtCore.Qt.SizeHintRole].height() - 2
+
         def rsc_path(f, n):
             path = u'{}/../rsc/{}.png'.format(f, n)
             path = os.path.normpath(os.path.abspath(path))
@@ -179,14 +181,15 @@ class FileInfoWorker(BaseWorker):
         if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
             placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), height)
         else:
-            placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), height)
+            placeholder_image = ImageCache.instance().get(
+                rsc_path(__file__, 'placeholder'), height)
 
         # THUMBNAILS
         needs_thumbnail = False
         image = None
         if QtCore.QFile(settings.thumbnail_path()).exists():
             image = ImageCache.instance().get(settings.thumbnail_path(), height)
-        if not image: # The item doesn't not have a saved thumbnail...
+        if not image:  # The item doesn't not have a saved thumbnail...
             ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
             if ext in common._oiio_formats:
                 # ...but we can generate a thumbnail for it
@@ -212,7 +215,6 @@ class FileInfoWorker(BaseWorker):
 
 class FileInfoThread(BaseThread):
     Worker = FileInfoWorker
-
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -264,7 +266,6 @@ class FilesModel(BaseModel):
             self.threads[n].thread_id = n
             self.threads[n].start()
 
-
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
         definitions by running a recursive QDirIterator from the location-folder.
@@ -273,22 +274,37 @@ class FilesModel(BaseModel):
         are costly and therefore are populated by secondary thread-workers when
         switch the model dataset.
 
+        Notes:
+            Experiencing serious performance issues with the built-in QDirIterator
+            on Mac OS X samba shares.
+            Querrying the filesystem using the method is magnitudes slower than
+            using the same methods on windows.
+
+            A workaround I found was to use the scandir module. On windows I
+            found that it is somewhat slower than QDirIterator but on Mac OS X
+            it is much faster.
+
         """
-        FileInfoWorker.reset_queue()
-        ImageCacheWorker.reset_queue()
+        def rsc_path(f, n):
+            path = u'{}/../rsc/{}.png'.format(f, n)
+            path = os.path.normpath(os.path.abspath(path))
+            return path
 
-        dkey = self.data_key()
-        self._data[dkey] = {
-            common.FileItem: {}, common.SequenceItem: {}}
-
-        seqs = {}
-
-        rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
-        dflags = lambda: (
+        def dflags(): return (
             QtCore.Qt.ItemNeverHasChildren |
             QtCore.Qt.ItemIsEnabled |
             QtCore.Qt.ItemIsSelectable
         )
+
+        FileInfoWorker.reset_queue()
+        ImageCacheWorker.reset_queue()
+
+        dkey = self.data_key()
+        rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        self._data[dkey] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+        seqs = {}
+
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
         activefile = local_settings.value('activepath/file')
@@ -305,33 +321,14 @@ class FilesModel(BaseModel):
             server, job, root, asset, location
         ))
 
-        # Data-containers
-
         # Iterator
-        itdir = QtCore.QDir(location_path)
-        if not itdir.exists():
-            return
-        itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        itdir.setSorting(QtCore.QDir.Unsorted)
-        it = QtCore.QDirIterator(
-            itdir, flags=QtCore.QDirIterator.Subdirectories)
+        it = common.file_iterator(location_path)
 
-        def rsc_path(f, n):
-            path = u'{}/../rsc/{}.png'.format(f, n)
-            path = os.path.normpath(os.path.abspath(path))
-            return path
-        placeholder_color = QtGui.QColor(0,0,0,55)
+        placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
-        __n = 500
+        __n = 999
         __c = 0
-        app = QtWidgets.QApplication.instance()
-        while it.hasNext():
-            __c += 1
-            if __c % __n == 0:
-                app.processEvents()
-
-            filepath = it.next()
-
+        for filepath in it:
             # File-filter:
             if location in common.NameFilters:
                 if not filepath.split('.')[-1] in common.NameFilters[location]:
@@ -344,9 +341,11 @@ class FilesModel(BaseModel):
             filename = it.fileName()
             ext = filename.split('.')[-1]
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-                placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), rowsize.height())
+                placeholder_image = ImageCache.instance().get(
+                    rsc_path(__file__, ext), rowsize.height())
             else:
-                placeholder_image = ImageCache.instance().get(rsc_path(__file__, 'placeholder'), rowsize.height())
+                placeholder_image = ImageCache.instance().get(
+                    rsc_path(__file__, 'placeholder'), rowsize.height())
 
             flags = dflags()
 
@@ -392,7 +391,8 @@ class FilesModel(BaseModel):
                     seqname = seqpath.split(u'/')[-1]
 
                     flags = dflags()
-                    key = u'{}{}.{}'.format(seq.group(1), seq.group(3), seq.group(4))
+                    key = u'{}{}.{}'.format(
+                        seq.group(1), seq.group(3), seq.group(4))
                     if key in favourites:
                         flags = flags | MarkedAsFavourite
 
@@ -422,6 +422,11 @@ class FilesModel(BaseModel):
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
+
+            __c += 1
+            if __c % __n == 0:
+                QtWidgets.QApplication.instance().processEvents()
+
 
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
@@ -458,10 +463,10 @@ class FilesModel(BaseModel):
                     _firsframe = _firsframe.format(min(v[common.FramesRole]))
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
-
             self._data[dkey][common.SequenceItem][idx] = v
 
         self.endResetModel()
+
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -543,14 +548,14 @@ class FilesWidget(BaseInlineIconWidget):
         self._index_timer.setSingleShot(False)
         self._index_timer.timeout.connect(self.initialize_visible_indexes)
 
-        self.model().sourceModel().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.reset_thread_worker_queues)
         self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
         self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
 
         # self.model().layoutChanged.connect(self.initialize_visible_indexes)
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)
-
 
     @QtCore.Slot()
     def reset_thread_worker_queues(self):
@@ -612,7 +617,6 @@ class FilesWidget(BaseInlineIconWidget):
         if indexes:
             FileInfoWorker.add_to_queue(indexes)
 
-
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)
         if widget is not self:
@@ -637,7 +641,6 @@ class FilesWidget(BaseInlineIconWidget):
         index = self.selectionModel().currentIndex()
         self.activated.emit(index)
 
-
     def save_data_key(self, key):
         local_settings.setValue(u'activepath/location', key)
 
@@ -646,14 +649,14 @@ class FilesWidget(BaseInlineIconWidget):
         emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
 
         """
-        local_settings.setValue(u'activepath/location', index.data(common.ParentRole)[4])
+        local_settings.setValue(u'activepath/location',
+                                index.data(common.ParentRole)[4])
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        filepath = u'{}/{}'.format( # location/subdir/filename.ext
+        filepath = u'{}/{}'.format(  # location/subdir/filename.ext
             index.data(common.ParentRole)[5],
             common.get_sequence_startpath(file_info.fileName()))
         local_settings.setValue(u'activepath/file', filepath)
-
 
     def mouseDoubleClickEvent(self, event):
         """Custom double-click event.
