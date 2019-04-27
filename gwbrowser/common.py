@@ -38,6 +38,7 @@ Sequence-recognition
 import os
 import sys
 import re
+import scandir
 
 from PySide2 import QtGui, QtCore, QtWidgets
 

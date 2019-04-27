@@ -47,15 +47,9 @@ class ListInfoWorker(BaseWorker):
             return
 
         # Iterator
-        itdir = QtCore.QDir(index.data(QtCore.Qt.StatusTipRole))
-        itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        itdir.setSorting(QtCore.QDir.Unsorted)
-        it = QtCore.QDirIterator(
-            itdir, flags=QtCore.QDirIterator.Subdirectories)
-
+        it = common.file_iterator(index.data(QtCore.Qt.StatusTipRole))
         count = 0
-        while it.hasNext():
-            it.next()
+        for _ in it:
             count += 1
             if count > 9999:
                 break

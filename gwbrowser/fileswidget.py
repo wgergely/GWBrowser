@@ -338,7 +338,7 @@ class FilesModel(BaseModel):
             fileroot = '/'.join(fileroot.split('/')[:-1]).strip('/')
 
             seq = common.get_sequence(filepath)
-            filename = it.fileName()
+            filename = filepath.split('/')[-1]
             ext = filename.split('.')[-1]
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
                 placeholder_image = ImageCache.instance().get(
@@ -427,7 +427,6 @@ class FilesModel(BaseModel):
             if __c % __n == 0:
                 QtWidgets.QApplication.instance().processEvents()
 
-
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
             idx = len(self._data[dkey][common.SequenceItem])
@@ -464,9 +463,7 @@ class FilesModel(BaseModel):
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
             self._data[dkey][common.SequenceItem][idx] = v
-
         self.endResetModel()
-
 
     @QtCore.Slot()
     def delete_thread(self, thread):
