@@ -290,6 +290,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         if option.rect.width() < 360.0:
             return
+        if not self.parent().inline_icons_count():
+            return
 
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 1)
@@ -321,7 +323,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
+
         if option.rect.width() < 360.0:
+            return
+        if not self.parent().inline_icons_count():
             return
 
         rect, _ = self.get_inline_icon_rect(
@@ -342,6 +347,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, index, _, _, _, _, _ = args
 
         if option.rect.width() < 360.0:
+            return
+        if not self.parent().inline_icons_count():
             return
 
         rect, _ = self.get_inline_icon_rect(
@@ -382,6 +389,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, _, _, _, _, _, favourite = args
 
         if option.rect.width() < 360.0:
+            return
+        if not self.parent().inline_icons_count():
             return
 
         rect, bg_rect = self.get_inline_icon_rect(
@@ -426,6 +435,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_inline_icons_background(self, *args):
         painter, option, index, selected, _, active, archived, _ = args
         if option.rect.width() < 360.0:
+            return
+
+        if not self.parent().inline_icons_count():
             return
 
         rect, _ = self.get_inline_icon_rect(
@@ -510,7 +522,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - common.MARGIN)
+            if self.parent().inline_icons_count():
+                rect.setRight(icon_rect.left() - common.MARGIN)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
         return metrics.width(text)
@@ -633,7 +646,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         else:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - common.MARGIN)
+            if self.parent().inline_icons_count():
+                rect.setRight(icon_rect.left() - common.MARGIN)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, color)
 
@@ -728,7 +742,8 @@ class AssetWidgetDelegate(BaseDelegate):
         if option.rect.width() >= 360.0:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left())
+            if self.parent().inline_icons_count():
+                rect.setRight(icon_rect.left())
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
@@ -821,7 +836,8 @@ class FilesWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - common.MARGIN)
+            if self.parent().inline_icons_count():
+                rect.setRight(icon_rect.left() - common.MARGIN)
             rect.setRight(rect.right())
 
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
@@ -952,7 +968,8 @@ class FilesWidgetDelegate(BaseDelegate):
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            rect.setRight(icon_rect.left() - common.MARGIN)
+            if self.parent().inline_icons_count():
+                rect.setRight(icon_rect.left() - common.MARGIN)
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
         # Name
         text = index.data(QtCore.Qt.DisplayRole)

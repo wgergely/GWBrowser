@@ -1,13 +1,22 @@
+# -*- coding: utf-8 -*-
+"""Module defines the QListWidget items used to browse the assets and the files
+found by the collector classes.
+
+"""
+# pylint: disable=E1101, C0103, R0913, I1101
+
+import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.settings import local_settings
-
 import gwbrowser.common as common
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidgetDelegate
 from gwbrowser.fileswidget import FilesWidgetContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
+from gwbrowser.imagecache import ImageCache
 
 
 class FavouritesModel(FilesModel):
@@ -34,15 +43,13 @@ class FavouritesModel(FilesModel):
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
-        server, job, root, asset = self._parent_item
-        location = self.data_key()
-        location_path = ('{}/{}/{}/{}/{}'.format(
-            server, job, root, asset, location
-        ))
+        server, job, root = self._parent_item
+        bookmark = ('{}/{}/{}'.format(server, job, root))
+        placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         __c = 0
         for filepath in favourites:
-            fileroot = filepath.replace(location_path, '')
+            fileroot = filepath.replace(bookmark, '')
             fileroot = '/'.join(fileroot.split('/')[:-1]).strip('/')
 
             seq = common.get_sequence(filepath)
@@ -60,10 +67,6 @@ class FavouritesModel(FilesModel):
             if filepath in favourites:
                 flags = flags | MarkedAsFavourite
 
-            if activefile:
-                if activefile in filepath:
-                    flags = flags | MarkedAsActive
-
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
@@ -72,7 +75,7 @@ class FavouritesModel(FilesModel):
                 QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
                 common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, asset, location, fileroot),
+                common.ParentRole: (server, job, root, fileroot),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
@@ -111,7 +114,7 @@ class FavouritesModel(FilesModel):
                         QtCore.Qt.ToolTipRole: seqpath,
                         QtCore.Qt.SizeHintRole: rowsize,
                         common.FlagsRole: flags,
-                        common.ParentRole: (server, job, root, asset, location, fileroot),
+                        common.ParentRole: (server, job, root, fileroot),
                         common.DescriptionRole: u'',
                         common.TodoCountRole: 0,
                         common.FileDetailsRole: u'',
@@ -152,27 +155,17 @@ class FavouritesModel(FilesModel):
                 if filepath in favourites:
                     flags = flags | MarkedAsFavourite
 
-                if activefile:
-                    if activefile in filepath:
-                        flags = flags | MarkedAsActive
-
                 v[common.FlagsRole] = flags
 
             elif len(v[common.FramesRole]) == 0:
                 v[common.TypeRole] = common.FileItem
-            else:
-                if activefile:
-                    _firsframe = v[common.SequenceRole].expand(r'\1{}\3.\4')
-                    _firsframe = _firsframe.format(min(v[common.FramesRole]))
-                    if activefile in _firsframe:
-                        v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
             self._data[dkey][common.SequenceItem][idx] = v
         self.endResetModel()
 
 
 
 class FavouritesWidget(FilesWidget):
-
+    """The widget responsible for showing all the items marked as favourites."""
     def __init__(self, parent=None):
         super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
@@ -200,8 +193,8 @@ class FavouritesWidget(FilesWidget):
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)
 
-
-m = FavouritesModel()
+    def inline_icons_count(self):
+        return 0
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

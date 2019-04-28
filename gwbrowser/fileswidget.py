@@ -321,10 +321,10 @@ class FilesModel(BaseModel):
             server, job, root, asset, location
         ))
 
+        placeholder_color = QtGui.QColor(0, 0, 0, 55)
+
         # Iterator
         it = common.file_iterator(location_path)
-
-        placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         __n = 999
         __c = 0

@@ -458,11 +458,12 @@ class BaseModel(QtCore.QAbstractItemModel):
 
 
 class BaseListWidget(QtWidgets.QListView):
-    """Defines the base of the ``Asset``, ``Bookmark`` and ``File`` list widgets."""
+    """Defines the base of the ``Assets``, ``Bookmarks`` and ``File`` list widgets."""
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
     sizeChanged = QtCore.Signal(QtCore.QSize)
+    favouritesChanged = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
