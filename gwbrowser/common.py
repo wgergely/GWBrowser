@@ -38,7 +38,6 @@ Sequence-recognition
 import os
 import sys
 import re
-import scandir
 
 from PySide2 import QtGui, QtCore, QtWidgets
 
@@ -708,6 +707,7 @@ def file_iterator(path):
     osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 
     if osx:
+        import scandir
         it = scandir.walk(path, followlinks=False)
         for root, directories, files in it:
             for f in files:
