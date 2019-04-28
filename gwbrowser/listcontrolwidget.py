@@ -429,6 +429,13 @@ class CollapseSequenceButton(ControlButton):
         else:
             self.current().model().sourceModel().dataTypeChanged.emit(common.FileItem)
 
+    def repaint(self):
+        super(CollapseSequenceButton, self).repaint()
+        if self._parent.currentIndex() in (2, 3):
+            self.show()
+        else:
+            self.hide()
+
 
 class ToggleArchivedButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
@@ -451,6 +458,13 @@ class ToggleArchivedButton(ControlButton):
         val = self.current().model().filterFlag(Settings.MarkedAsArchived)
         self.current().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not val)
 
+    def repaint(self):
+        super(ToggleArchivedButton, self).repaint()
+        if self._parent.currentIndex() < 3:
+            self.show()
+        else:
+            self.hide()
+
 
 class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
@@ -472,6 +486,13 @@ class ToggleFavouriteButton(ControlButton):
     def action(self):
         val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
         self.current().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not val)
+
+    def repaint(self):
+        super(ToggleFavouriteButton, self).repaint()
+        if self._parent.currentIndex() < 3:
+            self.show()
+        else:
+            self.hide()
 
 
 class CollapseSequenceMenu(BaseContextMenu):
