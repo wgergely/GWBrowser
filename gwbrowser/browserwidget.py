@@ -29,7 +29,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
-from gwbrowser.assetwidget import AssetWidget
+from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
@@ -189,7 +189,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.repaint()
         app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
-        self.assetswidget = AssetWidget(parent=self)
+        self.assetswidget = AssetsWidget(parent=self)
 
         self.init_progress = u'Creating files tab...'
         self.repaint()
@@ -302,6 +302,12 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().activeChanged.connect(f.save_activated)
         ff.model().sourceModel().activeChanged.connect(ff.save_activated)
 
+        # Making sure the Favourites widget is updated when the favourite-list changes
+        b.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+        a.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+        f.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+        ff.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+
         # Signal/slot connections for the primary bookmark/asset and filemodels
         b.model().sourceModel().modelReset.connect(
             lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
@@ -355,6 +361,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
         f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
+        ff.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
 
         b.model().modelReset.connect(lb.repaint)
         b.model().layoutChanged.connect(lb.repaint)
@@ -437,6 +444,7 @@ class BrowserWidget(QtWidgets.QWidget):
         s.currentChanged.connect(lambda x: lc._favouritesbutton.repaint())
 
         f.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
+        ff.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
         b.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
         a.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
         f.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())

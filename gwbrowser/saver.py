@@ -35,7 +35,7 @@ from gwbrowser.editors import ClickableLabel
 
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.bookmarkswidget import BookmarksModel
-from gwbrowser.assetwidget import AssetModel
+from gwbrowser.assetswidget import AssetModel
 from gwbrowser.standalonewidgets import HeaderWidget, CloseButton, MinimizeButton
 
 from gwbrowser.capture import ScreenGrabber
@@ -208,7 +208,6 @@ class SaverFileInfo(QtCore.QObject):
         """Creates a new filename based on the currently set properties."""
         job = None
         asset = None
-        location = self.parent().window().location
 
         buttons = self.parent().window().findChildren(SelectFolderButton)
         assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
@@ -227,12 +226,6 @@ class SaverFileInfo(QtCore.QObject):
         asset = regex.sub(u'', asset)[
             :12] if asset else u'sandbox'
 
-        if location:
-            folder = regex.sub(u'', location)[
-                :12]
-        else:
-            folder = 'temp'
-
         custom = custom if custom else u'untitled'
         custom = regex.sub(u'-', custom)[:25]
 
@@ -245,12 +238,9 @@ class SaverFileInfo(QtCore.QObject):
         # Numbers are not allowed in the username
         user = re.sub(r'[0-9]+', u'', user)
 
-        isexport = location == common.ExportsFolder
-        folder = self.parent().window().extension if isexport else folder
-        return '{job}_{asset}_{folder}_{custom}_{version}_{user}.{ext}'.format(
+        return '{job}_{asset}_{custom}_{version}_{user}.{ext}'.format(
             job=job,
             asset=asset,
-            folder=folder,
             custom=custom,
             version=version,
             user=user,
@@ -289,7 +279,7 @@ class SaverFileInfo(QtCore.QObject):
                 custom = self.parent().window().findChild(Custom).text()
 
                 # Not including the username if the destination is the exports folder
-                filename = match.expand(r'\1_\2_\3_{}_{}_\6.\7'.format(
+                filename = match.expand(r'\1_\2_{}_{}_\5.\6'.format(
                     custom if custom else u'untitled',
                     u'{}'.format(int(match.group(5))
                                  + 1).zfill(len(match.group(5)))
@@ -449,11 +439,10 @@ class SaverWidget(QtWidgets.QDialog):
     fileDescriptionAdded = QtCore.Signal(tuple)
     fileThumbnailAdded = QtCore.Signal(tuple)
 
-    def __init__(self, bookmark_model, asset_model, extension, location, currentfile=None, parent=None):
+    def __init__(self, bookmark_model, asset_model, extension, currentfile=None, parent=None):
         super(SaverWidget, self).__init__(parent=parent)
         self.extension = extension
         self.currentfile = currentfile
-        self.location = location
         self.thumbnail_image = None
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -467,16 +456,6 @@ class SaverWidget(QtWidgets.QDialog):
     @QtCore.Slot(unicode)
     def set_extension(self, ext):
         self.extension = ext
-
-    @QtCore.Slot(unicode)
-    def set_location(self, filepath):
-        if not filepath:
-            return
-
-        filepath = filepath.split(u'/')
-        filepath = filepath[-1] # settings the immediate parent-folder as location
-
-        self.location = filepath
 
     def contextMenuEvent(self, event):
         menu = SaverContextMenu(parent=self)
@@ -659,8 +638,6 @@ class SaverWidget(QtWidgets.QDialog):
         f.model().fileTypeChanged.connect(lambda x: self.update_filename_display())
 
         f.model().destinationChanged.connect(f.model().set_destination)
-        f.model().destinationChanged.connect( # Passing the filepath
-            lambda x: self.set_location(f.model().filePath(x)))
         f.model().destinationChanged.connect(lambda x: self.update_filepath_display())
         f.model().destinationChanged.connect(lambda x: self.update_filename_display())
 
@@ -698,6 +675,10 @@ class SaverWidget(QtWidgets.QDialog):
         a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
         a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
 
+        bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
+        bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
+        assetbutton.view().model().sourceModel().activeChanged.emit(assetbutton.view().model().sourceModel().active_index())
+
         if self.currentfile:
             # Checking if the reference file has a valid pattern
             match = common.get_valid_filename(self.currentfile)
@@ -709,22 +690,13 @@ class SaverWidget(QtWidgets.QDialog):
             self.findChild(Custom).setHidden(False)
             # Thumbnail
             self.update_thumbnail_preview()
+
+            if f.model().asset().isValid():
+                path = QtCore.QFileInfo(self.currentfile).dir().path()
+                index = f.model().index(path)
+                f.model().destinationChanged.emit(index)
         else:
             self.findChild(Custom).setHidden(False)
-
-
-
-        bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
-        bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
-        assetbutton.view().model().sourceModel().activeChanged.emit(assetbutton.view().model().sourceModel().active_index())
-
-        if self.location:
-            if not f.model().asset().isValid():
-                return  # can't set the destination without the asset
-            path = list(f.model().asset().data(common.ParentRole)) + [self.location, ]
-            path = u'/'.join(path)
-            index = f.model().index(path)
-            f.model().destinationChanged.emit(index)
 
     def pick_thumbnail(self):
         """Prompt to select an image file."""
@@ -835,11 +807,11 @@ class SaverWidget(QtWidgets.QDialog):
         self.findChild(Suffix).repaint()
 
     def prefix_suffix(self, match, increment=True):
-        prefix = match.expand(r'\1_\2_\3_')
-        suffix = match.expand(r'_<span style="color:rgba({});">{}</span>_\6.\7'.format(
+        prefix = match.expand(r'\1_\2_')
+        suffix = match.expand(r'_<span style="color:rgba({});">{}</span>_\5.\6'.format(
             u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
-            u'{}'.format(int(match.group(5)) + int(increment)
-                         ).zfill(len(match.group(5)))
+            u'{}'.format(int(match.group(4)) + int(increment)
+                         ).zfill(len(match.group(4)))
         ))
         return prefix, suffix
 

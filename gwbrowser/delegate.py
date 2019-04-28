@@ -486,7 +486,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_description(self, *args):
-        """Paints the item description inside the ``AssetWidget``."""
+        """Paints the item description inside the ``AssetsWidget``."""
         painter, option, index, _, _, _, _, _ = args
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
@@ -694,11 +694,11 @@ class BookmarksWidgetDelegate(BaseDelegate):
         return size
 
 
-class AssetWidgetDelegate(BaseDelegate):
-    """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
+class AssetsWidgetDelegate(BaseDelegate):
+    """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
 
     def paint(self, painter, option, index):
-        """Defines how the ``AssetWidget``'s' items should be painted."""
+        """Defines how the ``AssetsWidget``'s' items should be painted."""
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)
@@ -720,7 +720,7 @@ class AssetWidgetDelegate(BaseDelegate):
 
     @paintmethod
     def paint_name(self, *args):
-        """Paints the item names inside the ``AssetWidget``."""
+        """Paints the item names inside the ``AssetsWidget``."""
         painter, option, index, _, _, active, archived, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -1008,29 +1008,89 @@ class FilesWidgetDelegate(BaseDelegate):
         match = common.get_sequence(text)
         if match:
             # The extension and the suffix
-            text = u'{}.{}'.format(match.group(
-                3).upper(), match.group(4).lower())
+            if match.group(4):
+                text = u'{}.{}'.format(
+                    match.group(3).upper(), match.group(4).lower())
+            else:
+                text = u'{}'.format(
+                    match.group(3).upper())
+
             color = common.TEXT_SELECTED if selected else common.TEXT
-            rect = self._draw(painter, font, rect, text, align,
-                              color, option, kwargs['left'])
+            rect = self._draw(
+                painter, font, rect, text, align, color, option, kwargs['left'])
             # The frame-range
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if active else color
-            rect = self._draw(painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
+            rect = self._draw(
+                painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
 
             # The prefix
             color = common.TEXT_SELECTED if selected else common.TEXT
-            rect = self._draw(painter, font, rect, match.group(
-                1).upper(), align, color, option, kwargs['left'])
+            rect = self._draw(
+                painter, font, rect, match.group(1).upper(),
+                align, color, option, kwargs['left'])
             return
+
         text = text.split(u'.')
-        text = u'{suffix}.{ext}'.format(
-            ext=text.pop().lower(),
-            suffix=u'.'.join(text).upper()
-        )
+        if len(text) > 1:
+            text = u'{suffix}.{ext}'.format(
+                ext=text.pop().lower(),
+                suffix=u'.'.join(text).upper())
+        else:
+            text = text[0].upper()
+
         color = common.TEXT_SELECTED if selected else common.TEXT
         self._draw(painter, font, rect, text, align,
                    color, option, kwargs['left'])
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
+
+
+class FavouritesWidgetDelegate(FilesWidgetDelegate):
+
+    def paint(self, painter, option, index):
+        """Defines how the ``FilesWidget``'s' items should be painted."""
+        if index.data(QtCore.Qt.DisplayRole) is None:
+            return
+
+        args = self._get_paint_args(painter, option, index)
+        #
+        self.paint_background(*args)
+
+        #
+        self.paint_thumbnail(*args)
+        if index.data(common.StatusRole):
+            self.paint_archived(*args)
+        self.paint_thumbnail_shadow(*args)
+        #
+        left = self.paint_mode(*args)
+        self.paint_name(*args, left=left)
+        if index.data(common.StatusRole):
+            self.paint_description(*args, left=left)
+        #
+        self.paint_inline_icons_background(*args)
+        self.paint_folder_icon(*args)
+        #
+        self.paint_selection_indicator(*args)
+
+    @paintmethod
+    def paint_folder_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, _, _ = args
+
+        if option.rect.width() < 360.0:
+            return
+        if not self.parent().inline_icons_count():
+            return
+
+        rect, _ = self.get_inline_icon_rect(
+            option.rect, common.INLINE_ICON_SIZE, 0)
+
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
+
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'folder', sep, common.INLINE_ICON_SIZE)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawPixmap(rect, pixmap)

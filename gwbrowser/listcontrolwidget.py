@@ -3,6 +3,7 @@
 
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
+import sys
 import functools
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -28,7 +29,7 @@ from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
-from gwbrowser.assetwidget import AssetModel
+from gwbrowser.assetswidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
 
 
@@ -271,6 +272,7 @@ class CustomButton(BrowserButton):
 
 
 class ControlButton(ClickableLabel):
+    """Baseclass used for controls buttons to control list display."""
 
     def __init__(self, parent=None):
         super(ControlButton, self).__init__(parent=parent)
@@ -329,12 +331,19 @@ class TodoButton(ControlButton):
         return False
 
     def action(self):
-        assetwidget = self._parent.widget(1)
-        index = assetwidget.model().sourceModel().active_index()
-        index = assetwidget.model().mapFromSource(index)
+        assetswidget = self._parent.widget(1)
+        index = assetswidget.model().sourceModel().active_index()
+        index = assetswidget.model().mapFromSource(index)
         if not index.isValid():
             return
-        assetwidget.show_todos(index)
+        assetswidget.show_todos(index)
+
+    def repaint(self):
+        super(TodoButton, self).repaint()
+        if self._parent.currentIndex() in (2,):
+            self.show()
+        else:
+            self.hide()
 
 
 class FilterButton(ControlButton):
@@ -386,7 +395,12 @@ class FilterButton(ControlButton):
 
         editor.show()
 
+
 class CollapseSequenceButton(ControlButton):
+    """The buttons responsible for collapsing/expanding the sequences of the
+    current list.
+
+    """
 
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(parent=parent)
@@ -405,7 +419,8 @@ class CollapseSequenceButton(ControlButton):
 
     @QtCore.Slot()
     def action(self):
-        if self._parent.currentIndex() != 2:
+        """Only lists containing sequences can be collapsed."""
+        if self._parent.currentIndex() not in (2, 3):
             return
 
         datatype = self.current().model().sourceModel().data_type()
@@ -500,54 +515,61 @@ class AddButton(ControlButton):
         if self._parent.currentIndex() == 0:
             self.current().show_add_bookmark_widget()
             return
+
         if self._parent.currentIndex() == 1:
             return
 
-
-        index = self._parent.currentWidget().selectionModel().currentIndex()
 
         # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
             import gwbrowser.saver as saver
 
-            # I'm deleting
+            index = self._parent.currentWidget().selectionModel().currentIndex()
+            if index.isValid():
+                if not index.data(common.StatusRole):
+                    return
+
             bookmark_model = BookmarksModel()
             asset_model = AssetModel()
 
             extension = u'ext' # This is a generic extension that can be overriden
             currentfile = None
             data_key = self.current().model().sourceModel().data_key()
-            subfolder = u'/'
+            subfolder = data_key if data_key else u'/'
 
             if index.isValid():
-                if not index.data(common.StatusRole):
-                    return
-
-            if index.isValid():
-                # Incrementing the currently selected file if it is a sequence
+                # When there is a file selected, we will check if it is a sequence
+                # increment the version number if it is.
                 iscollapsed = common.is_collapsed(index.data(QtCore.Qt.StatusTipRole))
                 if iscollapsed:
+                    # Replacing the frame-number with placeholder characters
                     currentfile = iscollapsed.expand(r'\1{}\3')
                     currentfile = currentfile.format(u'#' * len(index.data(common.FramesRole)[-1]))
                 else:
+                    # Getting the last frame of the sequence
                     currentfile = common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
                 extension = currentfile.split(u'.').pop()
 
             # If both the currentfile and the data_key are valid we'll set
             # the default location to be the subfolder of the current file.
-            # This is a
             if currentfile and data_key:
-                subfolder = currentfile.split(data_key).pop()
-                subfolder = subfolder.split(u'/')
-                subfolder.pop()
-                subfolder = u'/'.join(subfolder).strip(u'/')
-            subfolder = '{}/{}'.format(data_key, subfolder).strip(u'/')
-            #
+                # Removing the parentpath
+                server, job, root, asset, _, _ = index.data(common.ParentRole)
+                parentpath = u'/'.join((server, job, root, asset))
+                subfolder = index.data(QtCore.Qt.StatusTipRole)
+                subfolder = QtCore.QFileInfo(subfolder)
+                subfolder = subfolder.dir().path()
+                subfolder = subfolder.replace(parentpath, '')
+            else:
+                subfolder = '{}/{}'.format(data_key, subfolder)
+
+            subfolder = subfolder.strip(u'/')
+            sys.stdout.write(subfolder)
+
             widget = saver.SaverWidget(
                 bookmark_model,
                 asset_model,
                 extension,
-                subfolder, # location is the subfolder
                 currentfile=currentfile
             )
 
@@ -591,6 +613,14 @@ class AddButton(ControlButton):
             widget.fileDescriptionAdded.connect(fileDescriptionAdded)
             widget.fileThumbnailAdded.connect(fileThumbnailAdded)
             widget.exec_()
+
+    def repaint(self):
+        """The button is only visible when showing Bookmarks or files."""
+        super(AddButton, self).repaint()
+        if self._parent.currentIndex() in (0, 2):
+            self.show()
+        else:
+            self.hide()
 
 
 
@@ -1001,7 +1031,7 @@ class FavouritesButton(BaseControlButton):
     def __init__(self, parent=None):
         super(FavouritesButton, self).__init__(parent=parent)
         self.index = 3
-        self.set_text(u'Favourites')
+        self.set_text(u'My favourites')
 
 
 class ListControlWidget(QtWidgets.QWidget):

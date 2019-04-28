@@ -22,18 +22,18 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
 import gwbrowser.editors as editors
-from gwbrowser.delegate import AssetWidgetDelegate
+from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings, Active, active_monitor
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
-class AssetWidgetContextMenu(BaseContextMenu):
-    """The context menu associated with the AssetWidget."""
+class AssetsWidgetContextMenu(BaseContextMenu):
+    """The context menu associated with the AssetsWidget."""
 
     def __init__(self, index, parent=None):
-        super(AssetWidgetContextMenu, self).__init__(index, parent=parent)
+        super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
         if index.isValid():
             self.add_mode_toggles_menu()
             self.add_thumbnail_menu()
@@ -196,19 +196,19 @@ class AssetModel(BaseModel):
         self.endResetModel()
 
 
-class AssetWidget(BaseInlineIconWidget):
+class AssetsWidget(BaseInlineIconWidget):
     """View for displaying the model items."""
 
     def __init__(self, parent=None):
-        super(AssetWidget, self).__init__(parent=parent)
+        super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
-        self.setItemDelegate(AssetWidgetDelegate(parent=self))
-        self.context_menu_cls = AssetWidgetContextMenu
+        self.setItemDelegate(AssetsWidgetDelegate(parent=self))
+        self.context_menu_cls = AssetsWidgetContextMenu
 
         self.set_model(AssetModel(parent=self))
 
     def eventFilter(self, widget, event):
-        super(AssetWidget, self).eventFilter(widget, event)
+        super(AssetsWidget, self).eventFilter(widget, event)
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:

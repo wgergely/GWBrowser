@@ -27,9 +27,9 @@ from gwbrowser.browserwidget import BrowserWidget, ListControlWidget
 from gwbrowser.listcontrolwidget import BrowserButton
 
 from gwbrowser.bookmarkswidget import BookmarksModel
-from gwbrowser.assetwidget import AssetModel
+from gwbrowser.assetswidget import AssetModel
 
-from gwbrowser.assetwidget import AssetWidget
+from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
 
 from gwbrowser.settings import local_settings
@@ -287,7 +287,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @QtCore.Slot()
     def connectSignals(self):
         browserwidget = self.findChild(BrowserWidget)
-        assetswidget = self.findChild(AssetWidget)
+        assetswidget = self.findChild(AssetsWidget)
         fileswidget = self.findChild(FilesWidget)
 
         # Asset/project

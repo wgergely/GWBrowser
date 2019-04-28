@@ -313,7 +313,7 @@ QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 		font-family: "{SECONDARY_FONT}";
 		font-size: {SMALL_FONT_SIZE}pt;
-		margin: 6px;
+		margin: 0px;
 		border: none;
 		border-radius: 3px;
 }}

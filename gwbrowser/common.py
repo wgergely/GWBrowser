@@ -77,7 +77,7 @@ TexturesFolder = u'textures'
 
 
 # Sizes
-ROW_HEIGHT = 54.0
+ROW_HEIGHT = 46.0
 BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
 
@@ -495,7 +495,7 @@ def get_ranges(arr, padding):
 
 
 ValidFilenameRegex = re.compile(
-    r'\/([^_]{1,3})_([^_]{1,12})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
+    r'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
     flags=re.IGNORECASE)
 IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
 SequenceStartRegex = re.compile(
@@ -518,11 +518,11 @@ def get_valid_filename(text):
     Match:
         group(1):   The job's short name, between 1 and 3 characters.
         group(2):   The current asset-name, between 1 and 12 characters.
-        group(3):   The current asset mode, eg. 'animation', between 1 and 12 characters.
-        group(4):   The custom descirption of the file, between 1-25 characters.
-        group(5):   The file's version. Has to be exactly 3 characters.
-        group(6):   The name of the user.
-        group(7):   The file's extension (without the '.')
+        # group(3):   The current asset mode, eg. 'animation', between 1 and 12 characters.
+        group(3):   The custom description of the file, between 1-25 characters.
+        group(4):   The file's version. Has to be exactly 3 characters.
+        group(5):   The name of the user.
+        group(6):   The file's extension (without the '.')
 
     Returns:
         A valid ``match`` object if true, ``None`` if the text is invalid.

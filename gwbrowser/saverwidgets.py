@@ -14,7 +14,7 @@ from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
 from gwbrowser.settings import MarkedAsActive
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-from gwbrowser.delegate import AssetWidgetDelegate
+from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
@@ -437,11 +437,11 @@ class SelectFolderButton(ClickableLabel):
         painter.end()
 
 
-class SelectAssetDelegate(AssetWidgetDelegate):
-    """Delegate used by the ``AssetWidget`` to display the collecteds assets."""
+class SelectAssetDelegate(AssetsWidgetDelegate):
+    """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
 
     def paint(self, painter, option, index):
-        """Defines how the ``AssetWidget``'s' items should be painted."""
+        """Defines how the ``AssetsWidget``'s' items should be painted."""
         args = self._get_paint_args(painter, option, index)
 
         self.paint_background(*args)

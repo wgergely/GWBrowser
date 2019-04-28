@@ -50,22 +50,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.index = index
         self.setToolTipsVisible(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-
-
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        shadow_offset = 6;
-        self.setWindowFlags(
-            QtCore.Qt.NoDropShadowWindowHint |
-            QtCore.Qt.Popup |
-            QtCore.Qt.FramelessWindowHint
-        )
-        self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
-        self.effect.setBlurRadius(shadow_offset)
-        self.effect.setXOffset(0)
-        self.effect.setYOffset(0)
-        self.effect.setColor(QtGui.QColor(0, 0, 0, 80))
-        self.setGraphicsEffect(self.effect)
 
     @contextmenu
     def add_separator(self, menu_set):

@@ -686,8 +686,6 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
-        # if not index.data(common.StatusRole):
-        #     return
 
         # Favouriting archived items are not allowed
         archived = index.flags() & Settings.MarkedAsArchived
@@ -760,6 +758,7 @@ class BaseListWidget(QtWidgets.QListView):
 
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        self.favouritesChanged.emit()
         index.model().dataChanged.emit(index, index)
 
     def toggle_archived(self, index, state=None):

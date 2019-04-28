@@ -479,6 +479,9 @@ class FilesModel(BaseModel):
         return QtCore.Qt.CopyAction
 
     def mimeData(self, indexes):
+        """The data necessary for supporting drag and drop operations are
+        constructed here."""
+
         index = next((f for f in indexes), None)
         mime = QtCore.QMimeData()
         location = self.data_key()
@@ -531,7 +534,7 @@ class FilesWidget(BaseInlineIconWidget):
         super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
-        self.setAcceptDrops(True)
+        self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
         self.setWindowTitle(u'Files')
         self.setAutoScroll(True)
@@ -550,7 +553,6 @@ class FilesWidget(BaseInlineIconWidget):
         self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
         self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
 
-        # self.model().layoutChanged.connect(self.initialize_visible_indexes)
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)
 
