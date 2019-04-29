@@ -238,7 +238,7 @@ UpperCase = 1
 """Filename styles"""
 
 
-FilterTextRegex = re.compile(r'[^0-9\.\#\-\_\/a-zA-Z]+')
+FilterTextRegex = re.compile(ur'[^0-9\.\#\-\_\/a-zA-Z]+')
 """This is the valid string accepted by the filter editor."""
 
 
@@ -415,50 +415,50 @@ ItalicHighlight = 0b010000
 HIGHLIGHT_RULES = {
     u'spaces': {
         u're': re.compile(
-            r'([\s\t\n\r]*)',
-            flags=re.IGNORECASE),
+            ur'([\s\t\n\r]*)',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': CodeHighlight
     },
     u'file_path': {
         u're': re.compile(
-            r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*',
-            flags=re.IGNORECASE),
+            ur'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': CodeHighlight
     },
     u'folder_path': {
         u're': re.compile(
-            r'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)',
-            flags=re.IGNORECASE),
+            ur'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': CodeHighlight
     },
     u'quotes': {
         u're': re.compile(
-            r'([\"\']+[^\"\']+[\'\"]+)',
-            flags=re.IGNORECASE),
+            ur'([\"\']+[^\"\']+[\'\"]+)',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': CodeHighlight
     },
     u'bold': {
         u're': re.compile(
-            r'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})',
-            flags=re.IGNORECASE),
+            ur'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': BoldHighlight
     },
     u'italicized': {
         u're': re.compile(
-            r'([\*_]{1})([^\*_]+)([\*_]{1})',
-            flags=re.IGNORECASE),
+            ur'([\*_]{1})([^\*_]+)([\*_]{1})',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': ItalicHighlight
     },
     u'heading': {
         u're': re.compile(
-            r'^([#]{1,6})',
-            flags=re.IGNORECASE),
+            ur'^([#]{1,6})',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': HeadingHighlight
     },
     u'quote': {
         u're': re.compile(
-            r'^([>]{1})',
-            flags=re.IGNORECASE),
+            ur'^([>]{1})',
+            flags=re.IGNORECASE | re.UNICODE),
         u'flag': QuoteHighlight
     },
 }
@@ -489,18 +489,18 @@ def get_ranges(arr, padding):
 
 
 ValidFilenameRegex = re.compile(
-    r'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
-    flags=re.IGNORECASE)
-IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE)
+    ur'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
+IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
 SequenceStartRegex = re.compile(
-    r'^(.*)\[([0-9]+).*\](.*)$',
-    flags=re.IGNORECASE)
+    ur'^(.*)\[([0-9]+).*\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
 SequenceEndRegex = re.compile(
-    r'^(.*)\[.*?([0-9]+)\](.*)$',
-    flags=re.IGNORECASE)
+    ur'^(.*)\[.*?([0-9]+)\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
 GetSequenceRegex = re.compile(
-    r'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
-    flags=re.IGNORECASE)
+    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
+    flags=re.IGNORECASE | re.UNICODE)
 
 
 def get_valid_filename(text):
@@ -575,7 +575,7 @@ def get_sequence_startpath(path):
 
     match = SequenceStartRegex.search(path)
     if match:
-        path = SequenceStartRegex.sub(r'\1\2\3', path)
+        path = SequenceStartRegex.sub(ur'\1\2\3', path)
     return path
 
 
@@ -589,7 +589,7 @@ def get_sequence_endpath(path):
 
     match = SequenceEndRegex.search(path)
     if match:
-        path = SequenceEndRegex.sub(r'\1\2\3', path)
+        path = SequenceEndRegex.sub(ur'\1\2\3', path)
     return path
 
 
@@ -659,7 +659,7 @@ def find_largest_file(index):
 
     dir_ = QtCore.QDir(p)
     dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-    f = index.data(SequenceRole).expand(r'\1{}\3.\4')
+    f = index.data(SequenceRole).expand(ur'\1{}\3.\4')
     f = f.format(u'?' * (len(index.data(FramesRole)[-1])))
     f = f.split('/')[-1]
     dir_.setNameFilters((f,))
@@ -738,7 +738,7 @@ def copy_path(index, mode=WindowsPath, first=True):
         server = local[not osx] if 'localhost' in pserver else server
 
         path = path.replace(pserver, server)
-        path = re.sub(r'[\/\\]', r'\\', path)
+        path = re.sub(ur'[\/\\]', ur'\\', path)
         QtGui.QClipboard().setText(path)
         return path
 
@@ -749,7 +749,7 @@ def copy_path(index, mode=WindowsPath, first=True):
         server = local[not osx] if 'localhost' in pserver else server
 
         path = path.replace(pserver, server)
-        path = re.sub(r'[\/\\]', r'/', path)
+        path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         return path
 
@@ -765,6 +765,6 @@ def copy_path(index, mode=WindowsPath, first=True):
         server = local[osx] if pserver.startswith('/jobs') else server
 
         path = path.replace(pserver, server)
-        path = re.sub(r'[\/\\]', r'/', path)
+        path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         return path
