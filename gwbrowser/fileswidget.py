@@ -123,12 +123,21 @@ class FileInfoWorker(BaseWorker):
             # File description string
             size = 0
             last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
+            osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+            
             for frame in frames:
                 framepath = p.format(frame)
                 file_info = QtCore.QFileInfo(framepath)
-                size += file_info.size()
-                last_modified = file_info.lastModified() if file_info.lastModified(
-                ).toTime_t() > last_modified.toTime_t() else last_modified
+
+                if osx:
+                    stat = os.stat(framepath)
+                    size += stat.st_size
+                    last_modified = QtCore.QDateTime.fromSecsSinceEpoch(stat.st_mtime) if file_info.lastModified(
+                    ).toTime_t() > last_modified.toTime_t() else last_modified
+                else:
+                    size += file_info.size()
+                    last_modified = file_info.lastModified() if file_info.lastModified(
+                    ).toTime_t() > last_modified.toTime_t() else last_modified
 
             info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
                 count=len(frames),
