@@ -705,8 +705,8 @@ class DataKeyViewDelegate(BaseDelegate):
         rect.setLeft(rect.left() + width)
 
         if index.data(common.TodoCountRole):
-            if index.data(common.TodoCountRole) >= 9999:
-                text = u' (9999+ files)'
+            if index.data(common.TodoCountRole) >= 999:
+                text = u' (999+ files)'
             else:
                 text = u' ({} files)'.format(index.data(common.TodoCountRole))
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
