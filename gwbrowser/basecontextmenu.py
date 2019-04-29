@@ -312,15 +312,15 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'archived'] = {
             u'text': text,
             u'icon': archived_off_icon if archived else archived_on_icon,
-            u'checkable': True,
-            u'checked': archived,
+            u'checkable': False,
+            # u'checked': archived,
             u'action': functools.partial(self.parent().toggle_archived, self.index, state=not archived)
         }
         menu_set[u'favourite'] = {
             u'text': 'Remove from favourites' if favourite else 'Favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
-            u'checkable': True,
-            u'checked': favourite,
+            u'checkable': False,
+            # u'checked': favourite,
             u'action': functools.partial(self.parent().toggle_favourite, self.index, state=not favourite)
         }
         return menu_set
@@ -340,24 +340,24 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'toggle_active'] = {
             u'text': 'Show active only',
             u'icon': item_on if active else item_off,
-            u'checkable': True,
-            u'checked': active,
+            u'checkable': False,
+            # u'checked': active,
             u'disabled': favourite,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsActive, not active),
         }
         menu_set[u'toggle_favourites'] = {
             u'text': 'Show favourites only',
             u'icon': item_on if favourite else item_off,
-            u'checkable': True,
-            u'checked': favourite,
+            u'checkable': False,
+            # u'checked': favourite,
             u'disabled': active,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not favourite),
         }
         menu_set[u'toggle_archived'] = {
             u'text': 'Show disabled',
             u'icon': item_on if archived else item_off,
-            u'checkable': True,
-            u'setChecked': archived,
+            u'checkable': False,
+            # u'setChecked': archived,
             u'disabled': active if active else favourite,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not archived),
         }
@@ -504,8 +504,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'collapse'] = {
             u'text': 'Show all files' if groupped else 'Group into sequence',
             u'icon': expand_pixmap if groupped else collapse_pixmap,
-            u'checkable': True,
-            u'checked': groupped,
+            u'checkable': False,
+            # u'checked': groupped,
             u'action': functools.partial(
                 self.parent().model().sourceModel().dataTypeChanged.emit, newtype)
         }
@@ -537,8 +537,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             checked = self.parent().model().sourceModel().data_key().lower() == entry.lower()
             menu_set[key][entry] = {
                 u'text': entry.title(),
-                u'checkable': True,
-                u'checked': checked,
+                u'checkable': False,
+                # u'checked': checked,
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
                 u'action': functools.partial(self.parent().model().sourceModel().dataKeyChanged.emit, entry)
             }

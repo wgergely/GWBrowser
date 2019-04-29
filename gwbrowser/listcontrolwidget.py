@@ -52,7 +52,7 @@ class ListInfoWorker(BaseWorker):
         count = 0
         for _ in it:
             count += 1
-            if count > 9999:
+            if count > 999:
                 break
 
         # The underlying data can change whilst the calculating
