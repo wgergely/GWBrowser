@@ -225,6 +225,7 @@ class BrowserButton(ClickableLabel):
         self.repaint()
 
     def paintEvent(self, event):
+        """Browser button's custom paint event."""
         option = QtWidgets.QStyleOption()
         option.initFrom(self)
 
@@ -921,12 +922,12 @@ class DataKeyModel(BaseModel):
 
 
 class BaseControlButton(ClickableLabel):
+    """Baseclass for the list control buttons."""
 
     def __init__(self, parent=None):
         super(BaseControlButton, self).__init__(parent=parent)
         self._parent = None
         self.index = 0
-
         self.setMouseTracking(True)
 
     def set_parent(self, widget):

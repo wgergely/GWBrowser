@@ -319,9 +319,8 @@ QMenu {{
 }}
 QMenu::item {{
 	padding: 6px 30px 6px 30px;
-	margin: 3px;
+	margin: 0px;
 	border: none;
-	border-radius: 2px;
 }}
 QMenu::icon {{
 	padding: 8px 8px 8px 6px;
@@ -338,7 +337,7 @@ QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
     background-color: rgba({BACKGROUND_SELECTED});
 }}
 QMenu::SEPARATOR {{
-    height: 2px;
+    height: 1px;
     background: rgba({SEPARATOR});
     margin-left: 30px;
     margin-right: 30px;

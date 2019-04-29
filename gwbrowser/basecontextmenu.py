@@ -50,8 +50,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.index = index
         self.setToolTipsVisible(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     @contextmenu
     def add_separator(self, menu_set):
@@ -91,21 +91,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             # Recursive menu creation
             if isinstance(menu_set[k], collections.OrderedDict):
                 parent = QtWidgets.QMenu(k, parent=self)
-                parent.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-                parent.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-                shadow_offset = 5
-                parent.setWindowFlags(
-                    QtCore.Qt.NoDropShadowWindowHint |
-                    QtCore.Qt.Popup |
-                    QtCore.Qt.FramelessWindowHint
-                )
-                parent.effect = QtWidgets.QGraphicsDropShadowEffect(parent)
-                parent.effect.setBlurRadius(shadow_offset)
-                parent.effect.setXOffset(0)
-                parent.effect.setYOffset(0)
-                parent.effect.setColor(QtGui.QColor(0, 0, 0, 80))
-                parent.setGraphicsEffect(parent.effect)
-
                 if u'{}:icon'.format(k) in menu_set:
                     icon = QtGui.QIcon(menu_set[u'{}:icon'.format(k)])
                     parent.setIcon(icon)
@@ -259,41 +244,49 @@ class BaseContextMenu(QtWidgets.QMenu):
         copy_icon2 = ImageCache.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        path = self.index.data(QtCore.Qt.StatusTipRole)
-        if self.parent().model().sourceModel().data_key() == common.RendersFolder:
-            path = common.get_sequence_startpath(path)
-        else:
-            path = common.get_sequence_endpath(path)
 
-        url = QtCore.QUrl().fromLocalFile(path).toString()
 
         key = u'Copy path'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = copy_icon
 
+        first = self.parent().model().sourceModel().data_key() == common.RendersFolder
+
         menu_set[key][u'windows1'] = {
             u'text': 'Windows  -  \\\\back\\slashes',
             u'icon': copy_icon2,
             u'action': functools.partial(
-                QtGui.QClipboard().setText,
-                QtCore.QDir.toNativeSeparators(path))
+                common.copy_path,
+                self.index,
+                mode=common.WindowsPath,
+                first=first)
         }
-        menu_set[key][u'windows2'] = {
-            u'text': 'Windows  -  //forward/slashes',
+        menu_set[key][u'unix'] = {
+            u'text': 'Unix  -  //forward/slashes',
             u'icon': copy_icon2,
-            u'action': functools.partial(QtGui.QClipboard().setText, path)
+            u'action': functools.partial(
+                common.copy_path,
+                self.index,
+                mode=common.UnixPath,
+                first=first)
         }
         menu_set[key][u'slack'] = {
             u'text': 'URL  -  file://Slack/friendly',
             u'icon': copy_icon2,
-            u'action': functools.partial(QtGui.QClipboard().setText, url)
+            u'action': functools.partial(
+                common.copy_path,
+                self.index,
+                mode=common.SlackPath,
+                first=first)
         }
         menu_set[key][u'macos'] = {
-            u'text': 'SMB  -  smb://MacOS/path',
+            u'text': 'MacOS  -  /MacOS/path',
             u'icon': copy_icon2,
             u'action': functools.partial(
-                QtGui.QClipboard().setText,
-                url.replace(u'file://', 'smb://'))
+                common.copy_path,
+                self.index,
+                mode=common.MacOSPath,
+                first=first)
         }
         return menu_set
 

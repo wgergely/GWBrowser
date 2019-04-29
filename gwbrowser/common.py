@@ -41,27 +41,22 @@ import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
 
-osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 
 default_server = u'sloth'
 legacy_server = u'gordo'
 default_username = u'render'
 default_password = u'render'
 
-if osx:
-    local = u'/jobs'
-    sloth = '/Volumes/jobs'
-    gordo = '/Volumes/jobs'
-else:
-    local = u'//localhost/c$/jobs'
-    sloth = u'//{}/jobs'.format(default_server)
-    gordo = u'//{}/jobs'.format(legacy_server)
+osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 
+local = {osx: u'/jobs', not osx: u'//localhost/c$/jobs'}
+sloth = {osx: '/Volumes/jobs', not osx: u'//{}/jobs'.format(default_server)}
+gordo = {osx: '/Volumes/jobs', not osx: u'//{}/jobs'.format(legacy_server)}
 
 SERVERS = [
-    {u'path': gordo, u'nickname': u'Gordo'},
-    {u'path': sloth, u'nickname': u'Sloth'},
-    {u'path': local, u'nickname': u'Local Jobs'},
+    {u'path': gordo[osx], u'nickname': u'Gordo'},
+    {u'path': sloth[osx], u'nickname': u'Sloth'},
+    {u'path': local[osx], u'nickname': u'Local Jobs'},
 ]
 
 ASSET_IDENTIFIER = u'workspace.mel'
@@ -723,3 +718,56 @@ def file_iterator(path):
 
         while it.hasNext():
             yield it.next()
+
+
+WindowsPath = 0
+UnixPath = 1
+SlackPath = 2
+MacOSPath = 3
+
+
+def copy_path(index, mode=WindowsPath, first=True):
+    """Copies the given path to the clipboard."""
+    path = index.data(QtCore.Qt.StatusTipRole)
+    if first:
+        path = get_sequence_startpath(path)
+    else:
+        path = get_sequence_endpath(path)
+
+    if mode == WindowsPath:
+        pserver = index.data(ParentRole)[0]
+        server = sloth[not osx]
+        server = gordo[not osx] if legacy_server in pserver else server
+        server = local[not osx] if 'localhost' in pserver else server
+
+        path = path.replace(pserver, server)
+        path = re.sub(r'[\/\\]', r'\\', path)
+        QtGui.QClipboard().setText(path)
+        return path
+
+    if mode == UnixPath:
+        pserver = index.data(ParentRole)[0]
+        server = sloth[not osx]
+        server = gordo[not osx] if legacy_server in pserver else server
+        server = local[not osx] if 'localhost' in pserver else server
+
+        path = path.replace(pserver, server)
+        path = re.sub(r'[\/\\]', r'/', path)
+        QtGui.QClipboard().setText(path)
+        return path
+
+    if mode == SlackPath:
+        path = QtCore.QUrl().fromLocalFile(path).toString()
+        QtGui.QClipboard().setText(path)
+        return path
+
+    if mode == MacOSPath:
+        pserver = index.data(ParentRole)[0]
+        server = sloth[osx]
+        server = gordo[osx] if legacy_server in pserver else server
+        server = local[osx] if pserver.startswith('/jobs') else server
+
+        path = path.replace(pserver, server)
+        path = re.sub(r'[\/\\]', r'/', path)
+        QtGui.QClipboard().setText(path)
+        return path
