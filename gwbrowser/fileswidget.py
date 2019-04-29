@@ -355,7 +355,7 @@ class FilesModel(BaseModel):
 
             if filename.startswith(u'.'):
                 continue
-                
+
             if u'Thumbs.db' in filename:
                 continue
 
@@ -404,15 +404,32 @@ class FilesModel(BaseModel):
             # If the file in question is a sequence, we will also save a reference
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
-                seqpath = u'{}[0]{}.{}'.format(
-                    unicode(seq.group(1), 'utf-8'), unicode(seq.group(3), 'utf-8'), unicode(seq.group(4), 'utf-8'))
+                try:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        unicode(seq.group(1), 'utf-8'),
+                        unicode(seq.group(3), 'utf-8'),
+                        unicode(seq.group(4), 'utf-8'))
+                except TypeError:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        seq.group(1),
+                        seq.group(3),
+                        seq.group(4))
+
 
                 if seqpath not in seqs:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
-
                     flags = dflags()
-                    key = u'{}{}.{}'.format(
-                        unicode(seq.group(1), 'utf-8'), unicode(seq.group(3), 'utf-8'), unicode(seq.group(4), 'utf-8'))
+                    try:
+                        key = u'{}{}.{}'.format(
+                            unicode(seq.group(1), 'utf-8'),
+                            unicode(seq.group(3), 'utf-8'),
+                            unicode(seq.group(4), 'utf-8'))
+                    except TypeError:
+                        key = u'{}{}.{}'.format(
+                            seq.group(1),
+                            seq.group(3),
+                            seq.group(4))
+
                     if key in favourites:
                         flags = flags | MarkedAsFavourite
 
@@ -439,7 +456,10 @@ class FilesModel(BaseModel):
                         common.SortByLastModified: seqpath,
                         common.SortBySize: seqpath,
                     }
-                seqs[seqpath][common.FramesRole].append(unicode(seq.group(2), 'utf-8'))
+                try:
+                    seqs[seqpath][common.FramesRole].append(unicode(seq.group(2), 'utf-8'))
+                except TypeError:
+                    seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
