@@ -55,7 +55,7 @@ sloth = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
 gordo = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
 SERVERS = [
-    {u'path': gordo[osx], u'nickname': u'Gordo'},
+    {u'path': gordo[osx], u'nickname': u'Gordo (Legacy - Don\'t use)'},
     {u'path': sloth[osx], u'nickname': u'Sloth'},
     {u'path': local[osx], u'nickname': u'Local Jobs'},
 ]
