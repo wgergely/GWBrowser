@@ -50,9 +50,9 @@ default_password = u'render'
 osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
-local = {osx: u'/jobs', not osx: u'//localhost/c$/jobs'}
-sloth = {osx: '/Volumes/jobs', not osx: u'//{}/jobs'.format(default_server)}
-gordo = {osx: '/Volumes/jobs', not osx: u'//{}/jobs'.format(legacy_server)}
+local = {True: u'/jobs', False: u'//localhost/c$/jobs'}
+sloth = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
+gordo = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
 SERVERS = [
     {u'path': gordo[osx], u'nickname': u'Gordo'},
