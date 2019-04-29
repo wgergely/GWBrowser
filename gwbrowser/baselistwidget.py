@@ -398,7 +398,7 @@ class BaseModel(QtCore.QAbstractItemModel):
     def data_type(self):
         """Current key to the data dictionary."""
         if self._datatype is None:
-            val = common.FileItem
+            val = common.SequenceItem
             cls = self.__class__.__name__
             key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
             savedval = local_settings.value(key)
