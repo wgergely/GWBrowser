@@ -105,12 +105,12 @@ class FileInfoWorker(BaseWorker):
             rangestring = common.get_ranges(intframes, len(frames[0]))
 
             p = data[common.SequenceRole].expand(
-                r'\1{}\3.\4')
+                ur'\1{}\3.\4')
             startpath = p.format(
                 unicode(min(intframes)).zfill(len(frames[0])))
             endpath = p.format(
                 unicode(max(intframes)).zfill(len(frames[0])))
-            seqpath = p.format('[{}]'.format(rangestring))
+            seqpath = p.format(u'[{}]'.format(rangestring))
             seqname = seqpath.split(u'/')[-1]
 
             data[common.StartpathRole] = startpath
@@ -343,7 +343,6 @@ class FilesModel(BaseModel):
         __n = 999
         __c = 0
         for filepath in it:
-            # File-filter:
             if location in common.NameFilters:
                 if not filepath.split('.')[-1] in common.NameFilters[location]:
                     continue
@@ -353,6 +352,10 @@ class FilesModel(BaseModel):
 
             seq = common.get_sequence(filepath)
             filename = filepath.split('/')[-1]
+
+            if filename.startswith(u'.'):
+                continue
+
             ext = filename.split('.')[-1]
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
                 placeholder_image = ImageCache.instance().get(
@@ -399,14 +402,14 @@ class FilesModel(BaseModel):
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
                 seqpath = u'{}[0]{}.{}'.format(
-                    seq.group(1), seq.group(3), seq.group(4))
+                    unicode(seq.group(1), 'utf-8'), unicode(seq.group(3), 'utf-8'), unicode(seq.group(4), 'utf-8'))
 
                 if seqpath not in seqs:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
 
                     flags = dflags()
                     key = u'{}{}.{}'.format(
-                        seq.group(1), seq.group(3), seq.group(4))
+                        unicode(seq.group(1), 'utf-8'), unicode(seq.group(3), 'utf-8'), unicode(seq.group(4), 'utf-8'))
                     if key in favourites:
                         flags = flags | MarkedAsFavourite
 
@@ -433,7 +436,7 @@ class FilesModel(BaseModel):
                         common.SortByLastModified: seqpath,
                         common.SortBySize: seqpath,
                     }
-                seqs[seqpath][common.FramesRole].append(seq.group(2))
+                seqs[seqpath][common.FramesRole].append(unicode(seq.group(2), 'utf-8'))
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -446,7 +449,7 @@ class FilesModel(BaseModel):
             idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
-                filepath = v[common.SequenceRole].expand(r'\1{}\3.\4')
+                filepath = v[common.SequenceRole].expand(ur'\1{}\3.\4')
                 filepath = filepath.format(v[common.FramesRole][0])
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
@@ -472,7 +475,7 @@ class FilesModel(BaseModel):
                 v[common.TypeRole] = common.FileItem
             else:
                 if activefile:
-                    _firsframe = v[common.SequenceRole].expand(r'\1{}\3.\4')
+                    _firsframe = v[common.SequenceRole].expand(ur'\1{}\3.\4')
                     _firsframe = _firsframe.format(min(v[common.FramesRole]))
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
