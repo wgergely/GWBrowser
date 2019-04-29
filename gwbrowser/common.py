@@ -768,3 +768,18 @@ def copy_path(index, mode=WindowsPath, first=True):
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         return path
+
+
+@QtCore.Slot(QtCore.QModelIndex)
+def execute(index, first=False):
+    """Given the model index, executes the index's path using QDesktopServices."""
+    if not index.isValid():
+        return
+    path = index.data(QtCore.Qt.StatusTipRole)
+    if first:
+        path = get_sequence_startpath(path)
+    else:
+        path = get_sequence_endpath(path)
+
+    url = QtCore.QUrl.fromLocalFile(path)
+    QtGui.QDesktopServices.openUrl(url)

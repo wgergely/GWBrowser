@@ -674,8 +674,7 @@ class FilesWidget(BaseInlineIconWidget):
         return 3
 
     def action_on_enter_key(self):
-        index = self.selectionModel().currentIndex()
-        self.activated.emit(index)
+        self.activate(self.selectionModel().currentIndex())
 
     def save_data_key(self, key):
         local_settings.setValue(u'activepath/location', key)

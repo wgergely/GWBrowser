@@ -606,7 +606,6 @@ class BaseListWidget(QtWidgets.QListView):
         data = source_index.model().model_data()
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] | Settings.MarkedAsActive
-
         source_index.model().dataChanged.emit(source_index, source_index)
         source_index.model().activeChanged.emit(source_index)
 

@@ -2,6 +2,8 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
+import sys
+import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.browserwidget import BrowserWidget, SizeGrip
@@ -183,6 +185,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     @QtCore.Slot()
     def tweak_ui(self):
+        """UI modifications to apply when the tool is started in standalone-mode."""
         self.headerwidget = HeaderWidget(parent=self)
         self.layout().insertWidget(0, self.headerwidget)
 
@@ -190,39 +193,17 @@ class StandaloneBrowserWidget(BrowserWidget):
         grip.show()
 
         shadow_offset = 0
-        # shadow_offset = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(
             common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
             common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)
-        # self.effect = QtWidgets.QGraphicsDropShadowEffect(self)
-        # self.effect.setBlurRadius(shadow_offset)
-        # self.effect.setXOffset(0)
-        # self.effect.setYOffset(0)
-        # self.effect.setColor(QtGui.QColor(0, 0, 0, 150))
-        # self.setGraphicsEffect(self.effect)
 
         self.findChild(MinimizeButton).clicked.connect(self.showMinimized)
         self.findChild(CloseButton).clicked.connect(self.close)
-        self.findChild(FilesWidget).activated.connect(
-            self.index_activated)
+
+        self.fileswidget.activated.connect(common.execute)
+        self.favouriteswidget.activated.connect(common.execute)
         app = QtWidgets.QApplication.instance().aboutToQuit.connect(
             self.save_widget_settings)
-
-
-    def index_activated(self, index):
-        """When in standalone mode, double-clicking an item will open that item."""
-        if not index.isValid():
-            return
-        location = self.findChild(
-            FilesWidget).model().sourceModel().data_key()
-
-        data = index.data(QtCore.Qt.StatusTipRole)
-        if location == common.RendersFolder:
-            path = common.get_sequence_startpath(data)
-        else:
-            path = common.get_sequence_endpath(data)
-        url = QtCore.QUrl.fromLocalFile(path)
-        QtGui.QDesktopServices.openUrl(url)
 
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""
