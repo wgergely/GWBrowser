@@ -355,6 +355,9 @@ class FilesModel(BaseModel):
 
             if filename.startswith(u'.'):
                 continue
+                
+            if u'Thumbs.db' in filename:
+                continue
 
             ext = filename.split('.')[-1]
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
