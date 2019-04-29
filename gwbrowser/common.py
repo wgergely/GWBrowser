@@ -48,6 +48,7 @@ default_username = u'render'
 default_password = u'render'
 
 osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
+windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
 local = {osx: u'/jobs', not osx: u'//localhost/c$/jobs'}
 sloth = {osx: '/Volumes/jobs', not osx: u'//{}/jobs'.format(default_server)}
@@ -82,7 +83,6 @@ MEDIUM_FONT_SIZE = 9.0
 LARGE_FONT_SIZE = 12.0
 
 pscale = 1.0
-osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 
 def psize(n): return n * 1.5 if osx else n * pscale
 
@@ -360,11 +360,11 @@ def reveal(path):
 
     """
     path = get_sequence_endpath(path)
-    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+    if windows:
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
-    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
+    if osx:
         args = [
             u'-e',
             u'tell application "Finder"',
@@ -386,11 +386,11 @@ def mount(path):
 
     """
     path = get_sequence_endpath(path)
-    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+    if windows:
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
-    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
+    if osx:
         args = [
             u'-e',
             u'tell application "Finder"',
@@ -671,10 +671,10 @@ def mount(server=default_server, username=default_username, password=default_pas
     abd
 
     """
-    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+    if windows:
         return
 
-    if QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos'):
+    if osx:
         for d in QtCore.QStorageInfo.mountedVolumes():
             if d.rootPath().lower() == u'/volumes/jobs':
                 return # the server is already mounted
@@ -698,9 +698,6 @@ def mount(server=default_server, username=default_username, password=default_pas
 
 def file_iterator(path):
     """Platform dependent file iterator."""
-
-    osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
-
     if osx:
         import scandir
         it = scandir.walk(path, followlinks=False)
@@ -708,7 +705,7 @@ def file_iterator(path):
             for f in files:
                 yield '{}/{}'.format(root, f)
 
-    if QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt'):
+    if windows:
         itdir = QtCore.QDir(path)
         itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         itdir.setSorting(QtCore.QDir.Unsorted)

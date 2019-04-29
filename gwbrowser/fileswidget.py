@@ -123,16 +123,15 @@ class FileInfoWorker(BaseWorker):
             # File description string
             size = 0
             last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
-            osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
-            
+
             for frame in frames:
                 framepath = p.format(frame)
                 file_info = QtCore.QFileInfo(framepath)
 
-                if osx:
+                if common.osx:
                     stat = os.stat(framepath)
                     size += stat.st_size
-                    last_modified = QtCore.QDateTime.fromSecsSinceEpoch(stat.st_mtime) if file_info.lastModified(
+                    last_modified = QtCore.QDateTime.fromMSecsSinceEpoch(stat.st_mtime * 1000) if file_info.lastModified(
                     ).toTime_t() > last_modified.toTime_t() else last_modified
                 else:
                     size += file_info.size()
@@ -149,10 +148,16 @@ class FileInfoWorker(BaseWorker):
                 size=common.byte_to_string(size)
             )
         else:
-            file_info = QtCore.QFileInfo(
-                data[QtCore.Qt.StatusTipRole])
-            size = file_info.size()
-            last_modified = file_info.lastModified()
+            if common.osx:
+                file_info = QtCore.QFileInfo(
+                    data[QtCore.Qt.StatusTipRole])
+                size = file_info.size()
+                last_modified = file_info.lastModified()
+            else:
+                stat = os.stat(data[QtCore.Qt.StatusTipRole])
+                size = stat.st_size
+                last_modified = QtCore.QDateTime.fromMSecsSinceEpoch(stat.st_mtime * 1000)
+
             info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
                 day=last_modified.toString(u'dd'),
                 month=last_modified.toString(u'MM'),
@@ -514,9 +519,6 @@ class FilesModel(BaseModel):
         mime.setUrls((
             url,
         ))
-
-        osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
-        windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
         mime.setData(
             'application/x-qt-windows-mime;value="FileName"',
