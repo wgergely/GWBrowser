@@ -425,7 +425,7 @@ TodoItemEditor:disabled {{
 
 
 
-AddBookmarkWidget {{
+AddBookmarksWidget {{
 	background-color: rgba(150,150,150,255);
 	color: rgba({SECONDARY_TEXT});
 	border-width: 1px;
