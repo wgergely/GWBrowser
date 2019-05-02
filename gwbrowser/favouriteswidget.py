@@ -11,6 +11,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.settings import local_settings
 import gwbrowser.common as common
+import gwbrowser.settings as Settings
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.delegate import FavouritesWidgetDelegate
@@ -60,7 +61,8 @@ class FavouritesModel(FilesModel):
         def dflags(): return (
             QtCore.Qt.ItemNeverHasChildren |
             QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsSelectable
+            QtCore.Qt.ItemIsSelectable |
+            Settings.MarkedAsFavourite
         )
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -76,7 +78,7 @@ class FavouritesModel(FilesModel):
             return
         if not all(self._parent_item):
             return
-            
+
         server, job, root = self._parent_item
         bookmark = ('{}/{}/{}'.format(server, job, root))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
@@ -258,9 +260,59 @@ class FavouritesWidget(FilesWidget):
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()
 
+    def toggle_favourite(self, index, state=None):
+        """Removes the given index (and all sub-files if sequence) from favourites.
+
+        Args:
+            item (QListWidgetItem): The item to change.
+
+        """
+        if not index.isValid():
+            return
+
+        favourites = local_settings.value(u'favourites')
+        favourites = favourites if favourites else []
+
+        source_index = self.model().mapToSource(index)
+        data = source_index.model().model_data()
+
+        key = index.data(QtCore.Qt.StatusTipRole)
+        collapsed = common.is_collapsed(key)
+        if collapsed:
+            key = collapsed.expand(r'\1\3')
+
+        favourites.remove(key)
+        data[source_index.row()][common.FlagsRole] = data[source_index.row(
+        )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+
+        # When toggling a sequence item, we will toggle all the individual sequence items as well
+        if self.model().sourceModel().data_type() == common.SequenceItem:
+            m = self.model().sourceModel()
+            k = m.data_key()
+            t = common.FileItem
+            _data = m._data[k][t]
+
+            # Let's find the item in the model data
+            for frame in data[source_index.row()][common.FramesRole]:
+                _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
+                _path = _path.format(frame)
+                _index = None
+                for val in _data.itervalues():
+                    if val[QtCore.Qt.StatusTipRole] == _path:
+                        _index = val # Found it!
+                        break
+                if _index:
+                    if _index[QtCore.Qt.StatusTipRole] in favourites:
+                        favourites.remove(_index[QtCore.Qt.StatusTipRole])
+                    _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
+
+        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        self.favouritesChanged.emit()
+        index.model().dataChanged.emit(index, index)
+
 
     def inline_icons_count(self):
-        return 1
+        return 2
 
     def check_accept(self, mime):
         """Check if the item about to be dropped is valid."""
@@ -336,6 +388,10 @@ class FavouritesWidget(FilesWidget):
                 continue
 
             if n == 0:
+                self.toggle_favourite(index)
+                self.model().invalidateFilter()
+                break
+            if n == 1:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
                 break
 

@@ -119,9 +119,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_background(self, *args):
         """Paints the background."""
         painter, option, index, selected, _, active, _, _ = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.drawRect(option.rect)
+        # painter.drawRect(option.rect)
 
         if selected:
             color = QtGui.QColor(common.BACKGROUND_SELECTED)
@@ -155,6 +156,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(color)
             painter.setOpacity(0.5)
             painter.setBrush(common.FAVOURITE)
+            painter.drawRect(rect)
+
+        if hover:
+            painter.setBrush(QtGui.QColor(255,255,255,20))
             painter.drawRect(rect)
 
     @paintmethod
@@ -412,12 +417,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setPen(QtCore.Qt.NoPen)
 
         if favourite:
-            # sep = QtGui.QColor(common.SEPARATOR)
-            # sep.setAlpha(150)
-            # painter.setBrush(sep)
-            # painter.drawRoundedRect(
-            #     bg_rect, bg_rect.width() / 2, bg_rect.width() / 2)
-
             rect2 = QtCore.QRect(option.rect)
             rect2.setTop(rect2.top() + 1)
             rect2.setBottom(rect2.bottom() - 1)
@@ -434,6 +433,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_inline_icons_background(self, *args):
         painter, option, index, selected, _, active, archived, _ = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
         if option.rect.width() < 360.0:
             return
 
@@ -457,8 +458,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 color = QtGui.QColor(common.BACKGROUND_SELECTED)
             else:
                 color = QtGui.QColor(common.BACKGROUND)
-
-
             painter.setBrush(color)
             painter.drawRect(bg_rect)
 
@@ -478,11 +477,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         else:
             painter.setBrush(common.SECONDARY_BACKGROUND)
         for n in xrange(self.parent().inline_icons_count()):
-            rect, bg_rect = self.get_inline_icon_rect(
+            rect, _bg_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, n)
             painter.setOpacity(0.3)
             painter.drawRoundedRect(
-                bg_rect, bg_rect.height() / 2, bg_rect.height() / 2)
+                _bg_rect, _bg_rect.height() / 2, _bg_rect.height() / 2)
+
+        if hover:
+            if active:
+                painter.setOpacity(0.5)
+            else:
+                painter.setOpacity(1)
+            painter.setBrush(QtGui.QColor(255,255,255,20))
+            painter.drawRect(bg_rect)
 
     @paintmethod
     def paint_description(self, *args):
@@ -686,6 +693,35 @@ class BookmarksWidgetDelegate(BaseDelegate):
         text = u'{}'.format(count)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else common.TEXT_DISABLED)
+
+    @paintmethod
+    def paint_archived_icon(self, *args):
+        """Paints the icon for indicating the item is a favourite."""
+        painter, option, _, _, _, _, archived, _ = args
+
+        if option.rect.width() < 360.0:
+            return
+        if not self.parent().inline_icons_count():
+            return
+
+        rect, bg_rect = self.get_inline_icon_rect(
+            option.rect, common.INLINE_ICON_SIZE, 1)
+
+        pos = QtGui.QCursor().pos()
+        pos = self.parent().mapFromGlobal(pos)
+
+        # Icon
+        sep = QtGui.QColor(common.SEPARATOR)
+        sep.setAlpha(150)
+        color = common.FAVOURITE if archived else sep
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QBrush(color))
+
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'todo_remove_activated', color, common.INLINE_ICON_SIZE)
+
+        # Icon
+        painter.drawPixmap(rect, pixmap)
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
@@ -1071,6 +1107,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
         #
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
+        self.paint_favourite_icon(*args)
         #
         self.paint_selection_indicator(*args)
 
@@ -1085,7 +1122,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
             return
 
         rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 0)
+            option.rect, common.INLINE_ICON_SIZE, 1)
 
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)

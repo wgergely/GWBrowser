@@ -96,6 +96,10 @@ class ComboBoxItemDelegate(BaseDelegate):
     @paintmethod
     def paint_background(self, *args):
         painter, option, index, selected, _, _, _, _ = args
+
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+
         rect = QtCore.QRect(option.rect)
         if selected:
             painter.setBrush(common.BACKGROUND_SELECTED)
@@ -109,15 +113,16 @@ class ComboBoxItemDelegate(BaseDelegate):
         """Paints the DisplayRole of the items."""
         painter, option, index, selected, _, _, _, _ = args
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        disabled = (index.flags() == QtCore.Qt.NoItemFlags)
+        disabled = index.flags() == QtCore.Qt.NoItemFlags
 
         rect = QtCore.QRect(option.rect)
         rect.setLeft(common.MARGIN)
         rect.setRight(option.rect.right())
 
-
         text = index.data(QtCore.Qt.DisplayRole)
         color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.SECONDARY_TEXT if disabled else color
+
         if text == custom_string:
             _rect = QtCore.QRect(option.rect)
             _rect.setTop(_rect.bottom() - 1)
@@ -126,8 +131,6 @@ class ComboBoxItemDelegate(BaseDelegate):
             painter.drawRect(_rect)
         else:
             text = text.upper()
-            if disabled:
-                text = u'{}  |  Unavailable'.format(text)
 
         common.draw_aliased_text(
             painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
@@ -400,9 +403,9 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pick_job_widget.activated.connect(
             functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
 
-        self.pick_server_widget.activated.connect(self.validate)
-        self.pick_job_widget.activated.connect(self.validate)
-        self.pick_root_widget.activated.connect(self.validate)
+        self.pick_server_widget.currentIndexChanged.connect(self.validate)
+        self.pick_job_widget.currentIndexChanged.connect(self.validate)
+        self.pick_root_widget.currentIndexChanged.connect(self.validate)
         self.pick_root_widget.activated.connect(self.pick_root_widget.pick_custom)
 
         self.ok_button.pressed.connect(self.add_bookmark)
@@ -437,7 +440,6 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             role=QtCore.Qt.StatusTipRole,
             flags=QtCore.Qt.MatchEndsWith
         )
-        print local_paths[key], idx
 
         if idx is None:
             combobox.setCurrentIndex(first_valid())
@@ -468,6 +470,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         arr = []
         self.get_root_folder_items(path, arr=arr)
+        bookmarks = local_settings.value(u'bookmarks')
+
         for file_info in arr:
             item = QtWidgets.QListWidgetItem()
             name = file_info.filePath().replace(path, u'').strip(u'/')
@@ -475,6 +479,11 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
+
+            # Disabling the item if it has already been added to the widget
+            if file_info.filePath() in bookmarks:
+                item.setFlags(QtCore.Qt.NoItemFlags)
+
             self.pick_root_widget.view().addItem(item)
 
         # Adding a special custom button
@@ -611,7 +620,11 @@ class AddBookmarksWidget(QtWidgets.QWidget):
     @QtCore.Slot(unicode)
     def select_newly_added_bookmark(self, path):
         """Selects the newly added bookmark in the `BookmarksWidget`."""
-        if not self.parent():
+        try:
+            # This is needed - it is not possible to disconnect a partial object in PySide2, not that I know of at least...
+            if not self.parent():
+                return
+        except RuntimeError:
             return
 
         for n in xrange(self.parent().model().rowCount()):
@@ -669,7 +682,6 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             QtCore.QDir.Dirs |
             QtCore.QDir.NoSymLinks
         )
-
         for file_info in qdir.entryInfoList():
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, file_info.fileName())
@@ -681,7 +693,9 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
             item.setData(common.FlagsRole, item.flags())
+
             self.pick_job_widget.view().addItem(item)
+
 
     def mousePressEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):

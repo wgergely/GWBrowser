@@ -475,7 +475,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.context_menu_cls = None
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
-        self.setMouseTracking(True)
+        # self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
