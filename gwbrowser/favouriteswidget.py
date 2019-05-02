@@ -72,6 +72,11 @@ class FavouritesModel(FilesModel):
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
 
+        if not self._parent_item:
+            return
+        if not all(self._parent_item):
+            return
+            
         server, job, root = self._parent_item
         bookmark = ('{}/{}/{}'.format(server, job, root))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
