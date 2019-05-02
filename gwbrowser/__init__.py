@@ -1,2 +1,2 @@
 name = 'gwbrowser'
-__version__ = u'0.1.44'
+__version__ = u'0.1.45'
