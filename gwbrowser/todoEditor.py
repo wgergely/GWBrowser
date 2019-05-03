@@ -720,16 +720,19 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
-            painter.setPen(common.FAVOURITE)
             font = QtGui.QFont(common.SecondaryFont)
             font.setPointSize(common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
-            painter.drawText(
-                self.rect(),
-                QtCore.Qt.AlignCenter,
-                u'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.' if not len(
-                    self.editors.items) else u''
-            )
+
+            rect = QtCore.QRect(self.rect())
+            center = rect.center()
+            rect.setWidth(rect.width() - common.MARGIN)
+            rect.setHeight(rect.height() - common.MARGIN)
+            rect.moveCenter(center)
+
+            text = u'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.'
+            text = text if not len(self.editors.items) else u''
+            common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, common.FAVOURITE)
             painter.end()
         return False
 
