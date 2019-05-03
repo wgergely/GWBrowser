@@ -577,7 +577,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         bookmarks = local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
-        
+
         if key in bookmarks:
             self.ok_button.setText(u'Bookmark added already')
             self.ok_button.setDisabled(True)
