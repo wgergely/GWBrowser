@@ -471,6 +471,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         arr = []
         self.get_root_folder_items(path, arr=arr)
         bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = bookmarks if bookmarks else {}
 
         for file_info in arr:
             item = QtWidgets.QListWidgetItem()
@@ -575,6 +576,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             return
 
         bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = bookmarks if bookmarks else {}
+        
         if key in bookmarks:
             self.ok_button.setText(u'Bookmark added already')
             self.ok_button.setDisabled(True)
