@@ -314,22 +314,11 @@ class FavouritesWidget(FilesWidget):
     def inline_icons_count(self):
         return 2
 
-    def check_accept(self, mime):
-        """Check if the item about to be dropped is valid."""
-        bookmark = self.model().sourceModel()._parent_item
-        bookmark = u'/'.join(self.model().sourceModel()._parent_item)
-
-        if mime.hasUrls():
-            urls = mime.urls()
-            if all([(bookmark in QtCore.QFileInfo(f.toLocalFile()).filePath()) for f in urls]):
-                return True
-        return False
-
     def dragEnterEvent(self, event):
         if event.source() == self:
             return
 
-        if self.check_accept(event.mimeData()):
+        if event.mimeData().hasUrls():
             self.indicatorwidget.show()
             return event.accept()
         self.indicatorwidget.hide()
@@ -338,17 +327,18 @@ class FavouritesWidget(FilesWidget):
         self.indicatorwidget.hide()
 
     def dragMoveEvent(self, event):
-        if self.check_accept(event.mimeData()):
+        if event.mimeData().hasUrls():
             event.accept()
 
     def dropEvent(self, event):
+        """Event responsible for adding the dropped file to the favourites."""
         self.indicatorwidget.hide()
 
         if event.source() == self:
-            return
+            return # Won't allow dropping an item from itself
 
         mime = event.mimeData()
-        if not self.check_accept(mime):
+        if not mime.hasUrls():
             return
 
         event.accept()
