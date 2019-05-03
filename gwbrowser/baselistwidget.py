@@ -1066,12 +1066,6 @@ class BaseListWidget(QtWidgets.QListView):
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
-            # if self.model().rowCount() == 0:
-            #     text = u'{} items are hidden'.format(
-            #         self.model().sourceModel().rowCount() - self.model().rowCount())
-            #     common.draw_aliased_text(
-            #         painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
-
             for n in xrange((self.height() / sizehint.height()) + 1):
                 if n >= self.model().rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
