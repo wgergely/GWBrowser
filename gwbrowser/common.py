@@ -788,7 +788,13 @@ def file_iterator(path):
         it = scandir.walk(path, followlinks=False)
         for root, directories, files in it:
             for f in files:
-                yield '{}/{}'.format(root, f)
+                try:
+                    root = unicode(root, 'utf-8')
+                    f = unicode(f, 'utf-8')
+                    path = u'{}/{}'.format(root, f)
+                except TypeError:
+                    path = u'{}/{}'.format(root, f)
+                yield path
 
     if windows:
         itdir = QtCore.QDir(path)
