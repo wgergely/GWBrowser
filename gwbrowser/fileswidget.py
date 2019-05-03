@@ -343,13 +343,15 @@ class FilesModel(BaseModel):
         __n = 999
         __c = 0
         for filepath in it:
-            if location in common.NameFilters:
-                if not filepath.split(u'.')[-1] in common.NameFilters[location]:
-                    continue
             try:
                 filepath = unicode(filepath, 'utf-8')
             except TypeError:
                 pass
+
+            if location in common.NameFilters:
+                if not filepath.split(u'.')[-1] in common.NameFilters[location]:
+                    continue
+
 
             fileroot = filepath.replace(location_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
