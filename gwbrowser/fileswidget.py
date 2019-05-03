@@ -344,19 +344,18 @@ class FilesModel(BaseModel):
         __c = 0
         for filepath in it:
             if location in common.NameFilters:
-                if not filepath.split('.')[-1] in common.NameFilters[location]:
+                if not filepath.split(u'.')[-1] in common.NameFilters[location]:
                     continue
+            try:
+                filepath = unicode(filepath, 'utf-8')
+            except TypeError:
+                pass
 
             fileroot = filepath.replace(location_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
 
             seq = common.get_sequence(filepath)
             filename = filepath.split(u'/')[-1]
-
-            try:
-                filename = unicode(filename, 'utf-8')
-            except TypeError:
-                pass
 
             # Hidden files we don't car about should probably come from a centralised list...
             if filename.startswith(u'.'):
