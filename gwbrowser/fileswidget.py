@@ -520,41 +520,59 @@ class FilesModel(BaseModel):
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
-        constructed here."""
+        constructed here. There are ambiguities in the absence of any good documentation
+        regarding what mime types have to be defined exactly for fully supporting
+        drag and drop on all platforms.
+
+        On windows, ``application/x-qt-windows-mime;value="FileName"`` and
+        ``application/x-qt-windows-mime;value="FileNameW"`` types seems to be necessary,
+        but on MacOS a simple uri list seem to suffice.
+
+        """
+        def add_path_to_mime(mime, path):
+            """Adds the given path to the mime data."""
+            path = QtCore.QFileInfo(path).absoluteFilePath()
+            path = QtCore.QDir.toNativeSeparators(path)
+
+            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
+            mime.setData(
+                'application/x-qt-windows-mime;value="FileName"',
+                QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(path))))
+            mime.setData(
+                'application/x-qt-windows-mime;value="FileNameW"',
+                QtCore.QByteArray(unicode(QtCore.QDir.toNativeSeparators(path))))
+
+            return mime
 
         index = next((f for f in indexes), None)
+        if not index.isValid():
+            return
+
         mime = QtCore.QMimeData()
         location = self.data_key()
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
 
-        if location == common.RendersFolder:  # first file
-            filepath = common.get_sequence_startpath(file_info.filePath())
-        elif location == common.ScenesFolder:  # last file
-            filepath = common.get_sequence_endpath(file_info.filePath())
-        elif location == common.TexturesFolder:
-            filepath = common.get_sequence_endpath(file_info.filePath())
-        elif location == common.ExportsFolder:
-            filepath = common.get_sequence_endpath(file_info.filePath())
-        else:
-            filepath = common.get_sequence_endpath(file_info.filePath())
+        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
 
-        filepath = QtCore.QFileInfo(filepath).absoluteFilePath()
-        filepath = QtCore.QDir.toNativeSeparators(filepath)
+        path = index.data(QtCore.Qt.StatusTipRole)
 
-        url = QtCore.QUrl.fromLocalFile(filepath)
-        mime.setUrls((
-            url,
-        ))
-
-        mime.setData(
-            'application/x-qt-windows-mime;value="FileName"',
-            QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(filepath))))
-
-        mime.setData(
-            'application/x-qt-windows-mime;value="FileNameW"',
-            QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(filepath))))
-
+        if no_modifier:
+            path = common.get_sequence_endpath(path)
+            add_path_to_mime(mime, path)
+        elif alt_modifier and shift_modifier:
+            path = QtCore.QFileInfo(path).dir().path()
+            add_path_to_mime(mime, path)
+        elif alt_modifier:
+            path = common.get_sequence_startpath(path)
+            add_path_to_mime(mime, path)
+        elif shift_modifier:
+            paths = common.get_sequence_paths(index)
+            for path in paths:
+                add_path_to_mime(mime, path)
         return mime
+
 
 
 class FilesWidget(BaseInlineIconWidget):

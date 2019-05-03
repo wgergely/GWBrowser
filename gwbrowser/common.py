@@ -593,6 +593,24 @@ def get_sequence_endpath(path):
     return path
 
 
+def get_sequence_paths(index):
+    """Given the index, returns a tuple of filenames referring to the
+    individual sequence items.
+
+    """
+    path = index.data(QtCore.Qt.StatusTipRole)
+    if not is_collapsed(path):
+        return path
+
+    sequence_paths = []
+    for frame in index.data(FramesRole):
+        seqpath = index.data(SequenceRole).expand(r'\1{}\3.\4')
+        sequence_paths.append(seqpath.format(frame))
+    return sequence_paths
+
+
+
+
 def draw_aliased_text(painter, font, rect, text, align, color):
     """Method to draw aliased text windows, where the default antialiasing fails."""
     painter.save()

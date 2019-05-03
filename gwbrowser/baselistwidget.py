@@ -476,7 +476,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
         # self.setMouseTracking(True)
-        self.viewport().setMouseTracking(True)
+        # self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 

@@ -385,7 +385,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
-        """Menu for thumbnail operations."""
+        """Menu item resposible for general thumbnail operations."""
+        
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
