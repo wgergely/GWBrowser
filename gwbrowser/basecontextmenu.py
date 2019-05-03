@@ -386,7 +386,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu item resposible for general thumbnail operations."""
-        
+
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
@@ -413,6 +413,13 @@ class BaseContextMenu(QtWidgets.QMenu):
                     editors.ThumbnailViewer,
                     source_index,
                     parent=self.parent()
+                )
+            }
+            menu_set[key][u'Reveal'] = {
+                u'icon': show_thumbnail,
+                u'action': functools.partial(
+                    common.reveal,
+                    settings.thumbnail_path(),
                 )
             }
             menu_set[key][u'separator'] = {}
