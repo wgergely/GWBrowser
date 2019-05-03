@@ -104,13 +104,17 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def initialize(self):
-        """Applying the saved values and initiating the model datas."""
+        """To make sure the widget is shown as soon as it is created, we're
+        initiating the ui and the models with a little delay. Settings saved in the
+        local_settings are applied after the ui is initialized.
+
+        """
         if self._initialized:
             return
 
         self._createUI()
         self._connectSignals()
-        self._add_shortcuts()
+        self.add_shortcuts()
 
         active_monitor.macos_mount_timer.start()
         Active.paths()
@@ -536,8 +540,6 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
         a.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
-        # f.model().sourceModel().modelDataResetRequested.connect(lambda: m.messageChanged.emit(u'3Getting files...'))
-
         f.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting files...'))
         f.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
         f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
@@ -546,23 +548,21 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
         f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
-
-    def _add_shortcuts(self):
+    def add_shortcuts(self):
+        """Adds the custom shortcuts used to control the list widgets."""
         for n in xrange(4):
             shortcut = QtWidgets.QShortcut(
                 QtGui.QKeySequence(u'Alt+{}'.format(n + 1)), self)
             shortcut.setAutoRepeat(False)
-            shortcut.setContext(QtCore.Qt.WindowShortcut)
+            shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
             shortcut.activated.connect(
                 functools.partial(self.listcontrolwidget.listChanged.emit, n))
 
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Alt+F'), self)
         shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-
-        filterbutton = self.listcontrolwidget.findChild(FilterButton)
-        shortcut.activated.connect(filterbutton.clicked)
+        shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
+        shortcut.activated.connect(self.listcontrolwidget.findChild(FilterButton).clicked)
 
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget
