@@ -30,7 +30,7 @@ class ImageCacheWorker(BaseWorker):
     @QtCore.Slot(QtCore.QModelIndex)
     @QtCore.Slot(unicode)
     @classmethod
-    def process_index(cls, index, source=None, dest=None):
+    def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
         """The actual processing happens here."""
         if not source and not dest:
             if not index.isValid():
@@ -67,7 +67,7 @@ class ImageCacheWorker(BaseWorker):
         if img.spec().deep:
             img = OpenImageIO.ImageBufAlgo.flatten(img)
 
-        size = int(common.THUMBNAIL_IMAGE_SIZE)
+        size = int(dest_size)
         spec = OpenImageIO.ImageSpec(size, size, 4, "uint8")
         spec.channelnames = ('R', 'G', 'B', 'A')
         spec.alpha_channel = 3

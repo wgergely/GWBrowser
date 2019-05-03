@@ -102,6 +102,17 @@ class BrowserWidget(QtWidgets.QWidget):
         self.init_progress = u'Loading...'
         self.repaint()
 
+        self.effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.effect.setOpacity(0.0)
+        self.setGraphicsEffect(self.effect)
+
+        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation.setDuration(200)
+        self.animation.setKeyValueAt(0, 0)
+        self.animation.setKeyValueAt(0.5, 0.8)
+        self.animation.setKeyValueAt(1, 1.0)
+
+
     @QtCore.Slot()
     def initialize(self):
         """To make sure the widget is shown as soon as it is created, we're
@@ -624,8 +635,16 @@ class BrowserWidget(QtWidgets.QWidget):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
     def showEvent(self, event):
+        self.animation.stop()
+        self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
+        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
         if not self._initialized:
             self.initializer.start()
+
+    def hideEvent(self, event):
+        self.animation.stop()
+        self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
+        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

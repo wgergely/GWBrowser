@@ -65,10 +65,67 @@ ASSET_IDENTIFIER = u'workspace.mel'
 considered an ``assets``."""
 
 
-ScenesFolder = u'scenes'
+# Cache files
 ExportsFolder = u'exports'
+ExportsFolderDescription = u'Persistent caches shared between scenes and assets (eg. animation caches)'
+
+CacheFolder = u'cache'
+CacheFolderDescription = u'Temporary and discardable files only, use "{}" for caches to keep'.format(ExportsFolder.upper())
+
+TempFolder = u'tmp'
+TempFolderDescription = u'Used by the system, don\'t save files here'
+
+ModelsFolder = u'models'
+ModelsFolderDescription = u'Obsolete, use "{}" instead'.format(ExportsFolder.upper())
+
+# Important folders
+CompScriptsFolder = u'comp_scripts'
+CompScriptsDescription = u'Compositing (eg. Houdini) scene files'
+
+CompsFolder = u'comps'
+CompsDescription = u'Composited prerenders and final image renders'
+
+ScenesFolder = u'scenes'
+ScenesFolderDescription = u'2D and 3D scene, project files'
+
 RendersFolder = u'renders'
+RendersFolderDescription  = u'2D and 3D render passes and layers'
+
 TexturesFolder = u'textures'
+TexturesFolderDescription  = u'Textures used by the 2D and 3D projects'
+
+# Reference folders
+ArtworkFolder = u'artwork'
+ArtworkFolderDescription = u'2D design- and style-frames'
+
+ReferenceFolder = u'reference'
+ReferenceFolderDescription = u'Generic references'
+
+PhotosFolder = u'photos'
+PhotosFolderDescription = u'Obsolete, use "{}" instead'.format(ReferenceFolder)
+
+CapturesFolder = u'viewport_captures'
+CapturesFolderDescription = u'Animation work-in-progress takes'
+
+MiscFolderDescription = u'A generic asset folder'
+
+ASSET_FOLDERS = {
+    ArtworkFolder: ArtworkFolderDescription,
+    CacheFolder: CacheFolderDescription,
+    CapturesFolder: CapturesFolderDescription,
+    CompScriptsFolder: CompScriptsDescription,
+    CompsFolder: CompsDescription,
+    ExportsFolder: ExportsFolderDescription,
+    ModelsFolder: ModelsFolderDescription,
+    PhotosFolder: PhotosFolderDescription,
+    ReferenceFolder: ReferenceFolderDescription,
+    RendersFolder: RendersFolderDescription,
+    ScenesFolder: ScenesFolderDescription,
+    TempFolder: TempFolderDescription,
+    TempFolder: TempFolderDescription,
+    TexturesFolder: TexturesFolderDescription,
+    u'misc': MiscFolderDescription,
+}
 
 
 # Sizes
@@ -121,6 +178,16 @@ PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
 SecondaryFont.setPointSize(SMALL_FONT_SIZE)
+
+
+def get_oiio_extensions():
+    """Returns a list of extension OpenImageIO is capable of reading."""
+    import OpenImageIO.OpenImageIO as OpenImageIO
+
+    extensions = []
+    for f in OpenImageIO.get_string_attribute("extension_list").split(';'):
+        extensions = extensions + f.split(':')[-1].split(',')
+    return list(set(extensions))
 
 
 def get_oiio_namefilters(as_array=False):

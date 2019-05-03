@@ -671,7 +671,7 @@ class DataKeyViewDelegate(BaseDelegate):
         rect.moveCenter(center)
 
         background = QtGui.QColor(common.BACKGROUND)
-        background.setAlpha(50)
+        background.setAlpha(200)
         color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
         painter.drawRoundedRect(rect, 3, 3)
@@ -684,7 +684,7 @@ class DataKeyViewDelegate(BaseDelegate):
             return
 
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
+        color = common.TEXT_SELECTED if hover else common.TEXT
         color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -706,21 +706,20 @@ class DataKeyViewDelegate(BaseDelegate):
 
         if index.data(common.TodoCountRole):
             if index.data(common.TodoCountRole) >= 999:
-                text = u' (999+ files)'
+                text = u'   |   999+ files'
             else:
-                text = u' ({} files)'.format(index.data(common.TodoCountRole))
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+                text = u'   |   {} files'.format(index.data(common.TodoCountRole))
+            color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
-        if hover or selected:
-            text = u'  {}'.format(index.data(QtCore.Qt.ToolTipRole))
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-            color = common.TEXT_SELECTED if hover else color
-            width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, color)
+        text = '   |   {}'.format(index.data(QtCore.Qt.ToolTipRole))
+        color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+        color = common.TEXT_SELECTED if hover else color
+        width = common.draw_aliased_text(
+            painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
@@ -739,7 +738,7 @@ class DataKeyView(QtWidgets.QListView):
         super(DataKeyView, self).__init__(parent=parent)
         common.set_custom_stylesheet(self)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
@@ -750,23 +749,30 @@ class DataKeyView(QtWidgets.QListView):
         self.clicked.connect(self.parent().signal_dispatcher)
 
         self.setModel(DataKeyModel())
-        self.model().modelReset.connect(self.adjust_size)
         self.setItemDelegate(DataKeyViewDelegate(parent=self))
+
+        # self.setWindowOpacity(0.0)
+        self.effect = QtWidgets.QGraphicsOpacityEffect(self.viewport())
+        self.effect.setOpacity(0.0)
+        self.viewport().setGraphicsEffect(self.effect)
+
+        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation.setDuration(250)
+        self.animation.setKeyValueAt(0, 0)
+        self.animation.setKeyValueAt(0.5, 0.8)
+        self.animation.setKeyValueAt(1, 1.0)
+
+    def hideEvent(self, event):
+        self.animation.stop()
+
+    def showEvent(self, event):
+        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
             self.hide()
             return
         super(DataKeyView, self).keyPressEvent(event)
-
-    @QtCore.Slot()
-    def adjust_size(self):
-        # Setting the height based on the conents
-        height = 0
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0)
-            height += self.itemDelegate().sizeHint(None, None).height()
-        self.setFixedHeight(height + 8) # hardcoded padding from stylesheet
 
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
@@ -796,7 +802,6 @@ class DataKeyView(QtWidgets.QListView):
         self._context_menu_active = True
         widget.exec_()
         self._context_menu_active = False
-        # self.hide()
 
 
 class DataKeyModel(BaseModel):
@@ -851,12 +856,12 @@ class DataKeyModel(BaseModel):
 
         # Thumbnail image
         default_thumbnail = ImageCache.instance().get_rsc_pixmap(
-            u'assets_sm',
-            common.SECONDARY_BACKGROUND,
+            u'folder_sm',
+            common.SECONDARY_TEXT,
             (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
         default_thumbnail = default_thumbnail.toImage()
         thumbnail = ImageCache.instance().get_rsc_pixmap(
-            u'assets_sm',
+            u'folder_sm',
             common.SECONDARY_TEXT,
             (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
         thumbnail = thumbnail.toImage()
@@ -866,15 +871,10 @@ class DataKeyModel(BaseModel):
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         indexes = []
         for file_info in sorted(dir_.entryInfoList(), key=lambda x: x.fileName()):
-            description = u'Show files'
-            if file_info.fileName() == common.ExportsFolder:
-                description = u'Folder for data and cache files'
-            if file_info.fileName() == common.ScenesFolder:
-                description = u'Folder for storing project and scene files'
-            if file_info.fileName() == common.RendersFolder:
-                description = u'Folder for storing output images'
-            if file_info.fileName() == common.TexturesFolder:
-                description = u'Folder for storing texture-files used by scenes'
+            if file_info.fileName().lower() in common.ASSET_FOLDERS:
+                description = common.ASSET_FOLDERS[file_info.fileName().lower()]
+            else:
+                description = common.ASSET_FOLDERS[u'misc']
 
             idx = len(data)
             data[idx] = {
@@ -1020,32 +1020,43 @@ class FilesButton(BaseControlButton):
 
     @QtCore.Slot()
     def show_view(self):
-        if not self.view():
-            return
-
-        s = self.view().parent().parent().stackedwidget
-        if s.currentIndex() != 2:
-            return
-        key = s.currentWidget().model().sourceModel().data_key()
-        if key:
+        """Shows the ``DataKeyView`` widget for browsing."""
+        def select_key(parent):
+            """Selects the current data-key in the list."""
+            key = parent.stackedwidget.currentWidget().model().sourceModel().data_key()
+            if not key:
+                return
             for n in xrange(self.view().model().rowCount()):
                 index = self.view().model().index(n, 0)
                 if key.lower() == index.data(QtCore.Qt.DisplayRole).lower():
                     self.view().selectionModel().setCurrentIndex(
                         index, QtCore.QItemSelectionModel.ClearAndSelect)
+                    return
 
-        pos = self.view().parent().mapToGlobal(self.view().parent().rect().bottomLeft())
-        self.view().move(
-            pos.x(),
-            pos.y()
-        )
+        if not self.view():
+            return
 
-        self.view().setFixedWidth(self.view().parent().rect().width())
+        if not self.view().isHidden():
+            self.view().hide()
+
+        parent = self.view().parent().parent()
+        if parent.stackedwidget.currentIndex() != 2:
+            return # We're not showing the widget when files are not tyhe visible list
+
+        geo = parent.stackedwidget.currentWidget().geometry()
+        self.view().setGeometry(geo)
+        # Align to top-left corner and sets the width
+        topleft =parent.stackedwidget.currentWidget().mapToGlobal(
+            parent.stackedwidget.currentWidget().rect().topLeft())
+        self.view().move(topleft)
+
         self.view().show()
         self.view().raise_()
+
         common.move_widget_to_available_geo(self.view())
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
+        select_key(parent)
 
 class FavouritesButton(BaseControlButton):
     """Drop-down widget to switch between the list"""

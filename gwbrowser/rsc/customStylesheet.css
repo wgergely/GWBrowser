@@ -389,38 +389,32 @@ TodoItemEditor {{
 	background-color: rgba(230,230,230,255);
 	border-width: 0px;
 	border: solid;
+	border-radius: 6px;
 	border-color: rgba(230,230,230,255);
 	margin: 0px 0px 0px 0px;
-	padding: 0px;
+	padding: 0px 0px 0px 0px;
 	outline: 0;
 	color: rgba(0,0,0,255);
 	font-family: "{SECONDARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}pt;
 }}
 
-CheckBoxButton, DragIndicatorButton{{
-	background-color: rgba(230,230,230,255);
-	margin: 0px;
-	padding-left: 10px;
-}}
-CheckBoxButton:disabled, DragIndicatorButton:disabled {{
-	background-color: rgba(0,0,0,0);
-}}
-
 TodoItemEditor:focus {{
 	color: rgba(30,30,30,255);
 	background-color: rgba(240,240,240,255);
-	border-width: 0px;
-	border: none;
-	border-radius: 6px;
-	outline: 0;
 }}
 TodoItemEditor:disabled {{
-	border: none;
-	border-width: 0px;
-	border-color: rgba(230,230,230,255);
 	color: rgba({FAVOURITE});
 	background-color: rgba(230,230,230,255);
+}}
+
+CheckBoxButton, DragIndicatorButton{{
+	background-color: rgba(230,230,230,255);
+	margin: 0px 0px 0px 0px;
+	padding: 0px 0px 0px 0px;
+}}
+CheckBoxButton:disabled, DragIndicatorButton:disabled {{
+	background-color: rgba(0,0,0,0);
 }}
 
 

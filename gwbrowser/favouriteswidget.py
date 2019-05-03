@@ -310,7 +310,6 @@ class FavouritesWidget(FilesWidget):
         self.favouritesChanged.emit()
         index.model().dataChanged.emit(index, index)
 
-
     def inline_icons_count(self):
         return 2
 

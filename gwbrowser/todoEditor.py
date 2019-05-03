@@ -12,13 +12,42 @@ Methods:
 
 """
 
-
+import os
+import sys
+import uuid
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser import common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
+
+
+class PaintedLabel(QtWidgets.QLabel):
+    """Custom label used to paint the elements of the ``AddBookmarksWidget``."""
+
+    def __init__(self, text, size=common.MEDIUM_FONT_SIZE, parent=None):
+        super(PaintedLabel, self).__init__(text, parent=parent)
+        self._font = QtGui.QFont(common.PrimaryFont)
+        self._font.setPointSize(size)
+        metrics = QtGui.QFontMetrics(self._font)
+        self.setFixedHeight(metrics.height())
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
+        )
+
+    def paintEvent(self, event):
+        """Custom paint event to use the aliased paint method."""
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        color = common.FAVOURITE
+        common.draw_aliased_text(
+            painter, self._font, self.rect(), self.text(), QtCore.Qt.AlignCenter, color)
+        painter.end()
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -71,13 +100,13 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             if flags & common.HeadingHighlight:
                 char_format.setFontWeight(QtGui.QFont.Bold)
                 char_format.setFontPointSize(
-                    self.document().defaultFont().pointSizeF() + 0 + (6 - len(match)))
+                    self.document().defaultFont().pointSize() + 0 + (6 - len(match)))
                 char_format.setFontCapitalization(QtGui.QFont.AllUppercase)
                 if len(match) > 1:
                     char_format.setUnderlineStyle(
                         QtGui.QTextCharFormat.SingleUnderline)
                     char_format.setFontPointSize(
-                        self.document().defaultFont().pointSizeF() + 1)
+                        self.document().defaultFont().pointSize() + 1)
                 self.setFormat(0, len(text), char_format)
                 break
             elif flags & common.QuoteHighlight:
@@ -127,7 +156,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
-        self.setOpenLinks(True)
+        self.setOpenLinks(False)
         self.setReadOnly(False)
         self.setTextInteractionFlags(
             QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
@@ -147,6 +176,8 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         self.document().contentsChanged.connect(self.contentChanged)
         self.document().setHtml(text)
+
+        self.anchorClicked.connect(self.open_url)
 
     def setDisabled(self, b):
         super(TodoItemEditor, self).setDisabled(b)
@@ -199,7 +230,12 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         return height
 
     def keyPressEvent(self, event):
-        """I'm defining custom key events here, the default behaviour is pretty poor."""
+        """I'm defining custom key events here, the default behaviour is pretty poor.
+
+        In a dream-scenario I would love to implement most of the functions
+        of how atom behaves.
+
+        """
         cursor = self.textCursor()
         cursor.setVisualNavigation(True)
 
@@ -219,9 +255,109 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def sizeHint(self):
         return QtCore.QSize(200, self.heightForWidth(200))
 
+    def dragEnterEvent(self, event):
+        """Checking we can consume the content of the drag data..."""
+        if not self.canInsertFromMimeData(event.mimeData()):
+            return
+        event.accept()
+
+    def dropEvent(self, event):
+        """Custom drop event to add content from mime-data."""
+        index = self.window().index
+        if not index.isValid():
+            return
+
+        if not self.canInsertFromMimeData(event.mimeData()):
+            return
+        event.accept()
+
+        mimedata = event.mimeData()
+        self.insertFromMimeData(mimedata)
+
+    def canInsertFromMimeData(self, mimedata):
+        """Checks if we can insert from the given mime-type."""
+        if mimedata.hasUrls():
+            return True
+        if mimedata.hasHtml():
+            return True
+        if mimedata.hasText():
+            return True
+        if mimedata.hasImage():
+            return True
+        return False
+
+    def insertFromMimeData(self, mimedata):
+        """We can insert media using our image-cache - eg any image-content from
+        the clipboard we will save into our cache folder.
+
+        """
+        index = self.window().index
+        if not index.isValid():
+            return
+
+        img = lambda url: '<br><div style="{style}"><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></div>'.format(
+            style='width:100%;align:center;background-color:rgba(0,0,0,20)',
+            url=url.toLocalFile(),
+            width=560)
+        href = lambda url: '<br><div style="{style}"><a href="{url}">{url}</a></div>'.format(
+            style='width:100%;align:center;background-color:rgba(0,0,0,20)',
+            url=url.toLocalFile())
+
+        # We save our image into the cache for safe-keeping
+        if mimedata.hasUrls():
+            settings = AssetSettings(index)
+            thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
+            for url in mimedata.urls():
+                file_info = QtCore.QFileInfo(url.path())
+                if file_info.suffix() in common.get_oiio_extensions():
+                    dest = '{}/{}.{}'.format(
+                        thumbnail_info.dir().path(),
+                        uuid.uuid4(),
+                        thumbnail_info.suffix()
+                    )
+                    ImageCacheWorker.process_index(
+                        QtCore.QModelIndex(),
+                        source=url.toLocalFile(),
+                        dest=dest
+                    )
+                    url = QtCore.QUrl.fromLocalFile(dest)
+                    self.insertHtml(img(url))
+                else:
+                    self.insertHtml(href(url))
+
+        if mimedata.hasHtml():
+            html = mimedata.html()
+            self.insertHtml(u'<br>{}<br>'.format(html))
+        elif mimedata.hasText():
+            text = mimedata.text()
+            self.insertHtml(u'<br>{}<br>'.format(text))
+
+        # If the mime has any image data we will save it as a temp image file
+        if mimedata.hasImage():
+            image = mimedata.imageData()
+            if not image.isNull():
+                settings = AssetSettings(index)
+                thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
+                dest = '{}/{}.{}'.format(
+                    thumbnail_info.dir().path(),
+                    uuid.uuid4(),
+                    thumbnail_info.suffix()
+                )
+                if image.save(dest):
+                    url = QtCore.QUrl.fromLocalFile(dest)
+                    self.insertHtml(img(url))
 
 
-
+    def open_url(self, url):
+        """We're handling the clicking of anchors here manually."""
+        if not url.isValid():
+            return
+        file_info = QtCore.QFileInfo(url.url())
+        if file_info.exists():
+            common.reveal(file_info.filePath())
+            QtGui.QClipboard().setText(file_info.filePath())
+        else:
+            QtGui.QDesktopServices.openUrl(url)
 
 
 class AddButton(QtWidgets.QLabel):
@@ -233,7 +369,7 @@ class AddButton(QtWidgets.QLabel):
         self.setMouseTracking(True)
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_add', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            u'todo_add', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -299,7 +435,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         if self.isEnabled():
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
                 u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
@@ -312,7 +448,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
                 u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.SEPARATOR, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
 
         self.setPixmap(pixmap)
 
@@ -425,7 +561,7 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'checkbox_unchecked', common.SEPARATOR, 24)
+                u'checkbox_unchecked', common.SECONDARY_BACKGROUND, 24)
             self.setPixmap(pixmap)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
@@ -715,6 +851,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
+    @property
+    def index(self):
+        """The path used to initialize the widget."""
+        return self._index
+
+
     def eventFilter(self, widget, event):
         """Using the custom event filter to paint the background."""
         if event.type() == QtCore.QEvent.Paint:
@@ -819,11 +961,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
             elif event.key() == QtCore.Qt.Key_Return:
                 self.key_return()
 
-    @property
-    def index(self):
-        """The path used to initialize the widget."""
-        return self._index
-
     def add_item(self, idx=None, text=None, checked=False):
         """Creates a new widget containing the checkbox, editor and drag widgets.
 
@@ -835,7 +972,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         QtWidgets.QHBoxLayout(item)
         item.layout().setContentsMargins(0, 0, 0, 0)
-        item.layout().setSpacing(0)
+        item.layout().setSpacing(6)
         item.setFocusPolicy(QtCore.Qt.NoFocus)
 
         checkbox = CheckBoxButton(checked=not checked)
@@ -845,25 +982,16 @@ class TodoEditorWidget(QtWidgets.QWidget):
         drag = DragIndicatorButton(checked=False)
         drag.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        def _setDisabled(b, widget=None):
+        def toggle_disabled(b, widget=None):
             widget.setDisabled(not b)
 
-        def _hide_separator():
-            self.editors.separator.setHidden(False)
-
-        def _show_separator():
-            self.editors.separator.setHidden(True)
-
-        import functools
-
         checkbox.clicked.connect(
-            functools.partial(_setDisabled, widget=editor))
+            functools.partial(toggle_disabled, widget=editor))
         checkbox.clicked.connect(
-            functools.partial(_setDisabled, widget=drag))
+            functools.partial(toggle_disabled, widget=drag))
 
         item.layout().addWidget(checkbox)
         item.layout().addWidget(drag)
-        item.layout().addSpacing(20)
         item.layout().addWidget(editor, 1)
 
         item.effect = QtWidgets.QGraphicsOpacityEffect(item)
@@ -901,15 +1029,18 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         model = self.index.model()
         model.setData(self.index, len(todos), role=common.TodoCountRole)
-        # data[self.index.row()][common.TodoCountRole] = len(todos)
+
+    @QtCore.Slot()
+    def add_new_item(self):
+        """Adds a new item with some default styling."""
+        html = u'<div style="align:justify;width:100%"><p>Edit me...</p></div>'
+        self.add_item(text=html, idx=0)
 
     def _createUI(self):
+        """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
         self.layout().setSpacing(0)
         self.layout().setContentsMargins(0, 0, 0, 0)
-
-        def _pressed():
-            self.add_item(text=u'', idx=0)
 
         self.remove_button = RemoveButton()
         self.remove_button.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -923,7 +1054,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         QtWidgets.QHBoxLayout(row)
         self.add_button = AddButton()
-        self.add_button.pressed.connect(_pressed)
+        self.add_button.pressed.connect(self.add_new_item)
         self.add_button.pressed.connect(self.update)
         self.add_button.setFocusPolicy(QtCore.Qt.NoFocus)
         self.add_button.setFixedWidth(32)
@@ -934,30 +1065,15 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.add_button, 0)
 
         if self.index.isValid():
-            job = self.index.data(common.ParentRole)[1]
-            text = u'{}: {}  |  Notes and Tasks'.format(
-                job.upper(),
+            parent = self.index.data(common.ParentRole)[-1]
+            text = u'{} |  Notes and Tasks'.format(
+                parent.upper(),
                 self.index.data(QtCore.Qt.DisplayRole).upper()
             )
         else:
             text = u'Notes and Tasks'
 
-        label = QtWidgets.QLabel(text)
-        label.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setStyleSheet("""
-QLabel {{
-    color: rgb(30,30,30);
-	font-family: "{}";
-	font-size: {}pt;
-}}
-            """.format(
-                common.SecondaryFont.family(),
-                common.psize(common.LARGE_FONT_SIZE)
-            ))
+        label = PaintedLabel(text, size=common.LARGE_FONT_SIZE)
         row.layout().addWidget(label, 1)
         row.layout().addWidget(self.remove_button, 0)
 
