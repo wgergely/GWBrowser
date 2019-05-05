@@ -198,17 +198,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     def __init__(self, parent=None):
         super(MayaBrowserWidget, self).__init__(parent=parent)
-        # Overriding the default name-filters
-        common.NameFilters[common.ScenesFolder] = (
-            u'ma',  # Maya ASCII
-            u'mb',  # Maya Binary
-        )
-
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
 
         self.setAutoFillBackground(True)
-        self.setWindowTitle(u'Browser')
+        self.setWindowTitle(u'GWBrowser')
 
         self._createUI()
 

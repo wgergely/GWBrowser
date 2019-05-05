@@ -16,6 +16,7 @@ import time
 import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -87,11 +88,6 @@ class AssetModel(BaseModel):
         server, job, root = self._parent_item
         bookmark_path = '{}/{}/{}'.format(server, job, root)
 
-        itdir = QtCore.QDir(bookmark_path)
-        itdir.setFilter(QtCore.QDir.NoDotAndDotDot | QtCore.QDir.Dirs)
-        itdir.setSorting(QtCore.QDir.Unsorted)
-        it = QtCore.QDirIterator(itdir,
-                                 flags=QtCore.QDirIterator.NoIteratorFlags)
 
         default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
         default_thumbnail_path = os.path.normpath(os.path.abspath(default_thumbnail_path))
@@ -99,35 +95,31 @@ class AssetModel(BaseModel):
             default_thumbnail_path, rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
-        while it.hasNext():
-            filepath = it.next()
-            filename = it.fileName()
-            filepath = it.filePath()
-
-            identifier = QtCore.QDir(filepath).entryList(
-                (common.ASSET_IDENTIFIER, ),
-                filters=QtCore.QDir.Files
-                | QtCore.QDir.NoDotAndDotDot
-            )
-            if not identifier:
+        for entry in gwscandir.scandir(bookmark_path):
+            if entry.name.startswith(u'.'):
+                continue
+            if not entry.is_dir():
                 continue
 
-            tooltip = u'{}\n'.format(filename.upper())
+            if common.ASSET_IDENTIFIER not in [f.name for f in gwscandir.scandir(entry.path)]:
+                continue
+
+            tooltip = u'{}\n'.format(entry.name.upper())
             tooltip += u'{}\n'.format(server.upper())
             tooltip += u'{}\n'.format(job.upper())
-            tooltip += u'{}'.format(filepath)
+            tooltip += u'{}'.format(entry.path.replace(u'\\', u'/'))
 
             data = self.model_data()
             idx = len(data)
             data[idx] = {
-                QtCore.Qt.DisplayRole: filename,
-                QtCore.Qt.EditRole: filename,
-                QtCore.Qt.StatusTipRole: filepath,
+                QtCore.Qt.DisplayRole: entry.name,
+                QtCore.Qt.EditRole: entry.name,
+                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
                 QtCore.Qt.ToolTipRole: tooltip,
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.FlagsRole: QtCore.Qt.NoItemFlags,
-                common.ParentRole: (server, job, root, filename),
+                common.ParentRole: (server, job, root, entry.name),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: None,
@@ -140,9 +132,9 @@ class AssetModel(BaseModel):
                 #
                 common.TypeRole: common.AssetItem,
                 #
-                common.SortByName: filepath,
-                common.SortByLastModified: filepath,
-                common.SortBySize: filepath,
+                common.SortByName: entry.path.replace(u'\\', u'/'),
+                common.SortByLastModified: entry.path.replace(u'\\', u'/'),
+                common.SortBySize: entry.path.replace(u'\\', u'/'),
             }
 
             index = self.index(idx, 0)
@@ -168,11 +160,11 @@ class AssetModel(BaseModel):
                 | QtCore.Qt.ItemIsEditable
             )
 
-            if filename == active_paths[u'asset']:
+            if entry.name == active_paths[u'asset']:
                 flags = flags | MarkedAsActive
             if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
-            if filepath in favourites:
+            if entry.path.replace(u'\\', u'/') in favourites:
                 flags = flags | MarkedAsFavourite
             data[idx][common.FlagsRole] = flags
 
@@ -188,7 +180,7 @@ class AssetModel(BaseModel):
 
             description = settings.value(u'config/description')
             data[idx][common.DescriptionRole] = description
-            data[idx][common.SortBySize] = u'{}'.format(todocount)
+            data[idx][common.SortBySize] = todocount
 
             # Only including this for compatibility with the methods used by the file-items
             data[idx][common.StatusRole] = True

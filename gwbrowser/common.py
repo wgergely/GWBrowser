@@ -40,7 +40,7 @@ import sys
 import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
-
+import gwbrowser.gwscandir as gwscandir
 
 default_server = u'sloth'
 legacy_server = u'gordo'
@@ -290,6 +290,7 @@ DefaultThumbnailRole = 1038
 DefaultThumbnailBackgroundRole = 1039
 TypeRole = 1040
 AssetCountRole = 1041
+EntryRole = 1042
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -738,17 +739,10 @@ def find_largest_file(index):
     to be used a s thumbnail image. :)
 
     """
-    p = index.data(QtCore.Qt.StatusTipRole).split(u'/')
-    p.pop()
-    p = u'/'.join(p)
-
-    dir_ = QtCore.QDir(p)
-    dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-    f = index.data(SequenceRole).expand(ur'\1{}\3.\4')
-    f = f.format(u'?' * (len(index.data(FramesRole)[-1])))
-    f = f.split('/')[-1]
-    dir_.setNameFilters((f,))
-    return max(dir_.entryInfoList(), key=lambda f: f.size()).filePath()
+    key = lambda x: x.stat().st_size
+    entry = max(index.data(EntryRole), key=key)
+    print entry.path
+    return entry.path.replace(u'\\', u'/')
 
 
 def mount(server=default_server, username=default_username, password=default_password):
@@ -779,33 +773,6 @@ def mount(server=default_server, username=default_username, password=default_pas
 
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
-
-
-def file_iterator(path):
-    """Platform dependent file iterator."""
-    if osx:
-        import scandir
-        it = scandir.walk(path, followlinks=False)
-        for root, directories, files in it:
-            for f in files:
-                try:
-                    root = unicode(root, 'utf-8')
-                    f = unicode(f, 'utf-8')
-                    path = u'{}/{}'.format(root, f)
-                except TypeError:
-                    path = u'{}/{}'.format(root, f)
-                yield path
-
-    if windows:
-        itdir = QtCore.QDir(path)
-        itdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        itdir.setSorting(QtCore.QDir.Unsorted)
-
-        it = QtCore.QDirIterator(
-            itdir, flags=QtCore.QDirIterator.Subdirectories)
-
-        while it.hasNext():
-            yield it.next()
 
 
 WindowsPath = 0
@@ -874,3 +841,90 @@ def execute(index, first=False):
 
     url = QtCore.QUrl.fromLocalFile(path)
     QtGui.QDesktopServices.openUrl(url)
+
+
+enc = sys.getfilesystemencoding()
+
+
+def walk(top, topdown=True, onerror=None, followlinks=False):
+    """This is a modified version using the C based _scandir module for iterating through
+    directories. The code is taken from the scandir module but here forcing the code to
+    use the _scandir (gwscandir) iterator on all platforms.
+
+    Returns:
+        tuple (
+            path (unicode),
+            folders (DirEntries),
+            files (DirEntries)
+        )
+
+    """
+    top = top.decode(enc)
+    dirs = []
+    nondirs = []
+
+    # We may not have read permission for top, in which case we can't
+    # get a list of the files the directory contains.  os.walk
+    # always suppressed the exception then, rather than blow up for a
+    # minor reason when (say) a thousand readable directories are still
+    # left to visit.  That logic is copied here.
+    try:
+        scandir_it = gwscandir.scandir(top)
+    except OSError as error:
+        if onerror is not None:
+            onerror(error)
+        return
+
+    while True:
+        try:
+            try:
+                entry = next(scandir_it)
+            except StopIteration:
+                break
+        except OSError as error:
+            if onerror is not None:
+                onerror(error)
+            return
+
+        try:
+            is_dir = entry.is_dir()
+        except OSError:
+            # If is_dir() raises an OSError, consider that the entry is not
+            # a directory, same behaviour than os.path.isdir().
+            is_dir = False
+
+        if is_dir:
+            dirs.append(entry)
+        else:
+            nondirs.append(entry)
+
+        if not topdown and is_dir:
+            # Bottom-up: recurse into sub-directory, but exclude symlinks to
+            # directories if followlinks is False
+            if followlinks:
+                walk_into = True
+            else:
+                try:
+                    is_symlink = entry.is_symlink()
+                except OSError:
+                    # If is_symlink() raises an OSError, consider that the
+                    # entry is not a symbolic link, same behaviour than
+                    # os.path.islink().
+                    is_symlink = False
+                walk_into = not is_symlink
+
+            if walk_into:
+                for entry in walk(entry.path, topdown, onerror, followlinks):
+                    yield entry
+
+    # Yield before recursion if going top down
+    if topdown:
+        yield top, dirs, nondirs
+
+        # Recurse into sub-directories
+        for direntry in dirs:
+            new_path = u'%s/%s' % (top, direntry.name)
+            for entry in walk(new_path, topdown, onerror, followlinks):
+                yield entry
+    else:
+        yield top, dirs, nondirs

@@ -20,6 +20,7 @@ import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -80,20 +81,11 @@ class BookmarkInfo(QtCore.QFileInfo):
     @staticmethod
     def count_assets(path):
         """Returns the number of assets inside the given folder."""
-        dir_ = QtCore.QDir(path)
-        dir_.setFilter(
-            QtCore.QDir.NoDotAndDotDot
-            | QtCore.QDir.Dirs
-            | QtCore.QDir.Readable
-        )
-
-        # Counting the number assets found
         count = 0
-        for file_info in dir_.entryInfoList():
-            d = QtCore.QDir(file_info.filePath())
-            d.setFilter(QtCore.QDir.Files)
-            d.setNameFilters((common.ASSET_IDENTIFIER,))
-            if d.entryInfoList():
+        for entry in gwscandir.scandir(path):
+            if not entry.is_dir():
+                continue
+            if common.ASSET_IDENTIFIER in [f.name for f in gwscandir.scandir(entry.path)]:
                 count += 1
         return count
 

@@ -475,7 +475,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.context_menu_cls = None
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
-        self.setMouseTracking(True)
+        # self.setMouseTracking(True)
         # self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
@@ -754,7 +754,6 @@ class BaseListWidget(QtWidgets.QListView):
                     if _index:
                         favourites.append(_index[QtCore.Qt.StatusTipRole])
                         _index[common.FlagsRole] = _index[common.FlagsRole] | Settings.MarkedAsFavourite
-
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()

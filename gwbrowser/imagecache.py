@@ -52,15 +52,12 @@ class ImageCacheWorker(BaseWorker):
         # First let's check if the file is competible with OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
         if not i:
-            sys.stderr.write(OpenImageIO.geterror())
             return  # the file is not understood by OenImageIO
         i.close()
 
         img = OpenImageIO.ImageBuf(source)
 
         if img.has_error:
-            sys.stderr.write('# OpenImageIO: Skipped reading {}\n{}\n'.format(
-                source, img.geterror()))
             return
 
         # Deep
@@ -95,10 +92,6 @@ class ImageCacheWorker(BaseWorker):
             else:
                 b = OpenImageIO.ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
 
-        if b.has_error:
-            sys.stderr.write(
-                '# OpenImageIO: Channel error {}.\n'.format(b.geterror()))
-
         # There seems to be a problem with the ICC profile exported from Adobe
         # applications and the PNG library. The sRGB profile seems to be out of date
         # and pnglib crashes when encounters an invalid profile.
@@ -126,16 +119,11 @@ class ImageCacheWorker(BaseWorker):
             pixels = b.get_pixels()
             _b.set_write_format('uint8')
             _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
-            if _b.has_error:
-                sys.stderr.write('# OpenImageIO: Error setting pixels of {}.\n{}\n{}\n'.format(
-                    dest, _b.geterror(), OpenImageIO.geterror()))
         else:
             _b = b
 
         # Ready to write
         if not _b.write(dest, dtype='uint8'):
-            sys.stderr.write('# OpenImageIO: Error saving {}.\n{}\n{}\n'.format(
-                dest, _b.geterror(), OpenImageIO.geterror()))
             QtCore.QFile(dest).remove()  # removing failed thumbnail save
             return
         else:
@@ -152,13 +140,16 @@ class ImageCacheWorker(BaseWorker):
                 index.data(common.ThumbnailPathRole),
                 index.data(QtCore.Qt.SizeHintRole).height() - 2,
                 overwrite=True)
+
             color = ImageCache.instance().get(
                 index.data(common.ThumbnailPathRole),
                 'BackgroundColor',
                 overwrite=False)
+
             data = index.model().model_data()
             data[index.row()][common.ThumbnailRole] = image
             data[index.row()][common.ThumbnailBackgroundRole] = color
+
             index.model().dataChanged.emit(index, index)
 
 

@@ -8,6 +8,7 @@ import functools
 import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.settings import Active
 import gwbrowser.common as common
 from gwbrowser.delegate import paintmethod
@@ -47,13 +48,12 @@ class ListInfoWorker(BaseWorker):
         if not index.data(QtCore.Qt.StatusTipRole):
             return
 
-        # Iterator
-        it = common.file_iterator(index.data(QtCore.Qt.StatusTipRole))
         count = 0
-        for _ in it:
-            count += 1
-            if count > 999:
-                break
+        for _, _, fileentries in common.walk(index.data(QtCore.Qt.StatusTipRole)):
+            for entry in fileentries:
+                count += 1
+                if count > 999:
+                    break
 
         # The underlying data can change whilst the calculating
         try:
@@ -66,7 +66,6 @@ class ListInfoWorker(BaseWorker):
 
 class ListInfoThread(BaseThread):
     Worker = ListInfoWorker
-
 
 
 class Progresslabel(QtWidgets.QLabel):
@@ -867,20 +866,25 @@ class DataKeyModel(BaseModel):
         thumbnail = thumbnail.toImage()
 
         parent_path = u'/'.join(self._parent_item)
-        dir_ = QtCore.QDir(parent_path)
-        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         indexes = []
-        for file_info in sorted(dir_.entryInfoList(), key=lambda x: x.fileName()):
-            if file_info.fileName().lower() in common.ASSET_FOLDERS:
-                description = common.ASSET_FOLDERS[file_info.fileName().lower()]
+        entries = sorted(([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
+
+        for entry in entries:
+            if entry.name in common.ASSET_FOLDERS:
+                description = common.ASSET_FOLDERS[entry.name]
             else:
                 description = common.ASSET_FOLDERS[u'misc']
+                
+            if entry.name.startswith(u'.'):
+                continue
+            if not entry.is_dir():
+                continue
 
             idx = len(data)
             data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.fileName(),
-                QtCore.Qt.EditRole: file_info.fileName(),
-                QtCore.Qt.StatusTipRole: file_info.filePath(),
+                QtCore.Qt.DisplayRole: entry.name,
+                QtCore.Qt.EditRole: entry.name,
+                QtCore.Qt.StatusTipRole: entry.path.replace('\\', '/'),
                 QtCore.Qt.ToolTipRole: description,
                 QtCore.Qt.SizeHintRole: secondary_rowsize,
                 #

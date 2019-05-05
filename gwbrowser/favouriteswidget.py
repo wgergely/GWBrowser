@@ -9,6 +9,7 @@ import sys
 import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.settings import local_settings
 import gwbrowser.common as common
 import gwbrowser.settings as Settings
@@ -18,6 +19,12 @@ from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesWidgetContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.imagecache import ImageCache
+
+
+def rsc_path(f, n):
+    path = u'{}/../rsc/{}.png'.format(f, n)
+    path = os.path.normpath(os.path.abspath(path))
+    return path
 
 
 class FavouritesWidgetContextMenu(FilesWidgetContextMenu):
@@ -53,10 +60,6 @@ class FavouritesModel(FilesModel):
         bookmark.
 
         """
-        def rsc_path(f, n):
-            path = u'{}/../rsc/{}.png'.format(f, n)
-            path = os.path.normpath(os.path.abspath(path))
-            return path
 
         def dflags(): return (
             QtCore.Qt.ItemNeverHasChildren |
@@ -83,11 +86,7 @@ class FavouritesModel(FilesModel):
         bookmark = ('{}/{}/{}'.format(server, job, root))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
-        __c = 0
         for filepath in favourites:
-            if bookmark not in filepath:
-                continue
-
             if not QtCore.QFileInfo(filepath).exists():
                 continue
 
@@ -106,6 +105,10 @@ class FavouritesModel(FilesModel):
 
             flags = dflags()
 
+            fname = filepath.split(u'/').pop()
+            pdir = filepath.replace(fname, u'')
+            entry = [f for f in gwscandir.scandir(pdir) if f.name == filename][0]
+            stat = entry.stat()
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
@@ -113,6 +116,7 @@ class FavouritesModel(FilesModel):
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
+                common.EntryRole: [entry,],
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, fileroot),
                 common.DescriptionRole: u'',
@@ -127,18 +131,37 @@ class FavouritesModel(FilesModel):
                 common.ThumbnailBackgroundRole: placeholder_color,
                 common.TypeRole: common.FileItem,
                 common.SortByName: filepath,
-                common.SortByLastModified: filepath,
-                common.SortBySize: filepath,
+                common.SortByLastModified: stat.st_mtime,
+                common.SortBySize: stat.st_size,
             }
 
             # If the file in question is a sequence, we will also save a reference
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
-                seqpath = u'{}[0]{}.{}'.format(
-                    seq.group(1), seq.group(3), seq.group(4))
+                try:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        unicode(seq.group(1), 'utf-8'),
+                        unicode(seq.group(3), 'utf-8'),
+                        unicode(seq.group(4), 'utf-8'))
+                except TypeError:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        seq.group(1),
+                        seq.group(3),
+                        seq.group(4))
 
                 if seqpath not in seqs:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
+                    flags = dflags()
+                    try:
+                        key = u'{}{}.{}'.format(
+                            unicode(seq.group(1), 'utf-8'),
+                            unicode(seq.group(3), 'utf-8'),
+                            unicode(seq.group(4), 'utf-8'))
+                    except TypeError:
+                        key = u'{}{}.{}'.format(
+                            seq.group(1),
+                            seq.group(3),
+                            seq.group(4))
 
                     flags = dflags()
                     key = u'{}{}.{}'.format(
@@ -150,6 +173,7 @@ class FavouritesModel(FilesModel):
                         QtCore.Qt.StatusTipRole: seqpath,
                         QtCore.Qt.ToolTipRole: seqpath,
                         QtCore.Qt.SizeHintRole: rowsize,
+                        common.EntryRole: [],
                         common.FlagsRole: flags,
                         common.ParentRole: (server, job, root, fileroot),
                         common.DescriptionRole: u'',
@@ -164,10 +188,12 @@ class FavouritesModel(FilesModel):
                         common.ThumbnailBackgroundRole: placeholder_color,
                         common.TypeRole: common.SequenceItem,
                         common.SortByName: seqpath,
-                        common.SortByLastModified: seqpath,
-                        common.SortBySize: seqpath,
+                        common.SortByLastModified: -1,
+                        common.SortBySize: 0,
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
+                seqs[seqpath][common.SortBySize] += entry.stat().st_size
+                seqs[seqpath][common.EntryRole].append(entry)
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -186,7 +212,7 @@ class FavouritesModel(FilesModel):
                 v[common.TypeRole] = common.FileItem
                 v[common.SortByName] = filepath
                 v[common.SortByLastModified] = filepath
-                v[common.SortBySize] = filepath
+                v[common.SortBySize] = v[common.EntryRole][0].stat().st_size
 
                 flags = dflags()
                 v[common.FlagsRole] = flags

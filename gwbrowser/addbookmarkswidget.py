@@ -8,9 +8,9 @@ import re
 import os
 import sys
 import functools
-
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -473,16 +473,16 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         bookmarks = local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
-        for file_info in arr:
+        for entry in arr:
             item = QtWidgets.QListWidgetItem()
-            name = file_info.filePath().replace(path, u'').strip(u'/')
+            name = entry.replace(path, u'').replace('\\', '/').strip(u'/')
             item.setData(QtCore.Qt.DisplayRole, name)
-            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
+            item.setData(QtCore.Qt.StatusTipRole, entry.replace('\\', '/'))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
             # Disabling the item if it has already been added to the widget
-            if file_info.filePath() in bookmarks:
+            if entry.replace('\\', '/') in bookmarks:
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
             self.pick_root_widget.view().addItem(item)
@@ -510,23 +510,20 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         if depth == count:
             return arr
 
-        if [f for f in arr if path in f.filePath()]:
+        if [f for f in arr if path in f]:
             return arr
 
-        ddir = QtCore.QDir(path)
-        ddir.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-        for dentry in ddir.entryList():
-            dpath = u'{}/{}'.format(ddir.path(), dentry)
-            fdir = QtCore.QDir(dpath)
-            fdir.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-            for fentry in fdir.entryList():
-                fpath = u'{}/{}'.format(fdir.path(), fentry)
-                if fentry.lower() == common.ASSET_IDENTIFIER.lower():
-                    if not [f for f in arr if path in f.filePath()]:
-                        item = QtCore.QFileInfo(path)
-                        arr.append(item)
+        for entry in gwscandir.scandir(path):
+            if not entry.is_dir():
+                continue
+            for fentry in gwscandir.scandir(entry.path):
+                if not entry.is_dir():
+                    continue
+                if fentry.name.lower() == common.ASSET_IDENTIFIER.lower():
+                    if not [f for f in arr if path in f]:
+                        arr.append(path)
                     return arr
-            self.get_root_folder_items(dpath, depth=depth, count=count + 1, arr=arr)
+            self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
         return arr
 
     @QtCore.Slot(int)
@@ -679,21 +676,18 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             return
 
         path = self.pick_server_widget.itemData(index, role=QtCore.Qt.StatusTipRole)
-        qdir = QtCore.QDir(path)
-        qdir.setFilter(
-            QtCore.QDir.NoDotAndDotDot |
-            QtCore.QDir.Dirs |
-            QtCore.QDir.NoSymLinks
-        )
-        for file_info in qdir.entryInfoList():
+        for entry in gwscandir.scandir(path):
+            if entry.name.startswith(u'.'):
+                continue
+            if entry.is_symlink():
+                continue
+            if not entry.is_dir():
+                continue
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, file_info.fileName())
-            item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
+            item.setData(QtCore.Qt.DisplayRole, entry.name)
+            item.setData(QtCore.Qt.StatusTipRole, entry.path)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
-
-            if not file_info.isReadable() or not file_info.exists():
-                item.setFlags(QtCore.Qt.NoItemFlags)
 
             item.setData(common.FlagsRole, item.flags())
 

@@ -33,6 +33,16 @@ from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
 
+qlast_modified = lambda n: QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
+
+
+def rsc_path(f, n):
+    """Helper function to retrieve a resource-file item"""
+    path = u'{}/../rsc/{}.png'.format(f, n)
+    path = os.path.normpath(os.path.abspath(path))
+    return path
+
+
 class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
@@ -82,10 +92,8 @@ class FileInfoWorker(BaseWorker):
         """
         if not index.isValid():
             return
-
         if not index.data(QtCore.Qt.StatusTipRole):
             return
-
         index = index.model().mapToSource(index)
         # To be on the save-side let's skip initiated items
         if index.data(common.StatusRole):
@@ -98,21 +106,23 @@ class FileInfoWorker(BaseWorker):
         if description:
             data[common.DescriptionRole] = description
 
-        # Sequence path and name
+        # For sequence items we will work out the name of the sequence
+        # based on the frames contained in the sequence
+        # This is a moderately costly operation hence, we're doing this here
+        # on the thread...
         if data[common.TypeRole] == common.SequenceItem:
-            frames = sorted(data[common.FramesRole])
-            intframes = [int(f) for f in frames]
-            rangestring = common.get_ranges(intframes, len(frames[0]))
+            intframes = [int(f) for f in data[common.FramesRole]]
+            padding = len(data[common.FramesRole][0])
+            rangestring = common.get_ranges(intframes, padding)
 
             p = data[common.SequenceRole].expand(
                 ur'\1{}\3.\4')
-            startpath = p.format(
-                unicode(min(intframes)).zfill(len(frames[0])))
-            endpath = p.format(
-                unicode(max(intframes)).zfill(len(frames[0])))
+            startpath = p.format(unicode(min(intframes)).zfill(padding))
+            endpath = p.format(unicode(max(intframes)).zfill(padding))
             seqpath = p.format(u'[{}]'.format(rangestring))
             seqname = seqpath.split(u'/')[-1]
 
+            # Setting the path names
             data[common.StartpathRole] = startpath
             data[common.EndpathRole] = endpath
             data[QtCore.Qt.StatusTipRole] = seqpath
@@ -121,58 +131,32 @@ class FileInfoWorker(BaseWorker):
             data[QtCore.Qt.EditRole] = seqname
 
             # File description string
-            size = 0
-            last_modified = QtCore.QDateTime(QtCore.QDate(1985, 8, 30))
-
-            for frame in frames:
-                framepath = p.format(frame)
-                file_info = QtCore.QFileInfo(framepath)
-
-                if common.osx:
-                    stat = os.stat(framepath)
-                    size += stat.st_size
-                    last_modified = QtCore.QDateTime.fromMSecsSinceEpoch(stat.st_mtime * 1000) if file_info.lastModified(
-                    ).toTime_t() > last_modified.toTime_t() else last_modified
-                else:
-                    size += file_info.size()
-                    last_modified = file_info.lastModified() if file_info.lastModified(
-                    ).toTime_t() > last_modified.toTime_t() else last_modified
+            mtime = 0
+            for entry in data[common.EntryRole]:
+                stat = entry.stat()
+                mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
+            mtime = qlast_modified(mtime)
 
             info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                count=len(frames),
-                day=last_modified.toString(u'dd'),
-                month=last_modified.toString(u'MM'),
-                year=last_modified.toString(u'yyyy'),
-                hour=last_modified.toString(u'hh'),
-                minute=last_modified.toString(u'mm'),
-                size=common.byte_to_string(size)
+                count=len(intframes),
+                day=mtime.toString(u'dd'),
+                month=mtime.toString(u'MM'),
+                year=mtime.toString(u'yyyy'),
+                hour=mtime.toString(u'hh'),
+                minute=mtime.toString(u'mm'),
+                size=common.byte_to_string(data[common.SortBySize])
             )
         else:
-            if common.osx:
-                file_info = QtCore.QFileInfo(
-                    data[QtCore.Qt.StatusTipRole])
-                size = file_info.size()
-                last_modified = file_info.lastModified()
-            else:
-                stat = os.stat(data[QtCore.Qt.StatusTipRole])
-                size = stat.st_size
-                last_modified = QtCore.QDateTime.fromMSecsSinceEpoch(stat.st_mtime * 1000)
-
+            mtime = qlast_modified(data[common.EntryRole][0].stat().st_mtime)
             info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=last_modified.toString(u'dd'),
-                month=last_modified.toString(u'MM'),
-                year=last_modified.toString(u'yyyy'),
-                hour=last_modified.toString(u'hh'),
-                minute=last_modified.toString(u'mm'),
-                size=common.byte_to_string(size)
+                day=mtime.toString(u'dd'),
+                month=mtime.toString(u'MM'),
+                year=mtime.toString(u'yyyy'),
+                hour=mtime.toString(u'hh'),
+                minute=mtime.toString(u'mm'),
+                size=common.byte_to_string(data[common.SortBySize])
             )
         data[common.FileDetailsRole] = info_string
-
-        # Sort values
-        # data[common.SortByName] = fileroot
-        data[common.SortByLastModified] = u'{}'.format(
-            last_modified.toMSecsSinceEpoch())
-        data[common.SortBySize] = u'{}'.format(size)
 
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
@@ -185,10 +169,6 @@ class FileInfoWorker(BaseWorker):
         # Thumbnail
         height = data[QtCore.Qt.SizeHintRole].height() - 2
 
-        def rsc_path(f, n):
-            path = u'{}/../rsc/{}.png'.format(f, n)
-            path = os.path.normpath(os.path.abspath(path))
-            return path
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
@@ -196,23 +176,22 @@ class FileInfoWorker(BaseWorker):
             placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), height)
         else:
             placeholder_image = ImageCache.instance().get(
-                rsc_path(__file__, 'placeholder'), height)
+                rsc_path(__file__, u'placeholder'), height)
 
         # THUMBNAILS
         needs_thumbnail = False
         image = None
-        if QtCore.QFile(settings.thumbnail_path()).exists():
+        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             image = ImageCache.instance().get(settings.thumbnail_path(), height)
-        if not image:  # The item doesn't not have a saved thumbnail...
+        if not image:  # The item doesn't have a saved thumbnail...
             ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
             if ext in common._oiio_formats:
-                # ...but we can generate a thumbnail for it
+                # ...but we can generate a thumbnail for it!
                 needs_thumbnail = True
-
             image = placeholder_image
             color = placeholder_color
         else:
-            color = ImageCache.instance().get(settings.thumbnail_path(), 'BackgroundColor')
+            color = ImageCache.instance().get(settings.thumbnail_path(), u'BackgroundColor')
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
         data[common.DefaultThumbnailRole] = placeholder_image
@@ -271,7 +250,7 @@ class FilesModel(BaseModel):
 
     """
 
-    def __init__(self, threads=4, parent=None):
+    def __init__(self, threads=2, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         self.threads = {}
 
@@ -282,7 +261,7 @@ class FilesModel(BaseModel):
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
-        definitions by running a recursive QDirIterator from the location-folder.
+        definitions by running a file-iterator from the location-folder.
 
         Getting all additional information, like description, item flags, thumbnails
         are costly and therefore are populated by secondary thread-workers when
@@ -290,33 +269,32 @@ class FilesModel(BaseModel):
 
         Notes:
             Experiencing serious performance issues with the built-in QDirIterator
-            on Mac OS X samba shares.
+            on Mac OS X samba shares and the performance isn't great on windows either.
             Querrying the filesystem using the method is magnitudes slower than
             using the same methods on windows.
 
-            A workaround I found was to use the scandir module. On windows I
-            found that it is somewhat slower than QDirIterator but on Mac OS X
-            it is much faster.
+            A workaround I found was to use Python 3+'s scandir module. Both on
+            Windows and Mac OS X the performance seems to be adequate.
 
         """
-        def rsc_path(f, n):
-            path = u'{}/../rsc/{}.png'.format(f, n)
-            path = os.path.normpath(os.path.abspath(path))
-            return path
-
-        def dflags(): return (
+        def dflags():
+            """The default flags to apply to the item."""
+            return (
             QtCore.Qt.ItemNeverHasChildren |
             QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsSelectable
-        )
+            QtCore.Qt.ItemIsSelectable)
 
         FileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+
         self._data[dkey] = {
-            common.FileItem: {}, common.SequenceItem: {}}
+            common.FileItem: {},
+            common.SequenceItem: {}
+        }
+
         seqs = {}
 
         favourites = local_settings.value(u'favourites')
@@ -331,151 +309,145 @@ class FilesModel(BaseModel):
 
         server, job, root, asset = self._parent_item
         location = self.data_key()
-        location_path = ('{}/{}/{}/{}/{}'.format(
+        location_path = (u'{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
-
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
-        # Iterator
-        it = common.file_iterator(location_path)
+        for _, _, fileentries in common.walk(location_path):
+            for entry in fileentries:
+                filepath = entry.path.replace(u'\\', u'/')
+                filename = entry.name
+                stat = entry.stat()
 
-        __n = 999
-        __c = 0
-        for filepath in it:
-            try:
-                filepath = unicode(filepath, 'utf-8')
-            except TypeError:
-                pass
+                if location in common.NameFilters:
+                    if not filepath.split(u'.')[-1] in common.NameFilters[location]:
+                        continue
 
-            if location in common.NameFilters:
-                if not filepath.split(u'.')[-1] in common.NameFilters[location]:
+                fileroot = filepath.replace(location_path, u'')
+                fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
+
+                seq = common.get_sequence(filepath)
+
+                # Hidden files we don't care about should probably come from a centralised list...
+                if filename.startswith(u'.'):
+                    continue
+                if u'thumbs.db'.lower() in filename.lower():
                     continue
 
+                ext = filename.split('.')[-1]
+                if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+                    placeholder_image = ImageCache.instance().get(
+                        rsc_path(__file__, ext), rowsize.height())
+                else:
+                    placeholder_image = ImageCache.instance().get(
+                        rsc_path(__file__, u'placeholder'), rowsize.height())
 
-            fileroot = filepath.replace(location_path, u'')
-            fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
+                flags = dflags()
 
-            seq = common.get_sequence(filepath)
-            filename = filepath.split(u'/')[-1]
+                if filepath in favourites:
+                    flags = flags | MarkedAsFavourite
 
-            # Hidden files we don't car about should probably come from a centralised list...
-            if filename.startswith(u'.'):
-                continue
-            if u'Thumbs.db' in filename:
-                continue
+                if activefile:
+                    if activefile in filepath:
+                        flags = flags | MarkedAsActive
 
-            ext = filename.split('.')[-1]
-            if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-                placeholder_image = ImageCache.instance().get(
-                    rsc_path(__file__, ext), rowsize.height())
-            else:
-                placeholder_image = ImageCache.instance().get(
-                    rsc_path(__file__, 'placeholder'), rowsize.height())
+                stat = entry.stat()
+                idx = len(self._data[dkey][common.FileItem])
+                self._data[dkey][common.FileItem][idx] = {
+                    QtCore.Qt.DisplayRole: filename,
+                    QtCore.Qt.EditRole: filename,
+                    QtCore.Qt.StatusTipRole: filepath,
+                    QtCore.Qt.ToolTipRole: filepath,
+                    QtCore.Qt.SizeHintRole: rowsize,
+                    common.EntryRole: [entry,],
+                    common.FlagsRole: flags,
+                    common.ParentRole: (server, job, root, asset, location, fileroot),
+                    common.DescriptionRole: u'',
+                    common.TodoCountRole: 0,
+                    common.FileDetailsRole: u'',
+                    common.SequenceRole: seq,
+                    common.FramesRole: [],
+                    common.StatusRole: False,
+                    common.StartpathRole: None,
+                    common.EndpathRole: None,
+                    common.ThumbnailRole: placeholder_image,
+                    common.ThumbnailBackgroundRole: placeholder_color,
+                    common.TypeRole: common.FileItem,
+                    common.SortByName: filepath,
+                    common.SortByLastModified: stat.st_mtime,
+                    common.SortBySize: stat.st_size,
+                }
 
-            flags = dflags()
-
-            if filepath in favourites:
-                flags = flags | MarkedAsFavourite
-
-            if activefile:
-                if activefile in filepath:
-                    flags = flags | MarkedAsActive
-
-            idx = len(self._data[dkey][common.FileItem])
-            self._data[dkey][common.FileItem][idx] = {
-                QtCore.Qt.DisplayRole: filename,
-                QtCore.Qt.EditRole: filename,
-                QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.ToolTipRole: filepath,
-                QtCore.Qt.SizeHintRole: rowsize,
-                common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, asset, location, fileroot),
-                common.DescriptionRole: u'',
-                common.TodoCountRole: 0,
-                common.FileDetailsRole: u'',
-                common.SequenceRole: seq,
-                common.FramesRole: [],
-                common.StatusRole: False,
-                common.StartpathRole: None,
-                common.EndpathRole: None,
-                common.ThumbnailRole: placeholder_image,
-                common.ThumbnailBackgroundRole: placeholder_color,
-                common.TypeRole: common.FileItem,
-                common.SortByName: filepath,
-                common.SortByLastModified: filepath,
-                common.SortBySize: filepath,
-            }
-
-            # If the file in question is a sequence, we will also save a reference
-            # to it in `self._model_data[location][True]` dictionary.
-            if seq:
-                try:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        unicode(seq.group(1), 'utf-8'),
-                        unicode(seq.group(3), 'utf-8'),
-                        unicode(seq.group(4), 'utf-8'))
-                except TypeError:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        seq.group(1),
-                        seq.group(3),
-                        seq.group(4))
-
-
-                if seqpath not in seqs:  # ... and create it if it doesn't exist
-                    seqname = seqpath.split(u'/')[-1]
-                    flags = dflags()
+                # If the file in question is a sequence, we will also save a reference
+                # to it in `self._model_data[location][True]` dictionary.
+                if seq:
                     try:
-                        key = u'{}{}.{}'.format(
+                        seqpath = u'{}[0]{}.{}'.format(
                             unicode(seq.group(1), 'utf-8'),
                             unicode(seq.group(3), 'utf-8'),
                             unicode(seq.group(4), 'utf-8'))
                     except TypeError:
-                        key = u'{}{}.{}'.format(
+                        seqpath = u'{}[0]{}.{}'.format(
                             seq.group(1),
                             seq.group(3),
                             seq.group(4))
 
-                    if key in favourites:
-                        flags = flags | MarkedAsFavourite
+                    # If the sequence has not yet been added to our dictionary
+                    # of seqeunces we add it here
+                    if seqpath not in seqs:  # ... and create it if it doesn't exist
+                        seqname = seqpath.split(u'/')[-1]
+                        flags = dflags()
+                        try:
+                            key = u'{}{}.{}'.format(
+                                unicode(seq.group(1), 'utf-8'),
+                                unicode(seq.group(3), 'utf-8'),
+                                unicode(seq.group(4), 'utf-8'))
+                        except TypeError:
+                            key = u'{}{}.{}'.format(
+                                seq.group(1),
+                                seq.group(3),
+                                seq.group(4))
 
-                    seqs[seqpath] = {
-                        QtCore.Qt.DisplayRole: seqname,
-                        QtCore.Qt.EditRole: seqname,
-                        QtCore.Qt.StatusTipRole: seqpath,
-                        QtCore.Qt.ToolTipRole: seqpath,
-                        QtCore.Qt.SizeHintRole: rowsize,
-                        common.FlagsRole: flags,
-                        common.ParentRole: (server, job, root, asset, location, fileroot),
-                        common.DescriptionRole: u'',
-                        common.TodoCountRole: 0,
-                        common.FileDetailsRole: u'',
-                        common.SequenceRole: seq,
-                        common.FramesRole: [],
-                        common.StatusRole: False,
-                        common.StartpathRole: None,
-                        common.EndpathRole: None,
-                        common.ThumbnailRole: placeholder_image,
-                        common.ThumbnailBackgroundRole: placeholder_color,
-                        common.TypeRole: common.SequenceItem,
-                        common.SortByName: seqpath,
-                        common.SortByLastModified: seqpath,
-                        common.SortBySize: seqpath,
-                    }
-                try:
-                    seqs[seqpath][common.FramesRole].append(unicode(seq.group(2), 'utf-8'))
-                except TypeError:
+                        if key in favourites:
+                            flags = flags | MarkedAsFavourite
+
+                        seqs[seqpath] = {
+                            QtCore.Qt.DisplayRole: seqname,
+                            QtCore.Qt.EditRole: seqname,
+                            QtCore.Qt.StatusTipRole: seqpath,
+                            QtCore.Qt.ToolTipRole: seqpath,
+                            QtCore.Qt.SizeHintRole: rowsize,
+                            common.EntryRole: [],
+                            common.FlagsRole: flags,
+                            common.ParentRole: (server, job, root, asset, location, fileroot),
+                            common.DescriptionRole: u'',
+                            common.TodoCountRole: 0,
+                            common.FileDetailsRole: u'',
+                            common.SequenceRole: seq,
+                            common.FramesRole: [],
+                            common.StatusRole: False,
+                            common.StartpathRole: None,
+                            common.EndpathRole: None,
+                            common.ThumbnailRole: placeholder_image,
+                            common.ThumbnailBackgroundRole: placeholder_color,
+                            common.TypeRole: common.SequenceItem,
+                            common.SortByName: seqpath,
+                            common.SortByLastModified: 0,
+                            common.SortBySize: 0, # Initializing with null-size
+                        }
+
                     seqs[seqpath][common.FramesRole].append(seq.group(2))
-            else:
-                seqs[filepath] = self._data[dkey][common.FileItem][idx]
+                    seqs[seqpath][common.SortBySize] += entry.stat().st_size
+                    seqs[seqpath][common.EntryRole].append(entry)
 
-            __c += 1
-            if __c % __n == 0:
-                QtWidgets.QApplication.instance().processEvents()
+                else:
+                    seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
             idx = len(self._data[dkey][common.SequenceItem])
+
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
                 filepath = v[common.SequenceRole].expand(ur'\1{}\3.\4')
@@ -488,7 +460,7 @@ class FilesModel(BaseModel):
                 v[common.TypeRole] = common.FileItem
                 v[common.SortByName] = filepath
                 v[common.SortByLastModified] = filepath
-                v[common.SortBySize] = filepath
+                v[common.SortBySize] = v[common.EntryRole][0].stat().st_size
 
                 flags = dflags()
                 if filepath in favourites:
