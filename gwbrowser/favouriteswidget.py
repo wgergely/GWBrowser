@@ -100,7 +100,6 @@ class FavouritesModel(FilesModel):
             else:
                 continue
 
-
             seq = common.get_sequence(filepath)
             filename = filepath.split('/')[-1]
             ext = filename.split('.')[-1]
@@ -116,7 +115,10 @@ class FavouritesModel(FilesModel):
 
             fname = filepath.split(u'/').pop()
             pdir = filepath.replace(fname, u'')
-            entry = [f for f in gwscandir.scandir(pdir) if f.name == filename][0]
+            entry = [f for f in gwscandir.scandir(pdir) if f.name == filename]
+            if not entry:
+                continue
+            entry = entry[0]
             stat = entry.stat()
 
             idx = len(self._data[dkey][common.FileItem])
