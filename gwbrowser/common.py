@@ -790,9 +790,9 @@ def copy_path(index, mode=WindowsPath, first=True):
 
     if mode == WindowsPath:
         pserver = index.data(ParentRole)[0]
-        server = sloth[not osx]
-        server = gordo[not osx] if legacy_server in pserver else server
-        server = local[not osx] if 'localhost' in pserver else server
+        server = sloth[False]
+        server = gordo[False] if legacy_server in pserver else server
+        server = local[False] if 'localhost' in pserver else server
 
         path = path.replace(pserver, server)
         path = re.sub(ur'[\/\\]', ur'\\', path)
@@ -801,9 +801,9 @@ def copy_path(index, mode=WindowsPath, first=True):
 
     if mode == UnixPath:
         pserver = index.data(ParentRole)[0]
-        server = sloth[not osx]
-        server = gordo[not osx] if legacy_server in pserver else server
-        server = local[not osx] if 'localhost' in pserver else server
+        server = sloth[True]
+        server = gordo[True] if legacy_server in pserver else server
+        server = local[True] if 'localhost' in pserver else server
 
         path = path.replace(pserver, server)
         path = re.sub(ur'[\/\\]', ur'/', path)
@@ -817,9 +817,9 @@ def copy_path(index, mode=WindowsPath, first=True):
 
     if mode == MacOSPath:
         pserver = index.data(ParentRole)[0]
-        server = sloth[osx]
-        server = gordo[osx] if legacy_server in pserver else server
-        server = local[osx] if pserver.startswith('/jobs') else server
+        server = sloth[True]
+        server = gordo[True] if legacy_server in pserver else server
+        server = local[True] if pserver.startswith('/jobs') else server
 
         path = path.replace(pserver, server)
         path = re.sub(ur'[\/\\]', ur'/', path)

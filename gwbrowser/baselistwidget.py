@@ -897,9 +897,10 @@ class BaseListWidget(QtWidgets.QListView):
         """
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
+        index = self.selectionModel().currentIndex()
+
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
-                index = self.selectionModel().currentIndex()
                 if index.isValid():
                     if not self._thumbnailvieweropen:
                         editors.ThumbnailViewer(index, parent=self)
@@ -958,7 +959,16 @@ class BaseListWidget(QtWidgets.QListView):
                             break
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
-            pass
+            if event.key() == QtCore.Qt.Key_C:
+                if index.data(common.StatusRole):
+                    if common.osx:
+                        if event.modifiers() & QtCore.Qt.ShiftModifier:
+                            return common.copy_path(index, mode=common.MacOSPath, first=True)
+                        return common.copy_path(index, mode=common.MacOSPath, first=False)
+                    else:
+                        if event.modifiers() & QtCore.Qt.ShiftModifier:
+                            return common.copy_path(index, mode=common.WindowsPath, first=True)
+                        return common.copy_path(index, mode=common.WindowsPath, first=False)
 
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
