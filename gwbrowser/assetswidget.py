@@ -86,13 +86,11 @@ class AssetModel(BaseModel):
             return
 
         server, job, root = self._parent_item
-        bookmark_path = '{}/{}/{}'.format(server, job, root)
+        bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
-
-        default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
-        default_thumbnail_path = os.path.normpath(os.path.abspath(default_thumbnail_path))
         default_thumbnail_image = ImageCache.instance().get(
-            default_thumbnail_path, rowsize.height() - 2)
+            common.rsc_path(__file__, u'placeholder'),
+            rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
         nth = 1

@@ -927,3 +927,10 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
                 yield entry
     else:
         yield top, dirs, nondirs
+
+
+def rsc_path(f, n):
+    """Helper function to retrieve a resource-file item"""
+    path = u'{}/../rsc/{}.png'.format(f, n)
+    path = os.path.normpath(os.path.abspath(path))
+    return path

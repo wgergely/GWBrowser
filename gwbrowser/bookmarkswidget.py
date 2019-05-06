@@ -150,7 +150,6 @@ class BookmarksModel(BaseModel):
         items = [BookmarkInfo(items[k]) for k in items]
         items = sorted(items, key=lambda x: x.filePath())
 
-
         thumbcolor = QtGui.QColor(common.SEPARATOR)
         thumbcolor.setAlpha(100)
         default_thumbnail_image = ImageCache.instance().get_rsc_pixmap(
@@ -158,12 +157,6 @@ class BookmarksModel(BaseModel):
             thumbcolor,
             common.BOOKMARK_ROW_HEIGHT - 2)
         default_thumbnail_image = default_thumbnail_image.toImage()
-
-
-        # default_thumbnail_path = '{}/../rsc/placeholder.png'.format(__file__)
-        # default_thumbnail_path = os.path.normpath(os.path.abspath(default_thumbnail_path))
-        # default_thumbnail_image = ImageCache.instance().get(
-        #     default_thumbnail_path, rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
         for idx, file_info in enumerate(items):
@@ -367,6 +360,14 @@ class BookmarksWidget(BaseInlineIconWidget):
         local_settings.setValue(u'activepath/root', root)
         Active.paths()  # Resetting invalid paths
 
+    def unset_activated(self):
+        """Saves the activated index to ``LocalSettings``."""
+        server, job, root = None, None, None
+        local_settings.setValue(u'activepath/server', server)
+        local_settings.setValue(u'activepath/job', job)
+        local_settings.setValue(u'activepath/root', root)
+        Active.paths()  # Resetting invalid paths
+
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
         from the ``local_settings``."""
@@ -395,7 +396,13 @@ class BookmarksWidget(BaseInlineIconWidget):
         bookmarks.pop(k, None)
         local_settings.setValue(u'bookmarks', bookmarks)
 
-        self.model().sourceModel().modelDataResetRequested.emit()
+        if index == self.model().sourceModel().active_index():
+            self.unset_activated()
+            self.model().sourceModel().modelDataResetRequested.emit()
+            return
+        else:
+            self.model().sourceModel().__initdata__()
+
 
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""

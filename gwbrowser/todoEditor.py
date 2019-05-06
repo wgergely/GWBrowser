@@ -295,12 +295,11 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         if not index.isValid():
             return
 
-        img = lambda url: '<br><div style="{style}"><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></div>'.format(
-            style='width:100%;align:center;background-color:rgba(0,0,0,20)',
+        img = lambda url: '<p><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></p>'.format(
             url=url.toLocalFile(),
             width=560)
-        href = lambda url: '<br><div style="{style}"><a href="{url}">{url}</a></div>'.format(
-            style='width:100%;align:center;background-color:rgba(0,0,0,20)',
+        href = lambda url: '<p><a href="{url}">{url}</a></p>'.format(
+            style='align:left;',
             url=url.toLocalFile())
 
         # We save our image into the cache for safe-keeping
@@ -851,6 +850,13 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
+        self.save_timer = QtCore.QTimer(parent=self)
+        self.save_timer.setInterval(2000)
+        self.save_timer.setSingleShot(False)
+        self.save_timer.timeout.connect(self.save_settings)
+        self.save_timer.start()
+
+
     @property
     def index(self):
         """The path used to initialize the widget."""
@@ -1019,6 +1025,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         item.editor = editor
         return item
 
+    @QtCore.Slot()
     def save_settings(self):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
@@ -1033,7 +1040,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def add_new_item(self):
         """Adds a new item with some default styling."""
-        html = u'<div style="align:justify;width:100%"><p>Edit me...</p></div>'
+        html = u'<p>Edit me...</p>'
         self.add_item(text=html, idx=0)
 
     def _createUI(self):

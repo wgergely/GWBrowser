@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
+
+
 """Module defines the QListWidget items used to browse the projects and the files
 found by the collector classes.
 
@@ -473,7 +475,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
         # self.setMouseTracking(True)
-        # self.viewport().setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 

@@ -36,13 +36,6 @@ from gwbrowser.threads import Unique
 qlast_modified = lambda n: QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
-def rsc_path(f, n):
-    """Helper function to retrieve a resource-file item"""
-    path = u'{}/../rsc/{}.png'.format(f, n)
-    path = os.path.normpath(os.path.abspath(path))
-    return path
-
-
 class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
     queue = Unique(999999)
@@ -173,10 +166,10 @@ class FileInfoWorker(BaseWorker):
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-            placeholder_image = ImageCache.instance().get(rsc_path(__file__, ext), height)
+            placeholder_image = ImageCache.instance().get(common.rsc_path(__file__, ext), height)
         else:
             placeholder_image = ImageCache.instance().get(
-                rsc_path(__file__, u'placeholder'), height)
+                common.rsc_path(__file__, u'placeholder'), height)
 
         # THUMBNAILS
         needs_thumbnail = False
@@ -346,10 +339,10 @@ class FilesModel(BaseModel):
                 ext = filename.split('.')[-1]
                 if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
                     placeholder_image = ImageCache.instance().get(
-                        rsc_path(__file__, ext), rowsize.height())
+                        common.rsc_path(__file__, ext), rowsize.height())
                 else:
                     placeholder_image = ImageCache.instance().get(
-                        rsc_path(__file__, u'placeholder'), rowsize.height())
+                        common.rsc_path(__file__, u'placeholder'), rowsize.height())
 
                 flags = dflags()
 

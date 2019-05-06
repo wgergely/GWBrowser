@@ -196,6 +196,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveLeft(common.INDICATOR_WIDTH)
 
         image = index.data(common.ThumbnailRole)
+        if not image:
+            return
         color = index.data(common.ThumbnailBackgroundRole)
         color = color if color else QtGui.QColor(0,0,0,55)
 
@@ -758,7 +760,9 @@ class AssetsWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
         painter, option, index, _, _, active, archived, _ = args
-
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
+            
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
 

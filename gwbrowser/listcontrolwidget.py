@@ -938,6 +938,10 @@ class BaseControlButton(ClickableLabel):
         self._parent = widget
 
     def set_text(self, text):
+        if text is None:
+            text = u'Files'
+        if text == u'':
+            text == u'File'
         self.setText(text.title())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
         width = metrics.width(self.text()) + common.INDICATOR_WIDTH
@@ -1025,6 +1029,9 @@ class FilesButton(BaseControlButton):
     @QtCore.Slot()
     def show_view(self):
         """Shows the ``DataKeyView`` widget for browsing."""
+        if self.view().model().rowCount() == 0:
+            return
+            
         def select_key(parent):
             """Selects the current data-key in the list."""
             key = parent.stackedwidget.currentWidget().model().sourceModel().data_key()

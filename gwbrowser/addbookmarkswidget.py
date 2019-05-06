@@ -619,11 +619,13 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             sys.stdout.write('# GWBrowser: Bookmark {} added\n'.format(key))
 
         if self.parent():
+            self.parent().unset_activated()
+            self.parent().model().sourceModel().modelReset.connect(functools.partial(self.select_newly_added_bookmark, key))
             self.parent().model().sourceModel().modelReset.connect(functools.partial(self.select_newly_added_bookmark, key))
             self.parent().model().sourceModel().modelReset.connect(self.close)
             self.parent().model().sourceModel().modelReset.connect(self.deleteLater)
-            self.parent().model().sourceModel().beginResetModel()
-            self.parent().model().sourceModel().__initdata__()
+
+            self.parent().model().sourceModel().modelDataResetRequested.emit()
 
     @QtCore.Slot(unicode)
     def select_newly_added_bookmark(self, path):
@@ -643,6 +645,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
                 self.parent().scrollTo(index)
+                self.parent().activate(index)
                 return
 
     def add_servers_from_config(self):

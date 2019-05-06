@@ -9,8 +9,10 @@ import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.editors as editors
 from gwbrowser.imagecache import ImageCache
+from gwbrowser.imagecache import ImageCacheWorker
 import gwbrowser.settings as Settings
 from gwbrowser.settings import AssetSettings
 
@@ -406,6 +408,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         source_index = self.index.model().mapToSource(self.index)
         settings = AssetSettings(source_index)
+
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'Show'] = {
                 u'icon': show_thumbnail,
@@ -422,6 +425,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                     settings.thumbnail_path(),
                 )
             }
+
             menu_set[key][u'separator'] = {}
 
         menu_set[key][u'Capture new'] = {
@@ -483,6 +487,32 @@ class BaseContextMenu(QtWidgets.QMenu):
             menu_set[key][u'Remove'] = {
                 u'action': functools.partial(ImageCache.instance().remove, source_index),
                 u'icon': remove_thumbnail_pixmap
+            }
+
+        # Submenu for picking a thumbnail from our internal thumbnail library
+        kkey = u'thumblib'
+        menu_set[kkey] = collections.OrderedDict()
+        menu_set[u'{}:text'.format(kkey)] = u'Thumbnail from library...'
+        menu_set[u'{}:icon'.format(kkey)] = capture_thumbnail_pixmap
+
+        n = 0
+        for entry in gwscandir.scandir( u'{}/../rsc'.format(__file__)):
+            if u'.png' not in entry.name:
+                continue
+            if not entry.name.startswith('thumb'):
+                continue
+
+            n += 1
+            menu_set[kkey][entry.name] = {
+                u'text': u'Thumbnail {}'.format(n),
+                u'icon': ImageCache.get_rsc_pixmap(
+                    entry.name.replace(u'.png', u''),
+                    None,
+                    common.INLINE_ICON_SIZE),
+                u'action': functools.partial(
+                    ImageCacheWorker.process_index,
+                    source_index,
+                    source=entry.path.replace(u'\\', u'/'))
             }
         return menu_set
 
