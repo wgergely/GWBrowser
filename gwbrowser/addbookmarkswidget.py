@@ -188,7 +188,12 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
             text = u'Click to select {}'.format(self.type)
             color = common.TEXT
         else:
-            text = self.view().item(self.view().currentRow()).data(QtCore.Qt.DisplayRole).upper()
+            item = self.view().item(self.view().currentRow())
+            if not item:
+                text = u'Click to select {}'.format(self.type)
+            else:
+                text = item.data(QtCore.Qt.DisplayRole)
+            text = text.upper() if text else u'Click to select {}'.format(self.type)
             color = common.TEXT_SELECTED
         if hover:
             color = common.TEXT_SELECTED
@@ -276,6 +281,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
+        self.new_key = None
 
         self.setWindowTitle(u'Add bookmark')
         self.setMouseTracking(True)
@@ -335,10 +341,10 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(row)
 
         self.ok_button = PaintedButton(u'Add bookmark')
-        self.cancel_button = PaintedButton(u'Cancel')
+        self.close_button = PaintedButton(u'Close')
 
         row.layout().addWidget(self.ok_button, 1)
-        row.layout().addWidget(self.cancel_button, 1)
+        row.layout().addWidget(self.close_button, 1)
 
         # Adding it all together
         main_widget = QtWidgets.QWidget()
@@ -409,7 +415,19 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pick_root_widget.activated.connect(self.pick_root_widget.pick_custom)
 
         self.ok_button.pressed.connect(self.add_bookmark)
-        self.cancel_button.pressed.connect(self.close)
+        self.close_button.pressed.connect(self.close)
+
+        if self.parent():
+            self.parent().model().sourceModel().modelReset.connect(self.post_event)
+            # self.parent().model().sourceModel().modelReset.connect(self.hide)
+
+    @QtCore.Slot()
+    def post_event(self):
+        """This slot fires after the new bookmark has been added to the bookmarks widget."""
+        if not self.new_key:
+            return
+        self.activate_bookmark(self.new_key)
+        self.new_key = None
 
     @QtCore.Slot(int)
     def select_saved_item(self, index, key=None, combobox=None):
@@ -619,17 +637,14 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             sys.stdout.write('# GWBrowser: Bookmark {} added\n'.format(key))
 
         if self.parent():
+            self.new_key = key
             self.parent().unset_activated()
-            self.parent().model().sourceModel().modelReset.connect(functools.partial(self.select_newly_added_bookmark, key))
-            self.parent().model().sourceModel().modelReset.connect(functools.partial(self.select_newly_added_bookmark, key))
-            self.parent().model().sourceModel().modelReset.connect(self.close)
-            self.parent().model().sourceModel().modelReset.connect(self.deleteLater)
-
             self.parent().model().sourceModel().modelDataResetRequested.emit()
+            self.add_root_folders(self.pick_job_widget.currentIndex())
 
     @QtCore.Slot(unicode)
-    def select_newly_added_bookmark(self, path):
-        """Selects the newly added bookmark in the `BookmarksWidget`."""
+    def activate_bookmark(self, path):
+        """Selects and activates the newly added bookmark in the `BookmarksWidget`."""
         try:
             # This is needed - it is not possible to disconnect a partial object in PySide2, not that I know of at least...
             if not self.parent():

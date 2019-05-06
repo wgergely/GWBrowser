@@ -331,6 +331,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.context_menu_cls = BookmarksWidgetContextMenu
 
         self.set_model(BookmarksModel(parent=self))
+        self.add_bookmarks_widget = None
 
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)
@@ -403,17 +404,22 @@ class BookmarksWidget(BaseInlineIconWidget):
         else:
             self.model().sourceModel().__initdata__()
 
-
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""
-        widget = AddBookmarksWidget(parent=self)
-        widget.show()
+        if self.add_bookmarks_widget:
+            self.add_bookmarks_widget.add_root_folders(
+                self.add_bookmarks_widget.pick_job_widget.currentIndex())
+            self.add_bookmarks_widget.show()
+            return
+
+        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+        self.add_bookmarks_widget.show()
         if self.parent():
             pos = self.parent().rect().center()
             pos = self.parent().mapToGlobal(pos)
-            widget.move(
-                pos.x() - (widget.width() / 2.0),
-                pos.y() - (widget.height() / 2.0),
+            self.add_bookmarks_widget.move(
+                pos.x() - (self.add_bookmarks_widget.width() / 2.0),
+                pos.y() - (self.add_bookmarks_widget.height() / 2.0),
             )
 
     def mouseDoubleClickEvent(self, event):
