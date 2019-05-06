@@ -101,8 +101,8 @@ class FavouritesModel(FilesModel):
                 continue
 
             seq = common.get_sequence(filepath)
-            filename = filepath.split('/')[-1]
-            ext = filename.split('.')[-1]
+            filename = filepath.split(u'/')[-1]
+            ext = filename.split(u'.')[-1]
 
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
                 placeholder_image = ImageCache.instance().get(
