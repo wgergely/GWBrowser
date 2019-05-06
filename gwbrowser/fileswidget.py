@@ -128,6 +128,7 @@ class FileInfoWorker(BaseWorker):
             for entry in data[common.EntryRole]:
                 stat = entry.stat()
                 mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
+                data[common.SortBySize] += stat.st_size
             mtime = qlast_modified(mtime)
 
             info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
@@ -140,7 +141,9 @@ class FileInfoWorker(BaseWorker):
                 size=common.byte_to_string(data[common.SortBySize])
             )
         else:
-            mtime = qlast_modified(data[common.EntryRole][0].stat().st_mtime)
+            stat = data[common.EntryRole][0].stat()
+            mtime = qlast_modified(stat.st_mtime)
+            data[common.SortBySize] = stat.st_size
             info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
                 day=mtime.toString(u'dd'),
                 month=mtime.toString(u'MM'),
@@ -313,7 +316,7 @@ class FilesModel(BaseModel):
             for entry in fileentries:
                 filepath = entry.path.replace(u'\\', u'/')
                 filename = entry.name
-                stat = entry.stat()
+                # stat = entry.stat()
 
                 if location in common.NameFilters:
                     if not filepath.split(u'.')[-1] in common.NameFilters[location]:
@@ -353,7 +356,7 @@ class FilesModel(BaseModel):
                     if activefile in filepath:
                         flags = flags | MarkedAsActive
 
-                stat = entry.stat()
+                # stat = entry.stat()
                 idx = len(self._data[dkey][common.FileItem])
                 self._data[dkey][common.FileItem][idx] = {
                     QtCore.Qt.DisplayRole: filename,
@@ -376,8 +379,8 @@ class FilesModel(BaseModel):
                     common.ThumbnailBackgroundRole: placeholder_color,
                     common.TypeRole: common.FileItem,
                     common.SortByName: filepath,
-                    common.SortByLastModified: stat.st_mtime,
-                    common.SortBySize: stat.st_size,
+                    common.SortByLastModified: 0,
+                    common.SortBySize: 0,
                 }
 
                 # If the file in question is a sequence, we will also save a reference
@@ -439,9 +442,7 @@ class FilesModel(BaseModel):
                         }
 
                     seqs[seqpath][common.FramesRole].append(seq.group(2))
-                    seqs[seqpath][common.SortBySize] += entry.stat().st_size
                     seqs[seqpath][common.EntryRole].append(entry)
-
                 else:
                     seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -460,8 +461,7 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
                 v[common.SortByName] = filepath
-                v[common.SortByLastModified] = filepath
-                v[common.SortBySize] = v[common.EntryRole][0].stat().st_size
+                v[common.SortByLastModified] = 0
 
                 flags = dflags()
                 if filepath in favourites:
