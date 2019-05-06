@@ -194,7 +194,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._sortorder = None
 
         # File-system monitor
-        self._file_monitor = QtCore.QFileSystemWatcher()
         self._last_refreshed = {}
         self._last_changed = {}  # a dict of path/timestamp values
 
@@ -313,10 +312,6 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def __resetdata__(self):
         """Resets the internal data."""
-        monitored = self._file_monitor.directories()
-        if monitored:
-            self._file_monitor.removePaths(monitored)
-
         self._data = {}
         self.__initdata__()
 
