@@ -473,11 +473,12 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         bookmarks = local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
-        for entry in arr:
+        for entry in sorted(arr):
+            entry = entry.replace('\\', '/')
             item = QtWidgets.QListWidgetItem()
-            name = entry.replace(path, u'').replace('\\', '/').strip(u'/')
+            name = entry.replace(path, u'').strip(u'/')
             item.setData(QtCore.Qt.DisplayRole, name)
-            item.setData(QtCore.Qt.StatusTipRole, entry.replace('\\', '/'))
+            item.setData(QtCore.Qt.StatusTipRole, entry)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
