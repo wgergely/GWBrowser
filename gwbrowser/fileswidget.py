@@ -314,6 +314,8 @@ class FilesModel(BaseModel):
         ))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
+        nth = 987
+        c = 0
         for _, _, fileentries in common.walk(location_path):
             for entry in fileentries:
                 filepath = entry.path.replace(u'\\', u'/')
@@ -323,6 +325,12 @@ class FilesModel(BaseModel):
                 if location in common.NameFilters:
                     if not filepath.split(u'.')[-1] in common.NameFilters[location]:
                         continue
+
+                # Progress bar
+                c += 1
+                if not c % nth:
+                    m = self.messageChanged.emit(u'Found {} files...'.format(c))
+                    QtWidgets.QApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
 
                 fileroot = filepath.replace(location_path, u'')
                 fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')

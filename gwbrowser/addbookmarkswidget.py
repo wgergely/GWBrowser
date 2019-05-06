@@ -507,27 +507,28 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             A list of QFileInfo items
 
         """
+        path = path.replace(u'\\', u'/')
         if depth == count:
             return arr
 
         if [f for f in arr if path in f]:
             return arr
-
         try:
             for entry in gwscandir.scandir(path):
                 if not entry.is_dir():
                     continue
-                try:
-                    for fentry in gwscandir.scandir(entry.path):
-                        if not entry.is_dir():
-                            continue
-                        if fentry.name.lower() == common.ASSET_IDENTIFIER.lower():
-                            if not [f for f in arr if path in f]:
-                                arr.append(path)
-                            return arr
-                    self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
-                except OSError as err:
-                    continue # We're skipping the folder if there's an error reading it
+                if entry.name.startswith(u'.'):
+                    continue
+
+                identifier_path = u'{}/{}'.format(
+                    entry.path.replace(u'\\', u'/'),
+                    common.ASSET_IDENTIFIER)
+
+                if QtCore.QFileInfo(identifier_path).exists():
+                    if not [f for f in arr if path in f]:
+                        arr.append(path)
+                    return arr
+                self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
         except OSError as err:
             return arr
         return arr
@@ -691,7 +692,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                 continue
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, entry.name)
-            item.setData(QtCore.Qt.StatusTipRole, entry.path)
+            item.setData(QtCore.Qt.StatusTipRole, entry.path.replace(u'\\', u'/'))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 

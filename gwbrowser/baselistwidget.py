@@ -179,6 +179,8 @@ class BaseModel(QtCore.QAbstractItemModel):
     sortingChanged = QtCore.Signal(int, bool)  # (SortRole, SortOrder)
     dataSorted = QtCore.Signal()  # (SortRole, SortOrder)
 
+    messageChanged = QtCore.Signal(unicode)
+
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self.view = parent

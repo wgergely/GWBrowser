@@ -95,6 +95,8 @@ class AssetModel(BaseModel):
             default_thumbnail_path, rowsize.height() - 2)
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
+        nth = 1
+        c = 0
         for entry in gwscandir.scandir(bookmark_path):
             if entry.name.startswith(u'.'):
                 continue
@@ -103,6 +105,12 @@ class AssetModel(BaseModel):
 
             if common.ASSET_IDENTIFIER not in [f.name for f in gwscandir.scandir(entry.path)]:
                 continue
+
+            # Progress bar
+            c += 1
+            if not c % nth:
+                m = self.messageChanged.emit(u'Found {} assets...'.format(c))
+                QtWidgets.QApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
 
             tooltip = u'{}\n'.format(entry.name.upper())
             tooltip += u'{}\n'.format(server.upper())

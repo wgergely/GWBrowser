@@ -559,6 +559,8 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
         f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
 
+        f.model().sourceModel().messageChanged.connect(m.messageChanged)
+
     def add_shortcuts(self):
         """Adds the custom shortcuts used to control the list widgets."""
         for n in xrange(4):
