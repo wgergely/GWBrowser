@@ -83,7 +83,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
                 self.rect().center().x() - (alembicwidget.width() / 2),
                 self.rect().center().y() - (alembicwidget.height() / 2)
             )
-            # print alembicwidget.rect()
 
             self._secondarywidget = alembicwidget
             alembicwidget.show()

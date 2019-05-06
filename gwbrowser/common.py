@@ -672,7 +672,7 @@ def get_sequence_paths(index):
 
     sequence_paths = []
     for frame in index.data(FramesRole):
-        seqpath = index.data(SequenceRole).expand(r'\1{}\3.\4')
+        seqpath = index.data(SequenceRole).expand(ur'\1{}\3.\4')
         sequence_paths.append(seqpath.format(frame))
     return sequence_paths
 
@@ -741,7 +741,6 @@ def find_largest_file(index):
     """
     key = lambda x: x.stat().st_size
     entry = max(index.data(EntryRole), key=key)
-    print entry.path
     return entry.path.replace(u'\\', u'/')
 
 

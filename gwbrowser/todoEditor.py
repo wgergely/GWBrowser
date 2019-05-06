@@ -1163,13 +1163,11 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
 
 
-
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
     item = widget.add_item(
         text=u'This is a test link:\n\n\n\nClick this: file://gordo/jobs')
-    # print item.editor.document().setHtml('Hullo')
     widget.show()
     app.exec_()

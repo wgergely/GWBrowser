@@ -83,25 +83,34 @@ class FavouritesModel(FilesModel):
             return
 
         server, job, root = self._parent_item
-        bookmark = ('{}/{}/{}'.format(server, job, root))
+        bookmark = (u'{}/{}/{}'.format(server, job, root))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         for filepath in favourites:
-            if not QtCore.QFileInfo(filepath).exists():
+            file_info = QtCore.QFileInfo(filepath)
+            if not file_info.exists():
                 continue
 
-            fileroot = filepath.replace(bookmark, '')
-            fileroot = '/'.join(fileroot.split('/')[:-1]).strip('/')
+            fileroot = file_info.filePath()
+            if u'{}/{}/{}'.format(server, job, root) in fileroot:
+                fileroot = file_info.filePath().replace(
+                    u'{}/{}/{}'.format(server, job, root),
+                    u''
+                )
+            else:
+                continue
+
 
             seq = common.get_sequence(filepath)
             filename = filepath.split('/')[-1]
             ext = filename.split('.')[-1]
+
             if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
                 placeholder_image = ImageCache.instance().get(
                     rsc_path(__file__, ext), rowsize.height())
             else:
                 placeholder_image = ImageCache.instance().get(
-                    rsc_path(__file__, 'placeholder'), rowsize.height())
+                    rsc_path(__file__, u'placeholder'), rowsize.height())
 
             flags = dflags()
 
@@ -109,6 +118,7 @@ class FavouritesModel(FilesModel):
             pdir = filepath.replace(fname, u'')
             entry = [f for f in gwscandir.scandir(pdir) if f.name == filename][0]
             stat = entry.stat()
+
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
@@ -175,7 +185,7 @@ class FavouritesModel(FilesModel):
                         QtCore.Qt.SizeHintRole: rowsize,
                         common.EntryRole: [],
                         common.FlagsRole: flags,
-                        common.ParentRole: (server, job, root, fileroot),
+                        common.ParentRole: (server, job, root, fileroot, ),
                         common.DescriptionRole: u'',
                         common.TodoCountRole: 0,
                         common.FileDetailsRole: u'',
@@ -202,7 +212,7 @@ class FavouritesModel(FilesModel):
             idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
-                filepath = v[common.SequenceRole].expand(r'\1{}\3.\4')
+                filepath = v[common.SequenceRole].expand(ur'\1{}\3.\4')
                 filepath = filepath.format(v[common.FramesRole][0])
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
@@ -305,32 +315,33 @@ class FavouritesWidget(FilesWidget):
         key = index.data(QtCore.Qt.StatusTipRole)
         collapsed = common.is_collapsed(key)
         if collapsed:
-            key = collapsed.expand(r'\1\3')
+            key = collapsed.expand(ur'\1\3')
 
-        favourites.remove(key)
-        data[source_index.row()][common.FlagsRole] = data[source_index.row(
-        )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+        if key in favourites:
+            favourites.remove(key)
+            data[source_index.row()][common.FlagsRole] = data[source_index.row(
+            )][common.FlagsRole] & ~Settings.MarkedAsFavourite
 
-        # When toggling a sequence item, we will toggle all the individual sequence items as well
-        if self.model().sourceModel().data_type() == common.SequenceItem:
-            m = self.model().sourceModel()
-            k = m.data_key()
-            t = common.FileItem
-            _data = m._data[k][t]
+            # When toggling a sequence item, we will toggle all the individual sequence items as well
+            if self.model().sourceModel().data_type() == common.SequenceItem:
+                m = self.model().sourceModel()
+                k = m.data_key()
+                t = common.FileItem
+                _data = m._data[k][t]
 
-            # Let's find the item in the model data
-            for frame in data[source_index.row()][common.FramesRole]:
-                _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
-                _path = _path.format(frame)
-                _index = None
-                for val in _data.itervalues():
-                    if val[QtCore.Qt.StatusTipRole] == _path:
-                        _index = val # Found it!
-                        break
-                if _index:
-                    if _index[QtCore.Qt.StatusTipRole] in favourites:
-                        favourites.remove(_index[QtCore.Qt.StatusTipRole])
-                    _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                # Let's find the item in the model data
+                for frame in data[source_index.row()][common.FramesRole]:
+                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
+                    _path = _path.format(frame)
+                    _index = None
+                    for val in _data.itervalues():
+                        if val[QtCore.Qt.StatusTipRole] == _path:
+                            _index = val # Found it!
+                            break
+                    if _index:
+                        if _index[QtCore.Qt.StatusTipRole] in favourites:
+                            favourites.remove(_index[QtCore.Qt.StatusTipRole])
+                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()

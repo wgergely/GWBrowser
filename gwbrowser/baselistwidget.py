@@ -274,7 +274,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         sorted_idxs = sorted(
             data,
-            key=lambda idx: common.namekey(data[idx][sortrole]),
+            key=lambda idx: common.namekey(data[idx][sortrole]) if isinstance(data[idx][sortrole], basestring) else data[idx][sortrole],
             reverse=sortorder
         )
 
@@ -653,13 +653,13 @@ class BaseListWidget(QtWidgets.QListView):
 
         seq = common.get_sequence(val)
         if seq:
-            val = seq.expand(r'\1\3.\4')
+            val = seq.expand(ur'\1\3.\4')
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
             path = index.data(QtCore.Qt.StatusTipRole)
             seq = common.get_sequence(path)
             if seq:
-                path = seq.expand(r'\1\3.\4')
+                path = seq.expand(ur'\1\3.\4')
             if path == val:
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
@@ -700,7 +700,7 @@ class BaseListWidget(QtWidgets.QListView):
         key = index.data(QtCore.Qt.StatusTipRole)
         collapsed = common.is_collapsed(key)
         if collapsed:
-            key = collapsed.expand(r'\1\3')
+            key = collapsed.expand(ur'\1\3') # \2 is the sequence-string
 
         if key in favourites:
             if state is None or state is False:  # clears flag
@@ -717,7 +717,7 @@ class BaseListWidget(QtWidgets.QListView):
 
                 # Let's find the item in the model data
                 for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
+                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
                     _path = _path.format(frame)
                     _index = None
                     for val in _data.itervalues():
@@ -744,7 +744,7 @@ class BaseListWidget(QtWidgets.QListView):
 
                 # Let's find the item in the model data
                 for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(r'\1{}\3.\4')
+                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
                     _path = _path.format(frame)
                     _index = None
                     for val in _data.itervalues():
@@ -801,7 +801,7 @@ class BaseListWidget(QtWidgets.QListView):
             key = index.data(QtCore.Qt.StatusTipRole)
             collapsed = common.is_collapsed(key)
             if collapsed:
-                key = collapsed.expand(r'\1\3')
+                key = collapsed.expand(ur'\1\3')
             if key in favourites:
                 data[source_index.row()][common.FlagsRole] = data[source_index.row(
                 )][common.FlagsRole] & ~Settings.MarkedAsFavourite

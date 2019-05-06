@@ -121,7 +121,7 @@ class Progresslabel(QtWidgets.QLabel):
             if match.group(1) == u'Loading items' or match.group(1) == u'Processing thumbnails':
                 text = ''
             else:
-                text = match.expand(r'\1')
+                text = match.expand(ur'\1')
 
 
         if ImageCacheWorker.queue.qsize():
@@ -564,7 +564,7 @@ class AddButton(ControlButton):
                 iscollapsed = common.is_collapsed(index.data(QtCore.Qt.StatusTipRole))
                 if iscollapsed:
                     # Replacing the frame-number with placeholder characters
-                    currentfile = iscollapsed.expand(r'\1{}\3')
+                    currentfile = iscollapsed.expand(ur'\1{}\3')
                     currentfile = currentfile.format(u'#' * len(index.data(common.FramesRole)[-1]))
                 else:
                     # Getting the last frame of the sequence
@@ -874,7 +874,7 @@ class DataKeyModel(BaseModel):
                 description = common.ASSET_FOLDERS[entry.name]
             else:
                 description = common.ASSET_FOLDERS[u'misc']
-                
+
             if entry.name.startswith(u'.'):
                 continue
             if not entry.is_dir():

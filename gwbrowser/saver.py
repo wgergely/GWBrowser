@@ -257,7 +257,7 @@ class SaverFileInfo(QtCore.QObject):
 
         version = '{}'.format(int(match.group(2))
                               + 1).zfill(len(match.group(2)))
-        return match.expand(r'\1{}\3.\4').format(version)
+        return match.expand(ur'\1{}\3.\4').format(version)
 
     def fileInfo(self):
         """Returns the path as a QFileInfo instance"""
@@ -279,7 +279,7 @@ class SaverFileInfo(QtCore.QObject):
                 custom = self.parent().window().findChild(Custom).text()
 
                 # Not including the username if the destination is the exports folder
-                filename = match.expand(r'\1_\2_{}_{}_\5.\6'.format(
+                filename = match.expand(ur'\1_\2_{}_{}_\5.\6'.format(
                     custom if custom else u'untitled',
                     u'{}'.format(int(match.group(5))
                                  + 1).zfill(len(match.group(5)))
@@ -807,8 +807,8 @@ class SaverWidget(QtWidgets.QDialog):
         self.findChild(Suffix).repaint()
 
     def prefix_suffix(self, match, increment=True):
-        prefix = match.expand(r'\1_\2_')
-        suffix = match.expand(r'_<span style="color:rgba({});">{}</span>_\5.\6'.format(
+        prefix = match.expand(ur'\1_\2_')
+        suffix = match.expand(ur'_<span style="color:rgba({});">{}</span>_\5.\6'.format(
             u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
             u'{}'.format(int(match.group(4)) + int(increment)
                          ).zfill(len(match.group(4)))
@@ -875,18 +875,3 @@ class SaverWidget(QtWidgets.QDialog):
             self.findChild(DescriptionEditor).text()))
 
         super(SaverWidget, self).done(result)
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    currentfile = '//gordo/jobs/bemusic_8283/assets/trumpet/exports/bem_trumpet_scenes_untitled_001_freelance.obj'
-
-    widget = SaverWidget(u'psd', common.ScenesFolder, currentfile=None)
-
-    def func(path):
-        print path
-    widget.fileSaveRequested.connect(func)
-    widget.fileThumbnailAdded.connect(func)
-    widget.fileDescriptionAdded.connect(func)
-    widget.show()
-    app.exec_()

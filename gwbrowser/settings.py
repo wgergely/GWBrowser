@@ -235,7 +235,7 @@ class AssetSettings(QtCore.QSettings):
 
         collapsed = common.is_collapsed(filepath)
         if collapsed:
-            filepath = collapsed.expand(r'\1[0]\3')
+            filepath = collapsed.expand(ur'\1[0]\3')
 
         path = '{}/{}'.format(
             _bookmark,
