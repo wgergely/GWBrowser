@@ -2,6 +2,7 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 """The base-context menu associated with the BaseListWidget subclasses."""
 
+import os
 import functools
 from functools import wraps
 import collections
