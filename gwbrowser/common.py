@@ -858,7 +858,13 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         )
 
     """
-    top = top.decode(enc)
+    try:
+        top = unicode(top, 'utf-8')
+    except TypeError:
+        try:
+            top = top.decode(enc)
+        except:
+            pass
     dirs = []
     nondirs = []
 
