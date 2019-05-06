@@ -82,11 +82,14 @@ class BookmarkInfo(QtCore.QFileInfo):
     def count_assets(path):
         """Returns the number of assets inside the given folder."""
         count = 0
-        for entry in gwscandir.scandir(path):
-            if not entry.is_dir():
-                continue
-            if common.ASSET_IDENTIFIER in [f.name for f in gwscandir.scandir(entry.path)]:
-                count += 1
+        try:
+            for entry in gwscandir.scandir(path):
+                if not entry.is_dir():
+                    continue
+                if common.ASSET_IDENTIFIER in [f.name for f in gwscandir.scandir(entry.path)]:
+                    count += 1
+        except OSError as err: # If there's an error reading the folder this will throw an exception
+            pass
         return count
 
 

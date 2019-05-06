@@ -513,17 +513,23 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         if [f for f in arr if path in f]:
             return arr
 
-        for entry in gwscandir.scandir(path):
-            if not entry.is_dir():
-                continue
-            for fentry in gwscandir.scandir(entry.path):
+        try:
+            for entry in gwscandir.scandir(path):
                 if not entry.is_dir():
                     continue
-                if fentry.name.lower() == common.ASSET_IDENTIFIER.lower():
-                    if not [f for f in arr if path in f]:
-                        arr.append(path)
-                    return arr
-            self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
+                try:
+                    for fentry in gwscandir.scandir(entry.path):
+                        if not entry.is_dir():
+                            continue
+                        if fentry.name.lower() == common.ASSET_IDENTIFIER.lower():
+                            if not [f for f in arr if path in f]:
+                                arr.append(path)
+                            return arr
+                    self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
+                except OSError as err:
+                    continue # We're skipping the folder if there's an error reading it
+        except OSError as err:
+            return arr
         return arr
 
     @QtCore.Slot(int)
@@ -676,7 +682,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             return
 
         path = self.pick_server_widget.itemData(index, role=QtCore.Qt.StatusTipRole)
-        for entry in gwscandir.scandir(path):
+        for entry in sorted([f for f in gwscandir.scandir(path)], key=lambda x: x.name):
             if entry.name.startswith(u'.'):
                 continue
             if entry.is_symlink():
