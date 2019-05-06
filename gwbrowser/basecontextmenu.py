@@ -496,7 +496,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'{}:icon'.format(kkey)] = capture_thumbnail_pixmap
 
         n = 0
-        for entry in gwscandir.scandir( u'{}/../rsc'.format(__file__)):
+        path = u'{}/../rsc'.format(__file__)
+        path = os.path.normpath(os.path.abspath(path))
+        for entry in gwscandir.scandir(path):
             if u'.png' not in entry.name:
                 continue
             if not entry.name.startswith('thumb'):
