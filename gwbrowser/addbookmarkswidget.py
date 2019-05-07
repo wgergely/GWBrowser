@@ -419,7 +419,6 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         if self.parent():
             self.parent().model().sourceModel().modelReset.connect(self.post_event)
-            # self.parent().model().sourceModel().modelReset.connect(self.hide)
 
     @QtCore.Slot()
     def post_event(self):
