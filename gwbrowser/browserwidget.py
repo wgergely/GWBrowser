@@ -416,11 +416,26 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
+        lc._bookmarksbutton.message.connect(self.entered2)
+        lc._assetsbutton.message.connect(self.entered2)
+        lc._filesbutton.message.connect(self.entered2)
+        lc._favouritesbutton.message.connect(self.entered2)
+
+        lc._addbutton.message.connect(self.entered2)
+        lc._generatethumbnailsbutton.message.connect(self.entered2)
+        lc._todobutton.message.connect(self.entered2)
+        lc._filterbutton.message.connect(self.entered2)
+        lc._collapsebutton.message.connect(self.entered2)
+        lc._archivedbutton.message.connect(self.entered2)
+        lc._favouritebutton.message.connect(self.entered2)
+        lc._custombutton.message.connect(self.entered2)
+
         lc._bookmarksbutton.set_parent(self.stackedwidget)
         lc._assetsbutton.set_parent(self.stackedwidget)
         lc._filesbutton.set_parent(self.stackedwidget)
         lc._favouritesbutton.set_parent(self.stackedwidget)
         lc._addbutton.set_parent(self.stackedwidget)
+        lc._generatethumbnailsbutton.set_parent(self.stackedwidget)
         lc._archivedbutton.set_parent(self.stackedwidget)
 
         lc._todobutton.set_parent(self.stackedwidget)
@@ -447,6 +462,7 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(lambda x: lc._filesbutton.repaint())
         lc.listChanged.connect(lambda x: lc._favouritesbutton.repaint())
         lc.listChanged.connect(lambda x: lc._addbutton.repaint())
+        lc.listChanged.connect(lambda x: lc._generatethumbnailsbutton.repaint())
         lc.listChanged.connect(lambda x: lc._todobutton.repaint())
         lc.listChanged.connect(lambda x: lc._filterbutton.repaint())
         lc.listChanged.connect(lambda x: lc._collapsebutton.repaint())
@@ -619,14 +635,17 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def entered(self, index):
-        """Custom itemEntered signal."""
+        """Displays an indexe's status tip in the statusbar."""
+        if not index.isValid():
+            return
         message = index.data(QtCore.Qt.StatusTipRole)
         self.statusbar.showMessage(message, timeout=1500)
 
     @QtCore.Slot(unicode)
-    def entered2(self, index):
-        """Custom itemEntered signal."""
-        message = index.data(QtCore.Qt.StatusTipRole)
+    def entered2(self, message):
+        """Displays a custom message in the statusbar"""
+        if not message:
+            return
         self.statusbar.showMessage(message, timeout=1500)
 
     def activate_widget(self, idx):

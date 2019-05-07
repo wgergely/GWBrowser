@@ -188,18 +188,24 @@ class ImageCache(QtCore.QObject):
         return ImageCache.__instance
 
     def __init__(self, parent=None):
+        """Init method.
+
+        The associated ``ImageCacheThread`` control objects will be create and
+        started here automatically.
+
+        """
         if ImageCache.__instance != None:
             raise RuntimeError(u'\n# {} already initialized.\n# Use ImageCache.instance() instead.'.format(
                 self.__class__.__name__))
         super(ImageCache, self).__init__(parent=parent)
         ImageCache.__instance = self
 
-        # This will cache all the thuimbnail images
+        # This will cache all the thumbnail images
         rsc_path = lambda f: os.path.normpath(os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
         ImageCache.instance().get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
         self.threads = {}
-        for n in xrange(4):
+        for n in xrange(common.ITHREAD_COUNT):
             self.threads[n] = ImageCacheThread(self)
             self.threads[n].thread_id = n
             self.threads[n].start()
@@ -209,9 +215,8 @@ class ImageCache(QtCore.QObject):
         """Saves a resized copy of path to the cache.
 
         Returns the cached image if it already is in the cache, or the placholder
-        image if the loading of the image fails. In addittion, each cached entry
-        will be associated with an background color based on the image colour
-        average.
+        image if loading fails. In addittion, each cached entry
+        will be associated with a backgroun- color based on the image's colours.
 
         Args:
             path (str):    Path to the image file.
@@ -230,11 +235,7 @@ class ImageCache(QtCore.QObject):
         if k in ImageCache._data and not overwrite:
             return ImageCache._data[k]
 
-        # If the file doesn't exist, return a placeholder
-        # file_info = QtCore.QFileInfo(path)
-        # if not file_info.exists():
-        #     return None
-
+        # Checking if the file can be opened
         i = OpenImageIO.ImageInput.open(path)
         if not i:
             return None

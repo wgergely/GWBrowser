@@ -33,6 +33,8 @@ from gwbrowser.threads import Unique
 from gwbrowser.assetswidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
 
+from gwbrowser.settings import local_settings
+
 
 class ListInfoWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
@@ -189,6 +191,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
 class BrowserButton(ClickableLabel):
     """Small widget to embed into the context to toggle the BrowserWidget's visibility."""
+    message = QtCore.Signal(unicode)
 
     def __init__(self, height=common.ROW_HEIGHT, parent=None):
         super(BrowserButton, self).__init__(parent=parent)
@@ -209,6 +212,7 @@ class BrowserButton(ClickableLabel):
         pixmap = ImageCache.get_rsc_pixmap(
             u'custom_bw', common.SECONDARY_TEXT, height)
         self.setPixmap(pixmap)
+        self.setStatusTip(u'Opens GWBrowser')
 
     def set_size(self, size):
         self.setFixedWidth(int(size))
@@ -218,6 +222,7 @@ class BrowserButton(ClickableLabel):
         self.setPixmap(pixmap)
 
     def enterEvent(self, event):
+        self.message.emit(self.statusTip())
         self.repaint()
 
     def leaveEvent(self, event):
@@ -268,11 +273,13 @@ class CustomButton(BrowserButton):
         super(CustomButton, self).__init__(
             height=common.INLINE_ICON_SIZE, parent=parent)
         self.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(r'https://gwbcn.slack.com/'))
+            lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'))
+        self.setStatusTip(u'Open Slack!')
 
 
 class ControlButton(ClickableLabel):
     """Baseclass used for controls buttons to control list display."""
+    message = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(ControlButton, self).__init__(parent=parent)
@@ -282,6 +289,14 @@ class ControlButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
         )
         self.clicked.connect(self.action)
+        self.setStatusTip(u'')
+
+    def enterEvent(self, event):
+        self.message.emit(self.statusTip())
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
 
     def pixmap(self, c):
         return QtGui.QPixmap(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
@@ -302,9 +317,16 @@ class ControlButton(ClickableLabel):
         pass
 
     def paintEvent(self, event):
+        """ControlButton's custom paint event."""
         painter = QtGui.QPainter()
         painter.begin(self)
+
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
         color = common.FAVOURITE if self.state() else QtGui.QColor(255,255,255,50)
+        color = common.TEXT_SELECTED if hover else color
         pixmap = self.pixmap(color)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
         painter.end()
@@ -351,7 +373,7 @@ class FilterButton(ControlButton):
 
     def __init__(self, parent=None):
         super(FilterButton, self).__init__(parent=parent)
-        description = u'Edit the current list filter'
+        description = u'Edit search filter'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -373,7 +395,7 @@ class FilterButton(ControlButton):
         else:
             filter_text = re.sub('\[\\\S\\\s\]\*', ' ', filter_text)
             filter_text = re.sub(r'[\\]+', '', filter_text)
-            filter_text = common.FilterTextRegex.sub(' ', filter_text)
+            filter_text = common.FilterTextRegex.sub(u' ', filter_text)
             filter_text = re.sub(r'\s', ' ', filter_text)
         editor = FilterEditor(filter_text, parent=self._parent)
         pos = self._parent.rect().topLeft()
@@ -384,7 +406,7 @@ class FilterButton(ControlButton):
 
         def func(filter_text):
             filter_text = common.FilterTextRegex.sub(' ', filter_text)
-            filter_text = re.sub(r'\s\s*', ' ', filter_text)
+            filter_text = re.sub(r'\s\s*', u' ', filter_text)
             # filter_text = re.sub(r'([^\s])', r'\\\1', filter_text)
             filter_text = re.sub(r'\s', r'[\S\s]*', filter_text)
             self.current().model().filterTextChanged.emit(filter_text)
@@ -404,7 +426,7 @@ class CollapseSequenceButton(ControlButton):
 
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(parent=parent)
-        description = u'Toggle sequence display'
+        description = u'Group sequences together'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -442,7 +464,7 @@ class ToggleArchivedButton(ControlButton):
 
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(parent=parent)
-        description = u'Show archived items in the list'
+        description = u'Show archived items'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -471,7 +493,7 @@ class ToggleFavouriteButton(ControlButton):
 
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(parent=parent)
-        description = u'Show only items marked as favourite'
+        description = u'Show my favourites only'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -636,13 +658,53 @@ class AddButton(ControlButton):
             widget.exec_()
 
     def repaint(self):
-        """The button is only visible when showing Bookmarks or files."""
+        """The button is only visible when showing bookmarks or files."""
         super(AddButton, self).repaint()
         if self._parent.currentIndex() in (0, 2):
             self.show()
         else:
             self.hide()
 
+
+class GenerateThumbnailsButton(ControlButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(GenerateThumbnailsButton, self).__init__(parent=parent)
+        description = u'Turn auto thumbnail generation ON of OFF'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'pick_thumbnail', c, common.INLINE_ICON_SIZE)
+
+    def state(self):
+        """The state of the auto-thumbnails"""
+        if self._parent.currentIndex() < 2:
+            return False
+        model = self._parent.currentWidget().model().sourceModel()
+        return model.generate_thumbnails
+
+    @QtCore.Slot()
+    def action(self):
+        """Toggles thumbnail generation."""
+        model = self._parent.currentWidget().model().sourceModel()
+        val = model.generate_thumbnails
+
+        cls = model.__class__.__name__
+        local_settings.setValue(u'widget/{}/generate_thumbnails'.format(cls), not val)
+        if not val == False:
+            ImageCacheWorker.reset_queue()
+        model.generate_thumbnails = not val
+
+
+    def repaint(self):
+        """Will only show for favourite and file items."""
+        super(GenerateThumbnailsButton, self).repaint()
+        if self._parent.currentIndex() >= 2:
+            self.show()
+        else:
+            self.hide()
 
 
 class DataKeyViewDelegate(BaseDelegate):
@@ -819,9 +881,9 @@ class DataKeyModel(BaseModel):
         self.modelDataResetRequested.connect(self.__resetdata__)
 
         self.threads = {}
-
-        self.threads[1] = ListInfoThread()
-        self.threads[1].start()
+        for n in xrange(common.LTHREAD_COUNT):
+            self.threads[n] = ListInfoThread()
+            self.threads[n].start()
 
     def data_key(self):
         return 'default'
@@ -924,15 +986,16 @@ class DataKeyModel(BaseModel):
         self._datatype = datatype
 
 
-
 class BaseControlButton(ClickableLabel):
     """Baseclass for the list control buttons."""
+    message = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(BaseControlButton, self).__init__(parent=parent)
         self._parent = None
         self.index = 0
         self.setMouseTracking(True)
+        self.setStatusTip(u'')
 
     def set_parent(self, widget):
         self._parent = widget
@@ -948,6 +1011,7 @@ class BaseControlButton(ClickableLabel):
         self.setFixedWidth(width)
 
     def enterEvent(self, event):
+        self.message.emit(self.statusTip())
         self.repaint()
 
     def leaveEvent(self, event):
@@ -994,12 +1058,12 @@ class BaseControlButton(ClickableLabel):
         painter.end()
 
 
-
 class BookmarksButton(BaseControlButton):
     def __init__(self, parent=None):
         super(BookmarksButton, self).__init__(parent=parent)
         self.index = 0
         self.set_text(u'Bookmarks')
+        self.setStatusTip(u'Show the list of added bookmarks')
 
 
 class AssetsButton(BaseControlButton):
@@ -1031,7 +1095,7 @@ class FilesButton(BaseControlButton):
         """Shows the ``DataKeyView`` widget for browsing."""
         if self.view().model().rowCount() == 0:
             return
-            
+
         def select_key(parent):
             """Selects the current data-key in the list."""
             key = parent.stackedwidget.currentWidget().model().sourceModel().data_key()
@@ -1107,6 +1171,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
         self._progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
+        self._generatethumbnailsbutton = GenerateThumbnailsButton(parent=self)
         self._todobutton = TodoButton(parent=self)
         self._filterbutton = FilterButton(parent=self)
         self._collapsebutton = CollapseSequenceButton(parent=self)
@@ -1122,6 +1187,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addStretch()
         self.layout().addWidget(self._progresslabel, 1)
         self.layout().addWidget(self._addbutton)
+        self.layout().addWidget(self._generatethumbnailsbutton)
         self.layout().addWidget(self._todobutton)
         self.layout().addWidget(self._filterbutton)
         self.layout().addWidget(self._collapsebutton)

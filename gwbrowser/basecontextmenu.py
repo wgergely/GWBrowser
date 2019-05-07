@@ -451,7 +451,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                         u'Are you sure you want to re-generate all thumbnails?'
                     )
                     mbox.setInformativeText(
-                        u'This will overwrite all the custom thumbnails you have set previously.\nThe process is resource-intensive, and might take a while to finish. Continue?')
+                        u'This will overwrite all the custom thumbnails you have set previously.\nThe process is resource-intensive, and might take a while to finish. Do you want to continue?')
                     mbox.setStandardButtons(
                         QtWidgets.QMessageBox.SaveAll
                         | QtWidgets.QMessageBox.Cancel

@@ -6,7 +6,7 @@
 
 Global Variables
     The studio wide servers are defined here. These are hard-coded
-    variables that will depend on the context the program is usedself.
+    variables that will depend on the context the program is used.
     Make sure to customize these settings depending on your environment.
 
     ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder
@@ -14,23 +14,23 @@ Global Variables
     a ``workspace.mel`` file.
 
     ``Assets`` are directory structures compartmentalizing data. ``Browser``
-    is designed to read and annote ``scene``, ``cache`` (exports) and
-    ``render`` files.
+    is implemeted to read any folder but the primary folders are
+    ``scene``, ``cache`` (exports) and ``render`` folders.
 
     Depending on your setup these folders might have different names you can
     customize them here. ``Browser`` will assume all of these folder reside in the
     root of the ``asset`` folder.
 
 Sequence-recognition
-    The regexes we're` using to validate file-names are aslo defined here.
-    `get_sequence` is the regex method that checks if a filename can be incremented.
+    The regexes we're using to validate file-names are also defined here.
+
+    ``get_sequence`` is the regex method that checks if a filename can be incremented.
     For instance, it will understand sequences with the `v` prefix, eg v001, v002,
     but works without the prefix as well. Eg. 001, 002.
-
-    Also, in the case of a filename like `_myfile_v001_freelance_v002.c4d_` ``002``
+    In the case of a filename like `_myfile_v001_freelance_v002.c4d_` ``002``
     will be the prevailing sequence number.
-    Likewise, in the case of _myfile_v001_freelance_v002.0001.c4d_ the sequence
-    number understood will be ``0001``.
+    Likewise, in _myfile_v001_freelance_v002.0001.c4d_ the sequence
+    number understood will be ``0001`` not v002.
 
 """
 
@@ -41,6 +41,8 @@ import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import gwbrowser.gwscandir as gwscandir
+import OpenImageIO.OpenImageIO as OpenImageIO
+
 
 default_server = u'sloth'
 legacy_server = u'gordo'
@@ -54,15 +56,36 @@ local = {True: u'/jobs', False: u'//localhost/c$/jobs'}
 sloth = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
 gordo = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
-SERVERS = [
-    {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
-    {u'path': sloth[osx], u'nickname': u'Sloth'},
-    {u'path': local[osx], u'nickname': u'Local Jobs'},
-]
+
+if osx:
+    SERVERS = [
+        {u'path': sloth[osx], u'nickname': u'Sloth'},
+        {u'path': local[osx], u'nickname': u'Local Jobs'},
+    ]
+else:
+    SERVERS = [
+        {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
+        {u'path': sloth[osx], u'nickname': u'Sloth'},
+        {u'path': local[osx], u'nickname': u'Local Jobs'},
+    ]
+
 
 ASSET_IDENTIFIER = u'workspace.mel'
 """When with the given name is present in the root of a folder, it will be
-considered an ``assets``."""
+considered an ``asset``."""
+
+
+FTHREAD_COUNT = 2
+"""The number of threads used by the ``FilesWidget`` to get file-information."""
+
+ITHREAD_COUNT = 4
+"""The number of threads used by the ``ImageCache`` to perform generate thumbnails."""
+
+LTHREAD_COUNT = 1
+"""The number of threads used by the ``DataKeyModel`` get folder file-counts."""
+
+FTIMER_INTERVAL = 1000
+
 
 
 # Cache files
@@ -127,7 +150,6 @@ ASSET_FOLDERS = {
     u'misc': MiscFolderDescription,
 }
 
-
 # Sizes
 ROW_HEIGHT = 46.0
 BOOKMARK_ROW_HEIGHT = 54.0
@@ -140,13 +162,18 @@ MEDIUM_FONT_SIZE = 9.0
 LARGE_FONT_SIZE = 12.0
 
 pscale = 1.0
+"""The global font scale value. Not implemeted yet."""
 
-def psize(n): return n * 1.5 if osx else n * pscale
 
+def psize(n):
+    """On macosx the font size seem to be smaller given the same point size....
+    Sadly I have to use this function to scale the fonts to an acceptable size.
+    I haven't figured out where the difference comes from or what the differences
+    refers to. Difference of dpi...?
 
-"""On macosx the font size seem to be smaller - using this function we
-can scale the fonts to an acceptable size. I haven't figured out
-where the difference comes from."""
+    """
+    return n * 1.5 if osx else n * pscale
+
 
 MARGIN = 18.0
 
@@ -182,8 +209,6 @@ SecondaryFont.setPointSize(SMALL_FONT_SIZE)
 
 def get_oiio_extensions():
     """Returns a list of extension OpenImageIO is capable of reading."""
-    import OpenImageIO.OpenImageIO as OpenImageIO
-
     extensions = []
     for f in OpenImageIO.get_string_attribute("extension_list").split(';'):
         extensions = extensions + f.split(':')[-1].split(',')
@@ -195,8 +220,6 @@ def get_oiio_namefilters(as_array=False):
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    import OpenImageIO.OpenImageIO as OpenImageIO
-
     formatlist = OpenImageIO.get_string_attribute("extension_list").split(';')
     namefilters = []
     arr = []

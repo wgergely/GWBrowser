@@ -195,8 +195,8 @@ class FileInfoWorker(BaseWorker):
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
 
-        # Let's generate the thumbnail
-        if needs_thumbnail:
+        # Let's generate the thumbnail if auto-generation is turned on
+        if index.model().generate_thumbnails and needs_thumbnail:
             ImageCacheWorker.add_to_queue((index,))
 
         index.model().dataChanged.emit(index, index)
@@ -246,7 +246,7 @@ class FilesModel(BaseModel):
 
     """
 
-    def __init__(self, threads=2, parent=None):
+    def __init__(self, threads=common.FTHREAD_COUNT, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         self.threads = {}
 
@@ -254,6 +254,12 @@ class FilesModel(BaseModel):
             self.threads[n] = FileInfoThread(self)
             self.threads[n].thread_id = n
             self.threads[n].start()
+
+        cls = self.__class__.__name__
+        _generate_thumbnails = local_settings.value(
+            u'widget/{}/generate_thumbnails'.format(cls))
+        self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
+
 
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -553,18 +559,16 @@ class FilesModel(BaseModel):
         return mime
 
 
-
 class FilesWidget(BaseInlineIconWidget):
-    """Files widget is responsible for listing scene and project files of an asset.
-
-    It relies on a custom collector class to gether the files requested.
-    The scene files live in their respective root folder, usually ``scenes``.
-    The first subfolder inside this folder will refer to the ``mode`` of the
-    asset file.
-
-    """
+    """Files widget is responsible for listing the files items."""
 
     def __init__(self, parent=None):
+        """Init method.
+
+        Attributes:
+            _index_timer (QTimer): The timer responsible for queuing indexes to update.
+
+        """
         super(FilesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
@@ -578,7 +582,7 @@ class FilesWidget(BaseInlineIconWidget):
         self.set_model(FilesModel(parent=self))
 
         self._index_timer = QtCore.QTimer()
-        self._index_timer.setInterval(1000)
+        self._index_timer.setInterval(common.FTIMER_INTERVAL)
         self._index_timer.setSingleShot(False)
         self._index_timer.timeout.connect(self.initialize_visible_indexes)
 
@@ -589,6 +593,8 @@ class FilesWidget(BaseInlineIconWidget):
 
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)
+        self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
+        self.model().layoutChanged.connect(self._index_timer.start)
 
     @QtCore.Slot()
     def reset_thread_worker_queues(self):

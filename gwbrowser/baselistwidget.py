@@ -2,8 +2,18 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 
 
-"""Module defines the QListWidget items used to browse the projects and the files
-found by the collector classes.
+"""This module defines the view widgets and data/proxy models used
+to display file and asset data.
+
+All ``BaseListWidget`` subclasses are embedded in ``StackedWidget``, this is the
+main widget the user will interact with.
+
+Each ``BaseListWidget`` uses a ``FilterProxyModel`` to `filter` data but sorting
+is implemented internally in the ``BaseModel`` subclasses. These are the classes
+for storing our actual model data.
+
+FilterProxyModel:
+    The widget
 
 """
 
@@ -441,23 +451,34 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._datatype = val
 
     def validate_key(self):
+        """We have to make sure when switching assets that the currently set
+        data_key exists in the new asset as well. If it doesn't we will use
+        the first available data_key.
+
+        """
         if not self._parent_item:
             return
+
         path = u'/'.join(self._parent_item)
         dir_ = QtCore.QDir(path)
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
 
         entries = dir_.entryList()
+        entries = sorted([f for f in entries if not f.startswith(u'.')])
         if not entries:
             return
 
         key = self.data_key()
+        if not key:
+            self.set_data_key(entries[0])
+            return
+
         if key not in sorted(entries):
             self.set_data_key(entries[0])
-
+            return
 
 class BaseListWidget(QtWidgets.QListView):
-    """Defines the base of the ``Assets``, ``Bookmarks`` and ``File`` list widgets."""
+    """Defines the base of the ``Assets``, ``Bookmarks`` and ``File`` widgets."""
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
@@ -536,11 +557,11 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataTypeChanged.connect(model.set_data_type)
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
+        model.modelAboutToBeReset.connect(model.validate_key)
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_key(model.data_key()))
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
-        model.modelAboutToBeReset.connect(model.validate_key)
 
         proxy.filterTextChanged.connect(proxy.setFilterText)
         proxy.filterFlagChanged.connect(proxy.setFilterFlag)
