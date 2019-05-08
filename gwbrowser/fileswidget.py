@@ -520,14 +520,11 @@ class FilesModel(BaseModel):
             path = QtCore.QDir.toNativeSeparators(path)
 
             mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
+            data = QtCore.QByteArray(QtCore.QDir.toNativeSeparators(path).encode('latin-1'))
             mime.setData(
-                'application/x-qt-windows-mime;value="FileName"',
-                QtCore.QByteArray(
-                    str(QtCore.QDir.toNativeSeparators(path), encoding='utf-8')))
+                'application/x-qt-windows-mime;value="FileName"', data)
             mime.setData(
-                'application/x-qt-windows-mime;value="FileNameW"',
-                QtCore.QByteArray(
-                    str(QtCore.QDir.toNativeSeparators(path), encoding='utf-8')))
+                'application/x-qt-windows-mime;value="FileNameW"', data)
 
             return mime
 
