@@ -23,8 +23,14 @@ def run():
         from PySide2 import QtCore
         import functools
         import gwbrowser.standalonewidgets
+
         sys.stdout.write('# Starting Standalone app...\n')
         app = gwbrowser.standalonewidgets.StandaloneApp(sys.argv)
+        sys.stdout.write('# Making window...\n')
+        widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
+        widget.show()
+        app.exec_()
+        raise SystemExit('# GW shut down')
     except Exception as err:
         try:
             import traceback
@@ -39,14 +45,11 @@ def run():
         except Exception as err:
             raise RuntimeError('# An error occured starting GWBrowser:\n{}'.format(err))
         finally:
-            quit()
+            raise SystemExit('# An error occured starting GWBrowser')
     finally:
-        quit()
+        raise SystemExit('# An error occured starting GWBrowser')
 
-    sys.stdout.write('# Making window...\n')
-    widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
-    widget.show()
-    app.exec_()
+
 
 
 if __name__ == '__main__':

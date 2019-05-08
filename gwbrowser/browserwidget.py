@@ -40,6 +40,9 @@ from gwbrowser.settings import local_settings, Active, active_monitor
 import gwbrowser.settings as Settings
 
 
+qn = 0
+"""Number of tries before quitting"""
+
 class SizeGrip(QtWidgets.QSizeGrip):
     def __init__(self, parent):
         super(SizeGrip, self).__init__(parent)
@@ -289,8 +292,11 @@ class BrowserWidget(QtWidgets.QWidget):
         )
 
         @QtCore.Slot()
-        def quit():
+        def _quit():
             """When all the threads quit, we'll exit the main application too."""
+            global qn
+            qn += 1
+
             for thread in threadpool:
                 if thread.isRunning():
                     thread.worker.shutdown()
@@ -300,11 +306,16 @@ class BrowserWidget(QtWidgets.QWidget):
                 sys.stdout.write('All threads finished.')
                 QtWidgets.QApplication.instance().quit()
 
+            # Forcing the applciation to close after n tries
+            if qn > 20: # circa 5 seconds to wrap things up
+                QtWidgets.QApplication.instance().quit()
+                raise SystemExit('Force quitting python')
+
         @QtCore.Slot()
         def finished(thread):
             sys.stdout.write('{} shut down.\n'.format(thread.__class__.__name__))
 
-        self.shutdown_timer.timeout.connect(quit)
+        self.shutdown_timer.timeout.connect(_quit)
         self.shutdown.connect(lambda: m.messageChanged.emit(u'Quitting...'))
         self.shutdown.connect(self.shutdown_timer.start)
         for thread in threadpool:
