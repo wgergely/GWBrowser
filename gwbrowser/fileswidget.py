@@ -522,10 +522,12 @@ class FilesModel(BaseModel):
             mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
             mime.setData(
                 'application/x-qt-windows-mime;value="FileName"',
-                QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(path))))
+                QtCore.QByteArray(
+                    str(QtCore.QDir.toNativeSeparators(path), encoding='utf-8')))
             mime.setData(
                 'application/x-qt-windows-mime;value="FileNameW"',
-                QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(path))))
+                QtCore.QByteArray(
+                    str(QtCore.QDir.toNativeSeparators(path), encoding='utf-8')))
 
             return mime
 
