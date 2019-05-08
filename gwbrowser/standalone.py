@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
 """GWBrowser - The module responsible for launching the app in standalone mode.
-
-We will here
 """
 
 import sys
+import os
 
 
 def check_dependency(module):
@@ -19,6 +18,7 @@ def check_dependency(module):
         return False
 
 def run():
+    """This method is responsible for running GWBrowser with an import statement."""
     try:
         from PySide2 import QtCore
         import functools
@@ -38,16 +38,18 @@ def run():
             return res.exec_()
         except Exception as err:
             raise RuntimeError('# An error occured starting GWBrowser:\n{}'.format(err))
+        finally:
+            quit()
+    finally:
+        quit()
 
     sys.stdout.write('# Making window...\n')
     widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
     widget.show()
     app.exec_()
 
-if __name__ == '__main__':
-    import sys
-    import os
 
+if __name__ == '__main__':
     packagepath = os.path.normpath(
         os.path.join(
             sys.argv[0],
