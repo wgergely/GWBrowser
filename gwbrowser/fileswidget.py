@@ -525,7 +525,7 @@ class FilesModel(BaseModel):
                 QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(path))))
             mime.setData(
                 'application/x-qt-windows-mime;value="FileNameW"',
-                QtCore.QByteArray(unicode(QtCore.QDir.toNativeSeparators(path))))
+                QtCore.QByteArray(str(QtCore.QDir.toNativeSeparators(path))))
 
             return mime
 
