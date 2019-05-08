@@ -129,7 +129,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
 
 
 class TodoItemEditor(QtWidgets.QTextBrowser):
-    """Custom QTextEdit widget for writing `Todo`'s.
+    """Custom QTextBrowser widget for writing `Todo`'s.
 
     The editor automatically sets its size to accommodate the contents of the document.
     Some of the code has been lifted and implemented from Cameel's implementation.
@@ -407,11 +407,15 @@ class RemoveButton(QtWidgets.QLabel):
 
     def dropEvent(self, event):
         """Drop event responsible for deleting an item from the todo list."""
-        editors = self.parent().parent().editors
-        idx = editors.items.index(event.source())
-        row = editors.items.pop(idx)
-        editors.layout().removeWidget(row)
+        self.setUpdatesEnabled(False)
+
+        editors_widget = self.parent().parent().editors
+        idx = editors_widget.items.index(event.source())
+        row = editors_widget.items.pop(idx)
+        editors_widget.layout().removeWidget(row)
         row.deleteLater()
+
+        self.setUpdatesEnabled(True)
 
 
 class DragIndicatorButton(QtWidgets.QLabel):
@@ -419,29 +423,22 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
     The button is responsible for initiating a QDrag operation and setting the
     mime data. The data is populated with the `TodoEditor`'s text and the
-    custom MIME_TYPE. The latter is needed to accept the drag operation
+    custom mime type (u'browser/todo-drag'). The latter is needed to accept the drag operation
     in the target drop widet.
     """
 
-    MIME_TYPE = u'browser/todo-drag'
-
     def __init__(self, checked=False, parent=None):
-
         super(DragIndicatorButton, self).__init__(parent=parent)
-        self.setDisabled(checked)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.dragStartPosition = None
 
-        if self.isEnabled():
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
+        self.setDisabled(checked)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setDisabled(self.isEnabled())
 
     def setDisabled(self, b):
-        # super(DragIndicatorButton, self).setDisabled(b)
+        """Custom disabled function."""
         if b:
             pixmap = ImageCache.get_rsc_pixmap(
                 u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
@@ -466,18 +463,16 @@ class DragIndicatorButton(QtWidgets.QLabel):
         if not left_button:
             return
 
-        drag = QtGui.QDrag(self.parent())
+        parent_widget = self.parent()
+        editor = parent_widget.findChild(TodoItemEditor)
+        drag = QtGui.QDrag(parent_widget)
 
         # Setting Mime Data
         mime_data = QtCore.QMimeData()
-        data = QtCore.QByteArray()
-        data.append(0)
-        mime_data.setData(self.MIME_TYPE, data)
+        mime_data.setData(u'browser/todo-drag', QtCore.QByteArray(''))
         drag.setMimeData(mime_data)
 
         # Drag pixmap
-        editor = self.parent().findChild(QtWidgets.QTextEdit)
-
         # Transparent image
         image = QtGui.QImage(editor.size(), QtGui.QImage.Format_ARGB32)
         editor.render(image)
@@ -494,7 +489,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         drag.setHotSpot(QtCore.QPoint(0, pixmap.height() / 2.0))
 
         # Drag origin indicator
-        pixmap = QtGui.QPixmap(self.parent().size())
+        pixmap = QtGui.QPixmap(parent_widget.size())
 
         painter = QtGui.QPainter()
         painter.begin(pixmap)
@@ -503,29 +498,29 @@ class DragIndicatorButton(QtWidgets.QLabel):
         painter.drawRect(pixmap.rect())
         painter.end()
 
-        overlay = QtWidgets.QLabel(self.parent())
-        overlay.setFixedSize(self.parent().size())
-        overlay.setPixmap(pixmap)
-        overlay.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        overlay_widget = QtWidgets.QLabel(parent=parent_widget)
+        overlay_widget.setFixedSize(parent_widget.size())
+        overlay_widget.setPixmap(pixmap)
 
         # Preparing the drag...
-        remove_button = self.parent().parent().parent(
+        remove_button = parent_widget.parent().parent(
         ).parent().parent().findChild(RemoveButton)
         # Ugh, ugly code...
-        add_button = self.parent().parent().parent().parent().parent().findChild(AddButton)
+        add_button = parent_widget.parent().parent().parent().parent().findChild(AddButton)
         pixmap = pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove_activated', QtGui.QColor(255, 0, 0), 24)
+            u'todo_remove', QtGui.QColor(255, 0, 0), 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
-        self.parent().parent().separator.setHidden(False)
-        overlay.show()
+        parent_widget.parent().separator.setHidden(False)
+        overlay_widget.show()
 
         # Starting the drag...
-        drag.exec_(QtCore.Qt.MoveAction)
+        drag.exec_(QtCore.Qt.CopyAction)
 
         # Cleanup after drag has finished...
-        overlay.close()
-        self.parent().parent().separator.setHidden(True)
+        overlay_widget.close()
+        overlay_widget.deleteLater()
+        parent_widget.parent().separator.setHidden(True)
         pixmap = ImageCache.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
@@ -538,17 +533,19 @@ class CheckBoxButton(QtWidgets.QLabel):
 
     def __init__(self, checked=False, parent=None):
         super(CheckBoxButton, self).__init__(parent=parent)
-        self.setAttribute(QtCore.Qt.WA_Hover, True)
-        self.setMouseTracking(True)
-
         self._checked = checked
         self._checked_pixmap = None
         self._unchecked_pixmap = None
 
+        self.setAttribute(QtCore.Qt.WA_Hover, True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setMouseTracking(True)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.set_pixmap(self._checked)
+
         self._connectSignals()
 
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
     @property
     def checked(self):
@@ -560,11 +557,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'checkbox_unchecked', common.SECONDARY_BACKGROUND, 24)
+                u'checkbox_unchecked', common.SECONDARY_BACKGROUND, 18)
             self.setPixmap(pixmap)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'checkbox_checked', common.FAVOURITE, 24)
+                u'checkbox_checked', common.FAVOURITE, 18)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -673,14 +670,18 @@ class TodoEditors(QtWidgets.QWidget):
             self.parent().parent().parent().add_item(idx=0, text=text, checked=False)
             self.separator.setHidden(True)
             return
+
         # Change internal order
+        self.setUpdatesEnabled(False)
+
         self.items.insert(
             self.drop_target_index,
             self.items.pop(self.items.index(event.source()))
         )
-
         self.layout().removeWidget(event.source())
         self.layout().insertWidget(self.drop_target_index, event.source(), 0)
+
+        self.setUpdatesEnabled(True)
 
     def _separator_pos(self, event):
         """Returns the position of"""
@@ -769,6 +770,35 @@ class MoveWidget(QtWidgets.QWidget):
             pos = self.mapToGlobal(self.geometry().topLeft()) + offset
             self.parent().move(pos)
             self.widgetMoved.emit(pos)
+
+
+class TodoItemWidget(QtWidgets.QWidget):
+    """The item-wrapper widget holding the checkbox, drag indicator and editor widgets."""
+
+    def __init__(self, parent=None):
+        super(TodoItemWidget, self).__init__(parent=parent)
+        self.effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.effect.setOpacity(1.0)
+
+        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation.setDuration(1500)
+        self.animation.setKeyValueAt(0, 0)
+        self.animation.setKeyValueAt(0.5, 0.8)
+        self.animation.setKeyValueAt(1, 1.0)
+
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        self.setGraphicsEffect(self.effect)
+        self.setAutoFillBackground(True)
+
+        self._createUI()
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(6)
 
 
 class ResizeWidget(QtWidgets.QWidget):
@@ -974,13 +1004,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         and the EditorsWidget.items property.
 
         """
-        item = QtWidgets.QWidget()
-
-        QtWidgets.QHBoxLayout(item)
-        item.layout().setContentsMargins(0, 0, 0, 0)
-        item.layout().setSpacing(6)
-        item.setFocusPolicy(QtCore.Qt.NoFocus)
-
         checkbox = CheckBoxButton(checked=not checked)
         checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
         editor = TodoItemEditor(text, checked=not checked)
@@ -996,19 +1019,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         checkbox.clicked.connect(
             functools.partial(toggle_disabled, widget=drag))
 
+        item = TodoItemWidget()
         item.layout().addWidget(checkbox)
         item.layout().addWidget(drag)
         item.layout().addWidget(editor, 1)
-
-        item.effect = QtWidgets.QGraphicsOpacityEffect(item)
-        item.effect.setOpacity(1.0)
-        item.animation = QtCore.QPropertyAnimation(item.effect, QtCore.QByteArray('opacity'))
-        item.animation.setDuration(1500)
-        item.animation.setKeyValueAt(0, 0)
-        item.animation.setKeyValueAt(0.5, 0.8)
-        item.animation.setKeyValueAt(1, 1.0)
-        item.setGraphicsEffect(item.effect)
-        item.setAutoFillBackground(True)
 
         if idx is None:
             self.editors.layout().addWidget(item, 0)
