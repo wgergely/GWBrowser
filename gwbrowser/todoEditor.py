@@ -401,7 +401,7 @@ class RemoveButton(QtWidgets.QLabel):
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
-        if event.mimeData().hasFormat(u'browser/todo-drag'):
+        if event.mimeData().hasFormat(u'gwbrowser/todo-drag'):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
@@ -422,7 +422,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
     The button is responsible for initiating a QDrag operation and setting the
     mime data. The data is populated with the `TodoEditor`'s text and the
-    custom mime type (u'browser/todo-drag'). The latter is needed to accept the drag operation
+    custom mime type (u'gwbrowser/todo-drag'). The latter is needed to accept the drag operation
     in the target drop widet.
     """
 
@@ -468,7 +468,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         # Setting Mime Data
         mime_data = QtCore.QMimeData()
-        mime_data.setData(u'browser/todo-drag', QtCore.QByteArray(''))
+        mime_data.setData(u'gwbrowser/todo-drag', QtCore.QByteArray(''))
         drag.setMimeData(mime_data)
 
         # Drag pixmap
@@ -596,7 +596,7 @@ class Separator(QtWidgets.QLabel):
         self.setFixedWidth(1)
 
     def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat(u'browser/todo-drag'):
+        if event.mimeData().hasFormat(u'gwbrowser/todo-drag'):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
@@ -634,7 +634,7 @@ class TodoEditors(QtWidgets.QWidget):
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
-        if event.mimeData().hasFormat(u'browser/todo-drag'):
+        if event.mimeData().hasFormat(u'gwbrowser/todo-drag'):
             event.acceptProposedAction()
 
     def dragMoveEvent(self, event):

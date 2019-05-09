@@ -169,7 +169,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
-        self.tray.setToolTip('Browser')
+        self.tray.setToolTip('GWBrowser')
         self.tray.show()
         self.tray.activated.connect(self.trayActivated)
 
@@ -263,8 +263,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         event.ignore()
         self.hide()
         self.tray.showMessage(
-            'Browser',
-            'Browser will continue running in the background, you can use this icon to restore it\'s visibility.',
+            'GWBrowser',
+            'GWBrowser will continue running in the background, you can use this icon to restore it\'s visibility.',
             QtWidgets.QSystemTrayIcon.Information,
             3000
         )
@@ -272,11 +272,11 @@ class StandaloneBrowserWidget(BrowserWidget):
 
 class StandaloneApp(QtWidgets.QApplication):
     """This is the app used to run the browser as a standalone widget."""
-    MODEL_ID = u'browser_standalone'
+    MODEL_ID = u'gwbrowser_standalone'
 
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
-        self.setApplicationName(u'Browser')
+        self.setApplicationName(u'GWBrowser')
 
         import gwbrowser
         self.setApplicationVersion(gwbrowser.__version__)

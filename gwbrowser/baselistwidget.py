@@ -536,10 +536,15 @@ class BaseListWidget(QtWidgets.QListView):
             model.__resetdata__)
 
         # Selection
+        model.layoutAboutToBeChanged.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()))
         model.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
         proxy.layoutAboutToBeChanged.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
+        proxy.modelAboutToBeReset.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()))
+
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(
             lambda x: proxy.setFilterText(
@@ -658,17 +663,34 @@ class BaseListWidget(QtWidgets.QListView):
     def reselect_previous(self):
         """Slot called when the model has finished a reset operation.
         The method will try to reselect the previously selected path."""
-
-        val = self._current_selection
-        if val is None:
-            val = local_settings.value(
-                u'widget/{}/selected_item'.format(self.__class__.__name__))
+        cls = self.__class__.__name__
+        val = local_settings.value(u'widget/{}/selected_item'.format(cls)
+                                   ) if not self._current_selection else self._current_selection
         if not val:
             return
 
+        saved_is_sequence = common.get_sequence(val)
+        saved_is_collapsed = common.is_collapsed(val)
+        saved_path = saved_is_collapsed.expand(
+            r'\1\3') if saved_is_collapsed else val
+
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
-            if index.data(QtCore.Qt.StatusTipRole) == val:
+            index_path = index.data(QtCore.Qt.StatusTipRole)
+            index_is_collapsed = common.is_collapsed(index_path)
+            index_is_sequence = index.data(common.SequenceRole)
+
+            if index_is_collapsed:
+                index_path = index_is_collapsed.expand(r'\1\3')
+
+            if saved_is_collapsed and index_is_sequence:
+                index_path = index_is_sequence.expand(r'\1\3.\4')
+
+            if saved_is_sequence and index_is_collapsed:
+                index_path = index_is_collapsed.expand(r'\1\3')
+                saved_path = saved_is_sequence.expand(r'\1\3.\4')
+
+            if index_path == saved_path:
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 self.scrollTo(

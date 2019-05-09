@@ -78,7 +78,6 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         self.add_writealembic_menu()
         self.add_writeobj_menu()
 
-
     @contextmenu
     def add_readalembic_menu(self, menu_set, browserwidget=None):
         """Actions associated with ``alembic`` cache operations."""
@@ -124,7 +123,6 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
             }
 
         return menu_set
-
 
     @contextmenu
     def add_writeobj_menu(self, menu_set, browserwidget=None):
@@ -207,7 +205,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self._createUI()
 
         self.findChild(BrowserWidget).initialized.connect(self.connectSignals)
-        self.findChild(BrowserWidget).initialized.connect(self.add_context_callbacks)
+        self.findChild(BrowserWidget).initialized.connect(
+            self.add_context_callbacks)
         self.findChild(BrowserWidget).initialize()
 
     def _createUI(self):
@@ -294,7 +293,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         fileswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
-        fileswidget.activated.connect(lambda x: self.open_scene(common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
+        fileswidget.activated.connect(lambda x: self.open_scene(
+            common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
         fileswidget.model().sourceModel().modelReset.connect(self.unmark_active)
         fileswidget.model().sourceModel().modelReset.connect(self.update_active_item)
 
@@ -302,7 +302,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     def fileThumbnailAdded(self, args):
         """Slot called by the Saver when finished."""
         server, job, root, filepath, image = args
-        settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+        settings = AssetSettings(QtCore.QModelIndex(),
+                                 args=(server, job, root, filepath))
         if not image.isNull():
             image.save(settings.thumbnail_path())
 
@@ -406,16 +407,17 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         def fileDescriptionAdded(args):
             """Slot called by the Saver when finished."""
             server, job, root, filepath, description = args
-            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+            settings = AssetSettings(
+                QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
         # Start save
-        saver = self._get_saver_for_objectset(u'obj', key, common.ExportsFolder)
+        saver = self._get_saver_for_objectset(
+            u'obj', key, common.ExportsFolder)
         saver.fileSaveRequested.connect(fileSaveRequested)
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
-
 
     def init_alembic_export(self, key, value, exporter):
         """Main method to initiate an alembic export using Browser's
@@ -453,17 +455,18 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             else:
                 annotation = GetArchiveInfo(abc)['userDescription']
 
-            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+            settings = AssetSettings(
+                QtCore.QModelIndex(), args=(server, job, root, filepath))
             description = '{} - {}'.format(description, annotation)
             settings.setValue(u'config/description', description)
 
         # Start save
-        saver = self._get_saver_for_objectset(u'abc', key, common.ExportsFolder)
+        saver = self._get_saver_for_objectset(
+            u'abc', key, common.ExportsFolder)
         saver.fileSaveRequested.connect(fileSaveRequested)
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
-
 
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
@@ -528,7 +531,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         }
         super(MayaBrowserWidget, self).show(**kwargs)
 
-
     def save_scene(self, increment=True):
         """Saves the current scene either as a new file or as an increment of
         the current scene.
@@ -544,24 +546,29 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ScenesFolder)
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
-            sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(filepath))
+            sys.stdout.write(
+                '# Browser: Finished.Result: \n{}\n'.format(filepath))
 
         def fileDescriptionAdded(args):
             """Slot responsible for saving the description"""
             server, job, root, filepath, description = args
-            settings = AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+            settings = AssetSettings(
+                QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
-        data_key = self.findChild(BrowserWidget).fileswidget.model().sourceModel().data_key()
+        data_key = self.findChild(
+            BrowserWidget).fileswidget.model().sourceModel().data_key()
         subfolder = data_key if data_key else common.ScenesFolder
 
         if currentfile:
-            index = self.findChild(BrowserWidget).assetswidget.model().sourceModel().active_index()
+            index = self.findChild(
+                BrowserWidget).assetswidget.model().sourceModel().active_index()
             if index.isValid():
                 if index.data(QtCore.Qt.StatusTipRole) in currentfile:
-                    subfolder = currentfile.replace(index.data(QtCore.Qt.StatusTipRole), u'')
+                    subfolder = currentfile.replace(
+                        index.data(QtCore.Qt.StatusTipRole), u'')
                     subfolder = subfolder.split(u'/')
                     subfolder.pop()
                     subfolder = u'/'.join(subfolder).strip('/')
@@ -578,13 +585,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
-        self.findChild(BrowserWidget).fileswidget.model().sourceModel().modelDataResetRequested.emit()
+        self.findChild(BrowserWidget).fileswidget.model(
+        ).sourceModel().modelDataResetRequested.emit()
 
     def open_scene(self, path):
         """Opens the given scene."""
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
-            sys.stderr.write('# Browser: File {} does not exist.\n'.format(path))
+            sys.stderr.write(
+                '# Browser: File {} does not exist.\n'.format(path))
             return
         result = self.is_scene_modified()
         if result == QtWidgets.QMessageBox.Cancel:
@@ -710,7 +719,7 @@ class MayaBrowserButton(BrowserButton):
     def __init__(self, parent=None):
         super(MayaBrowserButton, self).__init__(parent=parent)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setToolTip(u'Browser')
+        self.setToolTip(u'GWBrowser')
         self.clicked.connect(self.show_browser)
 
     def initialize(self):
