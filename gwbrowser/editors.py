@@ -290,8 +290,10 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
     def _createUI(self):
         """Creates the layout."""
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(common.MARGIN * 1.5, 0, common.MARGIN * 0.5, 0)
-        self.layout().setSpacing(6)
+        self.layout().setContentsMargins(
+            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH / 2,
+            common.INDICATOR_WIDTH / 2, common.INDICATOR_WIDTH)
+        self.layout().setSpacing(3)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -299,17 +301,18 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         )
 
         self.editor = QtWidgets.QLineEdit()
-        self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
+        self.editor.setAlignment(QtCore.Qt.AlignCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
 
-        self.editor.setStyleSheet(
-            'background-color: rgb(50,50,50);\
-            font-family: "{}"; font-size: {}pt;\
-            color: rgba({},{},{},{});'.format(
-                common.SecondaryFont.family(),
-                common.psize(common.SMALL_FONT_SIZE),
-                *common.TEXT_NOTE.getRgb()
-            ))
+        self.editor.setStyleSheet("""
+background-color: rgb(50,50,50);
+font-family: "{}"; font-size: {}pt;
+color: rgba({});
+            """.format(
+            common.SecondaryFont.family(),
+            common.psize(common.SMALL_FONT_SIZE),
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+        ))
 
         label = QtWidgets.QLabel(u'Edit description')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
@@ -414,7 +417,7 @@ class FilterEditor(QtWidgets.QWidget):
                 margin: 6px;
                 padding: 6px;
                 background-color: rgba(38,38,38, 255);
-                color: rgba(230,230,230,255);
+                color: rgba({});
                 font-family: "{}";
                 font-size: {}pt;
             	border-width: 0px;
@@ -431,6 +434,7 @@ class FilterEditor(QtWidgets.QWidget):
             	outline: 0;
             }}
         """.format(
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
             common.PrimaryFont.family(),
             common.psize(common.MEDIUM_FONT_SIZE)
         ))

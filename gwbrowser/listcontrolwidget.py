@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
+# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
 
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
@@ -537,11 +537,16 @@ class AddButton(ControlButton):
         self.setToolTip(description)
         self.setStatusTip(description)
 
-    def __init__(self, parent=None):
-        super(AddButton, self).__init__(parent=parent)
-
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo_add', c, common.INLINE_ICON_SIZE)
+
+    def enterEvent(self, event):
+        if self._parent.currentIndex() == 0:
+            self.setStatusTip(u'Click to add a new Bookmark')
+        if self._parent.currentIndex() == 2:
+            self.setStatusTip(
+                u'Click to add a new placeholder file. This can be used as a file-name template.')
+        super(AddButton, self).enterEvent(event)
 
     def state(self):
         if self._parent.currentIndex() == 0:
@@ -681,7 +686,7 @@ class GenerateThumbnailsButton(ControlButton):
 
     def __init__(self, parent=None):
         super(GenerateThumbnailsButton, self).__init__(parent=parent)
-        description = u'Turn auto thumbnail generation ON of OFF'
+        description = u'Toggle thumbnail generation. If experiencing performance issues, turn this off!'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -727,7 +732,9 @@ class DataKeyViewDelegate(BaseDelegate):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
+        painter.setOpacity(0.5)
         self.paint_thumbnail(*args)
+        painter.setOpacity(1)
         self.paint_name(*args)
 
     @paintmethod
@@ -809,10 +816,16 @@ class DataKeyView(QtWidgets.QListView):
     def __init__(self, parent=None):
         super(DataKeyView, self).__init__(parent=parent)
         common.set_custom_stylesheet(self)
+
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
         self.context_menu_cls = ListControlContextMenu
         self._context_menu_active = False
@@ -834,6 +847,35 @@ class DataKeyView(QtWidgets.QListView):
         self.animation.setKeyValueAt(0, 0)
         self.animation.setKeyValueAt(0.5, 0.8)
         self.animation.setKeyValueAt(1, 1.0)
+
+        self.installEventFilter(self)
+
+    def eventFilter(self, widget, event):
+        if widget is not self:
+            return False
+
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(common.SEPARATOR)
+            painter.setOpacity(0.85)
+            painter.drawRect(self.rect())
+            painter.end()
+            return True
+        return False
+        #
+        # def paintEvent(self, event):
+        #     """Custom paint event for the DataKeyView."""
+        #     option = QtWidgets.QStyleOption()
+        #     option.initFrom(self)
+        #     hover = option.state & QtWidgets.QStyle.State_MouseOver
+        #
+        #     super(DataKeyView, self).paintEvent()
+        #     for n in xrange(self.model().rowCount()):
+        #         index = self.model().index(n, 0)
+        #         self.drawRow(option, index)
+        #     return
 
     def hideEvent(self, event):
         self.animation.stop()
@@ -1024,6 +1066,7 @@ class BaseControlButton(ClickableLabel):
         self.setFixedWidth(width)
 
     def enterEvent(self, event):
+        """Emitting the statustip for the task bar."""
         self.message.emit(self.statusTip())
         self.repaint()
 
@@ -1032,7 +1075,7 @@ class BaseControlButton(ClickableLabel):
 
     def paintEvent(self, event):
         if not self._parent:
-            painter.end()
+            return
 
         painter = QtGui.QPainter()
         painter.begin(self)
@@ -1076,7 +1119,7 @@ class BookmarksButton(BaseControlButton):
         super(BookmarksButton, self).__init__(parent=parent)
         self.index = 0
         self.set_text(u'Bookmarks')
-        self.setStatusTip(u'Show the list of added bookmarks')
+        self.setStatusTip(u'Click to see the list of added Bookmarks')
 
 
 class AssetsButton(BaseControlButton):
@@ -1084,6 +1127,7 @@ class AssetsButton(BaseControlButton):
         super(AssetsButton, self).__init__(parent=parent)
         self.index = 1
         self.set_text(u'Assets')
+        self.setStatusTip(u'Click to see the list of available Assets')
 
 
 class FilesButton(BaseControlButton):
@@ -1094,6 +1138,8 @@ class FilesButton(BaseControlButton):
         super(FilesButton, self).__init__(parent=parent)
         self.index = 2
         self.set_text(u'Files')
+        self.setStatusTip(
+            u'Click to see or change the current list of files')
 
         self.clicked.connect(self.show_view)
 
@@ -1131,11 +1177,11 @@ class FilesButton(BaseControlButton):
         if parent.stackedwidget.currentIndex() != 2:
             return  # We're not showing the widget when files are not tyhe visible list
 
-        geo = parent.stackedwidget.currentWidget().geometry()
+        geo = parent.stackedwidget.geometry()
         self.view().setGeometry(geo)
         # Align to top-left corner and sets the width
-        topleft = parent.stackedwidget.currentWidget().mapToGlobal(
-            parent.stackedwidget.currentWidget().rect().topLeft())
+        topleft = parent.stackedwidget.mapToGlobal(
+            parent.stackedwidget.rect().topLeft())
         self.view().move(topleft)
 
         self.view().show()
@@ -1154,6 +1200,7 @@ class FavouritesButton(BaseControlButton):
         super(FavouritesButton, self).__init__(parent=parent)
         self.index = 3
         self.set_text(u'My favourites')
+        self.setStatusTip(u'Click to see your saved favourites')
 
 
 class ListControlWidget(QtWidgets.QWidget):

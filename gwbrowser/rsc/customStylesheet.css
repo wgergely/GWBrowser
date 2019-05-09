@@ -244,8 +244,7 @@ QListView {{
 }}
 DataKeyView {{
 	margin: 0px;
-	padding: 0px 4px 4px 4px;
-	background: rgba({SEPARATOR});
+	padding: 0px 0px 0px 0px;
 }}
 
 

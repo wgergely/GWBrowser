@@ -29,7 +29,7 @@ MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
 
 COMPANY = u'Glassworks'
-PRODUCT = u'Browser'
+PRODUCT = u'GWBrowser'
 
 
 class Active(QtCore.QObject):

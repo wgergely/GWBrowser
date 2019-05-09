@@ -707,7 +707,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     text = metrics.elidedText(
         text,
         elide,
-        rect.width())
+        rect.width() + 2)
     width = metrics.width(text)
 
     if QtCore.Qt.AlignLeft & align:
