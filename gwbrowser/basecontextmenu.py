@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
+
 """The base-context menu associated with the BaseListWidget subclasses."""
 
 import os
@@ -22,8 +23,8 @@ def contextmenu(func):
     """Decorator to create a menu set."""
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
+        """Wrapper for function."""
         menu_set = collections.OrderedDict()
-        # menu_set['__separator__'] = None
         menu_set = func(self, menu_set, *args, **kwargs)
         if not isinstance(menu_set, collections.OrderedDict):
             raise ValueError(
@@ -232,7 +233,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        path = common.get_sequence_startpath(self.index.data(QtCore.Qt.StatusTipRole))
+        path = common.get_sequence_startpath(
+            self.index.data(QtCore.Qt.StatusTipRole))
         menu_set['Show in file manager'] = {
             u'icon': pixmap,
             u'action': functools.partial(common.reveal, path)
@@ -246,8 +248,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         copy_icon2 = ImageCache.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-
-
 
         key = u'Copy path'
         menu_set[key] = collections.OrderedDict()
@@ -335,7 +335,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
-
         favourite = self.parent().model().filterFlag(Settings.MarkedAsFavourite)
         archived = self.parent().model().filterFlag(Settings.MarkedAsArchived)
         active = self.parent().model().filterFlag(Settings.MarkedAsActive)
@@ -397,7 +396,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', QtGui.QColor(200, 50,50), common.INLINE_ICON_SIZE)
+            u'todo_remove', QtGui.QColor(200, 50, 50), common.INLINE_ICON_SIZE)
         show_thumbnail = ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         addpixmap = ImageCache.get_rsc_pixmap(
@@ -570,7 +569,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             return menu_set
         if not all(parent_item):
             return menu_set
-
 
         dir_ = QtCore.QDir(u'/'.join(parent_item))
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)

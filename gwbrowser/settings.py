@@ -16,7 +16,6 @@ getConfigPath() or getThumbnailPath().
 """
 
 
-import re
 import hashlib
 import collections
 from PySide2 import QtCore
@@ -237,7 +236,7 @@ class AssetSettings(QtCore.QSettings):
         if collapsed:
             filepath = collapsed.expand(ur'\1[0]\3')
 
-        path = '{}/{}'.format(
+        path = u'{}/{}'.format(
             _bookmark,
             filepath.replace(bookmark, u'').strip(u'/')).strip(u'/')
         path = hashlib.md5(path.encode('utf-8')).hexdigest()

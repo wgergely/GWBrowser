@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
+
 """Module defines the QListWidget items used to browse the assets and the files
 found by the collector classes.
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 import sys
-import os
 import traceback
-import math
-import functools
-import Queue
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -33,7 +30,7 @@ from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
 
-qlast_modified = lambda n: QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
+def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 class FileInfoWorker(BaseWorker):
@@ -60,7 +57,7 @@ class FileInfoWorker(BaseWorker):
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
             traceback.print_exc()
-        except Exception as err:
+        except TypeError as err:
             errstr = '\nError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
             sys.stderr.write(errstr)
@@ -70,8 +67,8 @@ class FileInfoWorker(BaseWorker):
                 sys.stdout.write('# {} worker finished processing.\n'.format(
                     self.__class__.__name__))
                 self.finished.emit()
-                return
-            self.begin_processing()
+            else:
+                self.begin_processing()
 
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
@@ -168,8 +165,9 @@ class FileInfoWorker(BaseWorker):
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
-        if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
-            placeholder_image = ImageCache.instance().get(common.rsc_path(__file__, ext), height)
+        if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
+            placeholder_image = ImageCache.instance().get(
+                common.rsc_path(__file__, ext), height)
         else:
             placeholder_image = ImageCache.instance().get(
                 common.rsc_path(__file__, u'placeholder'), height)
@@ -260,7 +258,6 @@ class FilesModel(BaseModel):
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
 
-
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
         definitions by running a file-iterator from the location-folder.
@@ -282,9 +279,9 @@ class FilesModel(BaseModel):
         def dflags():
             """The default flags to apply to the item."""
             return (
-            QtCore.Qt.ItemNeverHasChildren |
-            QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsSelectable)
+                QtCore.Qt.ItemNeverHasChildren |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsSelectable)
 
         FileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
@@ -331,8 +328,10 @@ class FilesModel(BaseModel):
                 # Progress bar
                 c += 1
                 if not c % nth:
-                    m = self.messageChanged.emit(u'Found {} files...'.format(c))
-                    QtWidgets.QApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
+                    self.messageChanged.emit(
+                        u'Found {} files...'.format(c))
+                    QtWidgets.QApplication.instance().processEvents(
+                        QtCore.QEventLoop.ExcludeUserInputEvents)
 
                 fileroot = filepath.replace(location_path, u'')
                 fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
@@ -346,7 +345,7 @@ class FilesModel(BaseModel):
                     continue
 
                 ext = filename.split('.')[-1]
-                if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+                if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
                     placeholder_image = ImageCache.instance().get(
                         common.rsc_path(__file__, ext), rowsize.height())
                 else:
@@ -370,7 +369,7 @@ class FilesModel(BaseModel):
                     QtCore.Qt.StatusTipRole: filepath,
                     QtCore.Qt.ToolTipRole: filepath,
                     QtCore.Qt.SizeHintRole: rowsize,
-                    common.EntryRole: [entry,],
+                    common.EntryRole: [entry, ],
                     common.FlagsRole: flags,
                     common.ParentRole: (server, job, root, asset, location, fileroot),
                     common.DescriptionRole: u'',
@@ -444,7 +443,7 @@ class FilesModel(BaseModel):
                             common.TypeRole: common.SequenceItem,
                             common.SortByName: seqpath,
                             common.SortByLastModified: 0,
-                            common.SortBySize: 0, # Initializing with null-size
+                            common.SortBySize: 0,  # Initializing with null-size
                         }
 
                     seqs[seqpath][common.FramesRole].append(seq.group(2))
@@ -519,8 +518,8 @@ class FilesModel(BaseModel):
             path = QtCore.QFileInfo(path).absoluteFilePath()
             path = QtCore.QDir.toNativeSeparators(path)
 
-            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path),])
-            data = QtCore.QByteArray(QtCore.QDir.toNativeSeparators(path).encode('latin-1'))
+            mime.setUrls(mime.urls() + [QtCore.QUrl.fromLocalFile(path), ])
+            data = common.ubytearray(QtCore.QDir.toNativeSeparators(path))
             mime.setData(
                 'application/x-qt-windows-mime;value="FileName"', data)
             mime.setData(
@@ -530,11 +529,9 @@ class FilesModel(BaseModel):
 
         index = next((f for f in indexes), None)
         if not index.isValid():
-            return
+            return None
 
         mime = QtCore.QMimeData()
-        location = self.data_key()
-
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
         no_modifier = modifiers == QtCore.Qt.NoModifier
         alt_modifier = modifiers & QtCore.Qt.AltModifier

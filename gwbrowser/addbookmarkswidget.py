@@ -1,36 +1,35 @@
 # -*- coding: utf-8 -*-
-"""Module defines a the wiedget used to add a new bookmark to `GWBrowser`.
-
-"""
 # pylint: disable=E1101, C0103, R0913, I1101
 
-import re
-import os
+"""The module defines the ``AddBookmarksWidget`` and the supplemetary objects
+needed to present the user with `server`, `job` and `root` folder choices.
+
+"""
+
 import sys
 import functools
-from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
+from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
-from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import local_settings, Active
 
 
 custom_string = u'Select custom folder...'
 
 
 class PaintedButton(QtWidgets.QPushButton):
-    """Custom buttons used to paint the buttons of the ``AddBookmarksWidget``."""
+    """Custom button class for ``AddBookmarksWidget`` buttons."""
 
     def __init__(self, text, parent=None):
         super(PaintedButton, self).__init__(text, parent=parent)
 
     def paintEvent(self, event):
-        """Custom paint for smooth text display."""
+        """Paint event for smooth font display."""
         painter = QtGui.QPainter()
         painter.begin(self)
 
@@ -49,13 +48,20 @@ class PaintedButton(QtWidgets.QPushButton):
         rect = QtCore.QRect(self.rect())
         rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
         common.draw_aliased_text(
-            painter, common.PrimaryFont, rect, self.text(), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+            painter,
+            common.PrimaryFont,
+            rect,
+            self.text(),
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            color
+        )
 
         painter.end()
 
 
 class PaintedLabel(QtWidgets.QLabel):
-    """Custom label used to paint the elements of the ``AddBookmarksWidget``."""
+    """Custom QLabe class for ``AddBookmarksWidget`` buttons."""
+
     def __init__(self, text, size=common.MEDIUM_FONT_SIZE, parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
         self._font = QtGui.QFont(common.PrimaryFont)
@@ -78,7 +84,7 @@ class ComboboxContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(ComboboxContextMenu, self).__init__(index, parent=parent)
-        self.add_reveal_item_menu()
+        self.add_reveal_item_menu()  # pylint: disable=E1120
 
 
 class ComboBoxItemDelegate(BaseDelegate):
@@ -111,7 +117,7 @@ class ComboBoxItemDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the DisplayRole of the items."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         disabled = index.flags() == QtCore.Qt.NoItemFlags
 
@@ -133,7 +139,13 @@ class ComboBoxItemDelegate(BaseDelegate):
             text = text.upper()
 
         common.draw_aliased_text(
-            painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+            painter,
+            common.PrimaryFont,
+            rect,
+            text,
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            color
+        )
 
     def sizeHint(self, option, index):
         return QtCore.QSize(self.parent().view().width(), common.ROW_HEIGHT * 0.66)
@@ -142,9 +154,9 @@ class ComboBoxItemDelegate(BaseDelegate):
 class AddBookmarkCombobox(QtWidgets.QComboBox):
     """Combobox responsible for picking a bookmark segment."""
 
-    def __init__(self, type, parent=None):
+    def __init__(self, itemtype, parent=None):
         super(AddBookmarkCombobox, self).__init__(parent=parent)
-        self.type = type
+        self.type = itemtype
         self.context_menu_cls = ComboboxContextMenu
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
@@ -166,7 +178,6 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         widget = self.context_menu_cls(index, parent=self)
 
         rect = self.rect()
-        pos = self.mapToGlobal(event.pos())
         widget.move(
             self.mapToGlobal(rect.bottomLeft()).x(),
             self.mapToGlobal(rect.bottomLeft()).y(),
@@ -205,7 +216,8 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         if self.view().currentRow() != -1 and text.upper() != custom_string.upper():
             _rect = QtCore.QRect(rect)
             _rect.setWidth(_rect.height())
-            pixmap = ImageCache.instance().get_rsc_pixmap(u'check', common.FAVOURITE, self.height())
+            pixmap = ImageCache.instance().get_rsc_pixmap(
+                u'check', common.FAVOURITE, self.height())
             painter.drawPixmap(_rect, pixmap, pixmap.rect())
             rect.setLeft(rect.left() + rect.height() + common.INDICATOR_WIDTH)
 
@@ -229,7 +241,9 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         path = u'{}/{}'.format(server, job)
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
-            return parent.warning(u'Could not find job-folder', u'An error occured, the job folder could not be found.')
+            parent.warning(u'Could not find job-folder',
+                           u'An error occured, the job folder could not be found.')
+            return
 
         dialog = QtWidgets.QFileDialog()
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
@@ -249,17 +263,21 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
             return
 
         if path not in res:
-            parent.warning(u'Invalid folder selected', u'The bookmark folder has to be inside current job folder.')
+            parent.warning(u'Invalid folder selected',
+                           u'The bookmark folder has to be inside current job folder.')
             return
 
         file_info = QtCore.QFileInfo(res)
         if not file_info.exists():
-            return parent.warning(u'Internal error occured.', u'Could not load the selected folder.')
+            parent.warning(u'Internal error occured.',
+                           u'Could not load the selected folder.')
+            return
 
-        self.view().item(0).setData(QtCore.Qt.DisplayRole, file_info.filePath().replace(path, u'').strip(u'/'))
+        self.view().item(0).setData(QtCore.Qt.DisplayRole,
+                                    file_info.filePath().replace(path, u'').strip(u'/'))
         self.view().item(0).setData(QtCore.Qt.StatusTipRole, file_info.filePath())
         self.view().item(0).setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                common.WIDTH, common.ROW_BUTTONS_HEIGHT))
+            common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
         parent.validate()
 
@@ -272,7 +290,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
     Attributes:
         server (str):   The path to the server. `None` if invalid.
         job (str):      The name of the job folder. `None` if invalid.
-        root (str):     A relative path to the folder where the assets are located. `None` if invalid.
+        root (str):     A relative path to the folder where the assets are located.
+                        `None` if invalid.
 
     """
 
@@ -298,13 +317,16 @@ class AddBookmarksWidget(QtWidgets.QWidget):
     def initialize(self):
         """Populates the comboboxes and selects the currently active items (if there's any)."""
         self.add_servers_from_config()
-        self.select_saved_item(None, key='server', combobox=self.pick_server_widget)
+        self.select_saved_item(
+            None, key='server', combobox=self.pick_server_widget)
 
-        self.add_jobs_from_server_folder(self.pick_server_widget.currentIndex())
+        self.add_jobs_from_server_folder(
+            self.pick_server_widget.currentIndex())
         self.select_saved_item(None, key='job', combobox=self.pick_job_widget)
 
         self.add_root_folders(self.pick_job_widget.currentIndex())
-        self.select_saved_item(None, key='root', combobox=self.pick_root_widget)
+        self.select_saved_item(
+            None, key='root', combobox=self.pick_root_widget)
 
     def _createUI(self):
         """Creates the AddBookmarksWidget's ui and layout."""
@@ -322,7 +344,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.layout().addWidget(label, 0)
 
         self.pathsettings = QtWidgets.QWidget(parent=self)
-        self.pathsettings.setObjectName('GWBrowserPathsettingsWidget')
+        self.pathsettings.setObjectName(u'GWBrowserPathsettingsWidget')
         self.pathsettings.setMinimumWidth(300)
         QtWidgets.QVBoxLayout(self.pathsettings)
         self.pathsettings.layout().setContentsMargins(0, 0, 0, 0)
@@ -333,7 +355,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         # Server
         self.pick_server_widget = AddBookmarkCombobox(u'server', parent=self)
         self.pick_job_widget = AddBookmarkCombobox(u'job', parent=self)
-        self.pick_root_widget = AddBookmarkCombobox(u'bookmark folder', parent=self)
+        self.pick_root_widget = AddBookmarkCombobox(
+            u'bookmark folder', parent=self)
 
         row = QtWidgets.QWidget(parent=self)
         row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -398,12 +421,13 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pathsettings.layout().addWidget(label)
 
     def _connectSignals(self):
-        self.pick_server_widget.activated.connect(self.add_jobs_from_server_folder)
+        self.pick_server_widget.activated.connect(
+            self.add_jobs_from_server_folder)
         self.pick_server_widget.activated.connect(
             functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
         self.pick_server_widget.activated.connect(self.add_root_folders)
         self.pick_server_widget.activated.connect(
-        functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+            functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
 
         self.pick_job_widget.activated.connect(self.add_root_folders)
         self.pick_job_widget.activated.connect(
@@ -412,7 +436,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pick_server_widget.currentIndexChanged.connect(self.validate)
         self.pick_job_widget.currentIndexChanged.connect(self.validate)
         self.pick_root_widget.currentIndexChanged.connect(self.validate)
-        self.pick_root_widget.activated.connect(self.pick_root_widget.pick_custom)
+        self.pick_root_widget.activated.connect(
+            self.pick_root_widget.pick_custom)
 
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.close)
@@ -478,7 +503,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pick_root_widget.clear()
 
         if index == -1:
-             return
+            return
 
         path = self.pick_job_widget.currentData(QtCore.Qt.StatusTipRole)
         file_info = QtCore.QFileInfo(path)
@@ -514,7 +539,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             common.WIDTH, common.ROW_BUTTONS_HEIGHT))
         self.pick_root_widget.view().insertItem(0, item)
 
-    def get_root_folder_items(self, path, depth=4, count=0, arr=[]):
+    def get_root_folder_items(self, path, depth=4, count=0, arr=None):
         """Scans the given path recursively and returns all root-folder candidates.
         The recursion-depth is limited by the `depth`.
 
@@ -546,7 +571,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                     if not [f for f in arr if path in f]:
                         arr.append(path)
                     return arr
-                self.get_root_folder_items(entry.path, depth=depth, count=count + 1, arr=arr)
+                self.get_root_folder_items(
+                    entry.path, depth=depth, count=count + 1, arr=arr)
         except OSError as err:
             return arr
         return arr
@@ -578,7 +604,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         job = self.pick_job_widget.currentData(QtCore.Qt.DisplayRole)
         root = self.pick_root_widget.currentData(QtCore.Qt.DisplayRole)
 
-        key = u'{}/{}/{}'.format(server, job , root)
+        key = u'{}/{}/{}'.format(server, job, root)
         file_info = QtCore.QFileInfo(key)
         if not file_info.exists():
             self.ok_button.setText(u'Bookmark folder not set')
@@ -616,13 +642,15 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         root = self.pick_root_widget.currentData(QtCore.Qt.DisplayRole)
 
         if not all((server, job, root)):
-            self.warning('An error occured', 'Unable to get the selected bookmark data.')
+            self.warning('An error occured',
+                         'Unable to get the selected bookmark data.')
             return
 
-        key = u'{}/{}/{}'.format(server, job , root)
+        key = u'{}/{}/{}'.format(server, job, root)
         file_info = QtCore.QFileInfo(key)
         if not file_info.exists():
-            self.warning('An error occured', 'Unable to find the selected bookmark folder.')
+            self.warning('An error occured',
+                         'Unable to find the selected bookmark folder.')
             return
 
         bookmark = {key: {u'server': server, u'job': job, u'root': root}}
@@ -700,7 +728,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         if index == -1:
             return
 
-        path = self.pick_server_widget.itemData(index, role=QtCore.Qt.StatusTipRole)
+        path = self.pick_server_widget.itemData(
+            index, role=QtCore.Qt.StatusTipRole)
         for entry in sorted([f for f in gwscandir.scandir(path)], key=lambda x: x.name):
             if entry.name.startswith(u'.'):
                 continue
@@ -710,14 +739,14 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                 continue
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, entry.name)
-            item.setData(QtCore.Qt.StatusTipRole, entry.path.replace(u'\\', u'/'))
+            item.setData(QtCore.Qt.StatusTipRole,
+                         entry.path.replace(u'\\', u'/'))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
             item.setData(common.FlagsRole, item.flags())
 
             self.pick_job_widget.view().addItem(item)
-
 
     def mousePressEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):

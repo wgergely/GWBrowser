@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
 
 
 """This module defines the view widgets and data/proxy models used
@@ -11,9 +11,6 @@ main widget the user will interact with.
 Each ``BaseListWidget`` uses a ``FilterProxyModel`` to `filter` data but sorting
 is implemented internally in the ``BaseModel`` subclasses. These are the classes
 for storing our actual model data.
-
-FilterProxyModel:
-    The widget
 
 """
 
@@ -117,7 +114,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._filtertext = val
 
         cls = self.sourceModel().__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls, self.sourceModel().data_key())
+        k = u'widget/{}/{}/filtertext'.format(cls,
+                                              self.sourceModel().data_key())
         local_settings.setValue(k, self._filtertext)
 
     def filterFlag(self, flag):
@@ -287,7 +285,8 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         sorted_idxs = sorted(
             data,
-            key=lambda idx: common.namekey(data[idx][sortrole]) if isinstance(data[idx][sortrole], basestring) else data[idx][sortrole],
+            key=lambda idx: common.namekey(data[idx][sortrole]) if isinstance(
+                data[idx][sortrole], basestring) else data[idx][sortrole],
             reverse=sortorder
         )
 
@@ -477,6 +476,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             self.set_data_key(entries[0])
             return
 
+
 class BaseListWidget(QtWidgets.QListView):
     """Defines the base of the ``Assets``, ``Bookmarks`` and ``File`` widgets."""
 
@@ -540,16 +540,11 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: self.save_selection(self.selectionModel().currentIndex()))
         proxy.layoutAboutToBeChanged.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
-        proxy.modelReset.connect(self.reselect_previous,
-                                 type=QtCore.Qt.DirectConnection)
-        proxy.layoutChanged.connect(self.reselect_previous,
-                                    type=QtCore.Qt.DirectConnection)
-
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(
             lambda x: proxy.setFilterText(
                 local_settings.value(u'widget/{}/{}/filtertext'.format(
-                     model.__class__.__name__, x))
+                    model.__class__.__name__, x))
             ))
         model.dataKeyChanged.connect(lambda x: model.check_data())
 
@@ -671,22 +666,16 @@ class BaseListWidget(QtWidgets.QListView):
         if not val:
             return
 
-        seq = common.get_sequence(val)
-        if seq:
-            val = seq.expand(ur'\1\3.\4')
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
-            path = index.data(QtCore.Qt.StatusTipRole)
-            seq = common.get_sequence(path)
-            if seq:
-                path = seq.expand(ur'\1\3.\4')
-            if path == val:
+            if index.data(QtCore.Qt.StatusTipRole) == val:
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 self.scrollTo(
                     index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
+        # Selecting the first item if couldn't find a saved selection
         if self.model().rowCount():
             index = self.model().index(0, 0)
             self.selectionModel().setCurrentIndex(
@@ -720,7 +709,7 @@ class BaseListWidget(QtWidgets.QListView):
         key = index.data(QtCore.Qt.StatusTipRole)
         collapsed = common.is_collapsed(key)
         if collapsed:
-            key = collapsed.expand(ur'\1\3') # \2 is the sequence-string
+            key = collapsed.expand(ur'\1\3')  # \2 is the sequence-string
 
         if key in favourites:
             if state is None or state is False:  # clears flag
@@ -737,12 +726,13 @@ class BaseListWidget(QtWidgets.QListView):
 
                 # Let's find the item in the model data
                 for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
+                    _path = data[source_index.row()][common.SequenceRole].expand(
+                        ur'\1{}\3.\4')
                     _path = _path.format(frame)
                     _index = None
                     for val in _data.itervalues():
                         if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val # Found it!
+                            _index = val  # Found it!
                             break
                     if _index:
                         if _index[QtCore.Qt.StatusTipRole] in favourites:
@@ -764,12 +754,13 @@ class BaseListWidget(QtWidgets.QListView):
 
                 # Let's find the item in the model data
                 for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
+                    _path = data[source_index.row()][common.SequenceRole].expand(
+                        ur'\1{}\3.\4')
                     _path = _path.format(frame)
                     _index = None
                     for val in _data.itervalues():
                         if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val # Found it!
+                            _index = val  # Found it!
                             break
                     if _index:
                         favourites.append(_index[QtCore.Qt.StatusTipRole])
@@ -988,8 +979,15 @@ class BaseListWidget(QtWidgets.QListView):
                         return common.copy_path(index, mode=common.MacOSPath, first=False)
                     else:
                         if event.modifiers() & QtCore.Qt.ShiftModifier:
-                            return common.copy_path(index, mode=common.WindowsPath, first=True)
-                        return common.copy_path(index, mode=common.WindowsPath, first=False)
+                            common.copy_path(
+                                index, mode=common.WindowsPath, first=True)
+                            return
+                        common.copy_path(
+                            index, mode=common.WindowsPath, first=False)
+                        return
+            if event.key() == QtCore.Qt.Key_R:
+                self.model().sourceModel().modelDataResetRequested.emit()
+                return
 
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
@@ -1015,7 +1013,8 @@ class BaseListWidget(QtWidgets.QListView):
             self.customContextMenuRequested.emit(index, self)
             return
 
-        widget = self.context_menu_cls(index, parent=self)
+        widget = self.context_menu_cls(  # pylint: disable=E1102
+            index, parent=self)
 
         if index.isValid():
             rect = self.visualRect(index)
@@ -1115,7 +1114,8 @@ class BaseListWidget(QtWidgets.QListView):
                         acttext = u'Showing active item only'
                     if hidden_count:
                         hidtext = '({} items are hidden)'.format(hidden_count)
-                    text = '{} {} {} {}'.format(filtext, favtext, acttext, hidtext)
+                    text = '{} {} {} {}'.format(
+                        filtext, favtext, acttext, hidtext)
                     common.draw_aliased_text(
                         painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
 

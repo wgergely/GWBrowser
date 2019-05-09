@@ -1,24 +1,27 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
+
 
 """Classes responsible for interacting with items marked as favourites by the
-user."""
+user.
 
+"""
 
-import sys
 import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
-import gwbrowser.gwscandir as gwscandir
-from gwbrowser.settings import local_settings
+from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 import gwbrowser.settings as Settings
-from gwbrowser.fileswidget import FilesWidget
-from gwbrowser.fileswidget import FilesModel
-from gwbrowser.delegate import FavouritesWidgetDelegate
-from gwbrowser.fileswidget import FilesWidgetContextMenu
+from gwbrowser.settings import local_settings
+
 from gwbrowser.baselistwidget import BaseInlineIconWidget
-from gwbrowser.imagecache import ImageCache
+from gwbrowser.fileswidget import FilesWidgetContextMenu
+from gwbrowser.delegate import FavouritesWidgetDelegate
+from gwbrowser.fileswidget import FilesModel
+from gwbrowser.fileswidget import FilesWidget
+
+import gwbrowser.gwscandir as gwscandir
 
 
 def rsc_path(f, n):
@@ -29,7 +32,7 @@ def rsc_path(f, n):
 
 class FavouritesWidgetContextMenu(FilesWidgetContextMenu):
     def __init__(self, index, parent=None):
-        super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
+        super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
         # Adding persistent actions
 
         if index.isValid():
@@ -104,7 +107,7 @@ class FavouritesModel(FilesModel):
             filename = filepath.split(u'/')[-1]
             ext = filename.split(u'.')[-1]
 
-            if ext in (common._creative_cloud_formats + common._exports_formats + common._scene_formats):
+            if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
                 placeholder_image = ImageCache.instance().get(
                     rsc_path(__file__, ext), rowsize.height())
             else:
@@ -128,7 +131,7 @@ class FavouritesModel(FilesModel):
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
-                common.EntryRole: [entry,],
+                common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, fileroot),
                 common.DescriptionRole: u'',
@@ -269,7 +272,7 @@ class FavouritesWidget(FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
 
     def __init__(self, parent=None):
-        super(FilesWidget, self).__init__(parent=parent)
+        super(FavouritesWidget, self).__init__(parent=parent)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.setAcceptDrops(True)
         self.setDragEnabled(True)
@@ -333,12 +336,13 @@ class FavouritesWidget(FilesWidget):
 
                 # Let's find the item in the model data
                 for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(ur'\1{}\3.\4')
+                    _path = data[source_index.row()][common.SequenceRole].expand(
+                        ur'\1{}\3.\4')
                     _path = _path.format(frame)
                     _index = None
                     for val in _data.itervalues():
                         if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val # Found it!
+                            _index = val  # Found it!
                             break
                     if _index:
                         if _index[QtCore.Qt.StatusTipRole] in favourites:
@@ -373,7 +377,7 @@ class FavouritesWidget(FilesWidget):
         self.indicatorwidget.hide()
 
         if event.source() == self:
-            return # Won't allow dropping an item from itself
+            return  # Won't allow dropping an item from itself
 
         mime = event.mimeData()
         if not mime.hasUrls():
@@ -390,11 +394,6 @@ class FavouritesWidget(FilesWidget):
                 favourites.append(path)
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.model().sourceModel().modelDataResetRequested.emit()
-
-    def mousePressEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        return super(BaseInlineIconWidget, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         """Inline-button methods are triggered here."""
@@ -424,7 +423,7 @@ class FavouritesWidget(FilesWidget):
                 break
 
     def eventFilter(self, widget, event):
-        super(FilesWidget, self).eventFilter(widget, event)
+        super(FavouritesWidget, self).eventFilter(widget, event)
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:
@@ -439,6 +438,7 @@ class FavouritesWidget(FilesWidget):
             painter.end()
             return True
         return False
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

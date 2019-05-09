@@ -40,8 +40,9 @@ import sys
 import re
 
 from PySide2 import QtGui, QtCore, QtWidgets
-import gwbrowser.gwscandir as gwscandir
 import OpenImageIO.OpenImageIO as OpenImageIO
+
+import gwbrowser.gwscandir as gwscandir
 
 
 default_server = u'sloth'
@@ -53,8 +54,8 @@ osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
 local = {True: u'/jobs', False: u'//localhost/c$/jobs'}
-sloth = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
-gordo = {True: '/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
+sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
+gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
 
 if osx:
@@ -87,19 +88,20 @@ LTHREAD_COUNT = 1
 FTIMER_INTERVAL = 1000
 
 
-
 # Cache files
 ExportsFolder = u'exports'
 ExportsFolderDescription = u'Persistent caches shared between scenes and assets (eg. animation caches)'
 
 CacheFolder = u'cache'
-CacheFolderDescription = u'Temporary and discardable files only, use "{}" for caches to keep'.format(ExportsFolder.upper())
+CacheFolderDescription = u'Temporary and discardable files only, use "{}" for caches to keep'.format(
+    ExportsFolder.upper())
 
 TempFolder = u'tmp'
 TempFolderDescription = u'Used by the system, don\'t save files here'
 
 ModelsFolder = u'models'
-ModelsFolderDescription = u'Obsolete, use "{}" instead'.format(ExportsFolder.upper())
+ModelsFolderDescription = u'Obsolete, use "{}" instead'.format(
+    ExportsFolder.upper())
 
 # Important folders
 CompScriptsFolder = u'comp_scripts'
@@ -112,10 +114,10 @@ ScenesFolder = u'scenes'
 ScenesFolderDescription = u'2D and 3D scene, project files'
 
 RendersFolder = u'renders'
-RendersFolderDescription  = u'2D and 3D render passes and layers'
+RendersFolderDescription = u'2D and 3D render passes and layers'
 
 TexturesFolder = u'textures'
-TexturesFolderDescription  = u'Textures used by the 2D and 3D projects'
+TexturesFolderDescription = u'Textures used by the 2D and 3D projects'
 
 # Reference folders
 ArtworkFolder = u'artwork'
@@ -240,7 +242,7 @@ def get_oiio_namefilters(as_array=False):
     return namefilters
 
 
-_creative_cloud_formats = (
+creative_cloud_formats = (
     u'aep',
     u'ai',
     u'eps',
@@ -252,7 +254,7 @@ _creative_cloud_formats = (
     u'psq',
     u'xfl',
 )
-_exports_formats = (
+exports_formats = (
     u'abc',  # Alembic
     u'ass',  # Arnold
     u'bgeo',  # Houdini
@@ -265,7 +267,7 @@ _exports_formats = (
     u'vdb',  # OpenVDB cache file
     u'ifd',  # Houdini
 )
-_scene_formats = (
+scene_formats = (
     u'c4d',
     u'hud',
     u'hip',
@@ -278,8 +280,8 @@ _scene_formats = (
     u'autosave'
 )
 _oiio_formats = tuple(get_oiio_namefilters(as_array=True))
-_all_formats = list(_creative_cloud_formats) + list(_scene_formats) + \
-    list(_oiio_formats) + list(_exports_formats)
+_all_formats = list() + list(scene_formats) + \
+    list(_oiio_formats) + list(exports_formats)
 
 NameFilters = {
     ExportsFolder: _all_formats,
@@ -378,19 +380,24 @@ def move_widget_to_available_geo(widget):
 _families = []
 
 
-def _add_custom_fonts(families=_families):
+def _add_custom_fonts():
     """Adds custom fonts to the application."""
+    global _families
+    if _families:
+        return
 
     path = u'{}/../rsc/fonts'.format(__file__)
     path = os.path.normpath(os.path.abspath(path))
     d = QtCore.QDir(path)
     d.setNameFilters((u'*.ttf',))
 
-    for f in d.entryInfoList(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot):
+    entries = d.entryInfoList(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+
+    for f in entries:
         idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
         family = QtGui.QFontDatabase.applicationFontFamilies(idx)
-        if family not in families:
-            families.append(family)
+        if family[0].lower() not in _families:
+            _families.append(family[0].lower())
 
 
 def set_custom_stylesheet(widget):
@@ -445,32 +452,6 @@ def byte_to_string(num, suffix=u'B'):
 
 def reveal(path):
     """Reveals the specified folder in the file explorer.
-
-    Args:
-        name (str): A path to the file.
-
-    """
-    path = get_sequence_endpath(path)
-    if windows:
-        args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
-        return QtCore.QProcess.startDetached(u'explorer', args)
-
-    if osx:
-        args = [
-            u'-e',
-            u'tell application "Finder"',
-            u'-e',
-            u'activate',
-            u'-e',
-            u'select POSIX file "{}"'.format(
-                QtCore.QDir.toNativeSeparators(path)), u'-e', u'end tell']
-        return QtCore.QProcess.startDetached(u'osascript', args)
-
-    raise NotImplementedError('{} os has not been implemented.'.format(
-        QtCore.QSysInfo().productType()))
-
-def mount(path):
-    """Mounts the server in macosx if it isn't mounted already.
 
     Args:
         name (str): A path to the file.
@@ -582,7 +563,8 @@ def get_ranges(arr, padding):
 ValidFilenameRegex = re.compile(
     ur'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
     flags=re.IGNORECASE | re.UNICODE)
-IsSequenceRegex = re.compile(r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
+IsSequenceRegex = re.compile(
+    r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
 SequenceStartRegex = re.compile(
     ur'^(.*)\[([0-9]+).*\](.*)$',
     flags=re.IGNORECASE | re.UNICODE)
@@ -700,8 +682,6 @@ def get_sequence_paths(index):
     return sequence_paths
 
 
-
-
 def draw_aliased_text(painter, font, rect, text, align, color):
     """Method to draw aliased text windows, where the default antialiasing fails."""
     painter.save()
@@ -762,7 +742,7 @@ def find_largest_file(index):
     to be used a s thumbnail image. :)
 
     """
-    key = lambda x: x.stat().st_size
+    def key(x): return x.stat().st_size
     entry = max(index.data(EntryRole), key=key)
     return entry.path.replace(u'\\', u'/')
 
@@ -778,7 +758,7 @@ def mount(server=default_server, username=default_username, password=default_pas
     if osx:
         for d in QtCore.QStorageInfo.mountedVolumes():
             if d.rootPath().lower() == u'/volumes/jobs':
-                return # the server is already mounted
+                return  # the server is already mounted
         args = [u'-e', u'mount volume "smb://{username}:{password}@{server}/jobs/"'.format(
             server=server,
             username=username,
@@ -790,7 +770,7 @@ def mount(server=default_server, username=default_username, password=default_pas
         while True:
             for d in QtCore.QStorageInfo.mountedVolumes():
                 if d.rootPath().lower() == u'/volumes/jobs':
-                    return # the server is mounted and available
+                    return  # the server is mounted and available
         return
 
     raise NotImplementedError('{} os has not been implemented.'.format(
@@ -963,3 +943,12 @@ def rsc_path(f, n):
     path = u'{}/../rsc/{}.png'.format(f, n)
     path = os.path.normpath(os.path.abspath(path))
     return path
+
+
+def ubytearray(ustring):
+    """Helper function to convert a unicode string to a QBytreArray object."""
+    if not isinstance(ustring, unicode):
+        raise TypeError('The provided string has to be a unicode string')
+    # We convert the string to a hex array
+    hstr = [r'\x{}'.format(f.encode('hex')) for f in ustring.encode('utf-8')]
+    return QtCore.QByteArray.fromHex(''.join(hstr))

@@ -233,7 +233,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
         parent = list(self.asset().data(common.ParentRole))
         index = QtCore.QModelIndex()
 
-        if suffix in common._exports_formats:
+        if suffix in common.exports_formats:
             location = common.ExportsFolder
             destination = u'/'.join(parent + [common.ExportsFolder, suffix])
             destination_dir = QtCore.QDir(destination)
@@ -241,7 +241,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
                 if not self.create_folder(location, suffix, destination_dir):
                     return
             index = self.index(destination)
-        elif suffix in (list(common._scene_formats) + list(common._creative_cloud_formats)):
+        elif suffix in (list(common.scene_formats) + list(common.)):
             location = common.ScenesFolder
             destination = u'/'.join(parent + [common.ScenesFolder])
             destination_dir = QtCore.QDir(destination)

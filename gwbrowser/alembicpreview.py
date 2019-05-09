@@ -2,16 +2,16 @@
 # pylint: disable=E1101, C0103, R0913, I1101, R0201
 
 
-"""Widget responsible for displaying the contents of an alembic file."""
+"""Module defines the preview widget used to display the contents
+of an Alembic file.
 
+"""
 
-import sys
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import alembic.alembic as alembic
 import gwbrowser.common as common
-
 
 
 class AlembicNode(QtCore.QObject):
@@ -167,6 +167,7 @@ class AlembicModel(QtCore.QAbstractItemModel):
             return node.name
         if role == QtCore.Qt.SizeHintRole:
             return QtCore.QSize(300, 28)
+        return None
 
     def headerData(self, section, orientation, role):  # pylint: disable=W0613
         """Static header data."""
@@ -185,6 +186,9 @@ class AlembicModel(QtCore.QAbstractItemModel):
 
 
 class AlembicView(QtWidgets.QTreeView):
+    """Custom QTreeView responsible for displaying the contents of an
+    AlembicModel."""
+
     def __init__(self, path, parent=None):
         super(AlembicView, self).__init__(parent=parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)

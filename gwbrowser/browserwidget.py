@@ -43,6 +43,7 @@ import gwbrowser.settings as Settings
 qn = 0
 """Number of tries before quitting"""
 
+
 class SizeGrip(QtWidgets.QSizeGrip):
     def __init__(self, parent):
         super(SizeGrip, self).__init__(parent)
@@ -109,12 +110,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.effect.setOpacity(0.0)
         self.setGraphicsEffect(self.effect)
 
-        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation = QtCore.QPropertyAnimation(
+            self.effect, QtCore.QByteArray('opacity'))
         self.animation.setDuration(200)
         self.animation.setKeyValueAt(0, 0)
         self.animation.setKeyValueAt(0.5, 0.8)
         self.animation.setKeyValueAt(1, 1.0)
-
 
     @QtCore.Slot()
     def initialize(self):
@@ -153,21 +154,33 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().filterTextChanged.emit(f.model().filterText())
         ff.model().filterTextChanged.emit(ff.model().filterText())
 
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().filterFlag(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().filterFlag(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().filterFlag(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                         b.model().filterFlag(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                         b.model().filterFlag(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                         b.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().filterFlag(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                         a.model().filterFlag(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                         a.model().filterFlag(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                         a.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        f.model().filterFlagChanged.emit(Settings.MarkedAsActive, f.model().filterFlag(Settings.MarkedAsActive))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived, f.model().filterFlag(Settings.MarkedAsArchived))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, f.model().filterFlag(Settings.MarkedAsFavourite))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                         f.model().filterFlag(Settings.MarkedAsActive))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                         f.model().filterFlag(Settings.MarkedAsArchived))
+        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                         f.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsActive, ff.model().filterFlag(Settings.MarkedAsActive))
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsArchived, ff.model().filterFlag(Settings.MarkedAsArchived))
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, ff.model().filterFlag(Settings.MarkedAsFavourite))
+        ff.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                          ff.model().filterFlag(Settings.MarkedAsActive))
+        ff.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                          ff.model().filterFlag(Settings.MarkedAsArchived))
+        ff.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                          ff.model().filterFlag(Settings.MarkedAsFavourite))
 
         # Source model data
         timer = QtCore.QTimer(parent=self)
@@ -307,13 +320,14 @@ class BrowserWidget(QtWidgets.QWidget):
                 QtWidgets.QApplication.instance().quit()
 
             # Forcing the applciation to close after n tries
-            if qn > 20: # circa 5 seconds to wrap things up
+            if qn > 20:  # circa 5 seconds to wrap things up
                 QtWidgets.QApplication.instance().quit()
                 raise SystemExit('Force quitting python')
 
         @QtCore.Slot()
         def finished(thread):
-            sys.stdout.write('{} shut down.\n'.format(thread.__class__.__name__))
+            sys.stdout.write('{} shut down.\n'.format(
+                thread.__class__.__name__))
 
         self.shutdown_timer.timeout.connect(_quit)
         self.shutdown.connect(lambda: m.messageChanged.emit(u'Quitting...'))
@@ -329,10 +343,14 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.model().sourceModel().activeChanged.connect(ff.save_activated)
 
         # Making sure the Favourites widget is updated when the favourite-list changes
-        b.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
-        a.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
-        f.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
-        ff.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+        b.favouritesChanged.connect(
+            ff.model().sourceModel().modelDataResetRequested)
+        a.favouritesChanged.connect(
+            ff.model().sourceModel().modelDataResetRequested)
+        f.favouritesChanged.connect(
+            ff.model().sourceModel().modelDataResetRequested)
+        ff.favouritesChanged.connect(
+            ff.model().sourceModel().modelDataResetRequested)
 
         # Signal/slot connections for the primary bookmark/asset and filemodels
         b.model().sourceModel().modelReset.connect(
@@ -365,7 +383,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         a.model().sourceModel().modelReset.connect(f.model().invalidateFilter)
         b.model().sourceModel().modelReset.connect(ff.model().invalidateFilter)
-
 
         # Bookmark/Asset/FileModel/View  ->  DataKeyModel/View
         # These connections are responsible for keeping the DataKeyModel updated
@@ -473,7 +490,8 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(lambda x: lc._filesbutton.repaint())
         lc.listChanged.connect(lambda x: lc._favouritesbutton.repaint())
         lc.listChanged.connect(lambda x: lc._addbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._generatethumbnailsbutton.repaint())
+        lc.listChanged.connect(
+            lambda x: lc._generatethumbnailsbutton.repaint())
         lc.listChanged.connect(lambda x: lc._todobutton.repaint())
         lc.listChanged.connect(lambda x: lc._filterbutton.repaint())
         lc.listChanged.connect(lambda x: lc._collapsebutton.repaint())
@@ -485,8 +503,10 @@ class BrowserWidget(QtWidgets.QWidget):
         s.currentChanged.connect(lambda x: lc._filesbutton.repaint())
         s.currentChanged.connect(lambda x: lc._favouritesbutton.repaint())
 
-        f.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
-        ff.model().sourceModel().dataTypeChanged.connect(lambda x: lc._collapsebutton.repaint())
+        f.model().sourceModel().dataTypeChanged.connect(
+            lambda x: lc._collapsebutton.repaint())
+        ff.model().sourceModel().dataTypeChanged.connect(
+            lambda x: lc._collapsebutton.repaint())
         b.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
         a.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
         f.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
@@ -543,13 +563,17 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: active_monitor.save_state(u'job', x.data(common.ParentRole)[1]))
         b.activated.connect(
             lambda x: active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
-        active_monitor.activeBookmarkChanged.connect(b.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeBookmarkChanged.connect(lambda: lc.listChanged.emit(1))
+        active_monitor.activeBookmarkChanged.connect(
+            b.model().sourceModel().modelDataResetRequested)
+        active_monitor.activeBookmarkChanged.connect(
+            lambda: lc.listChanged.emit(1))
 
         a.activated.connect(
             lambda x: active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
-        active_monitor.activeAssetChanged.connect(a.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeAssetChanged.connect(lambda: lc.listChanged.emit(1))
+        active_monitor.activeAssetChanged.connect(
+            a.model().sourceModel().modelDataResetRequested)
+        active_monitor.activeAssetChanged.connect(
+            lambda: lc.listChanged.emit(1))
 
         f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
         lc.dataKeyChanged.connect(f.save_data_key)
@@ -560,31 +584,42 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: active_monitor.save_state(u'location', x))
 
         active_monitor.activeLocationChanged.connect(lc.dataKeyChanged)
-        active_monitor.activeLocationChanged.connect(lambda x: lc.listChanged.emit(2) if x else lc.listChanged.emit(1))
+        active_monitor.activeLocationChanged.connect(
+            lambda x: lc.listChanged.emit(2) if x else lc.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
 
         # Progresslabel
-        b.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting bookmarks...'))
-        b.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting bookmarks...'))
+        b.model().modelAboutToBeReset.connect(
+            lambda: m.messageChanged.emit(u'Getting bookmarks...'))
+        b.model().layoutAboutToBeChanged.connect(
+            lambda x: m.messageChanged.emit(u'Getting bookmarks...'))
         b.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         b.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
         b.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        b.model().sourceModel().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+        b.model().sourceModel().layoutChanged.connect(
+            lambda x: m.messageChanged.emit(u''))
 
-        a.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting assets...'))
-        a.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting assets...'))
+        a.model().modelAboutToBeReset.connect(
+            lambda: m.messageChanged.emit(u'Getting assets...'))
+        a.model().layoutAboutToBeChanged.connect(
+            lambda x: m.messageChanged.emit(u'Getting assets...'))
         a.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         a.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
         a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        a.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
+        a.model().sourceModel().layoutChanged.connect(
+            lambda: m.messageChanged.emit(u''))
 
-        f.model().modelAboutToBeReset.connect(lambda: m.messageChanged.emit(u'Getting files...'))
-        f.model().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
+        f.model().modelAboutToBeReset.connect(
+            lambda: m.messageChanged.emit(u'Getting files...'))
+        f.model().layoutAboutToBeChanged.connect(
+            lambda x: m.messageChanged.emit(u'Getting files...'))
         f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
         f.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
-        f.model().sourceModel().layoutAboutToBeChanged.connect(lambda x: m.messageChanged.emit(u'Getting files...'))
+        f.model().sourceModel().layoutAboutToBeChanged.connect(
+            lambda x: m.messageChanged.emit(u'Getting files...'))
         f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        f.model().sourceModel().layoutChanged.connect(lambda: m.messageChanged.emit(u''))
+        f.model().sourceModel().layoutChanged.connect(
+            lambda: m.messageChanged.emit(u''))
 
         f.model().sourceModel().messageChanged.connect(m.messageChanged)
 
@@ -602,7 +637,8 @@ class BrowserWidget(QtWidgets.QWidget):
             QtGui.QKeySequence(u'Alt+F'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
-        shortcut.activated.connect(self.listcontrolwidget.findChild(FilterButton).clicked)
+        shortcut.activated.connect(
+            self.listcontrolwidget.findChild(FilterButton).clicked)
 
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget
@@ -628,7 +664,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter
-            color = QtGui.QColor(255,255,255,80)
+            color = QtGui.QColor(255, 255, 255, 80)
 
             pixmaprect = QtCore.QRect(rect)
             center = pixmaprect.center()
@@ -640,7 +676,8 @@ class BrowserWidget(QtWidgets.QWidget):
                 'custom_bw', QtGui.QColor(0, 0, 0, 50), 64)
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             rect.setTop(pixmaprect.bottom() + common.INDICATOR_WIDTH)
-            common.draw_aliased_text(painter, font, rect, self.init_progress, align, color)
+            common.draw_aliased_text(
+                painter, font, rect, self.init_progress, align, color)
 
         painter.end()
 
@@ -677,6 +714,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.animation.stop()
         self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
         self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
+
 """Module defines a ListWidget used to represent the assets found in the root
 of the `server/job/assets` folder.
 
@@ -12,10 +14,8 @@ a ``renders``, ``textures``, ``exports`` and a ``scenes`` folder to be present.
 The actual name of these folders can be customized in the ``common.py`` module.
 
 """
-# pylint: disable=E1101, C0103, R0913, I1101
 
 import re
-import os
 import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
@@ -26,12 +26,10 @@ import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
-from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from gwbrowser.delegate import BookmarksWidgetDelegate
-from gwbrowser.delegate import BaseDelegate
-from gwbrowser.delegate import paintmethod
 import gwbrowser.editors as editors
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 
@@ -254,7 +252,6 @@ class BookmarksModel(BaseModel):
                 todocount = 0
             data[idx][common.TodoCountRole] = todocount
 
-
         self.endResetModel()
 
     def canDropMimeData(self, data, action, row, column, parent):
@@ -321,17 +318,19 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
+        self.add_bookmarks_widget = None
+        self.context_menu_cls = BookmarksWidgetContextMenu
+
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
         self.setDragDropOverwriteMode(False)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
-
         self.setWindowTitle(u'Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
-        self.context_menu_cls = BookmarksWidgetContextMenu
 
         self.set_model(BookmarksModel(parent=self))
-        self.add_bookmarks_widget = None
+        # I'm not sure why but the proxy is not updated properly after refresh
+        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)

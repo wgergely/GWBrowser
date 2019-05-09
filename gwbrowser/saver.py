@@ -123,7 +123,7 @@ class SaverContextMenu(BaseContextMenu):
         menu_set['Cache files'] = {
             'disabled': True
         }
-        for ext in common._exports_formats:
+        for ext in common.exports_formats:
             menu_set[ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
@@ -132,7 +132,7 @@ class SaverContextMenu(BaseContextMenu):
         menu_set['Scene files'] = {
             'disabled': True
         }
-        for ext in common._creative_cloud_formats:
+        for ext in common.:
             menu_set[ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
@@ -141,7 +141,7 @@ class SaverContextMenu(BaseContextMenu):
         menu_set['3D scene files'] = {
             'disabled': True
         }
-        for ext in common._scene_formats:
+        for ext in common.scene_formats:
             menu_set[ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }

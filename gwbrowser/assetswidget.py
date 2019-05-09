@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
 
 """Definitions for the asset model/view classes.
 
@@ -12,8 +12,6 @@ values are stored in the ``bookmark/.browser`` folder.
 
 """
 
-import time
-import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.gwscandir as gwscandir
@@ -26,7 +24,7 @@ import gwbrowser.editors as editors
 from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
@@ -79,10 +77,10 @@ class AssetModel(BaseModel):
         favourites = favourites if favourites else []
 
         if not self._parent_item:
-            self.endResetModel()
+            # self.endResetModel()
             return
         if not all(self._parent_item):
-            self.endResetModel()
+            # self.endResetModel()
             return
 
         server, job, root = self._parent_item
@@ -107,8 +105,9 @@ class AssetModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                m = self.messageChanged.emit(u'Found {} assets...'.format(c))
-                QtWidgets.QApplication.instance().processEvents(QtCore.QEventLoop.ExcludeUserInputEvents)
+                self.messageChanged.emit(u'Found {} assets...'.format(c))
+                QtWidgets.QApplication.instance().processEvents(
+                    QtCore.QEventLoop.ExcludeUserInputEvents)
 
             tooltip = u'{}\n'.format(entry.name.upper())
             tooltip += u'{}\n'.format(server.upper())
@@ -204,6 +203,8 @@ class AssetsWidget(BaseInlineIconWidget):
         self.context_menu_cls = AssetsWidgetContextMenu
 
         self.set_model(AssetModel(parent=self))
+        # I'm not sure why but the proxy is not updated properly after refresh
+        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def eventFilter(self, widget, event):
         super(AssetsWidget, self).eventFilter(widget, event)
@@ -231,7 +232,8 @@ class AssetsWidget(BaseInlineIconWidget):
         emits the ``activeChanged`` signal.
 
         """
-        local_settings.setValue(u'activepath/asset', index.data(common.ParentRole)[-1])
+        local_settings.setValue(u'activepath/asset',
+                                index.data(common.ParentRole)[-1])
         Active.paths()  # Resetting invalid paths
 
     def mouseDoubleClickEvent(self, event):
