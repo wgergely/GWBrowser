@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
+# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
 
 """Browser's custom saver widget. The widget will take into consideration the
 currently set active paths and will try to return an appropiate save-path.
@@ -24,7 +24,6 @@ Note:
 import re
 import sys
 import uuid
-import collections
 import functools
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -108,7 +107,8 @@ class SaverContextMenu(BaseContextMenu):
 
         # Parent
         buttons = self.parent().window().findChildren(SelectFolderButton)
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName()
+                         == u'SelectFolderButton'][-1]
         f = foldersbutton.view()
 
         menu_set['Image files:'] = {
@@ -132,7 +132,7 @@ class SaverContextMenu(BaseContextMenu):
         menu_set['Scene files'] = {
             'disabled': True
         }
-        for ext in common.:
+        for ext in common.creative_cloud_formats:
             menu_set[ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
@@ -210,7 +210,8 @@ class SaverFileInfo(QtCore.QObject):
         asset = None
 
         buttons = self.parent().window().findChildren(SelectFolderButton)
-        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
+        assetbutton = [f for f in buttons if f.objectName() ==
+                       u'SelectAssetButton'][-1]
         a = assetbutton.view()
 
         index = a.model().sourceModel().active_index()
@@ -266,7 +267,8 @@ class SaverFileInfo(QtCore.QObject):
     def path(self):
         """Returns the path() element of the set path."""
         buttons = self.parent().window().findChildren(SelectFolderButton)
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName()
+                         == u'SelectFolderButton'][-1]
         return foldersbutton.view().model().destination()
 
     def fileName(self, style=common.LowerCase):
@@ -468,7 +470,8 @@ class SaverWidget(QtWidgets.QDialog):
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2)
+        self.layout().setContentsMargins(common.MARGIN / 2,
+                                         common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
@@ -503,7 +506,6 @@ class SaverWidget(QtWidgets.QDialog):
 
         editor = DescriptionEditor(parent=self)
         row.layout().addWidget(editor, 1)
-
 
         bookmarkbutton = SelectBookmarkButton(parent=self)
         bookmarkview = SelectBookmarkView()
@@ -566,12 +568,14 @@ class SaverWidget(QtWidgets.QDialog):
         self.layout().addSpacing(common.MARGIN)
         self.layout().addWidget(statusbar, 1)
 
-
     def _connectSignals(self):
         buttons = self.findChildren(SelectFolderButton)
-        bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        bookmarkbutton = [
+            f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
+        assetbutton = [f for f in buttons if f.objectName() ==
+                       u'SelectAssetButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName()
+                         == u'SelectFolderButton'][-1]
         header = self.findChild(SaverHeaderWidget)
 
         b = bookmarkbutton.view()
@@ -602,12 +606,17 @@ class SaverWidget(QtWidgets.QDialog):
             lambda x: a.model().sourceModel().modelDataResetRequested.emit())
 
         a.model().sourceModel().activeChanged.connect(f.set_asset)
-        a.model().sourceModel().activeChanged.connect(lambda i: f.model().fileTypeChanged.emit(self.extension))
+        a.model().sourceModel().activeChanged.connect(
+            lambda i: f.model().fileTypeChanged.emit(self.extension))
 
-        b.model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
-        b.model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
-        a.model().sourceModel().activeChanged.connect(lambda i: self.update_filename_display())
-        a.model().sourceModel().activeChanged.connect(lambda i: self.update_filepath_display())
+        b.model().sourceModel().activeChanged.connect(
+            lambda i: self.update_filename_display())
+        b.model().sourceModel().activeChanged.connect(
+            lambda i: self.update_filepath_display())
+        a.model().sourceModel().activeChanged.connect(
+            lambda i: self.update_filename_display())
+        a.model().sourceModel().activeChanged.connect(
+            lambda i: self.update_filepath_display())
 
         b.model().sourceModel().modelReset.connect(self.update_filename_display)
         b.model().sourceModel().modelReset.connect(self.update_filepath_display)
@@ -656,9 +665,12 @@ class SaverWidget(QtWidgets.QDialog):
     def initialize(self):
         """Checks the models' active items and sets the ui elements accordingly."""
         buttons = self.findChildren(SelectFolderButton)
-        bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        bookmarkbutton = [
+            f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
+        assetbutton = [f for f in buttons if f.objectName() ==
+                       u'SelectAssetButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName()
+                         == u'SelectFolderButton'][-1]
 
         b = bookmarkbutton.view()
         a = assetbutton.view()
@@ -667,17 +679,25 @@ class SaverWidget(QtWidgets.QDialog):
         b.model().filterTextChanged.emit(b.model().filterText())
         a.model().filterTextChanged.emit(a.model().filterText())
         #
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive, b.model().filterFlag(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived, b.model().filterFlag(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, b.model().filterFlag(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                         b.model().filterFlag(Settings.MarkedAsActive))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                         b.model().filterFlag(Settings.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                         b.model().filterFlag(Settings.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive, a.model().filterFlag(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived, a.model().filterFlag(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite, a.model().filterFlag(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsActive,
+                                         a.model().filterFlag(Settings.MarkedAsActive))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
+                                         a.model().filterFlag(Settings.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
+                                         a.model().filterFlag(Settings.MarkedAsFavourite))
 
         bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
-        bookmarkbutton.view().model().sourceModel().activeChanged.emit(bookmarkbutton.view().model().sourceModel().active_index())
-        assetbutton.view().model().sourceModel().activeChanged.emit(assetbutton.view().model().sourceModel().active_index())
+        bookmarkbutton.view().model().sourceModel().activeChanged.emit(
+            bookmarkbutton.view().model().sourceModel().active_index())
+        assetbutton.view().model().sourceModel().activeChanged.emit(
+            assetbutton.view().model().sourceModel().active_index())
 
         if self.currentfile:
             # Checking if the reference file has a valid pattern
@@ -757,7 +777,8 @@ class SaverWidget(QtWidgets.QDialog):
             return
         # Resizing for display
         thumbnail = self.findChild(ThumbnailButton)
-        image = ImageCache.resize_image(self.thumbnail_image, thumbnail.height())
+        image = ImageCache.resize_image(
+            self.thumbnail_image, thumbnail.height())
 
         pixmap = QtGui.QPixmap()
         pixmap.convertFromImage(image)
@@ -821,9 +842,12 @@ class SaverWidget(QtWidgets.QDialog):
             return super(SaverWidget, self).done(result)
 
         buttons = self.findChildren(SelectFolderButton)
-        bookmarkbutton = [f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        assetbutton = [f for f in buttons if f.objectName() == u'SelectAssetButton'][-1]
-        foldersbutton = [f for f in buttons if f.objectName() == u'SelectFolderButton'][-1]
+        bookmarkbutton = [
+            f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
+        assetbutton = [f for f in buttons if f.objectName() ==
+                       u'SelectAssetButton'][-1]
+        foldersbutton = [f for f in buttons if f.objectName()
+                         == u'SelectFolderButton'][-1]
 
         if not bookmarkbutton.view().active_index().isValid():
             return QtWidgets.QMessageBox(

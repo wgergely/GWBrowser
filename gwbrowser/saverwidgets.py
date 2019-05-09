@@ -241,7 +241,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
                 if not self.create_folder(location, suffix, destination_dir):
                     return
             index = self.index(destination)
-        elif suffix in (list(common.scene_formats) + list(common.)):
+        elif suffix in (list(common.scene_formats) + list(common.creative_cloud_formats)):
             location = common.ScenesFolder
             destination = u'/'.join(parent + [common.ScenesFolder])
             destination_dir = QtCore.QDir(destination)
@@ -433,7 +433,7 @@ class SelectFolderButton(ClickableLabel):
         rect.setTop(rect.bottom() - 1)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
-        painter.drawRoundedRect(rect, 1,1)
+        painter.drawRoundedRect(rect, 1, 1)
         painter.end()
 
 
@@ -531,7 +531,8 @@ class SelectAssetButton(SelectFolderButton):
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
         widget.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
-        widget.model().sourceModel().modelAboutToBeReset.connect(functools.partial(self.setText, 'Select asset...'))
+        widget.model().sourceModel().modelAboutToBeReset.connect(
+            functools.partial(self.setText, 'Select asset...'))
         widget.model().sourceModel().modelReset.connect(
             lambda: widget.model().sourceModel().activeChanged.emit(widget.model().sourceModel().active_index()))
 
@@ -634,7 +635,6 @@ class SelectBookmarkView(SaverListView):
 
     def inline_icons_count(self):
         return 0
-
 
 
 class SelectBookmarkButton(SelectAssetButton):

@@ -159,7 +159,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(rect)
 
         if hover:
-            painter.setBrush(QtGui.QColor(255,255,255,20))
+            painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(rect)
 
     @paintmethod
@@ -199,7 +199,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not image:
             return
         color = index.data(common.ThumbnailBackgroundRole)
-        color = color if color else QtGui.QColor(0,0,0,55)
+        color = color if color else QtGui.QColor(0, 0, 0, 55)
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
@@ -235,10 +235,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
 
-         # name, color, size, opacity=1.0
+        # name, color, size, opacity=1.0
         pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
-
 
     @paintmethod
     def paint_data(self, *args):
@@ -490,7 +489,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 painter.setOpacity(0.5)
             else:
                 painter.setOpacity(1)
-            painter.setBrush(QtGui.QColor(255,255,255,20))
+            painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(bg_rect)
 
     @paintmethod
@@ -621,7 +620,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             painter, font, rect, t1, QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
 
-
         width = common.draw_aliased_text(
             painter, font, rect, u'|', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
         rect.setLeft(rect.left() + width)
@@ -638,7 +636,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
             width = common.draw_aliased_text(
                 painter, font, rect, text_, QtCore.Qt.AlignLeft, color)
-
 
         rect.moveLeft(rect.right() + common.MARGIN)
 
@@ -678,7 +675,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
         bg_rect.setWidth(w)
         bg_rect.moveCenter(rect.center())
 
-        color = QtGui.QColor(common.TEXT_SELECTED) if selected else QtGui.QColor(common.FAVOURITE)
+        color = QtGui.QColor(
+            common.TEXT_SELECTED) if selected else QtGui.QColor(common.FAVOURITE)
         color.setAlpha(175)
 
         if count:
@@ -762,7 +760,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         painter, option, index, _, _, active, archived, _ = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
-            
+
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
 
@@ -1037,7 +1035,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 frange = '{}...{}'.format(frange[0:8], frange[-8:])
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if active else color
-            rect = self._draw(painter, font, rect, frange, align, color, option, kwargs['left'])
+            rect = self._draw(painter, font, rect, frange,
+                              align, color, option, kwargs['left'])
 
             # The prefix
             color = common.TEXT_SELECTED if selected else common.TEXT

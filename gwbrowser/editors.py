@@ -50,7 +50,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.show()
         self.reset_pixmap()
 
-
     def reset_pixmap(self):
         self.setStyleSheet(
             u'QLabel {background-color: rgba(50,50,50,50); color:rgba(200,200,200,255);}')

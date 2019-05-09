@@ -90,7 +90,8 @@ class ImageCacheWorker(BaseWorker):
                 b = OpenImageIO.ImageBufAlgo.channels(
                     b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
             else:
-                b = OpenImageIO.ImageBufAlgo.channels(b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+                b = OpenImageIO.ImageBufAlgo.channels(
+                    b, ('R', 'G', 'B'), ('R', 'G', 'B'))
 
         # There seems to be a problem with the ICC profile exported from Adobe
         # applications and the PNG library. The sRGB profile seems to be out of date
@@ -157,7 +158,6 @@ class ImageCacheThread(BaseThread):
     Worker = ImageCacheWorker
 
 
-
 class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
     images.
@@ -201,7 +201,8 @@ class ImageCache(QtCore.QObject):
         ImageCache.__instance = self
 
         # This will cache all the thumbnail images
-        rsc_path = lambda f: os.path.normpath(os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
+        def rsc_path(f): return os.path.normpath(
+            os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
         ImageCache.instance().get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
         self.threads = {}
@@ -336,7 +337,6 @@ class ImageCache(QtCore.QObject):
 
         ImageCacheWorker.add_to_queue(filtered(indexes, overwrite=overwrite))
 
-
     @classmethod
     def generate(cls, index, source=None):
         """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
@@ -374,12 +374,10 @@ class ImageCache(QtCore.QObject):
             'BackgroundColor',
             overwrite=False)
 
-
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
         index.model().dataChanged.emit(index, index)
-
 
     def remove(self, index):
         """Deletes the thumbnail file from storage and the cached entry associated
@@ -396,15 +394,17 @@ class ImageCache(QtCore.QObject):
         if file_.exists():
             file_.remove()
 
-        keys = [k for k in self._data if index.data(common.ThumbnailPathRole).lower() in k.lower()]
+        keys = [k for k in self._data if index.data(
+            common.ThumbnailPathRole).lower() in k.lower()]
         for key in keys:
             del self._data[key]
 
         data = index.model().model_data()
-        data[index.row()][common.ThumbnailRole] = data[index.row()][common.DefaultThumbnailRole]
-        data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()][common.DefaultThumbnailBackgroundRole]
+        data[index.row()][common.ThumbnailRole] = data[index.row()
+                                                       ][common.DefaultThumbnailRole]
+        data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()
+                                                                 ][common.DefaultThumbnailBackgroundRole]
         index.model().dataChanged.emit(index, index)
-
 
     @classmethod
     def pick(cls, index):

@@ -23,8 +23,8 @@ Example:
 import sys
 import os
 import tempfile
-
 from PySide2 import QtCore, QtWidgets, QtGui
+import gwbrowser.common as common
 
 
 class ScreenGrabber(QtWidgets.QDialog):
@@ -212,7 +212,6 @@ class ScreenGrabber(QtWidgets.QDialog):
         :returns: Captured screen
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
-
         # On macosx we're using the built-in capture-tool, grab window doesn't
         # seem to work.
         if common.osx:
@@ -245,7 +244,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         self._fit_screen_geometry()
         # Start fade in animation
-        fade_anim = QtCore.QPropertyAnimation(self, QtCore.QBytreArray('_opacity_anim_prop'), parent=self)
+        fade_anim = QtCore.QPropertyAnimation(
+            self, QtCore.QBytreArray('_opacity_anim_prop'), parent=self)
         fade_anim.setStartValue(self._opacity)
         fade_anim.setEndValue(127)
         fade_anim.setDuration(300)

@@ -108,7 +108,8 @@ class Progresslabel(QtWidgets.QLabel):
         self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sleft)', flags=re.IGNORECASE)
 
         self.setText(u'')
-        self.messageChanged.connect(self.setText, type=QtCore.Qt.DirectConnection)
+        self.messageChanged.connect(
+            self.setText, type=QtCore.Qt.DirectConnection)
         self.messageChanged.connect(
             lambda x: QtWidgets.QApplication.instance().processEvents,
             type=QtCore.Qt.DirectConnection)
@@ -125,12 +126,13 @@ class Progresslabel(QtWidgets.QLabel):
             else:
                 text = match.expand(ur'\1')
 
-
         if ImageCacheWorker.queue.qsize():
-            text = u'{} - {} left'.format(text if text else u'Processing thumbnails', qsize)
+            text = u'{} - {} left'.format(
+                text if text else u'Processing thumbnails', qsize)
         else:
             if FileInfoWorker.queue.qsize():
-                text = u'{} - {} left'.format(text if text else u'Loading items', qsize)
+                text = u'{} - {} left'.format(
+                    text if text else u'Loading items', qsize)
 
         self.messageChanged.emit(text)
         # self.setText(text)
@@ -325,7 +327,7 @@ class ControlButton(ClickableLabel):
         option.initFrom(self)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        color = common.FAVOURITE if self.state() else QtGui.QColor(255,255,255,50)
+        color = common.FAVOURITE if self.state() else QtGui.QColor(255, 255, 255, 50)
         color = common.TEXT_SELECTED if hover else color
         pixmap = self.pixmap(color)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
@@ -478,7 +480,8 @@ class ToggleArchivedButton(ControlButton):
     @QtCore.Slot()
     def action(self):
         val = self.current().model().filterFlag(Settings.MarkedAsArchived)
-        self.current().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not val)
+        self.current().model().filterFlagChanged.emit(
+            Settings.MarkedAsArchived, not val)
 
     def repaint(self):
         super(ToggleArchivedButton, self).repaint()
@@ -507,7 +510,8 @@ class ToggleFavouriteButton(ControlButton):
     @QtCore.Slot()
     def action(self):
         val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
-        self.current().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not val)
+        self.current().model().filterFlagChanged.emit(
+            Settings.MarkedAsFavourite, not val)
 
     def repaint(self):
         super(ToggleFavouriteButton, self).repaint()
@@ -562,7 +566,6 @@ class AddButton(ControlButton):
         if self._parent.currentIndex() == 1:
             return
 
-
         # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
             import gwbrowser.saver as saver
@@ -575,7 +578,7 @@ class AddButton(ControlButton):
             bookmark_model = BookmarksModel()
             asset_model = AssetModel()
 
-            extension = u'ext' # This is a generic extension that can be overriden
+            extension = u'ext'  # This is a generic extension that can be overriden
             currentfile = None
             data_key = self.current().model().sourceModel().data_key()
             subfolder = data_key if data_key else u'/'
@@ -583,14 +586,17 @@ class AddButton(ControlButton):
             if index.isValid():
                 # When there is a file selected, we will check if it is a sequence
                 # increment the version number if it is.
-                iscollapsed = common.is_collapsed(index.data(QtCore.Qt.StatusTipRole))
+                iscollapsed = common.is_collapsed(
+                    index.data(QtCore.Qt.StatusTipRole))
                 if iscollapsed:
                     # Replacing the frame-number with placeholder characters
                     currentfile = iscollapsed.expand(ur'\1{}\3')
-                    currentfile = currentfile.format(u'#' * len(index.data(common.FramesRole)[-1]))
+                    currentfile = currentfile.format(
+                        u'#' * len(index.data(common.FramesRole)[-1]))
                 else:
                     # Getting the last frame of the sequence
-                    currentfile = common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
+                    currentfile = common.get_sequence_endpath(
+                        index.data(QtCore.Qt.StatusTipRole))
                 extension = currentfile.split(u'.').pop()
 
             # If both the currentfile and the data_key are valid we'll set
@@ -635,22 +641,26 @@ class AddButton(ControlButton):
             def fileDescriptionAdded(args):
                 """Slot responsible for saving the description"""
                 server, job, root, filepath, description = args
-                settings = Settings.AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+                settings = Settings.AssetSettings(
+                    QtCore.QModelIndex(), args=(server, job, root, filepath))
                 settings.setValue(u'config/description', description)
 
             @QtCore.Slot(tuple)
             def fileThumbnailAdded(args):
                 server, job, root, filepath, image = args
-                settings = Settings.AssetSettings(QtCore.QModelIndex(), args=(server, job, root, filepath))
+                settings = Settings.AssetSettings(
+                    QtCore.QModelIndex(), args=(server, job, root, filepath))
                 if not image.isNull():
                     image.save(settings.thumbnail_path())
 
                 fileswidget = self.parent().parent().findChild(FilesWidget)
                 sizehint = fileswidget.itemDelegate().sizeHint(None, None)
                 height = sizehint.height() - 2
-                ImageCache.get(settings.thumbnail_path(), height, overwrite=True)
+                ImageCache.get(settings.thumbnail_path(),
+                               height, overwrite=True)
 
-                self.parent().parent().findChild(FilesWidget).model().sourceModel().modelDataResetRequested.emit()
+                self.parent().parent().findChild(FilesWidget).model(
+                ).sourceModel().modelDataResetRequested.emit()
 
             widget.fileSaveRequested.connect(fileSaveRequested)
             widget.fileDescriptionAdded.connect(fileDescriptionAdded)
@@ -692,11 +702,11 @@ class GenerateThumbnailsButton(ControlButton):
         val = model.generate_thumbnails
 
         cls = model.__class__.__name__
-        local_settings.setValue(u'widget/{}/generate_thumbnails'.format(cls), not val)
+        local_settings.setValue(
+            u'widget/{}/generate_thumbnails'.format(cls), not val)
         if not val == False:
             ImageCacheWorker.reset_queue()
         model.generate_thumbnails = not val
-
 
     def repaint(self):
         """Will only show for favourite and file items."""
@@ -769,7 +779,8 @@ class DataKeyViewDelegate(BaseDelegate):
             if index.data(common.TodoCountRole) >= 999:
                 text = u'   |   999+ files'
             else:
-                text = u'   |   {} files'.format(index.data(common.TodoCountRole))
+                text = u'   |   {} files'.format(
+                    index.data(common.TodoCountRole))
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if hover else color
             width = common.draw_aliased_text(
@@ -817,7 +828,8 @@ class DataKeyView(QtWidgets.QListView):
         self.effect.setOpacity(0.0)
         self.viewport().setGraphicsEffect(self.effect)
 
-        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation = QtCore.QPropertyAnimation(
+            self.effect, QtCore.QByteArray('opacity'))
         self.animation.setDuration(250)
         self.animation.setKeyValueAt(0, 0)
         self.animation.setKeyValueAt(0.5, 0.8)
@@ -929,7 +941,8 @@ class DataKeyModel(BaseModel):
 
         parent_path = u'/'.join(self._parent_item)
         indexes = []
-        entries = sorted(([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
+        entries = sorted(
+            ([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
 
         for entry in entries:
             if entry.name in common.ASSET_FOLDERS:
@@ -1116,12 +1129,12 @@ class FilesButton(BaseControlButton):
 
         parent = self.view().parent().parent()
         if parent.stackedwidget.currentIndex() != 2:
-            return # We're not showing the widget when files are not tyhe visible list
+            return  # We're not showing the widget when files are not tyhe visible list
 
         geo = parent.stackedwidget.currentWidget().geometry()
         self.view().setGeometry(geo)
         # Align to top-left corner and sets the width
-        topleft =parent.stackedwidget.currentWidget().mapToGlobal(
+        topleft = parent.stackedwidget.currentWidget().mapToGlobal(
             parent.stackedwidget.currentWidget().rect().topLeft())
         self.view().move(topleft)
 
@@ -1132,6 +1145,7 @@ class FilesButton(BaseControlButton):
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
         select_key(parent)
+
 
 class FavouritesButton(BaseControlButton):
     """Drop-down widget to switch between the list"""

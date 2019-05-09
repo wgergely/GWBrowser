@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
+# pylint: disable=E1101, C0103, R0913, I1101, E1120
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
-import sys
-import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.browserwidget import BrowserWidget, SizeGrip
 from gwbrowser.listcontrolwidget import BrowserButtonContextMenu
-from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.editors import ClickableLabel
 from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
@@ -49,7 +46,6 @@ class TrayMenu(BrowserButtonContextMenu):
             self.parent().showNormal()
             self.parent().activateWindow()
 
-
         menu_set['Keep on top of other windows'] = {
             'checkable': True,
             'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
@@ -79,6 +75,7 @@ class CloseButton(ClickableLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
 
 class MinimizeButton(ClickableLabel):
     """Custom QLabel with a `clicked` signal."""
@@ -260,7 +257,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.resize(size)
         self.move(pos)
         common.move_widget_to_available_geo(self)
-
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""

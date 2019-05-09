@@ -14,14 +14,15 @@ def check_dependency(module):
         sys.stdout.write('# Found {}\n'.format(module))
         return True
     except ImportError as err:
-        sys.stderr.write('\n\n# Missing dependency: Unabled to import {}:\n# {}\n'.format(module, err))
+        sys.stderr.write(
+            '\n\n# Missing dependency: Unabled to import {}:\n# {}\n'.format(module, err))
         return False
+
 
 def run():
     """This method is responsible for running GWBrowser with an import statement."""
     try:
         from PySide2 import QtCore
-        import functools
         import gwbrowser.standalonewidgets
 
         sys.stdout.write('# Starting Standalone app...\n')
@@ -39,17 +40,17 @@ def run():
             res = QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.Warning,
                 u'Could not start GWBrowser',
-                u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(err, traceback.format_exc()),
+                u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(
+                    err, traceback.format_exc()),
                 QtWidgets.QMessageBox.Ok)
             return res.exec_()
         except Exception as err:
-            raise RuntimeError('# An error occured starting GWBrowser:\n{}'.format(err))
+            raise RuntimeError(
+                '# An error occured starting GWBrowser:\n{}'.format(err))
         finally:
             raise SystemExit('# An error occured starting GWBrowser')
     finally:
         raise SystemExit('# An error occured starting GWBrowser')
-
-
 
 
 if __name__ == '__main__':

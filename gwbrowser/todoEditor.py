@@ -12,8 +12,6 @@ Methods:
 
 """
 
-import os
-import sys
 import uuid
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -295,10 +293,11 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         if not index.isValid():
             return
 
-        img = lambda url: '<p><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></p>'.format(
+        def img(url): return '<p><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></p>'.format(
             url=url.toLocalFile(),
             width=560)
-        href = lambda url: '<p><a href="{url}">{url}</a></p>'.format(
+
+        def href(url): return '<p><a href="{url}">{url}</a></p>'.format(
             style='align:left;',
             url=url.toLocalFile())
 
@@ -346,7 +345,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
                     url = QtCore.QUrl.fromLocalFile(dest)
                     self.insertHtml(img(url))
 
-
     def open_url(self, url):
         """We're handling the clicking of anchors here manually."""
         if not url.isValid():
@@ -386,7 +384,8 @@ class RemoveButton(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(RemoveButton, self).__init__(parent=parent)
 
-        pixmap = ImageCache.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'todo_remove', common.FAVOURITE, 32)
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -521,7 +520,8 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay_widget.close()
         overlay_widget.deleteLater()
         parent_widget.parent().separator.setHidden(True)
-        pixmap = ImageCache.get_rsc_pixmap(u'todo_remove', common.FAVOURITE, 32)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'todo_remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
 
@@ -545,7 +545,6 @@ class CheckBoxButton(QtWidgets.QLabel):
         self.set_pixmap(self._checked)
 
         self._connectSignals()
-
 
     @property
     def checked(self):
@@ -780,7 +779,8 @@ class TodoItemWidget(QtWidgets.QWidget):
         self.effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.effect.setOpacity(1.0)
 
-        self.animation = QtCore.QPropertyAnimation(self.effect, QtCore.QByteArray('opacity'))
+        self.animation = QtCore.QPropertyAnimation(
+            self.effect, QtCore.QByteArray('opacity'))
         self.animation.setDuration(1500)
         self.animation.setKeyValueAt(0, 0)
         self.animation.setKeyValueAt(0.5, 0.8)
@@ -886,12 +886,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.save_timer.timeout.connect(self.save_settings)
         self.save_timer.start()
 
-
     @property
     def index(self):
         """The path used to initialize the widget."""
         return self._index
-
 
     def eventFilter(self, widget, event):
         """Using the custom event filter to paint the background."""
@@ -910,7 +908,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
             text = u'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.'
             text = text if not len(self.editors.items) else u''
-            common.draw_aliased_text(painter, font, rect, text, QtCore.Qt.AlignCenter, common.FAVOURITE)
+            common.draw_aliased_text(
+                painter, font, rect, text, QtCore.Qt.AlignCenter, common.FAVOURITE)
             painter.end()
         return False
 
@@ -1087,10 +1086,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         if self.index.isValid():
             parent = self.index.data(common.ParentRole)[-1]
-            text = u'{} |  Notes and Tasks'.format(
-                parent.upper(),
-                self.index.data(QtCore.Qt.DisplayRole).upper()
-            )
+            text = u'{} | Notes and Tasks'.format(parent.upper())
         else:
             text = u'Notes and Tasks'
 
@@ -1181,7 +1177,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.move(pos)
         self.resize(size)
         common.move_widget_to_available_geo(self)
-
 
 
 if __name__ == '__main__':

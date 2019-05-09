@@ -14,10 +14,7 @@ QModelIndexes from the thread's python Queue.
 import sys
 import traceback
 import Queue
-
-from PySide2 import QtWidgets, QtCore
-
-import gwbrowser.common as common
+from PySide2 import QtCore
 
 
 class Unique(Queue.Queue):
@@ -47,7 +44,6 @@ class BaseWorker(QtCore.QObject):
     queueError = QtCore.Signal(basestring)
     finished = QtCore.Signal()
 
-
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
         self._shutdown = False
@@ -62,7 +58,8 @@ class BaseWorker(QtCore.QObject):
 
         """
         # Adding a dummy object should clear the get() block
-        sys.stdout.write('# Stopping {} worker...\n'.format(self.__class__.__name__))
+        sys.stdout.write('# Stopping {} worker...\n'.format(
+            self.__class__.__name__))
         self._shutdown = True
         self.queue.put(QtCore.QModelIndex())
 
@@ -109,7 +106,8 @@ class BaseWorker(QtCore.QObject):
             self.error.emit(errstr)
         finally:
             if self._shutdown:
-                sys.stdout.write('# {} worker finished processing.\n'.format(self.__class__.__name__))
+                sys.stdout.write('# {} worker finished processing.\n'.format(
+                    self.__class__.__name__))
                 self.finished.emit()
                 return
             self.begin_processing()
