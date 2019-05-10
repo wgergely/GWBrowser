@@ -307,7 +307,6 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.installEventFilter(self)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
             QtCore.Qt.Window)
 
         self._createUI()
@@ -442,17 +441,6 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.close)
 
-        if self.parent():
-            self.parent().model().sourceModel().modelReset.connect(self.post_event)
-
-    @QtCore.Slot()
-    def post_event(self):
-        """This slot fires after the new bookmark has been added to the bookmarks widget."""
-        if not self.new_key:
-            return
-        self.activate_bookmark(self.new_key)
-        self.new_key = None
-
     @QtCore.Slot(int)
     def select_saved_item(self, index, key=None, combobox=None):
         """Sets the currently active job as the selected item."""
@@ -516,7 +504,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         bookmarks = bookmarks if bookmarks else {}
 
         for entry in sorted(arr):
-            entry = entry.replace('\\', '/')
+            entry = entry.replace(u'\\', u'/')
             item = QtWidgets.QListWidgetItem()
             name = entry.replace(path, u'').strip(u'/')
             item.setData(QtCore.Qt.DisplayRole, name)
@@ -525,7 +513,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
             # Disabling the item if it has already been added to the widget
-            if entry.replace('\\', '/') in bookmarks:
+            if entry.replace(u'\\', u'/') in bookmarks:
                 item.setFlags(QtCore.Qt.NoItemFlags)
 
             self.pick_root_widget.view().addItem(item)
@@ -663,32 +651,30 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             local_settings.setValue(u'bookmarks', bookmarks)
             sys.stdout.write('# GWBrowser: Bookmark {} added\n'.format(key))
 
+        # We will set the newly added Bookmark as the active item
         if self.parent():
             self.new_key = key
-            self.parent().unset_activated()
-            self.parent().model().sourceModel().modelDataResetRequested.emit()
-            self.add_root_folders(self.pick_job_widget.currentIndex())
+            self.parent().model().sourceModel().beginResetModel()
+            self.parent().model().sourceModel().__initdata__()
+        self.add_root_folders(self.pick_job_widget.currentIndex())
 
-    @QtCore.Slot(unicode)
-    def activate_bookmark(self, path):
+    def activate_bookmark(self):
         """Selects and activates the newly added bookmark in the `BookmarksWidget`."""
-        try:
-            # This is needed - it is not possible to disconnect a partial object in PySide2, not that I know of at least...
-            if not self.parent():
-                return
-        except RuntimeError:
+        if not self.new_key:
             return
 
         for n in xrange(self.parent().model().rowCount()):
             index = self.parent().model().index(n, 0)
-            if index.data(QtCore.Qt.StatusTipRole) == path:
+            if index.data(QtCore.Qt.StatusTipRole) == self.new_key:
                 self.parent().selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
                 self.parent().scrollTo(index)
                 self.parent().activate(index)
+                self.new_key = None
                 return
+        self.new_key = None
 
     def add_servers_from_config(self):
         """Querries the `gwbrowser.common` module and populates the widget with
