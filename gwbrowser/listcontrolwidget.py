@@ -745,7 +745,7 @@ class DataKeyViewDelegate(BaseDelegate):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - 2)
+        rect.setHeight(rect.height() - 1)
         rect.moveCenter(center)
 
         background = QtGui.QColor(common.BACKGROUND)
@@ -782,23 +782,32 @@ class DataKeyViewDelegate(BaseDelegate):
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
         rect.setLeft(rect.left() + width)
 
+        items = []
+        # Adding an indicator for the number of items in the folder
         if index.data(common.TodoCountRole):
             if index.data(common.TodoCountRole) >= 999:
-                text = u'   |   999+ files'
+                text = u'999+ items'
             else:
-                text = u'   |   {} files'.format(
+                text = u'{} items'.format(
                     index.data(common.TodoCountRole))
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if hover else color
+            items.append((text, color))
+
+        if index.data(QtCore.Qt.ToolTipRole):
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if hover else color
+            items.append((index.data(QtCore.Qt.ToolTipRole), color))
+
+        for text, color in items:
+            width = common.draw_aliased_text(
+                painter, common.SecondaryFont, rect, u'  |  ', QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SEPARATOR)
+            rect.setLeft(rect.left() + width)
+
             width = common.draw_aliased_text(
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
-        text = '   |   {}'.format(index.data(QtCore.Qt.ToolTipRole))
-        color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-        color = common.TEXT_SELECTED if hover else color
-        width = common.draw_aliased_text(
-            painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
@@ -813,42 +822,36 @@ class ListControlContextMenu(BaseContextMenu):
 class DataKeyView(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, altparent=None):
         super(DataKeyView, self).__init__(parent=parent)
+        self.altparent = altparent
+        self._context_menu_active = False
+        self.context_menu_cls = ListControlContextMenu
+
         common.set_custom_stylesheet(self)
 
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-        self.context_menu_cls = ListControlContextMenu
-        self._context_menu_active = False
         self.clicked.connect(self.activated)
         self.clicked.connect(self.hide)
-        self.clicked.connect(self.parent().signal_dispatcher)
+        self.clicked.connect(self.altparent.signal_dispatcher)
+        self.parent().resized.connect(self.setGeometry)
 
         self.setModel(DataKeyModel())
         self.setItemDelegate(DataKeyViewDelegate(parent=self))
-
-        # self.setWindowOpacity(0.0)
-        self.effect = QtWidgets.QGraphicsOpacityEffect(self.viewport())
-        self.effect.setOpacity(0.0)
-        self.viewport().setGraphicsEffect(self.effect)
-
-        self.animation = QtCore.QPropertyAnimation(
-            self.effect, QtCore.QByteArray('opacity'))
-        self.animation.setDuration(250)
-        self.animation.setKeyValueAt(0, 0)
-        self.animation.setKeyValueAt(0.5, 0.8)
-        self.animation.setKeyValueAt(1, 1.0)
-
         self.installEventFilter(self)
+
+    def hideEvent(self, event):
+        self.parent().verticalScrollBar().setHidden(False)
+
+    def showEvent(self, event):
+        self.parent().verticalScrollBar().setHidden(True)
 
     def eventFilter(self, widget, event):
         if widget is not self:
@@ -864,24 +867,6 @@ class DataKeyView(QtWidgets.QListView):
             painter.end()
             return True
         return False
-        #
-        # def paintEvent(self, event):
-        #     """Custom paint event for the DataKeyView."""
-        #     option = QtWidgets.QStyleOption()
-        #     option.initFrom(self)
-        #     hover = option.state & QtWidgets.QStyle.State_MouseOver
-        #
-        #     super(DataKeyView, self).paintEvent()
-        #     for n in xrange(self.model().rowCount()):
-        #         index = self.model().index(n, 0)
-        #         self.drawRow(option, index)
-        #     return
-
-    def hideEvent(self, event):
-        self.animation.stop()
-
-    def showEvent(self, event):
-        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
@@ -940,7 +925,7 @@ class DataKeyModel(BaseModel):
             self.threads[n].start()
 
     def data_key(self):
-        return 'default'
+        return u'default'
 
     def data_type(self):
         return common.FileItem
@@ -973,13 +958,8 @@ class DataKeyModel(BaseModel):
         default_thumbnail = ImageCache.instance().get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
-            (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
+            common.INLINE_ICON_SIZE)
         default_thumbnail = default_thumbnail.toImage()
-        thumbnail = ImageCache.instance().get_rsc_pixmap(
-            u'folder_sm',
-            common.SECONDARY_TEXT,
-            (common.BOOKMARK_ROW_HEIGHT / 1.5) - 2)
-        thumbnail = thumbnail.toImage()
 
         parent_path = u'/'.join(self._parent_item)
         indexes = []
@@ -1005,9 +985,9 @@ class DataKeyModel(BaseModel):
                 QtCore.Qt.ToolTipRole: description,
                 QtCore.Qt.SizeHintRole: secondary_rowsize,
                 #
-                common.DefaultThumbnailRole: thumbnail,
+                common.DefaultThumbnailRole: default_thumbnail,
                 common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
-                common.ThumbnailRole: thumbnail,
+                common.ThumbnailRole: default_thumbnail,
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
@@ -1062,7 +1042,7 @@ class BaseControlButton(ClickableLabel):
             text == u'File'
         self.setText(text.title())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
-        width = metrics.width(self.text()) + common.INDICATOR_WIDTH
+        width = metrics.width(self.text()) + (common.INDICATOR_WIDTH * 2)
         self.setFixedWidth(width)
 
     def enterEvent(self, event):
@@ -1074,8 +1054,13 @@ class BaseControlButton(ClickableLabel):
         self.repaint()
 
     def paintEvent(self, event):
+        """The control button's paint method - shows the the set text and
+        an underline if the tab is active."""
         if not self._parent:
             return
+
+        rect = QtCore.QRect(self.rect())
+        rect.setLeft(rect.left() + common.INDICATOR_WIDTH)
 
         painter = QtGui.QPainter()
         painter.begin(self)
@@ -1094,7 +1079,7 @@ class BaseControlButton(ClickableLabel):
         common.draw_aliased_text(
             painter,
             common.PrimaryFont,
-            self.rect(),
+            rect,
             self.text(),
             QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
             color
@@ -1102,7 +1087,6 @@ class BaseControlButton(ClickableLabel):
 
         if self._parent.currentIndex() == self.index:
             metrics = QtGui.QFontMetrics(common.PrimaryFont)
-            rect = QtCore.QRect(self.rect())
             center = rect.center()
             rect.setHeight(3)
             rect.moveCenter(center)
@@ -1140,8 +1124,35 @@ class FilesButton(BaseControlButton):
         self.set_text(u'Files')
         self.setStatusTip(
             u'Click to see or change the current list of files')
-
         self.clicked.connect(self.show_view)
+
+    def paintEvent(self, event):
+        """Indicating the visibility of the DataKeyView."""
+        if not self._view.isHidden():
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            rect = self.rect()
+            rect.setTop(rect.top() + 4)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(common.SECONDARY_BACKGROUND)
+            painter.drawRoundedRect(rect, 6, 6)
+
+            rect.setTop(rect.top() + 6)
+            painter.drawRect(rect)
+            common.draw_aliased_text(
+                painter,
+                common.PrimaryFont,
+                self.rect(),
+                u'...',
+                QtCore.Qt.AlignCenter,
+                common.TEXT
+            )
+            painter.end()
+        else:
+            super(FilesButton, self).paintEvent(event)
+
 
     def view(self):
         return self._view
@@ -1152,45 +1163,37 @@ class FilesButton(BaseControlButton):
     @QtCore.Slot()
     def show_view(self):
         """Shows the ``DataKeyView`` widget for browsing."""
-        if self.view().model().rowCount() == 0:
+        if not self.view():
             return
 
-        def select_key(parent):
-            """Selects the current data-key in the list."""
-            key = parent.stackedwidget.currentWidget().model().sourceModel().data_key()
-            if not key:
-                return
-            for n in xrange(self.view().model().rowCount()):
-                index = self.view().model().index(n, 0)
-                if key.lower() == index.data(QtCore.Qt.DisplayRole).lower():
-                    self.view().selectionModel().setCurrentIndex(
-                        index, QtCore.QItemSelectionModel.ClearAndSelect)
-                    return
-
-        if not self.view():
+        if self.view().model().rowCount() == 0:
             return
 
         if not self.view().isHidden():
             self.view().hide()
+            return
 
-        parent = self.view().parent().parent()
-        if parent.stackedwidget.currentIndex() != 2:
+        stackedwidget = self.view().altparent.parent().stackedwidget
+        if stackedwidget.currentIndex() != 2:
             return  # We're not showing the widget when files are not tyhe visible list
 
-        geo = parent.stackedwidget.geometry()
+        geo = self.view().parent().geometry()
         self.view().setGeometry(geo)
-        # Align to top-left corner and sets the width
-        topleft = parent.stackedwidget.mapToGlobal(
-            parent.stackedwidget.rect().topLeft())
-        self.view().move(topleft)
-
+        self.view().move(0,0)
         self.view().show()
-        self.view().raise_()
-
-        common.move_widget_to_available_geo(self.view())
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
-        select_key(parent)
+        key = stackedwidget.currentWidget().model().sourceModel().data_key()
+        if not key:
+            return
+
+        for n in xrange(self.view().model().rowCount()):
+            index = self.view().model().index(n, 0)
+            if key.lower() == index.data(QtCore.Qt.DisplayRole).lower():
+                self.view().selectionModel().setCurrentIndex(
+                    index, QtCore.QItemSelectionModel.ClearAndSelect)
+                self.view().scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                break
 
 
 class FavouritesButton(BaseControlButton):
@@ -1226,7 +1229,10 @@ class ListControlWidget(QtWidgets.QWidget):
         self._bookmarksbutton = BookmarksButton(parent=self)
         self._assetsbutton = AssetsButton(parent=self)
         self._filesbutton = FilesButton(parent=self)
-        self._controlview = DataKeyView(parent=self)
+
+        self._controlview = DataKeyView(parent=self.parent().fileswidget, altparent=self)
+        self._controlview.setHidden(True)
+
         self._filesbutton.set_view(self._controlview)
         self._favouritesbutton = FavouritesButton(parent=self)
 
