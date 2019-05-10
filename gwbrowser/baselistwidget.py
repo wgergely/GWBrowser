@@ -200,6 +200,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data = {}
         self._datakey = None
         self._datatype = None
+        self._keywords = []
         self._parent_item = None
 
         self._sortrole = None
