@@ -137,7 +137,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filterAcceptsRow(self, source_row, parent=None):
-        """The main method responsible for filtering rows in the proxy model."""
+        """The main method responsible for filtering rows in the proxy model.
+        Most filtering happens via the user-inputted filter string."""
 
         data = self.sourceModel().model_data()
         if source_row not in data:
@@ -153,19 +154,32 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self.filterFlag(Settings.MarkedAsActive) and not active:
             return False
 
-        if self.filterText():
+        # Let's construct the searchable filter text here
+        # It is a multiline string of the filepath, desciption and file details
+        filtertext = self.filterText()
+        if filtertext:
             searchable = u'{}\n{}\n{}'.format(
                 data[source_row][QtCore.Qt.StatusTipRole],
                 data[source_row][common.DescriptionRole],
                 data[source_row][common.FileDetailsRole]
             )
+
+            # Any string prefixed by -- will be excluded automatically
+            match_it = re.finditer(r'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+            for m in match_it:
+                match = re.search(m.group(2), searchable,
+                                  flags=re.IGNORECASE | re.MULTILINE)
+                if match:
+                    return False
+                else:
+                    filtertext = filtertext.replace(m.group(1), u'')
             try:
-                match = re.search(self.filterText(), searchable,
+                match = re.search(filtertext, searchable,
                                   flags=re.IGNORECASE | re.MULTILINE)
                 if not match:
                     return False
             except:
-                if self.filterText().lower() not in searchable.lower():
+                if filtertext.lower() not in searchable.lower():
                     return False
 
         if archived and not self.filterFlag(Settings.MarkedAsArchived):
