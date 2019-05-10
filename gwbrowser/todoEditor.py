@@ -1053,7 +1053,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def add_new_item(self):
         """Adds a new item with some default styling."""
-        html = u'<p>Edit me...</p>'
+        html = u''
         self.add_item(text=html, idx=0)
 
     def _createUI(self):

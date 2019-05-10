@@ -313,7 +313,7 @@ class BrowserWidget(QtWidgets.QWidget):
             for thread in threadpool:
                 if thread.isRunning():
                     thread.worker.shutdown()
-                    thread.quit()
+                    thread.terminate()
 
             if all([not f.isRunning() for f in threadpool]):
                 sys.stdout.write('All threads finished.')
@@ -478,10 +478,10 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().activeChanged.connect(
             lambda x: self.fileswidget.model().sourceModel().data_key())
 
-        lc._bookmarksbutton.clicked.connect(lambda: lc.listChanged.emit(0))
-        lc._assetsbutton.clicked.connect(lambda: lc.listChanged.emit(1))
-        lc._filesbutton.clicked.connect(lambda: lc.listChanged.emit(2))
-        lc._favouritesbutton.clicked.connect(lambda: lc.listChanged.emit(3))
+        lc._bookmarksbutton.clicked.connect(lambda: lc.listChanged.emit(0), type=QtCore.Qt.QueuedConnection)
+        lc._assetsbutton.clicked.connect(lambda: lc.listChanged.emit(1), type=QtCore.Qt.QueuedConnection)
+        lc._filesbutton.clicked.connect(lambda: lc.listChanged.emit(2), type=QtCore.Qt.QueuedConnection)
+        lc._favouritesbutton.clicked.connect(lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
 
         # Updates the list-control buttons when changing lists
         lc.listChanged.connect(lambda x: lb.repaint())

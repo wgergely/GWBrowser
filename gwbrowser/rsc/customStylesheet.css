@@ -244,7 +244,7 @@ QListView {{
 }}
 DataKeyView {{
 	margin: 0px;
-	padding: 0px 0px 0px 0px;
+	padding: 0px;
 }}
 
 
@@ -314,7 +314,7 @@ QMenu {{
 		font-size: {SMALL_FONT_SIZE}pt;
 		margin: 0px;
 		border: none;
-		border-radius: 3px;
+		menu-scrollable: 1;
 }}
 QMenu::item {{
 	padding: 6px 30px 6px 30px;

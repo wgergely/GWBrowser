@@ -12,7 +12,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 import gwbrowser.gwscandir as gwscandir
-import gwbrowser.editors as editors
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 import gwbrowser.settings as Settings
@@ -388,6 +387,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu item resposible for general thumbnail operations."""
+        import gwbrowser.editors as editors # local import to aviod circular imports
 
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)

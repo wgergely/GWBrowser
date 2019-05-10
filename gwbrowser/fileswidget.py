@@ -315,11 +315,10 @@ class FilesModel(BaseModel):
 
         nth = 987
         c = 0
-        for _, _, fileentries in common.walk(location_path):
+        for _, folderentry, fileentries in common.walk(location_path):
             for entry in fileentries:
                 filepath = entry.path.replace(u'\\', u'/')
                 filename = entry.name
-                # stat = entry.stat()
 
                 if location in common.NameFilters:
                     if not filepath.split(u'.')[-1] in common.NameFilters[location]:
@@ -344,7 +343,7 @@ class FilesModel(BaseModel):
                 if u'thumbs.db'.lower() in filename.lower():
                     continue
 
-                ext = filename.split('.')[-1]
+                ext = filename.split(u'.')[-1]
                 if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
                     placeholder_image = ImageCache.instance().get(
                         common.rsc_path(__file__, ext), rowsize.height())
@@ -387,6 +386,9 @@ class FilesModel(BaseModel):
                     common.SortByLastModified: 0,
                     common.SortBySize: 0,
                 }
+
+                if fileroot not in self._keywords and len(fileroot.split(u'/')) <= 4:
+                    self._keywords[fileroot] = fileroot
 
                 # If the file in question is a sequence, we will also save a reference
                 # to it in `self._model_data[location][True]` dictionary.
@@ -557,6 +559,7 @@ class FilesModel(BaseModel):
 
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing the files items."""
+    resized = QtCore.Signal(QtCore.QRect) # Used to update the size of the DataKeyView
 
     def __init__(self, parent=None):
         """Init method.
@@ -760,6 +763,8 @@ class FilesWidget(BaseInlineIconWidget):
         self._index_timer.start()
         super(FilesWidget, self).mouseReleaseEvent(event)
 
+    def resizeEvent(self, event):
+        self.resized.emit(self.geometry())
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

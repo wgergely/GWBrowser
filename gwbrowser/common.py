@@ -93,7 +93,7 @@ ExportsFolder = u'exports'
 ExportsFolderDescription = u'Persistent caches shared between scenes and assets (eg. animation caches)'
 
 CacheFolder = u'cache'
-CacheFolderDescription = u'Temporary and discardable files only, use "{}" for caches to keep'.format(
+CacheFolderDescription = u'Temporary and discardable files only, use "{}" for persistent files'.format(
     ExportsFolder.upper())
 
 TempFolder = u'tmp'
@@ -105,7 +105,7 @@ ModelsFolderDescription = u'Obsolete, use "{}" instead'.format(
 
 # Important folders
 CompScriptsFolder = u'comp_scripts'
-CompScriptsDescription = u'Compositing (eg. Houdini) scene files'
+CompScriptsDescription = u'Compositing projects (eg. Nuke, After Effects scenes)'
 
 CompsFolder = u'comps'
 CompsDescription = u'Composited prerenders and final image renders'
@@ -132,7 +132,7 @@ PhotosFolderDescription = u'Obsolete, use "{}" instead'.format(ReferenceFolder)
 CapturesFolder = u'viewport_captures'
 CapturesFolderDescription = u'Animation work-in-progress takes'
 
-MiscFolderDescription = u'A generic asset folder'
+MiscFolderDescription = u''
 
 ASSET_FOLDERS = {
     ArtworkFolder: ArtworkFolderDescription,
@@ -952,3 +952,27 @@ def ubytearray(ustring):
     # We convert the string to a hex array
     hstr = [r'\x{}'.format(f.encode('hex')) for f in ustring.encode('utf-8')]
     return QtCore.QByteArray.fromHex(''.join(hstr))
+
+
+
+def long_substr(data):
+    substr = ''
+    if len(data) > 1 and len(data[0]) > 0:
+        for i in range(len(data[0])):
+            for j in range(len(data[0])-i+1):
+                if j > len(substr) and is_substr(data[0][i:i+j], data):
+                    substr = data[0][i:i+j]
+    return substr
+
+def is_substr(find, data):
+    if len(data) < 1 and len(find) < 1:
+        return False
+    for i in range(len(data)):
+        if find not in data[i]:
+            return False
+    return True
+
+def replace_substr(s, substrings):
+    for substring in substrings:
+        s = s.replace(substring, u'')
+    return s

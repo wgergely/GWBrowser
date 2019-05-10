@@ -275,7 +275,7 @@ class CustomButton(BrowserButton):
         super(CustomButton, self).__init__(
             height=common.INLINE_ICON_SIZE, parent=parent)
         self.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'))
+            lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'), type=QtCore.Qt.QueuedConnection)
         self.setStatusTip(u'Open Slack!')
 
 
@@ -290,7 +290,7 @@ class ControlButton(ClickableLabel):
             common.INLINE_ICON_SIZE,
             common.INLINE_ICON_SIZE,
         )
-        self.clicked.connect(self.action)
+        self.clicked.connect(self.action, type=QtCore.Qt.QueuedConnection)
         self.setStatusTip(u'')
 
     def enterEvent(self, event):
@@ -399,12 +399,14 @@ class FilterButton(ControlButton):
             filter_text = re.sub(r'[\\]+', '', filter_text)
             filter_text = common.FilterTextRegex.sub(u' ', filter_text)
             filter_text = re.sub(r'\s', ' ', filter_text)
-        editor = FilterEditor(filter_text, parent=self._parent)
-        pos = self._parent.rect().topLeft()
-        pos = self._parent.mapToGlobal(pos)
+
+        parent = self._parent.parent().listcontrolwidget
+        editor = FilterEditor(filter_text, parent=parent)
+        pos = parent.rect().topLeft()
+        pos = parent.mapToGlobal(pos)
 
         editor.move(pos)
-        editor.setFixedWidth(self._parent.rect().width())
+        editor.setFixedWidth(parent.rect().width())
 
         def func(filter_text):
             filter_text = common.FilterTextRegex.sub(' ', filter_text)
@@ -838,9 +840,9 @@ class DataKeyView(QtWidgets.QListView):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-        self.clicked.connect(self.activated)
-        self.clicked.connect(self.hide)
-        self.clicked.connect(self.altparent.signal_dispatcher)
+        self.clicked.connect(self.activated, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.altparent.signal_dispatcher, type=QtCore.Qt.QueuedConnection)
         self.parent().resized.connect(self.setGeometry)
 
         self.setModel(DataKeyModel())
@@ -1124,7 +1126,7 @@ class FilesButton(BaseControlButton):
         self.set_text(u'Files')
         self.setStatusTip(
             u'Click to see or change the current list of files')
-        self.clicked.connect(self.show_view)
+        self.clicked.connect(self.show_view, type=QtCore.Qt.QueuedConnection)
 
     def paintEvent(self, event):
         """Indicating the visibility of the DataKeyView."""

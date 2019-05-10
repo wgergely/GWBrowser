@@ -720,7 +720,7 @@ class MayaBrowserButton(BrowserButton):
         super(MayaBrowserButton, self).__init__(parent=parent)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setToolTip(u'GWBrowser')
-        self.clicked.connect(self.show_browser)
+        self.clicked.connect(self.show_browser, type=QtCore.Qt.QueuedConnection)
 
     def initialize(self):
         # Embeds this widget to the maya toolbox

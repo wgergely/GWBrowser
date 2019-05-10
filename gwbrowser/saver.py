@@ -630,11 +630,11 @@ class SaverWidget(QtWidgets.QDialog):
         custom = self.findChild(Custom)
         check = self.findChild(Check)
 
-        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
+        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
         closebutton.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Rejected))
+            lambda: self.done(QtWidgets.QDialog.Rejected), type=QtCore.Qt.QueuedConnection)
         # Picks a thumbnail
-        thumbnailbutton.clicked.connect(self.pick_thumbnail)
+        thumbnailbutton.clicked.connect(self.pick_thumbnail, type=QtCore.Qt.QueuedConnection)
 
         # Filename
         b.activated.connect(self.update_filename_display)

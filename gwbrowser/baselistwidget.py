@@ -200,7 +200,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data = {}
         self._datakey = None
         self._datatype = None
-        self._keywords = []
+        self._keywords = {}
         self._parent_item = None
 
         self._sortrole = None
@@ -211,6 +211,10 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._last_changed = {}  # a dict of path/timestamp values
 
         self.initialize_default_sort_values()
+
+    def keywords(self):
+        """We're using the ``keywords`` property to help filter our lists."""
+        return self._keywords
 
     def initialize_default_sort_values(self):
         cls = self.__class__.__name__

@@ -156,8 +156,8 @@ class SelectFolderView(QtWidgets.QTreeView):
         common.set_custom_stylesheet(self)
 
         self.clicked.connect(lambda i: self.collapse(
-            i) if self.isExpanded(i) else self.expand(i))
-        self.clicked.connect(self.index_expanded)
+            i) if self.isExpanded(i) else self.expand(i), type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.index_expanded, type=QtCore.Qt.QueuedConnection)
         self.activated.connect(self.hide)
 
     def set_model(self, model):
@@ -327,7 +327,7 @@ class SelectFolderButton(ClickableLabel):
         self.setObjectName(u'SelectFolderButton')
         self.setFixedHeight(36)
 
-        self.clicked.connect(self.show_view)
+        self.clicked.connect(self.show_view, type=QtCore.Qt.QueuedConnection)
 
     def contextMenuEvent(self, event):
         widget = SelectFolderContextMenu(parent=self)
@@ -513,7 +513,7 @@ class SelectAssetView(SaverListView):
 
     def __init__(self, parent=None):
         super(SelectAssetView, self).__init__(parent=parent)
-        self.clicked.connect(self.activate)
+        self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
 
 
 class SelectAssetButton(SelectFolderButton):
@@ -602,7 +602,7 @@ class SelectBookmarkView(SaverListView):
     def __init__(self, parent=None):
         super(SelectBookmarkView, self).__init__(parent=parent)
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
-        self.clicked.connect(self.activate)
+        self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
 
     def showEvent(self, event):
         self.widgetShown.emit()
