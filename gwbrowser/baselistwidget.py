@@ -165,7 +165,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             )
 
             # Any string prefixed by -- will be excluded automatically
-            match_it = re.finditer(r'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+            match_it = re.finditer(
+                r'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
             for m in match_it:
                 match = re.search(m.group(2), searchable,
                                   flags=re.IGNORECASE | re.MULTILINE)
@@ -333,13 +334,10 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
-        """Sets the given index's parent."""
         if not index.isValid():
             self._parent_item = None
             return
 
-        if index.data(common.ParentRole) == self._parent_item:
-            return
         self._parent_item = index.data(common.ParentRole)
 
     def __resetdata__(self):

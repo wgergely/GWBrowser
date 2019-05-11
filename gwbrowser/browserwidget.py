@@ -34,7 +34,6 @@ from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.listcontrolwidget import FilterButton
-from gwbrowser.listcontrolwidget import Progresslabel
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
 import gwbrowser.settings as Settings
@@ -246,7 +245,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.statusbar = QtWidgets.QStatusBar()
         self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.statusbar.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2.0)
+        self.statusbar.setFixedHeight(common.INLINE_ICON_SIZE)
         self.statusbar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
@@ -263,9 +262,8 @@ class BrowserWidget(QtWidgets.QWidget):
         import gwbrowser
         version_label = QtWidgets.QLabel()
         version_label.setText(
-            u'<font color=gray size=9pt>{}</font>'.format(gwbrowser.__version__))
+            u'<font color=gray size={}pt>{}</font>'.format(common.psize(common.SMALL_FONT_SIZE), gwbrowser.__version__))
         self.statusbar.addPermanentWidget(version_label)
-
         self.statusbar.addPermanentWidget(grip)
 
         self.layout().addWidget(self.listcontrolwidget)
@@ -289,8 +287,6 @@ class BrowserWidget(QtWidgets.QWidget):
         lb = lc.control_button()
 
         s = self.stackedwidget
-        m = self.listcontrolwidget.findChild(Progresslabel)
-
         # Shutdown signals
         #
         # I have to make sure not to exit the main application before the threads
@@ -330,7 +326,8 @@ class BrowserWidget(QtWidgets.QWidget):
                 thread.__class__.__name__))
 
         self.shutdown_timer.timeout.connect(_quit)
-        self.shutdown.connect(lambda: m.messageChanged.emit(u'Quitting...'))
+        self.shutdown.connect(
+            lambda: self.statusbar.showMessage(u'Quitting...', 1000))
         self.shutdown.connect(self.shutdown_timer.start)
         for thread in threadpool:
             self.shutdown.connect(thread.worker.shutdown)
@@ -594,38 +591,42 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Progresslabel
         b.model().modelAboutToBeReset.connect(
-            lambda: m.messageChanged.emit(u'Getting bookmarks...'))
+            lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
         b.model().layoutAboutToBeChanged.connect(
-            lambda x: m.messageChanged.emit(u'Getting bookmarks...'))
-        b.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        b.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
-        b.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+            lambda x: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
+        b.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
+        b.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
+        b.model().sourceModel().modelReset.connect(
+            lambda: self.statusbar.showMessage(u'', 99999))
         b.model().sourceModel().layoutChanged.connect(
-            lambda x: m.messageChanged.emit(u''))
+            lambda x: self.statusbar.showMessage(u'', 99999))
 
         a.model().modelAboutToBeReset.connect(
-            lambda: m.messageChanged.emit(u'Getting assets...'))
+            lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
         a.model().layoutAboutToBeChanged.connect(
-            lambda x: m.messageChanged.emit(u'Getting assets...'))
-        a.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        a.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
-        a.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+            lambda x: self.statusbar.showMessage(u'Getting assets...', 99999))
+        a.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
+        a.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
+        a.model().sourceModel().modelReset.connect(
+            lambda: self.statusbar.showMessage(u'', 99999))
         a.model().sourceModel().layoutChanged.connect(
-            lambda: m.messageChanged.emit(u''))
+            lambda: self.statusbar.showMessage(u''))
 
         f.model().modelAboutToBeReset.connect(
-            lambda: m.messageChanged.emit(u'Getting files...'))
+            lambda: self.statusbar.showMessage(u'Getting files...', 99999))
         f.model().layoutAboutToBeChanged.connect(
-            lambda x: m.messageChanged.emit(u'Getting files...'))
-        f.model().modelReset.connect(lambda: m.messageChanged.emit(u''))
-        f.model().layoutChanged.connect(lambda x: m.messageChanged.emit(u''))
+            lambda x: self.statusbar.showMessage(u'Getting files...', 99999))
+        f.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
+        f.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
         f.model().sourceModel().layoutAboutToBeChanged.connect(
-            lambda x: m.messageChanged.emit(u'Getting files...'))
-        f.model().sourceModel().modelReset.connect(lambda: m.messageChanged.emit(u''))
+            lambda x: self.statusbar.showMessage(u'Getting files...'))
+        f.model().sourceModel().modelReset.connect(
+            lambda: self.statusbar.showMessage(u'', 99999))
         f.model().sourceModel().layoutChanged.connect(
-            lambda: m.messageChanged.emit(u''))
+            lambda: self.statusbar.showMessage(u'', 99999))
 
-        f.model().sourceModel().messageChanged.connect(m.messageChanged)
+        f.model().sourceModel().messageChanged.connect(
+            lambda m: self.statusbar.showMessage(m, 99999))
 
     def add_shortcuts(self):
         """Adds the custom shortcuts used to control the list widgets."""

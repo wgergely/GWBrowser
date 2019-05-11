@@ -70,74 +70,6 @@ class ListInfoThread(BaseThread):
     Worker = ListInfoWorker
 
 
-class Progresslabel(QtWidgets.QLabel):
-    """The widget responsible displaying progress messages."""
-
-    messageChanged = QtCore.Signal(unicode)
-
-    def __init__(self, parent=None):
-        super(Progresslabel, self).__init__(parent=parent)
-
-        self.progress_monitor = QtCore.QTimer()
-        self.progress_monitor.setSingleShot(False)
-        self.progress_monitor.setInterval(1000)
-        self.progress_monitor.timeout.connect(self.check_progress)
-        self.progress_monitor.start()
-
-        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        self.setStyleSheet("""
-            QLabel {{
-                font-family: "{}";
-                font-size: {}pt;
-                color: rgba({});
-                background-color: rgba(0,0,0,0);
-            	border: 0px solid;
-                padding: 0px;
-                margin: 0px;
-            }}
-        """.format(
-            common.PrimaryFont.family(),
-            common.psize(common.SMALL_FONT_SIZE - 1),
-            u'{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()))
-        )
-
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-
-        self.qre = re.compile(r'(.*)(\s\-\s[0-9]+\sleft)', flags=re.IGNORECASE)
-
-        self.setText(u'')
-        self.messageChanged.connect(
-            self.setText, type=QtCore.Qt.DirectConnection)
-        self.messageChanged.connect(
-            lambda x: QtWidgets.QApplication.instance().processEvents,
-            type=QtCore.Qt.DirectConnection)
-
-    @QtCore.Slot()
-    def check_progress(self):
-        """Sets the Progresslabel's visibility."""
-        qsize = ImageCacheWorker.queue.qsize() + FileInfoWorker.queue.qsize()
-        text = self.text()
-        match = self.qre.match(text)
-        if match:
-            if match.group(1) == u'Loading items' or match.group(1) == u'Processing thumbnails':
-                text = ''
-            else:
-                text = match.expand(ur'\1')
-
-        if ImageCacheWorker.queue.qsize():
-            text = u'{} - {} left'.format(
-                text if text else u'Processing thumbnails', qsize)
-        else:
-            if FileInfoWorker.queue.qsize():
-                text = u'{} - {} left'.format(
-                    text if text else u'Loading items', qsize)
-
-        self.messageChanged.emit(text)
-        # self.setText(text)
-
-
 class BrowserButtonContextMenu(BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
 
@@ -1240,7 +1172,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self._filesbutton.set_view(self._controlview)
         self._favouritesbutton = FavouritesButton(parent=self)
 
-        self._progresslabel = Progresslabel(parent=self)
         self._addbutton = AddButton(parent=self)
         self._generatethumbnailsbutton = GenerateThumbnailsButton(parent=self)
         self._todobutton = TodoButton(parent=self)
@@ -1256,7 +1187,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._filesbutton)
         self.layout().addWidget(self._favouritesbutton)
         self.layout().addStretch()
-        self.layout().addWidget(self._progresslabel, 1)
         self.layout().addWidget(self._addbutton)
         self.layout().addWidget(self._generatethumbnailsbutton)
         self.layout().addWidget(self._todobutton)
