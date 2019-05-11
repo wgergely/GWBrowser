@@ -44,7 +44,7 @@ class FileInfoWorker(BaseWorker):
 
         """
         try:
-            while not self._shutdown:
+            while not self.shutdown_requested:
                 index = FileInfoWorker.queue.get(True)
                 self.process_index(index)
         except RuntimeError as err:
@@ -63,7 +63,7 @@ class FileInfoWorker(BaseWorker):
             sys.stderr.write(errstr)
             traceback.print_exc()
         finally:
-            if self._shutdown:
+            if self.shutdown_requested:
                 sys.stdout.write('# {} worker finished processing.\n'.format(
                     self.__class__.__name__))
                 self.finished.emit()
@@ -160,7 +160,7 @@ class FileInfoWorker(BaseWorker):
         data[common.StatusRole] = True
 
         # Thumbnail
-        height = data[QtCore.Qt.SizeHintRole].height() - 2
+        height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
 
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
@@ -559,7 +559,8 @@ class FilesModel(BaseModel):
 
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing the files items."""
-    resized = QtCore.Signal(QtCore.QRect) # Used to update the size of the DataKeyView
+    resized = QtCore.Signal(
+        QtCore.QRect)  # Used to update the size of the DataKeyView
 
     def __init__(self, parent=None):
         """Init method.
@@ -765,6 +766,7 @@ class FilesWidget(BaseInlineIconWidget):
 
     def resizeEvent(self, event):
         self.resized.emit(self.geometry())
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -38,6 +38,7 @@ class BaseWorker(QtCore.QObject):
     """
 
     queue = Unique(999999)
+    shutdown_requested = False
 
     queueFinished = QtCore.Signal()
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
@@ -46,7 +47,6 @@ class BaseWorker(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
-        self._shutdown = False
 
     @QtCore.Slot()
     def shutdown(self):
@@ -58,10 +58,12 @@ class BaseWorker(QtCore.QObject):
 
         """
         # Adding a dummy object should clear the get() block
+        for _ in xrange(10):
+            self.queue.put(QtCore.QModelIndex())
+
         sys.stdout.write('# Stopping {} worker...\n'.format(
             self.__class__.__name__))
-        self._shutdown = True
-        self.queue.put(QtCore.QModelIndex())
+        self.shutdown_requested = True
 
     @classmethod
     @QtCore.Slot(tuple)
@@ -87,7 +89,7 @@ class BaseWorker(QtCore.QObject):
 
         """
         try:
-            while not self._shutdown:
+            while not self.shutdown_requested:
                 self.process_index(self.queue.get(True))
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
@@ -105,12 +107,12 @@ class BaseWorker(QtCore.QObject):
             traceback.print_exc()
             self.error.emit(errstr)
         finally:
-            if self._shutdown:
+            if self.shutdown_requested:
                 sys.stdout.write('# {} worker finished processing.\n'.format(
                     self.__class__.__name__))
                 self.finished.emit()
-                return
-            self.begin_processing()
+            else:
+                self.begin_processing()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(self, index):
@@ -146,8 +148,11 @@ class BaseThread(QtCore.QThread):
         self.worker = None
 
     def run(self):
+        """Start the thread, initializes the worker and shuts the worker when
+        the worker finished processing."""
         self.worker = self.Worker()
         self.worker.finished.connect(self.quit)
         self.started.emit()
         self.worker.begin_processing()
         self.exec_()
+        # self.quit()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
+
 """Main modules defining the delegates used to represent the QListWidgetItems."""
 
 
@@ -9,7 +10,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
@@ -131,7 +131,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - 2)
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.setWidth(rect.height())
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
@@ -184,12 +184,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of an item."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _ = args
 
         # Background rectangle
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - 2)
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.setWidth(rect.height())
         rect.moveCenter(center)
 
@@ -230,7 +230,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - 2)
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.setWidth(rect.height() * 2)
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
@@ -449,7 +449,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         bg_rect = QtCore.QRect(option.rect)
         bg_rect.setLeft(rect.left() - common.MARGIN)
         center = bg_rect.center()
-        bg_rect.setHeight(bg_rect.height() - 2)
+        bg_rect.setHeight(bg_rect.height() - common.ROW_SEPARATOR)
         bg_rect.moveCenter(center)
 
         painter.setPen(QtCore.Qt.NoPen)
@@ -958,7 +958,6 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.setBrush(QtGui.QBrush(bg_color))
 
             rect.setWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
-            # rect.moveLeft(rect.left() + (common.INDICATOR_WIDTH * 3))
             painter.drawRoundedRect(rect, 3.0, 3.0)
 
             if n == 0:

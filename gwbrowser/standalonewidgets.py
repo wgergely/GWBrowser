@@ -56,7 +56,7 @@ class TrayMenu(BrowserButtonContextMenu):
         }
         menu_set['separator1'] = {}
         menu_set['Quit'] = {
-            'action': lambda: self.parent().shutdown.emit()
+            'action': self.parent().shutdown.emit
         }
         return menu_set
 
@@ -68,8 +68,7 @@ class CloseButton(ClickableLabel):
         super(CloseButton, self).__init__(parent=parent)
         pixmap = ImageCache.get_rsc_pixmap(
             u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
-        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 2,
-                          common.ROW_BUTTONS_HEIGHT / 2)
+        self.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -83,9 +82,8 @@ class MinimizeButton(ClickableLabel):
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(parent=parent)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
-        self.setFixedSize(common.ROW_BUTTONS_HEIGHT / 2,
-                          common.ROW_BUTTONS_HEIGHT / 2)
+            u'minimize', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
+        self.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -116,11 +114,13 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT / 2)
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
 
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
 
     def mousePressEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -183,16 +183,14 @@ class StandaloneBrowserWidget(BrowserWidget):
     @QtCore.Slot()
     def tweak_ui(self):
         """UI modifications to apply when the tool is started in standalone-mode."""
+        self.layout().setContentsMargins(0, 0, 0, 0)
+
         self.headerwidget = HeaderWidget(parent=self)
+        self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
         self.layout().insertWidget(0, self.headerwidget)
 
         grip = self.statusbar.findChild(SizeGrip)
         grip.show()
-
-        shadow_offset = 0
-        self.layout().setContentsMargins(
-            common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset,
-            common.INDICATOR_WIDTH + shadow_offset, common.INDICATOR_WIDTH + shadow_offset)
 
         self.findChild(MinimizeButton).clicked.connect(self.showMinimized)
         self.findChild(CloseButton).clicked.connect(self.close)

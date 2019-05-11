@@ -153,7 +153,7 @@ class BookmarksModel(BaseModel):
         default_thumbnail_image = ImageCache.instance().get_rsc_pixmap(
             u'bookmark_sm',
             thumbcolor,
-            common.BOOKMARK_ROW_HEIGHT - 2)
+            common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR)
         default_thumbnail_image = default_thumbnail_image.toImage()
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
@@ -224,7 +224,7 @@ class BookmarksModel(BaseModel):
             data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
             image = ImageCache.instance().get(
                 data[idx][common.ThumbnailPathRole],
-                rowsize.height() - 2)
+                rowsize.height() - common.ROW_SEPARATOR)
 
             if image:
                 if not image.isNull():

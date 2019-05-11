@@ -88,7 +88,7 @@ class AssetModel(BaseModel):
 
         default_thumbnail_image = ImageCache.instance().get(
             common.rsc_path(__file__, u'placeholder'),
-            rowsize.height() - 2)
+            rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = QtGui.QColor(0, 0, 0, 55)
 
         nth = 1
@@ -148,7 +148,7 @@ class AssetModel(BaseModel):
 
             image = ImageCache.instance().get(
                 data[idx][common.ThumbnailPathRole],
-                rowsize.height() - 2)
+                rowsize.height() - common.ROW_SEPARATOR)
 
             if image:
                 if not image.isNull():

@@ -313,20 +313,20 @@ class BrowserWidget(QtWidgets.QWidget):
             for thread in threadpool:
                 if thread.isRunning():
                     thread.worker.shutdown()
-                    thread.terminate()
+                    thread.quit()
 
             if all([not f.isRunning() for f in threadpool]):
-                sys.stdout.write('All threads finished.')
+                sys.stdout.write('# All threads finished.')
                 QtWidgets.QApplication.instance().quit()
 
-            # Forcing the applciation to close after n tries
-            if qn > 20:  # circa 5 seconds to wrap things up
+            # Forcing the application to close after n tries
+            if qn > 20:  # circa 5 seconds to wrap things up, will exit by force after
                 QtWidgets.QApplication.instance().quit()
-                raise SystemExit('Force quitting python')
+                raise SystemExit('# Force python to exit.')
 
         @QtCore.Slot()
         def finished(thread):
-            sys.stdout.write('{} shut down.\n'.format(
+            sys.stdout.write('# {} shut down.\n'.format(
                 thread.__class__.__name__))
 
         self.shutdown_timer.timeout.connect(_quit)
@@ -456,7 +456,7 @@ class BrowserWidget(QtWidgets.QWidget):
         lc._collapsebutton.message.connect(self.entered2)
         lc._archivedbutton.message.connect(self.entered2)
         lc._favouritebutton.message.connect(self.entered2)
-        lc._custombutton.message.connect(self.entered2)
+        lc._slackbutton.message.connect(self.entered2)
 
         lc._bookmarksbutton.set_parent(self.stackedwidget)
         lc._assetsbutton.set_parent(self.stackedwidget)
@@ -478,10 +478,14 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().activeChanged.connect(
             lambda x: self.fileswidget.model().sourceModel().data_key())
 
-        lc._bookmarksbutton.clicked.connect(lambda: lc.listChanged.emit(0), type=QtCore.Qt.QueuedConnection)
-        lc._assetsbutton.clicked.connect(lambda: lc.listChanged.emit(1), type=QtCore.Qt.QueuedConnection)
-        lc._filesbutton.clicked.connect(lambda: lc.listChanged.emit(2), type=QtCore.Qt.QueuedConnection)
-        lc._favouritesbutton.clicked.connect(lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
+        lc._bookmarksbutton.clicked.connect(
+            lambda: lc.listChanged.emit(0), type=QtCore.Qt.QueuedConnection)
+        lc._assetsbutton.clicked.connect(
+            lambda: lc.listChanged.emit(1), type=QtCore.Qt.QueuedConnection)
+        lc._filesbutton.clicked.connect(
+            lambda: lc.listChanged.emit(2), type=QtCore.Qt.QueuedConnection)
+        lc._favouritesbutton.clicked.connect(
+            lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
 
         # Updates the list-control buttons when changing lists
         lc.listChanged.connect(lambda x: lb.repaint())

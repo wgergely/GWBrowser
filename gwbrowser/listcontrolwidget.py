@@ -269,10 +269,12 @@ class BrowserButton(ClickableLabel):
         widget.exec_()
 
 
-class CustomButton(BrowserButton):
+class SlackButton(BrowserButton):
+    """The button used to open slack."""
+
     def __init__(self, parent=None):
         self.context_menu_cls = BrowserButtonContextMenu
-        super(CustomButton, self).__init__(
+        super(SlackButton, self).__init__(
             height=common.INLINE_ICON_SIZE, parent=parent)
         self.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'), type=QtCore.Qt.QueuedConnection)
@@ -810,7 +812,6 @@ class DataKeyViewDelegate(BaseDelegate):
                 painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
             rect.setLeft(rect.left() + width)
 
-
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
@@ -832,7 +833,6 @@ class DataKeyView(QtWidgets.QListView):
 
         common.set_custom_stylesheet(self)
 
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
@@ -842,7 +842,8 @@ class DataKeyView(QtWidgets.QListView):
 
         self.clicked.connect(self.activated, type=QtCore.Qt.QueuedConnection)
         self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
-        self.clicked.connect(self.altparent.signal_dispatcher, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.altparent.signal_dispatcher,
+                             type=QtCore.Qt.QueuedConnection)
         self.parent().resized.connect(self.setGeometry)
 
         self.setModel(DataKeyModel())
@@ -1027,12 +1028,13 @@ class BaseControlButton(ClickableLabel):
     """Baseclass for the list control buttons."""
     message = QtCore.Signal(unicode)
 
-    def __init__(self, parent=None):
+    def __init__(self, height=common.CONTROL_HEIGHT, parent=None):
         super(BaseControlButton, self).__init__(parent=parent)
         self._parent = None
         self.index = 0
         self.setMouseTracking(True)
         self.setStatusTip(u'')
+        self.setFixedHeight(height)
 
     def set_parent(self, widget):
         self._parent = widget
@@ -1155,7 +1157,6 @@ class FilesButton(BaseControlButton):
         else:
             super(FilesButton, self).paintEvent(event)
 
-
     def view(self):
         return self._view
 
@@ -1181,7 +1182,7 @@ class FilesButton(BaseControlButton):
 
         geo = self.view().parent().geometry()
         self.view().setGeometry(geo)
-        self.view().move(0,0)
+        self.view().move(0, 0)
         self.view().show()
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
 
@@ -1223,16 +1224,17 @@ class ListControlWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setFixedHeight(common.CONTROL_HEIGHT)
 
         # Control view/model/button
         self._bookmarksbutton = BookmarksButton(parent=self)
         self._assetsbutton = AssetsButton(parent=self)
         self._filesbutton = FilesButton(parent=self)
 
-        self._controlview = DataKeyView(parent=self.parent().fileswidget, altparent=self)
+        self._controlview = DataKeyView(
+            parent=self.parent().fileswidget, altparent=self)
         self._controlview.setHidden(True)
 
         self._filesbutton.set_view(self._controlview)
@@ -1246,9 +1248,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self._collapsebutton = CollapseSequenceButton(parent=self)
         self._archivedbutton = ToggleArchivedButton(parent=self)
         self._favouritebutton = ToggleFavouriteButton(parent=self)
-        self._custombutton = CustomButton(parent=self)
+        self._slackbutton = SlackButton(parent=self)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self._bookmarksbutton)
         self.layout().addWidget(self._assetsbutton)
         self.layout().addWidget(self._filesbutton)
@@ -1262,7 +1264,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._collapsebutton)
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
-        self.layout().addWidget(self._custombutton)
+        self.layout().addWidget(self._slackbutton)
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
     @QtCore.Slot(QtCore.QModelIndex)

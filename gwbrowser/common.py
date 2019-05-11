@@ -156,6 +156,8 @@ ASSET_FOLDERS = {
 ROW_HEIGHT = 46.0
 BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
+CONTROL_HEIGHT = 28.0
+ROW_SEPARATOR = 1.0
 
 # Font scaling seems at best random given platform differences.
 # Programmatically scaling might fix matters...
@@ -954,15 +956,15 @@ def ubytearray(ustring):
     return QtCore.QByteArray.fromHex(''.join(hstr))
 
 
-
 def long_substr(data):
     substr = ''
     if len(data) > 1 and len(data[0]) > 0:
         for i in range(len(data[0])):
-            for j in range(len(data[0])-i+1):
-                if j > len(substr) and is_substr(data[0][i:i+j], data):
-                    substr = data[0][i:i+j]
+            for j in range(len(data[0]) - i + 1):
+                if j > len(substr) and is_substr(data[0][i:i + j], data):
+                    substr = data[0][i:i + j]
     return substr
+
 
 def is_substr(find, data):
     if len(data) < 1 and len(find) < 1:
@@ -971,6 +973,7 @@ def is_substr(find, data):
         if find not in data[i]:
             return False
     return True
+
 
 def replace_substr(s, substrings):
     for substring in substrings:

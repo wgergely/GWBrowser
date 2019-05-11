@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201
+# pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201, E1120
 
 """Widgets used to edit data in the list widgets."""
 
+import os
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
@@ -387,13 +389,15 @@ class EditorContextMenu(BaseContextMenu):
     """The context menu associated with the filter text editor."""
 
     def __init__(self, parent=None):
-        super(EditorContextMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        super(EditorContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
         self.add_keywords_menu()
 
     @contextmenu
     def add_keywords_menu(self, menu_set):
         """Custom context menu to add a keyword to the search list."""
-        pixmap = ImageCache.get_rsc_pixmap(u'filter', common.TEXT, common.INLINE_ICON_SIZE)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         kws = self.parent().parent().keywords()
 
         def insert_keyword(s):
@@ -508,6 +512,24 @@ class FilterEditor(QtWidgets.QWidget):
         label = FilterIcon(parent=self)
         self.editor_widget = Editor(parent=self)
 
+        # Settings the completer associated with the Editor widget
+        keywords = []
+        for keyword in sorted(self.keywords().values()):
+            for k in keyword.split(u'/'):
+                if k in keywords:
+                    continue
+                keywords.append(k.upper())
+                if keyword in keywords:
+                    continue
+                keywords.append(keyword.upper())
+
+        completer = QtWidgets.QCompleter(
+            keywords, self)
+        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setCompletionMode(
+            QtWidgets.QCompleter.InlineCompletion)
+        self.editor_widget.setCompleter(completer)
+
         self.layout().addWidget(label, 0)
         self.layout().addWidget(self.editor_widget, 1)
 
@@ -556,8 +578,40 @@ class FilterEditor(QtWidgets.QWidget):
             self.close()
 
 
+class ThumbnailsWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(ThumbnailsWidget, self).__init__(parent=parent)
+        path = u'{}/../rsc'.format(__file__)
+        path = os.path.normpath(os.path.abspath(path))
+
+        columns = 4
+        row = 0
+
+        self._createUI()
+        for idx, entry in enumerate(gwscandir.scandir(path)):
+            if not entry.name.startswith('thumb'):
+                continue
+            pixmap = ImageCache.get_rsc_pixmap(
+                entry.name.replace(u'.png', u''), None, 128)
+            if pixmap.isNull():
+                continue
+            label = QtWidgets.QLabel()
+            label.setPixmap(pixmap)
+
+            column = idx % columns
+            if column == 0:
+                row += 1
+            self.layout().addWidget(label, row, column)
+
+    def _createUI(self):
+        QtWidgets.QGridLayout(self)
+
+    def _connectSignals(self):
+        pass
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    widget = FilterEditor('/')
+    widget = ThumbnailsWidget()
     widget.show()
     app.exec_()
