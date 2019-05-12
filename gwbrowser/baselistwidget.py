@@ -19,6 +19,7 @@ from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 import gwbrowser.settings as Settings
@@ -314,8 +315,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         __data = {}
         for n, idx in enumerate(sorted_idxs):
             __data[n] = data[idx]
-        # for idx, v in data.iteritems():
-        #     __data[sorted_idxs[idx]] = v
 
         k = self.data_key()
         t = self.data_type()
@@ -412,7 +411,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def data_key(self):
         """Current key to the data dictionary."""
-        if self._datakey is None:
+        if not self._datakey:
             val = None
             cls = self.__class__.__name__
             key = u'widget/{}/datakey'.format(cls)
@@ -436,7 +435,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         Each subfolder inside the ``_parent_item`` corresponds to a `key`, hence
         it's important to make sure the key we're about to be set corresponds to
-        an existing folder.
+        an existing folder. The `validate_key` function should take care of this!
 
         """
         if val == self._datakey:
@@ -473,25 +472,17 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         """
         if not self._parent_item:
-            return
+            self.set_data_key(None)
+            return None
 
         path = u'/'.join(self._parent_item)
-        dir_ = QtCore.QDir(path)
-        dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-
-        entries = dir_.entryList()
-        entries = sorted([f for f in entries if not f.startswith(u'.')])
-        if not entries:
-            return
+        entries = [f.name for f in gwscandir.scandir(path)]
 
         key = self.data_key()
-        if not key:
-            self.set_data_key(entries[0])
-            return
-
-        if key not in sorted(entries):
-            self.set_data_key(entries[0])
-            return
+        if key not in entries:
+            self.set_data_key(None)
+            return None
+        return key
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -741,72 +732,58 @@ class BaseListWidget(QtWidgets.QListView):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
-        data = source_index.model().model_data()
+        data = source_index.model().model_data()[source_index.row()]
+        m = self.model().sourceModel()
 
         key = index.data(QtCore.Qt.StatusTipRole)
         collapsed = common.is_collapsed(key)
         if collapsed:
             key = collapsed.expand(ur'\1\3')  # \2 is the sequence-string
 
-        if key in favourites:
+        # Let's check what our operation is going to be first
+        # If the key is already in the favourites, we will remove it,
+        # otherwise add it. We will also iterate through all individual files
+        # as well and set their flags too.
+
+        if key in sfavourites:
             if state is None or state is False:  # clears flag
                 favourites.remove(key)
-                data[source_index.row()][common.FlagsRole] = data[source_index.row(
-                )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+                data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsFavourite
 
-            # When toggling a sequence item, we will toggle all the individual sequence items as well
+            # Removing flags
             if self.model().sourceModel().data_type() == common.SequenceItem:
-                m = self.model().sourceModel()
-                k = m.data_key()
-                t = common.FileItem
-                _data = m._data[k][t]
-
-                # Let's find the item in the model data
-                for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(
-                        ur'\1{}\3.\4')
-                    _path = _path.format(frame)
-                    _index = None
-                    for val in _data.itervalues():
-                        if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val  # Found it!
-                            break
-                    if _index:
-                        if _index[QtCore.Qt.StatusTipRole] in favourites:
-                            favourites.remove(_index[QtCore.Qt.StatusTipRole])
-                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
-
+                for _item in m._data[m.data_key()][common.FileItem].itervalues():
+                    _seq = _item[common.SequenceRole]
+                    if not _seq:
+                        continue
+                    if _seq.expand(ur'\1\3.\4') != key:
+                        continue
+                    if _item[QtCore.Qt.StatusTipRole] in sfavourites:
+                        favourites.remove(_item[QtCore.Qt.StatusTipRole])
+                    _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(key)
-                data[source_index.row()][common.FlagsRole] = data[source_index.row(
-                )][common.FlagsRole] | Settings.MarkedAsFavourite
+                data[common.FlagsRole] = data[common.FlagsRole] | Settings.MarkedAsFavourite
 
-            # When toggling a sequence item, we will toggle all the individual sequence items as well
-            if self.model().sourceModel().data_type() == common.SequenceItem:
-                m = self.model().sourceModel()
-                k = m.data_key()
-                t = common.FileItem
-                _data = m._data[k][t]
+            # Adding flags
+            if m.data_type() == common.SequenceItem:
+                for _item in m._data[m.data_key()][common.FileItem].itervalues():
+                    _seq = _item[common.SequenceRole]
+                    if not _seq:
+                        continue
+                    if _seq.expand(ur'\1\3.\4') != key:
+                        continue
+                    if _item[QtCore.Qt.StatusTipRole] not in sfavourites:
+                        favourites.append(_item[QtCore.Qt.StatusTipRole])
+                    _item[common.FlagsRole] = _item[common.FlagsRole] | Settings.MarkedAsFavourite
 
-                # Let's find the item in the model data
-                for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(
-                        ur'\1{}\3.\4')
-                    _path = _path.format(frame)
-                    _index = None
-                    for val in _data.itervalues():
-                        if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val  # Found it!
-                            break
-                    if _index:
-                        favourites.append(_index[QtCore.Qt.StatusTipRole])
-                        _index[common.FlagsRole] = _index[common.FlagsRole] | Settings.MarkedAsFavourite
-
+        # Let's save the favourites list and emit a dataChanged signal
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        self.favouritesChanged.emit()
+        # self.favouritesChanged.emit()
         index.model().dataChanged.emit(index, index)
 
     def toggle_archived(self, index, state=None):
@@ -1112,7 +1089,6 @@ class BaseListWidget(QtWidgets.QListView):
             )
 
             favourite_mode = self.model().filterFlag(Settings.MarkedAsFavourite)
-            archived_mode = self.model().filterFlag(Settings.MarkedAsArchived)
             active_mode = self.model().filterFlag(Settings.MarkedAsActive)
 
             text_rect = QtCore.QRect(rect)

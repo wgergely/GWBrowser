@@ -52,7 +52,7 @@ class ListInfoWorker(BaseWorker):
 
         count = 0
         for _, _, fileentries in common.walk(index.data(QtCore.Qt.StatusTipRole)):
-            for entry in fileentries:
+            for _ in fileentries:
                 count += 1
                 if count > 999:
                     break
@@ -329,10 +329,10 @@ class FilterButton(ControlButton):
         if not filter_text:
             filter_text = u''
         else:
-            filter_text = re.sub('\[\\\S\\\s\]\*', ' ', filter_text)
-            filter_text = re.sub(r'[\\]+', '', filter_text)
+            filter_text = re.sub(u'\[\\\S\\\s\]\*', u' ', filter_text)
+            filter_text = re.sub(ur'[\\]+', '', filter_text)
             filter_text = common.FilterTextRegex.sub(u' ', filter_text)
-            filter_text = re.sub(r'\s', ' ', filter_text)
+            filter_text = re.sub(ur'\s', u' ', filter_text)
 
         parent = self._parent.parent().listcontrolwidget
         editor = FilterEditor(filter_text, parent=parent)
@@ -343,10 +343,9 @@ class FilterButton(ControlButton):
         editor.setFixedWidth(parent.rect().width())
 
         def func(filter_text):
-            filter_text = common.FilterTextRegex.sub(' ', filter_text)
-            filter_text = re.sub(r'\s\s*', u' ', filter_text)
-            # filter_text = re.sub(r'([^\s])', r'\\\1', filter_text)
-            filter_text = re.sub(r'\s', r'[\S\s]*', filter_text)
+            filter_text = common.FilterTextRegex.sub(u' ', filter_text)
+            filter_text = re.sub(ur'\s\s*', u' ', filter_text)
+            filter_text = re.sub(ur'\s', ur'[\S\s]*', filter_text)
             self.current().model().filterTextChanged.emit(filter_text)
 
         editor.finished.connect(func)
@@ -702,9 +701,6 @@ class DataKeyViewDelegate(BaseDelegate):
         color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
-        current_key = index.data(
-            QtCore.Qt.DisplayRole) == self.parent().model()._datakey
-
         rect = QtCore.QRect(option.rect)
         rect.setLeft(
             common.INDICATOR_WIDTH
@@ -916,7 +912,7 @@ class DataKeyModel(BaseModel):
             data[idx] = {
                 QtCore.Qt.DisplayRole: entry.name,
                 QtCore.Qt.EditRole: entry.name,
-                QtCore.Qt.StatusTipRole: entry.path.replace('\\', '/'),
+                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
                 QtCore.Qt.ToolTipRole: description,
                 QtCore.Qt.SizeHintRole: secondary_rowsize,
                 #
@@ -972,10 +968,8 @@ class BaseControlButton(ClickableLabel):
         self._parent = widget
 
     def set_text(self, text):
-        if text is None:
-            text = u'Files'
-        if text == u'':
-            text == u'File'
+        """Sets the text and the width for  the ``FilesButton``."""
+        text = text if text else u'Files'
         self.setText(text.title())
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
         width = metrics.width(self.text()) + (common.INDICATOR_WIDTH * 2)
@@ -1024,7 +1018,7 @@ class BaseControlButton(ClickableLabel):
         if self._parent.currentIndex() == self.index:
             metrics = QtGui.QFontMetrics(common.PrimaryFont)
             center = rect.center()
-            rect.setHeight(3)
+            rect.setHeight(2)
             rect.moveCenter(center)
             rect.moveTop(rect.top() + (metrics.height() / 2) + 3)
             rect.setWidth(metrics.width(self.text()))

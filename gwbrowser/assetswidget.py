@@ -75,6 +75,7 @@ class AssetModel(BaseModel):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         if not self._parent_item:
             # self.endResetModel()
@@ -169,7 +170,7 @@ class AssetModel(BaseModel):
                 flags = flags | MarkedAsActive
             if settings.value(u'config/archived'):
                 flags = flags | MarkedAsArchived
-            if entry.path.replace(u'\\', u'/') in favourites:
+            if entry.path.replace(u'\\', u'/') in sfavourites:
                 flags = flags | MarkedAsFavourite
             data[idx][common.FlagsRole] = flags
 

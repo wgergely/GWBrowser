@@ -122,7 +122,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        # painter.drawRect(option.rect)
 
         if selected:
             color = QtGui.QColor(common.BACKGROUND_SELECTED)
@@ -169,8 +168,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
-        rect.setTop(rect.top() + 1)
-        rect.setBottom(rect.bottom() - 1)
+        center = rect.center()
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
+        rect.moveCenter(center)
 
         if selected:
             color = common.SELECTION

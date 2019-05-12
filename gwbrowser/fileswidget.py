@@ -298,6 +298,7 @@ class FilesModel(BaseModel):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
         activefile = local_settings.value('activepath/file')
 
         # Invalid asset, we'll do nothing.
@@ -315,7 +316,7 @@ class FilesModel(BaseModel):
 
         nth = 987
         c = 0
-        for _, folderentry, fileentries in common.walk(location_path):
+        for _, _, fileentries in common.walk(location_path):
             for entry in fileentries:
                 filepath = entry.path.replace(u'\\', u'/')
                 filename = entry.name
@@ -353,7 +354,7 @@ class FilesModel(BaseModel):
 
                 flags = dflags()
 
-                if filepath in favourites:
+                if filepath in sfavourites:
                     flags = flags | MarkedAsFavourite
 
                 if activefile:
@@ -420,7 +421,7 @@ class FilesModel(BaseModel):
                                 seq.group(3),
                                 seq.group(4))
 
-                        if key in favourites:
+                        if key in sfavourites:
                             flags = flags | MarkedAsFavourite
 
                         seqs[seqpath] = {
@@ -471,7 +472,7 @@ class FilesModel(BaseModel):
                 v[common.SortByLastModified] = 0
 
                 flags = dflags()
-                if filepath in favourites:
+                if filepath in sfavourites:
                     flags = flags | MarkedAsFavourite
 
                 if activefile:

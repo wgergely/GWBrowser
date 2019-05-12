@@ -79,6 +79,7 @@ class FavouritesModel(FilesModel):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         if not self._parent_item:
             return
@@ -86,14 +87,10 @@ class FavouritesModel(FilesModel):
             return
 
         server, job, root = self._parent_item
-        bookmark = (u'{}/{}/{}'.format(server, job, root))
         placeholder_color = QtGui.QColor(0, 0, 0, 55)
 
         for filepath in favourites:
             file_info = QtCore.QFileInfo(filepath)
-            if not file_info.exists():
-                continue
-
             fileroot = file_info.filePath()
             if u'{}/{}/{}'.format(server, job, root) in fileroot:
                 fileroot = file_info.filePath().replace(
@@ -313,6 +310,7 @@ class FavouritesWidget(FilesWidget):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
@@ -322,7 +320,7 @@ class FavouritesWidget(FilesWidget):
         if collapsed:
             key = collapsed.expand(ur'\1\3')
 
-        if key in favourites:
+        if key in sfavourites:
             favourites.remove(key)
             data[source_index.row()][common.FlagsRole] = data[source_index.row(
             )][common.FlagsRole] & ~Settings.MarkedAsFavourite
@@ -387,10 +385,11 @@ class FavouritesWidget(FilesWidget):
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         for url in mime.urls():
             path = QtCore.QFileInfo(url.toLocalFile()).filePath()
-            if path not in favourites:
+            if path not in sfavourites:
                 favourites.append(path)
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.model().sourceModel().modelDataResetRequested.emit()
