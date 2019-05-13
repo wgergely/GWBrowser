@@ -230,7 +230,11 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def keywords(self):
         """We're using the ``keywords`` property to help filter our lists."""
-        return self._keywords
+        keywords = {}
+        for k, v in self._keywords.iteritems():
+            keywords[k] = v
+            keywords['--{}'.format(k)] = '--{}'.format(v)
+        return keywords
 
     def initialize_default_sort_values(self):
         cls = self.__class__.__name__
