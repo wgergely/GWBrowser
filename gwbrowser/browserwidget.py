@@ -44,6 +44,7 @@ qn = 0
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
+    """Custom size-grip for resizing browser-widget"""
     def __init__(self, browserwidget, parent=None):
         super(SizeGrip, self).__init__(parent)
         self.browserwidget = browserwidget
@@ -66,26 +67,27 @@ class SizeGrip(QtWidgets.QSizeGrip):
         controlview = self.browserwidget.listcontrolwidget._controlview
         fileswidget = self.browserwidget.fileswidget
 
+        stackedwidget.setMouseTracking(tracking)
         for idx in xrange(stackedwidget.count()):
             widget = stackedwidget.widget(idx)
+            # widget.setUpdatesEnabled(tracking)
             widget.setMouseTracking(tracking)
             widget.viewport().setMouseTracking(tracking)
-            if tracking:
-                widget.updateGeometry()
-                widget.update()
-                widget.repaint()
-
-        if tracking:
-            controlview.updateGeometry()
-            stackedwidget.updateGeometry()
-            stackedwidget.parent().updateGeometry()
-            stackedwidget.update()
-            stackedwidget.repaint()
-            controlview.update()
-            controlview.repaint()
-            stackedwidget.parent().update()
-            stackedwidget.parent().repaint()
-            fileswidget.resized.emit(fileswidget.geometry())
+            widget.updateGeometry()
+        #         widget.update()
+        #         widget.repaint()
+        #
+        # if tracking:
+        #     controlview.updateGeometry()
+        #     stackedwidget.updateGeometry()
+        #     stackedwidget.parent().updateGeometry()
+        #     stackedwidget.update()
+        #     stackedwidget.repaint()
+        #     controlview.update()
+        #     controlview.repaint()
+        #     stackedwidget.parent().update()
+        #     stackedwidget.parent().repaint()
+        #     fileswidget.resized.emit(fileswidget.geometry())
 
     def mouseMoveEvent(self, event):
         self.update_widgets(False)

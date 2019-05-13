@@ -685,10 +685,9 @@ class DataKeyViewDelegate(BaseDelegate):
         rect.moveCenter(center)
 
         background = QtGui.QColor(common.BACKGROUND)
-        background.setAlpha(200)
         color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
-        painter.drawRoundedRect(rect, 3, 3)
+        painter.drawRect(rect)
 
     @paintmethod
     def paint_name(self, *args):
@@ -870,8 +869,7 @@ class DataKeyModel(BaseModel):
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT / 1.5)
-        secondary_rowsize = QtCore.QSize(
+        rowsize = QtCore.QSize(
             common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
 
         flags = (
@@ -890,7 +888,7 @@ class DataKeyModel(BaseModel):
         default_thumbnail = ImageCache.instance().get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
-            common.INLINE_ICON_SIZE)
+            rowsize)
         default_thumbnail = default_thumbnail.toImage()
 
         parent_path = u'/'.join(self._parent_item)
@@ -915,7 +913,7 @@ class DataKeyModel(BaseModel):
                 QtCore.Qt.EditRole: entry.name,
                 QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
                 QtCore.Qt.ToolTipRole: description,
-                QtCore.Qt.SizeHintRole: secondary_rowsize,
+                QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.DefaultThumbnailRole: default_thumbnail,
                 common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
