@@ -233,7 +233,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         keywords = {}
         for k, v in self._keywords.iteritems():
             keywords[k] = v
-            keywords['--{}'.format(k)] = '--{}'.format(v)
+            keywords[u'--{}'.format(k)] = u'--{}'.format(v)
         return keywords
 
     def initialize_default_sort_values(self):
@@ -1047,8 +1047,6 @@ class BaseListWidget(QtWidgets.QListView):
                 self.toggle_archived(index)
                 self.model().invalidateFilter()
                 return
-
-
 
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
