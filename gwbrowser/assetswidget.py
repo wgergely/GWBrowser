@@ -90,7 +90,7 @@ class AssetModel(BaseModel):
         default_thumbnail_image = ImageCache.instance().get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
-        default_background_color = QtGui.QColor(0, 0, 0, 55)
+        default_background_color = common.THUMBNAIL_BACKGROUND
 
         nth = 1
         c = 0
@@ -189,7 +189,7 @@ class AssetModel(BaseModel):
             data[idx][common.SortBySize] = todocount
 
             # Only including this for compatibility with the methods used by the file-items
-            data[idx][common.StatusRole] = True
+            data[idx][common.FileInfoLoaded] = True
 
         self.endResetModel()
 

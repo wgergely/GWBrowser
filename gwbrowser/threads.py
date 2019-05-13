@@ -90,7 +90,8 @@ class BaseWorker(QtCore.QObject):
         """
         try:
             while not self.shutdown_requested:
-                self.process_index(self.queue.get(True))
+                index = self.queue.get(True)
+                self.process_index(index)
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)

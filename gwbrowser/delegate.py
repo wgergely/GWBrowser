@@ -135,14 +135,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
 
-        thumbcolor = QtGui.QColor(color)
-        thumbcolor.setHsl(
-            color.hue(),
-            color.saturation(),
-            color.lightness() - 10
-        )
-        painter.setBrush(thumbcolor)
-        painter.drawRect(rect)
+        # thumbcolor = QtGui.QColor(color)
+        # thumbcolor.setHsl(
+        #     color.hue(),
+        #     color.saturation(),
+        #     color.lightness() - 10
+        # )
+        # painter.setBrush(thumbcolor)
+        # painter.drawRect(rect)
 
         rect.setRight(option.rect.right())
 
@@ -199,7 +199,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not image:
             return
         color = index.data(common.ThumbnailBackgroundRole)
-        color = color if color else QtGui.QColor(0, 0, 0, 55)
+        color = color if color else common.THUMBNAIL_BACKGROUND
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
@@ -294,7 +294,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return
@@ -330,7 +330,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return
@@ -352,7 +352,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter, option, index, _, _, _, _, _ = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return
@@ -394,7 +394,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, favourite = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return
@@ -436,7 +436,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter, option, index, selected, _, active, archived, _ = args
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
 
         if not self.parent().inline_icons_count():
@@ -527,7 +527,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         elif index.data(common.DescriptionRole):
             text = index.data(common.DescriptionRole)
 
-        if option.rect.width() >= 360.0:
+        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             if self.parent().inline_icons_count():
@@ -647,7 +647,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             rect.setRight(option.rect.right() - common.MARGIN)
         else:
             _, icon_rect = self.get_inline_icon_rect(
@@ -662,7 +662,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """Paints name of the ``BookmarkWidget``'s items."""
         painter, option, index, selected, _, _, _, _ = args
         # Count
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
 
         count = index.data(common.AssetCountRole)
@@ -699,7 +699,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return
@@ -777,7 +777,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect.setHeight(metrics.height())
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
-        if option.rect.width() >= 360.0:
+        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             if self.parent().inline_icons_count():
@@ -815,13 +815,13 @@ class FilesWidgetDelegate(BaseDelegate):
 
         #
         self.paint_thumbnail(*args)
-        if index.data(common.StatusRole):
+        if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
-        if index.data(common.StatusRole):
+        if index.data(common.FileInfoLoaded):
             self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
@@ -839,7 +839,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if rect.left() < (left + common.MARGIN):
             rect.setLeft(left + common.MARGIN)
-            if option.rect.width() < 360.0:
+            if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
                 rect.setLeft(rect.left() - common.MARGIN)
         common.draw_aliased_text(painter, font, rect, text, align, color)
 
@@ -870,7 +870,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setHeight(metrics.height())
         rect.moveTop(rect.bottom() - rect.height() + (rect.height() / 3))
 
-        if option.rect.width() >= 360.0:
+        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
@@ -884,7 +884,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = self._draw(painter, font, rect, text, align,
                           common.SECONDARY_TEXT, option, kwargs['left'])
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
 
         if index.data(common.DescriptionRole):
@@ -933,7 +933,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if not modes[0]:
             return rect.right()
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return rect.right()
 
         max_depth = 4
@@ -1001,7 +1001,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() - rect.height() + (rect.height() / 3))
 
         # Taking the control-icons into consideration
-        if option.rect.width() >= 360.0:
+        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
                 option.rect,
                 common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
@@ -1098,13 +1098,13 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
 
         #
         self.paint_thumbnail(*args)
-        if index.data(common.StatusRole):
+        if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
-        if index.data(common.StatusRole):
+        if index.data(common.FileInfoLoaded):
             self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
@@ -1118,7 +1118,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, _, _ = args
 
-        if option.rect.width() < 360.0:
+        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
         if not self.parent().inline_icons_count():
             return

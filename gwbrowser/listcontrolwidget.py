@@ -24,6 +24,7 @@ import gwbrowser.settings as Settings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.fileswidget import FileInfoWorker
+from gwbrowser.fileswidget import FileThumbnailWorker
 from gwbrowser.fileswidget import FilesWidget
 
 from gwbrowser.threads import BaseThread
@@ -512,7 +513,7 @@ class AddButton(ControlButton):
 
             index = self._parent.currentWidget().selectionModel().currentIndex()
             if index.isValid():
-                if not index.data(common.StatusRole):
+                if not index.data(common.FileInfoLoaded):
                     return
 
             bookmark_model = BookmarksModel()
@@ -924,7 +925,8 @@ class DataKeyModel(BaseModel):
                 common.FlagsRole: flags,
                 common.ParentRole: None,
                 #
-                common.StatusRole: False,
+                common.FileInfoLoaded: False,
+                common.FileThumbnailLoaded: True,
                 common.TodoCountRole: 0,
             }
             indexes.append(idx)
@@ -994,8 +996,8 @@ class BaseControlButton(ClickableLabel):
 
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
 
         option = QtWidgets.QStyleOptionButton()
         option.initFrom(self)
@@ -1018,13 +1020,15 @@ class BaseControlButton(ClickableLabel):
         if self._parent.currentIndex() == self.index:
             metrics = QtGui.QFontMetrics(common.PrimaryFont)
             center = rect.center()
-            rect.setHeight(2)
+            rect.setHeight(3)
             rect.moveCenter(center)
             rect.moveTop(rect.top() + (metrics.height() / 2) + 3)
             rect.setWidth(metrics.width(self.text()))
             painter.setBrush(color)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRoundedRect(rect, 1, 1)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
+            painter.drawRect(rect)
         painter.end()
 
 

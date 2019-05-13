@@ -506,8 +506,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.collector_count = 0
         self.context_menu_cls = None
 
-        self.setResizeMode(QtWidgets.QListView.Adjust)
-        # self.setMouseTracking(True)
+        self.setResizeMode(QtWidgets.QListView.Fixed)
+        self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
@@ -805,7 +805,7 @@ class BaseListWidget(QtWidgets.QListView):
         """
         if not index.isValid():
             return
-        if not index.data(common.StatusRole):
+        if not index.data(common.FileInfoLoaded):
             return
 
         archived = index.flags() & Settings.MarkedAsArchived
@@ -992,7 +992,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
             if event.key() == QtCore.Qt.Key_C:
-                if index.data(common.StatusRole):
+                if index.data(common.FileInfoLoaded):
                     if common.osx:
                         if event.modifiers() & QtCore.Qt.ShiftModifier:
                             return common.copy_path(index, mode=common.MacOSPath, first=True)
@@ -1175,7 +1175,7 @@ class BaseInlineIconWidget(BaseListWidget):
         source_index = self.model().mapToSource(index)
         rect = self.visualRect(index)
 
-        if self.viewport().width() < 360.0:
+        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mousePressEvent(event)
 
         self.reset_multitoggle()
@@ -1211,7 +1211,7 @@ class BaseInlineIconWidget(BaseListWidget):
         rect = self.visualRect(index)
         # idx = index.row()
 
-        if self.viewport().width() < 360.0:
+        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
         # Cheking the button
@@ -1256,7 +1256,7 @@ class BaseInlineIconWidget(BaseListWidget):
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
-        if self.viewport().width() < 360.0:
+        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos = event.pos()

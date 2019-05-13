@@ -35,7 +35,9 @@ class ImageCacheWorker(BaseWorker):
         if not source and not dest:
             if not index.isValid():
                 return
-            if not index.data(common.StatusRole):
+            if not index.data(common.FileInfoLoaded):
+                return
+            if index.data(common.FileThumbnailLoaded):
                 return
 
         if index.isValid():
@@ -150,6 +152,7 @@ class ImageCacheWorker(BaseWorker):
             data = index.model().model_data()
             data[index.row()][common.ThumbnailRole] = image
             data[index.row()][common.ThumbnailBackgroundRole] = color
+            data[index.row()][common.FileThumbnailLoaded] = True
 
             index.model().dataChanged.emit(index, index)
 
@@ -270,6 +273,8 @@ class ImageCache(QtCore.QObject):
             QImage: The resized copy of the original image.
 
         """
+        if not isinstance(size, (int, float)):
+            return image
         longer = float(max(image.width(), image.height()))
         factor = float(float(size) / float(longer))
         if image.width() < image.height():
@@ -288,7 +293,7 @@ class ImageCache(QtCore.QObject):
     def get_color_average(image):
         """Returns the average color of an image."""
         if image.isNull():
-            return QtGui.QColor(common.SECONDARY_BACKGROUND)
+            return common.THUMBNAIL_BACKGROUND
 
         r = []
         g = []
@@ -303,14 +308,13 @@ class ImageCache(QtCore.QObject):
                 b.append(image.pixelColor(x, y).blue())
 
         if not all([float(len(r)), float(len(g)), float(len(b))]):
-            average_color = QtGui.QColor(common.SECONDARY_BACKGROUND)
+            return common.THUMBNAIL_BACKGROUND
         else:
             average_color = QtGui.QColor(
                 sum(r) / float(len(r)),
                 sum(g) / float(len(g)),
                 sum(b) / float(len(b))
             )
-        average_color.setAlpha(int(average_color.alpha() / 2))
         return average_color
 
     def generate_thumbnails(self, indexes, overwrite=False):
@@ -326,9 +330,9 @@ class ImageCache(QtCore.QObject):
             """Filter method for making sure only acceptable files types will be querried."""
             for index in indexes:
                 ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
-                if ext not in common._oiio_formats:
+                if ext not in common.oiio_formats:
                     continue
-                if not index.data(common.StatusRole):
+                if not index.data(common.FileInfoLoaded):
                     continue
                 dest = AssetSettings(index).thumbnail_path()
                 if not overwrite and QtCore.QFileInfo(dest).exists():

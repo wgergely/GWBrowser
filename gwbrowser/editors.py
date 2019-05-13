@@ -578,37 +578,121 @@ class FilterEditor(QtWidgets.QWidget):
             self.close()
 
 
-class ThumbnailsWidget(QtWidgets.QWidget):
+class ThumbnailLabel(ClickableLabel):
+    """Custom QLabel to select a thumbnail."""
+    clicked = QtCore.Signal(unicode)
+
+    def __init__(self, path, size, parent=None):
+        super(ThumbnailLabel, self).__init__(parent=parent)
+        self._path = path
+
+        self.setFixedWidth(size)
+        self.setFixedHeight(size)
+        self.setMouseTracking(True)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum,
+            QtWidgets.QSizePolicy.Maximum)
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def mouseReleaseEvent(self, event):
+        self.clicked.emit(self._path)
+
+    def paintEvent(self, event):
+        super(ThumbnailLabel, self).paintEvent(event)
+
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        if hover:
+            return
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 33))
+        painter.drawRect(self.rect())
+        painter.end()
+
+
+class ThumbnailsWidget(QtWidgets.QScrollArea):
+    """The widget used to let the end-user pick a new thumbnail."""
+    thumbnailSelected = QtCore.Signal(unicode)
+
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
+        self.thumbnail_size = 128
+        self.columns = 4
+
+        self._createUI()
+
+        self.setFixedHeight(
+            (self.thumbnail_size + common.INDICATOR_WIDTH) * 6 + (common.INDICATOR_WIDTH * 2))
+        self.setFixedWidth(
+            (self.thumbnail_size + common.INDICATOR_WIDTH) * self.columns + (common.INDICATOR_WIDTH * 2))
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+
+    def _createUI(self):
+        """Using scandir we will get all the installed thumbnail files from the rsc directory."""
+        common.set_custom_stylesheet(self)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window)
+        self.setWindowTitle(u'Select a thumbnail:')
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
+        widget = QtWidgets.QWidget()
+        QtWidgets.QGridLayout(widget)
+        widget.layout().setContentsMargins(
+            common.INDICATOR_WIDTH,
+            common.INDICATOR_WIDTH,
+            common.INDICATOR_WIDTH,
+            common.INDICATOR_WIDTH)
+        widget.layout().setSpacing(common.INDICATOR_WIDTH)
+
+        self.setWidgetResizable(True)
+        self.setWidget(widget)
+
+        row = 0
         path = u'{}/../rsc'.format(__file__)
         path = os.path.normpath(os.path.abspath(path))
 
-        columns = 4
-        row = 0
-
-        self._createUI()
         for idx, entry in enumerate(gwscandir.scandir(path)):
             if not entry.name.startswith('thumb'):
                 continue
             pixmap = ImageCache.get_rsc_pixmap(
-                entry.name.replace(u'.png', u''), None, 128)
+                entry.name.replace(u'.png', u''), None, self.thumbnail_size)
             if pixmap.isNull():
                 continue
-            label = QtWidgets.QLabel()
+            label = ThumbnailLabel(
+                entry.path.replace(u'\\', u'/'), self.thumbnail_size, parent=self)
             label.setPixmap(pixmap)
 
-            column = idx % columns
+            column = idx % self.columns
             if column == 0:
                 row += 1
-            self.layout().addWidget(label, row, column)
-
-    def _createUI(self):
-        QtWidgets.QGridLayout(self)
+            widget.layout().addWidget(label, row, column)
+            label.clicked.connect(self.thumbnailSelected)
+            label.clicked.connect(self.close)
 
     def _connectSignals(self):
         pass
 
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
+
+    def keyPressEvent(self, event):
+        """Closes the widget on any key-press."""
+        self.close()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

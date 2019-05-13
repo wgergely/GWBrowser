@@ -114,7 +114,7 @@ class SaverContextMenu(BaseContextMenu):
         menu_set['Image files:'] = {
             'disabled': True
         }
-        for ext in common._oiio_formats:
+        for ext in common.oiio_formats:
             menu_set[ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }

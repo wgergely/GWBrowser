@@ -418,23 +418,44 @@ class BaseContextMenu(QtWidgets.QMenu):
                     parent=self.parent()
                 )
             }
-            menu_set[key][u'Reveal'] = {
-                u'icon': show_thumbnail,
-                u'action': functools.partial(
-                    common.reveal,
-                    settings.thumbnail_path(),
-                )
-            }
-
             menu_set[key][u'separator'] = {}
 
-        menu_set[key][u'Capture new'] = {
+
+        menu_set[key][u'Capture screen'] = {
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().capture, source_index)}
 
-        menu_set[key][u'Pick new'] = {
+        # Submenu for picking a thumbnail from our internal thumbnail library
+        QtCore.Slot(unicode)
+        def add_thumbnail_from_library(path):
+            """When a selection is made, adds the selected thumbnail to the
+            current item."""
+            ImageCacheWorker.process_index(source_index, source=path)
+
+        def show_thumbnail_picker():
+            """Creates and shows the thumbnail picker widget."""
+            rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
+            widget = editors.ThumbnailsWidget(parent=self.parent())
+
+            widget.thumbnailSelected.connect(add_thumbnail_from_library)
+            widget.show()
+
+            wpos = QtCore.QPoint(widget.width() / 2.0, widget.height() / 2.0)
+            widget.move(rect.center() - wpos)
+            common.move_widget_to_available_geo(widget)
+
+            widget.setFocus(QtCore.Qt.PopupFocusReason)
+
+        menu_set[key]['From library...'] = {
+            u'text': 'Add from library...',
+            u'icon': pick_thumbnail_pixmap,
+            u'action': show_thumbnail_picker
+        }
+
+        menu_set[key][u'Add from file...'] = {
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, source_index)}
+
 
         suffix = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix()
@@ -488,33 +509,11 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'action': functools.partial(ImageCache.instance().remove, source_index),
                 u'icon': remove_thumbnail_pixmap
             }
-
-        # Submenu for picking a thumbnail from our internal thumbnail library
-        kkey = u'thumblib'
-        menu_set[kkey] = collections.OrderedDict()
-        menu_set[u'{}:text'.format(kkey)] = u'Thumbnail from library...'
-        menu_set[u'{}:icon'.format(kkey)] = capture_thumbnail_pixmap
-
-        n = 0
-        path = u'{}/../rsc'.format(__file__)
-        path = os.path.normpath(os.path.abspath(path))
-        for entry in gwscandir.scandir(path):
-            if u'.png' not in entry.name:
-                continue
-            if not entry.name.startswith('thumb'):
-                continue
-
-            n += 1
-            menu_set[kkey][entry.name] = {
-                u'text': u'Thumbnail {}'.format(n),
-                u'icon': ImageCache.get_rsc_pixmap(
-                    entry.name.replace(u'.png', u''),
-                    None,
-                    common.INLINE_ICON_SIZE),
+            menu_set[key][u'Reveal'] = {
                 u'action': functools.partial(
-                    ImageCacheWorker.process_index,
-                    source_index,
-                    source=entry.path.replace(u'\\', u'/'))
+                    common.reveal,
+                    settings.thumbnail_path(),
+                )
             }
         return menu_set
 

@@ -156,8 +156,10 @@ ASSET_FOLDERS = {
 ROW_HEIGHT = 46.0
 BOOKMARK_ROW_HEIGHT = 54.0
 ASSET_ROW_HEIGHT = 84.0
-CONTROL_HEIGHT = 28.0
+CONTROL_HEIGHT = 38.0
 ROW_SEPARATOR = 1.0
+
+INLINE_ICONS_MIN_WIDTH = 640.0
 
 # Font scaling seems at best random given platform differences.
 # Programmatically scaling might fix matters...
@@ -193,6 +195,7 @@ THUMBNAIL_IMAGE_SIZE = 1024.0
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(80, 80, 80)
 BACKGROUND = QtGui.QColor(98, 98, 98)
+THUMBNAIL_BACKGROUND = QtGui.QColor(0, 0, 0, 55)
 
 TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(250, 250, 250)
@@ -281,15 +284,14 @@ scene_formats = (
     u'rv',
     u'autosave'
 )
-_oiio_formats = tuple(get_oiio_namefilters(as_array=True))
-_all_formats = list() + list(scene_formats) + \
-    list(_oiio_formats) + list(exports_formats)
+oiio_formats = set(tuple(get_oiio_namefilters(as_array=True)))
+all_formats = set(list(scene_formats) + list(oiio_formats) + list(exports_formats))
 
 NameFilters = {
-    ExportsFolder: _all_formats,
-    ScenesFolder: _all_formats,
-    RendersFolder: _all_formats,
-    TexturesFolder: _all_formats,
+    ExportsFolder: all_formats,
+    ScenesFolder: all_formats,
+    RendersFolder: all_formats,
+    TexturesFolder: all_formats,
 }
 """A list of expected file-formats associated with the location."""
 
@@ -307,17 +309,18 @@ FileDetailsRole = 1029
 """Special role used to save the information string of a file."""
 SequenceRole = 1030  # SRE Match object
 FramesRole = 1031  # List of frame names
-StatusRole = 1032
-StartpathRole = 1033
-EndpathRole = 1034
-ThumbnailRole = 1035
-ThumbnailPathRole = 1036
-ThumbnailBackgroundRole = 1037
-DefaultThumbnailRole = 1038
-DefaultThumbnailBackgroundRole = 1039
-TypeRole = 1040
-AssetCountRole = 1041
-EntryRole = 1042
+FileInfoLoaded = 1032
+FileThumbnailLoaded = 1033
+StartpathRole = 1034
+EndpathRole = 1035
+ThumbnailRole = 1036
+ThumbnailPathRole = 1037
+ThumbnailBackgroundRole = 1038
+DefaultThumbnailRole = 1039
+DefaultThumbnailBackgroundRole = 1040
+TypeRole = 1041
+AssetCountRole = 1042
+EntryRole = 1043
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -954,28 +957,3 @@ def ubytearray(ustring):
     # We convert the string to a hex array
     hstr = [r'\x{}'.format(f.encode('hex')) for f in ustring.encode('utf-8')]
     return QtCore.QByteArray.fromHex(''.join(hstr))
-
-
-def long_substr(data):
-    substr = ''
-    if len(data) > 1 and len(data[0]) > 0:
-        for i in range(len(data[0])):
-            for j in range(len(data[0]) - i + 1):
-                if j > len(substr) and is_substr(data[0][i:i + j], data):
-                    substr = data[0][i:i + j]
-    return substr
-
-
-def is_substr(find, data):
-    if len(data) < 1 and len(find) < 1:
-        return False
-    for i in range(len(data)):
-        if find not in data[i]:
-            return False
-    return True
-
-
-def replace_substr(s, substrings):
-    for substring in substrings:
-        s = s.replace(substring, u'')
-    return s

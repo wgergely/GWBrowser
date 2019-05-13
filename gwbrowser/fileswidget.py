@@ -35,49 +35,13 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 class FileInfoWorker(BaseWorker):
     """Thread-worker class responsible for updating the given indexes."""
-    queue = Unique(999999)
-
-    @QtCore.Slot()
-    def begin_processing(self):
-        """Gets and sets the missing information for each index in a background
-        thread.
-
-        """
-        try:
-            while not self.shutdown_requested:
-                index = FileInfoWorker.queue.get(True)
-                self.process_index(index)
-        except RuntimeError as err:
-            errstr = '\nRuntimeError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            traceback.print_exc()
-        except ValueError as err:
-            errstr = '\nValueError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            traceback.print_exc()
-        except TypeError as err:
-            errstr = '\nError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            sys.stderr.write(errstr)
-            traceback.print_exc()
-        finally:
-            if self.shutdown_requested:
-                sys.stdout.write('# {} worker finished processing.\n'.format(
-                    self.__class__.__name__))
-                self.finished.emit()
-            else:
-                self.begin_processing()
+    queue = Unique(99999)
 
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index):
-        """This static method is reponsible for populating an index's data
-        with the description, file information,  thumbnail data.
-
-        This process is automatically called by the `start_processing` method,
-        and will push any index in the thread's Queue to this method.
+        """This worker is reponsible for populating an index's data
+        with the description, file information.
 
         """
         if not index.isValid():
@@ -86,7 +50,7 @@ class FileInfoWorker(BaseWorker):
             return
         index = index.model().mapToSource(index)
         # To be on the save-side let's skip initiated items
-        if index.data(common.StatusRole):
+        if index.data(common.FileInfoLoaded):
             return
 
         # Item description
@@ -153,35 +117,62 @@ class FileInfoWorker(BaseWorker):
 
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
-        #
+
         if settings.value(u'config/archived'):
             flags = flags | MarkedAsArchived
         data[common.FlagsRole] = flags
-        data[common.StatusRole] = True
 
-        # Thumbnail
+        # Finally, we set the FileInfoLoaded flag to indicate this item
+        # has loaded the file data successfully
+        data[common.FileInfoLoaded] = True
+        index.model().dataChanged.emit(index, index)
+
+
+class FileInfoThread(BaseThread):
+    Worker = FileInfoWorker
+
+
+class FileThumbnailWorker(BaseWorker):
+    """Thread-worker class responsible for updating the given indexes."""
+    queue = Unique(999)
+
+    @staticmethod
+    @QtCore.Slot(QtCore.QModelIndex)
+    def process_index(index):
+        """This worker only considers thumbnails."""
+        if not index.isValid():
+            return
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
+
+        index = index.model().mapToSource(index)
+        data = index.model().model_data()[index.row()]
+
+        settings = AssetSettings(index)
         height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
 
         ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
-        placeholder_color = QtGui.QColor(0, 0, 0, 55)
+        placeholder_color = common.THUMBNAIL_BACKGROUND
 
-        if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
+        if ext in common.all_formats:
             placeholder_image = ImageCache.instance().get(
                 common.rsc_path(__file__, ext), height)
         else:
             placeholder_image = ImageCache.instance().get(
                 common.rsc_path(__file__, u'placeholder'), height)
 
-        # THUMBNAILS
         needs_thumbnail = False
         image = None
+
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             image = ImageCache.instance().get(settings.thumbnail_path(), height)
+
         if not image:  # The item doesn't have a saved thumbnail...
             ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
-            if ext in common._oiio_formats:
-                # ...but we can generate a thumbnail for it!
+            if ext in common.oiio_formats:
                 needs_thumbnail = True
+                placeholder_image = ImageCache.instance().get(
+                    common.rsc_path(__file__, u'spinner'), height)
             image = placeholder_image
             color = placeholder_color
         else:
@@ -193,15 +184,15 @@ class FileInfoWorker(BaseWorker):
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
 
-        # Let's generate the thumbnail if auto-generation is turned on
-        if index.model().generate_thumbnails and needs_thumbnail:
-            ImageCacheWorker.add_to_queue((index,))
-
         index.model().dataChanged.emit(index, index)
 
+        # Let's generate the thumbnail if auto-generation is turned on
+        if index.model().generate_thumbnails and needs_thumbnail:
+            ImageCacheWorker.process_index(index)
 
-class FileInfoThread(BaseThread):
-    Worker = FileInfoWorker
+
+class FileThumbnailThread(BaseThread):
+    Worker = FileThumbnailWorker
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -253,6 +244,10 @@ class FilesModel(BaseModel):
             self.threads[n].thread_id = n
             self.threads[n].start()
 
+            self.threads[n * 2] = FileThumbnailThread(self)
+            self.threads[n * 2].thread_id = n * 2
+            self.threads[n * 2].start()
+
         cls = self.__class__.__name__
         _generate_thumbnails = local_settings.value(
             u'widget/{}/generate_thumbnails'.format(cls))
@@ -284,6 +279,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ItemIsSelectable)
 
         FileInfoWorker.reset_queue()
+        FileThumbnailWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
         dkey = self.data_key()
@@ -312,7 +308,11 @@ class FilesModel(BaseModel):
         location_path = (u'{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
-        placeholder_color = QtGui.QColor(0, 0, 0, 55)
+
+        default_thumbnail_image = ImageCache.instance().get(
+            common.rsc_path(__file__, u'placeholder'),
+            rowsize.height() - common.ROW_SEPARATOR)
+        default_background_color = common.THUMBNAIL_BACKGROUND
 
         nth = 987
         c = 0
@@ -345,7 +345,7 @@ class FilesModel(BaseModel):
                     continue
 
                 ext = filename.split(u'.')[-1]
-                if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
+                if ext in common.all_formats:
                     placeholder_image = ImageCache.instance().get(
                         common.rsc_path(__file__, ext), rowsize.height())
                 else:
@@ -377,11 +377,17 @@ class FilesModel(BaseModel):
                     common.FileDetailsRole: u'',
                     common.SequenceRole: seq,
                     common.FramesRole: [],
-                    common.StatusRole: False,
+                    common.FileInfoLoaded: False,
+                    common.FileThumbnailLoaded: False,
                     common.StartpathRole: None,
                     common.EndpathRole: None,
-                    common.ThumbnailRole: placeholder_image,
-                    common.ThumbnailBackgroundRole: placeholder_color,
+                    #
+                    common.DefaultThumbnailRole: default_thumbnail_image,
+                    common.DefaultThumbnailBackgroundRole: default_background_color,
+                    common.ThumbnailPathRole: None,
+                    common.ThumbnailRole: default_thumbnail_image,
+                    common.ThumbnailBackgroundRole: default_background_color,
+                    #
                     common.TypeRole: common.FileItem,
                     common.SortByName: filepath,
                     common.SortByLastModified: 0,
@@ -438,11 +444,17 @@ class FilesModel(BaseModel):
                             common.FileDetailsRole: u'',
                             common.SequenceRole: seq,
                             common.FramesRole: [],
-                            common.StatusRole: False,
+                            common.FileInfoLoaded: False,
+                            common.FileThumbnailLoaded: False,
                             common.StartpathRole: None,
                             common.EndpathRole: None,
-                            common.ThumbnailRole: placeholder_image,
-                            common.ThumbnailBackgroundRole: placeholder_color,
+                            #
+                            common.DefaultThumbnailRole: default_thumbnail_image,
+                            common.DefaultThumbnailBackgroundRole: default_background_color,
+                            common.ThumbnailPathRole: None,
+                            common.ThumbnailRole: default_thumbnail_image,
+                            common.ThumbnailBackgroundRole: default_background_color,
+                            #
                             common.TypeRole: common.SequenceItem,
                             common.SortByName: seqpath,
                             common.SortByLastModified: 0,
@@ -530,31 +542,30 @@ class FilesModel(BaseModel):
 
             return mime
 
-        index = next((f for f in indexes), None)
-        if not index.isValid():
-            return None
-
         mime = QtCore.QMimeData()
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
         no_modifier = modifiers == QtCore.Qt.NoModifier
         alt_modifier = modifiers & QtCore.Qt.AltModifier
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
 
-        path = index.data(QtCore.Qt.StatusTipRole)
+        for index in indexes:
+            if not index.isValid():
+                continue
+            path = index.data(QtCore.Qt.StatusTipRole)
 
-        if no_modifier:
-            path = common.get_sequence_endpath(path)
-            add_path_to_mime(mime, path)
-        elif alt_modifier and shift_modifier:
-            path = QtCore.QFileInfo(path).dir().path()
-            add_path_to_mime(mime, path)
-        elif alt_modifier:
-            path = common.get_sequence_startpath(path)
-            add_path_to_mime(mime, path)
-        elif shift_modifier:
-            paths = common.get_sequence_paths(index)
-            for path in paths:
+            if no_modifier:
+                path = common.get_sequence_endpath(path)
                 add_path_to_mime(mime, path)
+            elif alt_modifier and shift_modifier:
+                path = QtCore.QFileInfo(path).dir().path()
+                add_path_to_mime(mime, path)
+            elif alt_modifier:
+                path = common.get_sequence_startpath(path)
+                add_path_to_mime(mime, path)
+            elif shift_modifier:
+                paths = common.get_sequence_paths(index)
+                for path in paths:
+                    add_path_to_mime(mime, path)
         return mime
 
 
@@ -597,9 +608,12 @@ class FilesWidget(BaseInlineIconWidget):
         self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
         self.model().layoutChanged.connect(self._index_timer.start)
 
+        self.verticalScrollBar().valueChanged.connect(FileThumbnailWorker.reset_queue)
+
     @QtCore.Slot()
     def reset_thread_worker_queues(self):
         FileInfoWorker.reset_queue()
+        FileThumbnailWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
     @QtCore.Slot()
@@ -612,14 +626,10 @@ class FilesWidget(BaseInlineIconWidget):
         in the view.
 
         """
-        indexes = []
-        _indexes = []
+        needs_info = []
+        needs_thumbnail = []
 
         if self.verticalScrollBar().isSliderDown():
-            return
-
-        # First let's remove the queued items
-        if FileInfoWorker.queue.qsize() > 99:
             return
 
         index = self.indexAt(self.rect().topLeft())
@@ -629,33 +639,36 @@ class FilesWidget(BaseInlineIconWidget):
         # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
         while self.rect().contains(rect):
-            _indexes.append(index)
-            if not index.data(common.StatusRole):
-                indexes.append(index)
+            if not index.data(common.FileInfoLoaded):
+                needs_info.append(index)
+            if not index.data(common.FileThumbnailLoaded):
+                needs_thumbnail.append(index)
 
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
             if not index.isValid():
                 break
 
-        if _indexes:
-            # Let's make sure the archived items don't creep in when they have
-            # their flags updated
-            if not self.model().filterFlag(MarkedAsArchived):
-                for _index in _indexes:
-                    if _index.flags() & MarkedAsArchived:
-                        self.model().invalidateFilter()
-                        return
-
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
         if index.isValid():
-            if not index.data(common.StatusRole):
-                if index not in indexes:
-                    indexes.append(index)
+            if not index.data(common.FileInfoLoaded):
+                if index not in needs_info:
+                    needs_info.append(index)
+            if not index.data(common.FileThumbnailLoaded):
+                if index not in needs_thumbnail:
+                    needs_thumbnail.append(index)
 
-        if indexes:
-            FileInfoWorker.add_to_queue(indexes)
+        # We want to make sure we keep archived items hidden. If we detect any
+        # archived items, we will invalidate the proxy model.
+        if needs_info:
+            if not self.model().filterFlag(MarkedAsArchived):
+                if [f for f in needs_info if f.flags() & MarkedAsArchived]:
+                    self.model().invalidateFilter()
+                    return
+
+        FileInfoWorker.add_to_queue(needs_info)
+        FileThumbnailWorker.add_to_queue(needs_thumbnail)
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

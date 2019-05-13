@@ -44,8 +44,9 @@ qn = 0
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
-    def __init__(self, parent):
+    def __init__(self, browserwidget, parent=None):
         super(SizeGrip, self).__init__(parent)
+        self.browserwidget = browserwidget
         self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
         self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
 
@@ -57,6 +58,42 @@ class SizeGrip(QtWidgets.QSizeGrip):
         painter.setOpacity(0.1)
         painter.drawPixmap(self.rect(), pixmap)
         painter.end()
+
+    def update_widgets(self, tracking):
+        """Seems to be some issue with resizing the views when using using the grip.
+        Also, when mouse-tracking is on resize is slow."""
+        stackedwidget = self.browserwidget.stackedwidget
+        controlview = self.browserwidget.listcontrolwidget._controlview
+        fileswidget = self.browserwidget.fileswidget
+
+        for idx in xrange(stackedwidget.count()):
+            widget = stackedwidget.widget(idx)
+            widget.setMouseTracking(tracking)
+            widget.viewport().setMouseTracking(tracking)
+            if tracking:
+                widget.updateGeometry()
+                widget.update()
+                widget.repaint()
+
+        if tracking:
+            controlview.updateGeometry()
+            stackedwidget.updateGeometry()
+            stackedwidget.parent().updateGeometry()
+            stackedwidget.update()
+            stackedwidget.repaint()
+            controlview.update()
+            controlview.repaint()
+            stackedwidget.parent().update()
+            stackedwidget.parent().repaint()
+            fileswidget.resized.emit(fileswidget.geometry())
+
+    def mouseMoveEvent(self, event):
+        self.update_widgets(False)
+        super(SizeGrip, self).mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self.update_widgets(True)
+        super(SizeGrip, self).mouseReleaseEvent(event)
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -256,7 +293,7 @@ class BrowserWidget(QtWidgets.QWidget):
         grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
         if grip:
             grip.deleteLater()
-        grip = SizeGrip(self)
+        grip = SizeGrip(self, parent=self)
 
         # Small label to display the current version number
         import gwbrowser

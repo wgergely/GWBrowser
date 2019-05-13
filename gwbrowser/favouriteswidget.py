@@ -87,7 +87,7 @@ class FavouritesModel(FilesModel):
             return
 
         server, job, root = self._parent_item
-        placeholder_color = QtGui.QColor(0, 0, 0, 55)
+        placeholder_color = common.THUMBNAIL_BACKGROUND
 
         for filepath in favourites:
             file_info = QtCore.QFileInfo(filepath)
@@ -136,7 +136,8 @@ class FavouritesModel(FilesModel):
                 common.FileDetailsRole: u'',
                 common.SequenceRole: seq,
                 common.FramesRole: [],
-                common.StatusRole: False,
+                common.FileInfoLoaded: False,
+                common.FileThumbnailLoaded: False,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
                 common.ThumbnailRole: placeholder_image,
@@ -193,7 +194,8 @@ class FavouritesModel(FilesModel):
                         common.FileDetailsRole: u'',
                         common.SequenceRole: seq,
                         common.FramesRole: [],
-                        common.StatusRole: False,
+                        common.FileInfoLoaded: False,
+                        common.FileThumbnailLoaded: False,
                         common.StartpathRole: None,
                         common.EndpathRole: None,
                         common.ThumbnailRole: placeholder_image,
@@ -403,7 +405,7 @@ class FavouritesWidget(FilesWidget):
         index = self.indexAt(event.pos())
         rect = self.visualRect(index)
 
-        if self.viewport().width() < 360.0:
+        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(QtWidgets.QListWidget, self).mouseReleaseEvent(event)
 
         for n in xrange(self.inline_icons_count()):

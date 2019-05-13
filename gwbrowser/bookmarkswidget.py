@@ -155,7 +155,7 @@ class BookmarksModel(BaseModel):
             thumbcolor,
             common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR)
         default_thumbnail_image = default_thumbnail_image.toImage()
-        default_background_color = QtGui.QColor(0, 0, 0, 55)
+        default_background_color = common.THUMBNAIL_BACKGROUND
 
         for idx, file_info in enumerate(items):
             # Let's make sure the Browser's configuration folder exists
@@ -211,7 +211,7 @@ class BookmarksModel(BaseModel):
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.BookmarkItem,
-                common.StatusRole: True,
+                common.FileInfoLoaded: True,
                 #
                 common.SortByName: file_info.filePath(),
                 common.SortByLastModified: file_info.filePath(),
