@@ -282,7 +282,7 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         parent.validate()
 
 
-class AddBookmarksWidget(QtWidgets.QWidget):
+class AddBookmarksWidget(QtWidgets.QDialog):
     """Defines a widget used add a new ``Bookmark``.
     The final Bookmark path is made up of ``AddBookmarksWidget.server``,
     ``AddBookmarksWidget.job`` and ``AddBookmarksWidget.root``
@@ -439,7 +439,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             self.pick_root_widget.pick_custom)
 
         self.ok_button.pressed.connect(self.add_bookmark)
-        self.close_button.pressed.connect(self.close)
+        self.close_button.pressed.connect(self.reject)
 
     @QtCore.Slot(int)
     def select_saved_item(self, index, key=None, combobox=None):
@@ -761,5 +761,5 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 def run():
     app = QtWidgets.QApplication([])
     w = AddBookmarksWidget()
-    w.show()
+    w.exec_()
     app.exec_()
