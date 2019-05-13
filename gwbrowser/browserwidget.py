@@ -59,8 +59,10 @@ class VersionLabel(QtWidgets.QLabel):
     def mousePressEvent(self, event):
         import gwbrowser
         version = u'{}'.format(gwbrowser.__version__)
-        self.parent().showMessage()
-        QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/')
+        self.parent().showMessage(version)
+
+    def mousePressEvent(self, event):
+        QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about')
 
 
 
@@ -250,6 +252,10 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self._initialized = True
         self.initialized.emit()
+
+        if local_settings.value(u'firstrun') is None:
+            QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about')
+            local_settings.setValue(u'firstrun', False)
 
     def _createUI(self):
         app = QtWidgets.QApplication.instance()

@@ -44,7 +44,6 @@ import OpenImageIO.OpenImageIO as OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
 
-
 default_server = u'sloth'
 legacy_server = u'gordo'
 default_username = u'render'
