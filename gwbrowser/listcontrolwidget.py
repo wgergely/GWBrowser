@@ -211,7 +211,13 @@ class SlackButton(BrowserButton):
             height=common.INLINE_ICON_SIZE, parent=parent)
         self.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'), type=QtCore.Qt.QueuedConnection)
-        self.setStatusTip(u'Open Slack!')
+        self.setStatusTip(u'Ctrl+Shift+S: Open slack in the web-browser')
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Shift+S'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
 
 class ControlButton(ClickableLabel):
@@ -274,9 +280,15 @@ class TodoButton(ControlButton):
 
     def __init__(self, parent=None):
         super(TodoButton, self).__init__(parent=parent)
-        description = u'Show the Todo & Note editor'
+        description = u'Ctrl+T  |  Show the Todo & Note editor'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+T'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
@@ -310,9 +322,15 @@ class FilterButton(ControlButton):
 
     def __init__(self, parent=None):
         super(FilterButton, self).__init__(parent=parent)
-        description = u'Edit search filter'
+        description = u'Ctrl+F  |  Edit search filter'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+F'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
@@ -364,9 +382,16 @@ class CollapseSequenceButton(ControlButton):
 
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(parent=parent)
-        description = u'Group sequences together'
+        description = u'Ctrl+G  |  Group sequences together'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+G'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
+
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
@@ -402,9 +427,16 @@ class ToggleArchivedButton(ControlButton):
 
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(parent=parent)
-        description = u'Show archived items'
+        description = u'Ctrl+Shift+A  |  Show archived items'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Shift+A'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
+
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
@@ -432,9 +464,15 @@ class ToggleFavouriteButton(ControlButton):
 
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(parent=parent)
-        description = u'Show my favourites only'
+        description = u'Ctrl+Shift+F  |  Show my favourites only'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Shift+F'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
@@ -469,9 +507,15 @@ class AddButton(ControlButton):
 
     def __init__(self, parent=None):
         super(AddButton, self).__init__(parent=parent)
-        description = u'Adds a new item'
+        description = u'Ctrl+N  |  Adds a new item'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+N'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo_add', c, common.INLINE_ICON_SIZE)
@@ -622,9 +666,15 @@ class GenerateThumbnailsButton(ControlButton):
 
     def __init__(self, parent=None):
         super(GenerateThumbnailsButton, self).__init__(parent=parent)
-        description = u'Toggle thumbnail generation. If experiencing performance issues, turn this off!'
+        description = u'Ctrl+M  |  Toggle thumbnail generation. If experiencing performance issues, turn this off!'
         self.setToolTip(description)
         self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+M'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'pick_thumbnail', c, common.INLINE_ICON_SIZE)
@@ -648,6 +698,7 @@ class GenerateThumbnailsButton(ControlButton):
         if not val == False:
             ImageCacheWorker.reset_queue()
         model.generate_thumbnails = not val
+        self.repaint()
 
     def repaint(self):
         """Will only show for favourite and file items."""
@@ -778,13 +829,23 @@ class DataKeyView(QtWidgets.QListView):
         self.setItemDelegate(DataKeyViewDelegate(parent=self))
         self.installEventFilter(self)
 
+    def eventFilter(self, widget, event):
+        """We're stopping events propagating back to the parent."""
+
     def hideEvent(self, event):
+        """DataKeyView hide event."""
         self.parent().verticalScrollBar().setHidden(False)
+        self.parent().removeEventFilter(self)
+        self.altparent._filesbutton.repaint()
 
     def showEvent(self, event):
+        """DataKeyView show event."""
         self.parent().verticalScrollBar().setHidden(True)
+        self.parent().installEventFilter(self)
 
     def eventFilter(self, widget, event):
+        if widget == self.parent():
+            return True
         if widget is not self:
             return False
 
@@ -793,7 +854,7 @@ class DataKeyView(QtWidgets.QListView):
             painter.begin(self)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(common.SEPARATOR)
-            painter.setOpacity(0.85)
+            painter.setOpacity(0.75)
             painter.drawRect(self.rect())
             painter.end()
             return True
@@ -1031,23 +1092,38 @@ class BaseControlButton(ClickableLabel):
 
 
 class BookmarksButton(BaseControlButton):
+    """The button responsible for revealing the ``BookmarksWidget``"""
     def __init__(self, parent=None):
         super(BookmarksButton, self).__init__(parent=parent)
         self.index = 0
         self.set_text(u'Bookmarks')
-        self.setStatusTip(u'Click to see the list of added Bookmarks')
+        self.setStatusTip(u'Ctrl+1 | Click to see the list of added bookmarks')
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+1'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
 
 class AssetsButton(BaseControlButton):
+    """The button responsible for revealing the ``AssetsWidget``"""
     def __init__(self, parent=None):
         super(AssetsButton, self).__init__(parent=parent)
         self.index = 1
         self.set_text(u'Assets')
-        self.setStatusTip(u'Click to see the list of available Assets')
+        self.setStatusTip(u'Ctrl+2  |  Click to see the list of available assets')
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+2'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
 
 class FilesButton(BaseControlButton):
-    """Drop-down widget to switch between the list"""
+    """The buttons responsible for swtiching the the FilesWidget and showing
+    the switch to change the data-key."""
 
     def __init__(self, parent=None):
         self._view = None
@@ -1055,8 +1131,14 @@ class FilesButton(BaseControlButton):
         self.index = 2
         self.set_text(u'Files')
         self.setStatusTip(
-            u'Click to see or change the current list of files')
+            u'Ctrl+3  |  Click to see or change the current task folder')
         self.clicked.connect(self.show_view, type=QtCore.Qt.QueuedConnection)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+3'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
     def paintEvent(self, event):
         """Indicating the visibility of the DataKeyView."""
@@ -1113,6 +1195,7 @@ class FilesButton(BaseControlButton):
         self.view().move(0, 0)
         self.view().show()
         self.view().setFocus(QtCore.Qt.PopupFocusReason)
+        self.view().viewport().setFocus(QtCore.Qt.PopupFocusReason)
 
         key = stackedwidget.currentWidget().model().sourceModel().data_key()
         if not key:
@@ -1134,7 +1217,13 @@ class FavouritesButton(BaseControlButton):
         super(FavouritesButton, self).__init__(parent=parent)
         self.index = 3
         self.set_text(u'My favourites')
-        self.setStatusTip(u'Click to see your saved favourites')
+        self.setStatusTip(u'Ctrl+4  |  Click to see your saved favourites')
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+4'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
 
 
 class ListControlWidget(QtWidgets.QWidget):

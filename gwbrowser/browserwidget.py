@@ -167,7 +167,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self._createUI()
         self._connectSignals()
-        self.add_shortcuts()
 
         active_monitor.macos_mount_timer.start()
         Active.paths()
@@ -667,23 +666,6 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().messageChanged.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
 
-    def add_shortcuts(self):
-        """Adds the custom shortcuts used to control the list widgets."""
-        for n in xrange(4):
-            shortcut = QtWidgets.QShortcut(
-                QtGui.QKeySequence(u'Alt+{}'.format(n + 1)), self)
-            shortcut.setAutoRepeat(False)
-            shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
-            shortcut.activated.connect(
-                functools.partial(self.listcontrolwidget.listChanged.emit, n))
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+F'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
-        shortcut.activated.connect(
-            self.listcontrolwidget.findChild(FilterButton).clicked)
-
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget
         is in standalone mode."""
@@ -691,11 +673,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        # center = rect.center()
-        # rect.setWidth(rect.width() - (common.MARGIN / 2))
-        # rect.setHeight(rect.height() - (common.MARGIN / 2))
-        # rect.moveCenter(center)
-
+        
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)

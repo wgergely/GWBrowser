@@ -344,7 +344,7 @@ class FilesModel(BaseModel):
                 if u'thumbs.db'.lower() in filename.lower():
                     continue
 
-                ext = filename.split(u'.')[-1]
+                ext = filename.split(u'.')[-1].lower()
                 if ext in common.all_formats:
                     placeholder_image = ImageCache.instance().get(
                         common.rsc_path(__file__, ext), rowsize.height())
@@ -655,9 +655,10 @@ class FilesWidget(BaseInlineIconWidget):
             if not index.data(common.FileInfoLoaded):
                 if index not in needs_info:
                     needs_info.append(index)
-            if not index.data(common.FileThumbnailLoaded):
-                if index not in needs_thumbnail:
-                    needs_thumbnail.append(index)
+            if self.model().sourceModel().generate_thumbnails:
+                if not index.data(common.FileThumbnailLoaded):
+                    if index not in needs_thumbnail:
+                        needs_thumbnail.append(index)
 
         # We want to make sure we keep archived items hidden. If we detect any
         # archived items, we will invalidate the proxy model.
@@ -668,7 +669,8 @@ class FilesWidget(BaseInlineIconWidget):
                     return
 
         FileInfoWorker.add_to_queue(needs_info)
-        FileThumbnailWorker.add_to_queue(needs_thumbnail)
+        if self.model().sourceModel().generate_thumbnails:
+            FileThumbnailWorker.add_to_queue(needs_thumbnail)
 
     def eventFilter(self, widget, event):
         super(FilesWidget, self).eventFilter(widget, event)

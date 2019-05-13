@@ -408,11 +408,11 @@ class BookmarksWidget(BaseInlineIconWidget):
         if self.add_bookmarks_widget:
             self.add_bookmarks_widget.add_root_folders(
                 self.add_bookmarks_widget.pick_job_widget.currentIndex())
-            self.add_bookmarks_widget.show()
+            self.add_bookmarks_widget.exec_()
             return
 
         self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
-        self.add_bookmarks_widget.show()
+        self.add_bookmarks_widget.exec_()
         if self.parent():
             pos = self.parent().rect().center()
             pos = self.parent().mapToGlobal(pos)

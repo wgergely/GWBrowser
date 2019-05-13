@@ -787,7 +787,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Let's save the favourites list and emit a dataChanged signal
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        # self.favouritesChanged.emit()
         index.model().dataChanged.emit(index, index)
 
     def toggle_archived(self, index, state=None):
@@ -809,37 +808,64 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         archived = index.flags() & Settings.MarkedAsArchived
-
         settings = AssetSettings(index)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
+        sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
-        data = source_index.model().model_data()
+        data = source_index.model().model_data()[source_index.row()]
+        m = self.model().sourceModel()
+
+        key = index.data(QtCore.Qt.StatusTipRole)
+        collapsed = common.is_collapsed(key)
+        if collapsed:
+            key = collapsed.expand(ur'\1\3')  # \2 is the sequence-string
+
         if archived:
             if state is None or state is False:  # clears flag
-                data[source_index.row()][common.FlagsRole] = data[source_index.row(
-                )][common.FlagsRole] & ~Settings.MarkedAsArchived
-                settings.setValue(u'config/archived', False)
+                data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsArchived
+                if self.model().sourceModel().data_type() == common.SequenceItem:
+                    for _item in m._data[m.data_key()][common.FileItem].itervalues():
+                        _seq = _item[common.SequenceRole]
+                        if not _seq:
+                            continue
+                        if _seq.expand(ur'\1\3.\4') != key:
+                            continue
+                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsArchived
                 index.model().dataChanged.emit(index, index)
                 return
 
         if state is None or state is True:
-            data[source_index.row()][common.FlagsRole] = data[source_index.row()
-                                                              ][common.FlagsRole] | Settings.MarkedAsArchived
-            settings.setValue(u'config/archived', True)
+            # Removing favourite flags when the item is to be archived
+            if key in sfavourites:
+                if state is None or state is False:  # clears flag
+                    favourites.remove(key)
+                    data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                if self.model().sourceModel().data_type() == common.SequenceItem:
+                    for _item in m._data[m.data_key()][common.FileItem].itervalues():
+                        _seq = _item[common.SequenceRole]
+                        if not _seq:
+                            continue
+                        if _seq.expand(ur'\1\3.\4') != key:
+                            continue
+                        if _item[QtCore.Qt.StatusTipRole] in sfavourites:
+                            favourites.remove(_item[QtCore.Qt.StatusTipRole])
+                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsFavourite
 
-            key = index.data(QtCore.Qt.StatusTipRole)
-            collapsed = common.is_collapsed(key)
-            if collapsed:
-                key = collapsed.expand(ur'\1\3')
-            if key in favourites:
-                data[source_index.row()][common.FlagsRole] = data[source_index.row(
-                )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+            data[common.FlagsRole] = data[common.FlagsRole] | Settings.MarkedAsArchived
+            if self.model().sourceModel().data_type() == common.SequenceItem:
+                for _item in m._data[m.data_key()][common.FileItem].itervalues():
+                    _seq = _item[common.SequenceRole]
+                    if not _seq:
+                        continue
+                    if _seq.expand(ur'\1\3.\4') != key:
+                        continue
+                    _item[common.FlagsRole] = _item[common.FlagsRole] | Settings.MarkedAsArchived
 
-                favourites.remove(key)
-                local_settings.setValue(u'favourites', favourites)
         index.model().dataChanged.emit(index, index)
+
+
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
@@ -1008,6 +1034,21 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_R:
                 self.model().sourceModel().modelDataResetRequested.emit()
                 return
+
+            if event.key() == QtCore.Qt.Key_S:
+                common.reveal(index.data(QtCore.Qt.StatusTipRole))
+                return
+            if event.key() == QtCore.Qt.Key_F:
+                self.toggle_favourite(index)
+                self.model().invalidateFilter()
+                self.favouritesChanged.emit()
+                return
+            if event.key() == QtCore.Qt.Key_A:
+                self.toggle_archived(index)
+                self.model().invalidateFilter()
+                return
+
+
 
         if event.modifiers() & QtCore.Qt.ShiftModifier:
             if event.key() == QtCore.Qt.Key_Tab:
@@ -1221,6 +1262,7 @@ class BaseInlineIconWidget(BaseListWidget):
                 self.model().dataChanged.emit(index, index)
             self.reset_multitoggle()
             self.model().invalidateFilter()
+            self.favouritesChanged.emit()
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
         for n in xrange(self.inline_icons_count()):
@@ -1233,6 +1275,7 @@ class BaseInlineIconWidget(BaseListWidget):
             if n == 0:
                 self.toggle_favourite(index)
                 self.model().invalidateFilter()
+                self.favouritesChanged.emit()
                 break
             elif n == 1:
                 self.toggle_archived(index)

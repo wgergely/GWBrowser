@@ -235,6 +235,9 @@ class ImageCache(QtCore.QObject):
             height=height
         )
 
+        if not path:
+            return None
+
         # Return cached item if exsits
         if k in ImageCache._data and not overwrite:
             return ImageCache._data[k]
