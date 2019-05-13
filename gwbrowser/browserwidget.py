@@ -31,6 +31,7 @@ from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.editors import ClickableLabel
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.listcontrolwidget import FilterButton
@@ -41,6 +42,26 @@ import gwbrowser.settings as Settings
 
 qn = 0
 """Number of tries before quitting"""
+
+
+class VersionLabel(QtWidgets.QLabel):
+    """Small version label responsible for displaying information
+    about GWBrowser."""
+
+    def __init__(self, parent=None):
+        super(VersionLabel, self).__init__(parent=parent)
+        import gwbrowser
+        self.setText(
+            u'<font color=gray size={}pt>{}</font>'.format(
+                common.psize(common.SMALL_FONT_SIZE),
+                gwbrowser.__version__))
+
+    def mousePressEvent(self, event):
+        import gwbrowser
+        version = u'{}'.format(gwbrowser.__version__)
+        self.parent().showMessage()
+        QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/')
+
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
@@ -296,12 +317,7 @@ class BrowserWidget(QtWidgets.QWidget):
             grip.deleteLater()
         grip = SizeGrip(self, parent=self)
 
-        # Small label to display the current version number
-        import gwbrowser
-        version_label = QtWidgets.QLabel()
-        version_label.setText(
-            u'<font color=gray size={}pt>{}</font>'.format(common.psize(common.SMALL_FONT_SIZE), gwbrowser.__version__))
-        self.statusbar.addPermanentWidget(version_label)
+        self.statusbar.addPermanentWidget(VersionLabel(parent=self.statusbar))
         self.statusbar.addPermanentWidget(grip)
 
         self.layout().addWidget(self.listcontrolwidget)
@@ -356,7 +372,7 @@ class BrowserWidget(QtWidgets.QWidget):
             # Forcing the application to close after n tries
             if qn > 20:  # circa 5 seconds to wrap things up, will exit by force after
                 QtWidgets.QApplication.instance().quit()
-                raise SystemExit('# Force python to exit.')
+                raise SystemExit(0)
 
         @QtCore.Slot()
         def finished(thread):
@@ -673,7 +689,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        
+
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)

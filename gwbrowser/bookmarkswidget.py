@@ -257,6 +257,7 @@ class BookmarksModel(BaseModel):
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():
             return True
+        return False
 
     def dropMimeData(self, data, action, row, column, parent):
         index = parent
@@ -405,21 +406,21 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def show_add_bookmark_widget(self):
         """Opens a dialog to add a new project to the list of saved locations."""
-        if self.add_bookmarks_widget:
-            self.add_bookmarks_widget.add_root_folders(
-                self.add_bookmarks_widget.pick_job_widget.currentIndex())
-            self.add_bookmarks_widget.exec_()
-            return
+        if not self.add_bookmarks_widget:
+            self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+            self.add_bookmarks_widget.show()
+            self.add_bookmarks_widget.hide()
 
-        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+        self.add_bookmarks_widget.add_root_folders(
+            self.add_bookmarks_widget.pick_job_widget.currentIndex())
+
+        pos = self.geometry().center()
+        pos = self.mapToGlobal(pos)
+        self.add_bookmarks_widget.move(
+            pos.x() - self.add_bookmarks_widget.width() / 2,
+            pos.y() - self.add_bookmarks_widget.height() / 2)
+
         self.add_bookmarks_widget.exec_()
-        if self.parent():
-            pos = self.parent().rect().center()
-            pos = self.parent().mapToGlobal(pos)
-            self.add_bookmarks_widget.move(
-                pos.x() - (self.add_bookmarks_widget.width() / 2.0),
-                pos.y() - (self.add_bookmarks_widget.height() / 2.0),
-            )
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""

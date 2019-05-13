@@ -741,14 +741,14 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.move_start_event_pos = event.pos()
         self.move_start_widget_pos = self.mapToGlobal(self.rect().topLeft())
 
-    def mouseMoveEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.buttons() == QtCore.Qt.NoButton:
-            return
-        if self.move_start_widget_pos:
-            offset = (event.pos() - self.move_start_event_pos)
-            self.move(self.mapToGlobal(self.rect().topLeft()) + offset)
+    # def mouseMoveEvent(self, event):
+    #     if not isinstance(event, QtGui.QMouseEvent):
+    #         return
+    #     if event.buttons() == QtCore.Qt.NoButton:
+    #         return
+    #     if self.move_start_widget_pos:
+    #         offset = (event.pos() - self.move_start_event_pos)
+    #         self.move(self.mapToGlobal(self.rect().topLeft()) + offset)
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):

@@ -31,7 +31,7 @@ def run():
         widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
         widget.show()
         app.exec_()
-        raise SystemExit('# GW shut down')
+        raise SystemExit(0)
     except Exception as err:
         try:
             import traceback
@@ -48,9 +48,9 @@ def run():
             raise RuntimeError(
                 '# An error occured starting GWBrowser:\n{}'.format(err))
         finally:
-            raise SystemExit('# An error occured starting GWBrowser')
+            raise SystemExit(0)
     finally:
-        raise SystemExit('# An error occured starting GWBrowser')
+        raise SystemExit(0)
 
 
 if __name__ == '__main__':
