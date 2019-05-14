@@ -284,7 +284,7 @@ scene_formats = (
     u'autosave'
 )
 oiio_formats = set(tuple(get_oiio_namefilters(as_array=True)))
-all_formats = set(list(scene_formats) + list(oiio_formats) + list(exports_formats))
+all_formats = set(list(scene_formats) + list(oiio_formats) + list(exports_formats) + list(creative_cloud_formats))
 
 NameFilters = {
     ExportsFolder: all_formats,
@@ -950,7 +950,7 @@ def rsc_path(f, n):
 
 
 def ubytearray(ustring):
-    """Helper function to convert a unicode string to a QBytreArray object."""
+    """Helper function to convert a unicode string to a QByteArray object."""
     if not isinstance(ustring, unicode):
         raise TypeError('The provided string has to be a unicode string')
     # We convert the string to a hex array

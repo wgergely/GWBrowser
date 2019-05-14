@@ -20,6 +20,7 @@ import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.baselistwidget import initdata
 import gwbrowser.editors as editors
 from gwbrowser.delegate import AssetsWidgetDelegate
 
@@ -59,6 +60,7 @@ class AssetModel(BaseModel):
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
 
+    @initdata
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset itemsself.
 
@@ -78,10 +80,8 @@ class AssetModel(BaseModel):
         sfavourites = set(favourites)
 
         if not self._parent_item:
-            # self.endResetModel()
             return
         if not all(self._parent_item):
-            # self.endResetModel()
             return
 
         server, job, root = self._parent_item
@@ -190,8 +190,6 @@ class AssetModel(BaseModel):
 
             # Only including this for compatibility with the methods used by the file-items
             data[idx][common.FileInfoLoaded] = True
-
-        self.endResetModel()
 
 
 class AssetsWidget(BaseInlineIconWidget):

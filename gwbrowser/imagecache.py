@@ -9,9 +9,10 @@ the image cache and the OpenImageIO-based thmbnail generator methods.
 
 import sys
 import os
+from functools import wraps
+from xml.etree import ElementTree
 
 from PySide2 import QtWidgets, QtGui, QtCore
-
 from gwbrowser.capture import ScreenGrabber
 from gwbrowser.settings import AssetSettings
 import gwbrowser.common as common
@@ -23,6 +24,18 @@ from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
 
+def oiio(func):
+    """Decorator to wrap the oiio process"""
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        try:
+            res = func(self, *args, **kwargs)
+        except Exception as err:
+            sys.stderr.write('# An error occured processing the thumbnail:\n{}\n'.format(err))
+            res = None
+        return res
+    return func_wrapper
+
 class ImageCacheWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
     queue = Unique(999999)
@@ -30,8 +43,10 @@ class ImageCacheWorker(BaseWorker):
     @QtCore.Slot(QtCore.QModelIndex)
     @QtCore.Slot(unicode)
     @classmethod
+    @oiio
     def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
         """The actual processing happens here."""
+        # Pre-checking the parameters
         if not source and not dest:
             if not index.isValid():
                 return
@@ -39,7 +54,6 @@ class ImageCacheWorker(BaseWorker):
                 return
             if index.data(common.FileThumbnailLoaded):
                 return
-
         if index.isValid():
             if not index.data(QtCore.Qt.StatusTipRole):
                 return
@@ -51,14 +65,12 @@ class ImageCacheWorker(BaseWorker):
             source = common.find_largest_file(index)
         dest = dest if dest else index.data(common.ThumbnailPathRole)
 
-        # First let's check if the file is competible with OpenImageIO
+        # First let's check if the file is readable by OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
         if not i:
-            return  # the file is not understood by OenImageIO
+            return  # the file is not understood by OpenImageIO
         i.close()
-
         img = OpenImageIO.ImageBuf(source)
-
         if img.has_error:
             return
 
@@ -67,10 +79,12 @@ class ImageCacheWorker(BaseWorker):
             img = OpenImageIO.ImageBufAlgo.flatten(img)
 
         size = int(dest_size)
-        spec = OpenImageIO.ImageSpec(size, size, 4, "uint8")
+        spec = OpenImageIO.ImageSpec(size, size, 4, 'uint8')
         spec.channelnames = ('R', 'G', 'B', 'A')
         spec.alpha_channel = 3
         spec.attribute('oiio:ColorSpace', 'Linear')
+        spec.attribute('oiio:Gamma', '0.454545')
+
         b = OpenImageIO.ImageBuf(spec)
         b.set_write_format('uint8')
 
@@ -83,6 +97,11 @@ class ImageCacheWorker(BaseWorker):
             roi.chbegin = 0
             roi.chend = 3
             OpenImageIO.ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
+
+        # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
+        if spec.get_string_attribute('oiio:ColorSpace') == 'GammaCorrectedinf':
+            spec.attribute('oiio:ColorSpace', 'Linear')
+            spec.attribute('oiio:Gamma', '0.454545')
 
         if int(spec.nchannels) < 3:
             b = OpenImageIO.ImageBufAlgo.channels(
@@ -103,8 +122,11 @@ class ImageCacheWorker(BaseWorker):
         # First, rebuilding the attributes as a modified xml tree
         modified = False
 
-        from xml.etree import ElementTree
-        root = ElementTree.fromstring(b.spec().to_xml())
+        # On a few dpx images, I encoutered odd character-data that the xml
+        # parser wouldn't take
+        xml = b.spec().to_xml()
+        xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
+        root = ElementTree.fromstring(xml, ElementTree.XMLParser(encoding='utf-8'))
         for attrib in root.findall('attrib'):
             if attrib.attrib['name'] == 'ICCProfile':
                 root.remove(attrib)

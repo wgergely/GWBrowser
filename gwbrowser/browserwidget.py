@@ -40,10 +40,6 @@ from gwbrowser.settings import local_settings, Active, active_monitor
 import gwbrowser.settings as Settings
 
 
-qn = 0
-"""Number of tries before quitting"""
-
-
 class VersionLabel(QtWidgets.QLabel):
     """Small version label responsible for displaying information
     about GWBrowser."""
@@ -117,11 +113,11 @@ class BrowserWidget(QtWidgets.QWidget):
         self.setObjectName(u'BrowserWidget')
         self.setWindowFlags(
             QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint
-        )
-
+            QtCore.Qt.FramelessWindowHint)
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
+
+        self.__qn = 0
         self._contextMenu = None
         self._initialized = False
         self.stackedwidget = None
@@ -130,6 +126,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget = None
         self.fileswidget = None
         self.favouriteswidget = None
+        self.statusbar = None
 
         self.settingstimer = QtCore.QTimer(parent=self)
         self.settingstimer.setInterval(1000)
@@ -159,7 +156,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.animation = QtCore.QPropertyAnimation(
             self.effect, QtCore.QByteArray('opacity'))
-        self.animation.setDuration(200)
+        self.animation.setDuration(500)
         self.animation.setKeyValueAt(0, 0)
         self.animation.setKeyValueAt(0.5, 0.8)
         self.animation.setKeyValueAt(1, 1.0)
@@ -316,6 +313,37 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.stackedwidget)
         self.layout().addWidget(self.statusbar)
 
+    def get_all_threads(self):
+        """Returns all running threads associated with GWBrowser."""
+        return (
+            list(self.fileswidget.model().sourceModel().threads.itervalues()) +
+            list(self.favouriteswidget.model().sourceModel().threads.itervalues()) +
+            list(ImageCache.instance().threads.itervalues()) +
+            list(self.listcontrolwidget.control_view().model().threads.itervalues())
+        )
+
+    @QtCore.Slot()
+    def exit_application(self):
+        """When all the threads quit, we'll exit the main application too."""
+        self.__qn += 1
+
+        threadpool = self.get_all_threads()
+
+        for thread in threadpool:
+            if thread.isRunning():
+                thread.worker.shutdown()
+                thread.exit(0)
+
+        if all([not f.isRunning() for f in threadpool]):
+            sys.stdout.write('# All threads finished.')
+            QtWidgets.QApplication.instance().exit(0)
+
+        # Forcing the application to close after n tries
+        if self.__qn > 20:  # circa 5 seconds to wrap things up, will exit by force after
+            QtWidgets.QApplication.instance().exit(1)
+            raise SystemExit(1)
+
+
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
         signals and slots are connected. I tried coding the widgets in a
@@ -332,52 +360,22 @@ class BrowserWidget(QtWidgets.QWidget):
         l = lc.control_view()
         lb = lc.control_button()
 
+        # Progress
+        f.model().sourceModel().modelAboutToBeReset.connect(b._progress_widget.show)
+        f.model().sourceModel().modelReset.connect(b._progress_widget.hide)
+        f.model().sourceModel().modelAboutToBeReset.connect(a._progress_widget.show)
+        f.model().sourceModel().modelReset.connect(a._progress_widget.hide)
+        f.model().sourceModel().modelAboutToBeReset.connect(ff._progress_widget.show)
+        f.model().sourceModel().modelReset.connect(ff._progress_widget.hide)
+
         s = self.stackedwidget
-        # Shutdown signals
-        #
-        # I have to make sure not to exit the main application before the threads
-        # stopped running. First the workers have to be terminated, then When
-        # all the threads stopped running we will quit the application.
 
-        threadpool = (
-            list(f.model().sourceModel().threads.itervalues()) +
-            list(ff.model().sourceModel().threads.itervalues()) +
-            list(ImageCache.instance().threads.itervalues()) +
-            list(l.model().threads.itervalues())
-        )
-
-        @QtCore.Slot()
-        def _quit():
-            """When all the threads quit, we'll exit the main application too."""
-            global qn
-            qn += 1
-
-            for thread in threadpool:
-                if thread.isRunning():
-                    thread.worker.shutdown()
-                    thread.quit()
-
-            if all([not f.isRunning() for f in threadpool]):
-                sys.stdout.write('# All threads finished.')
-                QtWidgets.QApplication.instance().quit()
-
-            # Forcing the application to close after n tries
-            if qn > 20:  # circa 5 seconds to wrap things up, will exit by force after
-                QtWidgets.QApplication.instance().quit()
-                raise SystemExit(0)
-
-        @QtCore.Slot()
-        def finished(thread):
-            sys.stdout.write('# {} shut down.\n'.format(
-                thread.__class__.__name__))
-
-        self.shutdown_timer.timeout.connect(_quit)
+        self.shutdown_timer.timeout.connect(self.exit_application, type=QtCore.Qt.QueuedConnection)
         self.shutdown.connect(
             lambda: self.statusbar.showMessage(u'Quitting...', 1000))
         self.shutdown.connect(self.shutdown_timer.start)
-        for thread in threadpool:
-            self.shutdown.connect(thread.worker.shutdown)
-            thread.finished.connect(functools.partial(finished, thread))
+        for thread in self.get_all_threads():
+            self.shutdown.connect(thread.worker.shutdown, type=QtCore.Qt.QueuedConnection)
 
         # Signals responsible for saveing the activation changes
         b.model().sourceModel().activeChanged.connect(b.save_activated)

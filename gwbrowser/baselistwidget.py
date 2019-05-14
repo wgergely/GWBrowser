@@ -15,6 +15,7 @@ for storing our actual model data.
 """
 
 import re
+import sys
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -27,6 +28,22 @@ from gwbrowser.settings import local_settings
 from gwbrowser.settings import AssetSettings
 
 
+def initdata(func):
+    """This decorator makes sure the endResetModel is always called after running
+    the function."""
+    @wraps(func)
+    def func_wrapper(self, *args, **kwargs):
+        try:
+            res = func(self, *args, **kwargs)
+        except Exception as err:
+            sys.stderr.write('# An error occured loading data:\n{}\n'.format(err))
+            res = None
+        finally:
+            self.endResetModel()
+        return res
+    return func_wrapper
+
+
 def flagsmethod(func):
     """Decorator to make sure the ItemFlag values are always correct."""
     @wraps(func)
@@ -37,6 +54,49 @@ def flagsmethod(func):
         return res
     return func_wrapper
 
+
+class ProgressWidget(QtWidgets.QWidget):
+    """Widget responsible for indicating files are being loaded."""
+
+    def __init__(self, parent=None):
+        super(ProgressWidget, self).__init__(parent=parent)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setWindowFlags(QtCore.Qt.Widget)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
+        self._message = u'Loading...'
+
+    def showEvent(self, event):
+        self.setGeometry(self.parent().geometry())
+
+    @QtCore.Slot(unicode)
+    def set_message(self, text):
+        """Sets the message to be displayed when saving the widget."""
+        self._message = text
+
+    def paintEvent(self, event):
+        """Custom message painted here."""
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        color = QtGui.QColor(common.SEPARATOR)
+        color.setAlpha(150)
+        painter.setBrush(color)
+        painter.drawRect(self.rect())
+        common.draw_aliased_text(
+            painter,
+            common.PrimaryFont,
+            self.rect(),
+            self._message,
+            QtCore.Qt.AlignCenter,
+            common.TEXT
+        )
+        painter.end()
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting source model data.
@@ -499,6 +559,8 @@ class BaseListWidget(QtWidgets.QListView):
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
+        self._progress_widget = ProgressWidget(parent=self)
+        self._progress_widget.setHidden(True)
 
         self._thumbnailvieweropen = None
         self._current_selection = None
@@ -555,6 +617,11 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.initialize_filter_values()
 
         self.setModel(proxy)
+
+        #Progress
+        model.modelAboutToBeReset.connect(self._progress_widget.show)
+        model.modelAboutToBeReset.connect(self._progress_widget.repaint)
+        model.modelReset.connect(self._progress_widget.hide)
 
         model.modelDataResetRequested.connect(
             model.beginResetModel)
@@ -1047,7 +1114,7 @@ class BaseListWidget(QtWidgets.QListView):
                 self.model().sourceModel().modelDataResetRequested.emit()
                 return
 
-            if event.key() == QtCore.Qt.Key_S:
+            if event.key() == QtCore.Qt.Key_S or event.key() == QtCore.Qt.Key_O:
                 common.reveal(index.data(QtCore.Qt.StatusTipRole))
                 return
             if event.key() == QtCore.Qt.Key_B:

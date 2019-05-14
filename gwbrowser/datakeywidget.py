@@ -19,6 +19,7 @@ import gwbrowser.common as common
 
 from gwbrowser.delegate import paintmethod
 from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.threads import BaseThread
@@ -275,6 +276,7 @@ class DataKeyModel(BaseModel):
     def data_type(self):
         return common.FileItem
 
+    @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         # Empties the thread's queue
@@ -295,7 +297,6 @@ class DataKeyModel(BaseModel):
         data = self.model_data()
 
         if not self._parent_item:
-            self.endResetModel()
             return
 
         # Thumbnail image
@@ -343,7 +344,6 @@ class DataKeyModel(BaseModel):
             }
             indexes.append(idx)
 
-        self.endResetModel()
         DataKeyWorker.add_to_queue([self.index(f, 0) for f in indexes])
 
     @QtCore.Slot(QtCore.QModelIndex)

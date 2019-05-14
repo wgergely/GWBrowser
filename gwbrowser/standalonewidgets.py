@@ -180,6 +180,12 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.initialized.connect(self.showNormal)
         self.initialized.connect(self.activateWindow)
 
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Q'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        shortcut.activated.connect(self.shutdown, type=QtCore.Qt.QueuedConnection)
+
     @QtCore.Slot()
     def tweak_ui(self):
         """UI modifications to apply when the tool is started in standalone-mode."""

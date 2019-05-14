@@ -16,6 +16,7 @@ import gwbrowser.settings as Settings
 from gwbrowser.settings import local_settings
 
 from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.baselistwidget import initdata
 from gwbrowser.fileswidget import FilesWidgetContextMenu
 from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
@@ -57,6 +58,7 @@ class FavouritesWidgetContextMenu(FilesWidgetContextMenu):
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
 
+    @initdata
     def __initdata__(self):
         """The model-data is simply based on the saved favourites - but
         we're only displaying the items that are associated with the current
@@ -234,7 +236,6 @@ class FavouritesModel(FilesModel):
             elif len(v[common.FramesRole]) == 0:
                 v[common.TypeRole] = common.FileItem
             self._data[dkey][common.SequenceItem][idx] = v
-        self.endResetModel()
 
 
 class DropIndicatorWidget(QtWidgets.QWidget):

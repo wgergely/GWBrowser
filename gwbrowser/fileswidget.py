@@ -14,6 +14,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.baselistwidget import initdata
 
 import gwbrowser.common as common
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
@@ -252,7 +253,8 @@ class FilesModel(BaseModel):
         _generate_thumbnails = local_settings.value(
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
-
+        
+    @initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
         definitions by running a file-iterator from the location-folder.
@@ -502,7 +504,6 @@ class FilesModel(BaseModel):
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
             self._data[dkey][common.SequenceItem][idx] = v
-        self.endResetModel()
 
     @QtCore.Slot()
     def delete_thread(self, thread):

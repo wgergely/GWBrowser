@@ -26,6 +26,7 @@ import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.baselistwidget import initdata
 from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
@@ -129,6 +130,7 @@ class BookmarksModel(BaseModel):
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
 
+    @initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -251,8 +253,6 @@ class BookmarksModel(BaseModel):
             else:
                 todocount = 0
             data[idx][common.TodoCountRole] = todocount
-
-        self.endResetModel()
 
     def canDropMimeData(self, data, action, row, column, parent):
         if data.hasUrls():
