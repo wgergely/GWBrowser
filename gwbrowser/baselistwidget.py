@@ -107,7 +107,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return self._filtertext
 
     @QtCore.Slot(unicode)
-    def setFilterText(self, val):
+    def set_filter_text(self, val):
         """Sets the path-segment to use as a filter."""
         if val == self._filtertext:
             return
@@ -124,7 +124,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return self._filterflags[flag]
 
     @QtCore.Slot(int, bool)
-    def setFilterFlag(self, flag, val):
+    def set_filter_flag(self, flag, val):
         if self._filterflags[flag] == val:
             return
 
@@ -501,6 +501,7 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).__init__(parent=parent)
 
         self._thumbnailvieweropen = None
+        self._buttons_hidden = True
         self._current_selection = None
         self._location = None
         self.collector_count = 0
@@ -529,6 +530,12 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
+
+    def buttons_hidden(self):
+        return self._buttons_hidden
+
+    def set_buttons_hidden(self, val):
+        self._buttons_hidden = val
 
     def set_model(self, model):
         """This is the main port of entry for the model.
@@ -559,7 +566,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         model.dataKeyChanged.connect(model.set_data_key)
         model.dataKeyChanged.connect(
-            lambda x: proxy.setFilterText(
+            lambda x: proxy.set_filter_text(
                 local_settings.value(u'widget/{}/{}/filtertext'.format(
                     model.__class__.__name__, x))
             ))
@@ -575,8 +582,8 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
 
-        proxy.filterTextChanged.connect(proxy.setFilterText)
-        proxy.filterFlagChanged.connect(proxy.setFilterFlag)
+        proxy.filterTextChanged.connect(proxy.set_filter_text)
+        proxy.filterFlagChanged.connect(proxy.set_filter_flag)
 
         proxy.filterTextChanged.connect(lambda x: proxy.invalidateFilter())
         proxy.filterFlagChanged.connect(lambda x: proxy.invalidateFilter())
@@ -864,8 +871,6 @@ class BaseListWidget(QtWidgets.QListView):
                     _item[common.FlagsRole] = _item[common.FlagsRole] | Settings.MarkedAsArchived
 
         index.model().dataChanged.emit(index, index)
-
-
 
     def key_down(self):
         """Custom action tpo perform when the `down` arrow is pressed
