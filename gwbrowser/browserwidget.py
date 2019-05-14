@@ -97,20 +97,6 @@ class SizeGrip(QtWidgets.QSizeGrip):
             widget.setMouseTracking(tracking)
             widget.viewport().setMouseTracking(tracking)
             widget.updateGeometry()
-        #         widget.update()
-        #         widget.repaint()
-        #
-        # if tracking:
-        #     controlview.updateGeometry()
-        #     stackedwidget.updateGeometry()
-        #     stackedwidget.parent().updateGeometry()
-        #     stackedwidget.update()
-        #     stackedwidget.repaint()
-        #     controlview.update()
-        #     controlview.repaint()
-        #     stackedwidget.parent().update()
-        #     stackedwidget.parent().repaint()
-        #     fileswidget.resized.emit(fileswidget.geometry())
 
     def mouseMoveEvent(self, event):
         self.update_widgets(False)
@@ -559,11 +545,13 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(lambda x: lc._collapsebutton.repaint())
         lc.listChanged.connect(lambda x: lc._archivedbutton.repaint())
         lc.listChanged.connect(lambda x: lc._favouritebutton.repaint())
+        lc.listChanged.connect(lambda x: lc._togglebuttonsbutton.repaint())
 
         s.currentChanged.connect(lambda x: lc._bookmarksbutton.repaint())
         s.currentChanged.connect(lambda x: lc._assetsbutton.repaint())
         s.currentChanged.connect(lambda x: lc._filesbutton.repaint())
         s.currentChanged.connect(lambda x: lc._favouritesbutton.repaint())
+        s.currentChanged.connect(lambda x: lc._togglebuttonsbutton.repaint())
 
         f.model().sourceModel().dataTypeChanged.connect(
             lambda x: lc._collapsebutton.repaint())

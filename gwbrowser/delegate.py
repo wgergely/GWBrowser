@@ -135,15 +135,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
 
-        # thumbcolor = QtGui.QColor(color)
-        # thumbcolor.setHsl(
-        #     color.hue(),
-        #     color.saturation(),
-        #     color.lightness() - 10
-        # )
-        # painter.setBrush(thumbcolor)
-        # painter.drawRect(rect)
-
         rect.setRight(option.rect.right())
 
         painter.setBrush(color)
@@ -293,6 +284,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
         painter, option, _, _, _, _, archived, _ = args
+        if self.parent().buttons_hidden():
+            return
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -305,7 +298,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         pos = QtGui.QCursor().pos()
         pos = self.parent().mapFromGlobal(pos)
 
-        # Icon
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
         color = common.FAVOURITE if archived else sep
@@ -322,12 +314,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             pixmap = ImageCache.get_rsc_pixmap(
                 u'active', color, common.INLINE_ICON_SIZE)
 
-        # Icon
         painter.drawPixmap(rect, pixmap)
 
     @paintmethod
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
+        if self.parent().buttons_hidden():
+            return
+
         painter, option, _, _, _, _, _, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
@@ -349,6 +343,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_todo_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
+        if self.parent().buttons_hidden():
+            return
 
         painter, option, index, _, _, _, _, _ = args
 
@@ -392,6 +388,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_favourite_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
+        if self.parent().buttons_hidden():
+            return
+
         painter, option, _, _, _, _, _, favourite = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
@@ -433,6 +432,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
     @paintmethod
     def paint_inline_icons_background(self, *args):
+        """Paints the background for the inline icons."""
+        if self.parent().buttons_hidden():
+            return
+
         painter, option, index, selected, _, active, archived, _ = args
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 

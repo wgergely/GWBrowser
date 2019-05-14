@@ -422,11 +422,11 @@ class ToggleArchivedButton(ControlButton):
             self.hide()
 
 
-class ToggleButtonsButtons(ControlButton):
+class ToggleButtons(ControlButton):
     """Custom QLabel with a `clicked` signal."""
 
     def __init__(self, parent=None):
-        super(ToggleButtonsButtons, self).__init__(parent=parent)
+        super(ToggleButtons, self).__init__(parent=parent)
         description = u'Ctrl+H  |  Show or hide list buttons'
         self.setToolTip(description)
         self.setStatusTip(description)
@@ -453,8 +453,8 @@ class ToggleButtonsButtons(ControlButton):
         self.current().repaint()
 
     def repaint(self):
-        super(ToggleButtonsButtons, self).repaint()
-        if self._parent.currentIndex() < 3:
+        super(ToggleButtons, self).repaint()
+        if self._parent.currentIndex() == 2:
             self.show()
         else:
             self.hide()
@@ -969,7 +969,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._archivedbutton = ToggleArchivedButton(parent=self)
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._slackbutton = SlackButton(parent=self)
-        self._togglebuttonsbutton = ToggleButtonsButtons(parent=self)
+        self._togglebuttonsbutton = ToggleButtons(parent=self)
 
         self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self._bookmarksbutton)

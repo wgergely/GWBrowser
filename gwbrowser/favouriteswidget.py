@@ -300,6 +300,10 @@ class FavouritesWidget(FilesWidget):
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()
 
+    def buttons_hidden(self):
+        """Returns the visibility of the inline icon buttons."""
+        return True
+
     def toggle_favourite(self, index, state=None):
         """Removes the given index (and all sub-files if sequence) from favourites.
 
@@ -354,6 +358,8 @@ class FavouritesWidget(FilesWidget):
         index.model().dataChanged.emit(index, index)
 
     def inline_icons_count(self):
+        if self.buttons_hidden():
+            return 0
         return 2
 
     def dragEnterEvent(self, event):

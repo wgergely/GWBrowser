@@ -333,6 +333,10 @@ class BookmarksWidget(BaseInlineIconWidget):
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
+    def buttons_hidden(self):
+        """Returns the visibility of the inline icon buttons."""
+        return False
+
     def eventFilter(self, widget, event):
         super(BookmarksWidget, self).eventFilter(widget, event)
         if widget is not self:
@@ -351,6 +355,8 @@ class BookmarksWidget(BaseInlineIconWidget):
         return False
 
     def inline_icons_count(self):
+        if self.buttons_hidden():
+            return 0
         return 5
 
     def save_activated(self, index):

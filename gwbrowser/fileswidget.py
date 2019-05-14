@@ -690,6 +690,8 @@ class FilesWidget(BaseInlineIconWidget):
         return False
 
     def inline_icons_count(self):
+        if self.buttons_hidden():
+            return 0
         return 3
 
     def action_on_enter_key(self):
