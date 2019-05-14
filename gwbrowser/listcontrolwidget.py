@@ -176,6 +176,7 @@ class SlackButton(BrowserButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
 class ControlButton(ClickableLabel):
@@ -247,6 +248,7 @@ class TodoButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
@@ -289,6 +291,7 @@ class FilterButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
@@ -349,6 +352,7 @@ class CollapseSequenceButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
     def pixmap(self, c):
@@ -394,6 +398,7 @@ class ToggleArchivedButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
     def pixmap(self, c):
@@ -417,6 +422,44 @@ class ToggleArchivedButton(ControlButton):
             self.hide()
 
 
+class ToggleButtonsButtons(ControlButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(ToggleButtonsButtons, self).__init__(parent=parent)
+        description = u'Ctrl+H  |  Show or hide list buttons'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+H'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
+
+
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'showbuttons', c, common.INLINE_ICON_SIZE)
+
+    def state(self):
+        val = self.current().buttons_hidden()
+        return val
+
+    @QtCore.Slot()
+    def action(self):
+        val = self.current().buttons_hidden()
+        self.current().set_buttons_hidden(not val)
+        self.current().repaint()
+
+    def repaint(self):
+        super(ToggleButtonsButtons, self).repaint()
+        if self._parent.currentIndex() < 3:
+            self.show()
+        else:
+            self.hide()
+
+
 class ToggleFavouriteButton(ControlButton):
     """Custom QLabel with a `clicked` signal."""
 
@@ -431,6 +474,7 @@ class ToggleFavouriteButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
@@ -474,6 +518,7 @@ class AddButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'todo_add', c, common.INLINE_ICON_SIZE)
@@ -633,6 +678,7 @@ class GenerateThumbnailsButton(ControlButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'pick_thumbnail', c, common.INLINE_ICON_SIZE)
@@ -758,6 +804,7 @@ class BookmarksTabButton(PaintedTextButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
 class AssetsTabButton(PaintedTextButton):
@@ -773,6 +820,7 @@ class AssetsTabButton(PaintedTextButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
 class FilesTabButton(PaintedTextButton):
@@ -793,6 +841,7 @@ class FilesTabButton(PaintedTextButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
     def paintEvent(self, event):
         """Indicating the visibility of the DataKeyView."""
@@ -878,6 +927,7 @@ class FavouritesTabButton(PaintedTextButton):
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
 
 
 class ListControlWidget(QtWidgets.QWidget):
@@ -919,6 +969,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self._archivedbutton = ToggleArchivedButton(parent=self)
         self._favouritebutton = ToggleFavouriteButton(parent=self)
         self._slackbutton = SlackButton(parent=self)
+        self._togglebuttonsbutton = ToggleButtonsButtons(parent=self)
 
         self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self._bookmarksbutton)
@@ -934,6 +985,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._slackbutton)
+        self.layout().addWidget(self._togglebuttonsbutton)
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
     @QtCore.Slot(QtCore.QModelIndex)

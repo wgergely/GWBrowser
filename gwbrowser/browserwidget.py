@@ -512,6 +512,7 @@ class BrowserWidget(QtWidgets.QWidget):
         lc._filterbutton.message.connect(self.entered2)
         lc._collapsebutton.message.connect(self.entered2)
         lc._archivedbutton.message.connect(self.entered2)
+        lc._togglebuttonsbutton.message.connect(self.entered2)
         lc._favouritebutton.message.connect(self.entered2)
         lc._slackbutton.message.connect(self.entered2)
 
@@ -521,13 +522,13 @@ class BrowserWidget(QtWidgets.QWidget):
         lc._favouritesbutton.set_parent(self.stackedwidget)
         lc._addbutton.set_parent(self.stackedwidget)
         lc._generatethumbnailsbutton.set_parent(self.stackedwidget)
-        lc._archivedbutton.set_parent(self.stackedwidget)
 
         lc._todobutton.set_parent(self.stackedwidget)
         lc._filterbutton.set_parent(self.stackedwidget)
         lc._collapsebutton.set_parent(self.stackedwidget)
         lc._archivedbutton.set_parent(self.stackedwidget)
         lc._favouritebutton.set_parent(self.stackedwidget)
+        lc._togglebuttonsbutton.set_parent(self.stackedwidget)
 
         # Controlbutton text should be invisible when there's no active asset set
         b.model().sourceModel().activeChanged.connect(

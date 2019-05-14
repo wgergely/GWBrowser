@@ -501,11 +501,13 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).__init__(parent=parent)
 
         self._thumbnailvieweropen = None
-        self._buttons_hidden = True
         self._current_selection = None
         self._location = None
         self.collector_count = 0
         self.context_menu_cls = None
+
+        k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
+        self._buttons_hidden = True if local_settings.value(k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
         self.setMouseTracking(True)
@@ -532,9 +534,14 @@ class BaseListWidget(QtWidgets.QListView):
         self.timed_search_string = u''
 
     def buttons_hidden(self):
+        """Returns the visibility of the inline icon buttons."""
         return self._buttons_hidden
 
     def set_buttons_hidden(self, val):
+        """Sets the visibility of the inline icon buttons."""
+        cls = self.__class__.__name__
+        k = u'widget/{}/buttons_hidden'.format(cls)
+        local_settings.setValue(k, self._buttons_hidden)
         self._buttons_hidden = val
 
     def set_model(self, model):
