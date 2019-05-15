@@ -341,14 +341,18 @@ class BrowserWidget(QtWidgets.QWidget):
         if all([not f.isRunning() for f in threadpool]):
             sys.stdout.write('# All threads finished.')
             QtWidgets.QApplication.instance().exit(0)
+            exit(0)
             raise SystemExit(0)
 
         # Forcing the application to close after n tries
         if self.__qn < 20:  # circa 5 seconds to wrap things up, will exit by force after
             return
-            
+
+        self.close()
         self.deleteLater()
+        del self
         QtWidgets.QApplication.instance().exit(0)
+        exit(0)
         raise SystemExit(0)
 
     def _connectSignals(self):
