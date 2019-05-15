@@ -952,7 +952,7 @@ class ListControlWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.CONTROL_HEIGHT)
 
