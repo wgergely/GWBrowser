@@ -10,8 +10,8 @@ of an Alembic file.
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import alembic
-import alembic.alembic as alembic
+import gwalembic
+import gwalembic.alembic as alembic
 import gwbrowser.common as common
 
 

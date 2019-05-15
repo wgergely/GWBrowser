@@ -5,7 +5,6 @@
 
 
 import re
-import os
 import sys
 import functools
 from functools import wraps
@@ -17,13 +16,13 @@ from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 from maya.app.general.mayaMixin import mixinWorkspaceControls
 import maya.OpenMayaUI as OpenMayaUI
 import maya.OpenMaya as OpenMaya
-from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
+from gwalembic.alembic.Abc import IArchive, GetArchiveInfo
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.browserwidget import BrowserWidget, ListControlWidget
+from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.listcontrolwidget import BrowserButton
 
 from gwbrowser.bookmarkswidget import BookmarksModel
@@ -446,7 +445,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         def fileDescriptionAdded(args):
             """Slot called by the Saver when finished."""
             server, job, root, filepath, description = args
-            from alembic.Abc import IArchive, GetArchiveInfo
             # WARNING: The IArchive / Boost code can't accept unicode input.
             # It needs to be a simple srt string. I do wonder why this is...
             abc = IArchive('{}'.format(filepath))
@@ -723,6 +721,9 @@ class MayaBrowserButton(BrowserButton):
         self.clicked.connect(self.show_browser, type=QtCore.Qt.QueuedConnection)
 
     def initialize(self):
+        """Initializes the button for our widget."""
+        from shiboken2 import wrapInstance
+
         # Embeds this widget to the maya toolbox
         ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
         widget = wrapInstance(long(ptr), QtWidgets.QWidget)

@@ -1115,7 +1115,8 @@ class BaseListWidget(QtWidgets.QListView):
                 return
 
             if event.key() == QtCore.Qt.Key_S or event.key() == QtCore.Qt.Key_O:
-                common.reveal(index.data(QtCore.Qt.StatusTipRole))
+                if index.data(QtCore.Qt.StatusTipRole):
+                    common.reveal()
                 return
             if event.key() == QtCore.Qt.Key_B:
                 self.toggle_favourite(index)
