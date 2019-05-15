@@ -152,8 +152,7 @@ class BaseThread(QtCore.QThread):
         """Start the thread, initializes the worker and shuts the worker when
         the worker finished processing."""
         self.worker = self.Worker()
-        self.worker.finished.connect(self.quit)
+        self.worker.finished.connect(lambda: self.exit(0))
         self.started.emit()
         self.worker.begin_processing()
         self.exec_()
-        # self.quit()
