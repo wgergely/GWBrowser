@@ -253,7 +253,7 @@ class FilesModel(BaseModel):
         _generate_thumbnails = local_settings.value(
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
-        
+
     @initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and sequence
@@ -572,8 +572,6 @@ class FilesModel(BaseModel):
 
 class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing the files items."""
-    resized = QtCore.Signal(
-        QtCore.QRect)  # Used to update the size of the DataKeyView
 
     def __init__(self, parent=None):
         """Init method.
@@ -782,9 +780,6 @@ class FilesWidget(BaseInlineIconWidget):
             return
         self._index_timer.start()
         super(FilesWidget, self).mouseReleaseEvent(event)
-
-    def resizeEvent(self, event):
-        self.resized.emit(self.geometry())
 
 
 if __name__ == '__main__':

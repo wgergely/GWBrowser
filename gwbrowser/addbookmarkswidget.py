@@ -148,7 +148,9 @@ class ComboBoxItemDelegate(BaseDelegate):
         )
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().view().width(), common.ROW_HEIGHT * 0.66)
+        """Returns the size of the combobox items."""
+        return QtCore.QSize(
+            self.parent().view().width(), common.ROW_HEIGHT * 0.66)
 
 
 class AddBookmarkCombobox(QtWidgets.QComboBox):

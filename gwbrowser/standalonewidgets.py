@@ -111,10 +111,10 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setContentsMargins(common.INDICATOR_WIDTH, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
         self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
 
         self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addStretch()

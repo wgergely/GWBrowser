@@ -721,9 +721,14 @@ class PaintedTextButton(ClickableLabel):
         super(PaintedTextButton, self).__init__(parent=parent)
         self._parent = None
         self.index = 0
+
+        self.font = QtGui.QFont(common.PrimaryFont)
+        self.font.setPointSize(self.font.pointSize() + 1)
+
         self.setMouseTracking(True)
         self.setStatusTip(u'')
         self.setFixedHeight(height)
+
 
     def set_parent(self, widget):
         self._parent = widget
@@ -732,7 +737,8 @@ class PaintedTextButton(ClickableLabel):
         """Sets the text and the width for  the ``FilesTabButton``."""
         text = text if text else u'Files'
         self.setText(text.title())
-        metrics = QtGui.QFontMetrics(common.PrimaryFont)
+
+        metrics = QtGui.QFontMetrics(self.font)
         width = metrics.width(self.text()) + (common.INDICATOR_WIDTH * 2)
         self.setFixedWidth(width)
 
@@ -769,7 +775,7 @@ class PaintedTextButton(ClickableLabel):
 
         common.draw_aliased_text(
             painter,
-            common.PrimaryFont,
+            self.font,
             rect,
             self.text(),
             QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
@@ -777,16 +783,14 @@ class PaintedTextButton(ClickableLabel):
         )
 
         if self._parent.currentIndex() == self.index:
-            metrics = QtGui.QFontMetrics(common.PrimaryFont)
+            metrics = QtGui.QFontMetrics(self.font)
             center = rect.center()
-            rect.setHeight(3)
+            rect.setHeight(2)
             rect.moveCenter(center)
             rect.moveTop(rect.top() + (metrics.height() / 2) + 3)
             rect.setWidth(metrics.width(self.text()))
             painter.setBrush(color)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
             painter.drawRect(rect)
         painter.end()
 
@@ -854,14 +858,17 @@ class FilesTabButton(PaintedTextButton):
             painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(common.SECONDARY_BACKGROUND)
+
+            rect.setTop(rect.top() + 6)
             painter.drawRoundedRect(rect, 6, 6)
 
             rect.setTop(rect.top() + 6)
             painter.drawRect(rect)
+
             common.draw_aliased_text(
                 painter,
                 common.PrimaryFont,
-                self.rect(),
+                rect,
                 u'...',
                 QtCore.Qt.AlignCenter,
                 common.TEXT
@@ -945,7 +952,7 @@ class ListControlWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 3)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.CONTROL_HEIGHT)
 
@@ -977,6 +984,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._filesbutton)
         self.layout().addWidget(self._favouritesbutton)
         self.layout().addStretch()
+        self.layout().addWidget(self._togglebuttonsbutton)
         self.layout().addWidget(self._addbutton)
         self.layout().addWidget(self._generatethumbnailsbutton)
         self.layout().addWidget(self._todobutton)
@@ -985,7 +993,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self._archivedbutton)
         self.layout().addWidget(self._favouritebutton)
         self.layout().addWidget(self._slackbutton)
-        self.layout().addWidget(self._togglebuttonsbutton)
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
     @QtCore.Slot(QtCore.QModelIndex)

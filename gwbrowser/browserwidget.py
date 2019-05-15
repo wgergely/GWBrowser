@@ -61,7 +61,6 @@ class VersionLabel(QtWidgets.QLabel):
         QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about')
 
 
-
 class SizeGrip(QtWidgets.QSizeGrip):
     """Custom size-grip for resizing browser-widget"""
     def __init__(self, browserwidget, parent=None):
@@ -69,19 +68,16 @@ class SizeGrip(QtWidgets.QSizeGrip):
         self.browserwidget = browserwidget
         self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
         self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
     def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        pixmap = ImageCache.get_rsc_pixmap(
-            'resize', common.TEXT, common.INLINE_ICON_SIZE / 2)
-        painter.setOpacity(0.1)
-        painter.drawPixmap(self.rect(), pixmap)
-        painter.end()
+        pass
 
     def update_widgets(self, tracking):
         """Seems to be some issue with resizing the views when using using the grip.
         Also, when mouse-tracking is on resize is slow."""
+        return
         stackedwidget = self.browserwidget.stackedwidget
         controlview = self.browserwidget.listcontrolwidget._controlview
         fileswidget = self.browserwidget.fileswidget
@@ -107,6 +103,7 @@ class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
     initialized = QtCore.Signal()
     shutdown = QtCore.Signal()
+    resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
@@ -290,24 +287,30 @@ class BrowserWidget(QtWidgets.QWidget):
         self.repaint()
         app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
-        self.statusbar = QtWidgets.QStatusBar()
-        self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.statusbar.setFixedHeight(common.INLINE_ICON_SIZE)
-        self.statusbar.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        self.statusbar.setSizeGripEnabled(False)
+        statusbar = QtWidgets.QStatusBar()
+        statusbar.setSizeGripEnabled(False)
 
         # Swapping the default grip with my custom one
-        grip = self.statusbar.findChild(QtWidgets.QSizeGrip)
+        grip = statusbar.findChild(QtWidgets.QSizeGrip)
         if grip:
             grip.deleteLater()
         grip = SizeGrip(self, parent=self)
 
-        self.statusbar.addPermanentWidget(VersionLabel(parent=self.statusbar))
-        self.statusbar.addPermanentWidget(grip)
+        statusbar.addPermanentWidget(VersionLabel(parent=statusbar))
+        statusbar.addPermanentWidget(grip)
+        statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        statusbar.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Minimum
+        )
+        statusbar.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+        statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
+
+        statusbar.layout().setContentsMargins(20, 20, 20, 20)
+        self.statusbar = statusbar
+
+
 
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
@@ -342,7 +345,6 @@ class BrowserWidget(QtWidgets.QWidget):
         if self.__qn > 20:  # circa 5 seconds to wrap things up, will exit by force after
             QtWidgets.QApplication.instance().exit(1)
             raise SystemExit(1)
-
 
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
@@ -732,6 +734,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.setCurrentIndex(idx)
 
     def sizeHint(self):
+        """The widget's default size."""
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
     def showEvent(self, event):
@@ -746,6 +749,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
         self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
 
+    def resizeEvent(self, event):
+        self.resized.emit(self.geometry())
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -40,11 +40,14 @@ QStatusBar {{
 	background-color: rgba({SEPARATOR});
 	font-family: "{SECONDARY_FONT}";
 	font-size: {SMALL_FONT_SIZE}pt;
-	margin: 0px 0px 0px 0px;
-	padding: 0px 0px 0px 0px;
+	padding: 8px;
+	margin: 8px;
 }}
 QStatusBar::item {{
-		border: none;
+	text-align: center;
+	padding: 8px;
+	margin: 8px;
+	border: none;
 }}
 
 

@@ -152,7 +152,10 @@ class DataKeyViewDelegate(BaseDelegate):
             rect.setLeft(rect.left() + width)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+        """Returns the size of the DataKeyViewDelegate items."""
+        width = self.parent().width()
+        height = index.data(QtCore.Qt.SizeHintRole).height()
+        return QtCore.QSize(width, height)
 
 
 class DataKeyView(QtWidgets.QListView):
@@ -165,7 +168,9 @@ class DataKeyView(QtWidgets.QListView):
         self.context_menu_cls = DataKeyContextMenu
 
         common.set_custom_stylesheet(self)
-
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
@@ -177,14 +182,26 @@ class DataKeyView(QtWidgets.QListView):
         self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
         self.clicked.connect(self.altparent.signal_dispatcher,
                              type=QtCore.Qt.QueuedConnection)
-        self.parent().resized.connect(self.setGeometry)
+
+        browser_widget = self.parent().parent().parent()
+
+        @QtCore.Slot(QtCore.QRect)
+        def set_width(rect):
+            """Resizes the view to the size of the"""
+            rect = browser_widget.stackedwidget.geometry()
+            rect.setLeft(0)
+            rect.setTop(0)
+            self.setGeometry(rect)
+
+        browser_widget.resized.connect(set_width)
 
         self.setModel(DataKeyModel())
         self.setItemDelegate(DataKeyViewDelegate(parent=self))
         self.installEventFilter(self)
 
-    def eventFilter(self, widget, event):
-        """We're stopping events propagating back to the parent."""
+    def sizeHint(self):
+        """The default size of the widget."""
+        return QtCore.QSize(self.parent().width(), self.parent().height())
 
     def hideEvent(self, event):
         """DataKeyView hide event."""
@@ -198,6 +215,7 @@ class DataKeyView(QtWidgets.QListView):
         self.parent().installEventFilter(self)
 
     def eventFilter(self, widget, event):
+        """We're stopping events propagating back to the parent."""
         if widget == self.parent():
             return True
         if widget is not self:
@@ -286,7 +304,7 @@ class DataKeyModel(BaseModel):
             common.FileItem: {}, common.SequenceItem: {}}
 
         rowsize = QtCore.QSize(
-            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 2))
+            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
         flags = (
             QtCore.Qt.ItemIsSelectable |

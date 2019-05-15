@@ -1445,6 +1445,3 @@ class StackedWidget(QtWidgets.QStackedWidget):
         idx = idx if idx >= 0 else 0
         local_settings.setValue(u'widget/mode', idx)
         super(StackedWidget, self).setCurrentIndex(idx)
-
-    # def sizeHint(self):
-    #     return QtCore.QSize(common.WIDTH, common.HEIGHT)
