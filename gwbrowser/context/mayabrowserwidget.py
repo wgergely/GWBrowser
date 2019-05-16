@@ -249,7 +249,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 f.scrollTo(index)
                 source_index = index.model().mapToSource(index)
-                flags = source_index.flags() | Settings.MarkedAsActive
+                flags = source_index.flags() | common.MarkedAsActive
                 source_index.model().setData(source_index, flags, role=common.FlagsRole)
                 break
 

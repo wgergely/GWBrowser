@@ -194,33 +194,33 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().filterTextChanged.emit(f.model().filterText())
         ff.model().filterTextChanged.emit(ff.model().filterText())
 
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                         b.model().filterFlag(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                         b.model().filterFlag(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                         b.model().filterFlag(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                         b.model().filterFlag(common.MarkedAsActive))
+        b.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                         b.model().filterFlag(common.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                         b.model().filterFlag(common.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                         a.model().filterFlag(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                         a.model().filterFlag(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                         a.model().filterFlag(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                         a.model().filterFlag(common.MarkedAsActive))
+        a.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                         a.model().filterFlag(common.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                         a.model().filterFlag(common.MarkedAsFavourite))
         #
-        f.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                         f.model().filterFlag(Settings.MarkedAsActive))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                         f.model().filterFlag(Settings.MarkedAsArchived))
-        f.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                         f.model().filterFlag(Settings.MarkedAsFavourite))
+        f.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                         f.model().filterFlag(common.MarkedAsActive))
+        f.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                         f.model().filterFlag(common.MarkedAsArchived))
+        f.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                         f.model().filterFlag(common.MarkedAsFavourite))
         #
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                          ff.model().filterFlag(Settings.MarkedAsActive))
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                          ff.model().filterFlag(Settings.MarkedAsArchived))
-        ff.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                          ff.model().filterFlag(Settings.MarkedAsFavourite))
+        ff.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                          ff.model().filterFlag(common.MarkedAsActive))
+        ff.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                          ff.model().filterFlag(common.MarkedAsArchived))
+        ff.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                          ff.model().filterFlag(common.MarkedAsFavourite))
 
         # Source model data
         timer = QtCore.QTimer(parent=self)

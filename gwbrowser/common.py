@@ -44,6 +44,15 @@ import OpenImageIO.OpenImageIO as OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
 
+
+# Flags
+MarkedAsArchived = 0b1000000000
+MarkedAsFavourite = 0b10000000000
+MarkedAsActive = 0b100000000000
+
+COMPANY = u'Glassworks'
+PRODUCT = u'GWBrowser'
+
 default_server = u'sloth'
 legacy_server = u'gordo'
 default_username = u'render'
@@ -86,69 +95,35 @@ LTHREAD_COUNT = 1
 
 FTIMER_INTERVAL = 1000
 
-
-# Cache files
 ExportsFolder = u'exports'
-ExportsFolderDescription = u'Persistent caches shared between scenes and assets (eg. animation caches)'
-
 CacheFolder = u'cache'
-CacheFolderDescription = u'Temporary and discardable files only, use "{}" for persistent files'.format(
-    ExportsFolder.upper())
-
 TempFolder = u'tmp'
-TempFolderDescription = u'Used by the system, don\'t save files here'
-
 ModelsFolder = u'models'
-ModelsFolderDescription = u'Obsolete, use "{}" instead'.format(
-    ExportsFolder.upper())
-
-# Important folders
 CompScriptsFolder = u'comp_scripts'
-CompScriptsDescription = u'Compositing projects (eg. Nuke, After Effects scenes)'
-
 CompsFolder = u'comps'
-CompsDescription = u'Composited prerenders and final image renders'
-
 ScenesFolder = u'scenes'
-ScenesFolderDescription = u'2D and 3D scene, project files'
-
 RendersFolder = u'renders'
-RendersFolderDescription = u'2D and 3D render passes and layers'
-
 TexturesFolder = u'textures'
-TexturesFolderDescription = u'Textures used by the 2D and 3D projects'
-
-# Reference folders
 ArtworkFolder = u'artwork'
-ArtworkFolderDescription = u'2D design- and style-frames'
-
 ReferenceFolder = u'reference'
-ReferenceFolderDescription = u'Generic references'
-
 PhotosFolder = u'photos'
-PhotosFolderDescription = u'Obsolete, use "{}" instead'.format(ReferenceFolder)
-
 CapturesFolder = u'viewport_captures'
-CapturesFolderDescription = u'Animation work-in-progress takes'
-
-MiscFolderDescription = u''
 
 ASSET_FOLDERS = {
-    ArtworkFolder: ArtworkFolderDescription,
-    CacheFolder: CacheFolderDescription,
-    CapturesFolder: CapturesFolderDescription,
-    CompScriptsFolder: CompScriptsDescription,
-    CompsFolder: CompsDescription,
-    ExportsFolder: ExportsFolderDescription,
-    ModelsFolder: ModelsFolderDescription,
-    PhotosFolder: PhotosFolderDescription,
-    ReferenceFolder: ReferenceFolderDescription,
-    RendersFolder: RendersFolderDescription,
-    ScenesFolder: ScenesFolderDescription,
-    TempFolder: TempFolderDescription,
-    TempFolder: TempFolderDescription,
-    TexturesFolder: TexturesFolderDescription,
-    u'misc': MiscFolderDescription,
+    ArtworkFolder: u'2D design- and style-frames',
+    CacheFolder: u'Temporary and discardable files only, use "{}" for persistent files'.format(ExportsFolder.upper()),
+    CapturesFolder: u'Animation work-in-progress takes',
+    CompScriptsFolder: u'Compositing projects (eg. Nuke, After Effects scenes)',
+    CompsFolder: u'Composited prerenders and final image renders',
+    ExportsFolder: u'Persistent caches shared between scenes and assets (eg. animation caches)',
+    ModelsFolder: u'Obsolete, use "{}" instead'.format(ExportsFolder.upper()),
+    PhotosFolder: u'Obsolete, use "{}" instead'.format(ReferenceFolder),
+    ReferenceFolder: u'Generic references',
+    RendersFolder: u'2D and 3D render passes and layers',
+    ScenesFolder: u'2D and 3D scene, project files',
+    TempFolder: u'Used by the system, don\'t save files here',
+    TexturesFolder: u'Textures used by the 2D and 3D projects',
+    u'misc': u'',
 }
 
 # Sizes
@@ -218,7 +193,7 @@ def get_oiio_extensions():
     extensions = []
     for f in OpenImageIO.get_string_attribute("extension_list").split(';'):
         extensions = extensions + f.split(':')[-1].split(',')
-    return list(set(extensions))
+    return frozenset(extensions)
 
 
 def get_oiio_namefilters(as_array=False):
@@ -246,7 +221,7 @@ def get_oiio_namefilters(as_array=False):
     return namefilters
 
 
-creative_cloud_formats = (
+creative_cloud_formats = [
     u'aep',
     u'ai',
     u'eps',
@@ -257,8 +232,8 @@ creative_cloud_formats = (
     u'psd',
     u'psq',
     u'xfl',
-)
-exports_formats = (
+]
+exports_formats = [
     u'abc',  # Alembic
     u'ass',  # Arnold
     u'bgeo',  # Houdini
@@ -270,8 +245,8 @@ exports_formats = (
     u'sc',  # Houdini
     u'vdb',  # OpenVDB cache file
     u'ifd',  # Houdini
-)
-scene_formats = (
+]
+scene_formats = [
     u'c4d',
     u'hud',
     u'hip',
@@ -282,9 +257,10 @@ scene_formats = (
     u'mocha',
     u'rv',
     u'autosave'
-)
-oiio_formats = set(tuple(get_oiio_namefilters(as_array=True)))
-all_formats = set(list(scene_formats) + list(oiio_formats) + list(exports_formats) + list(creative_cloud_formats))
+]
+oiio_formats = get_oiio_namefilters(as_array=True)
+all_formats = frozenset(scene_formats + oiio_formats +
+                        exports_formats + creative_cloud_formats)
 
 NameFilters = {
     ExportsFolder: all_formats,

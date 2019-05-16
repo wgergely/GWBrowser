@@ -405,14 +405,14 @@ class ToggleArchivedButton(ControlButton):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
     def state(self):
-        val = self.current().model().filterFlag(Settings.MarkedAsArchived)
+        val = self.current().model().filterFlag(common.MarkedAsArchived)
         return val
 
     @QtCore.Slot()
     def action(self):
-        val = self.current().model().filterFlag(Settings.MarkedAsArchived)
+        val = self.current().model().filterFlag(common.MarkedAsArchived)
         self.current().model().filterFlagChanged.emit(
-            Settings.MarkedAsArchived, not val)
+            common.MarkedAsArchived, not val)
 
     def repaint(self):
         super(ToggleArchivedButton, self).repaint()
@@ -480,14 +480,14 @@ class ToggleFavouriteButton(ControlButton):
         return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
 
     def state(self):
-        val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
+        val = self.current().model().filterFlag(common.MarkedAsFavourite)
         return val
 
     @QtCore.Slot()
     def action(self):
-        val = self.current().model().filterFlag(Settings.MarkedAsFavourite)
+        val = self.current().model().filterFlag(common.MarkedAsFavourite)
         self.current().model().filterFlagChanged.emit(
-            Settings.MarkedAsFavourite, not val)
+            common.MarkedAsFavourite, not val)
 
     def repaint(self):
         super(ToggleFavouriteButton, self).repaint()

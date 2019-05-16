@@ -70,7 +70,7 @@ class FavouritesModel(FilesModel):
             QtCore.Qt.ItemNeverHasChildren |
             QtCore.Qt.ItemIsEnabled |
             QtCore.Qt.ItemIsSelectable |
-            Settings.MarkedAsFavourite
+            common.MarkedAsFavourite
         )
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -91,7 +91,7 @@ class FavouritesModel(FilesModel):
         server, job, root = self._parent_item
         placeholder_color = common.THUMBNAIL_BACKGROUND
 
-        for filepath in favourites:
+        for filepath in sfavourites:
             file_info = QtCore.QFileInfo(filepath)
             fileroot = file_info.filePath()
             if u'{}/{}/{}'.format(server, job, root) in fileroot:
@@ -106,7 +106,7 @@ class FavouritesModel(FilesModel):
             filename = filepath.split(u'/')[-1]
             ext = filename.split(u'.')[-1].lower()
 
-            if ext in (common.creative_cloud_formats + common.exports_formats + common.scene_formats):
+            if ext in common.all_formats:
                 placeholder_image = ImageCache.instance().get(
                     rsc_path(__file__, ext), rowsize.height())
             else:
@@ -139,11 +139,15 @@ class FavouritesModel(FilesModel):
                 common.SequenceRole: seq,
                 common.FramesRole: [],
                 common.FileInfoLoaded: False,
-                common.FileThumbnailLoaded: False,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
+                #
+                common.FileThumbnailLoaded: False,
                 common.ThumbnailRole: placeholder_image,
                 common.ThumbnailBackgroundRole: placeholder_color,
+                common.DefaultThumbnailRole: placeholder_image,
+                common.DefaultThumbnailBackgroundRole: placeholder_color,
+                #
                 common.TypeRole: common.FileItem,
                 common.SortByName: filepath,
                 common.SortByLastModified: stat.st_mtime,
@@ -330,7 +334,7 @@ class FavouritesWidget(FilesWidget):
         if key in sfavourites:
             favourites.remove(key)
             data[source_index.row()][common.FlagsRole] = data[source_index.row(
-            )][common.FlagsRole] & ~Settings.MarkedAsFavourite
+            )][common.FlagsRole] & ~common.MarkedAsFavourite
 
             # When toggling a sequence item, we will toggle all the individual sequence items as well
             if self.model().sourceModel().data_type() == common.SequenceItem:
@@ -352,7 +356,7 @@ class FavouritesWidget(FilesWidget):
                     if _index:
                         if _index[QtCore.Qt.StatusTipRole] in favourites:
                             favourites.remove(_index[QtCore.Qt.StatusTipRole])
-                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~common.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
@@ -413,7 +417,7 @@ class FavouritesWidget(FilesWidget):
         rect = self.visualRect(index)
 
         if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
-            return super(QtWidgets.QListWidget, self).mouseReleaseEvent(event)
+            return super(QtWidgets.QListView, self).mouseReleaseEvent(event)
 
         for n in xrange(self.inline_icons_count()):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(

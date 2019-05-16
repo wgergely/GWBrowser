@@ -9,6 +9,7 @@ the image cache and the OpenImageIO-based thmbnail generator methods.
 
 import sys
 import os
+import traceback
 from functools import wraps
 from xml.etree import ElementTree
 
@@ -27,14 +28,50 @@ from gwbrowser.threads import Unique
 def oiio(func):
     """Decorator to wrap the oiio process"""
     @wraps(func)
-    def func_wrapper(self, *args, **kwargs):
+    def func_wrapper(self, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
+        """This wrapper will make sure the passed parameters are ok to pass onto
+        OpenImageIO. We will also update the index value here."""
+
+        # When no source and destination are declared we expect the
+        if not source and not dest and not index.isValid():
+            return
+        if index.isValid():
+            # We won't process any items have a FileThumbnailLoaded propery set to `true`
+            if index.data(common.FileThumbnailLoaded):
+                return
+            # These are saveguards for ignoring uninitiated index values
+            if not index.data(QtCore.Qt.StatusTipRole):
+                return
+            if not index.data(common.FileInfoLoaded):
+                return
+            if not index.data(QtCore.Qt.SizeHintRole):
+                return
+            if not index.data(common.ThumbnailPathRole):
+                return
+
+            model = index.model()
+            data = model.model_data()[index.row()]
+            spinner_pixmap = ImageCache.instance().get(
+                common.rsc_path(__file__, u'spinner'),
+                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+            error_pixmap = ImageCache.instance().get(
+                common.rsc_path(__file__, u'remove'),
+                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+
         try:
-            res = func(self, *args, **kwargs)
+            func(self, index, source=source, dest=dest, dest_size=dest_size)
         except Exception as err:
-            sys.stderr.write('# An error occured processing the thumbnail:\n{}\n'.format(err))
-            res = None
-        return res
+            if index.isValid():
+                data[common.ThumbnailRole] = error_pixmap
+                data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+                data[common.FileThumbnailLoaded] = True
+                model.dataChanged.emit(index, index)
+            tb = traceback.format_exc()
+            sys.stderr.write(
+                '# An error occured processing the thumbnail:\n{}\n'.format(tb))
+
     return func_wrapper
+
 
 class ImageCacheWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
@@ -45,18 +82,21 @@ class ImageCacheWorker(BaseWorker):
     @classmethod
     @oiio
     def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
-        """The actual processing happens here."""
-        # Pre-checking the parameters
-        if not source and not dest:
+        """This is a the main method generating thumbnail for items in GWBrowser.
+        We're using the python binds of OpenImageIO to process the images.
+
+        """
+        def set_error_thumbnail():
             if not index.isValid():
                 return
-            if not index.data(common.FileInfoLoaded):
-                return
-            if index.data(common.FileThumbnailLoaded):
-                return
-        if index.isValid():
-            if not index.data(QtCore.Qt.StatusTipRole):
-                return
+            model = index.model()
+            data = model.model_data()[index.row()]
+            error_pixmap = ImageCache.instance().get(
+                common.rsc_path(__file__, u'remove'),
+                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+            data[common.ThumbnailRole] = error_pixmap
+            data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+            data[common.FileThumbnailLoaded] = True
 
         # If it's a sequence, we will find the largest file in the sequence and
         # generate the thumbnail for that item
@@ -67,12 +107,14 @@ class ImageCacheWorker(BaseWorker):
 
         # First let's check if the file is readable by OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
-        if not i:
-            return  # the file is not understood by OpenImageIO
+        if not i:  # the file is not understood by OpenImageIO
+            set_error_thumbnail()
+            return False
         i.close()
         img = OpenImageIO.ImageBuf(source)
         if img.has_error:
-            return
+            set_error_thumbnail()
+            return False
 
         # Deep
         if img.spec().deep:
@@ -126,7 +168,8 @@ class ImageCacheWorker(BaseWorker):
         # parser wouldn't take
         xml = b.spec().to_xml()
         xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
-        root = ElementTree.fromstring(xml, ElementTree.XMLParser(encoding='utf-8'))
+        root = ElementTree.fromstring(
+            xml, ElementTree.XMLParser(encoding='utf-8'))
         for attrib in root.findall('attrib'):
             if attrib.attrib['name'] == 'ICCProfile':
                 root.remove(attrib)
@@ -147,36 +190,35 @@ class ImageCacheWorker(BaseWorker):
         else:
             _b = b
 
-        # Ready to write
-        if not _b.write(dest, dtype='uint8'):
-            QtCore.QFile(dest).remove()  # removing failed thumbnail save
-            return
-        else:
-            if not index.isValid():
-                return
+        # Saving the processed thumbnail
+        success = _b.write(dest, dtype='uint8')
+        if not success:
+            QtCore.QFile(dest).remove()
+            set_error_thumbnail()
+            return False
 
-            if index.isValid():
-                if not index.data(QtCore.Qt.SizeHintRole):
-                    return
-                if not index.data(common.ThumbnailPathRole):
-                    return
+        # We will update the index with saved and ask the model/view to update
+        if not index.isValid():
+            return False
 
-            image = ImageCache.instance().get(
-                index.data(common.ThumbnailPathRole),
-                index.data(QtCore.Qt.SizeHintRole).height() - 2,
-                overwrite=True)
+        model = index.model()
+        data = model.model_data()[index.row()]
 
-            color = ImageCache.instance().get(
-                index.data(common.ThumbnailPathRole),
-                'BackgroundColor',
-                overwrite=False)
+        # We will load the image and the background color
+        image = ImageCache.instance().get(
+            data[common.ThumbnailPathRole],
+            data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
+            overwrite=True)
+        color = ImageCache.instance().get(
+            data[common.ThumbnailPathRole],
+            'BackgroundColor',
+            overwrite=False)
 
-            data = index.model().model_data()
-            data[index.row()][common.ThumbnailRole] = image
-            data[index.row()][common.ThumbnailBackgroundRole] = color
-            data[index.row()][common.FileThumbnailLoaded] = True
-
-            index.model().dataChanged.emit(index, index)
+        data[common.ThumbnailRole] = image
+        data[common.ThumbnailBackgroundRole] = color
+        data[common.FileThumbnailLoaded] = True
+        model.dataChanged.emit(index, index)
+        return True
 
 
 class ImageCacheThread(BaseThread):
@@ -317,30 +359,32 @@ class ImageCache(QtCore.QObject):
     @staticmethod
     def get_color_average(image):
         """Returns the average color of an image."""
-        if image.isNull():
-            return common.THUMBNAIL_BACKGROUND
+        return common.THUMBNAIL_BACKGROUND
 
-        r = []
-        g = []
-        b = []
-
-        for x in xrange(image.width()):
-            for y in xrange(image.height()):
-                if image.pixelColor(x, y).alpha() < 0.01:
-                    continue
-                r.append(image.pixelColor(x, y).red())
-                g.append(image.pixelColor(x, y).green())
-                b.append(image.pixelColor(x, y).blue())
-
-        if not all([float(len(r)), float(len(g)), float(len(b))]):
-            return common.THUMBNAIL_BACKGROUND
-        else:
-            average_color = QtGui.QColor(
-                sum(r) / float(len(r)),
-                sum(g) / float(len(g)),
-                sum(b) / float(len(b))
-            )
-        return average_color
+        # if image.isNull():
+        #     return common.THUMBNAIL_BACKGROUND
+        #
+        # r = []
+        # g = []
+        # b = []
+        #
+        # for x in xrange(image.width()):
+        #     for y in xrange(image.height()):
+        #         if image.pixelColor(x, y).alpha() < 0.01:
+        #             continue
+        #         r.append(image.pixelColor(x, y).red())
+        #         g.append(image.pixelColor(x, y).green())
+        #         b.append(image.pixelColor(x, y).blue())
+        #
+        # if not all([float(len(r)), float(len(g)), float(len(b))]):
+        #     return common.THUMBNAIL_BACKGROUND
+        # else:
+        #     average_color = QtGui.QColor(
+        #         sum(r) / float(len(r)),
+        #         sum(g) / float(len(g)),
+        #         sum(b) / float(len(b))
+        #     )
+        # return average_color
 
     def generate_thumbnails(self, indexes, overwrite=False):
         """Takes a list of index values and generates thumbnails for them.

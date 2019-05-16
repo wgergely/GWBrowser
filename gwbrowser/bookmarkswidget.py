@@ -29,7 +29,6 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from gwbrowser.delegate import BookmarksWidgetDelegate
 import gwbrowser.editors as editors
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
@@ -129,6 +128,7 @@ class BookmarksModel(BaseModel):
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
+        self._parent_item = None
 
     @initdata
     def __initdata__(self):
@@ -181,15 +181,15 @@ class BookmarksModel(BaseModel):
                 file_info.job == active_paths[u'job'] and
                 file_info.root == active_paths[u'root']
             ):
-                flags = flags | MarkedAsActive
+                flags = flags | common.MarkedAsActive
 
             favourites = local_settings.value(u'favourites')
             favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
-                flags = flags | MarkedAsFavourite
+                flags = flags | common.MarkedAsFavourite
 
             if not file_info.exists():
-                flags = QtCore.Qt.ItemIsSelectable | MarkedAsArchived
+                flags = QtCore.Qt.ItemIsSelectable | common.MarkedAsArchived
 
             data = self.model_data()
             data[idx] = {
@@ -435,7 +435,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         index = self.indexAt(event.pos())
         if not index.isValid():
             return
-        if index.flags() & MarkedAsArchived:
+        if index.flags() & common.MarkedAsArchived:
             return
 
         rect = self.visualRect(index)

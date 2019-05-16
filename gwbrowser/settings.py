@@ -15,21 +15,14 @@ getConfigPath() or getThumbnailPath().
 
 """
 
-
+import sys
 import hashlib
 import collections
 from PySide2 import QtCore
 
 import gwbrowser.common as common
 
-
-# Flags
-MarkedAsArchived = 0b1000000000
-MarkedAsFavourite = 0b10000000000
-MarkedAsActive = 0b100000000000
-
-COMPANY = u'Glassworks'
-PRODUCT = u'GWBrowser'
+# sys.stderr = open('C:\\err.txt', 'w')
 
 
 class Active(QtCore.QObject):
@@ -176,8 +169,8 @@ class LocalSettings(QtCore.QSettings):
     def __init__(self, parent=None):
         super(LocalSettings, self).__init__(
             QtCore.QSettings.UserScope,
-            COMPANY,
-            PRODUCT,
+            common.COMPANY,
+            common.PRODUCT,
             parent=parent
         )
         self.setDefaultFormat(QtCore.QSettings.NativeFormat)

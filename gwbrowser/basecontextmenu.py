@@ -304,8 +304,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         archived_off_icon = ImageCache.get_rsc_pixmap(
             u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        favourite = self.index.flags() & Settings.MarkedAsFavourite
-        archived = self.index.flags() & Settings.MarkedAsArchived
+        favourite = self.index.flags() & common.MarkedAsFavourite
+        archived = self.index.flags() & common.MarkedAsArchived
 
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             text = u'Remove bookmark'
@@ -334,9 +334,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
-        favourite = self.parent().model().filterFlag(Settings.MarkedAsFavourite)
-        archived = self.parent().model().filterFlag(Settings.MarkedAsArchived)
-        active = self.parent().model().filterFlag(Settings.MarkedAsActive)
+        favourite = self.parent().model().filterFlag(common.MarkedAsFavourite)
+        archived = self.parent().model().filterFlag(common.MarkedAsArchived)
+        active = self.parent().model().filterFlag(common.MarkedAsActive)
 
         menu_set[u'toggle_active'] = {
             u'text': 'Show active only',
@@ -344,7 +344,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': False,
             # u'checked': active,
             u'disabled': favourite,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsActive, not active),
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsActive, not active),
         }
         menu_set[u'toggle_favourites'] = {
             u'text': 'Show favourites only',
@@ -352,7 +352,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': False,
             # u'checked': favourite,
             u'disabled': active,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsFavourite, not favourite),
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
         }
         menu_set[u'toggle_archived'] = {
             u'text': 'Show disabled',
@@ -360,7 +360,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': False,
             # u'setChecked': archived,
             u'disabled': active if active else favourite,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(Settings.MarkedAsArchived, not archived),
+            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsArchived, not archived),
         }
         return menu_set
 
@@ -387,7 +387,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu item resposible for general thumbnail operations."""
-        import gwbrowser.editors as editors # local import to aviod circular imports
+        import gwbrowser.editors as editors  # local import to aviod circular imports
 
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
@@ -420,13 +420,13 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
             menu_set[key][u'separator'] = {}
 
-
         menu_set[key][u'Capture screen'] = {
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().capture, source_index)}
 
         # Submenu for picking a thumbnail from our internal thumbnail library
         QtCore.Slot(unicode)
+
         def add_thumbnail_from_library(path):
             """When a selection is made, adds the selected thumbnail to the
             current item."""
@@ -455,7 +455,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key][u'Add from file...'] = {
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, source_index)}
-
 
         suffix = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix()

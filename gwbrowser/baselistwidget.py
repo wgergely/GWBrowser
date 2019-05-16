@@ -36,7 +36,8 @@ def initdata(func):
         try:
             res = func(self, *args, **kwargs)
         except Exception as err:
-            sys.stderr.write('# An error occured loading data:\n{}\n'.format(err))
+            sys.stderr.write(
+                '# An error occured loading data:\n{}\n'.format(err))
             res = None
         finally:
             self.endResetModel()
@@ -98,6 +99,7 @@ class ProgressWidget(QtWidgets.QWidget):
         )
         painter.end()
 
+
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for filtering and sorting source model data.
 
@@ -120,9 +122,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self._filtertext = None
         self._filterflags = {
-            Settings.MarkedAsActive: None,
-            Settings.MarkedAsArchived: None,
-            Settings.MarkedAsFavourite: None,
+            common.MarkedAsActive: None,
+            common.MarkedAsArchived: None,
+            common.MarkedAsFavourite: None,
         }
 
     def sort(self, column, order=QtCore.Qt.AscendingOrder):
@@ -139,28 +141,28 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             u'widget/{}/{}/filtertext'.format(
                 cls, self.sourceModel().data_key()))
         self._filterflags = {
-            Settings.MarkedAsActive: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, Settings.MarkedAsActive)
+            common.MarkedAsActive: local_settings.value(
+                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)
             ),
-            Settings.MarkedAsArchived: local_settings.value(
+            common.MarkedAsArchived: local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls,
-                                                 Settings.MarkedAsArchived)
+                                                 common.MarkedAsArchived)
             ),
-            Settings.MarkedAsFavourite: local_settings.value(
+            common.MarkedAsFavourite: local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls,
-                                                 Settings.MarkedAsFavourite)
+                                                 common.MarkedAsFavourite)
             ),
         }
 
         if self._filtertext is None:
             self._filtertext = None
 
-        if self._filterflags[Settings.MarkedAsActive] is None:
-            self._filterflags[Settings.MarkedAsActive] = False
-        if self._filterflags[Settings.MarkedAsArchived] is None:
-            self._filterflags[Settings.MarkedAsArchived] = False
-        if self._filterflags[Settings.MarkedAsFavourite] is None:
-            self._filterflags[Settings.MarkedAsFavourite] = False
+        if self._filterflags[common.MarkedAsActive] is None:
+            self._filterflags[common.MarkedAsActive] = False
+        if self._filterflags[common.MarkedAsArchived] is None:
+            self._filterflags[common.MarkedAsArchived] = False
+        if self._filterflags[common.MarkedAsFavourite] is None:
+            self._filterflags[common.MarkedAsFavourite] = False
 
     def filterText(self):
         """Filters the list of items containing this path segment."""
@@ -206,13 +208,13 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             return False
 
         flags = data[source_row][common.FlagsRole]
-        archived = flags & Settings.MarkedAsArchived
-        favourite = flags & Settings.MarkedAsFavourite
-        active = flags & Settings.MarkedAsActive
+        archived = flags & common.MarkedAsArchived
+        favourite = flags & common.MarkedAsFavourite
+        active = flags & common.MarkedAsActive
 
-        if self.filterFlag(Settings.MarkedAsActive) and active:
+        if self.filterFlag(common.MarkedAsActive) and active:
             return True
-        if self.filterFlag(Settings.MarkedAsActive) and not active:
+        if self.filterFlag(common.MarkedAsActive) and not active:
             return False
 
         # Let's construct the searchable filter text here
@@ -244,9 +246,9 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
                 if filtertext.lower() not in searchable.lower():
                     return False
 
-        if archived and not self.filterFlag(Settings.MarkedAsArchived):
+        if archived and not self.filterFlag(common.MarkedAsArchived):
             return False
-        if not favourite and self.filterFlag(Settings.MarkedAsFavourite):
+        if not favourite and self.filterFlag(common.MarkedAsFavourite):
             return False
         return True
 
@@ -397,6 +399,13 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
+        """This is a slot, setting the parent of the model.
+
+        Parent refers to the search path the model will get it's data from. It
+        us usually contained in the `common.ParentRole` data with the exception
+        of the bookmark items - we don't have parent for these.
+
+        """
         if not index.isValid():
             self._parent_item = None
             return
@@ -437,7 +446,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         """The model's active_index."""
         for n in xrange(self.rowCount()):
             index = self.index(n, 0)
-            if index.flags() & Settings.MarkedAsActive:
+            if index.flags() & common.MarkedAsActive:
                 return index
         return QtCore.QModelIndex()
 
@@ -569,7 +578,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.context_menu_cls = None
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
-        self._buttons_hidden = True if local_settings.value(k) is None else local_settings.value(k)
+        self._buttons_hidden = True if local_settings.value(
+            k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
         self.setMouseTracking(True)
@@ -618,7 +628,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.setModel(proxy)
 
-        #Progress
+        # Progress
         model.modelAboutToBeReset.connect(self._progress_widget.show)
         model.modelAboutToBeReset.connect(self._progress_widget.repaint)
         model.modelReset.connect(self._progress_widget.hide)
@@ -685,7 +695,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataSorted.connect(self.reselect_previous)
 
     def active_index(self):
-        """Returns the ``active`` item marked by the ``Settings.MarkedAsActive``
+        """Returns the ``active`` item marked by the ``common.MarkedAsActive``
         flag. Returns an invalid index if no items is marked as active.
 
         """
@@ -706,11 +716,11 @@ class BaseListWidget(QtWidgets.QListView):
             return
         if index.flags() == QtCore.Qt.NoItemFlags:
             return
-        if index.flags() & Settings.MarkedAsArchived:
+        if index.flags() & common.MarkedAsArchived:
             return
 
         self.activated.emit(index)
-        if index.flags() & Settings.MarkedAsActive:
+        if index.flags() & common.MarkedAsActive:
             return
 
         self.deactivate(self.active_index())
@@ -718,7 +728,7 @@ class BaseListWidget(QtWidgets.QListView):
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
-                                                          ][common.FlagsRole] | Settings.MarkedAsActive
+                                                          ][common.FlagsRole] | common.MarkedAsActive
         source_index.model().dataChanged.emit(source_index, source_index)
         source_index.model().activeChanged.emit(source_index)
 
@@ -730,7 +740,7 @@ class BaseListWidget(QtWidgets.QListView):
         source_index = self.model().mapToSource(index)
         data = source_index.model().model_data()
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
-                                                          ][common.FlagsRole] & ~Settings.MarkedAsActive
+                                                          ][common.FlagsRole] & ~common.MarkedAsActive
 
         source_index.model().dataChanged.emit(source_index, source_index)
 
@@ -811,7 +821,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         # Favouriting archived items are not allowed
-        archived = index.flags() & Settings.MarkedAsArchived
+        archived = index.flags() & common.MarkedAsArchived
         if archived:
             return
 
@@ -836,7 +846,7 @@ class BaseListWidget(QtWidgets.QListView):
         if key in sfavourites:
             if state is None or state is False:  # clears flag
                 favourites.remove(key)
-                data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
 
             # Removing flags
             if self.model().sourceModel().data_type() == common.SequenceItem:
@@ -848,11 +858,11 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     if _item[QtCore.Qt.StatusTipRole] in sfavourites:
                         favourites.remove(_item[QtCore.Qt.StatusTipRole])
-                    _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                    _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
                 favourites.append(key)
-                data[common.FlagsRole] = data[common.FlagsRole] | Settings.MarkedAsFavourite
+                data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsFavourite
 
             # Adding flags
             if m.data_type() == common.SequenceItem:
@@ -864,7 +874,7 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     if _item[QtCore.Qt.StatusTipRole] not in sfavourites:
                         favourites.append(_item[QtCore.Qt.StatusTipRole])
-                    _item[common.FlagsRole] = _item[common.FlagsRole] | Settings.MarkedAsFavourite
+                    _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsFavourite
 
         # Let's save the favourites list and emit a dataChanged signal
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
@@ -888,7 +898,7 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.data(common.FileInfoLoaded):
             return
 
-        archived = index.flags() & Settings.MarkedAsArchived
+        archived = index.flags() & common.MarkedAsArchived
         settings = AssetSettings(index)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
@@ -905,7 +915,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         if archived:
             if state is None or state is False:  # clears flag
-                data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsArchived
+                data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsArchived
                 if self.model().sourceModel().data_type() == common.SequenceItem:
                     for _item in m._data[m.data_key()][common.FileItem].itervalues():
                         _seq = _item[common.SequenceRole]
@@ -913,7 +923,7 @@ class BaseListWidget(QtWidgets.QListView):
                             continue
                         if _seq.expand(ur'\1\3.\4') != key:
                             continue
-                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsArchived
+                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
                 index.model().dataChanged.emit(index, index)
                 return
 
@@ -922,7 +932,7 @@ class BaseListWidget(QtWidgets.QListView):
             if key in sfavourites:
                 if state is None or state is False:  # clears flag
                     favourites.remove(key)
-                    data[common.FlagsRole] = data[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                    data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
                 if self.model().sourceModel().data_type() == common.SequenceItem:
                     for _item in m._data[m.data_key()][common.FileItem].itervalues():
                         _seq = _item[common.SequenceRole]
@@ -932,9 +942,9 @@ class BaseListWidget(QtWidgets.QListView):
                             continue
                         if _item[QtCore.Qt.StatusTipRole] in sfavourites:
                             favourites.remove(_item[QtCore.Qt.StatusTipRole])
-                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~Settings.MarkedAsFavourite
+                        _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
 
-            data[common.FlagsRole] = data[common.FlagsRole] | Settings.MarkedAsArchived
+            data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
             if self.model().sourceModel().data_type() == common.SequenceItem:
                 for _item in m._data[m.data_key()][common.FileItem].itervalues():
                     _seq = _item[common.SequenceRole]
@@ -942,7 +952,7 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     if _seq.expand(ur'\1\3.\4') != key:
                         continue
-                    _item[common.FlagsRole] = _item[common.FlagsRole] | Settings.MarkedAsArchived
+                    _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsArchived
 
         index.model().dataChanged.emit(index, index)
 
@@ -1211,11 +1221,11 @@ class BaseListWidget(QtWidgets.QListView):
                 sizehint.height() - common.INDICATOR_WIDTH
             )
 
-            favourite_mode = self.model().filterFlag(Settings.MarkedAsFavourite)
-            active_mode = self.model().filterFlag(Settings.MarkedAsActive)
+            favourite_mode = self.model().filterFlag(common.MarkedAsFavourite)
+            active_mode = self.model().filterFlag(common.MarkedAsActive)
 
             text_rect = QtCore.QRect(rect)
-            text_rect.setLeft(rect.left() + rect.height() + common.MARGIN)
+            text_rect.setLeft(rect.left() + common.MARGIN)
             text_rect.setRight(rect.right() - common.MARGIN)
 
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -1224,10 +1234,17 @@ class BaseListWidget(QtWidgets.QListView):
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
             font.setPointSize(common.SMALL_FONT_SIZE)
+            align = QtCore.Qt.AlignCenter
 
-            align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+            if not self.model().sourceModel()._parent_item:
+                text = u'Bookmarks or asset is not set'
+                common.draw_aliased_text(
+                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                return True
+
             if self.model().sourceModel().rowCount() == 0:
-                text = u'No items to show.'
+                text = u'No items found in {}'.format(
+                    u'/'.join(self.model().sourceModel()._parent_item))
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
@@ -1307,9 +1324,9 @@ class BaseInlineIconWidget(BaseListWidget):
             self.multi_toggle_pos = event.pos()
 
             if n == 0:  # Favourite button
-                self.multi_toggle_state = not source_index.flags() & Settings.MarkedAsFavourite
+                self.multi_toggle_state = not source_index.flags() & common.MarkedAsFavourite
             elif n == 1:  # Archive button
-                self.multi_toggle_state = not source_index.flags() & Settings.MarkedAsArchived
+                self.multi_toggle_state = not source_index.flags() & common.MarkedAsArchived
             elif n == 2:  # Reveal button
                 continue
             elif n == 3:  # Todo button
@@ -1387,8 +1404,8 @@ class BaseInlineIconWidget(BaseListWidget):
         initial_index = self.indexAt(self.multi_toggle_pos)
         idx = index.row()
 
-        favourite = index.flags() & Settings.MarkedAsFavourite
-        archived = index.flags() & Settings.MarkedAsArchived
+        favourite = index.flags() & common.MarkedAsFavourite
+        archived = index.flags() & common.MarkedAsArchived
 
         # Filter the current item
         if index == self.multi_toggle_item:

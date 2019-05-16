@@ -26,7 +26,6 @@ from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings, Active
-from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -72,17 +71,17 @@ class AssetModel(BaseModel):
         self._data[self._datakey] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
+        if not self._parent_item:
+            return
+        if not all(self._parent_item):
+            return
+
         rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
         active_paths = Active.paths()
 
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
         sfavourites = set(favourites)
-
-        if not self._parent_item:
-            return
-        if not all(self._parent_item):
-            return
 
         server, job, root = self._parent_item
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
@@ -100,7 +99,9 @@ class AssetModel(BaseModel):
             if not entry.is_dir():
                 continue
 
-            if common.ASSET_IDENTIFIER not in [f.name for f in gwscandir.scandir(entry.path)]:
+            ipath = u'{}/{}'.format(
+                entry.path.replace(u'\\', u'/'), common.ASSET_IDENTIFIER)
+            if not QtCore.QFileInfo().exists(ipath):
                 continue
 
             # Progress bar
@@ -167,11 +168,11 @@ class AssetModel(BaseModel):
             )
 
             if entry.name == active_paths[u'asset']:
-                flags = flags | MarkedAsActive
+                flags = flags | common.MarkedAsActive
             if settings.value(u'config/archived'):
-                flags = flags | MarkedAsArchived
+                flags = flags | common.MarkedAsArchived
             if entry.path.replace(u'\\', u'/') in sfavourites:
-                flags = flags | MarkedAsFavourite
+                flags = flags | common.MarkedAsFavourite
             data[idx][common.FlagsRole] = flags
 
             # Todos
@@ -254,7 +255,7 @@ class AssetsWidget(BaseInlineIconWidget):
         index = self.indexAt(event.pos())
         if not index.isValid():
             return
-        if index.flags() & MarkedAsArchived:
+        if index.flags() & common.MarkedAsArchived:
             return
 
         rect = self.visualRect(index)

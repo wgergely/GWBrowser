@@ -12,7 +12,6 @@ import gwbrowser.common as common
 from gwbrowser.editors import ClickableLabel
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
-from gwbrowser.settings import MarkedAsActive
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
@@ -157,7 +156,8 @@ class SelectFolderView(QtWidgets.QTreeView):
 
         self.clicked.connect(lambda i: self.collapse(
             i) if self.isExpanded(i) else self.expand(i), type=QtCore.Qt.QueuedConnection)
-        self.clicked.connect(self.index_expanded, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.index_expanded,
+                             type=QtCore.Qt.QueuedConnection)
         self.activated.connect(self.hide)
 
     def set_model(self, model):
@@ -301,7 +301,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
         if self.is_model_valid():
             flags = super(SelectFolderModel, self).flags(index)
             if self.filePath(index) == self._destination:
-                flags = flags | MarkedAsActive
+                flags = flags | common.MarkedAsActive
             return flags
         return QtCore.Qt.NoItemFlags
 

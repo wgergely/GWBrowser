@@ -30,6 +30,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 
 class DataKeyContextMenu(BaseContextMenu):
     """The context menu associated with the DataKeyView."""
+
     def __init__(self, index, parent=None):
         super(DataKeyContextMenu, self).__init__(index, parent=parent)
         self.add_reveal_item_menu()
@@ -79,10 +80,8 @@ class DataKeyViewDelegate(BaseDelegate):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
-        painter.setOpacity(0.5)
-        self.paint_thumbnail(*args)
-        painter.setOpacity(1)
         self.paint_name(*args)
+        self.paint_selection_indicator(*args)
 
     @paintmethod
     def paint_background(self, *args):
@@ -94,7 +93,6 @@ class DataKeyViewDelegate(BaseDelegate):
         center = rect.center()
         rect.setHeight(rect.height() - 1)
         rect.moveCenter(center)
-
         background = QtGui.QColor(common.BACKGROUND)
         color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
@@ -113,10 +111,7 @@ class DataKeyViewDelegate(BaseDelegate):
 
         font = QtGui.QFont(common.PrimaryFont)
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH
-            + rect.height()
-        )
+        rect.setLeft(common.MARGIN)
         rect.setRight(rect.right() - common.MARGIN)
 
         text = index.data(QtCore.Qt.DisplayRole).upper()

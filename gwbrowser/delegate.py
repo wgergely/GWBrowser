@@ -10,7 +10,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 
 
 def paintmethod(func):
@@ -35,9 +34,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         selected = option.state & QtWidgets.QStyle.State_Selected
         focused = option.state & QtWidgets.QStyle.State_HasFocus
 
-        favourite = index.flags() & MarkedAsFavourite
-        archived = index.flags() & MarkedAsArchived
-        active = index.flags() & MarkedAsActive
+        favourite = index.flags() & common.MarkedAsFavourite
+        archived = index.flags() & common.MarkedAsArchived
+        active = index.flags() & common.MarkedAsActive
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
@@ -61,7 +60,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         selected = option.state & QtWidgets.QStyle.State_Selected
-        archived = index.flags() & MarkedAsArchived
+        archived = index.flags() & common.MarkedAsArchived
         color = QtGui.QColor(color)
         if selected:
             color.setRed(color.red() / 0.92)

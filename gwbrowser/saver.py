@@ -679,19 +679,19 @@ class SaverWidget(QtWidgets.QDialog):
         b.model().filterTextChanged.emit(b.model().filterText())
         a.model().filterTextChanged.emit(a.model().filterText())
         #
-        b.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                         b.model().filterFlag(Settings.MarkedAsActive))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                         b.model().filterFlag(Settings.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                         b.model().filterFlag(Settings.MarkedAsFavourite))
+        b.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                         b.model().filterFlag(common.MarkedAsActive))
+        b.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                         b.model().filterFlag(common.MarkedAsArchived))
+        b.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                         b.model().filterFlag(common.MarkedAsFavourite))
         #
-        a.model().filterFlagChanged.emit(Settings.MarkedAsActive,
-                                         a.model().filterFlag(Settings.MarkedAsActive))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsArchived,
-                                         a.model().filterFlag(Settings.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(Settings.MarkedAsFavourite,
-                                         a.model().filterFlag(Settings.MarkedAsFavourite))
+        a.model().filterFlagChanged.emit(common.MarkedAsActive,
+                                         a.model().filterFlag(common.MarkedAsActive))
+        a.model().filterFlagChanged.emit(common.MarkedAsArchived,
+                                         a.model().filterFlag(common.MarkedAsArchived))
+        a.model().filterFlagChanged.emit(common.MarkedAsFavourite,
+                                         a.model().filterFlag(common.MarkedAsFavourite))
 
         bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
         bookmarkbutton.view().model().sourceModel().activeChanged.emit(

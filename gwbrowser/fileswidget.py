@@ -17,7 +17,6 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 
 import gwbrowser.common as common
-from gwbrowser.settings import MarkedAsActive, MarkedAsArchived, MarkedAsFavourite
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
 from gwbrowser.delegate import FilesWidgetDelegate
@@ -50,7 +49,6 @@ class FileInfoWorker(BaseWorker):
         if not index.data(QtCore.Qt.StatusTipRole):
             return
         index = index.model().mapToSource(index)
-        # To be on the save-side let's skip initiated items
         if index.data(common.FileInfoLoaded):
             return
 
@@ -120,13 +118,15 @@ class FileInfoWorker(BaseWorker):
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
 
         if settings.value(u'config/archived'):
-            flags = flags | MarkedAsArchived
+            flags = flags | common.MarkedAsArchived
         data[common.FlagsRole] = flags
 
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
         index.model().dataChanged.emit(index, index)
+        QtWidgets.QApplication.instance().processEvents(
+            QtCore.QEventLoop.ExcludeUserInputEvents)
 
 
 class FileInfoThread(BaseThread):
@@ -150,46 +150,46 @@ class FileThumbnailWorker(BaseWorker):
         data = index.model().model_data()[index.row()]
 
         settings = AssetSettings(index)
+        data[common.ThumbnailPathRole] = settings.thumbnail_path()
         height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
 
-        ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
-        placeholder_color = common.THUMBNAIL_BACKGROUND
-
-        if ext in common.all_formats:
-            placeholder_image = ImageCache.instance().get(
-                common.rsc_path(__file__, ext), height)
-        else:
-            placeholder_image = ImageCache.instance().get(
-                common.rsc_path(__file__, u'placeholder'), height)
-
-        needs_thumbnail = False
+        ext = data[QtCore.Qt.StatusTipRole].split('.')[-1].lower()
         image = None
 
-        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            image = ImageCache.instance().get(settings.thumbnail_path(), height)
+        if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
+            # We will always overwrite - when refreshing we will want to refresh
+            # the thumbnails too!
+            image = ImageCache.instance().get(
+                data[common.ThumbnailPathRole], height, overwrite=True)
 
-        if not image:  # The item doesn't have a saved thumbnail...
-            ext = data[QtCore.Qt.StatusTipRole].split('.')[-1]
+        # If the item doesn't have a saved thumbnail we will check if
+        # OpenImageIO is able to make a thumbnail for it. If not we will
+        # keep the thumbnail as it is
+        if not image:
             if ext in common.oiio_formats:
-                needs_thumbnail = True
-                placeholder_image = ImageCache.instance().get(
-                    common.rsc_path(__file__, u'spinner'), height)
-            image = placeholder_image
-            color = placeholder_color
-        else:
-            color = ImageCache.instance().get(settings.thumbnail_path(), u'BackgroundColor')
+                model = index.model()
+                data = model.model_data()[index.row()]
+                spinner_pixmap = ImageCache.instance().get(
+                    common.rsc_path(__file__, u'spinner'),
+                    data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+                data[common.ThumbnailRole] = spinner_pixmap
+                data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+                data[common.FileThumbnailLoaded] = False
+                model.dataChanged.emit(index, index)
+                QtWidgets.QApplication.instance().processEvents(
+                    QtCore.QEventLoop.ExcludeUserInputEvents)
+                ImageCacheWorker.process_index(index)
+            else:
+                data[common.FileThumbnailLoaded] = True
+            return
 
-        data[common.ThumbnailPathRole] = settings.thumbnail_path()
-        data[common.DefaultThumbnailRole] = placeholder_image
-        data[common.DefaultThumbnailBackgroundRole] = placeholder_color
+        # We have loaded a saved thumbnail and not further processing is needed
+        color = ImageCache.instance().get(
+            data[common.ThumbnailPathRole], u'BackgroundColor')
+        data[common.FileThumbnailLoaded] = True
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
-
         index.model().dataChanged.emit(index, index)
-
-        # Let's generate the thumbnail if auto-generation is turned on
-        if index.model().generate_thumbnails and needs_thumbnail:
-            ImageCacheWorker.process_index(index)
 
 
 class FileThumbnailThread(BaseThread):
@@ -287,6 +287,14 @@ class FilesModel(BaseModel):
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
 
+        # It is quicker to cache these here...
+        thumbnails = {}
+        defined_thumbnails = set(common.creative_cloud_formats +
+                                 common.exports_formats + common.scene_formats)
+        for ext in defined_thumbnails:
+            thumbnails[ext] = ImageCache.get(
+                common.rsc_path(__file__, ext), rowsize.height())
+
         self._data[dkey] = {
             common.FileItem: {},
             common.SequenceItem: {}
@@ -307,6 +315,7 @@ class FilesModel(BaseModel):
 
         server, job, root, asset = self._parent_item
         location = self.data_key()
+        location_is_filtered = location in common.NameFilters
         location_path = (u'{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
@@ -320,11 +329,20 @@ class FilesModel(BaseModel):
         c = 0
         for _, _, fileentries in common.walk(location_path):
             for entry in fileentries:
-                filepath = entry.path.replace(u'\\', u'/')
                 filename = entry.name
 
-                if location in common.NameFilters:
-                    if not filepath.split(u'.')[-1] in common.NameFilters[location]:
+                if filename[0] == u'.':
+                    continue
+                if u'thumbs.db'.lower() in filename.lower():
+                    continue
+
+                filepath = entry.path.replace(u'\\', u'/')
+                ext = filename.split(u'.')[-1].lower()
+
+                # This line will make sure only extensions we choose to display
+                # are actually returned. This is important for the Context widgets
+                if location_is_filtered:
+                    if ext not in common.NameFilters[location]:
                         continue
 
                 # Progress bar
@@ -334,34 +352,24 @@ class FilesModel(BaseModel):
                         u'Found {} files...'.format(c))
                     QtWidgets.QApplication.instance().processEvents(
                         QtCore.QEventLoop.ExcludeUserInputEvents)
-
                 fileroot = filepath.replace(location_path, u'')
                 fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
 
                 seq = common.get_sequence(filepath)
 
-                # Hidden files we don't care about should probably come from a centralised list...
-                if filename.startswith(u'.'):
-                    continue
-                if u'thumbs.db'.lower() in filename.lower():
-                    continue
-
-                ext = filename.split(u'.')[-1].lower()
-                if ext in common.all_formats:
-                    placeholder_image = ImageCache.instance().get(
-                        common.rsc_path(__file__, ext), rowsize.height())
+                if ext in defined_thumbnails:
+                    placeholder_image = thumbnails[ext]
                 else:
-                    placeholder_image = ImageCache.instance().get(
-                        common.rsc_path(__file__, u'placeholder'), rowsize.height())
+                    placeholder_image = default_thumbnail_image
 
                 flags = dflags()
 
                 if filepath in sfavourites:
-                    flags = flags | MarkedAsFavourite
+                    flags = flags | common.MarkedAsFavourite
 
                 if activefile:
                     if activefile in filepath:
-                        flags = flags | MarkedAsActive
+                        flags = flags | common.MarkedAsActive
 
                 # stat = entry.stat()
                 idx = len(self._data[dkey][common.FileItem])
@@ -387,7 +395,7 @@ class FilesModel(BaseModel):
                     common.DefaultThumbnailRole: default_thumbnail_image,
                     common.DefaultThumbnailBackgroundRole: default_background_color,
                     common.ThumbnailPathRole: None,
-                    common.ThumbnailRole: default_thumbnail_image,
+                    common.ThumbnailRole: placeholder_image,
                     common.ThumbnailBackgroundRole: default_background_color,
                     #
                     common.TypeRole: common.FileItem,
@@ -396,8 +404,13 @@ class FilesModel(BaseModel):
                     common.SortBySize: 0,
                 }
 
-                if fileroot not in self._keywords and len(fileroot.split(u'/')) <= 4:
+                sfileroot = fileroot.split(u'/')
+                if fileroot not in self._keywords and len(sfileroot) <= 4:
                     self._keywords[fileroot] = fileroot
+                    ss = []
+                    for s in fileroot.split(u'/'):
+                        ss.append(s)
+                        self._keywords[s] = ' '.join(ss).strip()
 
                 # If the file in question is a sequence, we will also save a reference
                 # to it in `self._model_data[location][True]` dictionary.
@@ -430,7 +443,7 @@ class FilesModel(BaseModel):
                                 seq.group(4))
 
                         if key in sfavourites:
-                            flags = flags | MarkedAsFavourite
+                            flags = flags | common.MarkedAsFavourite
 
                         seqs[seqpath] = {
                             QtCore.Qt.DisplayRole: seqname,
@@ -454,7 +467,7 @@ class FilesModel(BaseModel):
                             common.DefaultThumbnailRole: default_thumbnail_image,
                             common.DefaultThumbnailBackgroundRole: default_background_color,
                             common.ThumbnailPathRole: None,
-                            common.ThumbnailRole: default_thumbnail_image,
+                            common.ThumbnailRole: placeholder_image,
                             common.ThumbnailBackgroundRole: default_background_color,
                             #
                             common.TypeRole: common.SequenceItem,
@@ -487,11 +500,11 @@ class FilesModel(BaseModel):
 
                 flags = dflags()
                 if filepath in sfavourites:
-                    flags = flags | MarkedAsFavourite
+                    flags = flags | common.MarkedAsFavourite
 
                 if activefile:
                     if activefile in filepath:
-                        flags = flags | MarkedAsActive
+                        flags = flags | common.MarkedAsActive
 
                 v[common.FlagsRole] = flags
 
@@ -502,7 +515,7 @@ class FilesModel(BaseModel):
                     _firsframe = v[common.SequenceRole].expand(ur'\1{}\3.\4')
                     _firsframe = _firsframe.format(min(v[common.FramesRole]))
                     if activefile in _firsframe:
-                        v[common.FlagsRole] = v[common.FlagsRole] | MarkedAsActive
+                        v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
             self._data[dkey][common.SequenceItem][idx] = v
 
     @QtCore.Slot()
@@ -662,8 +675,8 @@ class FilesWidget(BaseInlineIconWidget):
         # We want to make sure we keep archived items hidden. If we detect any
         # archived items, we will invalidate the proxy model.
         if needs_info:
-            if not self.model().filterFlag(MarkedAsArchived):
-                if [f for f in needs_info if f.flags() & MarkedAsArchived]:
+            if not self.model().filterFlag(common.MarkedAsArchived):
+                if [f for f in needs_info if f.flags() & common.MarkedAsArchived]:
                     self.model().invalidateFilter()
                     return
 
@@ -726,7 +739,7 @@ class FilesWidget(BaseInlineIconWidget):
         index = self.indexAt(event.pos())
         if not index.isValid():
             return
-        if index.flags() & MarkedAsArchived:
+        if index.flags() & common.MarkedAsArchived:
             return
 
         rect = self.visualRect(index)
