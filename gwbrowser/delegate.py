@@ -945,7 +945,6 @@ class FilesWidgetDelegate(BaseDelegate):
             return rect.right()
 
         max_depth = 4
-        padding = common.INDICATOR_WIDTH
         for n, text in enumerate(modes):
             if n > max_depth:  # Not painting folders deeper than this...
                 return rect.right() - common.MARGIN
@@ -958,7 +957,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if n == 0:
                 bg_color = common.FAVOURITE
             else:
-                bg_color = QtGui.QColor(85, 85, 85)
+                bg_color = QtGui.QColor(70, 70, 70)
 
             pen = QtGui.QPen(bg_color)
             pen.setWidth(common.INDICATOR_WIDTH)
