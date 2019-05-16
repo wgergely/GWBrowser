@@ -1005,7 +1005,11 @@ class FilesWidgetDelegate(BaseDelegate):
         # Resizing the height and centering
         rect.moveTop(rect.top() + (rect.height() / 2.0))
         rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - rect.height() + (rect.height() / 3))
+        if index.data(common.FileDetailsRole) or index.data(common.DescriptionRole):
+            rect.moveTop(rect.top() - rect.height() + (rect.height() / 3))
+        else:
+            rect.moveCenter(QtCore.QPoint(
+                rect.center().x(), option.rect.center().y()))
 
         # Taking the control-icons into consideration
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
