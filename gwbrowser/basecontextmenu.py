@@ -11,10 +11,8 @@ import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
-import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
-import gwbrowser.settings as Settings
 from gwbrowser.settings import AssetSettings
 
 
@@ -410,7 +408,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         settings = AssetSettings(source_index)
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            menu_set[key][u'Show'] = {
+            menu_set[key][u'Preview'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
@@ -425,11 +423,12 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(ImageCache.instance().capture, source_index)}
 
         # Submenu for picking a thumbnail from our internal thumbnail library
-        QtCore.Slot(unicode)
-
+        @QtCore.Slot(unicode)
         def add_thumbnail_from_library(path):
             """When a selection is made, adds the selected thumbnail to the
             current item."""
+            data = source_index.model().model_data()[source_index.row()]
+            data[common.FileThumbnailLoaded] = False
             ImageCacheWorker.process_index(source_index, source=path)
 
         def show_thumbnail_picker():
@@ -458,48 +457,17 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         suffix = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix()
-        if suffix in common.get_oiio_namefilters(as_array=True):
+        if suffix in common.oiio_formats:
             menu_set[key]['_separator_'] = {}
 
-            def generate_thumbnails(overwrite=False):
-                if overwrite:
-                    mbox = QtWidgets.QMessageBox()
-                    mbox.setWindowTitle(u'Re-generate all thumbnails?')
-                    mbox.setIcon(QtWidgets.QMessageBox.Warning)
-                    mbox.setText(
-                        u'Are you sure you want to re-generate all thumbnails?'
-                    )
-                    mbox.setInformativeText(
-                        u'This will overwrite all the custom thumbnails you have set previously.\nThe process is resource-intensive, and might take a while to finish. Do you want to continue?')
-                    mbox.setStandardButtons(
-                        QtWidgets.QMessageBox.SaveAll
-                        | QtWidgets.QMessageBox.Cancel
-                    )
-                    mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
-                    if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
-                        return
-
-                source_indexes = []
-                for n in xrange(self.index.model().rowCount()):
-                    index = self.parent().model().index(n, 0)
-                    source_index = index.model().mapToSource(index)
-                    source_indexes.append(source_index)
-                ImageCache.instance().generate_thumbnails(source_indexes, overwrite=overwrite)
+            def make():
+                source_index.model().model_data()[
+                    source_index.row()][common.FileThumbnailLoaded] = False
+                ImageCacheWorker.process_index(source_index)
 
             menu_set[key][u'generatethis'] = {
                 u'text': u'Make',
-                u'action': functools.partial(
-                    ImageCache.instance().generate_thumbnails,
-                    (source_index,), overwrite=True)}
-
-            menu_set[key][u'generatemissing'] = {
-                u'text': u'Make missing',
-                u'action': functools.partial(generate_thumbnails, overwrite=False)
-            }
-
-            menu_set[key][u'generateall'] = {
-                u'text': u'Re-make all',
-                u'action': functools.partial(generate_thumbnails, overwrite=True)
+                u'action': make
             }
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():

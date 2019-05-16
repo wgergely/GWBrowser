@@ -69,12 +69,20 @@ class BookmarkInfo(QtCore.QFileInfo):
         self.server = bookmark[u'server']
         self.job = bookmark[u'job']
         self.root = bookmark[u'root']
+        self.exists = None
 
         path = u'{}/{}/{}'.format(self.server, self.job, self.root)
         super(BookmarkInfo, self).__init__(path, parent=parent)
 
-        self.size = functools.partial(lambda n: n, self.count_assets(path))
-        self.count = functools.partial(lambda n: n, self.count_assets(path))
+        if not QtCore.QFileInfo(path).exists():
+            self.size = lambda: 0
+            self.count = lambda: 0
+            self.exists = lambda: False
+            return
+
+        self.exists = lambda: True
+        self.size = lambda: self.count_assets(path)
+        self.count = lambda: self.count_assets(path)
 
     @staticmethod
     def count_assets(path):
@@ -159,21 +167,27 @@ class BookmarksModel(BaseModel):
         default_thumbnail_image = default_thumbnail_image.toImage()
         default_background_color = common.THUMBNAIL_BACKGROUND
 
-        for idx, file_info in enumerate(items):
+        favourites = local_settings.value(u'favourites')
+        favourites = local_settings.value(u'favourites')
+        favourites = set(favourites)
+
+        for file_info in items:
             # Let's make sure the Browser's configuration folder exists
             # This folder lives in the root of the bookmarks folder and is
             # created here if not created previously.
-            _confpath = u'{}/.browser/'.format(file_info.filePath())
-            _confpath = QtCore.QFileInfo(_confpath)
-            if not _confpath.exists():
+            if file_info.exists():
+                _confpath = u'{}/.browser/'.format(file_info.filePath())
+                _confpath = QtCore.QFileInfo(_confpath)
                 QtCore.QDir().mkpath(_confpath.filePath())
 
             flags = (
                 QtCore.Qt.ItemIsSelectable |
                 QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsDropEnabled |
                 QtCore.Qt.ItemIsEditable
             )
+
+            if not file_info.exists():
+                flags = QtCore.Qt.ItemIsSelectable | common.MarkedAsArchived
 
             # Active
             if (
@@ -183,15 +197,11 @@ class BookmarksModel(BaseModel):
             ):
                 flags = flags | common.MarkedAsActive
 
-            favourites = local_settings.value(u'favourites')
-            favourites = favourites if favourites else []
             if file_info.filePath() in favourites:
                 flags = flags | common.MarkedAsFavourite
 
-            if not file_info.exists():
-                flags = QtCore.Qt.ItemIsSelectable | common.MarkedAsArchived
-
             data = self.model_data()
+            idx = len(data)
             data[idx] = {
                 QtCore.Qt.DisplayRole: file_info.job,
                 QtCore.Qt.EditRole: file_info.job,
@@ -219,6 +229,9 @@ class BookmarksModel(BaseModel):
                 common.SortByLastModified: file_info.filePath(),
                 common.SortBySize: u'{}'.format(file_info.size()),
             }
+
+            if not file_info.exists():
+                continue
 
             # Thumbnail
             index = self.index(idx, 0)

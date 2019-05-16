@@ -434,8 +434,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the background for the inline icons."""
         if self.parent().buttons_hidden():
             return
-
         painter, option, index, selected, _, active, archived, _ = args
+        if archived:
+            return
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
@@ -456,13 +457,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.setPen(QtCore.Qt.NoPen)
 
-        if not archived:
-            if selected:
-                color = QtGui.QColor(common.BACKGROUND_SELECTED)
-            else:
-                color = QtGui.QColor(common.BACKGROUND)
-            painter.setBrush(color)
-            painter.drawRect(bg_rect)
+        if selected:
+            color = QtGui.QColor(common.BACKGROUND_SELECTED)
+        else:
+            color = QtGui.QColor(common.BACKGROUND)
+        painter.setBrush(color)
+        painter.drawRect(bg_rect)
 
         if active:
             color = self.get_state_color(option, index, common.SELECTION)
@@ -554,7 +554,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         #
         self.paint_thumbnail(*args)
-        self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
@@ -566,6 +565,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_favourite_icon(*args)
         self.paint_count_icon(*args)
         #
+        self.paint_archived(*args)
         self.paint_selection_indicator(*args)
 
     @paintmethod
@@ -742,7 +742,6 @@ class AssetsWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         #
         self.paint_thumbnail(*args)
-        self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
@@ -754,6 +753,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         self.paint_favourite_icon(*args)
         self.paint_folder_icon(*args)
         #
+        self.paint_archived(*args)
         self.paint_selection_indicator(*args)
 
     @paintmethod
@@ -817,8 +817,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         #
         self.paint_thumbnail(*args)
-        if index.data(common.FileInfoLoaded):
-            self.paint_archived(*args)
+
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
@@ -829,6 +828,8 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
         self.paint_favourite_icon(*args)
+        if index.data(common.FileInfoLoaded):
+            self.paint_archived(*args)
         self.paint_archived_icon(*args)
         #
         self.paint_selection_indicator(*args)

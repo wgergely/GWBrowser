@@ -51,15 +51,13 @@ def oiio(func):
 
             model = index.model()
             data = model.model_data()[index.row()]
-            spinner_pixmap = ImageCache.instance().get(
-                common.rsc_path(__file__, u'spinner'),
-                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
             error_pixmap = ImageCache.instance().get(
                 common.rsc_path(__file__, u'remove'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
 
         try:
-            func(self, index, source=source, dest=dest, dest_size=dest_size)
+            func(self, index, source=source,
+                 dest=dest, dest_size=dest_size)
         except Exception as err:
             if index.isValid():
                 data[common.ThumbnailRole] = error_pixmap
@@ -365,61 +363,32 @@ class ImageCache(QtCore.QObject):
     @staticmethod
     def get_color_average(image):
         """Returns the average color of an image."""
-        return common.THUMBNAIL_BACKGROUND
+        # return common.SEPARATOR
 
-        # if image.isNull():
-        #     return common.THUMBNAIL_BACKGROUND
-        #
-        # r = []
-        # g = []
-        # b = []
-        #
-        # for x in xrange(image.width()):
-        #     for y in xrange(image.height()):
-        #         if image.pixelColor(x, y).alpha() < 0.01:
-        #             continue
-        #         r.append(image.pixelColor(x, y).red())
-        #         g.append(image.pixelColor(x, y).green())
-        #         b.append(image.pixelColor(x, y).blue())
-        #
-        # if not all([float(len(r)), float(len(g)), float(len(b))]):
-        #     return common.THUMBNAIL_BACKGROUND
-        # else:
-        #     average_color = QtGui.QColor(
-        #         sum(r) / float(len(r)),
-        #         sum(g) / float(len(g)),
-        #         sum(b) / float(len(b))
-        #     )
-        # return average_color
+        if image.isNull():
+            return common.THUMBNAIL_BACKGROUND
 
-    def generate_thumbnails(self, indexes, overwrite=False):
-        """Takes a list of index values and generates thumbnails for them.
+        r = []
+        g = []
+        b = []
 
-        Note:
-            This method is affiliated with the main GUI thread, but the images
-            are generated in worker threads.
-
-        """
-
-        def filtered(indexes, overwrite=None):
-            """Filter method for making sure only acceptable files types will be querried."""
-            for index in indexes:
-                ext = index.data(QtCore.Qt.StatusTipRole).split('.')[-1]
-                if ext not in common.oiio_formats:
+        for x in xrange(image.width()):
+            for y in xrange(image.height()):
+                if image.pixelColor(x, y).alpha() < 0.01:
                     continue
-                if not index.data(common.FileInfoLoaded):
-                    continue
-                dest = AssetSettings(index).thumbnail_path()
-                if not overwrite and QtCore.QFileInfo(dest).exists():
-                    continue
-                yield index
+                r.append(image.pixelColor(x, y).red())
+                g.append(image.pixelColor(x, y).green())
+                b.append(image.pixelColor(x, y).blue())
 
-        ImageCacheWorker.add_to_queue(filtered(indexes, overwrite=overwrite))
-
-    @classmethod
-    def generate(cls, index, source=None):
-        """OpenImageIO based method to generate sRGB thumbnails bound by ``THUMBNAIL_IMAGE_SIZE``."""
-        raise DeprecationWarning('obsolete call, update!')
+        if not all([float(len(r)), float(len(g)), float(len(b))]):
+            return common.THUMBNAIL_BACKGROUND
+        else:
+            average_color = QtGui.QColor(
+                sum(r) / float(len(r)),
+                sum(g) / float(len(g)),
+                sum(b) / float(len(b))
+            )
+        return average_color
 
     def capture(self, index):
         """Uses ``ScreenGrabber to save a custom screen-grab."""
@@ -505,6 +474,8 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
+        data = index.model().model_data()[index.row()]
+        data[common.FileThumbnailLoaded] = False
         ImageCacheWorker.process_index(index, source=dialog.selectedFiles()[0])
         index.model().dataChanged.emit(index, index)
 

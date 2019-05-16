@@ -27,6 +27,7 @@ import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
+from gwbrowser.threads import BaseThread
 from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.assetswidget import AssetsWidget
@@ -58,11 +59,13 @@ class VersionLabel(QtWidgets.QLabel):
         self.parent().showMessage(version)
 
     def mousePressEvent(self, event):
-        QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about')
+        QtGui.QDesktopServices.openUrl(
+            ur'https://gergely-wootsch.com/gwbrowser-about')
 
 
 class SizeGrip(QtWidgets.QSizeGrip):
     """Custom size-grip for resizing browser-widget"""
+
     def __init__(self, browserwidget, parent=None):
         super(SizeGrip, self).__init__(parent)
         self.browserwidget = browserwidget
@@ -234,7 +237,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initialized.emit()
 
         if local_settings.value(u'firstrun') is None:
-            QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about')
+            QtGui.QDesktopServices.openUrl(
+                ur'https://gergely-wootsch.com/gwbrowser-about')
             local_settings.setValue(u'firstrun', False)
 
     def _createUI(self):
@@ -304,13 +308,12 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
-        statusbar.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+        statusbar.setFixedHeight(
+            common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
         statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
 
         statusbar.layout().setContentsMargins(20, 20, 20, 20)
         self.statusbar = statusbar
-
-
 
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
@@ -318,12 +321,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser."""
-        return (
-            list(self.fileswidget.model().sourceModel().threads.itervalues()) +
-            list(self.favouriteswidget.model().sourceModel().threads.itervalues()) +
-            list(ImageCache.instance().threads.itervalues()) +
-            list(self.listcontrolwidget.control_view().model().threads.itervalues())
-        )
+        return BaseThread._instances.values()
 
     @QtCore.Slot()
     def exit_application(self):
@@ -339,21 +337,16 @@ class BrowserWidget(QtWidgets.QWidget):
                 thread.exit(0)
 
         if all([not f.isRunning() for f in threadpool]):
-            sys.stdout.write('# All threads finished.')
+            sys.stdout.write(u'# All threads finished.\n')
             QtWidgets.QApplication.instance().exit(0)
-            exit(0)
-            raise SystemExit(0)
+            # raise SystemExit(0)
 
         # Forcing the application to close after n tries
         if self.__qn < 20:  # circa 5 seconds to wrap things up, will exit by force after
             return
 
-        self.close()
-        self.deleteLater()
-        del self
+        QtWidgets.QApplication.instance().closeAllWindows()
         QtWidgets.QApplication.instance().exit(0)
-        exit(0)
-        raise SystemExit(0)
 
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
@@ -381,10 +374,12 @@ class BrowserWidget(QtWidgets.QWidget):
 
         s = self.stackedwidget
 
-        self.shutdown_timer.timeout.connect(self.exit_application, type=QtCore.Qt.QueuedConnection)
+        self.shutdown_timer.timeout.connect(
+            self.exit_application, type=QtCore.Qt.QueuedConnection)
         self.shutdown.connect(self.shutdown_timer.start)
         for thread in self.get_all_threads():
-            self.shutdown.connect(thread.worker.shutdown, type=QtCore.Qt.QueuedConnection)
+            self.shutdown.connect(thread.worker.shutdown,
+                                  type=QtCore.Qt.QueuedConnection)
 
         # Signals responsible for saveing the activation changes
         b.model().sourceModel().activeChanged.connect(b.save_activated)
@@ -758,6 +753,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def resizeEvent(self, event):
         self.resized.emit(self.geometry())
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

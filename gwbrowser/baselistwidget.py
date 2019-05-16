@@ -16,6 +16,7 @@ for storing our actual model data.
 
 import re
 import sys
+import traceback
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -36,8 +37,9 @@ def initdata(func):
         try:
             res = func(self, *args, **kwargs)
         except Exception as err:
+            tb = traceback.format_exc()
             sys.stderr.write(
-                '# An error occured loading data:\n{}\n'.format(err))
+                '# An error occured loading data:\n{}\n'.format(tb))
             res = None
         finally:
             self.endResetModel()
@@ -576,7 +578,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.context_menu_cls = None
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
-        self._buttons_hidden = True if local_settings.value(
+        self._buttons_hidden = False if local_settings.value(
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
@@ -611,7 +613,7 @@ class BaseListWidget(QtWidgets.QListView):
         """Sets the visibility of the inline icon buttons."""
         cls = self.__class__.__name__
         k = u'widget/{}/buttons_hidden'.format(cls)
-        local_settings.setValue(k, self._buttons_hidden)
+        local_settings.setValue(k, val)
         self._buttons_hidden = val
 
     def set_model(self, model):

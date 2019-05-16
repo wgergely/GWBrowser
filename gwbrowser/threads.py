@@ -132,12 +132,13 @@ class BaseThread(QtCore.QThread):
     The thread.start() is called when the ``FileModel`` is initialized.
 
     """
-
+    _instances = {}
     __worker = None
     Worker = BaseWorker
 
     def __init__(self, parent=None):
         super(BaseThread, self).__init__(parent=parent)
+        BaseThread._instances[repr(self)] = self
         self.setTerminationEnabled(True)
 
         self.thread_id = None
