@@ -305,15 +305,10 @@ class FilterButton(ControlButton):
         return True
 
     def action(self):
+        """The action to perform when finished editing the filter text."""
         filter_text = self.current().model().filterText()
-        if not filter_text:
-            filter_text = u''
-        else:
-            filter_text = re.sub(u'\[\\\S\\\s\]\*', u' ', filter_text)
-            filter_text = re.sub(ur'[\\]+', '', filter_text)
-            filter_text = common.FilterTextRegex.sub(u' ', filter_text)
-            filter_text = re.sub(ur'\s', u' ', filter_text)
-
+        filter_text = common.clean_filter_text(filter_text)
+        #
         parent = self._parent.parent().listcontrolwidget
         editor = FilterEditor(filter_text, parent=parent)
         pos = parent.rect().topLeft()
@@ -322,16 +317,12 @@ class FilterButton(ControlButton):
         editor.move(pos)
         editor.setFixedWidth(parent.rect().width())
 
-        def func(filter_text):
-            filter_text = common.FilterTextRegex.sub(u' ', filter_text)
-            filter_text = re.sub(ur'\s\s*', u' ', filter_text)
-            filter_text = re.sub(ur'\s', ur'[\S\s]*', filter_text)
-            self.current().model().filterTextChanged.emit(filter_text)
-
-        editor.finished.connect(func)
+        model = self.current().model()
+        editor.finished.connect(lambda x: model.filterTextChanged.emit(
+            common.regexify_filter_text(x)))
         editor.finished.connect(self.repaint)
         editor.finished.connect(editor.deleteLater)
-
+        #
         editor.show()
 
 
@@ -353,7 +344,6 @@ class CollapseSequenceButton(ControlButton):
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
         shortcut.activated.connect(self.repaint)
-
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
@@ -400,7 +390,6 @@ class ToggleArchivedButton(ControlButton):
         shortcut.activated.connect(self.clicked)
         shortcut.activated.connect(self.repaint)
 
-
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
 
@@ -437,7 +426,6 @@ class ToggleButtons(ControlButton):
         shortcut.setContext(QtCore.Qt.WindowShortcut)
         shortcut.activated.connect(self.clicked)
         shortcut.activated.connect(self.repaint)
-
 
     def pixmap(self, c):
         return ImageCache.get_rsc_pixmap(u'showbuttons', c, common.INLINE_ICON_SIZE)
@@ -729,7 +717,6 @@ class PaintedTextButton(ClickableLabel):
         self.setStatusTip(u'')
         self.setFixedHeight(height)
 
-
     def set_parent(self, widget):
         self._parent = widget
 
@@ -797,6 +784,7 @@ class PaintedTextButton(ClickableLabel):
 
 class BookmarksTabButton(PaintedTextButton):
     """The button responsible for revealing the ``BookmarksWidget``"""
+
     def __init__(self, parent=None):
         super(BookmarksTabButton, self).__init__(parent=parent)
         self.index = 0
@@ -813,11 +801,13 @@ class BookmarksTabButton(PaintedTextButton):
 
 class AssetsTabButton(PaintedTextButton):
     """The button responsible for revealing the ``AssetsWidget``"""
+
     def __init__(self, parent=None):
         super(AssetsTabButton, self).__init__(parent=parent)
         self.index = 1
         self.set_text(u'Assets')
-        self.setStatusTip(u'Ctrl+2  |  Click to see the list of available assets')
+        self.setStatusTip(
+            u'Ctrl+2  |  Click to see the list of available assets')
 
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Ctrl+2'), self)

@@ -472,7 +472,7 @@ QLineEdit:focus {{
 
 
 class FilterEditor(QtWidgets.QWidget):
-    """Editor widget used to set the filter for the current view."""
+    """Editor widget used to set the filter for the current model."""
     finished = QtCore.Signal(unicode)
 
     def __init__(self, text, parent=None):
@@ -513,18 +513,8 @@ class FilterEditor(QtWidgets.QWidget):
         self.editor_widget = Editor(parent=self)
 
         # Settings the completer associated with the Editor widget
-        keywords = []
-        for keyword in sorted(self.keywords().values()):
-            for k in keyword.split(u'/'):
-                if k in keywords:
-                    continue
-                keywords.append(k.upper())
-                if keyword in keywords:
-                    continue
-                keywords.append(keyword.upper())
-
         completer = QtWidgets.QCompleter(
-            keywords, self)
+            sorted(self.keywords().keys()), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
         completer.setCompletionMode(
             QtWidgets.QCompleter.InlineCompletion)
@@ -535,16 +525,6 @@ class FilterEditor(QtWidgets.QWidget):
 
     def _connectSignals(self):
         self.finished.connect(self.close)
-
-    @QtCore.Slot()
-    def show_keywords(self):
-        """The slot responsible for showing the keywords widget."""
-        self.row.setHidden(not self.row.isHidden())
-
-        if self.row.isHidden():
-            self.setFixedHeight(self.row1_height)
-        else:
-            self.setFixedHeight(self.row1_height + self.row2_height)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -693,6 +673,7 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def keyPressEvent(self, event):
         """Closes the widget on any key-press."""
         self.close()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

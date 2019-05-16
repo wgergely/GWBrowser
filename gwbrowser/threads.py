@@ -58,11 +58,8 @@ class BaseWorker(QtCore.QObject):
 
         """
         # Adding a dummy object should clear the get() block
-        for _ in xrange(10):
+        for _ in xrange(1):
             self.queue.put(QtCore.QModelIndex())
-
-        sys.stdout.write('# Stopping {} worker...\n'.format(
-            self.__class__.__name__))
         self.shutdown_requested = True
 
     @classmethod
@@ -109,8 +106,6 @@ class BaseWorker(QtCore.QObject):
             self.error.emit(errstr)
         finally:
             if self.shutdown_requested:
-                sys.stdout.write('# {} worker finished processing.\n'.format(
-                    self.__class__.__name__))
                 self.finished.emit()
             else:
                 self.begin_processing()

@@ -41,6 +41,8 @@ def initdata(func):
             res = None
         finally:
             self.endResetModel()
+            QtWidgets.QApplication.instance().processEvents(
+                QtCore.QEventLoop.ExcludeUserInputEvents)
         return res
     return func_wrapper
 
@@ -292,11 +294,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def keywords(self):
         """We're using the ``keywords`` property to help filter our lists."""
-        keywords = {}
-        for k, v in self._keywords.iteritems():
-            keywords[k] = v
-            keywords[u'--{}'.format(k)] = u'--{}'.format(v)
-        return keywords
+        return self._keywords
 
     def initialize_default_sort_values(self):
         cls = self.__class__.__name__
@@ -1216,7 +1214,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             rect = QtCore.QRect(
                 common.INDICATOR_WIDTH,
-                2,
+                common.ROW_SEPARATOR,
                 self.viewport().rect().width() - (common.INDICATOR_WIDTH * 2),
                 sizehint.height() - common.INDICATOR_WIDTH
             )
@@ -1237,14 +1235,18 @@ class BaseListWidget(QtWidgets.QListView):
             align = QtCore.Qt.AlignCenter
 
             if not self.model().sourceModel()._parent_item:
-                text = u'Bookmarks or asset is not set'
+                text = u'No bookmark or asset set'
+                common.draw_aliased_text(
+                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                return True
+            if not self.model().sourceModel().data_key():
+                text = u'No task folder selected.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
             if self.model().sourceModel().rowCount() == 0:
-                text = u'No items found in {}'.format(
-                    u'/'.join(self.model().sourceModel()._parent_item))
+                text = u'No items to show.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
@@ -1262,7 +1264,7 @@ class BaseListWidget(QtWidgets.QListView):
                     hidtext = u''
 
                     if self.model().filterText() is not None and len(self.model().filterText()) > 0:
-                        filtext = u'"{}"'.format(self.model().filterText())
+                        filtext = u'{}'.format(self.model().filterText())
                     if favourite_mode:
                         favtext = u'Showing favourites only'
                     if active_mode:
@@ -1272,7 +1274,7 @@ class BaseListWidget(QtWidgets.QListView):
                     text = '{} {} {} {}'.format(
                         filtext, favtext, acttext, hidtext)
                     common.draw_aliased_text(
-                        painter, font, text_rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight, common.SECONDARY_TEXT)
+                        painter, font, text_rect, text, align, common.SECONDARY_TEXT)
 
                 text_rect.moveTop(text_rect.top() + sizehint.height())
                 rect.moveTop(rect.top() + sizehint.height())

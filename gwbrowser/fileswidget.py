@@ -8,6 +8,7 @@ found by the collector classes.
 
 import sys
 import traceback
+import re
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -273,6 +274,20 @@ class FilesModel(BaseModel):
             Windows and Mac OS X the performance seems to be adequate.
 
         """
+        def add_keywords(l):
+            """Adds searchable keywords given a list of string."""
+            arr = []
+            for s in l:
+                self._keywords[s] = s
+                ns = u'--{}'.format(s)
+                self._keywords[ns] = ns
+
+                arr.append(s)
+                k = u' '.join(arr).strip()
+                self._keywords[k] = k
+                nk = u' --'.join(arr).strip()
+                self._keywords[nk] = nk
+
         def dflags():
             """The default flags to apply to the item."""
             return (
@@ -404,13 +419,10 @@ class FilesModel(BaseModel):
                     common.SortBySize: 0,
                 }
 
-                sfileroot = fileroot.split(u'/')
-                if fileroot not in self._keywords and len(sfileroot) <= 4:
-                    self._keywords[fileroot] = fileroot
-                    ss = []
-                    for s in fileroot.split(u'/'):
-                        ss.append(s)
-                        self._keywords[s] = ' '.join(ss).strip()
+                if len(fileroot.split(u'/')) <= 4:
+                    # self._keywords[fileroot] = fileroot
+                    add_keywords(fileroot.split(u'/'))
+                    add_keywords(re.split(ur'[\._\-\s]+', filename))
 
                 # If the file in question is a sequence, we will also save a reference
                 # to it in `self._model_data[location][True]` dictionary.

@@ -24,33 +24,21 @@ def run():
     try:
         from PySide2 import QtCore
         import gwbrowser.standalonewidgets
-
-        sys.stdout.write('# Starting Standalone app...\n')
-        app = gwbrowser.standalonewidgets.StandaloneApp(sys.argv)
-        sys.stdout.write('# Making window...\n')
+        app = gwbrowser.standalonewidgets.StandaloneApp([])
         widget = gwbrowser.standalonewidgets.StandaloneBrowserWidget()
         widget.show()
-        app.exec_()
-        raise SystemExit(0)
+        return sys.exit(app.exec_())
     except Exception as err:
-        try:
-            import traceback
-            from PySide2 import QtWidgets
-            app = QtWidgets.QApplication([])
-            res = QtWidgets.QMessageBox(
-                QtWidgets.QMessageBox.Warning,
-                u'Could not start GWBrowser',
-                u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(
-                    err, traceback.format_exc()),
-                QtWidgets.QMessageBox.Ok)
-            return res.exec_()
-        except Exception as err:
-            raise RuntimeError(
-                '# An error occured starting GWBrowser:\n{}'.format(err))
-        finally:
-            raise SystemExit(0)
-    finally:
-        raise SystemExit(0)
+        import traceback
+        from PySide2 import QtWidgets
+        app = QtWidgets.QApplication([])
+        res = QtWidgets.QMessageBox(
+            QtWidgets.QMessageBox.Warning,
+            u'Could not start GWBrowser',
+            u'An error occured starting GWBrowser :(\n\n{}\n\n{}'.format(
+                err, traceback.format_exc()),
+            QtWidgets.QMessageBox.Ok)
+        return sys.exit(res.exec_())
 
 
 if __name__ == '__main__':
@@ -65,10 +53,10 @@ if __name__ == '__main__':
     sys.path.insert(0, packagepath)
 
     dependencies_present = True
-    for module in ['OpenImageIO', 'PySide2', 'numpy', 'gwbrowser']:
+    for module in ['GWAlembic', 'OpenImageIO', 'PySide2', 'numpy', 'gwbrowser']:
         dependencies_present = check_dependency(module)
     if not dependencies_present:
         raise ImportError('# Unable to start GWBrowser.')
 
-    res = run()
-    sys.stdout.write('Browser exited with code {}'.format(res))
+    run()
+    sys.exit(0)

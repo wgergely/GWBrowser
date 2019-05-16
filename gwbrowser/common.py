@@ -932,3 +932,23 @@ def ubytearray(ustring):
     # We convert the string to a hex array
     hstr = [r'\x{}'.format(f.encode('hex')) for f in ustring.encode('utf-8')]
     return QtCore.QByteArray.fromHex(''.join(hstr))
+
+
+def clean_filter_text(filter_text):
+    """This method will output a `clean`, readable version of the filter text."""
+    if not filter_text:
+        filter_text = u''
+    else:
+        filter_text = re.sub(u'\[\\\S\\\s\]\*', u' ', filter_text)
+        filter_text = re.sub(ur'[\\]+', '', filter_text)
+        filter_text = FilterTextRegex.sub(u' ', filter_text)
+        filter_text = re.sub(ur'\s', u' ', filter_text)
+    return filter_text
+
+
+def regexify_filter_text(filter_text):
+    """Replaces whitespaces with catch-all regex search elements."""
+    filter_text = FilterTextRegex.sub(u' ', filter_text)
+    filter_text = re.sub(ur'\s\s*', u' ', filter_text)
+    filter_text = re.sub(ur'\s', ur'[\S\s]*', filter_text)
+    return filter_text
