@@ -105,6 +105,12 @@ class ImageCacheWorker(BaseWorker):
             source = common.find_largest_file(index)
         dest = dest if dest else index.data(common.ThumbnailPathRole)
 
+        # It is best to make sure we're not trying to generate a thumbnail for
+        # an enournmous file - eg 512MB should be the biggest file we take
+        if QtCore.QFileInfo(source).size() >= 536870912:
+            set_error_thumbnail()
+            return False
+
         # First let's check if the file is readable by OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
         if not i:  # the file is not understood by OpenImageIO

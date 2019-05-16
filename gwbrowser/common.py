@@ -722,6 +722,14 @@ def find_largest_file(index):
     to be used a s thumbnail image. :)
 
     """
+    entries = index.data(EntryRole)
+    if not entries:
+        if index.data(TypeRole) == SequenceItem:
+            return index.data(SequenceRole).expand(
+                ur'\1{}\3.\4'.format(index.data(FramesRole)[0]))
+        else:
+            return index.data(QtCore.Qt.StatusTipRole)
+
     def key(x): return x.stat().st_size
     entry = max(index.data(EntryRole), key=key)
     return entry.path.replace(u'\\', u'/')

@@ -86,8 +86,10 @@ class DataKeyViewDelegate(BaseDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, _, selected, _, _, _, _ = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRect(option.rect)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
         center = rect.center()
@@ -139,7 +141,7 @@ class DataKeyViewDelegate(BaseDelegate):
 
         for text, color in items:
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, u'  |  ', QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SEPARATOR)
+                painter, common.SecondaryFont, rect, u'    |    ', QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SEPARATOR)
             rect.setLeft(rect.left() + width)
 
             width = common.draw_aliased_text(

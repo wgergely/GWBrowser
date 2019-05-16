@@ -85,35 +85,41 @@ class FileInfoWorker(BaseWorker):
             data[QtCore.Qt.EditRole] = seqname
 
             # File description string
-            mtime = 0
-            for entry in data[common.EntryRole]:
-                stat = entry.stat()
-                mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
-                data[common.SortBySize] += stat.st_size
-            mtime = qlast_modified(mtime)
+            if data[common.EntryRole]:
+                mtime = 0
+                for entry in data[common.EntryRole]:
+                    stat = entry.stat()
+                    mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
+                    data[common.SortBySize] += stat.st_size
+                data[common.SortByLastModified] = mtime
+                mtime = qlast_modified(mtime)
 
-            info_string = u'{count} files  |  {day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                count=len(intframes),
-                day=mtime.toString(u'dd'),
-                month=mtime.toString(u'MM'),
-                year=mtime.toString(u'yyyy'),
-                hour=mtime.toString(u'hh'),
-                minute=mtime.toString(u'mm'),
-                size=common.byte_to_string(data[common.SortBySize])
-            )
+                info_string = u'{count} files    |    {day}/{month}/{year}  {hour}:{minute}   {size}'.format(
+                    count=len(intframes),
+                    day=mtime.toString(u'dd'),
+                    month=mtime.toString(u'MM'),
+                    year=mtime.toString(u'yyyy'),
+                    hour=mtime.toString(u'hh'),
+                    minute=mtime.toString(u'mm'),
+                    size=common.byte_to_string(data[common.SortBySize])
+                )
+                data[common.FileDetailsRole] = info_string
         else:
-            stat = data[common.EntryRole][0].stat()
-            mtime = qlast_modified(stat.st_mtime)
-            data[common.SortBySize] = stat.st_size
-            info_string = u'{day}/{month}/{year} {hour}:{minute}  {size}'.format(
-                day=mtime.toString(u'dd'),
-                month=mtime.toString(u'MM'),
-                year=mtime.toString(u'yyyy'),
-                hour=mtime.toString(u'hh'),
-                minute=mtime.toString(u'mm'),
-                size=common.byte_to_string(data[common.SortBySize])
-            )
-        data[common.FileDetailsRole] = info_string
+            if data[common.EntryRole]:
+                stat = data[common.EntryRole][0].stat()
+                mtime = stat.st_mtime
+                data[common.SortByLastModified] = mtime
+                mtime = qlast_modified(mtime)
+                data[common.SortBySize] = stat.st_size
+                info_string = u'{day}/{month}/{year}  {hour}:{minute}    {size}'.format(
+                    day=mtime.toString(u'dd'),
+                    month=mtime.toString(u'MM'),
+                    year=mtime.toString(u'yyyy'),
+                    hour=mtime.toString(u'hh'),
+                    minute=mtime.toString(u'mm'),
+                    size=common.byte_to_string(data[common.SortBySize])
+                )
+                data[common.FileDetailsRole] = info_string
 
         # Item flags
         flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
@@ -303,6 +309,11 @@ class FilesModel(BaseModel):
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
 
         # It is quicker to cache these here...
+        default_thumbnail_image = ImageCache.instance().get(
+            common.rsc_path(__file__, u'placeholder'),
+            rowsize.height() - common.ROW_SEPARATOR)
+        default_background_color = common.THUMBNAIL_BACKGROUND
+
         thumbnails = {}
         defined_thumbnails = set(common.creative_cloud_formats +
                                  common.exports_formats + common.scene_formats)
@@ -334,11 +345,6 @@ class FilesModel(BaseModel):
         location_path = (u'{}/{}/{}/{}/{}'.format(
             server, job, root, asset, location
         ))
-
-        default_thumbnail_image = ImageCache.instance().get(
-            common.rsc_path(__file__, u'placeholder'),
-            rowsize.height() - common.ROW_SEPARATOR)
-        default_background_color = common.THUMBNAIL_BACKGROUND
 
         nth = 987
         c = 0
@@ -403,10 +409,10 @@ class FilesModel(BaseModel):
                     common.SequenceRole: seq,
                     common.FramesRole: [],
                     common.FileInfoLoaded: False,
-                    common.FileThumbnailLoaded: False,
                     common.StartpathRole: None,
                     common.EndpathRole: None,
                     #
+                    common.FileThumbnailLoaded: False,
                     common.DefaultThumbnailRole: default_thumbnail_image,
                     common.DefaultThumbnailBackgroundRole: default_background_color,
                     common.ThumbnailPathRole: None,
@@ -472,10 +478,10 @@ class FilesModel(BaseModel):
                             common.SequenceRole: seq,
                             common.FramesRole: [],
                             common.FileInfoLoaded: False,
-                            common.FileThumbnailLoaded: False,
                             common.StartpathRole: None,
                             common.EndpathRole: None,
                             #
+                            common.FileThumbnailLoaded: False,
                             common.DefaultThumbnailRole: default_thumbnail_image,
                             common.DefaultThumbnailBackgroundRole: default_background_color,
                             common.ThumbnailPathRole: None,

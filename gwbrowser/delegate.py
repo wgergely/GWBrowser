@@ -881,26 +881,31 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.setRight(rect.right())
 
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+
         text = index.data(common.FileDetailsRole)
-
+        color = common.TEXT if hover else common.SECONDARY_TEXT
+        color = common.TEXT if selected else color
         rect = self._draw(painter, font, rect, text, align,
-                          common.SECONDARY_TEXT, option, kwargs['left'])
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
+                          color, option, kwargs['left'])
 
         if index.data(common.DescriptionRole):
-            if selected:
-                color = common.TEXT_SELECTED
+            color = common.TEXT_SELECTED if hover else common.TEXT
+            color = common.TEXT_SELECTED if selected else color
+            if index.data(common.FileDetailsRole):
+                text = u'{}    \n'.format(index.data(common.DescriptionRole))
             else:
-                color = common.FAVOURITE
-            text = u'{}  |  \n'.format(index.data(common.DescriptionRole))
+                text = u'{}\n'.format(index.data(common.DescriptionRole))
             rect = self._draw(painter, font, rect, text, align,
                               color, option, kwargs['left'])
         elif not index.data(common.DescriptionRole) and hover:
             color = QtGui.QColor(common.SECONDARY_TEXT)
-            color.setAlpha(150)
-            text = u'Double-click to add description...  |  '
+            color.setAlpha(220)
+            color = common.SECONDARY_TEXT if hover else color
+            color = common.TEXT_SELECTED if selected else color
+            if index.data(common.FileDetailsRole):
+                text = u'Double-click to add description...   '
+            else:
+                text = u'Double-click to add description...'
             rect = self._draw(painter, font, rect, text,
                               align, color, option, kwargs['left'])
         return metrics.width(text)
@@ -1104,7 +1109,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
             self.paint_archived(*args)
         self.paint_thumbnail_shadow(*args)
         #
-        left = self.paint_mode(*args)
+        left = 0
         self.paint_name(*args, left=left)
         if index.data(common.FileInfoLoaded):
             self.paint_description(*args, left=left)

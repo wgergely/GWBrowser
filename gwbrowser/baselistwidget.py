@@ -1209,6 +1209,10 @@ class BaseListWidget(QtWidgets.QListView):
             painter = QtGui.QPainter()
             painter.begin(self)
 
+            model = self.model()
+            source_model = model.sourceModel()
+            filter_text = model.filterText()
+
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())
 
@@ -1219,8 +1223,8 @@ class BaseListWidget(QtWidgets.QListView):
                 sizehint.height() - common.INDICATOR_WIDTH
             )
 
-            favourite_mode = self.model().filterFlag(common.MarkedAsFavourite)
-            active_mode = self.model().filterFlag(common.MarkedAsActive)
+            favourite_mode = model.filterFlag(common.MarkedAsFavourite)
+            active_mode = model.filterFlag(common.MarkedAsActive)
 
             text_rect = QtCore.QRect(rect)
             text_rect.setLeft(rect.left() + common.MARGIN)
@@ -1234,45 +1238,49 @@ class BaseListWidget(QtWidgets.QListView):
             font.setPointSize(common.SMALL_FONT_SIZE)
             align = QtCore.Qt.AlignCenter
 
-            if not self.model().sourceModel()._parent_item:
+            if not source_model._parent_item:
                 text = u'No bookmark or asset set'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
-            if not self.model().sourceModel().data_key():
+            if not source_model.data_key():
                 text = u'No task folder selected.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
-            if self.model().sourceModel().rowCount() == 0:
+            if source_model.rowCount() == 0:
                 text = u'No items to show.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
             for n in xrange((self.height() / sizehint.height()) + 1):
-                if n >= self.model().rowCount():  # Empty items
+                if n >= model.rowCount():  # Empty items
                     rect_ = QtCore.QRect(rect)
                     rect_.setWidth(sizehint.height() - 2)
 
-                if n == self.model().rowCount():  # filter mode
-                    hidden_count = self.model().sourceModel().rowCount() - self.model().rowCount()
+                if n == model.rowCount():  # filter mode
+                    hidden_count = source_model.rowCount() - model.rowCount()
                     filtext = u''
                     favtext = u''
                     acttext = u''
                     hidtext = u''
 
-                    if self.model().filterText() is not None and len(self.model().filterText()) > 0:
-                        filtext = u'{}'.format(self.model().filterText())
+                    if filter_text is not None and len(filter_text) > 0:
+                        filtext = u'{}'.format(
+                            common.clean_filter_text(filter_text).upper())
                     if favourite_mode:
                         favtext = u'Showing favourites only'
                     if active_mode:
                         acttext = u'Showing active item only'
                     if hidden_count:
-                        hidtext = '({} items are hidden)'.format(hidden_count)
-                    text = '{} {} {} {}'.format(
-                        filtext, favtext, acttext, hidtext)
+                        hidtext = u'{} items are hidden'.format(hidden_count)
+                    # text = u'{} {} {} {}'.format(
+                    #     filtext, favtext, acttext, hidtext)
+                    text = [f for f in (
+                        filtext, favtext, acttext, hidtext) if f]
+                    text = '  |  '.join(text)
                     common.draw_aliased_text(
                         painter, font, text_rect, text, align, common.SECONDARY_TEXT)
 

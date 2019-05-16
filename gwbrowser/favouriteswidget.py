@@ -12,10 +12,8 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
-import gwbrowser.settings as Settings
 from gwbrowser.settings import local_settings
 
-from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.fileswidget import FilesWidgetContextMenu
 from gwbrowser.delegate import FavouritesWidgetDelegate
@@ -65,15 +63,34 @@ class FavouritesModel(FilesModel):
         bookmark.
 
         """
-
         def dflags(): return (
             QtCore.Qt.ItemNeverHasChildren |
             QtCore.Qt.ItemIsEnabled |
             QtCore.Qt.ItemIsSelectable |
             common.MarkedAsFavourite
         )
+
+        if not self._parent_item:
+            return
+        if not all(self._parent_item):
+            return
+
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+
+        # It is quicker to cache these here...
+        default_thumbnail_image = ImageCache.instance().get(
+            common.rsc_path(__file__, u'placeholder'),
+            rowsize.height() - common.ROW_SEPARATOR)
+        default_background_color = common.THUMBNAIL_BACKGROUND
+
+        thumbnails = {}
+        defined_thumbnails = set(common.creative_cloud_formats +
+                                 common.exports_formats + common.scene_formats)
+        for ext in defined_thumbnails:
+            thumbnails[ext] = ImageCache.get(
+                common.rsc_path(__file__, ext), rowsize.height())
+
         self._data[dkey] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
@@ -83,45 +100,26 @@ class FavouritesModel(FilesModel):
         favourites = favourites if favourites else []
         sfavourites = set(favourites)
 
-        if not self._parent_item:
-            return
-        if not all(self._parent_item):
-            return
-
         server, job, root = self._parent_item
         placeholder_color = common.THUMBNAIL_BACKGROUND
+        bookmark = u'{}/{}/{}'.format(server, job, root)
 
         for filepath in sfavourites:
-            file_info = QtCore.QFileInfo(filepath)
-            fileroot = file_info.filePath()
-            if u'{}/{}/{}'.format(server, job, root) in fileroot:
-                fileroot = file_info.filePath().replace(
-                    u'{}/{}/{}'.format(server, job, root),
-                    u''
-                )
-            else:
+            fileroot = filepath
+            if bookmark not in fileroot:
                 continue
 
+            fileroot = filepath.replace(bookmark, u'')
             seq = common.get_sequence(filepath)
             filename = filepath.split(u'/')[-1]
             ext = filename.split(u'.')[-1].lower()
 
-            if ext in common.all_formats:
-                placeholder_image = ImageCache.instance().get(
-                    rsc_path(__file__, ext), rowsize.height())
+            if ext in defined_thumbnails:
+                placeholder_image = thumbnails[ext]
             else:
-                placeholder_image = ImageCache.instance().get(
-                    rsc_path(__file__, u'placeholder'), rowsize.height())
+                placeholder_image = default_thumbnail_image
 
             flags = dflags()
-
-            fname = filepath.split(u'/').pop()
-            pdir = filepath.replace(fname, u'')
-            entry = [f for f in gwscandir.scandir(pdir) if f.name == filename]
-            if not entry:
-                continue
-            entry = entry[0]
-            stat = entry.stat()
 
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
@@ -130,7 +128,7 @@ class FavouritesModel(FilesModel):
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
-                common.EntryRole: [entry, ],
+                common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, fileroot),
                 common.DescriptionRole: u'',
@@ -143,15 +141,18 @@ class FavouritesModel(FilesModel):
                 common.EndpathRole: None,
                 #
                 common.FileThumbnailLoaded: False,
+                common.DefaultThumbnailRole: default_thumbnail_image,
+                common.DefaultThumbnailBackgroundRole: default_background_color,
+                common.ThumbnailPathRole: None,
                 common.ThumbnailRole: placeholder_image,
-                common.ThumbnailBackgroundRole: placeholder_color,
-                common.DefaultThumbnailRole: placeholder_image,
-                common.DefaultThumbnailBackgroundRole: placeholder_color,
+                common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
                 common.SortByName: filepath,
-                common.SortByLastModified: stat.st_mtime,
-                common.SortBySize: stat.st_size,
+                # common.SortByLastModified: stat.st_mtime,
+                # common.SortBySize: stat.st_size,
+                common.SortByLastModified: 0,
+                common.SortBySize: 0,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -201,19 +202,20 @@ class FavouritesModel(FilesModel):
                         common.SequenceRole: seq,
                         common.FramesRole: [],
                         common.FileInfoLoaded: False,
+                        #
                         common.FileThumbnailLoaded: False,
-                        common.StartpathRole: None,
-                        common.EndpathRole: None,
+                        common.DefaultThumbnailRole: default_thumbnail_image,
+                        common.DefaultThumbnailBackgroundRole: default_background_color,
+                        common.ThumbnailPathRole: None,
                         common.ThumbnailRole: placeholder_image,
-                        common.ThumbnailBackgroundRole: placeholder_color,
+                        common.ThumbnailBackgroundRole: default_background_color,
+                        #
                         common.TypeRole: common.SequenceItem,
                         common.SortByName: seqpath,
-                        common.SortByLastModified: -1,
-                        common.SortBySize: 0,
+                        common.SortByLastModified: len(seqpath),
+                        common.SortBySize: len(seqpath),
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
-                seqs[seqpath][common.SortBySize] += entry.stat().st_size
-                seqs[seqpath][common.EntryRole].append(entry)
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -231,8 +233,8 @@ class FavouritesModel(FilesModel):
                 v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
                 v[common.SortByName] = filepath
-                v[common.SortByLastModified] = filepath
-                v[common.SortBySize] = v[common.EntryRole][0].stat().st_size
+                v[common.SortByLastModified] = len(filepath)
+                v[common.SortBySize] = len(filepath)
 
                 flags = dflags()
                 v[common.FlagsRole] = flags
