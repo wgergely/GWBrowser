@@ -258,9 +258,22 @@ scene_formats = [
     u'rv',
     u'autosave'
 ]
+misc_formats = [
+    u'pdf',
+    u'zip',
+    u'm4v',
+    u'm4a',
+    u'mov',
+    u'mp4',
+]
 oiio_formats = get_oiio_namefilters(as_array=True)
-all_formats = frozenset(scene_formats + oiio_formats +
-                        exports_formats + creative_cloud_formats)
+all_formats = frozenset(
+    scene_formats +
+    oiio_formats +
+    exports_formats +
+    creative_cloud_formats +
+    misc_formats
+)
 
 NameFilters = {
     ExportsFolder: all_formats,

@@ -85,8 +85,12 @@ class FavouritesModel(FilesModel):
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         thumbnails = {}
-        defined_thumbnails = set(common.creative_cloud_formats +
-                                 common.exports_formats + common.scene_formats)
+        defined_thumbnails = set(
+            common.creative_cloud_formats +
+            common.exports_formats +
+            common.scene_formats +
+            common.misc_formats
+        )
         for ext in defined_thumbnails:
             thumbnails[ext] = ImageCache.get(
                 common.rsc_path(__file__, ext), rowsize.height())

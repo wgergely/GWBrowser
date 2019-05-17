@@ -606,7 +606,7 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.thumbnail_size = 128
-        self.columns = 4
+        self.columns = 5
 
         self._createUI()
 

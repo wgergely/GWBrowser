@@ -39,6 +39,7 @@ class DataKeyContextMenu(BaseContextMenu):
 class DataKeyWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
     queue = Unique(999999)
+    indexes_in_progress = []
 
     @QtCore.Slot(QtCore.QModelIndex)
     @classmethod

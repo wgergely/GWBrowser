@@ -14,6 +14,7 @@ QModelIndexes from the thread's python Queue.
 import sys
 import traceback
 import Queue
+import threading
 from PySide2 import QtCore
 
 
@@ -38,7 +39,9 @@ class BaseWorker(QtCore.QObject):
     """
 
     queue = Unique(999999)
+    lock = threading.Lock()
     shutdown_requested = False
+    indexes_in_progress = []
 
     queueFinished = QtCore.Signal()
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
@@ -52,21 +55,28 @@ class BaseWorker(QtCore.QObject):
     def shutdown(self):
         """Quits the index-processing block.
         We're using the built-in python Queue.get(True) method - it blocks the
-        executing thread until there's an available queue item to get.
+        executing thread until there's an available worker to fetch the queued item.
 
         To break the lock it is necessary to add a dummy-item to the queue.
 
         """
         # Adding a dummy object should clear the get() block
-        for _ in xrange(1):
-            self.queue.put(QtCore.QModelIndex())
+        self.queue.put(QtCore.QPersistentModelIndex())
         self.shutdown_requested = True
 
     @classmethod
     @QtCore.Slot(tuple)
-    def add_to_queue(cls, items):
-        for item in items:
-            cls.queue.put(item)
+    def add_to_queue(cls, indexes):
+        for index in indexes:
+            index = QtCore.QPersistentModelIndex(index)
+            with cls.lock:
+                if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.queue.queue]:
+                    print '!!!'
+                    continue
+                if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.indexes_in_progress]:
+                    print '!!!!!'
+                    continue
+            cls.queue.put(index)
 
     @classmethod
     def reset_queue(cls):
@@ -87,8 +97,30 @@ class BaseWorker(QtCore.QObject):
         """
         try:
             while not self.shutdown_requested:
+                # We'll take the item from the queue
+                # It is possible however, that the item has been added back into
+                # the queue after a thread has taken it already
                 index = self.queue.get(True)
+
+                # Let's check if this is the case:
+                while index in self.indexes_in_progress:
+                    print('Index {}'.format(self))
+                    index = self.queue.get(True)
+
+                # This thread is the first to take the item, we will add the index
+                # to the list
+                with self.lock:
+                    if index not in self.indexes_in_progress:
+                        self.indexes_in_progress.append(index)
+
+                # Finally, we process the index
                 self.process_index(index)
+
+                # We'll remove the index from the currently processing items
+                with self.lock:
+                    if index in self.indexes_in_progress:
+                        self.indexes_in_progress.remove(index)
+
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)

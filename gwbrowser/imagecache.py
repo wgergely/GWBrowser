@@ -15,7 +15,6 @@ from xml.etree import ElementTree
 
 from PySide2 import QtWidgets, QtGui, QtCore
 from gwbrowser.capture import ScreenGrabber
-from gwbrowser.settings import AssetSettings
 import gwbrowser.common as common
 
 import OpenImageIO.OpenImageIO as OpenImageIO
@@ -74,6 +73,7 @@ def oiio(func):
 class ImageCacheWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
     queue = Unique(999999)
+    indexes_in_progress = []
 
     @QtCore.Slot(QtCore.QModelIndex)
     @QtCore.Slot(unicode)
