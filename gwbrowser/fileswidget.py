@@ -1,20 +1,35 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101, E1120
 
-"""Module defines the QListWidget items used to browse the assets and the files
-found by the collector classes.
+"""Defines the models, threads and context menus needed to interact with the
+files.
+
+The ``FilesModel`` is special model in the sense that it doesn't load all necessary
+data by itself and instead relies on threads to querry the file-system
+for performing more expensive file-system querries.
+
+FilesModel:
+    The main model for querrying the file-system. It will automatically get all
+    subdirectory entries using ``scandir.walk()`` from the current `_parent_item`
+    folder.
+
+    The ``FilesWidget`` view will then send the resulting indexes to the threads
+    where the thumbnails (using ``OpenImageIO``) and the file information will
+    be loaded (using ``scandir``'s ``DirEntries``.').
 
 """
 
 import sys
 import traceback
 import re
+import time
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
+from gwbrowser.baselistwidget import FilterProxyModel
 from gwbrowser.baselistwidget import initdata
 
 import gwbrowser.common as common
@@ -35,13 +50,19 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 class FileInfoWorker(BaseWorker):
-    """Thread-worker class responsible for updating the given indexes."""
-    queue = Unique(99999)
+    """The worker associated with the ``FileInfoThread``.
+
+    The worker is responsible for loading the file-size, last modified times,
+    saved flags and description. These loads involve the file-system and can be
+    expensive to perform.
+
+    """
+    queue = Unique(999999)
     indexes_in_progress = []
 
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index):
+    def process_index(index, update=True):
         """This worker is reponsible for populating an index's data
         with the description, file information.
 
@@ -50,9 +71,13 @@ class FileInfoWorker(BaseWorker):
             return
         if not index.data(QtCore.Qt.StatusTipRole):
             return
-        index = index.model().mapToSource(index)
+        if not index.data(common.ParentRole):
+            return
         if index.data(common.FileInfoLoaded):
             return
+
+        if isinstance(index.model(), FilterProxyModel):
+            index = index.model().mapToSource(index)
 
         # Item description
         settings = AssetSettings(index)
@@ -132,17 +157,75 @@ class FileInfoWorker(BaseWorker):
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
-        index.model().dataChanged.emit(index, index)
-        QtWidgets.QApplication.instance().processEvents(
-            QtCore.QEventLoop.ExcludeUserInputEvents)
+
+        # Forces a ui repaint to show the data-change
+        if update:
+            index.model().dataChanged.emit(index, index)
 
 
-class FileInfoThread(BaseThread):
-    Worker = FileInfoWorker
+class SecondaryFileInfoWorker(FileInfoWorker):
+    """The worker associated with the ``SecondaryFileInfoThread``.
+
+    The worker performs  the same function as ``FileInfoWorker`` but
+    it has it own queue and is concerned with loading all indexes.
+
+    """
+
+    @QtCore.Slot()
+    def begin_processing(self):
+        """Instead of relying on a queue, we will use this to set all file information
+        data on the source-model. There's only one thread for this worker
+
+        """
+        try:
+            while not self.shutdown_requested:
+                time.sleep(3)
+                if self.model.file_info_loaded:
+                    continue
+
+                if not self.model:
+                    continue
+
+                all_loaded = True
+                for n in xrange(self.model.rowCount()):
+                    index = self.model.index(n, 0)
+                    if not index.data(common.FileInfoLoaded):
+                        FileInfoWorker.process_index(index, update=False)
+                        all_loaded = False
+
+                if all_loaded:
+                    self.model.file_info_loaded = True
+
+        except RuntimeError as err:
+            errstr = '\nRuntimeError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            traceback.print_exc()
+            self.error.emit(errstr)
+        except ValueError as err:
+            errstr = '\nValueError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            traceback.print_exc()
+            self.error.emit(errstr)
+        except Exception as err:
+            errstr = '\nError in {}\n{}\n'.format(
+                QtCore.QThread.currentThread(), err)
+            traceback.print_exc()
+            self.error.emit(errstr)
+        finally:
+            if self.shutdown_requested:
+                self.finished.emit()
+            else:
+                self.begin_processing()
 
 
 class FileThumbnailWorker(BaseWorker):
-    """Thread-worker class responsible for updating the given indexes."""
+    """The worker associated with the ``FileThumbnailThread``.
+
+    The worker is responsible for loading the existing thumbnail images from
+    the cache folder, and if needed and possible, generating new thumbnails from
+    the source file.
+
+    """
     queue = Unique(999)
     indexes_in_progress = []
 
@@ -185,8 +268,6 @@ class FileThumbnailWorker(BaseWorker):
                 data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
                 data[common.FileThumbnailLoaded] = False
                 model.dataChanged.emit(index, index)
-                QtWidgets.QApplication.instance().processEvents(
-                    QtCore.QEventLoop.ExcludeUserInputEvents)
                 ImageCacheWorker.process_index(index)
             else:
                 data[common.FileThumbnailLoaded] = True
@@ -201,12 +282,23 @@ class FileThumbnailWorker(BaseWorker):
         index.model().dataChanged.emit(index, index)
 
 
+class FileInfoThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = FileInfoWorker
+
+
+class SecondaryFileInfoThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = SecondaryFileInfoWorker
+
+
 class FileThumbnailThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
     Worker = FileThumbnailWorker
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with FilesWidget."""
+    """Context menu associated with the `FilesWidget`."""
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
@@ -237,7 +329,7 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
 
 class FilesModel(BaseModel):
-    """Model with the file-data associated with asset `locations` and
+    """Model with the file - data associated with asset `locations` and
     groupping modes.
 
     The model stores information in the private `_data` dictionary, but the actual
@@ -248,6 +340,7 @@ class FilesModel(BaseModel):
     def __init__(self, threads=common.FTHREAD_COUNT, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         self.threads = {}
+        self.file_info_loaded = False
 
         for n in xrange(threads):
             self.threads[n] = FileInfoThread(self)
@@ -263,22 +356,39 @@ class FilesModel(BaseModel):
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
 
+        # The thread responsible for getting file information for all items
+        idx = len(self.threads)
+
+        def set_model():
+            self.threads[idx].worker.model = self
+        self.threads[idx] = SecondaryFileInfoThread()
+        self.threads[idx].thread_id = idx
+        self.threads[idx].started.connect(set_model)
+        self.threads[idx].start()
+
+        self.modelReset.connect(self.reset_file_info_loaded)
+
+    @QtCore.Slot()
+    def reset_file_info_loaded(self):
+        """Resets the file-info loaded to its default state"""
+        self.file_info_loaded = False
+
     @initdata
     def __initdata__(self):
-        """The method is responsible for getting the bare-bones file and sequence
-        definitions by running a file-iterator from the location-folder.
+        """The method is responsible for getting the bare - bones file and sequence
+        definitions by running a file - iterator from the location - folder.
 
         Getting all additional information, like description, item flags, thumbnails
-        are costly and therefore are populated by secondary thread-workers when
+        are costly and therefore are populated by secondary thread - workers when
         switch the model dataset.
 
         Notes:
-            Experiencing serious performance issues with the built-in QDirIterator
+            Experiencing serious performance issues with the built - in QDirIterator
             on Mac OS X samba shares and the performance isn't great on windows either.
             Querrying the filesystem using the method is magnitudes slower than
             using the same methods on windows.
 
-            A workaround I found was to use Python 3+'s scandir module. Both on
+            A workaround I found was to use Python 3 +'s scandir module. Both on
             Windows and Mac OS X the performance seems to be adequate.
 
         """
@@ -379,6 +489,7 @@ class FilesModel(BaseModel):
                         u'Found {} files...'.format(c))
                     QtWidgets.QApplication.instance().processEvents(
                         QtCore.QEventLoop.ExcludeUserInputEvents)
+
                 fileroot = filepath.replace(location_path, u'')
                 fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
 
@@ -561,8 +672,8 @@ class FilesModel(BaseModel):
         regarding what mime types have to be defined exactly for fully supporting
         drag and drop on all platforms.
 
-        On windows, ``application/x-qt-windows-mime;value="FileName"`` and
-        ``application/x-qt-windows-mime;value="FileNameW"`` types seems to be necessary,
+        On windows, ``application / x - qt - windows - mime; value = "FileName"`` and
+        ``application / x - qt - windows - mime; value = "FileNameW"`` types seems to be necessary,
         but on MacOS a simple uri list seem to suffice.
 
         """
@@ -611,10 +722,11 @@ class FilesWidget(BaseInlineIconWidget):
     """Files widget is responsible for listing the files items."""
 
     def __init__(self, parent=None):
-        """Init method.
+        """Initializes the files widget.
 
         Attributes:
-            _index_timer (QTimer): The timer responsible for queuing indexes to update.
+            _index_timer(QTimer):   The timer responsible for pushing the visible
+                                    model indexes to the thread queues.
 
         """
         super(FilesWidget, self).__init__(parent=parent)
@@ -625,45 +737,55 @@ class FilesWidget(BaseInlineIconWidget):
         self.setWindowTitle(u'Files')
         self.setAutoScroll(True)
 
-        self.setItemDelegate(FilesWidgetDelegate(parent=self))
+        # Context menu, delegate, model...
         self.context_menu_cls = FilesWidgetContextMenu
+        self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.set_model(FilesModel(parent=self))
 
+        # Timer
         self._index_timer = QtCore.QTimer()
         self._index_timer.setInterval(common.FTIMER_INTERVAL)
         self._index_timer.setSingleShot(False)
         self._index_timer.timeout.connect(self.initialize_visible_indexes)
 
+        # Signals
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.reset_thread_worker_queues)
         self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
         self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
 
+        # We're stopping the index timer when the model is loading.
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)
         self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
         self.model().layoutChanged.connect(self._index_timer.start)
 
+        # For performance's sake...
         self.verticalScrollBar().valueChanged.connect(FileThumbnailWorker.reset_queue)
 
     @QtCore.Slot()
     def reset_thread_worker_queues(self):
+        """Removes all queued items from the respective worker queues.
+        Slot is called by the ``modelAboutToBeReset`` signals.
+
+        """
         FileInfoWorker.reset_queue()
         FileThumbnailWorker.reset_queue()
+        SecondaryFileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
-        """The sourceModel() loads it's data in two steps, there's a single-threaded
-        data-collections, and a threaded second pass to load thumbnails and
-        descriptions.
+        """The sourceModel() loads its data in two steps, there's a single-threaded
+        walkthrough of all directories, and a threaded querry for further information.
 
-        To optimize the second pass we will only queue items that are visible
-        in the view.
+        This slot is called by the ``_index_timer`` and queues the uninitialized indexes
+        for the thread-workers to consume.
 
         """
         needs_info = []
         needs_thumbnail = []
+        generate_thumbnails = self.model().sourceModel().generate_thumbnails
 
         if self.verticalScrollBar().isSliderDown():
             return
@@ -691,7 +813,8 @@ class FilesWidget(BaseInlineIconWidget):
             if not index.data(common.FileInfoLoaded):
                 if index not in needs_info:
                     needs_info.append(index)
-            if self.model().sourceModel().generate_thumbnails:
+
+            if generate_thumbnails:
                 if not index.data(common.FileThumbnailLoaded):
                     if index not in needs_thumbnail:
                         needs_thumbnail.append(index)
@@ -704,8 +827,10 @@ class FilesWidget(BaseInlineIconWidget):
                     self.model().invalidateFilter()
                     return
 
-        FileInfoWorker.add_to_queue(needs_info)
-        if self.model().sourceModel().generate_thumbnails:
+        if needs_info:
+            FileInfoWorker.add_to_queue(needs_info)
+
+        if generate_thumbnails:
             FileThumbnailWorker.add_to_queue(needs_thumbnail)
 
     def eventFilter(self, widget, event):
@@ -751,11 +876,11 @@ class FilesWidget(BaseInlineIconWidget):
         local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
-        """Custom double-click event.
+        """Custom double - click event.
 
         A double click can `activate` an item, or it can trigger an edit event.
         As each item is associated with multiple editors we have to inspect
-        the double-click location before deciding what action to take.
+        the double - click location before deciding what action to take.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):

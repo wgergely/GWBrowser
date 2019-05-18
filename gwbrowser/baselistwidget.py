@@ -43,8 +43,6 @@ def initdata(func):
             res = None
         finally:
             self.endResetModel()
-            QtWidgets.QApplication.instance().processEvents(
-                QtCore.QEventLoop.ExcludeUserInputEvents)
         return res
     return func_wrapper
 

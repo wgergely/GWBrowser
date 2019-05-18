@@ -111,7 +111,8 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(common.INDICATOR_WIDTH, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
+        self.layout().setContentsMargins(common.INDICATOR_WIDTH, common.INDICATOR_WIDTH,
+                                         common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
         self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
@@ -166,6 +167,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         icon = QtGui.QIcon(pixmap)
 
         self.headerwidget = None
+        self.setMouseTracking(True)
 
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -184,7 +186,8 @@ class StandaloneBrowserWidget(BrowserWidget):
             QtGui.QKeySequence(u'Ctrl+Q'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
-        shortcut.activated.connect(self.shutdown, type=QtCore.Qt.QueuedConnection)
+        shortcut.activated.connect(
+            self.shutdown, type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
     def tweak_ui(self):

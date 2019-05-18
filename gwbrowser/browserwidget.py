@@ -260,19 +260,16 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Creating bookmarks tab...'
         self.repaint()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.bookmarkswidget = BookmarksWidget(parent=self)
 
         self.init_progress = u'Creating assets tab...'
         self.repaint()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.assetswidget = AssetsWidget(parent=self)
 
         self.init_progress = u'Creating files tab...'
         self.repaint()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.fileswidget = FilesWidget(parent=self)
         self.favouriteswidget = FavouritesWidget(parent=self)
@@ -283,13 +280,11 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Adding top bar...'
         self.repaint()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.init_progress = u'Finishing...'
         self.repaint()
-        app.processEvents(flags=QtCore.QEventLoop.ExcludeUserInputEvents)
 
         statusbar = QtWidgets.QStatusBar()
         statusbar.setSizeGripEnabled(False)
@@ -320,7 +315,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.statusbar)
 
     def get_all_threads(self):
-        """Returns all running threads associated with GWBrowser."""
+        """Returns all running threads associated with GWBrowser.
+        The ``BaseThread`` will keep track of all instances so we can use it to querry."""
         return BaseThread._instances.values()
 
     @QtCore.Slot()

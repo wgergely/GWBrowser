@@ -108,8 +108,6 @@ class AssetModel(BaseModel):
             c += 1
             if not c % nth:
                 self.messageChanged.emit(u'Found {} assets...'.format(c))
-                QtWidgets.QApplication.instance().processEvents(
-                    QtCore.QEventLoop.ExcludeUserInputEvents)
 
             tooltip = u'{}\n'.format(entry.name.upper())
             tooltip += u'{}\n'.format(server.upper())

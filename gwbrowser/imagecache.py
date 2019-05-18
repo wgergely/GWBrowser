@@ -79,7 +79,7 @@ class ImageCacheWorker(BaseWorker):
     @QtCore.Slot(unicode)
     @classmethod
     @oiio
-    def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
+    def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, nthreads=0):
         """This is a the main method generating thumbnail for items in GWBrowser.
         We're using the python binds of OpenImageIO to process the images.
 
@@ -116,13 +116,21 @@ class ImageCacheWorker(BaseWorker):
             return False
         i.close()
         img = OpenImageIO.ImageBuf(source)
+
+        # Let's check if the loaded item is a movie and let's pick the middle
+        # of the timeline as the thumbnail image
+        if img.spec().get_int_attribute('oiio:Movie') == 1:
+            # http://lists.openimageio.org/pipermail/oiio-dev-openimageio.org/2017-December/001104.html
+            frame = int(img.nsubimages / 2)
+            img.reset(source, subimage=frame)
+
         if img.has_error:
             set_error_thumbnail()
             return False
 
         # Deep
         if img.spec().deep:
-            img = OpenImageIO.ImageBufAlgo.flatten(img)
+            img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
 
         size = int(dest_size)
         spec = OpenImageIO.ImageSpec(size, size, 4, 'uint8')
@@ -134,15 +142,18 @@ class ImageCacheWorker(BaseWorker):
         b = OpenImageIO.ImageBuf(spec)
         b.set_write_format('uint8')
 
-        OpenImageIO.set_roi_full(img.spec(), OpenImageIO.get_roi(img.spec()))
-        OpenImageIO.ImageBufAlgo.fit(b, img)
+        spec = img.spec()
+        roi = OpenImageIO.get_roi(spec)
+        OpenImageIO.set_roi_full(spec, roi)
+        OpenImageIO.ImageBufAlgo.fit(b, img, nthreads=nthreads)
 
         spec = b.spec()
         if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
             roi = OpenImageIO.get_roi(b.spec())
             roi.chbegin = 0
             roi.chend = 3
-            OpenImageIO.ImageBufAlgo.pow(b, b, 1.0 / 2.2, roi)
+            OpenImageIO.ImageBufAlgo.pow(
+                b, b, 1.0 / 2.2, roi, nthreads=nthreads)
 
         # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
         if spec.get_string_attribute('oiio:ColorSpace') == 'GammaCorrectedinf':

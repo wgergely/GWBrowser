@@ -31,6 +31,9 @@ class Unique(Queue.Queue):
         return self.queue.pop()
 
 
+mutex = QtCore.QMutex()
+
+
 class BaseWorker(QtCore.QObject):
     """The base for all workers associated with a QThread.
     `begin_processing` is a blocking function and will take any QModelIndexes found
@@ -50,6 +53,8 @@ class BaseWorker(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
+        self.mutex = QtCore.QMutex()
+        self.model = None
 
     @QtCore.Slot()
     def shutdown(self):
@@ -64,22 +69,28 @@ class BaseWorker(QtCore.QObject):
         self.queue.put(QtCore.QPersistentModelIndex())
         self.shutdown_requested = True
 
-    @classmethod
     @QtCore.Slot(tuple)
+    @classmethod
     def add_to_queue(cls, indexes):
+        """Converts the list of indexes to ``QPersistentModelIndex`` model indexes
+        and adds it to the worker's queue.
+
+        """
+        # The queue might change size during iteration hence it is better copy it
+        current_queue = set(cls.queue.queue)
         for index in indexes:
+            if not index.isValid():
+                continue
             index = QtCore.QPersistentModelIndex(index)
-            with cls.lock:
-                if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.queue.queue]:
-                    print '!!!'
-                    continue
-                if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.indexes_in_progress]:
-                    print '!!!!!'
-                    continue
+            if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in current_queue]:
+                continue
+            if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.indexes_in_progress]:
+                continue
             cls.queue.put(index)
 
     @classmethod
     def reset_queue(cls):
+        """Empties the queue"""
         while not cls.queue.empty():
             cls.queue.get(False)
 
@@ -96,30 +107,28 @@ class BaseWorker(QtCore.QObject):
 
         """
         try:
+            # We will keep taking items from the queue until shutdown had been requested
             while not self.shutdown_requested:
                 # We'll take the item from the queue
                 # It is possible however, that the item has been added back into
                 # the queue after a thread has taken it already
                 index = self.queue.get(True)
 
-                # Let's check if this is the case:
+                # Let's check if this is the case and take the first available
                 while index in self.indexes_in_progress:
-                    print('Index {}'.format(self))
                     index = self.queue.get(True)
 
                 # This thread is the first to take the item, we will add the index
                 # to the list
-                with self.lock:
-                    if index not in self.indexes_in_progress:
-                        self.indexes_in_progress.append(index)
+                if index not in self.indexes_in_progress:
+                    self.indexes_in_progress.append(index)
 
                 # Finally, we process the index
                 self.process_index(index)
 
                 # We'll remove the index from the currently processing items
-                with self.lock:
-                    if index in self.indexes_in_progress:
-                        self.indexes_in_progress.remove(index)
+                if index in self.indexes_in_progress:
+                    self.indexes_in_progress.remove(index)
 
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
