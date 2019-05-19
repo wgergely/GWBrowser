@@ -320,7 +320,7 @@ class BrowserWidget(QtWidgets.QWidget):
         return BaseThread._instances.values()
 
     @QtCore.Slot()
-    def exit_application(self):
+    def terminate(self, quit_app=False):
         """When all the threads quit, we'll exit the main application too."""
         self.__qn += 1
         self.statusbar.showMessage(u'Quitting... {}'.format(self.__qn), 1000)
@@ -333,16 +333,24 @@ class BrowserWidget(QtWidgets.QWidget):
                 thread.exit(0)
 
         if all([not f.isRunning() for f in threadpool]):
-            sys.stdout.write(u'# All threads finished.\n')
-            QtWidgets.QApplication.instance().exit(0)
-            # raise SystemExit(0)
+            if quit_app:
+                self.deleteLater()
+                QtWidgets.QApplication.instance().exit(0)
+            else:
+                self.deleteLater()
 
         # Forcing the application to close after n tries
         if self.__qn < 20:  # circa 5 seconds to wrap things up, will exit by force after
             return
 
-        QtWidgets.QApplication.instance().closeAllWindows()
-        QtWidgets.QApplication.instance().exit(0)
+        # After that time we will force-terminate the threads
+        for thread in threadpool:
+            thread.terminate()
+
+        self.deleteLater()
+        if quit_app:
+            QtWidgets.QApplication.instance().closeAllWindows()
+            QtWidgets.QApplication.instance().exit(0)
 
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
@@ -370,8 +378,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         s = self.stackedwidget
 
-        self.shutdown_timer.timeout.connect(
-            self.exit_application, type=QtCore.Qt.QueuedConnection)
         self.shutdown.connect(self.shutdown_timer.start)
         for thread in self.get_all_threads():
             self.shutdown.connect(thread.worker.shutdown,

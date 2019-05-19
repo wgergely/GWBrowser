@@ -513,6 +513,7 @@ class SelectAssetView(SaverListView):
 
     def __init__(self, parent=None):
         super(SelectAssetView, self).__init__(parent=parent)
+        self.setItemDelegate(SelectAssetDelegate(parent=self))
         self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
 
 

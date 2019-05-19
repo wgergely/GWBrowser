@@ -18,7 +18,7 @@ import maya.OpenMayaUI as OpenMayaUI
 import maya.OpenMaya as OpenMaya
 import maya.cmds as cmds
 
-from gwalembic.alembic.Abc import IArchive, GetArchiveInfo
+from gwalembic.alembic import Abc
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -106,19 +106,19 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
         exporter = AlembicExport()
 
-        key = 'alembic'
+        key = u'alembic'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = 'Export alembic...'
+        menu_set[u'{}:text'.format(key)] = u'Export alembic...'
 
         outliner_set_members = exporter.get_outliner_set_members()
         for k in sorted(list(outliner_set_members)):
             value = outliner_set_members[k]
-            k = k.replace(':', ' - ')  # Namespace and speudo conflict
+            k = k.replace(u':', u' - ')  # Namespace and speudo conflict
             menu_set[key][k] = {
-                'text': '{} ({})'.format(k.upper(), len(value)),
-                'icon': objectset_pixmap,
-                'action': functools.partial(browserwidget.init_alembic_export, k, value, exporter)
+                u'text': u'{} ({})'.format(k.upper(), len(value)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(browserwidget.init_alembic_export, k, value, exporter)
             }
 
         return menu_set
@@ -128,19 +128,19 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
         exporter = BaseExporter()
 
-        key = 'obj'
+        key = u'obj'
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = objectset_pixmap
-        menu_set[u'{}:text'.format(key)] = 'Export obj...'
+        menu_set[u'{}:text'.format(key)] = u'Export obj...'
 
         outliner_set_members = exporter.get_outliner_set_members()
         for k in sorted(list(outliner_set_members)):
             value = outliner_set_members[k]
-            k = k.replace(':', ' - ')  # Namespace and speudo conflict
+            k = k.replace(u':', u' - ')  # Namespace and speudo conflict
             menu_set[key][k] = {
-                'text': '{} ({})'.format(k.upper(), len(value)),
-                'icon': objectset_pixmap,
-                'action': functools.partial(browserwidget.init_obj_export, k, value)
+                u'text': u'{} ({})'.format(k.upper(), len(value)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(browserwidget.init_obj_export, k, value)
             }
 
         return menu_set
@@ -197,16 +197,28 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         super(MayaBrowserWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
+        self.browserwidget = None
 
         self.setAutoFillBackground(True)
         self.setWindowTitle(u'GWBrowser')
 
         self._createUI()
 
-        self.findChild(BrowserWidget).initialized.connect(self.connectSignals)
-        self.findChild(BrowserWidget).initialized.connect(
+        self.browserwidget.initialized.connect(self.connectSignals)
+        self.browserwidget.initialized.connect(
             self.add_context_callbacks)
-        self.findChild(BrowserWidget).initialize()
+        self.browserwidget.shutdown_timer.timeout.connect(
+            lambda: self.terminate(quit_app=False), type=QtCore.Qt.QueuedConnection)
+
+        self.browserwidget.initialize()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setBrush(common.SEPARATOR)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+        painter.end()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -214,12 +226,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.layout().setSpacing(0)
         common.set_custom_stylesheet(self)
 
-        widget = BrowserWidget()
-        self.layout().addWidget(widget)
+        self.browserwidget = BrowserWidget()
+        self.layout().addWidget(self.browserwidget)
 
     def unmark_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
-        f = self.findChild(FilesWidget)
+        f = self.browserwidget.fileswidget
         if not f:
             return
         if not f.active_index().isValid():
@@ -232,7 +244,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         scene = common.get_sequence_endpath(
             cmds.file(query=True, expandName=True))
-        f = self.findChild(FilesWidget)
+        f = self.browserwidget.fileswidget
         if not f:
             return
 
@@ -273,23 +285,24 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         sys.stdout.write('\n# Browser: Removing callbacks...\n\n')
         for callback in self._callbacks:
             res = OpenMaya.MMessage.removeCallback(callback)
-            sys.stdout.write('# Callback status {}\n'.format(res))
+            sys.stdout.write(u'# Callback status {}\n'.format(res))
         self._callbacks = []
 
     @QtCore.Slot()
     def connectSignals(self):
-        browserwidget = self.findChild(BrowserWidget)
-        assetswidget = self.findChild(AssetsWidget)
-        fileswidget = self.findChild(FilesWidget)
+        assetswidget = self.browserwidget.assetswidget
+        fileswidget = self.browserwidget.fileswidget
 
         # Asset/project
         assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
         # Once the widget is initialized we'll set the workspace to the active asset
-        self.findChild(BrowserWidget).initialized.connect(
+        self.browserwidget.initialized.connect(
             lambda: self.set_workspace(assetswidget.model().sourceModel().active_index()))
 
         # Context menu
         fileswidget.customContextMenuRequested.connect(
+            self.customFilesContextMenuEvent)
+        assetswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
         fileswidget.activated.connect(lambda x: self.open_scene(
@@ -306,7 +319,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         if not image.isNull():
             image.save(settings.thumbnail_path())
 
-        fileswidget = self.findChild(FilesWidget)
+        fileswidget = self.browserwidget.fileswidget
         sizehint = fileswidget.itemDelegate().sizeHint(None, None)
         height = sizehint.height() - 2
         ImageCache.get(settings.thumbnail_path(), height, overwrite=True)
@@ -319,7 +332,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             BookmarksModel(),
             AssetModel(),
             ext,
-            subfolder,
             currentfile=None
         )
         saver.findChild(Custom).setText(key)  # Setting the group name
@@ -330,10 +342,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         dir_ = QtCore.QFileInfo(file_info.filePath()).dir()
         dir_.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dir_.setNameFilters(('*.{}'.format(ext),))
+        dir_.setNameFilters((u'*.{}'.format(ext),))
         if not dir_.exists():
             raise RuntimeError(
-                'The export destination path {} does not exist.'.format(dir_.path()))
+                u'The export destination path {} does not exist.'.format(dir_.path()))
 
         # Let's check if the current name is a sequence
         current_filename_match = common.get_sequence(file_info.fileName())
@@ -360,18 +372,17 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                     len(versions[-1]))
                 # Making a new filename
                 path = current_filename_match.expand(
-                    r'{}/\1{}\3.\4').format(file_info.path(), version)
+                    ur'{}/\1{}\3.\4').format(file_info.path(), version)
             else:
                 v = int(current_filename_match.group(2)) - 1
                 pad = len(current_filename_match.group(2))
                 path = current_filename_match.expand(
-                    r'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
+                    ur'{}/\1{}\3.\4').format(file_info.path(), u'{}'.format(v).zfill(pad))
 
         saver = SaverWidget(
             BookmarksModel(),
             AssetModel(),
             ext,
-            location,
             currentfile=path
         )
         return saver
@@ -397,7 +408,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 exportSelected=True)
 
             # Refresh the view and select the added path
-            fileswidget = self.findChild(FilesWidget)
+            fileswidget = self.browserwidget.fileswidget
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ExportsFolder)
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
@@ -437,21 +448,22 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             )
 
             # Refresh the view and select the added path
-            fileswidget = self.findChild(FilesWidget)
+            fileswidget = self.browserwidget.fileswidget
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ExportsFolder)
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
-            sys.stdout.write('# Browser: Finished.Result: \n{}\n'.format(path))
+            sys.stdout.write(
+                '# Browser: Finished.Result: \n{}\n'.format(filepath))
 
         def fileDescriptionAdded(args):
             """Slot called by the Saver when finished."""
             server, job, root, filepath, description = args
             # WARNING: The IArchive / Boost code can't accept unicode input.
             # It needs to be a simple srt string. I do wonder why this is...
-            abc = IArchive('{}'.format(filepath))
+            abc = Abc.IArchive('{}'.format(filepath))
             if not abc.valid():
                 annotation = 'invalid cache'
             else:
-                annotation = GetArchiveInfo(abc)['userDescription']
+                annotation = Abc.GetArchiveInfo(abc)['userDescription']
 
             settings = AssetSettings(
                 QtCore.QModelIndex(), args=(server, job, root, filepath))
@@ -466,6 +478,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
         saver.exec_()
 
+    @QtCore.Slot(QtCore.QModelIndex)
+    @QtCore.Slot(QtCore.QObject)
     def customFilesContextMenuEvent(self, index, parent):
         """Shows the custom context menu."""
         width = parent.viewport().geometry().width()
@@ -485,7 +499,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
         common.move_widget_to_available_geo(widget)
-        widget.show()
+        widget.exec_()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_workspace(self, index):
@@ -540,7 +554,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             filepath = cmds.file(force=True, save=True, type='mayaAscii')
 
             # Refresh the view and select the added path
-            fileswidget = self.findChild(FilesWidget)
+            fileswidget = self.browserwidget.fileswidget
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ScenesFolder)
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
@@ -575,7 +589,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             BookmarksModel(),
             AssetModel(),
             u'ma',
-            subfolder,
             currentfile=currentfile
         )
 
@@ -718,7 +731,8 @@ class MayaBrowserButton(BrowserButton):
         super(MayaBrowserButton, self).__init__(parent=parent)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setToolTip(u'GWBrowser')
-        self.clicked.connect(self.show_browser, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(
+            self.show_browser, type=QtCore.Qt.QueuedConnection)
 
     def initialize(self):
         """Initializes the button for our widget."""
@@ -745,10 +759,10 @@ class MayaBrowserButton(BrowserButton):
         try:
             for widget in app.allWidgets():
                 match = re.match(
-                    r'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+                    ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
                 if match:
                     continue
-                match = re.match(r'MayaBrowserWidget.*', widget.objectName())
+                match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
                 if match:
                     if widget.isFloating():
                         widget.raise_()
@@ -757,7 +771,7 @@ class MayaBrowserButton(BrowserButton):
                     return
         except Exception as err:
             sys.stdout.write(
-                '# Browser: Could not show widget:\n{}\n'.format(err))
+                u'# Browser: Could not show widget:\n{}\n'.format(err))
 
         try:
             widget = MayaBrowserWidget()
@@ -765,12 +779,12 @@ class MayaBrowserButton(BrowserButton):
 
             for widget in app.allWidgets():
                 match = re.match(
-                    r'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+                    ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
                 if match:
                     cmds.evalDeferred(
-                        lambda *args: cmds.workspaceControl(widget.objectName(), e=True, tabToControl=(u'AttributeEditor', -1)))
-                    cmds.evalDeferred(lambda: widget.raise_())
+                        lambda: cmds.workspaceControl(widget.objectName(), e=True, tabToControl=(u'AttributeEditor', -1)))
+                    cmds.evalDeferred(widget.raise_)
                     return
         except Exception as err:
             sys.stdout.write(
-                '# Browser: Could not show widget:\n{}\n'.format(err))
+                u'# Browser: Could not show widget:\n{}\n'.format(err))

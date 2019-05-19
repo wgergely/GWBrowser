@@ -186,8 +186,12 @@ class StandaloneBrowserWidget(BrowserWidget):
             QtGui.QKeySequence(u'Ctrl+Q'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+
+        # Triggering the shutdown sequence
         shortcut.activated.connect(
             self.shutdown, type=QtCore.Qt.QueuedConnection)
+        self.shutdown_timer.timeout.connect(
+            lambda: self.terminate(quit_app=True), type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
     def tweak_ui(self):

@@ -1157,6 +1157,7 @@ class BaseListWidget(QtWidgets.QListView):
         alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
         if shift_modifier or alt_modifier or control_modifier:
+            print 'customContextMenuRequested'
             self.customContextMenuRequested.emit(index, self)
             return
 
