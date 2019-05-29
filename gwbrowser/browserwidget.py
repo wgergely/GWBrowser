@@ -54,11 +54,6 @@ class VersionLabel(QtWidgets.QLabel):
                 gwbrowser.__version__))
 
     def mousePressEvent(self, event):
-        import gwbrowser
-        version = u'{}'.format(gwbrowser.__version__)
-        self.parent().showMessage(version)
-
-    def mousePressEvent(self, event):
         QtGui.QDesktopServices.openUrl(
             ur'https://gergely-wootsch.com/gwbrowser-about')
 
@@ -149,17 +144,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Loading...'
         self.repaint()
-
-        self.effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.effect.setOpacity(0.0)
-        self.setGraphicsEffect(self.effect)
-
-        self.animation = QtCore.QPropertyAnimation(
-            self.effect, QtCore.QByteArray('opacity'))
-        self.animation.setDuration(500)
-        self.animation.setKeyValueAt(0, 0)
-        self.animation.setKeyValueAt(0.5, 0.8)
-        self.animation.setKeyValueAt(1, 1.0)
 
     @QtCore.Slot()
     def initialize(self):
@@ -326,7 +310,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.statusbar.showMessage(u'Quitting... {}'.format(self.__qn), 1000)
 
         threadpool = self.get_all_threads()
-
         for thread in threadpool:
             if thread.isRunning():
                 thread.worker.shutdown()
@@ -379,9 +362,6 @@ class BrowserWidget(QtWidgets.QWidget):
         s = self.stackedwidget
 
         self.shutdown.connect(self.shutdown_timer.start)
-        for thread in self.get_all_threads():
-            self.shutdown.connect(thread.worker.shutdown,
-                                  type=QtCore.Qt.QueuedConnection)
 
         # Signals responsible for saveing the activation changes
         b.model().sourceModel().activeChanged.connect(b.save_activated)
@@ -742,18 +722,15 @@ class BrowserWidget(QtWidgets.QWidget):
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
     def showEvent(self, event):
-        self.animation.stop()
-        self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
-        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
+        """Show event. When we first show the widget we will initialize it to
+        load the models.
+
+        """
         if not self._initialized:
             self.initializer.start()
 
-    def hideEvent(self, event):
-        self.animation.stop()
-        self.animation.setDirection(QtCore.QAbstractAnimation.Backward)
-        self.animation.start(QtCore.QAbstractAnimation.KeepWhenStopped)
-
     def resizeEvent(self, event):
+        """Custom resize event."""
         self.resized.emit(self.geometry())
 
 

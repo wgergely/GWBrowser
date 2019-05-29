@@ -776,21 +776,9 @@ class TodoItemWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(TodoItemWidget, self).__init__(parent=parent)
-        self.effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.effect.setOpacity(1.0)
-
-        self.animation = QtCore.QPropertyAnimation(
-            self.effect, QtCore.QByteArray('opacity'))
-        self.animation.setDuration(1500)
-        self.animation.setKeyValueAt(0, 0)
-        self.animation.setKeyValueAt(0.5, 0.8)
-        self.animation.setKeyValueAt(1, 1.0)
-
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-
-        self.setGraphicsEffect(self.effect)
         self.setAutoFillBackground(True)
 
         self._createUI()
@@ -1030,7 +1018,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
             self.editors.layout().insertWidget(idx, item, 0)
             self.editors.items.insert(idx, item)
 
-        item.animation.start()
         checkbox.clicked.emit(checkbox._checked)
 
         editor.setFocus()
@@ -1147,14 +1134,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         return QtCore.QSize(800, 600)
 
     def showEvent(self, event):
-        animation = QtCore.QPropertyAnimation(
-            self, QtCore.QByteArray('windowOpacity'), parent=self)
-        animation.setEasingCurve(QtCore.QEasingCurve.InQuad)
-        animation.setDuration(150)
-        animation.setStartValue(0.01)
-        animation.setEndValue(1)
-        animation.start(QtCore.QPropertyAnimation.DeleteWhenStopped)
-
         app = QtWidgets.QApplication.instance()
         geo = app.desktop().availableGeometry(self.parent())
         if geo:

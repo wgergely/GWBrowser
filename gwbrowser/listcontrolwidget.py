@@ -586,7 +586,7 @@ class AddButton(ControlButton):
                 subfolder = subfolder.dir().path()
                 subfolder = subfolder.replace(parentpath, '')
             else:
-                subfolder = '{}/{}'.format(data_key, subfolder)
+                subfolder = u'{}/{}'.format(data_key, subfolder)
 
             subfolder = subfolder.strip(u'/')
             sys.stdout.write(subfolder)

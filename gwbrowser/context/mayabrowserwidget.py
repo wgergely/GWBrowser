@@ -31,7 +31,7 @@ from gwbrowser.assetswidget import AssetModel
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
 
-from gwbrowser.settings import local_settings
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.saver import SaverWidget, SaverFileInfo, Custom
 from gwbrowser.context.mayaexporter import BaseExporter, AlembicExport
 from gwbrowser.settings import AssetSettings
@@ -547,57 +547,48 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """Saves the current scene either as a new file or as an increment of
         the current scene.
 
-        The filename and the location will be returned by the ``Saver``."""
+        The filename and the location will be returned by the ``Saver``.
+
+        """
+        fileswidget = self.browserwidget.fileswidget
+
         def fileSaveRequested(filepath):
             """Slot responsible for saving the scene-file."""
             cmds.file(rename=filepath)
             filepath = cmds.file(force=True, save=True, type='mayaAscii')
 
             # Refresh the view and select the added path
-            fileswidget = self.browserwidget.fileswidget
+            # Switching to the scenes folder
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ScenesFolder)
+            # Refreshing the model
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
-            sys.stdout.write(
-                '# Browser: Finished.Result: \n{}\n'.format(filepath))
-
         def fileDescriptionAdded(args):
-            """Slot responsible for saving the description"""
+            """Slot responsible for saving the description."""
             server, job, root, filepath, description = args
             settings = AssetSettings(
                 QtCore.QModelIndex(), args=(server, job, root, filepath))
             settings.setValue(u'config/description', description)
 
+        bookmark_model = BookmarksModel()
+        asset_model = AssetModel()
+        extension = u'ma'  # This is a generic extension that can be overriden
+
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
         currentfile = scene.filePath() if scene.exists() and increment else None
-        data_key = self.findChild(
-            BrowserWidget).fileswidget.model().sourceModel().data_key()
-        subfolder = data_key if data_key else common.ScenesFolder
-
-        if currentfile:
-            index = self.findChild(
-                BrowserWidget).assetswidget.model().sourceModel().active_index()
-            if index.isValid():
-                if index.data(QtCore.Qt.StatusTipRole) in currentfile:
-                    subfolder = currentfile.replace(
-                        index.data(QtCore.Qt.StatusTipRole), u'')
-                    subfolder = subfolder.split(u'/')
-                    subfolder.pop()
-                    subfolder = u'/'.join(subfolder).strip('/')
 
         saver = SaverWidget(
-            BookmarksModel(),
-            AssetModel(),
-            u'ma',
+            bookmark_model,
+            asset_model,
+            extension,
             currentfile=currentfile
         )
 
         saver.fileSaveRequested.connect(fileSaveRequested)
         saver.fileDescriptionAdded.connect(fileDescriptionAdded)
         saver.fileThumbnailAdded.connect(self.fileThumbnailAdded)
+
         saver.exec_()
-        self.findChild(BrowserWidget).fileswidget.model(
-        ).sourceModel().modelDataResetRequested.emit()
 
     def open_scene(self, path):
         """Opens the given scene."""

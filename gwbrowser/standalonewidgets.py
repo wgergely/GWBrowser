@@ -4,7 +4,7 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.browserwidget import BrowserWidget, SizeGrip
+from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.listcontrolwidget import BrowserButtonContextMenu
 from gwbrowser.editors import ClickableLabel
 from gwbrowser.basecontextmenu import contextmenu
@@ -124,6 +124,10 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.INDICATOR_WIDTH)
 
     def mousePressEvent(self, event):
+        """Custom ``movePressEvent``.
+        We're setting the properties needed to moving the main window.
+
+        """
         if not isinstance(event, QtGui.QMouseEvent):
             return
         self.move_in_progress = True
@@ -132,6 +136,9 @@ class HeaderWidget(QtWidgets.QWidget):
             self.geometry().topLeft())
 
     def mouseMoveEvent(self, event):
+        """The custom mouse move event responsbiel for moving the parent window.
+
+        """
         if not isinstance(event, QtGui.QMouseEvent):
             return
         if event.buttons() == QtCore.Qt.NoButton:
@@ -149,6 +156,7 @@ class HeaderWidget(QtWidgets.QWidget):
             self.widgetMoved.emit(bl)
 
     def contextMenuEvent(self, event):
+        """Shows the context menu associated with the tray in the header."""
         widget = TrayMenu(parent=self.window())
         pos = self.window().mapToGlobal(event.pos())
         widget.move(pos)
@@ -157,24 +165,55 @@ class HeaderWidget(QtWidgets.QWidget):
 
 
 class StandaloneBrowserWidget(BrowserWidget):
-    """Browserwidget with added QSystemTrayIcon."""
+    """This window defines the main windows visible when rtunning the tool in
+    standalone-mode.
+
+    We're subclassing ``BrowserWidget`` but modifying it to add an associated
+    ``QSystemTrayIcon`` responsible for quick-access, and window-handles for
+    resizing.
+
+    """
 
     def __init__(self, parent=None):
+        """Init method.
+
+        Adding the `HeaderWidget` here - this is the widget responsible for
+        moving the widget around and providing the close and hide buttons.
+
+        Also, the properties necessary to resize the frameless window are also
+        defines here. These properties work in conjunction with the mouse events
+
+        """
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
+        self.headerwidget = None
+        self.resize_initial_pos = QtCore.QPoint(-1, -1)
+        self.resize_initial_rect = None
+        self.resize_area = None
+
+        self.resize_distance = QtWidgets.QApplication.instance().startDragDistance() * 2
+        self.resize_override_icons = {
+            1: QtCore.Qt.SizeFDiagCursor,
+            2: QtCore.Qt.SizeBDiagCursor,
+            3: QtCore.Qt.SizeBDiagCursor,
+            4: QtCore.Qt.SizeFDiagCursor,
+            5: QtCore.Qt.SizeVerCursor,
+            6: QtCore.Qt.SizeHorCursor,
+            7: QtCore.Qt.SizeVerCursor,
+            8: QtCore.Qt.SizeHorCursor,
+        }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = ImageCache.get_rsc_pixmap('custom', None, 256)
+        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         icon = QtGui.QIcon(pixmap)
-
-        self.headerwidget = None
-        self.setMouseTracking(True)
-
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
-        self.tray.setToolTip('GWBrowser')
+        self.tray.setToolTip(u'GWBrowser')
         self.tray.show()
+
         self.tray.activated.connect(self.trayActivated)
 
+        self.setMouseTracking(True)
+        self.installEventFilter(self)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
@@ -186,32 +225,106 @@ class StandaloneBrowserWidget(BrowserWidget):
             QtGui.QKeySequence(u'Ctrl+Q'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
-
-        # Triggering the shutdown sequence
         shortcut.activated.connect(
             self.shutdown, type=QtCore.Qt.QueuedConnection)
         self.shutdown_timer.timeout.connect(
             lambda: self.terminate(quit_app=True), type=QtCore.Qt.QueuedConnection)
 
+        self.adjustSize()
+
+    def _get_offset_rect(self, offset):
+        """Returns an expanded/contracted rectangle based on the widget's rectangle.
+        Used to get the valid area for resize-operations."""
+        rect = self.rect()
+        center = rect.center()
+        rect.setHeight(rect.height() + offset)
+        rect.setWidth(rect.width() + offset)
+        rect.moveCenter(center)
+        return rect
+
+    def accept_resize_event(self, event):
+        """Returns `True` if the event can be a window resize event."""
+        if self._get_offset_rect(self.resize_distance * -1).contains(event.pos()):
+            return False
+        if not self._get_offset_rect(self.resize_distance).contains(event.pos()):
+            return False
+        return True
+
+    def set_resize_icon(self, event, clamp=True):
+        """Sets an override icon to indicate the draggable area."""
+        app = QtWidgets.QApplication.instance()
+        k = self.get_resize_hotspot(event, clamp=clamp)
+        if k:
+            self.grabMouse()
+            icon = self.resize_override_icons[k]
+            if app.overrideCursor():
+                app.changeOverrideCursor(QtGui.QCursor(icon))
+                return k
+            app.restoreOverrideCursor()
+            app.setOverrideCursor(QtGui.QCursor(icon))
+            return k
+        self.releaseMouse()
+        app.restoreOverrideCursor()
+        return k
+
+    def get_resize_hotspot(self, event, clamp=True):
+        """Returns the resizable area from the event's current position.
+        If clamp is True we will only check in near the areas near the edges.
+
+        """
+        if clamp:
+            if not self.accept_resize_event(event):
+                return None
+
+        # First we have to define the 8 areas showing an indicator icon when
+        # hovered. Edges:
+        rect = self.rect()
+        p = event.pos()
+        edge_hotspots = {
+            5: QtCore.QPoint(p.x(), rect.top()),
+            6: QtCore.QPoint(rect.right(), p.y()),
+            7: QtCore.QPoint(p.x(), rect.bottom()),
+            8: QtCore.QPoint(rect.left(), p.y()),
+        }
+
+        # Corners:
+        topleft_corner = QtCore.QRect(0, 0,
+                                      self.resize_distance, self.resize_distance)
+        topright_corner = QtCore.QRect(topleft_corner)
+        topright_corner.moveRight(rect.width())
+        bottomleft_corner = QtCore.QRect(topleft_corner)
+        bottomleft_corner.moveTop(rect.height() - self.resize_distance)
+        bottomright_corner = QtCore.QRect(topleft_corner)
+        bottomright_corner.moveRight(rect.width())
+        bottomright_corner.moveTop(rect.height() - self.resize_distance)
+
+        corner_hotspots = {
+            1: topleft_corner,
+            2: topright_corner,
+            3: bottomleft_corner,
+            4: bottomright_corner,
+        }
+
+        # We check if the cursor is currently inside one of the corners or edges
+        if any([f.contains(p) for f in corner_hotspots.itervalues()]):
+            return max(corner_hotspots, key=lambda k: corner_hotspots[k].contains(p))
+        return min(edge_hotspots, key=lambda k: (p - edge_hotspots[k]).manhattanLength())
+
     @QtCore.Slot()
     def tweak_ui(self):
-        """UI modifications to apply when the tool is started in standalone-mode."""
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        """Modifies layout for display in standalone-mode."""
 
         self.headerwidget = HeaderWidget(parent=self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
         self.layout().insertWidget(0, self.headerwidget)
-
-        grip = self.statusbar.findChild(SizeGrip)
-        grip.show()
 
         self.findChild(MinimizeButton).clicked.connect(self.showMinimized)
         self.findChild(CloseButton).clicked.connect(self.close)
 
         self.fileswidget.activated.connect(common.execute)
         self.favouriteswidget.activated.connect(common.execute)
-        app = QtWidgets.QApplication.instance().aboutToQuit.connect(
-            self.save_widget_settings)
+        QtWidgets.QApplication.instance().aboutToQuit.connect(self.save_widget_settings)
 
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""
@@ -252,9 +365,13 @@ class StandaloneBrowserWidget(BrowserWidget):
         super(StandaloneBrowserWidget, self).hideEvent(event)
 
     def showEvent(self, event):
-        super(StandaloneBrowserWidget, self).showEvent(event)
-        cls = self.__class__.__name__
+        """Custom show event. When showing the widget we will use the saved
+        settings to set the widget's size and position.
 
+        """
+        super(StandaloneBrowserWidget, self).showEvent(event)
+
+        cls = self.__class__.__name__
         width = local_settings.value(u'widget/{}/width'.format(cls))
         height = local_settings.value(u'widget/{}/height'.format(cls))
         x = local_settings.value(u'widget/{}/x'.format(cls))
@@ -274,11 +391,59 @@ class StandaloneBrowserWidget(BrowserWidget):
         event.ignore()
         self.hide()
         self.tray.showMessage(
-            'GWBrowser',
-            'GWBrowser will continue running in the background, you can use this icon to restore it\'s visibility.',
+            u'GWBrowser',
+            u'GWBrowser will continue running in the background, you can use this icon to restore it\'s visibility.',
             QtWidgets.QSystemTrayIcon.Information,
             3000
         )
+
+    def mousePressEvent(self, event):
+        """The mouse press event responsible for setting the properties needed
+        by the resize methods.
+
+        """
+        if self.accept_resize_event(event):
+            self.resize_area = self.set_resize_icon(event, clamp=False)
+            self.resize_initial_pos = event.pos()
+            self.resize_initial_rect = self.rect()
+        else:
+            self.resize_initial_pos = QtCore.QPoint(-1, -1)
+            self.resize_initial_rect = None
+            self.resize_area = None
+
+    def mouseMoveEvent(self, event):
+        """Identify dragable area - vector/distance"""
+        if self.resize_initial_pos == QtCore.QPoint(-1, -1):
+            self.set_resize_icon(event, clamp=True)
+            return
+
+        if self.resize_area is not None:
+            o = event.pos() - self.resize_initial_pos
+            geo = self.geometry()
+
+            g_topleft = self.mapToGlobal(
+                self.resize_initial_rect.topLeft())
+            g_bottomright = self.mapToGlobal(
+                self.resize_initial_rect.bottomRight())
+
+            if self.resize_area in (1, 2, 5):
+                geo.setTop(g_topleft.y() + o.y())
+            if self.resize_area in (3, 4, 7):
+                geo.setBottom(g_bottomright.y() + o.y())
+            if self.resize_area in (1, 3, 8):
+                geo.setLeft(g_topleft.x() + o.x())
+            if self.resize_area in (2, 4, 6):
+                geo.setRight(g_bottomright.x() + o.x())
+            self.setGeometry(geo)
+
+    def mouseReleaseEvent(self, event):
+        """Restores the mouse resize properties."""
+        self.resize_initial_pos = QtCore.QPoint(-1, -1)
+        self.resize_initial_rect = None
+        self.resize_area = None
+
+        app = QtWidgets.QApplication.instance()
+        app.restoreOverrideCursor()
 
 
 class StandaloneApp(QtWidgets.QApplication):
