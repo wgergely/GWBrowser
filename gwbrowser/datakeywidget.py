@@ -63,8 +63,8 @@ class DataKeyWorker(BaseWorker):
             data = index.model().model_data()
             data[index.row()][common.TodoCountRole] = count
             index.model().dataChanged.emit(index, index)
-        except Exception:
-            return
+        except Exception as err:
+            print err
 
 
 class DataKeyThread(BaseThread):
@@ -193,7 +193,9 @@ class DataKeyView(QtWidgets.QListView):
 
         browser_widget.resized.connect(set_width)
 
-        self.setModel(DataKeyModel())
+        model = DataKeyModel()
+        model.view = self
+        self.setModel(model)
         self.setItemDelegate(DataKeyViewDelegate(parent=self))
         self.installEventFilter(self)
 
@@ -265,6 +267,13 @@ class DataKeyView(QtWidgets.QListView):
         widget.exec_()
         self._context_menu_active = False
 
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            self.hide()
+            return
+        super(DataKeyView, self).mousePressEvent(event)
+
 
 class DataKeyModel(BaseModel):
     """This model holds all the necessary data needed to display items to
@@ -275,16 +284,28 @@ class DataKeyModel(BaseModel):
 
     def __init__(self, parent=None):
         super(DataKeyModel, self).__init__(parent=parent)
-        self._bookmark = None
-
-        # Note: the asset is stored as the `_active_item`
-        self._datakey = None
         self.modelDataResetRequested.connect(self.__resetdata__)
 
         self.threads = {}
         for n in xrange(common.LTHREAD_COUNT):
             self.threads[n] = DataKeyThread()
             self.threads[n].start()
+
+    @property
+    def _parent_item(self):
+        """We will use the currently active asset as the parent."""
+        assetswidget = self.view.parent().parent().parent().assetswidget
+        index = assetswidget.model().sourceModel().active_index()
+        if not index.isValid():
+            return None
+        if not index.data(common.ParentRole):
+            return None
+        return index.data(common.ParentRole)
+
+    @_parent_item.setter
+    def _parent_item(self, val):
+        """Setting the parent makes no difference..."""
+        pass
 
     def data_key(self):
         return u'default'
@@ -295,7 +316,6 @@ class DataKeyModel(BaseModel):
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        # Empties the thread's queue
         DataKeyWorker.reset_queue()
 
         self._data[self.data_key()] = {
@@ -360,23 +380,5 @@ class DataKeyModel(BaseModel):
             }
             indexes.append(idx)
 
-        DataKeyWorker.add_to_queue([self.index(f, 0) for f in indexes])
-
-    @QtCore.Slot(QtCore.QModelIndex)
-    def set_bookmark(self, index):
-        """Stores the currently active bookmark."""
-        if not index.isValid():
-            self._bookmark = None
-            return
-
-        self._bookmark = index.data(common.ParentRole)
-
-    @QtCore.Slot(unicode)
-    def set_data_key(self, key):
-        """Stores the currently active data key."""
-        self._datakey = key
-
-    @QtCore.Slot(int)
-    def set_data_type(self, datatype):
-        """Stores the currently active data type."""
-        self._datatype = datatype
+        DataKeyWorker.add_to_queue(
+            (self.index(f, 0) for f in indexes), persistent=False)

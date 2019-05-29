@@ -5,7 +5,6 @@
 
 import sys
 import functools
-import re
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.datakeywidget import DataKeyView
@@ -83,7 +82,9 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
 
 class BrowserButton(ClickableLabel):
-    """Small widget to embed into the context to toggle the BrowserWidget's visibility."""
+    """Small widget to embed into the context to toggle the BrowserWidget's visibility.
+
+    """
     message = QtCore.Signal(unicode)
 
     def __init__(self, height=common.ROW_HEIGHT, parent=None):

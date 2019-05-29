@@ -414,24 +414,8 @@ class BrowserWidget(QtWidgets.QWidget):
         # Bookmark/Asset/FileModel/View  ->  DataKeyModel/View
         # These connections are responsible for keeping the DataKeyModel updated
         # when navigating the list widgets.
-        b.model().sourceModel().modelReset.connect(
-            l.model().modelDataResetRequested)
-
-        a.model().sourceModel().modelReset.connect(
-            lambda: l.model().set_active(a.model().sourceModel().active_index()))
-        b.model().sourceModel().modelReset.connect(
-            lambda: l.model().set_bookmark(b.model().sourceModel().active_index()))
-
-        a.model().sourceModel().activeChanged.connect(
-            l.model().set_active)
-        b.model().sourceModel().activeChanged.connect(l.model().set_bookmark)
-
-        a.model().sourceModel().activeChanged.connect(
-            lambda x: l.model().modelDataResetRequested.emit())
-
-        f.model().sourceModel().dataKeyChanged.connect(l.model().set_data_key)
-        f.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
-        ff.model().sourceModel().dataTypeChanged.connect(l.model().set_data_type)
+        a.model().sourceModel().modelReset.connect(l.model().modelDataResetRequested)
+        a.model().sourceModel().activeChanged.connect(l.model().modelDataResetRequested)
 
         b.model().modelReset.connect(lb.repaint)
         b.model().layoutChanged.connect(lb.repaint)
