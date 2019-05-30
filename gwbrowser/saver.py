@@ -33,14 +33,9 @@ import gwbrowser.common as common
 from gwbrowser.editors import ClickableLabel
 
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-from gwbrowser.bookmarkswidget import BookmarksModel
-from gwbrowser.assetswidget import AssetModel
 from gwbrowser.standalonewidgets import HeaderWidget, CloseButton, MinimizeButton
 
 from gwbrowser.capture import ScreenGrabber
-import gwbrowser.settings as Settings
-
-from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 
@@ -75,16 +70,16 @@ class ThumbnailContextMenu(BaseContextMenu):
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': self.parent().window().capture_thumbnail
+            u'action': self.parent().capture_thumbnail
         }
         menu_set[u'Pick thumbnail'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': self.parent().window().pick_thumbnail
+            u'action': self.parent().pick_thumbnail
         }
         menu_set[u'separator'] = {}
         menu_set[u'Reset thumbnail'] = {
             u'icon': remove_thumbnail_pixmap,
-            u'action': self.parent().reset
+            u'action': self.parent().reset_thumbnail
         }
         return menu_set
 
@@ -150,22 +145,40 @@ class SaverContextMenu(BaseContextMenu):
 
 class ThumbnailButton(ClickableLabel):
     """Button used to select the thumbnail for this item."""
+    doubleClicked = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(ThumbnailButton, self).__init__(parent=parent)
+        self.image = QtGui.QImage()
+
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.reset_thumbnail()
 
-        self.reset()
+    def enterEvent(self, event):
+        self.repaint()
 
-    def reset(self):
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
-        self.setPixmap(pixmap)
-        self.setStyleSheet(
-            u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
+    def leaveEvent(self, event):
+        self.repaint()
 
-        self.window().thumbnail_image = QtGui.QImage()
+    def paintEvent(self, event):
+        """Custom paint event."""
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        if hover:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.666)
+
+        rect = self.pixmap().rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
+
+        painter.end()
 
     def contextMenuEvent(self, event):
         menu = ThumbnailContextMenu(parent=self)
@@ -173,6 +186,87 @@ class ThumbnailButton(ClickableLabel):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit()
+
+    def reset_thumbnail(self):
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
+        self.setPixmap(pixmap)
+        self.setStyleSheet(
+            u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
+
+        self.image = QtGui.QImage()
+
+    def pick_thumbnail(self):
+        """Prompt to select an image file."""
+        dialog = QtWidgets.QFileDialog(parent=self)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilter(common.get_oiio_namefilters())
+
+        # Setting the dialog's root path
+        dialog.setOption(
+            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
+
+        if not dialog.exec_():
+            return
+        if not dialog.selectedFiles():
+            return
+
+        temp_path = u'{}/browser_temp_thumbnail_{}.png'.format(
+            QtCore.QDir.tempPath(), uuid.uuid1())
+
+        ImageCacheWorker.process_index(
+            QtCore.QModelIndex(),
+            source=next(f for f in dialog.selectedFiles()),
+            dest=temp_path
+        )
+
+        image = QtGui.QImage()
+        image.load(temp_path)
+        if image.isNull():
+            sys.stdout.write(u'Could not load image.\n')
+            return
+
+        self.image = image
+        self.update_thumbnail_preview()
+
+    def capture_thumbnail(self):
+        """Captures a thumbnail."""
+        pixmap = ScreenGrabber.capture()
+
+        if not pixmap:
+            return
+        if pixmap.isNull():
+            return
+
+        image = ImageCache.resize_image(
+            pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+        self.image = image
+        self.update_thumbnail_preview()
+
+    def update_thumbnail_preview(self):
+        """Sets the label's pixmap to the currently set thumbnail image."""
+        if not self.image:
+            return
+        if self.image.isNull():
+            return
+
+        # Resizing for display
+        image = ImageCache.resize_image(
+            self.image, self.height())
+
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
+        background = ImageCache.get_color_average(image)
+
+        self.setPixmap(pixmap)
+        self.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
+            u'{},{},{},{}'.format(*background.getRgb())
+        ))
 
 
 class SaverHeaderWidget(HeaderWidget):
@@ -303,7 +397,7 @@ class DescriptionEditor(QtWidgets.QLineEdit):
 
     def __init__(self, parent=None):
         super(DescriptionEditor, self).__init__(parent=parent)
-        self.setPlaceholderText(u'Description...')
+        self.setPlaceholderText(u'Enter description...')
         self.setStyleSheet("""QLineEdit {{
             background-color: rgba(0,0,0,0);
             border-bottom: 2px solid rgba(0,0,0,50);
@@ -316,6 +410,28 @@ class DescriptionEditor(QtWidgets.QLineEdit):
             '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
             common.PrimaryFont.family(),
             common.psize(common.MEDIUM_FONT_SIZE)
+        ))
+        self.setFixedHeight(36)
+
+
+class NameEditor(QtWidgets.QLineEdit):
+    """Editor widget to input the description of the file."""
+
+    def __init__(self, parent=None):
+        super(NameEditor, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter name')
+        self.setStyleSheet("""QLineEdit {{
+            background-color: rgba(0,0,0,0);
+            border-bottom: 2px solid rgba(0,0,0,50);
+            padding: 0px;
+            margin: 0px;
+            color: rgba({});
+            font-family: "{}";
+            font-size: {}pt;
+        }}""".format(
+            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.PrimaryFont.family(),
+            common.psize(common.LARGE_FONT_SIZE)
         ))
         self.setFixedHeight(36)
 
@@ -423,6 +539,31 @@ class Check(ClickableLabel):
             QLabel {{background-color: rgba({});}}
         """.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
 
+    def paintEvent(self, event):
+        """Custom paint event."""
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        if hover:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.666)
+
+        rect = self.pixmap().rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
+
+        painter.end()
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
 
 class SaverWidget(QtWidgets.QDialog):
     """The save dialog to save a file.
@@ -445,7 +586,8 @@ class SaverWidget(QtWidgets.QDialog):
         super(SaverWidget, self).__init__(parent=parent)
         self.extension = extension
         self.currentfile = currentfile
-        self.thumbnail_image = None
+
+        self.thumbnail_widget = None
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
@@ -454,6 +596,11 @@ class SaverWidget(QtWidgets.QDialog):
         self._createUI(bookmark_model, asset_model)
         self._connectSignals()
         self.initialize()
+
+    @property
+    def image(self):
+        """Shortcut to the saved image"""
+        return self.thumbnail_widget.image
 
     @QtCore.Slot(unicode)
     def set_extension(self, ext):
@@ -467,11 +614,13 @@ class SaverWidget(QtWidgets.QDialog):
         menu.exec_()
 
     def _createUI(self, bookmark_model, asset_model):
+        """Creates the ``SaverWidget``'s ui and layout."""
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(common.MARGIN / 2,
-                                         common.MARGIN / 2, common.MARGIN / 2, common.MARGIN / 2)
+        self.layout().setContentsMargins(
+            common.MARGIN / 2, common.MARGIN / 2,
+            common.MARGIN / 2, common.MARGIN / 2)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
@@ -483,10 +632,10 @@ class SaverWidget(QtWidgets.QDialog):
         mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
         mainrow.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
-        thumbnailbutton = ThumbnailButton(parent=self)
-        thumbnailbutton.setFixedSize(
+        self.thumbnail_widget = ThumbnailButton(parent=self)
+        self.thumbnail_widget.setFixedSize(
             common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
-        mainrow.layout().addWidget(thumbnailbutton)
+        mainrow.layout().addWidget(self.thumbnail_widget)
         self.layout().addWidget(mainrow)
         #
         column = QtWidgets.QWidget()
@@ -626,15 +775,16 @@ class SaverWidget(QtWidgets.QDialog):
         f.model().modelReset.connect(self.update_filepath_display)
 
         closebutton = self.findChild(CloseButton)
-        thumbnailbutton = self.findChild(ThumbnailButton)
         custom = self.findChild(Custom)
         check = self.findChild(Check)
 
-        check.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
+        check.clicked.connect(lambda: self.done(
+            QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
         closebutton.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Rejected), type=QtCore.Qt.QueuedConnection)
         # Picks a thumbnail
-        thumbnailbutton.clicked.connect(self.pick_thumbnail, type=QtCore.Qt.QueuedConnection)
+        self.thumbnail_widget.clicked.connect(
+            self.thumbnail_widget.pick_thumbnail, type=QtCore.Qt.QueuedConnection)
 
         # Filename
         b.activated.connect(self.update_filename_display)
@@ -709,7 +859,7 @@ class SaverWidget(QtWidgets.QDialog):
                 self.findChild(Custom).setHidden(True)
             self.findChild(Custom).setHidden(False)
             # Thumbnail
-            self.update_thumbnail_preview()
+            self.thumbnail_widget.update_thumbnail_preview()
 
             if f.model().asset().isValid():
                 path = QtCore.QFileInfo(self.currentfile).dir().path()
@@ -717,77 +867,6 @@ class SaverWidget(QtWidgets.QDialog):
                 f.model().destinationChanged.emit(index)
         else:
             self.findChild(Custom).setHidden(False)
-
-    def pick_thumbnail(self):
-        """Prompt to select an image file."""
-        dialog = QtWidgets.QFileDialog(parent=self)
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter(
-            u'Image files (*.png *.jpg *.jpeg *.tiff *.tff *.tga *.psd *.exr *.tx *.dpx)')
-
-        # Setting the dialog's root path
-        dialog.setDirectory(SaverFileInfo(self).path())
-        dialog.setOption(
-            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
-
-        if not dialog.exec_():
-            return
-        if not dialog.selectedFiles():
-            return
-
-        temp_path = '{}/browser_temp_thumbnail_{}.png'.format(
-            QtCore.QDir.tempPath(), uuid.uuid1())
-
-        ImageCacheWorker.process_index(
-            QtCore.QModelIndex(),
-            source=next(f for f in dialog.selectedFiles()),
-            dest=temp_path
-        )
-
-        image = QtGui.QImage()
-        image.load(temp_path)
-        if image.isNull():
-            sys.stdout.write('Could not load image.\n')
-            return
-
-        self.thumbnail_image = image
-        self.update_thumbnail_preview()
-
-    def capture_thumbnail(self):
-        """Captures a thumbnail."""
-        pixmap = ScreenGrabber.capture()
-
-        if not pixmap:
-            return
-        if pixmap.isNull():
-            return
-
-        image = ImageCache.resize_image(
-            pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
-        self.thumbnail_image = image
-        self.update_thumbnail_preview()
-
-    def update_thumbnail_preview(self):
-        """Displays the selected thumbnail image."""
-        if not self.thumbnail_image:
-            return
-        if self.thumbnail_image.isNull():
-            return
-        # Resizing for display
-        thumbnail = self.findChild(ThumbnailButton)
-        image = ImageCache.resize_image(
-            self.thumbnail_image, thumbnail.height())
-
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-        background = ImageCache.get_color_average(image)
-
-        thumbnail.setPixmap(pixmap)
-        thumbnail.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
-            '{},{},{},{}'.format(*background.getRgb())
-        ))
 
     def update_filepath_display(self, *args, **kwargs):
         """Slot responsible for updating the file-path display."""

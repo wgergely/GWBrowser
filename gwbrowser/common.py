@@ -38,6 +38,7 @@ Sequence-recognition
 import os
 import sys
 import re
+import zipfile
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
@@ -201,24 +202,25 @@ def get_oiio_namefilters(as_array=False):
     Use the return value on the QFileDialog.setNameFilters() method.
 
     """
-    formatlist = OpenImageIO.get_string_attribute("extension_list").split(';')
+    extension_list = OpenImageIO.get_string_attribute("extension_list")
     namefilters = []
     arr = []
-    for exts in formatlist:
-        exts = exts.split(':')
-        _exts = exts[1].split(',')
-        e = ['*.{}'.format(f) for f in _exts]
-        namefilter = '{} files ({})'.format(exts[0].upper(), ' '.join(e))
-
+    for exts in extension_list.split(u';'):
+        exts = exts.split(u':')
+        _exts = exts[1].split(u',')
+        e = [u'*.{}'.format(f) for f in _exts]
+        namefilter = u'{} files ({})'.format(exts[0].upper(), u' '.join(e))
         namefilters.append(namefilter)
         for _e in _exts:
             arr.append(_e)
     if as_array:
         return arr
 
-    e = ['*.{}'.format(f) for f in arr]
-    namefilters.insert(0, 'All files ({})'.format(' '.join(e)))
-    return namefilters
+    allfiles = [u'*.{}'.format(f) for f in arr]
+    allfiles = u' '.join(allfiles)
+    allfiles = 'All files ({})'.format(allfiles)
+    namefilters.insert(0, allfiles)
+    return u';;'.join(namefilters)
 
 
 creative_cloud_formats = [
@@ -973,3 +975,57 @@ def regexify_filter_text(filter_text):
     filter_text = re.sub(ur'\s\s*', u' ', filter_text)
     filter_text = re.sub(ur'\s', ur'[\S\s]*', filter_text)
     return filter_text
+
+
+def create_asset_template(source, dest, overwrite=False):
+    """Responsible for adding the files and folders of the given source to the
+    given zip-file.
+
+    """
+    if not overwrite:
+        if QtCore.QFileInfo(dest).exists():
+            raise RuntimeError('{} exists already'.format(dest))
+
+    with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source):
+            for d in dirs:
+                arcname = os.path.join(root, d).replace(source, u'.')
+                zipf.write(os.path.join(root, d), arcname=arcname)
+            for f in files:
+                arcname = os.path.join(root, f).replace(source, u'.')
+                zipf.write(os.path.join(root, f), arcname=arcname)
+
+
+MayaAssetTemplate = 1024
+ProjectTemplate = 2048
+
+
+AssetTypes = {
+    MayaAssetTemplate: u'MayaAsset',
+    ProjectTemplate: u'Project',
+}
+
+
+def create_asset_from_template(name, basepath, template):
+    """Creates a new asset with the given name.
+
+    The asset is a zip-archive containing the folder-structure. We can define
+    multiple asset-types. These are defined in the ``common.AssetTypes`` variable.
+
+    """
+    template_info = QtCore.QFileInfo(
+        u'{}/../templates/{}.zip'.format(__file__, AssetTypes[template]))
+    if not template_info.exists():
+        raise RuntimeError(
+            u'The "{}.zip" template file could not be located.'.format(AssetTypes[template]))
+
+    dest_info = QtCore.QDir(u'{}/{}'.format(basepath, name))
+    if not dest_info.exists():
+        res = QtCore.QDir(basepath).mkdir(name)
+        if not res:
+            raise RuntimeError(u'An error occured creating the asset folders.')
+    with zipfile.ZipFile(template_info.absoluteFilePath(), 'r', zipfile.ZIP_DEFLATED) as f:
+        f.extractall(dest_info.absolutePath(), members=None, pwd=None)
+
+
+# create_asset('asset1', ur'C:\dev\maya', template=MayaAsset)

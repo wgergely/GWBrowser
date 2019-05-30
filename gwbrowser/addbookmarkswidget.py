@@ -68,6 +68,7 @@ class PaintedLabel(QtWidgets.QLabel):
         self._font.setPointSize(size)
         metrics = QtGui.QFontMetrics(self._font)
         self.setFixedHeight(metrics.height())
+        self.setFixedWidth(metrics.width(text) + 2)
 
     def paintEvent(self, event):
         """Custom paint event to use the aliased paint method."""

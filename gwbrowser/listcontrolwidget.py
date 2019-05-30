@@ -12,7 +12,6 @@ from gwbrowser.settings import Active
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 
-
 from gwbrowser.editors import FilterEditor
 from gwbrowser.editors import ClickableLabel
 import gwbrowser.settings as Settings
@@ -20,7 +19,6 @@ import gwbrowser.settings as Settings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.fileswidget import FilesWidget
-
 
 from gwbrowser.assetswidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
@@ -494,7 +492,14 @@ class CollapseSequenceMenu(BaseContextMenu):
 
 
 class AddButton(ControlButton):
-    """Custom QLabel with a `clicked` signal."""
+    """The buttons responsible for adding new items.
+
+    The functionality differs based on the currently selected tab:
+    For bookmarks the user will be prompted with the ``AddBookmarksWidget``,
+    for assets, a new asset will be created, and for files a new template file
+    can be added.
+
+    """
 
     def __init__(self, parent=None):
         super(AddButton, self).__init__(parent=parent)
@@ -523,6 +528,10 @@ class AddButton(ControlButton):
     def state(self):
         if self._parent.currentIndex() == 0:
             return True
+        if self._parent.currentIndex() == 1:
+            if self._parent.widget(0).model().sourceModel().active_index().isValid():
+                return True
+            return False
         if self._parent.currentIndex() == 2:
             return True
         return False
@@ -536,11 +545,39 @@ class AddButton(ControlButton):
             release.
 
         """
+        # Bookmark
         if self._parent.currentIndex() == 0:
             self.current().show_add_bookmark_widget()
             return
 
+        # Asset
         if self._parent.currentIndex() == 1:
+            from gwbrowser.addassetwidget import AddAssetWidget
+
+            view = self._parent.widget(0)
+            model = view.model().sourceModel()
+            bookmark = model.active_index()
+            if not bookmark.isValid():
+                return
+
+            bookmark = bookmark.data(common.ParentRole)
+            bookmark = u'/'.join(bookmark)
+            widget = AddAssetWidget(bookmark, parent=None)
+            widget.exec_()
+            model.modelDataResetRequested.emit()
+            if not widget.last_asset_added:
+                return
+
+            view = self._parent.widget(1)
+            for n in xrange(view.model().rowCount()):
+                index = view.model().index(n, 0)
+                if index.data(QtCore.Qt.DisplayRole).lower() == widget.last_asset_added.lower():
+                    view.selectionModel().setCurrentIndex(
+                        index,
+                        QtCore.QItemSelectionModel.ClearAndSelect
+                    )
+                    view.scrollTo(index)
+                    break
             return
 
         # This will open the Saver to save a new file
@@ -647,7 +684,7 @@ class AddButton(ControlButton):
     def repaint(self):
         """The button is only visible when showing bookmarks or files."""
         super(AddButton, self).repaint()
-        if self._parent.currentIndex() in (0, 2):
+        if self._parent.currentIndex() in (0, 1, 2):
             self.show()
         else:
             self.hide()

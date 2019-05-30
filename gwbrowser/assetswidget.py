@@ -63,7 +63,7 @@ class AssetModel(BaseModel):
     def __initdata__(self):
         """Querries the bookmark folder and collects the found asset itemsself.
 
-        The model uses `self.model_data (dict)` to read the values needed to
+        The model uses `self.model_data(dict)` to read the values needed to
         display the found items. Calling this method will reset / repopulate
         the dictionary.
 
@@ -226,7 +226,7 @@ class AssetsWidget(BaseInlineIconWidget):
         return False
 
     def inline_icons_count(self):
-        """The number of icons on the right-hand side."""
+        """The number of icons on the right - hand side."""
         if self.buttons_hidden():
             return 0
         return 4
@@ -241,11 +241,11 @@ class AssetsWidget(BaseInlineIconWidget):
         Active.paths()  # Resetting invalid paths
 
     def mouseDoubleClickEvent(self, event):
-        """Custom double-click event.
+        """Custom double - click event.
 
         A double click can `activate` an item, or it can trigger an edit event.
         As each item is associated with multiple editors we have to inspect
-        the double-click location before deciding what action to take.
+        the double - click location before deciding what action to take.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):

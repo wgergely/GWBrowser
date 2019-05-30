@@ -11,7 +11,6 @@ QModelIndexes from the thread's python Queue.
 
 """
 
-import sys
 import traceback
 import Queue
 import threading
