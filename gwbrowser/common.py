@@ -54,28 +54,26 @@ MarkedAsActive = 0b100000000000
 COMPANY = u'Glassworks'
 PRODUCT = u'GWBrowser'
 
-default_server = u'sloth'
-legacy_server = u'gordo'
-default_username = u'render'
-default_password = u'render'
+default_server = u'gw-workstation'
+legacy_server = u'gw-workstation'
 
 osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
-local = {True: u'/jobs', False: u'//gw-workstation/jobs'}
-# sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
-# gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
+local = {True: u'/Volumes/jobs', False: u'//gw-workstation/jobs'}
+sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
+gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
 
 if osx:
     SERVERS = [
-        # {u'path': sloth[osx], u'nickname': u'Sloth'},
-        # {u'path': local[osx], u'nickname': u'Local Jobs'},
+        {u'path': sloth[osx], u'nickname': u'Sloth'},
+        {u'path': local[osx], u'nickname': u'Local Jobs'},
     ]
 else:
     SERVERS = [
-        # {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
-        # {u'path': sloth[osx], u'nickname': u'Sloth'},
+        {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
+        {u'path': sloth[osx], u'nickname': u'Sloth'},
         {u'path': local[osx], u'nickname': u'Local Jobs'},
     ]
 
@@ -750,7 +748,7 @@ def find_largest_file(index):
     return entry.path.replace(u'\\', u'/')
 
 
-def mount(server=default_server, username=default_username, password=default_password):
+def mount(server=default_server):
     """Mounts the server in macosx if it isn't mounted already. The password
     abd
 
@@ -762,10 +760,8 @@ def mount(server=default_server, username=default_username, password=default_pas
         for d in QtCore.QStorageInfo.mountedVolumes():
             if d.rootPath().lower() == u'/volumes/jobs':
                 return  # the server is already mounted
-        args = [u'-e', u'mount volume "smb://{username}:{password}@{server}/jobs/"'.format(
+        args = [u'-e', u'mount volume "smb://{server}/jobs/"'.format(
             server=server,
-            username=username,
-            password=password
         )]
         process = QtCore.QProcess()
         process.start(u'osascript', args)
