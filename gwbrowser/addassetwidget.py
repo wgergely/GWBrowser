@@ -43,6 +43,7 @@ class AddAssetWidgetContextMenu(BaseContextMenu):
 
 class AddAssetWidget(QtWidgets.QDialog):
     """The widget responsible for adding a new asset to the current bookmark."""
+    shutdown = QtCore.Signal()
     fileDescriptionAdded = QtCore.Signal(tuple)
     fileThumbnailAdded = QtCore.Signal(tuple)
 
@@ -174,7 +175,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.name_widget.textEdited.connect(self.validate_text)
         self.thumbnail_widget.clicked.connect(
             self.thumbnail_widget.pick_thumbnail)
-
+        self.shutdown.connect(self.close)
         closebutton = self.findChild(CloseButton)
         closebutton.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Rejected), type=QtCore.Qt.QueuedConnection)

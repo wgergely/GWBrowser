@@ -473,7 +473,7 @@ class ImageCache(QtCore.QObject):
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         dialog.setViewMode(QtWidgets.QFileDialog.List)
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilters(common.get_oiio_namefilters())
+        dialog.setNameFilter(common.get_oiio_namefilters(as_array=False))
         dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
         dialog.setDirectory(QtCore.QFileInfo(

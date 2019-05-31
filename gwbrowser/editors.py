@@ -588,11 +588,24 @@ class ThumbnailLabel(ClickableLabel):
         option = QtWidgets.QStyleOption()
         option.initFrom(self)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
-        if hover:
-            return
 
         painter = QtGui.QPainter()
         painter.begin(self)
+
+        if hover:
+            painter.setPen(common.TEXT)
+            common.draw_aliased_text(
+                painter,
+                common.PrimaryFont,
+                self.rect(),
+                self._path.split(
+                    u'/').pop().replace(u'thumb_', u'').split(u'_')[0],
+                QtCore.Qt.AlignCenter,
+                common.TEXT_SELECTED
+            )
+            painter.end()
+            return
+
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QColor(0, 0, 0, 33))
         painter.drawRect(self.rect())
@@ -606,7 +619,7 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.thumbnail_size = 128
-        self.columns = 5
+        self.columns = 3
 
         self._createUI()
 
@@ -619,17 +632,16 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def _createUI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""
         common.set_custom_stylesheet(self)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window)
-        self.setWindowTitle(u'Select a thumbnail:')
+        self.setWindowFlags(QtCore.Qt.Window)
+        self.setWindowTitle(u'Select thumbnail')
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
-
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
 
         widget = QtWidgets.QWidget()
         QtWidgets.QGridLayout(widget)
+        widget.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         widget.layout().setContentsMargins(
             common.INDICATOR_WIDTH,
             common.INDICATOR_WIDTH,
@@ -644,9 +656,11 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
         path = u'{}/../rsc'.format(__file__)
         path = os.path.normpath(os.path.abspath(path))
 
-        for idx, entry in enumerate(gwscandir.scandir(path)):
-            if not entry.name.startswith('thumb'):
+        idx = 0
+        for entry in gwscandir.scandir(path):
+            if not entry.name.startswith('thumb_'):
                 continue
+
             pixmap = ImageCache.get_rsc_pixmap(
                 entry.name.replace(u'.png', u''), None, self.thumbnail_size)
             if pixmap.isNull():
@@ -661,6 +675,8 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
             widget.layout().addWidget(label, row, column)
             label.clicked.connect(self.thumbnailSelected)
             label.clicked.connect(self.close)
+
+            idx += 1
 
     def _connectSignals(self):
         pass

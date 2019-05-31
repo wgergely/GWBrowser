@@ -62,20 +62,20 @@ default_password = u'render'
 osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
 windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
 
-local = {True: u'/jobs', False: u'//localhost/c$/jobs'}
-sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
-gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
+local = {True: u'/jobs', False: u'//gw-workstation/jobs'}
+# sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
+# gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
 
 
 if osx:
     SERVERS = [
-        {u'path': sloth[osx], u'nickname': u'Sloth'},
-        {u'path': local[osx], u'nickname': u'Local Jobs'},
+        # {u'path': sloth[osx], u'nickname': u'Sloth'},
+        # {u'path': local[osx], u'nickname': u'Local Jobs'},
     ]
 else:
     SERVERS = [
-        {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
-        {u'path': sloth[osx], u'nickname': u'Sloth'},
+        # {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
+        # {u'path': sloth[osx], u'nickname': u'Sloth'},
         {u'path': local[osx], u'nickname': u'Local Jobs'},
     ]
 

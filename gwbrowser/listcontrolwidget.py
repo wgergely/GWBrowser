@@ -563,11 +563,22 @@ class AddButton(ControlButton):
             bookmark = bookmark.data(common.ParentRole)
             bookmark = u'/'.join(bookmark)
             widget = AddAssetWidget(bookmark, parent=None)
+            pos = self.window().rect().center()
+            pos = self.window().mapToGlobal(pos)
+            widget.move(
+                pos.x() - (widget.width() / 2),
+                pos.y() - (widget.height() / 2),
+            )
+
+            cwidget = self.parent().parent().stackedwidget.currentWidget()
+            cwidget.disabled_overlay_widget.show()
             widget.exec_()
-            model.modelDataResetRequested.emit()
+
             if not widget.last_asset_added:
+                cwidget.disabled_overlay_widget.hide()
                 return
 
+            model.modelDataResetRequested.emit()
             view = self._parent.widget(1)
             for n in xrange(view.model().rowCount()):
                 index = view.model().index(n, 0)
@@ -578,6 +589,8 @@ class AddButton(ControlButton):
                     )
                     view.scrollTo(index)
                     break
+
+            cwidget.disabled_overlay_widget.hide()
             return
 
         # This will open the Saver to save a new file
