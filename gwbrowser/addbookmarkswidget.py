@@ -2,7 +2,9 @@
 # pylint: disable=E1101, C0103, R0913, I1101
 
 """The module defines the ``AddBookmarksWidget`` and the supplemetary objects
-needed to present the user with `server`, `job` and `root` folder choices.
+needed to present the user with **server**, **job** and **root** folder choices.
+
+These three choices together, represented as a tuple make up a **bookmark**.
 
 """
 
@@ -743,15 +745,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.move_start_event_pos = event.pos()
         self.move_start_widget_pos = self.mapToGlobal(self.rect().topLeft())
 
-    # def mouseMoveEvent(self, event):
-    #     if not isinstance(event, QtGui.QMouseEvent):
-    #         return
-    #     if event.buttons() == QtCore.Qt.NoButton:
-    #         return
-    #     if self.move_start_widget_pos:
-    #         offset = (event.pos() - self.move_start_event_pos)
-    #         self.move(self.mapToGlobal(self.rect().topLeft()) + offset)
-
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
@@ -760,7 +753,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.move_start_widget_pos = None
 
 
-def run():
+if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     w = AddBookmarksWidget()
     w.exec_()

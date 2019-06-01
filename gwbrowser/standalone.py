@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E1101, C0103, R0913, I1101
-"""GWBrowser - The module responsible for launching the app in standalone mode.
+"""This is a simple
 """
 
 import sys
-import os
 
 
-def check_dependency(module):
+def ensure_dependency(module):
     import importlib
     try:
         importlib.import_module(module)
@@ -19,8 +18,16 @@ def check_dependency(module):
         return False
 
 
-def run():
-    """This method is responsible for running GWBrowser with an import statement."""
+def exec_():
+    """The main method used to launch ``GWBrowser`` as a standalone PySide2
+    application.
+
+    """
+    for module in [u'GWAlembic', u'OpenImageIO', u'PySide2', u'numpy', u'gwbrowser']:
+        if not ensure_dependency(module):
+            raise ImportError(
+                'The "{}" module is needed by GWBrowser to run but it could not be imported.')
+
     try:
         from PySide2 import QtCore
         import gwbrowser.standalonewidgets
@@ -39,24 +46,3 @@ def run():
                 err, traceback.format_exc()),
             QtWidgets.QMessageBox.Ok)
         return sys.exit(res.exec_())
-
-
-if __name__ == '__main__':
-    packagepath = os.path.normpath(
-        os.path.join(
-            sys.argv[0],
-            os.pardir,
-            os.pardir,
-        )
-    )
-
-    sys.path.insert(0, packagepath)
-
-    dependencies_present = True
-    for module in ['GWAlembic', 'OpenImageIO', 'PySide2', 'numpy', 'gwbrowser']:
-        dependencies_present = check_dependency(module)
-    if not dependencies_present:
-        raise ImportError('# Unable to start GWBrowser.')
-
-    run()
-    sys.exit(0)
