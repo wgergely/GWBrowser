@@ -177,6 +177,11 @@ class SlackButton(BrowserButton):
         shortcut.activated.connect(self.clicked)
         shortcut.activated.connect(self.repaint)
 
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'slack', common.SECONDARY_TEXT, self.height())
+        self.setPixmap(pixmap)
+        self.setStatusTip(u'Opens GWBrowser')
+
 
 class ControlButton(ClickableLabel):
     """Baseclass used for controls buttons to control list display."""

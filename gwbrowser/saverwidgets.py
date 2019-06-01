@@ -59,7 +59,7 @@ class SelectFolderDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``FoldersWidget``."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _, _ = args
 
         rect = QtCore.QRect(option.rect)
         root = self.parent().model().parent(index) == self.parent().rootIndex()
@@ -121,7 +121,7 @@ class SelectFolderDelegate(BaseDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _, _ = args
         if index.flags() == QtCore.Qt.NoItemFlags:
             return
         hover = option.state & QtWidgets.QStyle.State_MouseOver

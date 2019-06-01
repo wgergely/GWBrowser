@@ -87,11 +87,10 @@ class DataKeyViewDelegate(BaseDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, _, _, _, _ = args
+        painter, option, _, selected, _, _, _, _, hover = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(common.SEPARATOR)
         painter.drawRect(option.rect)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
         rect = QtCore.QRect(option.rect)
         center = rect.center()
         rect.setHeight(rect.height() - 1)
@@ -104,11 +103,10 @@ class DataKeyViewDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the name and the number of files available for the given data-key."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, hover = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
         color = common.TEXT_SELECTED if hover else common.TEXT
         color = common.TEXT_SELECTED if selected else color
 

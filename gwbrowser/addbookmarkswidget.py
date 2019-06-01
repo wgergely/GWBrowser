@@ -102,7 +102,7 @@ class ComboBoxItemDelegate(BaseDelegate):
 
     @paintmethod
     def paint_background(self, *args):
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, _ = args
 
         if index.flags() == QtCore.Qt.NoItemFlags:
             return
@@ -118,8 +118,7 @@ class ComboBoxItemDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the DisplayRole of the items."""
-        painter, option, index, _, _, _, _, _ = args
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        painter, option, index, _, _, _, _, _, hover = args
         disabled = index.flags() == QtCore.Qt.NoItemFlags
 
         rect = QtCore.QRect(option.rect)

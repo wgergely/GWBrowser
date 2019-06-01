@@ -102,7 +102,7 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class DisabledOverlayWidget(QtWidgets.QWidget):
+class DisabledOverlayWidget(ProgressWidget):
     """Static overlay widget shown when there's a blocking window placed
     on top of the main widget.
 
@@ -110,18 +110,6 @@ class DisabledOverlayWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(DisabledOverlayWidget, self).__init__(parent=parent)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setWindowFlags(QtCore.Qt.Widget)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-
-    def showEvent(self, event):
-        self.setGeometry(self.parent().geometry())
 
     def paintEvent(self, event):
         """Custom message painted here."""
@@ -132,6 +120,34 @@ class DisabledOverlayWidget(QtWidgets.QWidget):
         color.setAlpha(150)
         painter.setBrush(color)
         painter.drawRect(self.rect())
+        painter.end()
+
+
+class FilterOnOverlayWidget(ProgressWidget):
+    """Static overlay widget shown when there's a blocking window placed
+    on top of the main widget.
+
+    """
+
+    def __init__(self, parent=None):
+        super(FilterOnOverlayWidget, self).__init__(parent=parent)
+
+    def paintEvent(self, event):
+        """Custom message painted here."""
+        if self.parent().model().rowCount() == self.parent().model().sourceModel().rowCount():
+            return
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        rect = self.rect()
+        # rect.setWidth(rect.width() - 1)
+        # rect.setHeight(rect.height() - 1)
+        # painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        # painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        pen = QtGui.QPen(common.FAVOURITE)
+        pen.setWidth(2.0)
+        painter.setPen(pen)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawRect(rect)
         painter.end()
 
 
@@ -601,15 +617,19 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).__init__(parent=parent)
         self._progress_widget = ProgressWidget(parent=self)
         self._progress_widget.setHidden(True)
+        self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
+        self.disabled_overlay_widget.setHidden(True)
+        self._favourite_set_widget = FilterOnOverlayWidget(parent=self)
+        self.sizeChanged.connect(
+            lambda x: self.disabled_overlay_widget.setGeometry(self.viewport().geometry()))
+        self.sizeChanged.connect(
+            lambda x: self._favourite_set_widget.setGeometry(self.viewport().geometry()))
 
         self._thumbnailvieweropen = None
         self._current_selection = None
         self._location = None
         self.collector_count = 0
         self.context_menu_cls = None
-
-        self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
-        self.disabled_overlay_widget.setHidden(True)
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
         self._buttons_hidden = False if local_settings.value(

@@ -37,12 +37,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         favourite = index.flags() & common.MarkedAsFavourite
         archived = index.flags() & common.MarkedAsArchived
         active = index.flags() & common.MarkedAsActive
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-
         args = (painter, option, index, selected,
-                focused, active, archived, favourite)
+                focused, active, archived, favourite, hover)
         return args
 
     @staticmethod
@@ -117,8 +117,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, index, selected, _, active, _, _ = args
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        painter, option, index, selected, _, active, _, _, hover = args
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
@@ -154,7 +153,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
-        painter, option, index, selected, active, _, _, _ = args
+        painter, option, _, selected, _, _, _, _, _ = args
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
@@ -174,7 +173,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of an item."""
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _, hover = args
+
+        cursor_pos = QtGui.QCursor().pos()
+        if not hover:
+            painter.setOpacity(0.666)
+        else:
+            painter.setOpacity(0.8)
+
+        if self.parent().active_index() == index:
+            painter.setOpacity(1.0)
 
         # Background rectangle
         rect = QtCore.QRect(option.rect)
@@ -214,7 +222,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
-        painter, option, _, _, _, _, archived, _ = args
+        painter, option, _, _, _, _, archived, _, _ = args
         if archived:
             return
 
@@ -232,7 +240,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_data(self, *args):
         """Generic paint method to draw the name of an item."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, _ = args
 
         if selected:
             color = QtGui.QColor(common.TEXT_SELECTED)
@@ -266,7 +274,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_archived(self, *args):
         """Paints a `disabled` overlay on top of items flagged as `archived`."""
-        painter, option, index, _, _, _, archived, _ = args
+        painter, option, _, _, _, _, archived, _, _ = args
         if not archived:
             return
 
@@ -282,7 +290,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, archived, _ = args
+        painter, option, _, _, _, _, archived, _, _ = args
         if self.parent().buttons_hidden():
             return
 
@@ -321,7 +329,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if self.parent().buttons_hidden():
             return
 
-        painter, option, _, _, _, _, _, _ = args
+        painter, option, _, _, _, _, _, _, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -345,7 +353,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if self.parent().buttons_hidden():
             return
 
-        painter, option, index, _, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -390,7 +398,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if self.parent().buttons_hidden():
             return
 
-        painter, option, _, _, _, _, _, favourite = args
+        painter, option, _, _, _, _, _, favourite, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -434,10 +442,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the background for the inline icons."""
         if self.parent().buttons_hidden():
             return
-        painter, option, index, selected, _, active, archived, _ = args
+        painter, option, index, selected, _, active, archived, _, hover = args
         if archived:
             return
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -497,9 +504,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_description(self, *args):
         """Paints the item description inside the ``AssetsWidget``."""
-        painter, option, index, _, _, _, _, _ = args
-
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        painter, option, index, _, _, _, _, _, hover = args
         if not index.data(common.DescriptionRole) and not hover:
             return
 
@@ -571,7 +576,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, _ = args
 
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
@@ -662,7 +667,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_count_icon(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, _ = args
         # Count
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -699,7 +704,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_archived_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, archived, _ = args
+        painter, option, _, _, _, _, archived, _, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
@@ -759,7 +764,7 @@ class AssetsWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
-        painter, option, index, _, _, active, archived, _ = args
+        painter, option, index, _, _, _, archived, _, _ = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
@@ -852,9 +857,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_description(self, *args, **kwargs):
         """Paints the item description inside the ``FilesWidget``."""
-        painter, option, index, selected, _, _, _, _ = args
-
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        painter, option, index, selected, _, _, _, _, hover = args
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
@@ -914,7 +917,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_mode(self, *args):
         """Paints the FilesWidget's mode and the subfolders."""
-        painter, option, index, selected, _, _, _, _ = args
+        painter, option, index, selected, _, _, _, _, hover = args
         if index.data(common.ParentRole) is None:
             return
 
@@ -986,7 +989,7 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
-        painter, option, index, selected, _, active, _, _ = args
+        painter, option, index, selected, _, active, _, _, hover = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
@@ -1127,7 +1130,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
     @paintmethod
     def paint_folder_icon(self, *args):
         """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, _, _ = args
+        painter, option, _, _, _, _, _, _, _ = args
 
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             return
