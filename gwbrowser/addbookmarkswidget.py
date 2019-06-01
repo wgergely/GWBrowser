@@ -9,7 +9,6 @@ These three choices together, represented as a tuple make up a **bookmark**.
 """
 
 import sys
-import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -19,6 +18,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
 from gwbrowser.settings import local_settings, Active
+from gwbrowser.editors import ClickableLabel
 
 
 custom_string = u'Select custom folder...'
@@ -90,11 +90,11 @@ class ComboboxContextMenu(BaseContextMenu):
         self.add_reveal_item_menu()  # pylint: disable=E1120
 
 
-class ComboBoxItemDelegate(BaseDelegate):
+class ComboboxItemDelegate(BaseDelegate):
     """Delegate used to render simple list items."""
 
     def __init__(self, parent=None):
-        super(ComboBoxItemDelegate, self).__init__(parent=parent)
+        super(ComboboxItemDelegate, self).__init__(parent=parent)
 
     def paint(self, painter, option, index):
         """The main paint method."""
@@ -152,24 +152,58 @@ class ComboBoxItemDelegate(BaseDelegate):
     def sizeHint(self, option, index):
         """Returns the size of the combobox items."""
         return QtCore.QSize(
-            self.parent().view().width(), common.ROW_HEIGHT * 0.66)
+            self.parent().width(), common.ROW_HEIGHT * 0.66)
 
 
-class AddBookmarkCombobox(QtWidgets.QComboBox):
+class ComboboxView(QtWidgets.QListWidget):
+
+    def __init__(self, parent=None):
+        super(ComboboxView, self).__init__(parent=parent)
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SingleSelection)
+        self.setItemDelegate(ComboboxItemDelegate(self))
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoBackground)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setWindowFlags(
+            QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+
+        self.itemClicked.connect(self.hide)
+        self.itemActivated.connect(self.hide)
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
+
+
+class ComboboxButton(ClickableLabel):
     """Combobox responsible for picking a bookmark segment."""
 
     def __init__(self, itemtype, parent=None):
-        super(AddBookmarkCombobox, self).__init__(parent=parent)
+        super(ComboboxButton, self).__init__(parent=parent)
         self.type = itemtype
         self.context_menu_cls = ComboboxContextMenu
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self._view = ComboboxView(parent=self)
 
-        view = QtWidgets.QListWidget()  # Setting a custom view here
-        self.setModel(view.model())
-        self.setView(view)
-        self.setDuplicatesEnabled(False)
-        self.setItemDelegate(ComboBoxItemDelegate(self))
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setFixedWidth(300)
         self.setMouseTracking(True)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding)
+
+        self.clicked.connect(self.show_view)
+
+    @QtCore.Slot()
+    def show_view(self):
+        self._view.show()
+        self._view.setFocus(QtCore.Qt.PopupFocusReason)
+
+    def view(self):
+        """The view associated with the widget."""
+        return self._view
 
     def contextMenuEvent(self, event):
         """Custom context menu event for the combobox widget."""
@@ -199,15 +233,12 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         option.initFrom(self)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        if self.currentIndex() == -1:
+        index = self.view().selectionModel().currentIndex()
+        if not self.view().selectionModel().hasSelection():
             text = u'Click to select {}'.format(self.type)
             color = common.TEXT
         else:
-            item = self.view().item(self.view().currentRow())
-            if not item:
-                text = u'Click to select {}'.format(self.type)
-            else:
-                text = item.data(QtCore.Qt.DisplayRole)
+            text = index.data(QtCore.Qt.DisplayRole)
             text = text.upper() if text else u'Click to select {}'.format(self.type)
             color = common.TEXT_SELECTED
         if hover:
@@ -217,16 +248,16 @@ class AddBookmarkCombobox(QtWidgets.QComboBox):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        if self.view().currentRow() != -1 and text.upper() != custom_string.upper():
-            _rect = QtCore.QRect(rect)
-            _rect.setWidth(_rect.height())
-            pixmap = ImageCache.instance().get_rsc_pixmap(
-                u'check', common.FAVOURITE, self.height())
-            painter.drawPixmap(_rect, pixmap, pixmap.rect())
-            rect.setLeft(rect.left() + rect.height() + common.INDICATOR_WIDTH)
 
         common.draw_aliased_text(
-            painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, color)
+            painter,
+            common.PrimaryFont,
+            rect,
+            text,
+            QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
+            color
+        )
+
         painter.end()
 
     @QtCore.Slot(int)
@@ -324,10 +355,11 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             None, key='server', combobox=self.pick_server_widget)
 
         self.add_jobs_from_server_folder(
-            self.pick_server_widget.currentIndex())
+            self.pick_server_widget.view().selectionModel().currentIndex())
         self.select_saved_item(None, key='job', combobox=self.pick_job_widget)
 
-        self.add_root_folders(self.pick_job_widget.currentIndex())
+        self.add_root_folders(
+            self.pick_job_widget.view().selectionModel().currentIndex())
         self.select_saved_item(
             None, key='root', combobox=self.pick_root_widget)
 
@@ -356,9 +388,9 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pathsettings.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         # Server
-        self.pick_server_widget = AddBookmarkCombobox(u'server', parent=self)
-        self.pick_job_widget = AddBookmarkCombobox(u'job', parent=self)
-        self.pick_root_widget = AddBookmarkCombobox(
+        self.pick_server_widget = ComboboxButton(u'server', parent=self)
+        self.pick_job_widget = ComboboxButton(u'job', parent=self)
+        self.pick_root_widget = ComboboxButton(
             u'bookmark folder', parent=self)
 
         row = QtWidgets.QWidget(parent=self)
@@ -424,24 +456,31 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pathsettings.layout().addWidget(label)
 
     def _connectSignals(self):
-        self.pick_server_widget.activated.connect(
+        self.pick_server_widget.view().itemClicked.connect(
             self.add_jobs_from_server_folder)
-        self.pick_server_widget.activated.connect(
-            functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
-        self.pick_server_widget.activated.connect(self.add_root_folders)
-        self.pick_server_widget.activated.connect(
-            functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+        self.pick_server_widget.view().itemActivated.connect(
+            self.add_jobs_from_server_folder)
+        self.pick_server_widget.view().itemClicked.connect(
+            self.pick_server_widget.repaint)
+        self.pick_server_widget.view().itemActivated.connect(
+            self.pick_server_widget.repaint)
 
-        self.pick_job_widget.activated.connect(self.add_root_folders)
-        self.pick_job_widget.activated.connect(
-            functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
-
-        self.pick_server_widget.currentIndexChanged.connect(self.validate)
-        self.pick_job_widget.currentIndexChanged.connect(self.validate)
-        self.pick_root_widget.currentIndexChanged.connect(self.validate)
-        self.pick_root_widget.activated.connect(
-            self.pick_root_widget.pick_custom)
-
+        # self.pick_server_widget.activated.connect(
+        #     functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
+        # self.pick_server_widget.activated.connect(self.add_root_folders)
+        # self.pick_server_widget.activated.connect(
+        #     functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+        #
+        # self.pick_job_widget.activated.connect(self.add_root_folders)
+        # self.pick_job_widget.activated.connect(
+        #     functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+        #
+        # self.pick_server_widget.currentIndexChanged.connect(self.validate)
+        # self.pick_job_widget.currentIndexChanged.connect(self.validate)
+        # self.pick_root_widget.currentIndexChanged.connect(self.validate)
+        # self.pick_root_widget.activated.connect(
+        #     self.pick_root_widget.pick_custom)
+        #
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.reject)
 
@@ -451,66 +490,62 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         def first_valid():
             """Returns the first selectable item's row number."""
-            if not combobox.count():
-                return -1
+            if not combobox.view().model().rowCount():
+                return QtCore.QModelIndex()
 
-            for idx in xrange(combobox.count()):
-                if combobox.view().item(idx).flags() != QtCore.Qt.NoItemFlags:
-                    return idx
-            return -1
+            for idx in xrange(combobox.view().model().rowCount()):
+                index = combobox.view().model().index(idx, 0)
+                if index.flags() != QtCore.Qt.NoItemFlags:
+                    return index
+            return QtCore.QModelIndex()
 
         local_paths = Active.paths()
-        if local_paths[key] is None:
-            combobox.setCurrentIndex(first_valid())
-            combobox.view().setCurrentRow(first_valid())
-            return
-        if local_paths[key] == 'None':
-            combobox.setCurrentIndex(first_valid())
-            combobox.view().setCurrentRow(first_valid())
+        if local_paths[key] is None or local_paths[key] == 'None':
+            combobox.view().setCurrentIndex(
+                first_valid(), QtCore.QItemSelectionModel.ClearAndSelect)
             return
 
-        idx = combobox.findData(
-            local_paths[key],
-            role=QtCore.Qt.StatusTipRole,
-            flags=QtCore.Qt.MatchEndsWith
-        )
+        index = QtCore.QModelIndex()
+        for n in xrange(combobox.view().model().rowCount()):
+            index = combobox.view().model().index(n, 0)
+            if not index.data(QtCore.Qt.StatusTipRole):
+                continue
+            if index.data(QtCore.Qt.StatusTipRole) in local_paths[key]:
+                break
 
-        if idx is None:
-            combobox.setCurrentIndex(first_valid())
-            combobox.view().setCurrentRow(first_valid())
-            return
-        if idx == -1:
-            combobox.setCurrentIndex(first_valid())
-            combobox.view().setCurrentRow(first_valid())
+        if not index.isValid():
+            combobox.view().selectionModel().setCurrentIndex(
+                first_valid(), QtCore.QItemSelectionModel.ClearAndSelect)
             return
 
-        combobox.setCurrentIndex(idx)
-        combobox.view().setCurrentRow(idx)
+        combobox.view().selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
         return
 
     @QtCore.Slot(int)
     def add_root_folders(self, index):
         """Adds the found root folders to the `pick_root_widget`."""
         self.pick_root_widget.view().clear()
-        self.pick_root_widget.clear()
 
-        if index == -1:
+        if not index.isValid():
             return
 
-        path = self.pick_job_widget.currentData(QtCore.Qt.StatusTipRole)
-        file_info = QtCore.QFileInfo(path)
+        index = self.pick_job_widget.view().selectionModel().currentIndex()
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         if not file_info.exists():
             return
 
         arr = []
-        self.get_root_folder_items(path, arr=arr)
+        self.get_root_folder_items(index.data(
+            QtCore.Qt.StatusTipRole), arr=arr)
         bookmarks = local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         for entry in sorted(arr):
             entry = entry.replace(u'\\', u'/')
             item = QtWidgets.QListWidgetItem()
-            name = entry.replace(path, u'').strip(u'/')
+            name = entry.replace(index.data(
+                QtCore.Qt.StatusTipRole), u'').strip(u'/')
             item.setData(QtCore.Qt.DisplayRole, name)
             item.setData(QtCore.Qt.StatusTipRole, entry)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
@@ -703,7 +738,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.pick_server_widget.view().addItem(item)
 
     @QtCore.Slot(int)
-    def add_jobs_from_server_folder(self, index):
+    def add_jobs_from_server_folder(self, item):
         """Querries the given folder and return all readable folder within.
 
         Args:
@@ -715,11 +750,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         """
         self.pick_job_widget.view().clear()
 
-        if index == -1:
-            return
-
-        path = self.pick_server_widget.itemData(
-            index, role=QtCore.Qt.StatusTipRole)
+        path = item.data(QtCore.Qt.StatusTipRole)
         for entry in sorted([f for f in gwscandir.scandir(path)], key=lambda x: x.name):
             if entry.name.startswith(u'.'):
                 continue
