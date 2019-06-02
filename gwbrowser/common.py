@@ -54,28 +54,89 @@ MarkedAsActive = 0b100000000000
 COMPANY = u'Glassworks'
 PRODUCT = u'GWBrowser'
 
-default_server = u'gw-workstation'
-legacy_server = u'gw-workstation'
 
-osx = QtCore.QSysInfo().productType().lower() in (u'darwin', u'osx', u'macos')
-windows = QtCore.QSysInfo().productType().lower() in (u'windows', u'winrt')
+def platform():
+    """Returns the name of the current platform.
 
-local = {True: u'/Volumes/jobs', False: u'//gw-workstation/jobs'}
-sloth = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(default_server)}
-gordo = {True: u'/Volumes/jobs', False: u'//{}/jobs'.format(legacy_server)}
+    Returns:
+        unicode: *mac* or *win*, depending on the platform.
+
+    Raises:        NotImplementedError: If the current platform is not *mac* or *win*.
+
+    """
+    ptype = QtCore.QSysInfo().productType().lower()
+    if ptype in (u'darwin', u'osx', u'macos'):
+        return u'mac'
+    if u'win' in ptype:
+        return u'win'
+    raise NotImplementedError(
+        u'The platform "{}" is not supported'.format(ptype))
 
 
-if osx:
-    SERVERS = [
-        {u'path': sloth[osx], u'nickname': u'Sloth'},
-        {u'path': local[osx], u'nickname': u'Local Jobs'},
-    ]
-else:
-    SERVERS = [
-        {u'path': gordo[osx], u'nickname': u'Gordo (Legacy)'},
-        {u'path': sloth[osx], u'nickname': u'Sloth'},
-        {u'path': local[osx], u'nickname': u'Local Jobs'},
-    ]
+class Server(object):
+    """This is wrapper class to store the list of available servers."""
+
+    __servers = {
+        u'main': {
+            u'mac': u'smb://GW-WORKSTATION/jobs',
+            u'win': u'//GW-WORKSTATION/jobs',
+            u'description': u'The main jobs folder'
+        },
+        u'backup': {
+            u'mac': u'smb://GW-WORKSTATION/jobs-archive',
+            u'win': u'//GW-WORKSTATION/jobs-archive',
+            u'description': u'The backup of the main jobs folder'
+        },
+        u'local': {
+            u'mac': u'/jobs',
+            u'win': u'//GW-WORKSTATION/jobs-local',
+            u'description': u'Local jobs folder on SSD'
+        },
+    }
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_server_platform_name(cls, name, platform):
+        """Returns the name of the server for another platform"""
+        it = cls.__servers.itervalues()
+        val = [v for v in it if [f for f in v.itervalues() if f.endswith(name)]]
+        return val[0][platform]
+
+    @classmethod
+    def main(cls):
+        """The path to the primary server.
+        This is where all active jobs are stored.
+
+        """
+        return cls.__servers[u'main'][platform()]
+
+    @classmethod
+    def backup(cls):
+        """The path to the backup server.
+        This is where all active job backup are stored.
+
+        """
+        return cls.__servers[u'backup'][platform()]
+
+    @classmethod
+    def local(cls):
+        """This is a local copy of the jobs folder. Useful to take advantage
+        when needing quick access to storage using the local SSD drive.
+
+        """
+        return cls.__servers['local'][platform()]
+
+    @classmethod
+    def servers(cls):
+        """Returns all available servers."""
+        arr = []
+        for v in cls.__servers.itervalues():
+            arr.append({u'path': v[platform()],
+                        u'description': v[u'description']})
+        arr = sorted(arr, key=lambda x: x[u'path'])
+        return arr
 
 
 ASSET_IDENTIFIER = u'workspace.mel'
@@ -84,13 +145,13 @@ considered an ``asset``."""
 
 
 FTHREAD_COUNT = 2
-"""The number of threads used by the ``FilesWidget`` to get file-information."""
+"""The number of threads used by the ``FilesWidget`` to get file - information."""
 
 ITHREAD_COUNT = 4
 """The number of threads used by the ``ImageCache`` to perform generate thumbnails."""
 
 LTHREAD_COUNT = 1
-"""The number of threads used by the ``DataKeyModel`` get folder file-counts."""
+"""The number of threads used by the ``DataKeyModel`` get folder file - counts."""
 
 FTIMER_INTERVAL = 1000
 
@@ -151,7 +212,7 @@ def psize(n):
     refers to. Difference of dpi...?
 
     """
-    return n * 1.5 if osx else n * pscale
+    return n * 1.5 if platform() == u'mac' else n * pscale
 
 
 MARGIN = 18.0
@@ -281,7 +342,7 @@ NameFilters = {
     RendersFolder: all_formats,
     TexturesFolder: all_formats,
 }
-"""A list of expected file-formats associated with the location."""
+"""A list of expected file - formats associated with the location."""
 
 
 # Extending the
@@ -435,7 +496,7 @@ def set_custom_stylesheet(widget):
 
 
 def byte_to_string(num, suffix=u'B'):
-    """Converts a numeric byte-value to a human readable string."""
+    """Converts a numeric byte - value to a human readable string."""
     for unit in [u'', u'K', u'M', u'G', u'T', u'P', u'E', u'Z']:
         if abs(num) < 1024.0:
             return u"%3.1f%s%s" % (num, unit, suffix)
@@ -447,15 +508,15 @@ def reveal(path):
     """Reveals the specified folder in the file explorer.
 
     Args:
-        name (str): A path to the file.
+        name(str): A path to the file.
 
     """
     path = get_sequence_endpath(path)
-    if windows:
+    if platform() == u'win':
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
-    if osx:
+    if platform() == u'mac':
         args = [
             u'-e',
             u'tell application "Finder"',
@@ -533,8 +594,8 @@ def get_ranges(arr, padding):
     """Given an array of numbers the method will return a string representation.
 
     Args:
-        arr (list):       An array of numbers
-        padding (int):    The number of leading zeros before the number.
+        arr(list):       An array of numbers
+        padding(int):    The number of leading zeros before the number.
 
     """
     arr = sorted(list(set(arr)))
@@ -577,9 +638,9 @@ def get_valid_filename(text):
 
     Match:
         group(1):   The job's short name, between 1 and 3 characters.
-        group(2):   The current asset-name, between 1 and 12 characters.
+        group(2):   The current asset - name, between 1 and 12 characters.
         # group(3):   The current asset mode, eg. 'animation', between 1 and 12 characters.
-        group(3):   The custom description of the file, between 1-25 characters.
+        group(3):   The custom description of the file, between 1 - 25 characters.
         group(4):   The file's version. Has to be exactly 3 characters.
         group(5):   The name of the user.
         group(6):   The file's extension (without the '.')
@@ -597,7 +658,7 @@ def get_sequence(text):
     In Browser's terms, a sequence is an file that has a valid number element
     that can be inremented.
     There can only be `one` number element - it will always be the number at the
-    end of the file-name, closest to the extension.
+    end of the file - name, closest to the extension.
 
     Match:
         group(1):   All the character `before` the sequence.
@@ -616,11 +677,11 @@ def is_collapsed(text):
     """In Browser's terminology, a `collapsed` item is a name that represents a
     sequence. Sequence are annoted by a series of numbers contained inside a bracket.
 
-    Eg.: `[001-050]`
+    Eg.: `[001 - 050]`
 
     Match:
         group(1):   All the character `before` the sequence marker.
-        group(2):   The sequence marker (eg. `[1-50]`).
+        group(2):   The sequence marker(eg. `[1 - 50]`).
         group(3):   All the characters after the sequence marker.
 
     Returns:
@@ -732,7 +793,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 def find_largest_file(index):
     """Finds the sequence's largest file from sequence filepath.
     The largest files of the sequence will probably hold enough visual information
-    to be used a s thumbnail image. :)
+    to be used a s thumbnail image.: )
 
     """
     entries = index.data(EntryRole)
@@ -748,28 +809,28 @@ def find_largest_file(index):
     return entry.path.replace(u'\\', u'/')
 
 
-def mount(server=default_server):
-    """Mounts the server in macosx if it isn't mounted already. The password
-    abd
-
-    """
-    if windows:
+def mount():
+    """Mounts the server in macosx if it isn't mounted already."""
+    if platform() == u'win':
         return
 
-    if osx:
+    if platform() == u'mac':
+        mountpoint = u'/volumes/{}'.format(Server.main().split(u'/').pop())
+
         for d in QtCore.QStorageInfo.mountedVolumes():
-            if d.rootPath().lower() == u'/volumes/jobs':
+            if d.rootPath().lower() == mountpoint:
                 return  # the server is already mounted
-        args = [u'-e', u'mount volume "smb://{server}/jobs/"'.format(
-            server=server,
-        )]
+
+        args = [u'-e', u'mount volume "{}"'.format(Server.main())]
         process = QtCore.QProcess()
         process.start(u'osascript', args)
         process.waitForFinished(-1)
+
+        # We will wait here until the drive is available to use...
         while True:
             for d in QtCore.QStorageInfo.mountedVolumes():
-                if d.rootPath().lower() == u'/volumes/jobs':
-                    return  # the server is mounted and available
+                if d.rootPath().lower() == mountpoint:
+                    return
         return
 
     raise NotImplementedError('{} os has not been implemented.'.format(
@@ -783,7 +844,9 @@ MacOSPath = 3
 
 
 def copy_path(index, mode=WindowsPath, first=True):
-    """Copies the given path to the clipboard."""
+    """Copies the given path to the clipboard. We have to do some magic here
+    for the copied paths to be fully qualified."""
+    current_parent = index.data(ParentRole)[0]
     path = index.data(QtCore.Qt.StatusTipRole)
     if first:
         path = get_sequence_startpath(path)
@@ -791,23 +854,17 @@ def copy_path(index, mode=WindowsPath, first=True):
         path = get_sequence_endpath(path)
 
     if mode == WindowsPath:
-        pserver = index.data(ParentRole)[0]
-        server = sloth[False]
-        server = gordo[False] if legacy_server in pserver else server
-        server = local[False] if 'localhost' in pserver else server
-
-        path = path.replace(pserver, server)
+        path = path.replace(
+            current_parent,
+            Server.get_server_platform_name(current_parent, 'win'))
         path = re.sub(ur'[\/\\]', ur'\\', path)
         QtGui.QClipboard().setText(path)
-        return path
+        return
 
     if mode == UnixPath:
-        pserver = index.data(ParentRole)[0]
-        server = sloth[True]
-        server = gordo[True] if legacy_server in pserver else server
-        server = local[True] if 'localhost' in pserver else server
-
-        path = path.replace(pserver, server)
+        path = path.replace(
+            current_parent,
+            Server.get_server_platform_name(current_parent, 'mac'))
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         return path
@@ -818,12 +875,9 @@ def copy_path(index, mode=WindowsPath, first=True):
         return path
 
     if mode == MacOSPath:
-        pserver = index.data(ParentRole)[0]
-        server = sloth[True]
-        server = gordo[True] if legacy_server in pserver else server
-        server = local[True] if pserver.startswith('/jobs') else server
-
-        path = path.replace(pserver, server)
+        path = path.replace(
+            current_parent,
+            Server.get_server_platform_name(current_parent, 'mac'))
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         return path
@@ -850,13 +904,13 @@ enc = sys.getfilesystemencoding()
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """This is a modified version using the C based _scandir module for iterating through
     directories. The code is taken from the scandir module but here forcing the code to
-    use the _scandir (gwscandir) iterator on all platforms.
+    use the _scandir(gwscandir) iterator on all platforms.
 
     Returns:
-        tuple (
-            path (unicode),
-            folders (DirEntries),
-            files (DirEntries)
+        tuple(
+            path(unicode),
+            folders(DirEntries),
+            files(DirEntries)
         )
 
     """
@@ -938,7 +992,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
 
 
 def rsc_path(f, n):
-    """Helper function to retrieve a resource-file item"""
+    """Helper function to retrieve a resource - file item"""
     path = u'{}/../rsc/{}.png'.format(f, n)
     path = os.path.normpath(os.path.abspath(path))
     return path
@@ -966,7 +1020,7 @@ def clean_filter_text(filter_text):
 
 
 def regexify_filter_text(filter_text):
-    """Replaces whitespaces with catch-all regex search elements."""
+    """Replaces whitespaces with catch - all regex search elements."""
     filter_text = FilterTextRegex.sub(u' ', filter_text)
     filter_text = re.sub(ur'\s\s*', u' ', filter_text)
     filter_text = re.sub(ur'\s', ur'[\S\s]*', filter_text)
@@ -975,7 +1029,7 @@ def regexify_filter_text(filter_text):
 
 def create_asset_template(source, dest, overwrite=False):
     """Responsible for adding the files and folders of the given source to the
-    given zip-file.
+    given zip - file.
 
     """
     if not overwrite:
@@ -1005,8 +1059,8 @@ AssetTypes = {
 def create_asset_from_template(name, basepath, template):
     """Creates a new asset with the given name.
 
-    The asset is a zip-archive containing the folder-structure. We can define
-    multiple asset-types. These are defined in the ``common.AssetTypes`` variable.
+    The asset is a zip - archive containing the folder - structure. We can define
+    multiple asset - types. These are defined in the ``common.AssetTypes`` variable.
 
     """
     template_info = QtCore.QFileInfo(

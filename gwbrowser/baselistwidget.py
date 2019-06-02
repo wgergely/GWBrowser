@@ -1161,19 +1161,19 @@ class BaseListWidget(QtWidgets.QListView):
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
             if event.key() == QtCore.Qt.Key_C:
+                # Depending on the platform the copied path will be different
                 if index.data(common.FileInfoLoaded):
-                    if common.osx:
-                        if event.modifiers() & QtCore.Qt.ShiftModifier:
-                            return common.copy_path(index, mode=common.MacOSPath, first=True)
-                        return common.copy_path(index, mode=common.MacOSPath, first=False)
+                    if common.Server.platform() == u'mac':
+                        mode = common.MacOSPath
+                    elif common.Server.platform() == u'windows':
+                        mode = common.WindowsPath
                     else:
-                        if event.modifiers() & QtCore.Qt.ShiftModifier:
-                            common.copy_path(
-                                index, mode=common.WindowsPath, first=True)
-                            return
-                        common.copy_path(
-                            index, mode=common.WindowsPath, first=False)
                         return
+
+                    if event.modifiers() & QtCore.Qt.ShiftModifier:
+                        return common.copy_path(index, mode=mode, first=True)
+                    return common.copy_path(index, mode=mode, first=False)
+
             if event.key() == QtCore.Qt.Key_R:
                 self.model().sourceModel().modelDataResetRequested.emit()
                 return

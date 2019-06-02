@@ -15,6 +15,7 @@ Written by `Gergely Wootsch`_ at `Glassworks Barcelona`_, 2019.
 import sys
 import importlib
 import traceback
+import platform
 
 __name__ = u'gwbrowser'
 __author__ = 'Gergely Wootsch'
@@ -60,10 +61,16 @@ def exec_():
 
     """
     _ensure_dependencies()
+
+    # Some basic debugging information
     sys.stdout.write(u'\nGWBrowser: All dependencies found. Starting...\n')
     sys.stdout.write(u'Author:   {}\n'.format(__author__))
     sys.stdout.write(u'Email:    {}\n'.format(__email__))
     sys.stdout.write(u'Website:  {}\n'.format(__website__))
+    sys.stdout.write('\n')
+    sys.stdout.write(u'Python {}\n'.format(platform.python_version()))
+    sys.stdout.write(u'{}\n'.format(platform.python_compiler()))
+
     try:
         gwbrowser = importlib.import_module(
             u'{}.standalonewidgets'.format(__name__))

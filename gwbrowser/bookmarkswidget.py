@@ -427,11 +427,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         """Opens a dialog to add a new project to the list of saved locations."""
         if not self.add_bookmarks_widget:
             self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
-            self.add_bookmarks_widget.show()
-            self.add_bookmarks_widget.hide()
-
-        self.add_bookmarks_widget.add_root_folders(
-            self.add_bookmarks_widget.pick_job_widget.currentIndex())
 
         pos = self.geometry().center()
         pos = self.mapToGlobal(pos)

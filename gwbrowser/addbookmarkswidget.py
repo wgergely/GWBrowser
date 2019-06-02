@@ -9,6 +9,7 @@ These three choices together, represented as a tuple make up a **bookmark**.
 """
 
 import sys
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -100,6 +101,7 @@ class ComboboxItemDelegate(BaseDelegate):
         """The main paint method."""
         args = self._get_paint_args(painter, option, index)
         self.paint_background(*args)
+        self.paint_selection_indicator(*args)
         self.paint_name(*args)
 
     @paintmethod
@@ -110,11 +112,18 @@ class ComboboxItemDelegate(BaseDelegate):
             return
 
         rect = QtCore.QRect(option.rect)
+        center = rect.center()
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
+        rect.moveCenter(center)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRect(option.rect)
+
         if selected:
             painter.setBrush(common.BACKGROUND_SELECTED)
         else:
             painter.setBrush(common.BACKGROUND)
-        painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(rect)
 
     @paintmethod
@@ -198,7 +207,18 @@ class ComboboxButton(ClickableLabel):
 
     @QtCore.Slot()
     def show_view(self):
+        """Shows the list view."""
         self._view.show()
+
+        x = self.window().rect().topLeft()
+        x = self.window().mapToGlobal(x)
+
+        pos = self.rect().topLeft()
+        pos = self.mapToGlobal(pos)
+
+        self._view.move(pos)
+        self._view.setFixedWidth(
+            self.window().width() - (pos.x() - x.x()) - common.MARGIN)
         self._view.setFocus(QtCore.Qt.PopupFocusReason)
 
     def view(self):
@@ -261,14 +281,22 @@ class ComboboxButton(ClickableLabel):
         painter.end()
 
     @QtCore.Slot(int)
-    def pick_custom(self, idx):
+    def pick_custom(self, index):
         """Method to select a the root folder of the assets. Called by the Assets push button."""
-        if idx != 0:
+        if not index.isValid():
             return
 
         parent = self.window()
-        server = parent.pick_server_widget.currentData(QtCore.Qt.StatusTipRole)
-        job = parent.pick_job_widget.currentData(QtCore.Qt.DisplayRole)
+
+        index = parent.pick_server_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        server = index.data(QtCore.Qt.StatusTipRole)
+
+        index = parent.pick_job_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        job = index.data(QtCore.Qt.DisplayRole)
 
         if not all((server, job)):
             return
@@ -276,8 +304,6 @@ class ComboboxButton(ClickableLabel):
         path = u'{}/{}'.format(server, job)
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
-            parent.warning(u'Could not find job-folder',
-                           u'An error occured, the job folder could not be found.')
             return
 
         dialog = QtWidgets.QFileDialog()
@@ -297,22 +323,21 @@ class ComboboxButton(ClickableLabel):
         if not res:
             return
 
-        if path not in res:
-            parent.warning(u'Invalid folder selected',
-                           u'The bookmark folder has to be inside current job folder.')
+        if path.lower() not in res.lower():
             return
 
-        file_info = QtCore.QFileInfo(res)
-        if not file_info.exists():
-            parent.warning(u'Internal error occured.',
-                           u'Could not load the selected folder.')
-            return
+        index = self.view().model().index(0, 0)
 
-        self.view().item(0).setData(QtCore.Qt.DisplayRole,
-                                    file_info.filePath().replace(path, u'').strip(u'/'))
-        self.view().item(0).setData(QtCore.Qt.StatusTipRole, file_info.filePath())
-        self.view().item(0).setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-            common.WIDTH, common.ROW_BUTTONS_HEIGHT))
+        root = res.lower().replace(path.lower(), u'').strip(u'/')
+        self.view().model().setData(
+            index,
+            root,
+            role=QtCore.Qt.DisplayRole)
+
+        self.view().model().setData(
+            index,
+            res,
+            role=QtCore.Qt.StatusTipRole)
 
         parent.validate()
 
@@ -352,16 +377,19 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         """Populates the comboboxes and selects the currently active items (if there's any)."""
         self.add_servers_from_config()
         self.select_saved_item(
-            None, key='server', combobox=self.pick_server_widget)
+            None, key=u'server', combobox=self.pick_server_widget)
 
         self.add_jobs_from_server_folder(
             self.pick_server_widget.view().selectionModel().currentIndex())
-        self.select_saved_item(None, key='job', combobox=self.pick_job_widget)
+        self.select_saved_item(None, key=u'job', combobox=self.pick_job_widget)
 
         self.add_root_folders(
             self.pick_job_widget.view().selectionModel().currentIndex())
         self.select_saved_item(
-            None, key='root', combobox=self.pick_root_widget)
+            None, key=u'root', combobox=self.pick_root_widget)
+
+        self.validate()
+        self.adjustSize()
 
     def _createUI(self):
         """Creates the AddBookmarksWidget's ui and layout."""
@@ -465,22 +493,47 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_server_widget.view().itemActivated.connect(
             self.pick_server_widget.repaint)
 
-        # self.pick_server_widget.activated.connect(
-        #     functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
-        # self.pick_server_widget.activated.connect(self.add_root_folders)
-        # self.pick_server_widget.activated.connect(
-        #     functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
-        #
-        # self.pick_job_widget.activated.connect(self.add_root_folders)
-        # self.pick_job_widget.activated.connect(
-        #     functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
-        #
-        # self.pick_server_widget.currentIndexChanged.connect(self.validate)
-        # self.pick_job_widget.currentIndexChanged.connect(self.validate)
-        # self.pick_root_widget.currentIndexChanged.connect(self.validate)
-        # self.pick_root_widget.activated.connect(
-        #     self.pick_root_widget.pick_custom)
-        #
+        self.pick_server_widget.view().itemClicked.connect(
+            self.add_jobs_from_server_folder)
+        self.pick_server_widget.view().itemActivated.connect(
+            self.add_jobs_from_server_folder)
+
+        self.pick_server_widget.view().itemClicked.connect(
+            functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
+        self.pick_server_widget.view().itemActivated.connect(
+            functools.partial(self.select_saved_item, key='job', combobox=self.pick_job_widget))
+
+        self.pick_server_widget.view().itemClicked.connect(
+            lambda x: self.add_root_folders(
+                self.pick_job_widget.view().selectionModel().currentIndex()))
+        self.pick_server_widget.view().itemActivated.connect(
+            lambda x: self.add_root_folders(
+                self.pick_job_widget.view().selectionModel().currentIndex()))
+
+        self.pick_job_widget.view().itemClicked.connect(
+            lambda x: self.add_root_folders(
+                self.pick_job_widget.view().selectionModel().currentIndex()))
+        self.pick_job_widget.view().itemActivated.connect(
+            lambda x: self.add_root_folders(
+                self.pick_job_widget.view().selectionModel().currentIndex()))
+
+        self.pick_job_widget.view().itemClicked.connect(
+            functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+        self.pick_job_widget.view().itemActivated.connect(
+            functools.partial(self.select_saved_item, key='root', combobox=self.pick_root_widget))
+
+        self.pick_server_widget.view().itemClicked.connect(self.validate)
+        self.pick_server_widget.view().itemActivated.connect(self.validate)
+        self.pick_job_widget.view().itemClicked.connect(self.validate)
+        self.pick_job_widget.view().itemActivated.connect(self.validate)
+        self.pick_root_widget.view().itemClicked.connect(self.validate)
+        self.pick_root_widget.view().itemActivated.connect(self.validate)
+
+        self.pick_root_widget.view().itemClicked.connect(
+            lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
+        self.pick_root_widget.view().itemActivated.connect(
+            lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
+
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.reject)
 
@@ -526,11 +579,9 @@ class AddBookmarksWidget(QtWidgets.QDialog):
     def add_root_folders(self, index):
         """Adds the found root folders to the `pick_root_widget`."""
         self.pick_root_widget.view().clear()
-
         if not index.isValid():
             return
 
-        index = self.pick_job_widget.view().selectionModel().currentIndex()
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         if not file_info.exists():
             return
@@ -538,6 +589,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         arr = []
         self.get_root_folder_items(index.data(
             QtCore.Qt.StatusTipRole), arr=arr)
+
         bookmarks = local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
@@ -610,44 +662,59 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         added already to the bookmarks widget.
 
         """
-        if self.pick_server_widget.currentIndex() == -1:
-            self.ok_button.setText(u'Server not set')
+        if not self.pick_server_widget.view().selectionModel().currentIndex().isValid():
+            self.ok_button.setText(u'Select server')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
 
-        if self.pick_job_widget.currentIndex() == -1:
-            self.ok_button.setText(u'Job not set')
+        if not self.pick_job_widget.view().selectionModel().currentIndex().isValid():
+            self.ok_button.setText(u'Select job')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
 
-        if self.pick_root_widget.currentIndex() == -1:
+        index = self.pick_root_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
             self.ok_button.setText(u'Bookmark folder not set')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
+            return
+        if not index.data(QtCore.Qt.StatusTipRole):
+            self.ok_button.setText(u'Bookmark folder not set')
+            self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
 
         # Let's check if the path is valid
-        # self.ok_button.setDisabled(False)
-        server = self.pick_server_widget.currentData(QtCore.Qt.StatusTipRole)
-        job = self.pick_job_widget.currentData(QtCore.Qt.DisplayRole)
-        root = self.pick_root_widget.currentData(QtCore.Qt.DisplayRole)
+        server = self.pick_server_widget.view().selectionModel(
+        ).currentIndex().data(QtCore.Qt.StatusTipRole)
+        job = self.pick_job_widget.view().selectionModel(
+        ).currentIndex().data(QtCore.Qt.DisplayRole)
+        root = self.pick_root_widget.view().selectionModel(
+        ).currentIndex().data(QtCore.Qt.DisplayRole)
 
         key = u'{}/{}/{}'.format(server, job, root)
         file_info = QtCore.QFileInfo(key)
         if not file_info.exists():
             self.ok_button.setText(u'Bookmark folder not set')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
         if not file_info.isReadable():
             self.ok_button.setText(u'Cannot read folder')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
         if not file_info.isWritable():
             self.ok_button.setText(u'Cannot write to folder')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
         if file_info.isHidden():
             self.ok_button.setText(u'Folder is hidden')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
 
         bookmarks = local_settings.value(u'bookmarks')
@@ -656,33 +723,49 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         if key in bookmarks:
             self.ok_button.setText(u'Bookmark added already')
             self.ok_button.setDisabled(True)
+            self.ok_button.repaint()
             return
 
         self.ok_button.setText(u'Add bookmark')
         self.ok_button.setDisabled(False)
+        self.ok_button.repaint()
 
     @QtCore.Slot()
     def add_bookmark(self):
         """The action to execute when the `Ok` button is pressed."""
-        server = self.pick_server_widget.currentData(QtCore.Qt.StatusTipRole)
-        job = self.pick_job_widget.currentData(QtCore.Qt.DisplayRole)
-        root = self.pick_root_widget.currentData(QtCore.Qt.DisplayRole)
+        index = self.pick_server_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        server = index.data(QtCore.Qt.StatusTipRole)
+
+        index = self.pick_job_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        job = index.data(QtCore.Qt.DisplayRole)
+
+        index = self.pick_root_widget.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
+
+        root = index.data(QtCore.Qt.DisplayRole)
 
         if not all((server, job, root)):
-            self.warning('An error occured',
-                         'Unable to get the selected bookmark data.')
             return
 
         key = u'{}/{}/{}'.format(server, job, root)
+        sys.stderr.write(key)
+        sys.stderr.write('\n')
+        sys.stderr.write(index.data(QtCore.Qt.StatusTipRole))
         file_info = QtCore.QFileInfo(key)
         if not file_info.exists():
-            self.warning('An error occured',
-                         'Unable to find the selected bookmark folder.')
             return
 
         bookmark = {key: {u'server': server, u'job': job, u'root': root}}
-
         bookmarks = local_settings.value(u'bookmarks')
+
         if not bookmarks:
             local_settings.setValue(u'bookmarks', bookmark)
         else:
@@ -695,7 +778,13 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.new_key = key
             self.parent().model().sourceModel().beginResetModel()
             self.parent().model().sourceModel().__initdata__()
-        self.add_root_folders(self.pick_job_widget.currentIndex())
+
+        # Resetting the folder selection...
+        self.add_root_folders(
+            self.pick_job_widget.view().selectionModel().currentIndex())
+        self.pick_root_widget.repaint()
+        self.validate()
+        self.validate()
 
     def activate_bookmark(self):
         """Selects and activates the newly added bookmark in the `BookmarksWidget`."""
@@ -722,10 +811,14 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         """
         self.pick_server_widget.view().clear()
 
-        for server in common.SERVERS:
-            file_info = QtCore.QFileInfo(server['path'])
+        for server in common.Server.servers():
+            file_info = QtCore.QFileInfo(server[u'path'])
+
+            name = server[u'path'].split(u'/').pop()
+
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, server[u'nickname'])
+            item.setData(QtCore.Qt.DisplayRole, name)
+            item.setData(QtCore.Qt.ToolTipRole, server[u'description'])
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
@@ -788,4 +881,4 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     w = AddBookmarksWidget()
     w.exec_()
-    app.exec_()
+    # app.exec_()

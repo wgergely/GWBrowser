@@ -212,9 +212,9 @@ class ScreenGrabber(QtWidgets.QDialog):
         :returns: Captured screen
         :rtype: :class:`~PySide.QtGui.QPixmap`
         """
-        # On macosx we're using the built-in capture-tool, grab window doesn't
+        # On macosx we're using the built-in capture-tool, grabWindow() doesn't
         # seem to work.
-        if common.osx:
+        if common.Server.platform() == u'mac':
             temppath = tempfile.NamedTemporaryFile(
                 suffix='.png',
                 prefix='gwbrowser_screencapture_',
