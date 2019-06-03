@@ -2,10 +2,10 @@
 """The threads and the associated workers are defined here.
 
 GWBrowser does OpenImageIO and file-load operations on separate threads
-controlled by QThread.
+controlled by QThread objects.
 
 Each thread is assigned a single Worker - usually responsible for taking
-QModelIndexes from the thread's python Queue.
+*QModelIndexes* from the thread's python Queue.
 
 """
 
@@ -16,7 +16,8 @@ from PySide2 import QtCore
 
 
 class Unique(Queue.Queue):
-    """https://stackoverflow.com/questions/16506429/check-if-element-is-already-in-a-queue"""
+    """A queue for queuing only unique items.
+    https://stackoverflow.com/questions/16506429/check-if-element-is-already-in-a-queue"""
 
     def _init(self, maxsize):
         self.queue = set()
@@ -33,8 +34,8 @@ mutex = QtCore.QMutex()
 
 class BaseWorker(QtCore.QObject):
     """The base for all workers associated with a QThread.
-    `begin_processing` is a blocking function and will take any QModelIndexes found
-    in the `BaseWorker.Unique`.
+    `begin_processing` is a blocking function and will take any QModelIndexes in
+    in `BaseWorker.Unique` queue.
 
     """
 
@@ -159,16 +160,18 @@ class BaseWorker(QtCore.QObject):
 
 
 class BaseThread(QtCore.QThread):
-    """The thread responsible for updating the file-list with the missing
-    information. I can't get threads to work using the documented way -
-    depending on conditions I don't understand, the thread sometimes executes
-    the worker, sometimes the `started` signal doesn't fire when the Worker is
-    created outside the thread.
+    """Base thread controller used across GWBrowser.
+    Threads are responsible for updating the file-list with the missing
+    information and generating thumbnails.
 
-    This is a custom implementation - the worker is created in start() making sure
-    it is affiliated with the thread (qobject.moveToThread didn't work for me).
+    Note:
+        I can't get threads to work using the documented way -
+        depending on conditions I don't understand, the thread sometimes executes
+        the worker, sometimes the `started` signal doesn't fire when the Worker is
+        created outside the thread.
 
-    The thread.start() is called when the ``FileModel`` is initialized.
+        This is a custom implementation - the worker is created in start() making sure
+        it is affiliated with the thread (qobject.moveToThread didn't work for me).
 
     """
     _instances = {}

@@ -1,6 +1,17 @@
 # -*- coding: utf-8 -*-
-"""This modules defines most thumbnail-related classes and methods including
-the image cache and the OpenImageIO-based thmbnail generator methods.
+"""The ``imagecache.py`` module defines most image-operation related classes and
+methods including the global image cache.
+
+Thumbnails
+    We're relying on ``OpenImageIO`` to read and generate image and movie thumbnails.
+    Thumbnail operations are multi-threaded and are mostly associated with
+    the *FilesModel* (we only generate thumbnails from file OpenImageIO
+    understands - bookmarks and assets are folders).
+
+    The actual thumbnail processing is done by the ``ImageCacheWorker``'s *process_index()*
+    method controlled by ``ImageCacheThread`` controllers.
+
+All generated thumbnails and ui resources are cached in ``ImageCache``.
 
 """
 
@@ -11,11 +22,11 @@ from functools import wraps
 from xml.etree import ElementTree
 
 from PySide2 import QtWidgets, QtGui, QtCore
-from gwbrowser.capture import ScreenGrabber
-import gwbrowser.common as common
 
 import OpenImageIO.OpenImageIO as OpenImageIO
 
+from gwbrowser.capture import ScreenGrabber
+import gwbrowser.common as common
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
@@ -399,7 +410,7 @@ class ImageCache(QtCore.QObject):
         return average_color
 
     def capture(self, index):
-        """Uses ``ScreenGrabber to save a custom screen-grab."""
+        """Uses ``ScreenGrabber`` to save a custom screen-grab."""
         if not index.isValid():
             return
 

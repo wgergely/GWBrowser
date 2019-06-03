@@ -5,10 +5,10 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='gwbrowser',
-    version='0.1.49',
+    version='0.1.50',
     author='Gergely Wootsch',
     author_email='hello@gergely-wootsch.com',
-    description='Glassworks Pipeline Browser',
+    description='A PySide2 based asset-manager for digital production',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/wgergely/gwbrowser',

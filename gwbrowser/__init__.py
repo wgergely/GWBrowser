@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-GWBrowser - A PySide2 based asset-manager for digital production.
-It was designed to run as a standalone PySide2 application, or
-to be run embedded inside any application built with/around PySide2
-(thus far only Maya has been implemented).
+GWBrowser - a PySide2 based asset-manager for digital production - was designed to run as a standalone PySide2 application, or
+to be embedded in a PySide2 context. Maya, Houdini, Nuke are all capable of embedding
+but thus far only Maya has a dedicated plug-in.
 
 """
 
@@ -22,7 +21,7 @@ __dependencies__ = (
     u'numpy',
     u'PySide2'
 )
-__version__ = u'0.1.49'
+__version__ = u'0.1.50'
 
 
 # Making sure the PyImath library is loaded as well

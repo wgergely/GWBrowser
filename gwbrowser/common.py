@@ -1,33 +1,37 @@
 # -*- coding: utf-8 -*-
-"""Module used to define common variables and methods used across the project.
+"""The ``common.py`` is module used to define common variables and methods used across the project.
 
 Global Variables
     The studio wide servers are defined here. These are hard-coded
-    variables that will depend on the context the program is used.
-    Make sure to customize these settings depending on your environment.
+    variables that will depend on the context the program is used in.
+    Make sure to customize these settings depending on your environment!
 
-    ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder
-    as an ``asset``. At Glassworks we're using the maya project structure so this is
-    a ``workspace.mel`` file.
+    The ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder
+    as an asset. We're using the maya project structure so this is
+    a **workspace.mel** file in our case.
 
-    ``Assets`` are directory structures compartmentalizing data. ``Browser``
-    is implemeted to read any folder but the primary folders are
-    ``scene``, ``cache`` (exports) and ``render`` folders.
+    *Assets* are directory structures compartmentalizing data. GWBrowser
+    is implemeted to read any folder but the primary folders usually are
+    the ``scenes``, ``cache``, ``textures`` and ``renders`` folders.
 
     Depending on your setup these folders might have different names you can
-    customize them here. ``Browser`` will assume all of these folder reside in the
-    root of the ``asset`` folder.
+    define here. GWBrowser will assume all of these folder reside in the
+    root of the asset folder.
+
+UI
+    Common UI properties are hardcoded into this module, including font choices,
+    colour-platte and row-sizes.
 
 Sequence-recognition
     The regexes we're using to validate file-names are also defined here.
 
     ``get_sequence`` is the regex method that checks if a filename can be incremented.
-    For instance, it will understand sequences with the `v` prefix, eg v001, v002,
-    but works without the prefix as well. Eg. 001, 002.
-    In the case of a filename like `_myfile_v001_freelance_v002.c4d_` ``002``
+    For instance, it will understand sequences with the `v` prefix, eg *v001*, *v002*,
+    but works without the prefix as well. Eg. *001*, *002*.
+    In the case of a filename like *myfile_v001_freelance_v002.c4d* **002**
     will be the prevailing sequence number.
-    Likewise, in _myfile_v001_freelance_v002.0001.c4d_ the sequence
-    number understood will be ``0001`` not v002.
+    Likewise, in *myfile_v001_freelance_v002.0001.c4d* the sequence
+    number understood will be **0001** not *v002*.
 
 """
 
@@ -137,8 +141,8 @@ class Server(object):
 
 
 ASSET_IDENTIFIER = u'workspace.mel'
-"""When with the given name is present in the root of a folder, it will be
-considered an ``asset``."""
+"""When a file with the set name is present in the root of a directory, GWBrowser
+ will consider it as an asset."""
 
 
 FTHREAD_COUNT = 2
@@ -633,14 +637,18 @@ def get_valid_filename(text):
 
     A valid ``match`` object if true, ``None`` if the text is invalid.
 
-    Match:
-        group(1):   The job's short name, between 1 and 3 characters.
-        group(2):   The current asset - name, between 1 and 12 characters.
-        # group(3):   The current asset mode, eg. 'animation', between 1 and 12 characters.
-        group(3):   The custom description of the file, between 1 - 25 characters.
-        group(4):   The file's version. Has to be exactly 3 characters.
-        group(5):   The name of the user.
-        group(6):   The file's extension (without the '.')
+    Match.group(1):
+        The job's short name, between 1 and 3 characters.
+    Match.group(2):
+        The current asset-name, between 1 and 12 characters.
+    Match.group(3):
+        The custom description of the file, between 1 - 25 characters.
+    Match.group(4):
+        The file's version. Has to be exactly 3 characters.
+    Match.group(5):
+        The name of the user.
+    Match.group(6):
+        The file's extension (without the '.')
 
     Returns:
         A valid ``match`` object if true, ``None`` if the text is invalid.
@@ -657,10 +665,12 @@ def get_sequence(text):
     There can only be `one` number element - it will always be the number at the
     end of the file - name, closest to the extension.
 
-    Match:
-        group(1):   All the character `before` the sequence.
-        group(2):   The sequence number.
-        group(3):   All the characters after the sequence number.
+    Match.group(1):
+        All the character `before` the sequence.
+    Match.group(2):
+        The sequence number.
+    Match.group(3):
+        All the characters after the sequence number.
 
     Returns:
         A valid ``match`` object if true or ``None`` if the text doesn't contain
@@ -676,10 +686,12 @@ def is_collapsed(text):
 
     Eg.: `[001 - 050]`
 
-    Match:
-        group(1):   All the character `before` the sequence marker.
-        group(2):   The sequence marker(eg. `[1 - 50]`).
-        group(3):   All the characters after the sequence marker.
+    Match.group(1):
+        All the character `before` the sequence marker.
+    Match.group(2):
+        The sequence marker(eg. `[1 - 50]`).
+    Match.group(3):
+        All the characters after the sequence marker.
 
     Returns:
         A valid ``match`` object if true or ``None`` if the text doesn't is not

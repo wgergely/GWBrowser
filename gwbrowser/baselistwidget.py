@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-"""This module defines the view widgets and data/proxy models used
-to display file and asset data.
+"""GWBrowser is built around the three main lists - *bookmarks*, *assets* and *files*.
+Each of these lists has a *view*, *model* and context menus stemming from the *BaseModel*,
+*BaseView* and *BaseContextMenu* classes, defined here and in the *basecontextmenu* module.
 
-All ``BaseListWidget`` subclasses are embedded in ``StackedWidget``, this is the
-main widget the user will interact with.
+This module also defines the necessary objects to filter model-data using
+a *QSortFilterProxyModel*.
 
-Each ``BaseListWidget`` uses a ``FilterProxyModel`` to `filter` data but sorting
-is implemented internally in the ``BaseModel`` subclasses. These are the classes
-for storing our actual model data.
+All then *BaseListWidget* subclasses are added to **StackedWidget**, the main widget
+to interact with the data stored in the models.
+
+Note:
+    Each *BaseListWidget* uses a *FilterProxyModel* to **filter** data but sorting
+    is implemented internally in the *BaseModel* subclasses directly on the data container.
 
 """
 
@@ -21,7 +25,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
-import gwbrowser.settings as Settings
 from gwbrowser.settings import local_settings
 from gwbrowser.settings import AssetSettings
 
@@ -149,11 +152,12 @@ class FilterOnOverlayWidget(ProgressWidget):
 
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
-    """Proxy model responsible for filtering and sorting source model data.
+    """Proxy model responsible for **filtering** the *source model* data.
 
-    We can filter our data based on item flags, and path-segment strings.
-    The list can also be arranged by name, size, and modified timestamps."""
+    We can filter our data based on item flags, paths, comments and file information.
+    Sorting is not implemented in this proxy because of performance issues.
 
+    """
     filterFlagChanged = QtCore.Signal(int, bool)  # FilterFlag, value
     filterTextChanged = QtCore.Signal(unicode)
 
@@ -302,11 +306,33 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
 
 class BaseModel(QtCore.QAbstractItemModel):
-    """Flat base-model for storing items."""
+    """The base model for storing bookmarks, assets and files.
+
+    The model stores its data in the **self._data** private dictionary.
+    The structure of the data is uniform accross all BaseModel instances but it
+    really is built around storing file-data.
+
+    Each folder in the assets folder corresponds to a **data_key**.
+
+    A data-key example:
+        .. code-block:: python
+
+            self._data = {}
+            datakey = self.data_key() # will most of the time return a name of a folder, eg. 'scenes'
+            self._data[datakey] = {common.FileItem: {}, common.SequenceItem: {}}
+
+    Each data-key can simultaniously hold information about single files (**FileItems**), and
+    groupped sequences (**SequenceItem**), eg. a rendered image sequence. The model provides the
+    signals and slots for exposing the different private data elements to the model.
+
+    Sorting information is also managed by BaseModel. The user choices are saved in
+    the local registry.
+
+    """
 
     # Emit before the model is about to change
     modelDataResetRequested = QtCore.Signal()
-    """Signal emited when all the data has to be refreshed."""
+    """This is the main signal to initiate a model data reset."""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
     dataKeyChanged = QtCore.Signal(unicode)
@@ -466,7 +492,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             u'__initdata__ is abstract and has to be defined in the subclass.')
 
     def model_data(self):
-        """A pointer to the current model dataset."""
+        """A pointer to the model's currently set internal data."""
         k = self.data_key()
         t = self.data_type()
         if not k in self._data:
@@ -495,15 +521,19 @@ class BaseModel(QtCore.QAbstractItemModel):
         return QtCore.QModelIndex()
 
     def columnCount(self, parent=QtCore.QModelIndex()):
+        """The number of columns of the model."""
         return 1
 
     def rowCount(self, parent=QtCore.QModelIndex()):
+        """The number of rows in the model."""
         return len(list(self.model_data()))
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
+        """Bog-standard index creator."""
         return self.createIndex(row, 0, parent=parent)
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
+        """Custom data-getter."""
         if not index.isValid():
             return None
         data = self.model_data()
@@ -515,12 +545,15 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @flagsmethod
     def flags(self, index):
+        """The flag values are stored in the model as a separate role."""
         return index.data(common.FlagsRole)
 
     def parent(self, child):
+        """We don't implement parented indexes."""
         return QtCore.QModelIndex()
 
     def setData(self, index, data, role=QtCore.Qt.DisplayRole):
+        """Data setter method."""
         if not index.isValid():
             return
         self.model_data()[index.row()][role] = data
@@ -603,7 +636,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
 
 class BaseListWidget(QtWidgets.QListView):
-    """Defines the base of the ``Assets``, ``Bookmarks`` and ``File`` widgets."""
+    """Defines the base of the primary list widgets."""
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
@@ -670,8 +703,15 @@ class BaseListWidget(QtWidgets.QListView):
     def set_model(self, model):
         """This is the main port of entry for the model.
 
-        The BaseModel subclasses are wrapped in a QSortFilterProxyModel and all
-        the needed signal connections are connected here."""
+        The BaseModel subclasses are wrapped in a QSortFilterProxyModel. All
+        the necessary internal signal-slot connections needed for the proxy, model
+        and the view comminicate properly are made here.
+
+        Note:
+            The bulk of the signal are connected together in ``BrowserWidget``'s
+            *_connectSignals* method.
+
+        """
 
         proxy = FilterProxyModel(parent=self)
         proxy.setSourceModel(model)
@@ -746,7 +786,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataSorted.connect(self.reselect_previous)
 
     def active_index(self):
-        """Returns the ``active`` item marked by the ``common.MarkedAsActive``
+        """Returns the active item marked by the *common.MarkedAsActive*
         flag. Returns an invalid index if no items is marked as active.
 
         """
