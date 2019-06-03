@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
-
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
 import sys
@@ -600,7 +598,7 @@ class AddButton(ControlButton):
 
         # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
-            import gwbrowser.saver as saver
+            import gwbrowser.addfilewidget as saver
 
             index = self._parent.currentWidget().selectionModel().currentIndex()
             if index.isValid():
@@ -647,11 +645,12 @@ class AddButton(ControlButton):
             subfolder = subfolder.strip(u'/')
             sys.stdout.write(subfolder)
 
-            widget = saver.SaverWidget(
+            widget = saver.AddFileWidget(
                 bookmark_model,
                 asset_model,
                 extension,
-                currentfile=currentfile
+                currentfile=currentfile,
+                parent=self.parent().parent()
             )
 
             widget.finished.connect(bookmark_model.deleteLater)

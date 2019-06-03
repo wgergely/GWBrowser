@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
 """GWBrowser - Maya plug-in."""
 
 import sys
+import re
+
+from shiboken2 import wrapInstance
+from PySide2 import QtWidgets
+
+from maya.app.general.mayaMixin import mixinWorkspaceControls
+import maya.api.OpenMaya as OpenMaya
+import maya.OpenMayaUI as OpenMayaUI
+
+import maya.cmds as cmds
 
 
 def maya_useNewAPI():
@@ -16,10 +25,6 @@ def maya_useNewAPI():
 
 def initializePlugin(plugin):
     """Method is called by Maya when initializing the plug-in."""
-    import maya.api.OpenMaya as OpenMaya
-    import maya.cmds as cmds
-
-    import gwalembic
     import gwbrowser
 
     pluginFn = OpenMaya.MFnPlugin(
@@ -37,15 +42,6 @@ def initializePlugin(plugin):
 
 def uninitializePlugin(plugin):
     """Method is called by Maya when unloading the plug-in."""
-    import re
-    from shiboken2 import wrapInstance
-    from PySide2 import QtWidgets
-
-    import maya.OpenMayaUI as OpenMayaUI
-    import maya.api.OpenMaya as OpenMaya
-    from maya.app.general.mayaMixin import mixinWorkspaceControls
-
-    import gwalembic
     import gwbrowser
 
     pluginFn = OpenMaya.MFnPlugin(

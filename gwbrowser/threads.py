@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
-
 """The threads and the associated workers are defined here.
 
 GWBrowser does OpenImageIO and file-load operations on separate threads

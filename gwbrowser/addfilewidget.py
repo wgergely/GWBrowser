@@ -1,22 +1,17 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
+"""This module defines. *GWBrowser*'s custom saver widget.
 
-"""Browser's custom saver widget. The widget will take into consideration the
-currently set active paths and will try to return an appropiate save-path.
+We're using the ``BookmarksWidget`` and ``AssetsWidget`` respectively, including
+the associated models, to set the destination of the regquested file.
 
-It is possible to add an option ``currentfile`` when initiating the saver.
-Saver will then try to factor in the given files current location and version number.
-(this will be incremented by +1).
+We can use the widget to generate a new filename, or if the **currentfile** argument
+is defined we can increment the given file. The saver will then try to factor in
+the given files current location and version number - this will be incremented by +1.
 
 Note:
-    The widget itself will only return a filepath and is not performing any save
-    operations.
-
-    When the selection is made by the user the ``SaverWidget.fileSaveRequested``
-    signal is emitted with the output path.
-
-    The set description and image will be emited by the ``fileThumbnailAdded`` and
-    ``fileDescriptionAdded`` signals.
+    The widget itself will only return a filepath and is not performing any file
+    operations. It is up to the context to connect to the ``fileSaveRequested``,
+    ``fileThumbnailAdded`` and ``fileDescriptionAdded`` signals.
 
 """
 
@@ -25,6 +20,7 @@ import re
 import sys
 import uuid
 import functools
+import collections
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
@@ -39,15 +35,17 @@ from gwbrowser.capture import ScreenGrabber
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 
-from gwbrowser.saverwidgets import SelectBookmarkButton
-from gwbrowser.saverwidgets import SelectBookmarkView
+from gwbrowser.addfilewidgetwidgets import SelectBookmarkButton
+from gwbrowser.addfilewidgetwidgets import SelectBookmarkView
 
-from gwbrowser.saverwidgets import SelectAssetButton
-from gwbrowser.saverwidgets import SelectAssetView
+from gwbrowser.addfilewidgetwidgets import SelectAssetButton
+from gwbrowser.addfilewidgetwidgets import SelectAssetView
 
-from gwbrowser.saverwidgets import SelectFolderButton
-from gwbrowser.saverwidgets import SelectFolderView
-from gwbrowser.saverwidgets import SelectFolderModel
+from gwbrowser.addfilewidgetwidgets import SelectFolderButton
+from gwbrowser.addfilewidgetwidgets import SelectFolderView
+from gwbrowser.addfilewidgetwidgets import SelectFolderModel
+
+from gwbrowser.settings import AssetSettings
 
 
 class ThumbnailContextMenu(BaseContextMenu):
@@ -106,38 +104,34 @@ class SaverContextMenu(BaseContextMenu):
                          == u'SelectFolderButton'][-1]
         f = foldersbutton.view()
 
-        menu_set['Image files:'] = {
-            'disabled': True
-        }
-        for ext in common.oiio_formats:
-            menu_set[ext] = {
+        key = u'Image formats'
+        menu_set[key] = collections.OrderedDict()
+        for ext in sorted(common.oiio_formats):
+            menu_set[key][ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
         menu_set[u'separator0'] = {}
 
-        menu_set['Cache files'] = {
-            'disabled': True
-        }
-        for ext in common.exports_formats:
-            menu_set[ext] = {
+        key = u'Cache formats'
+        menu_set[key] = collections.OrderedDict()
+        for ext in sorted(common.exports_formats):
+            menu_set[key][ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
         menu_set[u'separator1'] = {}
 
-        menu_set['Scene files'] = {
-            'disabled': True
-        }
-        for ext in common.creative_cloud_formats:
-            menu_set[ext] = {
+        key = u'Adobe Creative Cloud formats'
+        menu_set[key] = collections.OrderedDict()
+        for ext in sorted(common.creative_cloud_formats):
+            menu_set[key][ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
         menu_set[u'separator2'] = {}
 
-        menu_set['3D scene files'] = {
-            'disabled': True
-        }
-        for ext in common.scene_formats:
-            menu_set[ext] = {
+        key = u'3D project formats'
+        menu_set[key] = collections.OrderedDict()
+        for ext in sorted(common.scene_formats):
+            menu_set[key][ext] = {
                 u'action': functools.partial(f.model().fileTypeChanged.emit, ext)
             }
         return menu_set
@@ -350,13 +344,13 @@ class SaverFileInfo(QtCore.QObject):
         if not match:
             return currentfile
 
-        version = '{}'.format(int(match.group(2))
-                              + 1).zfill(len(match.group(2)))
+        n = match.group(2)
+        version = u'{}'.format(int(n) + 1).zfill(len(n))
         return match.expand(ur'\1{}\3.\4').format(version)
 
     def fileInfo(self):
         """Returns the path as a QFileInfo instance"""
-        return QtCore.QFileInfo('{}/{}'.format(self.path(), self.fileName()))
+        return QtCore.QFileInfo(u'{}/{}'.format(self.path(), self.fileName()))
 
     def path(self):
         """Returns the path() element of the set path."""
@@ -372,14 +366,12 @@ class SaverFileInfo(QtCore.QObject):
         if currentfile:
             match = common.get_valid_filename(currentfile)
             if match:
-                custom = self.parent().window().findChild(Custom).text()
-
-                # Not including the username if the destination is the exports folder
-                filename = match.expand(ur'\1_\2_{}_{}_\5.\6'.format(
-                    custom if custom else u'untitled',
-                    u'{}'.format(int(match.group(5))
-                                 + 1).zfill(len(match.group(5)))
-                ))
+                n = match.group(4)
+                filename = match.expand(ur'\1_\2_{}_{}_\5.\6')
+                filename = filename.format(
+                    match.group(3),
+                    u'{}'.format(int(n) + 1).zfill(len(n))
+                )
             else:
                 filename = self._increment_sequence(currentfile)
         else:
@@ -565,7 +557,7 @@ class Check(ClickableLabel):
         self.repaint()
 
 
-class SaverWidget(QtWidgets.QDialog):
+class AddFileWidget(QtWidgets.QDialog):
     """The save dialog to save a file.
     Contains the header and the saver widgets needed to select the desired path.
 
@@ -583,10 +575,11 @@ class SaverWidget(QtWidgets.QDialog):
     fileThumbnailAdded = QtCore.Signal(tuple)
 
     def __init__(self, bookmark_model, asset_model, extension, currentfile=None, parent=None):
-        super(SaverWidget, self).__init__(parent=parent)
+        super(AddFileWidget, self).__init__(parent=parent)
         self.extension = extension
         self.currentfile = currentfile
 
+        self.description_editor_widget = None
         self.thumbnail_widget = None
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -614,7 +607,7 @@ class SaverWidget(QtWidgets.QDialog):
         menu.exec_()
 
     def _createUI(self, bookmark_model, asset_model):
-        """Creates the ``SaverWidget``'s ui and layout."""
+        """Creates the ``AddFileWidget``'s ui and layout."""
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
@@ -653,8 +646,8 @@ class SaverWidget(QtWidgets.QDialog):
         row.layout().setAlignment(QtCore.Qt.AlignCenter)
         column.layout().addWidget(row, 1)
 
-        editor = DescriptionEditor(parent=self)
-        row.layout().addWidget(editor, 1)
+        self.description_editor_widget = DescriptionEditor(parent=self)
+        row.layout().addWidget(self.description_editor_widget, 1)
 
         bookmarkbutton = SelectBookmarkButton(parent=self)
         bookmarkview = SelectBookmarkView()
@@ -850,15 +843,31 @@ class SaverWidget(QtWidgets.QDialog):
             assetbutton.view().model().sourceModel().active_index())
 
         if self.currentfile:
-            # Checking if the reference file has a valid pattern
+            # We will check if the previous version had any description or
+            # thumbnail added. We will add them here if so
+            if self.parent():
+                index = self.parent().fileswidget.selectionModel().currentIndex()
+                if index.isValid():
+                    # Thumbnail
+                    if index.data(common.ThumbnailPathRole):
+                        image = QtGui.QImage()
+                        if image.load(index.data(common.ThumbnailPathRole)):
+                            self.thumbnail_widget.image = image
+                        common.get_sequence_endpath(
+                            index.data(QtCore.Qt.StatusTipRole))
+                    # Description
+                    if index.data(common.DescriptionRole):
+                        self.description_editor_widget.setText(
+                            index.data(common.DescriptionRole))
+                # Checking if the reference file has a valid pattern
             match = common.get_valid_filename(self.currentfile)
             if match:
                 self.findChild(Custom).setHidden(False)
-                self.findChild(Custom).setText(match.group(4))
+                self.findChild(Custom).setText(match.group(3))
             else:
                 self.findChild(Custom).setHidden(True)
             self.findChild(Custom).setHidden(False)
-            # Thumbnail
+
             self.thumbnail_widget.update_thumbnail_preview()
 
             if f.model().asset().isValid():
@@ -907,18 +916,22 @@ class SaverWidget(QtWidgets.QDialog):
         self.findChild(Suffix).repaint()
 
     def prefix_suffix(self, match, increment=True):
+        """Returns the string used to display the filename before and after the
+        custom name and the sequence number.
+
+        """
         prefix = match.expand(ur'\1_\2_')
+        n = match.group(4)
         suffix = match.expand(ur'_<span style="color:rgba({});">{}</span>_\5.\6'.format(
             u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
-            u'{}'.format(int(match.group(4)) + int(increment)
-                         ).zfill(len(match.group(4)))
+            u'{}'.format(int(n) + int(increment)).zfill(len(n))
         ))
         return prefix, suffix
 
     def done(self, result):
         """Slot called by the check button to initiate the save."""
         if result == QtWidgets.QDialog.Rejected:
-            return super(SaverWidget, self).done(result)
+            return super(AddFileWidget, self).done(result)
 
         buttons = self.findChildren(SelectFolderButton)
         bookmarkbutton = [
@@ -959,7 +972,7 @@ class SaverWidget(QtWidgets.QDialog):
             )
             mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
             if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
-                return
+                return None
 
         bookmark = bookmarkbutton.view().active_index().data(common.ParentRole)
         # Let's broadcast these settings
@@ -969,12 +982,12 @@ class SaverWidget(QtWidgets.QDialog):
             bookmark[1],
             bookmark[2],
             file_info.filePath(),
-            self.thumbnail_image))
+            self.thumbnail_widget.image))
         self.fileDescriptionAdded.emit((
             bookmark[0],
             bookmark[1],
             bookmark[2],
             file_info.filePath(),
-            self.findChild(DescriptionEditor).text()))
+            self.description_editor_widget.text()))
 
-        super(SaverWidget, self).done(result)
+        return super(AddFileWidget, self).done(result)

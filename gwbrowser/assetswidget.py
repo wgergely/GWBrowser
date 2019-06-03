@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, E1120
-
 """Definitions for the asset model/view classes.
 
 An asset refers is a folder with a ``workspace.mel`` identifier file present, containing a

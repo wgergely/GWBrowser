@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201, C0326
-
-
 """This modules defines most thumbnail-related classes and methods including
 the image cache and the OpenImageIO-based thmbnail generator methods.
 

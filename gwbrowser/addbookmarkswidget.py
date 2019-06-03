@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
-
 """The module defines the ``AddBookmarksWidget`` and the supplemetary objects
 needed to present the user with **server**, **job** and **root** folder choices.
 
@@ -124,6 +122,7 @@ class ComboboxItemDelegate(BaseDelegate):
             painter.setBrush(common.BACKGROUND_SELECTED)
         else:
             painter.setBrush(common.BACKGROUND)
+
         painter.drawRect(rect)
 
     @paintmethod
@@ -149,7 +148,7 @@ class ComboboxItemDelegate(BaseDelegate):
         else:
             text = text.upper()
 
-        common.draw_aliased_text(
+        width = common.draw_aliased_text(
             painter,
             common.PrimaryFont,
             rect,
@@ -157,6 +156,16 @@ class ComboboxItemDelegate(BaseDelegate):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             color
         )
+        if index.data(common.DescriptionRole):
+            rect.setLeft(rect.left() + width + common.INDICATOR_WIDTH)
+            width = common.draw_aliased_text(
+                painter,
+                common.SecondaryFont,
+                rect,
+                u': {}'.format(index.data(common.DescriptionRole)),
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+                common.SECONDARY_TEXT
+            )
 
     def sizeHint(self, option, index):
         """Returns the size of the combobox items."""
@@ -245,7 +254,7 @@ class ComboboxButton(ClickableLabel):
         widget.exec_()
 
     def paintEvent(self, event):
-        """The paint event responsible for drawing the current selection."""
+        """The ``ComboboxButton``'s paint event."""
         if event.rect() != self.rect():
             return
 
@@ -818,7 +827,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, name)
-            item.setData(QtCore.Qt.ToolTipRole, server[u'description'])
+            item.setData(common.DescriptionRole, server[u'description'])
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))

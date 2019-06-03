@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903
-
-
 """Module used to define common variables and methods used across the project.
 
 Global Variables

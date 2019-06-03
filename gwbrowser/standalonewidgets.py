@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, E1120
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -344,6 +343,7 @@ class StandaloneBrowserWidget(BrowserWidget):
             return
 
     def save_widget_settings(self):
+        """Saves the position and size of thew widget to the local settings."""
         cls = self.__class__.__name__
         local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
         local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
@@ -353,15 +353,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
 
     def hideEvent(self, event):
-        cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
-
-        pos = self.mapToGlobal(self.rect().topLeft())
-        # pos = QtCore.QPoint(pos)
-        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
-
+        """Custom hide event."""
+        self.save_widget_settings()
         super(StandaloneBrowserWidget, self).hideEvent(event)
 
     def showEvent(self, event):

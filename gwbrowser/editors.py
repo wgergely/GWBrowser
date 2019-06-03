@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, W0613, R0201, E1120
-
 """Widgets used to edit data in the list widgets."""
 
 import os

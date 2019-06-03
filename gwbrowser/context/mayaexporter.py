@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, E0401
 """Maya wrapper for the BrowserWidget."""
 
 import sys
@@ -51,6 +50,7 @@ class BaseExporter(QtCore.QObject):
         )
         self.progressPercentile.emit((float(_current) / float(_end)))
         sys.stdout.write(msg)
+
     @classmethod
     def instance(cls):
         return cls._instance

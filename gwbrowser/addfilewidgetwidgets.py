@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
 """This modules contains all the elements needed to select a folder from inside
-the active location."""
+the active location.
+
+"""
 
 import re
 import functools
@@ -515,6 +516,7 @@ class SelectAssetView(SaverListView):
         super(SelectAssetView, self).__init__(parent=parent)
         self.setItemDelegate(SelectAssetDelegate(parent=self))
         self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
 
 
 class SelectAssetButton(SelectFolderButton):
@@ -604,6 +606,8 @@ class SelectBookmarkView(SaverListView):
         super(SelectBookmarkView, self).__init__(parent=parent)
         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
         self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
     def showEvent(self, event):
         self.widgetShown.emit()

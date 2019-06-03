@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330
-
 """``BrowserWidget`` is the plug-in's main widget.
 When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
 otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.

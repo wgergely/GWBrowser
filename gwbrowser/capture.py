@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
-
-
 """A modal widget to capture a section of the screen.
 
 The ScreenGrabber code has been borrowed from the Shotgun Github page, hence I don't
@@ -214,7 +211,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         # On macosx we're using the built-in capture-tool, grabWindow() doesn't
         # seem to work.
-        if common.Server.platform() == u'mac':
+        if common.platform() == u'mac':
             temppath = tempfile.NamedTemporaryFile(
                 suffix='.png',
                 prefix='gwbrowser_screencapture_',

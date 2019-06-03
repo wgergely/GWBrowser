@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, E1120
-
 """Module defines a ListWidget used to represent the assets found in the root
 of the `server/job/assets` folder.
 
@@ -16,8 +14,6 @@ The actual name of these folders can be customized in the ``common.py`` module.
 """
 
 import re
-import functools
-
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
 import gwbrowser.gwscandir as gwscandir
@@ -92,7 +88,7 @@ class BookmarkInfo(QtCore.QFileInfo):
             if not entry.is_dir():
                 continue
             identifier_path = u'{}/{}'.format(
-                entry.path.replace('\\', '/'),
+                entry.path.replace(u'\\', u'/'),
                 common.ASSET_IDENTIFIER)
             if QtCore.QFileInfo(identifier_path).exists():
                 count += 1
@@ -245,7 +241,7 @@ class BookmarksModel(BaseModel):
                 if not image.isNull():
                     color = ImageCache.instance().get(
                         data[idx][common.ThumbnailPathRole],
-                        'BackgroundColor')
+                        u'BackgroundColor')
 
                     data[idx][common.ThumbnailRole] = image
                     data[idx][common.ThumbnailBackgroundRole] = color

@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, E1120
-
-
 """This module defines the view widgets and data/proxy models used
 to display file and asset data.
 
@@ -1163,9 +1160,9 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_C:
                 # Depending on the platform the copied path will be different
                 if index.data(common.FileInfoLoaded):
-                    if common.Server.platform() == u'mac':
+                    if common.platform() == u'mac':
                         mode = common.MacOSPath
-                    elif common.Server.platform() == u'windows':
+                    elif common.platform() == u'windows':
                         mode = common.WindowsPath
                     else:
                         return

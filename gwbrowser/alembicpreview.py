@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0201
-
-
 """Module defines the preview widget used to display the contents
 of an Alembic file.
 
@@ -10,7 +7,6 @@ of an Alembic file.
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import gwalembic
 import gwalembic.alembic as alembic
 import gwbrowser.common as common
 

@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101
-
 """Config file reader for index-based elements.
 
 The ConfigParser allows setting comments and custom properties
@@ -15,14 +13,11 @@ getConfigPath() or getThumbnailPath().
 
 """
 
-import sys
 import hashlib
 import collections
 from PySide2 import QtCore
 
 import gwbrowser.common as common
-
-# sys.stderr = open('C:\\err.txt', 'w')
 
 
 class Active(QtCore.QObject):

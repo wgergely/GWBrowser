@@ -30,6 +30,11 @@ __dependencies__ = (
 __version__ = u'0.1.49'
 
 
+# Making sure the PyImath library is loaded as well
+import gwalembic
+import gwalembic.alembic as alembic
+
+
 def _ensure_dependencies():
     """Check the dependencies for **GWBrowser** and raises an exception if
     anything seems out of

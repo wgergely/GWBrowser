@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
-
 """Contains the popup-widget associated with the FilesWidget tab. It is responsible
 for letting the user pick a folder to get files from.
 

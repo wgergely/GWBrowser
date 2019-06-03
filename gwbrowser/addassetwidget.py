@@ -1,24 +1,17 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=E1101, C0103, R0913, I1101, R0903, C0330, E1120
-
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
-import sys
-import uuid
 import re
 import functools
-from PySide2 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtCore
 
 import gwbrowser.common as common
 from gwbrowser.addbookmarkswidget import PaintedLabel
-from gwbrowser.saver import ThumbnailButton
-from gwbrowser.saver import DescriptionEditor, NameEditor
-from gwbrowser.saver import Check
-from gwbrowser.saver import SaverHeaderWidget
+from gwbrowser.addfilewidget import ThumbnailButton
+from gwbrowser.addfilewidget import DescriptionEditor, NameEditor
+from gwbrowser.addfilewidget import Check
+from gwbrowser.addfilewidget import SaverHeaderWidget
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-from gwbrowser.capture import ScreenGrabber
-from gwbrowser.imagecache import ImageCache
-from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.standalonewidgets import CloseButton
 import gwbrowser.gwscandir as gwscandir
 
