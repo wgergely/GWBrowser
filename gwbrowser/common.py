@@ -52,7 +52,7 @@ MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
 
-COMPANY = u'Glassworks'
+COMPANY = u'GergelyWootsch'
 PRODUCT = u'GWBrowser'
 
 

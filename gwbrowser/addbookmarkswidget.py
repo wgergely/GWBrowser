@@ -299,12 +299,12 @@ class ComboboxButton(ClickableLabel):
         """Method to select a the root folder of the assets. Called by the Assets push button."""
         if not index.isValid():
             return
+        if not index.row() == 0:
+            return
 
         parent = self.window()
 
         index = parent.pick_server_widget.view().selectionModel().currentIndex()
-        if not index.isValid():
-            return
         server = index.data(QtCore.Qt.StatusTipRole)
 
         index = parent.pick_job_widget.view().selectionModel().currentIndex()
@@ -613,7 +613,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         local_paths = Active.paths()
         if local_paths[key] is None or local_paths[key] == 'None':
-            combobox.view().setCurrentIndex(
+            combobox.view().selectionModel().setCurrentIndex(
                 first_valid(), QtCore.QItemSelectionModel.ClearAndSelect)
             return
 

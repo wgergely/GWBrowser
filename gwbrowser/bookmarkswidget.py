@@ -164,7 +164,7 @@ class BookmarksModel(BaseModel):
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         favourites = local_settings.value(u'favourites')
-        favourites = local_settings.value(u'favourites')
+        favourites = favourites if favourites else []
         favourites = set(favourites)
 
         for file_info in items:
@@ -476,7 +476,5 @@ class BookmarksWidget(BaseInlineIconWidget):
         elif thumbnail_rect.contains(event.pos()):
             ImageCache.instance().pick(source_index)
             return
-        if not index.data(common.AssetCountRole):
-            return common.reveal(index.data(QtCore.Qt.StatusTipRole))
 
         self.activate(self.selectionModel().currentIndex())

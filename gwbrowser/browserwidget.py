@@ -19,9 +19,6 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 """
 
 
-import functools
-import sys
-
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
@@ -30,13 +27,10 @@ from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
-from gwbrowser.editors import ClickableLabel
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
-from gwbrowser.listcontrolwidget import FilterButton
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
-import gwbrowser.settings as Settings
 
 
 class VersionLabel(QtWidgets.QLabel):
@@ -185,21 +179,21 @@ class BrowserWidget(QtWidgets.QWidget):
                                          b.model().filterFlag(common.MarkedAsArchived))
         b.model().filterFlagChanged.emit(common.MarkedAsFavourite,
                                          b.model().filterFlag(common.MarkedAsFavourite))
-        #
+
         a.model().filterFlagChanged.emit(common.MarkedAsActive,
                                          a.model().filterFlag(common.MarkedAsActive))
         a.model().filterFlagChanged.emit(common.MarkedAsArchived,
                                          a.model().filterFlag(common.MarkedAsArchived))
         a.model().filterFlagChanged.emit(common.MarkedAsFavourite,
                                          a.model().filterFlag(common.MarkedAsFavourite))
-        #
+
         f.model().filterFlagChanged.emit(common.MarkedAsActive,
                                          f.model().filterFlag(common.MarkedAsActive))
         f.model().filterFlagChanged.emit(common.MarkedAsArchived,
                                          f.model().filterFlag(common.MarkedAsArchived))
         f.model().filterFlagChanged.emit(common.MarkedAsFavourite,
                                          f.model().filterFlag(common.MarkedAsFavourite))
-        #
+
         ff.model().filterFlagChanged.emit(common.MarkedAsActive,
                                           ff.model().filterFlag(common.MarkedAsActive))
         ff.model().filterFlagChanged.emit(common.MarkedAsArchived,
@@ -413,7 +407,8 @@ class BrowserWidget(QtWidgets.QWidget):
         # These connections are responsible for keeping the DataKeyModel updated
         # when navigating the list widgets.
         a.model().sourceModel().modelReset.connect(l.model().modelDataResetRequested)
-        a.model().sourceModel().activeChanged.connect(l.model().modelDataResetRequested)
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: l.model().modelDataResetRequested.emit())
 
         b.model().modelReset.connect(lb.repaint)
         b.model().layoutChanged.connect(lb.repaint)
@@ -498,48 +493,47 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
 
         # Updates the list-control buttons when changing lists
-        lc.listChanged.connect(lambda x: lb.repaint())
-        lc.listChanged.connect(lambda x: lc._bookmarksbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._assetsbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._filesbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._favouritesbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._addbutton.repaint())
+        lc.listChanged.connect(lb.repaint)
+        lc.listChanged.connect(lc._bookmarksbutton.repaint)
+        lc.listChanged.connect(lc._assetsbutton.repaint)
+        lc.listChanged.connect(lc._filesbutton.repaint)
+        lc.listChanged.connect(lc._favouritesbutton.repaint)
+        lc.listChanged.connect(lc._addbutton.repaint)
         lc.listChanged.connect(
-            lambda x: lc._generatethumbnailsbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._todobutton.repaint())
-        lc.listChanged.connect(lambda x: lc._filterbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._collapsebutton.repaint())
-        lc.listChanged.connect(lambda x: lc._archivedbutton.repaint())
-        lc.listChanged.connect(lambda x: lc._favouritebutton.repaint())
-        lc.listChanged.connect(lambda x: lc._togglebuttonsbutton.repaint())
+            lc._generatethumbnailsbutton.repaint)
+        lc.listChanged.connect(lc._todobutton.repaint)
+        lc.listChanged.connect(lc._filterbutton.repaint)
+        lc.listChanged.connect(lc._collapsebutton.repaint)
+        lc.listChanged.connect(lc._archivedbutton.repaint)
+        lc.listChanged.connect(lc._favouritebutton.repaint)
+        lc.listChanged.connect(lc._togglebuttonsbutton.repaint)
 
-        s.currentChanged.connect(lambda x: lc._bookmarksbutton.repaint())
-        s.currentChanged.connect(lambda x: lc._assetsbutton.repaint())
-        s.currentChanged.connect(lambda x: lc._filesbutton.repaint())
-        s.currentChanged.connect(lambda x: lc._favouritesbutton.repaint())
-        s.currentChanged.connect(lambda x: lc._togglebuttonsbutton.repaint())
+        s.currentChanged.connect(lc._bookmarksbutton.repaint)
+        s.currentChanged.connect(lc._assetsbutton.repaint)
+        s.currentChanged.connect(lc._filesbutton.repaint)
+        s.currentChanged.connect(lc._favouritesbutton.repaint)
+        s.currentChanged.connect(lc._togglebuttonsbutton.repaint)
 
-        f.model().sourceModel().dataTypeChanged.connect(
-            lambda x: lc._collapsebutton.repaint())
-        ff.model().sourceModel().dataTypeChanged.connect(
-            lambda x: lc._collapsebutton.repaint())
-        b.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
-        a.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
-        f.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
-        ff.model().filterFlagChanged.connect(lambda x, y: lc._archivedbutton.repaint())
-        b.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
-        a.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
-        f.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
-        ff.model().filterFlagChanged.connect(lambda x, y: lc._favouritebutton.repaint())
-        b.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
-        a.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
-        f.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
-        ff.model().filterFlagChanged.connect(lambda x, y: lc._filterbutton.repaint())
+        f.model().sourceModel().dataTypeChanged.connect(lc._collapsebutton.repaint)
+        ff.model().sourceModel().dataTypeChanged.connect(lc._collapsebutton.repaint)
 
-        b.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
-        a.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
-        f.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
-        ff.model().filterTextChanged.connect(lambda x: lc._filterbutton.repaint())
+        b.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
+        a.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
+        f.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
+        ff.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
+        b.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
+        a.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
+        f.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
+        ff.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
+        b.model().filterFlagChanged.connect(lc._filterbutton.repaint)
+        a.model().filterFlagChanged.connect(lc._filterbutton.repaint)
+        f.model().filterFlagChanged.connect(lc._filterbutton.repaint)
+        ff.model().filterFlagChanged.connect(lc._filterbutton.repaint)
+
+        b.model().filterTextChanged.connect(lc._filterbutton.repaint)
+        a.model().filterTextChanged.connect(lc._filterbutton.repaint)
+        f.model().filterTextChanged.connect(lc._filterbutton.repaint)
+        ff.model().filterTextChanged.connect(lc._filterbutton.repaint)
 
         b.model().modelReset.connect(lc._archivedbutton.repaint)
         a.model().modelReset.connect(lc._archivedbutton.repaint)
@@ -608,20 +602,20 @@ class BrowserWidget(QtWidgets.QWidget):
         b.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
         b.model().layoutAboutToBeChanged.connect(
-            lambda x: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
+            lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
         b.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        b.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
+        b.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
         b.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
         b.model().sourceModel().layoutChanged.connect(
-            lambda x: self.statusbar.showMessage(u'', 99999))
+            lambda: self.statusbar.showMessage(u'', 99999))
 
         a.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
         a.model().layoutAboutToBeChanged.connect(
-            lambda x: self.statusbar.showMessage(u'Getting assets...', 99999))
+            lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
         a.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        a.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
+        a.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
         a.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
         a.model().sourceModel().layoutChanged.connect(
@@ -630,11 +624,11 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting files...', 99999))
         f.model().layoutAboutToBeChanged.connect(
-            lambda x: self.statusbar.showMessage(u'Getting files...', 99999))
+            lambda: self.statusbar.showMessage(u'Getting files...', 99999))
         f.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        f.model().layoutChanged.connect(lambda x: self.statusbar.showMessage(u'', 99999))
+        f.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
         f.model().sourceModel().layoutAboutToBeChanged.connect(
-            lambda x: self.statusbar.showMessage(u'Getting files...'))
+            lambda: self.statusbar.showMessage(u'Getting files...'))
         f.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
         f.model().sourceModel().layoutChanged.connect(
