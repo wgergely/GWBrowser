@@ -737,7 +737,23 @@ def get_sequence_paths(index):
 
 
 def draw_aliased_text(painter, font, rect, text, align, color):
-    """Method to draw aliased text windows, where the default antialiasing fails."""
+    """Allows drawing aliased text using *QPainterPath*. This is a slow to calculate
+    but ensures the rendered text looks *smooth* (on Windows espcially, I noticed a lot of
+    aliasing issues). We're also eliding the given text to the width of the given
+    rectangle.
+
+    Args:
+        painter (QPainter):         The active painter.
+        font (QFont):               The font to use to paint.
+        rect (QRect):               The rectangle to fit the text in.
+        text (unicode):             The text to paint.
+        align (Qt.AlignmentFlag):   The alignment flags.
+        color (QColor):             The color to use.
+
+    Returns:
+        int: The width of the drawn text in pixels.
+
+    """
     painter.save()
 
     painter.setRenderHint(QtGui.QPainter.Antialiasing)
