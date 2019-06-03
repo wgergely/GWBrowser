@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
-"""The module defines the ``AddBookmarksWidget`` and the supplemetary objects
-needed to present the user with **server**, **job** and **root** folder choices.
+"""This module defines the ``AddBookmarksWidget`` and the supplemetary widgets
+needed to select a **server**, **job** and **root** folder.
 
-These three choices together, represented as a tuple make up a **bookmark**.
+These three choices together (saved as a tuple) make up a **bookmark**.
+The final path will, unsurprisingly, be a composite of the above, like so:
+*server/job/root*. Eg.: **//network_server/my_job/shots.**
+
+The actual bookmarks are stored, on Windows, in the *Registry* and are unique
+to each users.
 
 """
 
@@ -351,16 +356,53 @@ class ComboboxButton(ClickableLabel):
         parent.validate()
 
 
-class AddBookmarksWidget(QtWidgets.QDialog):
-    """Defines a widget used add a new ``Bookmark``.
-    The final Bookmark path is made up of ``AddBookmarksWidget.server``,
-    ``AddBookmarksWidget.job`` and ``AddBookmarksWidget.root``
+class AddJobWidgetButton(ClickableLabel):
+    """The button responsible for showing the ``AddJobWidget``."""
 
-    Attributes:
-        server (str):   The path to the server. `None` if invalid.
-        job (str):      The name of the job folder. `None` if invalid.
-        root (str):     A relative path to the folder where the assets are located.
-                        `None` if invalid.
+    def __init__(self, parent=None):
+        super(AddJobWidgetButton, self).__init__(parent=parent)
+        self.clicked.connect(self.show_add_jobs_widget)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'todo_add', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        self.setPixmap(pixmap)
+
+    @QtCore.Slot()
+    def show_add_jobs_widget(self):
+        """Slot connected to the clicked signal."""
+        parent = self.window().pick_server_widget
+        index = parent.view().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        from gwbrowser.addjobwidget import AddJobWidget
+        widget = AddJobWidget(index.data(
+            QtCore.Qt.StatusTipRole), parent=self.parent())
+        widget.exec_()
+
+        w = self.parent().window()
+
+        if widget.last_asset_added:
+            sindex = w.pick_server_widget.view().selectionModel().currentIndex()
+            w.add_jobs_from_server_folder(sindex)
+            w.validate()
+            last_asset_added = u'{}/{}'.format(
+                sindex.data(QtCore.Qt.StatusTipRole),
+                widget.last_asset_added
+            )
+            for n in xrange(w.pick_job_widget.view().model().rowCount()):
+                index = w.pick_job_widget.view().model().index(n, 0)
+                if index.data(QtCore.Qt.StatusTipRole).lower() == last_asset_added.lower():
+                    w.pick_job_widget.view().selectionModel().setCurrentIndex(
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
+                    return
+
+
+class AddBookmarksWidget(QtWidgets.QDialog):
+    """Defines the widget used add a bookmark.
+
+    A bookmark is made up of the *server*, *job* and *root* folders.
+    All sub-widgets needed to make the choices are laid-out in this
+    widget.
 
     """
 
@@ -424,8 +466,8 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pathsettings.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.pathsettings.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
-        # Server
         self.pick_server_widget = ComboboxButton(u'server', parent=self)
+        self.add_job_widget = AddJobWidgetButton(parent=self)
         self.pick_job_widget = ComboboxButton(u'job', parent=self)
         self.pick_root_widget = ComboboxButton(
             u'bookmark folder', parent=self)
@@ -469,7 +511,15 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         # Job
         label = PaintedLabel(u'Job')
         self.pathsettings.layout().addWidget(label)
-        self.pathsettings.layout().addWidget(self.pick_job_widget)
+        row = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(row)
+        row.layout().setContentsMargins(0, 0, 0, 0)
+        row.layout().setSpacing(0)
+        row.layout().setAlignment(QtCore.Qt.AlignCenter)
+        row.layout().addWidget(self.pick_job_widget, 1)
+        row.layout().addWidget(self.add_job_widget, 0)
+
+        self.pathsettings.layout().addWidget(row)
         self.pathsettings.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
         # Bookmarks folder
@@ -872,6 +922,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.pick_job_widget.view().addItem(item)
 
     def mousePressEvent(self, event):
+        """Custom mouse event."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
         self.move_in_progress = True
@@ -879,6 +930,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.move_start_widget_pos = self.mapToGlobal(self.rect().topLeft())
 
     def mouseReleaseEvent(self, event):
+        """Custom mouse event."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
         self.move_in_progress = False

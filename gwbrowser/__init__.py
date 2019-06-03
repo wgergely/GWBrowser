@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-#################################################################
 GWBrowser - A PySide2 based asset-manager for digital production.
-#################################################################
-
-
-Written by `Gergely Wootsch`_ at `Glassworks Barcelona`_, 2019.
-
-.. _Gergely Wootsch: https://gergely-wootsch.com/
-.. _Glassworks Barcelona: https://www.glassworksvfx.com/
+It was designed to run as a standalone PySide2 application, or
+to be run embedded inside any application built with/around PySide2
+(thus far only Maya has been implemented).
 
 """
 

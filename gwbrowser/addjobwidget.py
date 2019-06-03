@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""This module defines the ``AddAssetWidget``, the main widget used to add a
-new asset to an existing bookmark.
+"""This module defines the ``AddJobWidget``, the main widget used to add a
+new job inside an existing server.
 
 Assets are simple folder-structures, and the main placeholders for files generated
-during digital production.
+during digital production. Jobs are placeholders for addittional assets, eg.
+shots, sequences, or build assets.
 
-The asset templates themselves are simple zip-files. Adding simply means unzipping
+The job templates themselves are simple zip-files. Adding simply means unzipping
 their contents into a specified directory.
 
 """
@@ -15,21 +16,18 @@ import functools
 from PySide2 import QtWidgets, QtCore
 
 import gwbrowser.common as common
-from gwbrowser.addbookmarkswidget import PaintedLabel
-from gwbrowser.addfilewidget import ThumbnailButton
-from gwbrowser.addfilewidget import DescriptionEditor, NameEditor
+from gwbrowser.addfilewidget import NameEditor
 from gwbrowser.addfilewidget import Check
 from gwbrowser.addfilewidget import SaverHeaderWidget
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import CloseButton
-import gwbrowser.gwscandir as gwscandir
 
 
-class AddAssetWidgetContextMenu(BaseContextMenu):
-    """Context menu associated with the ``AddAssetWidget``."""
+class AddJobWidgetContextMenu(BaseContextMenu):
+    """Context menu associated with the ``AddJobWidget``."""
 
     def __init__(self, parent=None):
-        super(AddAssetWidgetContextMenu, self).__init__(
+        super(AddJobWidgetContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
         self.add_reveal_item_menu()
 
@@ -43,28 +41,23 @@ class AddAssetWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class AddAssetWidget(QtWidgets.QDialog):
-    """Defines the widget used add an asset to the currently active bookmark."""
+class AddJobWidget(QtWidgets.QDialog):
+    """Defines the widget used add a job to a selected server."""
     shutdown = QtCore.Signal()
-    fileDescriptionAdded = QtCore.Signal(tuple)
-    fileThumbnailAdded = QtCore.Signal(tuple)
 
     def __init__(self, path, parent=None):
-        super(AddAssetWidget, self).__init__(parent=parent)
+        super(AddJobWidget, self).__init__(parent=parent)
         self._path = path
-        self.last_asset_added = None
-        self.thumbnail_image = None
 
         self.checkmark_widget = None
+        self.last_asset_added = None
         self.name_widget = None
-        self.thumbnail_widget = None
-        self.description_widget = None
 
         self.move_in_progress = False
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
 
-        self.setWindowTitle(u'Add asset')
+        self.setWindowTitle(u'Add job')
         self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
@@ -79,25 +72,6 @@ class AddAssetWidget(QtWidgets.QDialog):
     def path(self):
         """The active bookmark"""
         return self._path
-
-    def completer_keywords(self):
-        """We can give some hints when naming assets using auto-completion.
-        The will contain the already existing folder names and some predefined
-        shot, sequence names.
-
-        """
-        kw = []
-        for entry in gwscandir.scandir(self.path):
-            kw.append(entry.name)
-        kw.append(u'sh010')
-        kw.append(u'lay_sh010')
-        kw.append(u'ani_sh010')
-        kw.append(u'fx_sh010')
-        kw.append(u'seq010_sh010')
-        kw.append(u'seq010_ani_sh010')
-        kw.append(u'seq010_fx_sh010')
-        kw.append(u'seq010_lay_sh010')
-        return kw
 
     def _createUI(self):
         """Creates the ``AddAssetsWidget``'s ui and layout."""
@@ -116,25 +90,24 @@ class AddAssetWidget(QtWidgets.QDialog):
         mainrow = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(mainrow)
         self.layout().addWidget(mainrow)
-        mainrow.layout().setContentsMargins(0, 0, 0, 0)
+        mainrow.layout().setContentsMargins(
+            common.MARGIN, 0, common.MARGIN, 0)
         mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
         mainrow.layout().setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         # top label
-        label = PaintedLabel(u'Add new asset', size=common.LARGE_FONT_SIZE)
-        mainrow.layout().addSpacing(common.MARGIN / 2)
+        from gwbrowser.addbookmarkswidget import PaintedLabel
+        label = PaintedLabel(u'Add new job', size=common.LARGE_FONT_SIZE)
+        mainrow.layout().addSpacing(0)
         mainrow.layout().addWidget(label, 0)
 
         #
         mainrow = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(mainrow)
-        mainrow.layout().setContentsMargins(0, 0, 0, 0)
-        mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
+        mainrow.layout().setContentsMargins(
+            common.MARGIN, 0, 0, 0)
+        mainrow.layout().setSpacing(0)
         mainrow.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
-        self.thumbnail_widget = ThumbnailButton(parent=self)
-        self.thumbnail_widget.setFixedSize(
-            common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
-        mainrow.layout().addWidget(self.thumbnail_widget)
         self.layout().addWidget(mainrow)
         #
         column = QtWidgets.QWidget()
@@ -153,19 +126,9 @@ class AddAssetWidget(QtWidgets.QDialog):
         column.layout().addWidget(row, 1)
 
         self.name_widget = NameEditor(parent=self)
-        # Settings the completer associated with the Editor widget
-        completer = QtWidgets.QCompleter(
-            sorted(self.completer_keywords()), self)
-        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        completer.setCompletionMode(
-            QtWidgets.QCompleter.InlineCompletion)
-        self.name_widget.setCompleter(completer)
-
-        self.description_widget = DescriptionEditor(parent=self)
         self.checkmark_widget = Check(parent=self)
 
         row.layout().addWidget(self.name_widget, 1)
-        row.layout().addWidget(self.description_widget, 2)
 
         mainrow.layout().addWidget(self.checkmark_widget)
         self.layout().insertWidget(0, SaverHeaderWidget(parent=self))
@@ -175,8 +138,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.checkmark_widget.clicked.connect(lambda: self.done(
             QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
         self.name_widget.textEdited.connect(self.validate_text)
-        self.thumbnail_widget.clicked.connect(
-            self.thumbnail_widget.pick_thumbnail)
         self.shutdown.connect(self.close)
         closebutton = self.findChild(CloseButton)
         closebutton.clicked.connect(
@@ -197,7 +158,7 @@ class AddAssetWidget(QtWidgets.QDialog):
     def done(self, result):
         """Slot called by the check button to initiate the save."""
         if result == QtWidgets.QDialog.Rejected:
-            return super(AddAssetWidget, self).done(result)
+            return super(AddJobWidget, self).done(result)
 
         mbox = QtWidgets.QMessageBox(parent=self)
         mbox.setWindowTitle(u'Error adding asset')
@@ -224,7 +185,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         if not self.name_widget.text():
             mbox.setText(u'The asset has no name.')
             mbox.setInformativeText(
-                u'You must set a name before adding an asset. The description and the thumbnails are optional, albeit highly recommended to add these as well. ')
+                u'You must set a name before adding an asset.')
             return mbox.exec_()
 
         path = ur'{}/{}'.format(file_info.filePath(), self.name_widget.text())
@@ -238,7 +199,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         # Finally, let's actually create the asset
         try:
             common.create_asset_from_template(
-                self.name_widget.text(), self.path, template=common.MayaAssetTemplate)
+                self.name_widget.text(), self.path, template=common.ProjectTemplate)
         except Exception as err:
             mbox.setText(u'An error occured when creating the asset:')
             mbox.setInformativeText('{}'.format(err))
@@ -256,22 +217,16 @@ class AddAssetWidget(QtWidgets.QDialog):
         if mbox.exec_() == QtWidgets.QMessageBox.Yes:
             self.name_widget.setText(u'')
             self.description_widget.setText(u'')
-            self.thumbnail_widget.reset_thumbnail()
             return
         else:
             self.last_asset_added = self.name_widget.text()
             common.reveal(u'{}/{}'.format(self.path, self.name_widget.text()))
 
-        super(AddAssetWidget, self).done(result)
+        super(AddJobWidget, self).done(result)
 
     def contextMenuEvent(self, event):
-        menu = AddAssetWidgetContextMenu(parent=self)
+        menu = AddJobWidgetContextMenu(parent=self)
         pos = event.pos()
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
-
-
-# app = QtWidgets.QApplication([])
-# w = AddAssetWidget(ur'C:\temp\projects\job1\build')
-# w.exec_()
