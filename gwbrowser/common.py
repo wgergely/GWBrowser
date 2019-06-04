@@ -372,6 +372,7 @@ DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
+SettingsRole = 1044
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -620,7 +621,7 @@ ValidFilenameRegex = re.compile(
     ur'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
     flags=re.IGNORECASE | re.UNICODE)
 IsSequenceRegex = re.compile(
-    r'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
+    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
 SequenceStartRegex = re.compile(
     ur'^(.*)\[([0-9]+).*\](.*)$',
     flags=re.IGNORECASE | re.UNICODE)

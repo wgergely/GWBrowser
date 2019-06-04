@@ -17,7 +17,6 @@ FilesModel:
 
 """
 
-import sys
 import traceback
 import re
 import time
@@ -34,7 +33,6 @@ import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
 from gwbrowser.delegate import FilesWidgetDelegate
-import gwbrowser.editors as editors
 
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
@@ -77,10 +75,11 @@ class FileInfoWorker(BaseWorker):
         if isinstance(index.model(), FilterProxyModel):
             index = index.model().mapToSource(index)
 
-        # Item description
-        settings = AssetSettings(index)
-        description = settings.value(u'config/description')
         data = index.model().model_data()[index.row()]
+        settings = AssetSettings(index)
+
+        # Item description
+        description = settings.value(u'config/description')
         if description:
             data[common.DescriptionRole] = description
 
@@ -235,15 +234,18 @@ class FileThumbnailWorker(BaseWorker):
             return
         if not index.data(QtCore.Qt.StatusTipRole):
             return
+        if not index.data(common.FileInfoLoaded):
+            return
 
         index = index.model().mapToSource(index)
         data = index.model().model_data()[index.row()]
 
         settings = AssetSettings(index)
+
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
         height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
 
-        ext = data[QtCore.Qt.StatusTipRole].split('.')[-1].lower()
+        ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
         if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
@@ -925,8 +927,7 @@ class FilesWidget(BaseInlineIconWidget):
 
         source_index = self.model().mapToSource(index)
         if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(source_index, parent=self)
-            widget.show()
+            self.description_editor_widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
             ImageCache.instance().pick(source_index)

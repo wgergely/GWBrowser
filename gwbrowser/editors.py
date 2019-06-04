@@ -188,47 +188,46 @@ class ThumbnailViewer(QtWidgets.QLabel):
 class DescriptionEditorWidget(QtWidgets.QWidget):
     """Note editor baseclass."""
 
-    def __init__(self, index, parent=None):
+    def __init__(self, parent=None):
         super(DescriptionEditorWidget, self).__init__(parent=parent)
-        self._index = index
-
         self.editor = None
-        self.settings = AssetSettings(index)
+
         self._createUI()
+        self._connectSignals()
 
         self.editor.focusOutEvent = self.focusOutEvent
         self.editor.installEventFilter(self)
-        self.installEventFilter(self)
 
-        self._connectSignals()
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-
-        self.set_size(self.parent().viewport().size())
-        self.setFocusProxy(self.editor)
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.editor.setFocus(QtCore.Qt.PopupFocusReason)
 
-        self.show()
-        self.editor.setFocus()
+    def index(self):
+        return self.parent().selectionModel().currentIndex()
 
-        self.editor.setText(self.settings.value(u'config/description'))
-        self.editor.selectAll()
+    def showEvent(self, event):
+        if not self.index().isValid():
+            self.hide()
+        if not self.index().data(common.FileInfoLoaded):
+            self.hide()
 
-    def sizeHint(self):
-        return QtCore.QSize(
-            self.parent().visualRect(self._index).width(),
-            self.parent().visualRect(self._index).height()
-        )
+        self.update_editor(self.parent().viewport().size())
+        self.editor.setFocus(QtCore.Qt.PopupFocusReason)
 
-    def set_size(self, size):
-        """Sets the widget size."""
-        index = self.parent().model().mapFromSource(self._index)
-        rect = QtCore.QRect(self.parent().visualRect(index))
+    def update_editor(self, size):
+        """Sets the widget size, position and contents."""
+        if not self.index().isValid():
+            self.hide()
+
+        rect = QtCore.QRect(self.parent().visualRect(self.index()))
         rect.setLeft(rect.left() + common.INDICATOR_WIDTH +
                      (rect.height() - 2))
         self.move(rect.left(), rect.top())
         self.resize(size.width() - rect.left(), rect.height())
+
+        self.editor.setText(self.index().data(common.DescriptionRole))
+        self.editor.selectAll()
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
@@ -237,6 +236,8 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         """
         if not event.type() == QtCore.QEvent.KeyPress:
             return False
+
+        event.accept()
 
         shift = event.modifiers() == QtCore.Qt.ShiftModifier
 
@@ -249,32 +250,26 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         enter = event.key() == QtCore.Qt.Key_Enter
 
         if escape:
-            self.close()
+            self.hide()
             return True
 
         if enter or return_:
             self.action()
-            self.close()
             return True
 
         if not shift and tab:
             self.action()
             self.parent().key_down()
             self.parent().key_tab()
-            source_index = self.parent().model().mapToSource(self.parent().currentIndex())
-            widget = DescriptionEditorWidget(
-                source_index, parent=self.parent())
-            widget.show()
+            self.show()
+
             return True
 
         if (shift and tab) or backtab:
             self.action()
             self.parent().key_up()
             self.parent().key_tab()
-            source_index = self.parent().model().mapToSource(self.parent().currentIndex())
-            widget = DescriptionEditorWidget(
-                source_index, parent=self.parent())
-            widget.show()
+            self.show()
             return True
 
         return False
@@ -282,16 +277,17 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
-            self.close()
+            self.hide()
 
     def _connectSignals(self):
         """Connects signals."""
         self.editor.editingFinished.connect(self.action)
-        self.parent().sizeChanged.connect(self.set_size)
+        self.parent().sizeChanged.connect(self.update_editor)
 
     def _createUI(self):
         """Creates the layout."""
         QtWidgets.QVBoxLayout(self)
+        self.setWindowFlags(QtCore.Qt.Widget)
         self.layout().setContentsMargins(
             common.INDICATOR_WIDTH, common.INDICATOR_WIDTH / 2,
             common.INDICATOR_WIDTH / 2, common.INDICATOR_WIDTH)
@@ -303,7 +299,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         )
 
         self.editor = QtWidgets.QLineEdit()
-        self.editor.setAlignment(QtCore.Qt.AlignCenter)
+        self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
 
         self.editor.setStyleSheet("""
@@ -348,23 +344,27 @@ color: rgba({});
             painter.setBrush(QtGui.QBrush(color))
             painter.drawRect(rect)
             painter.end()
-
             return
         super(DescriptionEditorWidget, self).paintEvent(event)
 
     def action(self):
         """Main actions to run when the return key is pressed."""
-        if self.settings.value(u'config/description') == self.editor.text():
-            self.close()
+        if self.index().data(common.DescriptionRole) == self.editor.text():
+            self.hide()
             return
 
-        self._index.model().setData(
-            self._index,
-            self.editor.text(),
-            role=common.DescriptionRole
-        )
-        self.settings.setValue(u'config/description', self.editor.text())
-        self.close()
+        if not self.index().data(common.ParentRole):
+            self.hide()
+            return
+
+        settings = AssetSettings(self.index())
+        settings.setValue(u'config/description', self.editor.text())
+
+        source_index = self.index().model().mapToSource(self.index())
+        data = source_index.model().model_data()[self.index().row()]
+        data[common.DescriptionRole] = self.editor.text()
+        self.index().model().dataChanged.emit(self.index(), self.index())
+        self.hide()
 
 
 class FilterIcon(QtWidgets.QLabel):

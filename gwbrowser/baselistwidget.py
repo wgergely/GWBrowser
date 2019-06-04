@@ -662,6 +662,9 @@ class BaseListWidget(QtWidgets.QListView):
         self._location = None
         self.collector_count = 0
         self.context_menu_cls = None
+        self.description_editor_widget = editors.DescriptionEditorWidget(
+            parent=self)
+        self.description_editor_widget.hide()
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
         self._buttons_hidden = False if local_settings.value(
@@ -868,7 +871,7 @@ class BaseListWidget(QtWidgets.QListView):
         saved_is_sequence = common.get_sequence(val)
         saved_is_collapsed = common.is_collapsed(val)
         saved_path = saved_is_collapsed.expand(
-            r'\1\3') if saved_is_collapsed else val
+            ur'\1\3') if saved_is_collapsed else val
 
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
@@ -877,14 +880,14 @@ class BaseListWidget(QtWidgets.QListView):
             index_is_sequence = index.data(common.SequenceRole)
 
             if index_is_collapsed:
-                index_path = index_is_collapsed.expand(r'\1\3')
+                index_path = index_is_collapsed.expand(ur'\1\3')
 
             if saved_is_collapsed and index_is_sequence:
-                index_path = index_is_sequence.expand(r'\1\3.\4')
+                index_path = index_is_sequence.expand(ur'\1\3.\4')
 
             if saved_is_sequence and index_is_collapsed:
-                index_path = index_is_collapsed.expand(r'\1\3')
-                saved_path = saved_is_sequence.expand(r'\1\3.\4')
+                index_path = index_is_collapsed.expand(ur'\1\3')
+                saved_path = saved_is_sequence.expand(ur'\1\3.\4')
 
             if index_path == saved_path:
                 self.selectionModel().setCurrentIndex(
@@ -992,7 +995,6 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         archived = index.flags() & common.MarkedAsArchived
-        settings = AssetSettings(index)
         favourites = local_settings.value(u'favourites')
         favourites = favourites if favourites else []
         sfavourites = set(favourites)
@@ -1060,6 +1062,8 @@ class BaseListWidget(QtWidgets.QListView):
         if first_index == last_index:
             return
 
+        self.setFocus(QtCore.Qt.OtherFocusReason)
+
         if not current_index.isValid():  # No selection
             sel.setCurrentIndex(
                 first_index,
@@ -1095,6 +1099,8 @@ class BaseListWidget(QtWidgets.QListView):
         if first_index == last_index:
             return
 
+        self.setFocus(QtCore.Qt.OtherFocusReason)
+
         if not current_index.isValid():  # No selection
             sel.setCurrentIndex(
                 last_index,
@@ -1118,12 +1124,7 @@ class BaseListWidget(QtWidgets.QListView):
             break
 
     def key_tab(self):
-        index = self.selectionModel().currentIndex()
-        if not index.isValid():
-            index = self.model().index(0, 0, parent=QtCore.QModelIndex())
-        source_index = self.model().mapToSource(index)
-        widget = editors.DescriptionEditorWidget(source_index, parent=self)
-        widget.show()
+        self.description_editor_widget.show()
 
     def keyPressEvent(self, event):
         """Customized key actions.
@@ -1135,6 +1136,8 @@ class BaseListWidget(QtWidgets.QListView):
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         index = self.selectionModel().currentIndex()
+
+        # self.setFocus(QtCore.Qt.OtherFocusReason)
 
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:

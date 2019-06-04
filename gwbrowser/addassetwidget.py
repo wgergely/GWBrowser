@@ -281,6 +281,8 @@ class AddAssetWidget(QtWidgets.QDialog):
             if not self.thumbnail_widget.image.isNull():
                 self.thumbnail_widget.image.save(settings.thumbnail_path())
 
+        settings.deleteLater()
+
     def contextMenuEvent(self, event):
         menu = AddAssetWidgetContextMenu(parent=self)
         pos = event.pos()

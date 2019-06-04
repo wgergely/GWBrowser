@@ -303,12 +303,12 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         # We save our image into the cache for safe-keeping
         if mimedata.hasUrls():
-            settings = AssetSettings(index)
-            thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
+            thumbnail_info = QtCore.QFileInfo(
+                index.data(common.ThumbnailPathRole))
             for url in mimedata.urls():
                 file_info = QtCore.QFileInfo(url.path())
                 if file_info.suffix() in common.get_oiio_extensions():
-                    dest = '{}/{}.{}'.format(
+                    dest = u'{}/{}.{}'.format(
                         thumbnail_info.dir().path(),
                         uuid.uuid4(),
                         thumbnail_info.suffix()
@@ -334,9 +334,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         if mimedata.hasImage():
             image = mimedata.imageData()
             if not image.isNull():
-                settings = AssetSettings(index)
-                thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
-                dest = '{}/{}.{}'.format(
+                thumbnail_info = QtCore.QFileInfo(
+                    index.data(common.ThumbnailPathRole))
+                dest = u'{}/{}.{}'.format(
                     thumbnail_info.dir().path(),
                     uuid.uuid4(),
                     thumbnail_info.suffix()
@@ -776,6 +776,7 @@ class TodoItemWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(TodoItemWidget, self).__init__(parent=parent)
+        self.editor = None
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)

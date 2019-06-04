@@ -233,6 +233,7 @@ class BookmarksModel(BaseModel):
             index = self.index(idx, 0)
             settings = AssetSettings(index)
             data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
+
             image = ImageCache.instance().get(
                 data[idx][common.ThumbnailPathRole],
                 rowsize.height() - common.ROW_SEPARATOR)
@@ -464,7 +465,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[\W\d\_]+', '', text)
+        text = re.sub(ur'[\W\d\_]+', '', text)
         text = u'  {}  |  {}  '.format(
             text, index.data(common.ParentRole)[-1].upper())
 
@@ -473,8 +474,7 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         source_index = self.model().mapToSource(index)
         if rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(source_index, parent=self)
-            widget.show()
+            self.description_editor_widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
             ImageCache.instance().pick(source_index)

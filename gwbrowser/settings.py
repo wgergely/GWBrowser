@@ -13,6 +13,7 @@ getConfigPath() or getThumbnailPath().
 
 """
 
+import sys
 import hashlib
 import collections
 from PySide2 import QtCore
@@ -237,7 +238,6 @@ class AssetSettings(QtCore.QSettings):
             QtCore.QSettings.IniFormat,
             parent=parent
         )
-
         self.setFallbacksEnabled(False)
 
     def conf_path(self):

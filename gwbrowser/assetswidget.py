@@ -292,8 +292,7 @@ class AssetsWidget(BaseInlineIconWidget):
 
         source_index = self.model().mapToSource(index)
         if description_rect.contains(event.pos()):
-            widget = editors.DescriptionEditorWidget(source_index, parent=self)
-            widget.show()
+            self.description_editor_widget.show()
             return
         elif thumbnail_rect.contains(event.pos()):
             ImageCache.instance().pick(source_index)
