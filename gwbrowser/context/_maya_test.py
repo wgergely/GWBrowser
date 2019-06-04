@@ -35,7 +35,6 @@ def test():
     mayabrowserwidget.show()
     import maya.cmds as cmds
     c = cmds.polyCube()
-    cmds.set(c)
 
 
 test()

@@ -46,7 +46,10 @@ def _ensure_dependencies():
 
 
 def get_info():
-    """Returns an array of technical information."""
+    """Returns an array of string with the dependent library versions and information
+    about the author.
+
+    """
     return (
         u'Author:   {}'.format(__author__),
         u'Email:    {}'.format(__email__),
