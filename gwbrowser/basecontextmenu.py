@@ -392,11 +392,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', QtGui.QColor(200, 50, 50), common.INLINE_ICON_SIZE)
+            u'remove', QtGui.QColor(200, 50, 50), common.INLINE_ICON_SIZE)
         show_thumbnail = ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         addpixmap = ImageCache.get_rsc_pixmap(
-            'todo_add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         key = u'Thumbnail'
         menu_set[key] = collections.OrderedDict()
@@ -485,7 +485,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
         pixmap = ImageCache.get_rsc_pixmap(
-            'todo_add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'icon': pixmap,

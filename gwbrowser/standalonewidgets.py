@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
+import functools
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+from gwbrowser.settings import Active
 from gwbrowser.browserwidget import BrowserWidget
-from gwbrowser.listcontrolwidget import BrowserButtonContextMenu
+from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.editors import ClickableLabel
 from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
@@ -12,14 +14,18 @@ from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
 
 
-class TrayMenu(BrowserButtonContextMenu):
-    """The context menu associated with the QSystemTrayIcon."""
+class TrayMenu(BaseContextMenu):
+    """The context-menu associated with the BrowserButton."""
 
     def __init__(self, parent=None):
-        super(TrayMenu, self).__init__(parent=parent)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+        super(TrayMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
 
         self.stays_on_top = False
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+
+        self.add_show_menu()
+        self.add_toolbar_menu()
         self.add_visibility_menu()
 
     def show_window(self):
@@ -57,6 +63,49 @@ class TrayMenu(BrowserButtonContextMenu):
         menu_set['Quit'] = {
             'action': self.parent().shutdown.emit
         }
+        return menu_set
+
+    @contextmenu
+    def add_show_menu(self, menu_set):
+        if not hasattr(self.parent(), 'clicked'):
+            return menu_set
+        menu_set[u'show'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'text': u'Open...',
+            u'action': self.parent().clicked.emit
+        }
+        return menu_set
+
+    @contextmenu
+    def add_toolbar_menu(self, menu_set):
+        active_paths = Active.paths()
+        bookmark = (active_paths[u'server'],
+                    active_paths[u'job'], active_paths[u'root'])
+        asset = bookmark + (active_paths[u'asset'],)
+        location = asset + (active_paths[u'location'],)
+
+        if all(bookmark):
+            menu_set[u'bookmark'] = {
+                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'disabled': not all(bookmark),
+                u'text': u'Show active bookmark in the file manager...',
+                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
+            }
+            if all(asset):
+                menu_set[u'asset'] = {
+                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+                    u'disabled': not all(asset),
+                    u'text': u'Show active asset in the file manager...',
+                    u'action': functools.partial(common.reveal, '/'.join(asset))
+                }
+                if all(location):
+                    menu_set[u'location'] = {
+                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+                        u'disabled': not all(location),
+                        u'text': u'Show current task folder in the file manager...',
+                        u'action': functools.partial(common.reveal, '/'.join(location))
+                    }
+
         return menu_set
 
 
@@ -314,7 +363,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         """Modifies layout for display in standalone-mode."""
 
         self.headerwidget = HeaderWidget(parent=self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setContentsMargins(2, 2, 2, 2)
         self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
         self.layout().insertWidget(0, self.headerwidget)
 

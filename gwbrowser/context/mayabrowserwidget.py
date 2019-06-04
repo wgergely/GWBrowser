@@ -19,12 +19,12 @@ from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
 from gwalembic.alembic import Abc
+from gwbrowser.settings import Active
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.browserwidget import BrowserWidget
-from gwbrowser.listcontrolwidget import BrowserButton
-
+from gwbrowser.editors import ClickableLabel
 from gwbrowser.bookmarkswidget import BookmarksModel
 from gwbrowser.assetswidget import AssetModel
 
@@ -97,6 +97,168 @@ def contextmenu(func):
         self.create_menu(menu_set)
         return menu_set
     return func_wrapper
+
+
+class BrowserButtonContextMenu(BaseContextMenu):
+    """The context-menu associated with the BrowserButton."""
+
+    def __init__(self, parent=None):
+        super(BrowserButtonContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+        self.add_show_menu()
+        self.add_toolbar_menu()
+
+    @contextmenu
+    def add_show_menu(self, menu_set):
+        if not hasattr(self.parent(), 'clicked'):
+            return menu_set
+        menu_set[u'show'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'text': u'Open...',
+            u'action': self.parent().clicked.emit
+        }
+        return menu_set
+
+    @contextmenu
+    def add_toolbar_menu(self, menu_set):
+        active_paths = Active.paths()
+        bookmark = (active_paths[u'server'],
+                    active_paths[u'job'], active_paths[u'root'])
+        asset = bookmark + (active_paths[u'asset'],)
+        location = asset + (active_paths[u'location'],)
+
+        if all(bookmark):
+            menu_set[u'bookmark'] = {
+                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'disabled': not all(bookmark),
+                u'text': u'Show active bookmark in the file manager...',
+                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
+            }
+            if all(asset):
+                menu_set[u'asset'] = {
+                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+                    u'disabled': not all(asset),
+                    u'text': u'Show active asset in the file manager...',
+                    u'action': functools.partial(common.reveal, '/'.join(asset))
+                }
+                if all(location):
+                    menu_set[u'location'] = {
+                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+                        u'disabled': not all(location),
+                        u'text': u'Show current task folder in the file manager...',
+                        u'action': functools.partial(common.reveal, '/'.join(location))
+                    }
+
+        return menu_set
+
+
+class MayaBrowserButton(ClickableLabel):
+    """Small widget to embed into the context to toggle the BrowserWidget's visibility.
+
+    """
+    message = QtCore.Signal(unicode)
+
+    def __init__(self, height=common.ROW_HEIGHT, parent=None):
+        super(MayaBrowserButton, self).__init__(parent=parent)
+        self.context_menu_cls = BrowserButtonContextMenu
+        self.setFixedWidth(height)
+        self.setFixedHeight(height)
+
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setWindowFlags(
+            QtCore.Qt.Widget
+            | QtCore.Qt.FramelessWindowHint
+        )
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'custom_bw', common.SECONDARY_TEXT, height)
+        self.setPixmap(pixmap)
+
+        description = u'Show GWBrowser'
+        self.setStatusTip(description)
+        self.setToolTip(description)
+
+        self.clicked.connect(
+            show, type=QtCore.Qt.QueuedConnection)
+
+    def set_size(self, size):
+        self.setFixedWidth(int(size))
+        self.setFixedHeight(int(size))
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'custom_bw', common.SECONDARY_TEXT, int(size))
+        self.setPixmap(pixmap)
+
+    def enterEvent(self, event):
+        self.message.emit(self.statusTip())
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        """Browser button's custom paint event."""
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        brush = self.pixmap().toImage()
+
+        painter.setBrush(brush)
+        painter.setPen(QtCore.Qt.NoPen)
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
+        painter.setOpacity(0.8)
+        if option.state & QtWidgets.QStyle.State_MouseOver:
+            painter.setOpacity(1)
+
+        painter.drawRoundedRect(self.rect(), 2, 2)
+        painter.end()
+
+    def contextMenuEvent(self, event):
+        """Context menu event."""
+        # Custom context menu
+        shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
+        alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
+        control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
+        if shift_modifier or alt_modifier or control_modifier:
+            self.customContextMenuRequested.emit()
+            return
+
+        widget = self.context_menu_cls(parent=self)
+        widget.move(self.mapToGlobal(self.rect().bottomLeft()))
+        widget.setFixedWidth(300)
+        common.move_widget_to_available_geo(widget)
+        widget.exec_()
+
+    def initialize(self):
+        """Finds the built-in Toolbox menu and embeds a custom control-button
+        for the Browser ``MayaBrowserButton``.
+
+        """
+        # Get the tool box and embed
+        ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
+        if ptr is not None:
+            widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+            widget.layout().addWidget(self)
+            self.set_size(widget.width())
+            self.adjustSize()
+            self.repaint()
+        else:
+            sys.stderr.write(
+                '# GWBrowser: Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.\n')
+
+        # Unlocking showing widget
+        currentval = cmds.optionVar(q='workspacesLockDocking')
+        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
+        cmds.evalDeferred(show)
+        cmds.evalDeferred(functools.partial(
+            cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
 
 
 class MayaBrowserWidgetContextMenu(BaseContextMenu):
@@ -455,9 +617,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             fileswidget.model().sourceModel().dataKeyChanged.emit(common.ExportsFolder)
             fileswidget.model().sourceModel().modelDataResetRequested.emit()
 
-            sys.stdout.write(
-                '# GWBrowser: Finished.Result: \n{}\n'.format(path))
-
         def fileDescriptionAdded(args):
             """Slot called by the Saver when finished."""
             server, job, root, filepath, description = args
@@ -734,38 +893,3 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
                 cmds.SaveScene()
                 return result
             return result
-
-
-class MayaBrowserButton(BrowserButton):
-    """A dockable tool bar for showing/hiding the browser window."""
-
-    def __init__(self, parent=None):
-        super(MayaBrowserButton, self).__init__(parent=parent)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setToolTip(u'GWBrowser')
-        self.clicked.connect(
-            show, type=QtCore.Qt.QueuedConnection)
-
-    def initialize(self):
-        """Finds the built-in Toolbox menu and embeds a custom control-button
-        for the Browser ``MayaBrowserButton``.
-
-        """
-        # Get the tool box and embed
-        ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
-        if ptr is not None:
-            widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-            widget.layout().addWidget(self)
-            self.set_size(widget.width())
-            self.adjustSize()
-            self.repaint()
-        else:
-            sys.stderr.write(
-                '# GWBrowser: Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.\n')
-
-        # Unlocking showing widget
-        currentval = cmds.optionVar(q='workspacesLockDocking')
-        cmds.optionVar(intValue=(u'workspacesLockDocking', False))
-        cmds.evalDeferred(show)
-        cmds.evalDeferred(functools.partial(
-            cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))

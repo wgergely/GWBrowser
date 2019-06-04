@@ -44,8 +44,7 @@ from gwbrowser.addfilewidgetwidgets import SelectAssetView
 from gwbrowser.addfilewidgetwidgets import SelectFolderButton
 from gwbrowser.addfilewidgetwidgets import SelectFolderView
 from gwbrowser.addfilewidgetwidgets import SelectFolderModel
-
-from gwbrowser.settings import AssetSettings
+import gwbrowser.editors as editors
 
 
 class ThumbnailContextMenu(BaseContextMenu):
@@ -64,11 +63,16 @@ class ThumbnailContextMenu(BaseContextMenu):
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
             u'action': self.parent().capture_thumbnail
+        }
+        menu_set['Add from library...'] = {
+            u'text': 'Add from library...',
+            u'icon': pick_thumbnail_pixmap,
+            u'action': self.parent().show_thumbnail_picker
         }
         menu_set[u'Pick thumbnail'] = {
             u'icon': pick_thumbnail_pixmap,
@@ -192,6 +196,28 @@ class ThumbnailButton(ClickableLabel):
             u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
 
         self.image = QtGui.QImage()
+
+    def show_thumbnail_picker(self):
+        """Shows the dialog used to select a thumbnail from the library."""
+
+        @QtCore.Slot(unicode)
+        def add_thumbnail_from_library(path):
+            image = QtGui.QImage()
+            if not image.load(path):
+                return
+
+            self.image = image
+            self.update_thumbnail_preview()
+
+        rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
+        widget = editors.ThumbnailsWidget(parent=self.parent())
+        widget.thumbnailSelected.connect(add_thumbnail_from_library)
+        widget.show()
+        widget.setFocus(QtCore.Qt.PopupFocusReason)
+
+        wpos = QtCore.QPoint(widget.width() / 2.0, widget.height() / 2.0)
+        widget.move(rect.center() - wpos)
+        common.move_widget_to_available_geo(widget)
 
     def pick_thumbnail(self):
         """Prompt to select an image file."""

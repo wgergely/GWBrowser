@@ -105,7 +105,10 @@ class DataKeyViewDelegate(BaseDelegate):
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
-        color = common.TEXT_SELECTED if hover else common.TEXT
+        if index.data(common.TodoCountRole):
+            color = common.TEXT_SELECTED if hover else common.TEXT
+        else:
+            color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
         color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -130,6 +133,7 @@ class DataKeyViewDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if hover else color
             items.append((text, color))
+            painter.setOpacity(0.66)
 
         if index.data(QtCore.Qt.ToolTipRole):
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT

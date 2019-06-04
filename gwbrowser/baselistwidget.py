@@ -318,8 +318,10 @@ class BaseModel(QtCore.QAbstractItemModel):
         .. code-block:: python
 
             self._data = {}
-            datakey = self.data_key() # will most of the time return a name of a folder, eg. 'scenes'
-            self._data[datakey] = {common.FileItem: {}, common.SequenceItem: {}}
+            # will most of the time return a name of a folder, eg. 'scenes'
+            datakey = self.data_key()
+            self._data[datakey] = {
+                common.FileItem: {}, common.SequenceItem: {}}
 
     Each data-key can simultaniously hold information about single files (**FileItems**), and
     groupped sequences (**SequenceItem**), eg. a rendered image sequence. The model provides the
@@ -1048,15 +1050,12 @@ class BaseListWidget(QtWidgets.QListView):
         index.model().dataChanged.emit(index, index)
 
     def key_down(self):
-        """Custom action tpo perform when the `down` arrow is pressed
-        on the keyboard.
-
-        """
+        """Custom action on  `down` arrow key-press."""
         sel = self.selectionModel()
         current_index = self.selectionModel().currentIndex()
         first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
-        last_index = self.model().index(self.model().rowCount() -
-                                        1, 0, parent=QtCore.QModelIndex())
+        last_index = self.model().index(
+            self.model().rowCount() - 1, 0, parent=QtCore.QModelIndex())
 
         if first_index == last_index:
             return
@@ -1159,6 +1158,14 @@ class BaseListWidget(QtWidgets.QListView):
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
+            elif event.key() == QtCore.Qt.Key_PageDown:
+                super(BaseListWidget, self).keyPressEvent(event)
+            elif event.key() == QtCore.Qt.Key_PageUp:
+                super(BaseListWidget, self).keyPressEvent(event)
+            elif event.key() == QtCore.Qt.Key_Home:
+                super(BaseListWidget, self).keyPressEvent(event)
+            elif event.key() == QtCore.Qt.Key_End:
+                super(BaseListWidget, self).keyPressEvent(event)
             else:  # keyboard search and select
                 if not self.timer.isActive():
                     self.timed_search_string = u''
@@ -1294,7 +1301,7 @@ class BaseListWidget(QtWidgets.QListView):
         super(BaseListWidget, self).mousePressEvent(event)
 
     def eventFilter(self, widget, event):
-        """Custom paint event used to paint the background of the list."""
+        """This custom paint event is used to paint status messages."""
         if widget is not self:
             return False
 
@@ -1309,38 +1316,47 @@ class BaseListWidget(QtWidgets.QListView):
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())
 
-            rect = QtCore.QRect(
-                common.INDICATOR_WIDTH,
-                common.ROW_SEPARATOR,
-                self.viewport().rect().width() - (common.INDICATOR_WIDTH * 2),
-                sizehint.height() - common.INDICATOR_WIDTH
-            )
+            rect = self.rect()
+            center = rect.center()
+            rect.setWidth(rect.width() - common.MARGIN)
+            rect.moveCenter(center)
 
             favourite_mode = model.filterFlag(common.MarkedAsFavourite)
             active_mode = model.filterFlag(common.MarkedAsActive)
 
             text_rect = QtCore.QRect(rect)
-            text_rect.setLeft(rect.left() + common.MARGIN)
-            text_rect.setRight(rect.right() - common.MARGIN)
+            text_rect.setHeight(sizehint.height())
 
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSize(common.SMALL_FONT_SIZE)
+            font.setPointSize(common.MEDIUM_FONT_SIZE - 1)
             align = QtCore.Qt.AlignCenter
 
+            text = u''
             if not source_model._parent_item:
-                text = u'No bookmark or asset set'
+                if self.parent().currentIndex() == 0:
+                    if self.model().sourceModel().rowCount() == 0:
+                        text = u'No bookmarks added yet. Click the plus icon above to get started.'
+                elif self.parent().currentIndex() == 1:
+                    text = u'Assets will be shown here once a bookmark is activated.'
+                elif self.parent().currentIndex() == 2:
+                    text = u'Files will be shown here once an asset is activated.'
+                elif self.parent().currentIndex() == 3:
+                    text = u'You don\'t have any favourites yet.'
+
                 common.draw_aliased_text(
-                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                    painter, font, rect, text, align, common.TEXT_DISABLED)
                 return True
+
             if not source_model.data_key():
-                text = u'No task folder selected.'
-                common.draw_aliased_text(
-                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
-                return True
+                if self.parent().currentIndex() == 2:
+                    text = u'No task folder selected.'
+                    common.draw_aliased_text(
+                        painter, font, text_rect, text, align, common.TEXT_DISABLED)
+                    return True
 
             if source_model.rowCount() == 0:
                 text = u'No items to show.'
@@ -1369,8 +1385,6 @@ class BaseListWidget(QtWidgets.QListView):
                         acttext = u'Showing active item only'
                     if hidden_count:
                         hidtext = u'{} items are hidden'.format(hidden_count)
-                    # text = u'{} {} {} {}'.format(
-                    #     filtext, favtext, acttext, hidtext)
                     text = [f for f in (
                         filtext, favtext, acttext, hidtext) if f]
                     text = '  |  '.join(text)

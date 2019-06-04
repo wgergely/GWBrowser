@@ -299,7 +299,7 @@ class BrowserWidget(QtWidgets.QWidget):
     def terminate(self, quit_app=False):
         """When all the threads quit, we'll exit the main application too."""
         self.__qn += 1
-        self.statusbar.showMessage(u'Quitting... {}'.format(self.__qn), 1000)
+        self.statusbar.showMessage(u'Quitting...')
 
         threadpool = self.get_all_threads()
         for thread in threadpool:

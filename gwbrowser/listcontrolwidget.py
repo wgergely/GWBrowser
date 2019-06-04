@@ -2,13 +2,11 @@
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
 import sys
-import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.datakeywidget import DataKeyView
-from gwbrowser.settings import Active
 import gwbrowser.common as common
-from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
+from gwbrowser.basecontextmenu import BaseContextMenu
 
 from gwbrowser.editors import FilterEditor
 from gwbrowser.editors import ClickableLabel
@@ -22,163 +20,6 @@ from gwbrowser.assetswidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
 
 from gwbrowser.settings import local_settings
-
-
-class BrowserButtonContextMenu(BaseContextMenu):
-    """The context-menu associated with the BrowserButton."""
-
-    def __init__(self, parent=None):
-        super(BrowserButtonContextMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_show_menu()
-        self.add_toolbar_menu()
-
-    @contextmenu
-    def add_show_menu(self, menu_set):
-        if not hasattr(self.parent(), 'clicked'):
-            return menu_set
-        menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
-            u'text': u'Open...',
-            u'action': self.parent().clicked.emit
-        }
-        return menu_set
-
-    @contextmenu
-    def add_toolbar_menu(self, menu_set):
-        active_paths = Active.paths()
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        asset = bookmark + (active_paths[u'asset'],)
-        location = asset + (active_paths[u'location'],)
-
-        if all(bookmark):
-            menu_set[u'bookmark'] = {
-                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-                u'disabled': not all(bookmark),
-                u'text': u'Show active bookmark in the file manager...',
-                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
-            }
-            if all(asset):
-                menu_set[u'asset'] = {
-                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-                    u'disabled': not all(asset),
-                    u'text': u'Show active asset in the file manager...',
-                    u'action': functools.partial(common.reveal, '/'.join(asset))
-                }
-                if all(location):
-                    menu_set[u'location'] = {
-                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-                        u'disabled': not all(location),
-                        u'text': u'Show active location in the file manager...',
-                        u'action': functools.partial(common.reveal, '/'.join(location))
-                    }
-
-        return menu_set
-
-
-class BrowserButton(ClickableLabel):
-    """Small widget to embed into the context to toggle the BrowserWidget's visibility.
-
-    """
-    message = QtCore.Signal(unicode)
-
-    def __init__(self, height=common.ROW_HEIGHT, parent=None):
-        super(BrowserButton, self).__init__(parent=parent)
-        self.context_menu_cls = BrowserButtonContextMenu
-        self.setFixedWidth(height)
-        self.setFixedHeight(height)
-
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
-
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setWindowFlags(
-            QtCore.Qt.Widget
-            | QtCore.Qt.FramelessWindowHint
-        )
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'custom_bw', common.SECONDARY_TEXT, height)
-        self.setPixmap(pixmap)
-        self.setStatusTip(u'Opens GWBrowser')
-
-    def set_size(self, size):
-        self.setFixedWidth(int(size))
-        self.setFixedHeight(int(size))
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'custom_bw', common.SECONDARY_TEXT, int(size))
-        self.setPixmap(pixmap)
-
-    def enterEvent(self, event):
-        self.message.emit(self.statusTip())
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        """Browser button's custom paint event."""
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        brush = self.pixmap().toImage()
-
-        painter.setBrush(brush)
-        painter.setPen(QtCore.Qt.NoPen)
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-
-        painter.setOpacity(0.8)
-        if option.state & QtWidgets.QStyle.State_MouseOver:
-            painter.setOpacity(1)
-
-        painter.drawRoundedRect(self.rect(), 2, 2)
-        painter.end()
-
-    def contextMenuEvent(self, event):
-        """Context menu event."""
-        # Custom context menu
-        shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
-        alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
-        control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
-        if shift_modifier or alt_modifier or control_modifier:
-            self.customContextMenuRequested.emit()
-            return
-
-        widget = self.context_menu_cls(parent=self)
-        widget.move(self.mapToGlobal(self.rect().bottomLeft()))
-        widget.setFixedWidth(300)
-        common.move_widget_to_available_geo(widget)
-        widget.exec_()
-
-
-class SlackButton(BrowserButton):
-    """The button used to open slack."""
-
-    def __init__(self, parent=None):
-        self.context_menu_cls = BrowserButtonContextMenu
-        super(SlackButton, self).__init__(
-            height=common.INLINE_ICON_SIZE, parent=parent)
-        self.clicked.connect(
-            lambda: QtGui.QDesktopServices.openUrl(ur'https://gwbcn.slack.com/'), type=QtCore.Qt.QueuedConnection)
-        self.setStatusTip(u'Ctrl+Shift+S: Open slack in the web-browser')
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+Shift+S'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'slack', common.SECONDARY_TEXT, self.height())
-        self.setPixmap(pixmap)
-        self.setStatusTip(u'Opens GWBrowser')
 
 
 class ControlButton(ClickableLabel):
@@ -229,8 +70,8 @@ class ControlButton(ClickableLabel):
         option.initFrom(self)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        color = common.FAVOURITE if self.state() else QtGui.QColor(255, 255, 255, 50)
-        color = common.TEXT_SELECTED if hover else color
+        color = common.TEXT if self.state() else common.SECONDARY_BACKGROUND
+        color = common.FAVOURITE if hover else color
         pixmap = self.pixmap(color)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
         painter.end()
@@ -348,7 +189,9 @@ class CollapseSequenceButton(ControlButton):
         shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
+        if self.state():
+            return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'expand', c, common.INLINE_ICON_SIZE)
 
     def state(self):
         datatype = self.current().model().sourceModel().data_type()
@@ -393,7 +236,9 @@ class ToggleArchivedButton(ControlButton):
         shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
+        if self.state():
+            return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'archived', c, common.INLINE_ICON_SIZE)
 
     def state(self):
         val = self.current().model().filterFlag(common.MarkedAsArchived)
@@ -487,6 +332,34 @@ class ToggleFavouriteButton(ControlButton):
             self.hide()
 
 
+class SlackButton(ControlButton):
+    """The button used to open slack."""
+
+    def __init__(self, parent=None):
+        super(SlackButton, self).__init__(parent=parent)
+        description = u'Alt+S  |  Open Slack'
+        self.setToolTip(description)
+        self.setStatusTip(description)
+
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Alt+S'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.WindowShortcut)
+        shortcut.activated.connect(self.clicked)
+        shortcut.activated.connect(self.repaint)
+
+    @QtCore.Slot()
+    def action(self):
+        """Opens the set slack workspace."""
+        QtGui.QDesktopServices.openUrl(common.SLACK_URL)
+
+    def pixmap(self, c):
+        return ImageCache.get_rsc_pixmap(u'slack', c, common.INLINE_ICON_SIZE)
+
+    def state(self):
+        return True
+
+
 class CollapseSequenceMenu(BaseContextMenu):
     def __init__(self, parent=None):
         super(CollapseSequenceMenu, self).__init__(
@@ -518,7 +391,13 @@ class AddButton(ControlButton):
         shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'todo_add', c, common.INLINE_ICON_SIZE)
+        if self._parent.currentIndex() == 0:
+            return ImageCache.get_rsc_pixmap(u'bookmark', c, common.INLINE_ICON_SIZE)
+        if self._parent.currentIndex() == 1:
+            return ImageCache.get_rsc_pixmap(u'add', c, common.INLINE_ICON_SIZE)
+        if self._parent.currentIndex() == 2:
+            return ImageCache.get_rsc_pixmap(u'add_file', c, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'add', c, common.INLINE_ICON_SIZE)
 
     def enterEvent(self, event):
         if self._parent.currentIndex() == 0:
@@ -536,7 +415,9 @@ class AddButton(ControlButton):
                 return True
             return False
         if self._parent.currentIndex() == 2:
-            return True
+            if self._parent.widget(1).model().sourceModel().active_index().isValid():
+                return True
+            return False
         return False
 
     @QtCore.Slot()
@@ -565,7 +446,8 @@ class AddButton(ControlButton):
 
             bookmark = bookmark.data(common.ParentRole)
             bookmark = u'/'.join(bookmark)
-            widget = AddAssetWidget(bookmark, parent=None)
+            widget = AddAssetWidget(
+                bookmark, parent=self._parent)
             pos = self.window().rect().center()
             pos = self.window().mapToGlobal(pos)
             widget.move(
@@ -587,9 +469,7 @@ class AddButton(ControlButton):
                 index = view.model().index(n, 0)
                 if index.data(QtCore.Qt.DisplayRole).lower() == widget.last_asset_added.lower():
                     view.selectionModel().setCurrentIndex(
-                        index,
-                        QtCore.QItemSelectionModel.ClearAndSelect
-                    )
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
                     view.scrollTo(index)
                     break
 
@@ -598,6 +478,8 @@ class AddButton(ControlButton):
 
         # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
+            if not self._parent.currentWidget().model().sourceModel()._parent_item:
+                return
             import gwbrowser.addfilewidget as saver
 
             index = self._parent.currentWidget().selectionModel().currentIndex()
@@ -724,7 +606,7 @@ class GenerateThumbnailsButton(ControlButton):
         shortcut.activated.connect(self.repaint)
 
     def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'pick_thumbnail', c, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'spinner_btn', c, common.INLINE_ICON_SIZE)
 
     def state(self):
         """The state of the auto-thumbnails"""

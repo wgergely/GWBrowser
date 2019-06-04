@@ -832,20 +832,24 @@ class FilesWidget(BaseInlineIconWidget):
             FileThumbnailWorker.add_to_queue(needs_thumbnail)
 
     def eventFilter(self, widget, event):
+        """Custom event filter to drawm the background pixmap."""
         super(FilesWidget, self).eventFilter(widget, event)
+
         if widget is not self:
             return False
+
         if event.type() == QtCore.QEvent.Paint:
             # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'files', QtGui.QColor(0, 0, 0, 10), 128)
+                u'files', QtGui.QColor(0, 0, 0, 20), 180)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
             painter.end()
             return True
+
         return False
 
     def inline_icons_count(self):

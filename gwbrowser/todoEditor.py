@@ -366,7 +366,7 @@ class AddButton(QtWidgets.QLabel):
         self.setMouseTracking(True)
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_add', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
+            u'add', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
         self.setPixmap(pixmap)
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -385,7 +385,7 @@ class RemoveButton(QtWidgets.QLabel):
         super(RemoveButton, self).__init__(parent=parent)
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', common.FAVOURITE, 32)
+            u'remove', common.FAVOURITE, 32)
         self.setPixmap(pixmap)
 
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
@@ -507,7 +507,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Ugh, ugly code...
         add_button = parent_widget.parent().parent().parent().parent().findChild(AddButton)
         pixmap = pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', QtGui.QColor(255, 0, 0), 32)
+            u'remove', QtGui.QColor(255, 0, 0), 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(True)
         parent_widget.parent().separator.setHidden(False)
@@ -521,7 +521,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay_widget.deleteLater()
         parent_widget.parent().separator.setHidden(True)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove', common.FAVOURITE, 32)
+            u'remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
         add_button.setHidden(False)
 

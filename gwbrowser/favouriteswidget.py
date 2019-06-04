@@ -438,25 +438,26 @@ class FavouritesWidget(FilesWidget):
                 break
 
     def eventFilter(self, widget, event):
-        super(FavouritesWidget, self).eventFilter(widget, event)
+        """Custom event filter used to paint the background icon."""
         if widget is not self:
             return False
+
         if event.type() == QtCore.QEvent.Paint:
-            # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'favourite', QtGui.QColor(0, 0, 0, 10), 128)
+                u'favourite', QtGui.QColor(0, 0, 0, 20), 180)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
             painter.end()
             return True
-        return False
+
+        return super(FavouritesWidget, self).eventFilter(widget, event)
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    widget = FavouritesWidget()
-    widget.show()
-    app.exec_()
+    a = QtWidgets.QApplication([])
+    w = FavouritesWidget()
+    w.show()
+    a.exec_()

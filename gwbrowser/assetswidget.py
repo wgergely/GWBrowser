@@ -196,9 +196,11 @@ class AssetsWidget(BaseInlineIconWidget):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
         self.setItemDelegate(AssetsWidgetDelegate(parent=self))
+
         self.context_menu_cls = AssetsWidgetContextMenu
 
         self.set_model(AssetModel(parent=self))
+
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
@@ -207,20 +209,23 @@ class AssetsWidget(BaseInlineIconWidget):
         return False
 
     def eventFilter(self, widget, event):
+        """Custom event filter used to paint the background icon."""
         super(AssetsWidget, self).eventFilter(widget, event)
+
         if widget is not self:
             return False
+
         if event.type() == QtCore.QEvent.Paint:
-            # Let's paint the icon of the current mode
             painter = QtGui.QPainter()
             painter.begin(self)
             pixmap = ImageCache.get_rsc_pixmap(
-                'assets', QtGui.QColor(0, 0, 0, 10), 128)
+                u'assets', QtGui.QColor(0, 0, 0, 20), 180)
             rect = pixmap.rect()
             rect.moveCenter(self.rect().center())
             painter.drawPixmap(rect, pixmap, pixmap.rect())
             painter.end()
             return True
+
         return False
 
     def inline_icons_count(self):

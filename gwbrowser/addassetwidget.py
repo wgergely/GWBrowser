@@ -23,6 +23,7 @@ from gwbrowser.addfilewidget import SaverHeaderWidget
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import CloseButton
 import gwbrowser.gwscandir as gwscandir
+import gwbrowser.settings as Settings
 
 
 class AddAssetWidgetContextMenu(BaseContextMenu):
@@ -46,8 +47,6 @@ class AddAssetWidgetContextMenu(BaseContextMenu):
 class AddAssetWidget(QtWidgets.QDialog):
     """Defines the widget used add an asset to the currently active bookmark."""
     shutdown = QtCore.Signal()
-    fileDescriptionAdded = QtCore.Signal(tuple)
-    fileThumbnailAdded = QtCore.Signal(tuple)
 
     def __init__(self, path, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
@@ -195,7 +194,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.name_widget.setCursorPosition(cp)
 
     def done(self, result):
-        """Slot called by the check button to initiate the save."""
+        """Slot called by the check button to create a new asset."""
         if result == QtWidgets.QDialog.Rejected:
             return super(AddAssetWidget, self).done(result)
 
@@ -239,6 +238,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         try:
             common.create_asset_from_template(
                 self.name_widget.text(), self.path, template=common.MayaAssetTemplate)
+            self.save_thumbnail_and_description()
         except Exception as err:
             mbox.setText(u'An error occured when creating the asset:')
             mbox.setInformativeText('{}'.format(err))
@@ -261,8 +261,25 @@ class AddAssetWidget(QtWidgets.QDialog):
         else:
             self.last_asset_added = self.name_widget.text()
             common.reveal(u'{}/{}'.format(self.path, self.name_widget.text()))
-
         super(AddAssetWidget, self).done(result)
+
+    def save_thumbnail_and_description(self):
+        """Saves the selected thumbnail and description in the config file."""
+        bindex = self.parent().widget(0).model().sourceModel().active_index()
+        if not bindex.isValid():
+            return
+
+        server, job, root = bindex.data(common.ParentRole)
+        asset = self.name_widget.text()
+        settings = Settings.AssetSettings(
+            QtCore.QModelIndex(), args=(server, job, root, asset))
+
+        description = self.description_widget.text()
+        if description:
+            settings.setValue(u'config/description', description)
+        if self.thumbnail_widget.image:
+            if not self.thumbnail_widget.image.isNull():
+                self.thumbnail_widget.image.save(settings.thumbnail_path())
 
     def contextMenuEvent(self, event):
         menu = AddAssetWidgetContextMenu(parent=self)
@@ -272,6 +289,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         menu.exec_()
 
 
-# app = QtWidgets.QApplication([])
-# w = AddAssetWidget(ur'C:\temp\projects\job1\build')
-# w.exec_()
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    w = AddAssetWidget(ur'C:\temp\projects\job1\build')
+    w.exec_()

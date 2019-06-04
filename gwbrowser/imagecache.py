@@ -59,7 +59,7 @@ def oiio(func):
             model = index.model()
             data = model.model_data()[index.row()]
             error_pixmap = ImageCache.instance().get(
-                common.rsc_path(__file__, u'remove'),
+                common.rsc_path(__file__, u'failed'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
 
         try:
@@ -98,7 +98,7 @@ class ImageCacheWorker(BaseWorker):
             model = index.model()
             data = model.model_data()[index.row()]
             error_pixmap = ImageCache.instance().get(
-                common.rsc_path(__file__, u'remove'),
+                common.rsc_path(__file__, u'failed'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
             data[common.ThumbnailRole] = error_pixmap
             data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
@@ -496,7 +496,6 @@ class ImageCache(QtCore.QObject):
         data = index.model().model_data()[index.row()]
         data[common.FileThumbnailLoaded] = False
         ImageCacheWorker.process_index(index, source=dialog.selectedFiles()[0])
-        index.model().dataChanged.emit(index, index)
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0):

@@ -17,9 +17,9 @@ __website__ = 'https://gergely-wootsch.com'
 __email__ = 'hello@gergely-wootsch.com'
 __dependencies__ = (
     u'OpenImageIO.OpenImageIO',
-    u'gwalembic',
+    u'gwalembic.alembic',
     u'numpy',
-    u'PySide2'
+    u'PySide2.QtCore'
 )
 __version__ = u'0.1.50'
 
@@ -38,10 +38,32 @@ def _ensure_dependencies():
     """
     try:
         for dependency in __dependencies__:
+            # sys.stdout.write(u'GWBrowser: Found "{}"\n'.format(dependency))
             importlib.import_module(dependency)
     except ImportError as err:
         raise ImportError(
             '# Missing dependency: Unable to find the necessary module:\n# {}\n'.format(err))
+
+
+def get_info():
+    """Returns an array of technical information."""
+    return (
+        u'Author:   {}'.format(__author__),
+        u'Email:    {}'.format(__email__),
+        u'Website:  {}'.format(__website__),
+        u'Version:  {}'.format(__version__),
+        u'\n',
+        u'Python {} {}'.format(
+            platform.python_version(), platform.python_compiler()),
+        u'OpenImageIO {}'.format(importlib.import_module(
+            __dependencies__[0]).__version__),
+        u'{}'.format(importlib.import_module(
+            __dependencies__[1]).Abc.GetLibraryVersion()),
+        u'Numpy {}'.format(importlib.import_module(
+            __dependencies__[2]).__version__),
+        u'PySide2 {}'.format(importlib.import_module(
+            __dependencies__[3]).__version__),
+    )
 
 
 def exec_():
@@ -62,13 +84,8 @@ def exec_():
     _ensure_dependencies()
 
     # Some basic debugging information
-    sys.stdout.write(u'\nGWBrowser: All dependencies found. Starting...\n')
-    sys.stdout.write(u'Author:   {}\n'.format(__author__))
-    sys.stdout.write(u'Email:    {}\n'.format(__email__))
-    sys.stdout.write(u'Website:  {}\n'.format(__website__))
-    sys.stdout.write('\n')
-    sys.stdout.write(u'Python {}\n'.format(platform.python_version()))
-    sys.stdout.write(u'{}\n'.format(platform.python_compiler()))
+    for info in get_info():
+        sys.stdout.write(u'{}\n'.format(info))
 
     try:
         gwbrowser = importlib.import_module(

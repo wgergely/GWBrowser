@@ -54,6 +54,7 @@ MarkedAsActive = 0b100000000000
 
 COMPANY = u'GergelyWootsch'
 PRODUCT = u'GWBrowser'
+SLACK_URL = ur'https://studio-aka.slack.com/'
 
 
 def platform():
@@ -81,17 +82,17 @@ class Server(object):
         u'main': {
             u'mac': u'smb://GW-WORKSTATION/jobs',
             u'win': u'//GW-WORKSTATION/jobs',
-            u'description': u'The main jobs folder'
+            u'description': u'Main jobs server'
         },
         u'backup': {
             u'mac': u'smb://GW-WORKSTATION/jobs-archive',
             u'win': u'//GW-WORKSTATION/jobs-archive',
-            u'description': u'The backup of the main jobs folder'
+            u'description': u'Jobs backup'
         },
         u'local': {
             u'mac': u'/jobs',
             u'win': u'//GW-WORKSTATION/jobs-local',
-            u'description': u'Local jobs folder on SSD'
+            u'description': u'Local storage on SSD'
         },
     }
 

@@ -723,7 +723,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.setBrush(QtGui.QBrush(color))
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'todo_remove_activated', color, common.INLINE_ICON_SIZE)
+            u'remove', color, common.INLINE_ICON_SIZE)
 
         # Icon
         painter.drawPixmap(rect, pixmap)

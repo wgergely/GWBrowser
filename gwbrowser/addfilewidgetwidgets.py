@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """This modules contains all the elements needed to select a folder from inside
-the active location.
+the current task folder.
 
 """
 
