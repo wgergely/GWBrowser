@@ -1137,8 +1137,6 @@ class BaseListWidget(QtWidgets.QListView):
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         index = self.selectionModel().currentIndex()
 
-        # self.setFocus(QtCore.Qt.OtherFocusReason)
-
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
                 if index.isValid():
