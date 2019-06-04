@@ -410,9 +410,9 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().modelReset.connect(l.model().modelDataResetRequested)
         f.model().sourceModel().modelReset.connect(l.model().modelDataResetRequested)
 
-        b.model().sourceModel().activeChanged.connect(
+        b.activated.connect(
             lambda x: l.model().modelDataResetRequested.emit())
-        a.model().sourceModel().activeChanged.connect(
+        a.activated.connect(
             lambda x: l.model().modelDataResetRequested.emit())
 
         b.model().modelReset.connect(lb.repaint)
