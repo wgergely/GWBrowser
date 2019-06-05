@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This module defines the ``AddBookmarksWidget`` and the supplemetary widgets
+"""**addbookmarkswidget.py** defines ``AddBookmarksWidget`` and the supplemetary widgets
 needed to select a **server**, **job** and **root** folder.
 
 These three choices together (saved as a tuple) make up a **bookmark**.

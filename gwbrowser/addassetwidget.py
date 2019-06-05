@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""This module defines the ``AddAssetWidget``, the main widget used to add a
+"""Defines ``AddAssetWidget``, the main widget used to add a
 new asset to an existing bookmark.
 
 Assets are simple folder-structures, and the main placeholders for files generated

@@ -211,7 +211,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         # On macosx we're using the built-in capture-tool, grabWindow() doesn't
         # seem to work.
-        if common.platform() == u'mac':
+        if common.get_platform() == u'mac':
             temppath = tempfile.NamedTemporaryFile(
                 suffix='.png',
                 prefix='gwbrowser_screencapture_',

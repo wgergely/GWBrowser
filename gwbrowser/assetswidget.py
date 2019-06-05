@@ -1,16 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Definitions for the asset model/view classes.
+"""``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
-An asset refers is a folder with a ``workspace.mel`` identifier file present, containing a
-`scenes`, `renders`, `textures` and `exports` folders. Both the identifier files
-and name of the above folders can be customized in the ``browser.commons`` module.
-
-Each asset can be annoted with a description, thumbnail, and todo items. These
-values are stored in the ``bookmark/.browser`` folder.
-
-"""
-
-from PySide2 import QtWidgets, QtCore, QtGui
+from PySide2 import QtCore, QtGui
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
@@ -19,7 +10,6 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
-import gwbrowser.editors as editors
 from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
@@ -52,18 +42,35 @@ class AssetsWidgetContextMenu(BaseContextMenu):
 
 
 class AssetModel(BaseModel):
-    """The model associated with the assets views."""
+    """The model used store the data necessary to display assets.
+
+    Assets themselves are just simple folder stuctures with a special indentier
+    file at their room (see ``common.ASSET_IDENTIFIER``).
+
+    The model will querry the currently set bookmark folder and will pull all
+    necessary information via the **__initdata__** method. In practice the path
+    used for the querry is extrapolated from ``self._parent_item``.
+
+    Example:
+        .. code-block:: python
+
+           model = AssetModel()
+           model.set_active(index) # Must set the parent item of the model using the index of the active bookmark item
+           model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
+
+    """
 
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
 
     @initdata
     def __initdata__(self):
-        """Querries the bookmark folder and collects the found asset itemsself.
+        """Collects the data needed to populate the bookmarks model by querrying
+        the path stored in ``self._parent_item``.
 
-        The model uses `self.model_data(dict)` to read the values needed to
-        display the found items. Calling this method will reset / repopulate
-        the dictionary.
+        Note:
+            Getting asset information is relatively cheap,
+            hence the model does not have any threads associated with it.
 
         """
         self._data[self._datakey] = {
@@ -190,7 +197,7 @@ class AssetModel(BaseModel):
 
 
 class AssetsWidget(BaseInlineIconWidget):
-    """View for displaying the model items."""
+    """The view used to display the contents of a ``AssetModel`` instance."""
 
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
@@ -205,7 +212,11 @@ class AssetsWidget(BaseInlineIconWidget):
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def buttons_hidden(self):
-        """Returns the visibility of the inline icon buttons."""
+        """Returns the visibility of the inline icon buttons. There's no need to
+        hide the asset buttons, therefore this function will always return
+        False.
+
+        """
         return False
 
     def eventFilter(self, widget, event):

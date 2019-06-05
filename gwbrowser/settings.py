@@ -1,19 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Config file reader for index-based elements.
-
-The ConfigParser allows setting comments and custom properties
-for individual scene files or assets.
-
-Attributes:
-    archived (bool):            The status of the current item.
-    description (str):          The description of the current item.
-
-To retrieve the config file path, or the associated thumbnail you can use
-getConfigPath() or getThumbnailPath().
-
+"""``settings.py`` contains the classes needed to get and set settings for
+the application and the asset and file items.
 """
 
-import sys
 import hashlib
 import collections
 from PySide2 import QtCore
@@ -22,13 +11,13 @@ import gwbrowser.common as common
 
 
 class Active(QtCore.QObject):
-    """Utility class to querry and monitor the active paths.
+    """Utility class to querry and monitor the changes to the active paths.
 
-    Active paths are set by the ``LocalSettings`` module and are stored
-    in the registry HKEY_CURRENT_USER/SOFTWARE/COMPANY/PRODUCT.
+    Active paths are set by the ``LocalSettings`` module and are stored in the
+    registry at ``HKEY_CURRENT_USER/SOFTWARE/COMPANY/PRODUCT.``
 
-    The fully set active path is made up of the 'server', 'job', 'root', 'asset',
-    'location' and 'file' components.
+    The fully set active path is made up of the ``server``, ``job``, ``root``,
+    ``asset``, ``location`` and ``file`` components.
 
     """
     # Signals

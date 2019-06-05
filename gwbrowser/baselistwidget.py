@@ -1,17 +1,11 @@
 # -*- coding: utf-8 -*-
-"""GWBrowser is built around the three main lists - *bookmarks*, *assets* and *files*.
-Each of these lists has a *view*, *model* and context menus stemming from the *BaseModel*,
-*BaseView* and *BaseContextMenu* classes, defined here and in the *basecontextmenu* module.
+"""GWBrowser is built around the three main lists - **bookmarks**, **assets**
+and **files**. Each of these lists has a *view*, *model* and *context menus*
+stemming from the *BaseModel*, *BaseView* and *BaseContextMenu* classes defined
+in ``baselistwidget.py`` and ``basecontextmenu.py`` modules.
 
-This module also defines the necessary objects to filter model-data using
-a *QSortFilterProxyModel*.
-
-All then *BaseListWidget* subclasses are added to **StackedWidget**, the main widget
-to interact with the data stored in the models.
-
-Note:
-    Each *BaseListWidget* uses a *FilterProxyModel* to **filter** data but sorting
-    is implemented internally in the *BaseModel* subclasses directly on the data container.
+The *BaseListWidget* subclasses are then added to the layout of **StackedWidget**,
+the widget used to switch between the lists.
 
 """
 
@@ -26,12 +20,13 @@ import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings
-from gwbrowser.settings import AssetSettings
 
 
 def initdata(func):
-    """This decorator makes sure the endResetModel is always called after running
-    the function."""
+    """Decorator function to make sure ``endResetModel()`` is always called
+    after the function finished running.
+
+    """
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         try:
@@ -48,7 +43,7 @@ def initdata(func):
 
 
 def flagsmethod(func):
-    """Decorator to make sure the ItemFlag values are always correct."""
+    """Decorator to make sure the ItemFlag return values are always correct."""
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
         res = func(self, *args, **kwargs)
@@ -152,10 +147,19 @@ class FilterOnOverlayWidget(ProgressWidget):
 
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
-    """Proxy model responsible for **filtering** the *source model* data.
+    """Proxy model responsible for **filtering** data for the view.
 
-    We can filter our data based on item flags, paths, comments and file information.
-    Sorting is not implemented in this proxy because of performance issues.
+    We can filter items based on the data contained in the
+    ``QtCore.Qt.StatusTipRole``, ``common.DescriptionRole`` and
+    ``common.FileDetailsRole`` roles. Furthermore, based on flag values
+    (``MarkedAsArchived``, ``MarkedAsActive``, ``MarkedAsFavourite`` are implemented.)
+
+    Because of perfomarnce snags, sorting function are not implemented in the proxy
+    model, rather in the source ``BaseModel``.
+
+    Signals:
+        filterFlagChanged (QtCore.Signal):  The signal emitted when the user changes a filter view setting
+        filterTextChanged (QtCore.Signal):  The signal emitted when the user changes the filter text.
 
     """
     filterFlagChanged = QtCore.Signal(int, bool)  # FilterFlag, value
@@ -1208,9 +1212,9 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_C:
                 # Depending on the platform the copied path will be different
                 if index.data(common.FileInfoLoaded):
-                    if common.platform() == u'mac':
+                    if common.get_platform() == u'mac':
                         mode = common.MacOSPath
-                    elif common.platform() == u'windows':
+                    elif common.get_platform() == u'windows':
                         mode = common.WindowsPath
                     else:
                         return
@@ -1565,7 +1569,8 @@ class BaseInlineIconWidget(BaseListWidget):
 
 
 class StackedWidget(QtWidgets.QStackedWidget):
-    """Stacked widget to switch between the Bookmark-, Asset - and File lists."""
+    """Stacked widget used to hold and toggle the list widgets containing the
+    bookmarks, assets, files and favourites."""
 
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)

@@ -1,15 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Module defines a ListWidget used to represent the assets found in the root
-of the `server/job/assets` folder.
-
-The asset collector expects a asset to contain an identifier file,
-in the case of the default implementation, a ``*.mel`` file in the root of the asset folder.
-If the identifier file is not found the folder will be ignored!
-
-Assets are based on maya's project structure and ``Browser`` expects a
-a ``renders``, ``textures``, ``exports`` and a ``scenes`` folder to be present.
-
-The actual name of these folders can be customized in the ``common.py`` module.
+"""``bookmarkswidget.py`` defines the main objects needed for interacting with
+bookmarks. This includes the utility classes for getting bookmark status and to
+allow dropping files and urls on the view.
 
 """
 
@@ -26,7 +18,6 @@ from gwbrowser.baselistwidget import initdata
 from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 from gwbrowser.delegate import BookmarksWidgetDelegate
-import gwbrowser.editors as editors
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 
 
@@ -128,7 +119,12 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
 
 class BookmarksModel(BaseModel):
-    """Drop-enabled model for displaying Bookmarks."""
+    """The model used store the data necessary to display bookmarks.
+
+    The model is drop-enabled, and accepts file are urls. The dropped items will
+    be copied to the root of the bookmark folder.
+
+    """
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
@@ -139,8 +135,13 @@ class BookmarksModel(BaseModel):
         """Collects the data needed to populate the bookmarks model.
 
         Bookmarks are made up of a tuple of ``(server, job, root)`` values and
-        are stored are saved in the local system settings, eg. the Registry
-        in under windows.
+        are stored in the local user system settings, eg. the Registry
+        in under windows. Each bookmarks can be associated with a thumbnail,
+        custom description and a list of comments, todo items.
+
+        Note:
+            This model does not have threads associated with it as fetching
+            necessary data is relatively inexpensive.
 
         """
         self._data[self.data_key()] = {
@@ -265,11 +266,13 @@ class BookmarksModel(BaseModel):
             data[idx][common.TodoCountRole] = todocount
 
     def canDropMimeData(self, data, action, row, column, parent):
+        """Accepts url drops."""
         if data.hasUrls():
             return True
         return False
 
     def dropMimeData(self, data, action, row, column, parent):
+        """Action to perform when a drop happens."""
         index = parent
         if not parent.isValid():
             return
@@ -316,6 +319,7 @@ class BookmarksModel(BaseModel):
         return True
 
     def supportedDropActions(self):
+        """The default accepted drop actions."""
         return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
 
     def data_key(self):
@@ -325,7 +329,7 @@ class BookmarksModel(BaseModel):
 
 
 class BookmarksWidget(BaseInlineIconWidget):
-    """Widget to list all saved ``Bookmarks``."""
+    """The view used to display the contents of a ``BookmarksModel`` instance."""
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
@@ -368,6 +372,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         return False
 
     def inline_icons_count(self):
+        """The number of row-icons an item has."""
         if self.buttons_hidden():
             return 0
         return 5

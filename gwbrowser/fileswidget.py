@@ -1,19 +1,24 @@
 # -*- coding: utf-8 -*-
-"""Defines the models, threads and context menus needed to interact with the
-files.
+"""Defines the models, threads and context menus needed to browser the files of
+a asset.
 
-The ``FilesModel`` is special model in the sense that it doesn't load all necessary
-data by itself and instead relies on threads to querry the file-system
-for performing more expensive file-system querries.
+``FilesModel`` is responsible for storing file-data. There is a key design
+choice determining the model's overall functionality: we're interested in
+getting an overview of all files contained in an asset. The reason for this is
+that files are sometimes are tucked away into subfolders and are hard to get to.
+GWBrowser will expand all sub-folders, get all files inside them and present the
+items as a flat list that can be filtered later.
 
-FilesModel:
-    The main model for querrying the file-system. It will automatically get all
-    subdirectory entries using ``scandir.walk()`` from the current `_parent_item`
-    folder.
+Note:
+    We'using Python 3's ``scandir.walk()`` to querry the filesystem. This is
+    because of performance considerations, on my test ``scandir`` outperformed
+    Qt's ``QDirIterator``. GWBrowser uses a custom build of ``scandir``
+    comptible with Python 2.7.
 
-    The ``FilesWidget`` view will then send the resulting indexes to the threads
-    where the thumbnails (using ``OpenImageIO``) and the file information will
-    be loaded (using ``scandir``'s ``DirEntries``.').
+``FilesModel`` differs from the other models as in it doesn't load all necessary
+data in the main-thread. It instead relies on workers to querry and set
+addittional data. The model will also try to generate thumbnails for any
+``OpenImageIO`` readable file-format via its workers.
 
 """
 
@@ -48,9 +53,13 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 class FileInfoWorker(BaseWorker):
     """The worker associated with the ``FileInfoThread``.
 
-    The worker is responsible for loading the file-size, last modified times,
-    saved flags and description. These loads involve the file-system and can be
-    expensive to perform.
+    The worker is responsible for loading the file-size, last modified
+    timestamps, saved flags and descriptions. These loads involve the
+    file-system and can be expensive to perform.
+
+    The worker performs  the same function as ``SecondaryFileInfoWorker`` but it
+    has it own queue and is concerned with iterating over **only** the visible
+    file-items.
 
     """
     queue = Unique(999999)
@@ -59,8 +68,8 @@ class FileInfoWorker(BaseWorker):
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index, update=True):
-        """This worker is reponsible for populating an index's data
-        with the description, file information.
+        """The main processing function called by the worker.
+        Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
 
         """
         if not index.isValid():
@@ -164,7 +173,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
     """The worker associated with the ``SecondaryFileInfoThread``.
 
     The worker performs  the same function as ``FileInfoWorker`` but
-    it has it own queue and is concerned with loading all indexes.
+    it has it own queue and is concerned with iterating over all file-items.
 
     """
 
@@ -329,11 +338,26 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
 
 class FilesModel(BaseModel):
-    """Model with the file - data associated with asset `locations` and
-    groupping modes.
+    """The model used store individual and collapsed sequence files found inside
+    an asset.
 
-    The model stores information in the private `_data` dictionary, but the actual
-    data is querried from the _data[data_key][data_type] dictionary.
+    Every asset contains subfolders, eg. the ``scenes``, ``textures``, ``cache``
+    folders. The model will load file-data associated with each of those
+    subfolders and save it in ``self._data`` using a **data key**.
+
+    .. code-block:: python
+
+       self._data = {}
+       self._data['scenes'] = {} # 'scenes' is a data-key
+       self._data['textures'] = {} # 'textures' is a data-key
+
+    To reiterate, the name of the asset subfolders will become our *data keys*.
+    Switching between data keys is done by emitting the ``dataKeyChanged``
+    signal.
+
+    Note:
+        ``datakeywidget.py`` defines the widget and model used to control then
+        current data-key.
 
     """
 
@@ -375,21 +399,28 @@ class FilesModel(BaseModel):
 
     @initdata
     def __initdata__(self):
-        """The method is responsible for getting the bare - bones file and sequence
-        definitions by running a file - iterator from the location - folder.
+        """The method is responsible for getting the bare-bones file and
+        sequence definitions by running a file-iterator from
+        ``self._parent_item``.
 
-        Getting all additional information, like description, item flags, thumbnails
-        are costly and therefore are populated by secondary thread - workers when
-        switch the model dataset.
+        Getting all additional information, like description, item flags,
+        thumbnails are costly and therefore are populated by thread-workers.
 
-        Notes:
-            Experiencing serious performance issues with the built - in QDirIterator
-            on Mac OS X samba shares and the performance isn't great on windows either.
-            Querrying the filesystem using the method is magnitudes slower than
-            using the same methods on windows.
+        The method will iterate through all files in every subfolder and will
+        automatically save individual ``FileItems`` and collapsed
+        ``SequenceItems``.
 
-            A workaround I found was to use Python 3 +'s scandir module. Both on
-            Windows and Mac OS X the performance seems to be adequate.
+        Switching between the two datasets is done via emitting the
+        ``dataTypeChanged`` signal.
+
+        Note:
+            Experiencing serious performance issues with the built-in
+            QDirIterator on Mac OS X samba shares and the performance isn't
+            great on windows either. Querrying the filesystem using the method
+            is magnitudes slower than using the same methods on windows.
+
+            A workaround I found was to use Python 3+'s ``scandir`` module. Both
+            on Windows and Mac OS X the performance seems to be adequate.
 
         """
         def add_keywords(l):
@@ -668,13 +699,16 @@ class FilesModel(BaseModel):
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
-        constructed here. There are ambiguities in the absence of any good documentation
-        regarding what mime types have to be defined exactly for fully supporting
-        drag and drop on all platforms.
+        constructed here.
 
-        On windows, ``application / x - qt - windows - mime; value = "FileName"`` and
-        ``application / x - qt - windows - mime; value = "FileNameW"`` types seems to be necessary,
-        but on MacOS a simple uri list seem to suffice.
+        There is ambiguity in the absence of any good documentation I could find
+        regarding what mime types have to be defined exactly for fully
+        supporting drag and drop on all platforms.
+
+        Note:
+            On windows, ``application/x-qt-windows-mime;value="FileName"`` and
+            ``application/x-qt-windows-mime;value="FileNameW"`` types seems to be
+            necessary, but on MacOS a simple uri list seem to suffice.
 
         """
         def add_path_to_mime(mime, path):
@@ -719,7 +753,7 @@ class FilesModel(BaseModel):
 
 
 class FilesWidget(BaseInlineIconWidget):
-    """Files widget is responsible for listing the files items."""
+    """The view used to display the contents of a ``FilesModel`` instance."""
 
     def __init__(self, parent=None):
         """Initializes the files widget.
@@ -765,8 +799,8 @@ class FilesWidget(BaseInlineIconWidget):
 
     @QtCore.Slot()
     def reset_thread_worker_queues(self):
-        """Removes all queued items from the respective worker queues.
-        Slot is called by the ``modelAboutToBeReset`` signals.
+        """This slot removes all queued items from the respective worker queues.
+        Called by the ``modelAboutToBeReset`` signal.
 
         """
         FileInfoWorker.reset_queue()

@@ -1,37 +1,18 @@
 # -*- coding: utf-8 -*-
-"""The ``common.py`` is module used to define common variables and methods used across the project.
+"""The ``common.py`` is module used to define common variables and methods used
+across the project.
 
-Global Variables
-    The studio wide servers are defined here. These are hard-coded
-    variables that will depend on the context the program is used in.
-    Make sure to customize these settings depending on your environment!
+This includes ``Server``, the class used to define the` network and local server
+entry-points, basic UI properties and information about assets.
 
-    The ``ASSET_IDENTIFIER`` is the file needed to be present to understand a folder
-    as an asset. We're using the maya project structure so this is
-    a **workspace.mel** file in our case.
+*Assets* are directory structures compartmentalizing data. They're folders including a
+special identifier file and further sub-folders. We can assign custom descriptions for
+each of the subfolders here.
 
-    *Assets* are directory structures compartmentalizing data. GWBrowser
-    is implemeted to read any folder but the primary folders usually are
-    the ``scenes``, ``cache``, ``textures`` and ``renders`` folders.
+Another important aspect of GWBrowser is its ability to group sequences together.
+The sequence-recognition regexes are also defined in the ``common`` module.
 
-    Depending on your setup these folders might have different names you can
-    define here. GWBrowser will assume all of these folder reside in the
-    root of the asset folder.
 
-UI
-    Common UI properties are hardcoded into this module, including font choices,
-    colour-platte and row-sizes.
-
-Sequence-recognition
-    The regexes we're using to validate file-names are also defined here.
-
-    ``get_sequence`` is the regex method that checks if a filename can be incremented.
-    For instance, it will understand sequences with the `v` prefix, eg *v001*, *v002*,
-    but works without the prefix as well. Eg. *001*, *002*.
-    In the case of a filename like *myfile_v001_freelance_v002.c4d* **002**
-    will be the prevailing sequence number.
-    Likewise, in *myfile_v001_freelance_v002.0001.c4d* the sequence
-    number understood will be **0001** not *v002*.
 
 """
 
@@ -40,6 +21,7 @@ import os
 import sys
 import re
 import zipfile
+import platform
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
@@ -52,18 +34,18 @@ MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
 
-COMPANY = u'GergelyWootsch'
+COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
 SLACK_URL = ur'https://studio-aka.slack.com/'
 
 
-def platform():
+def get_platform():
     """Returns the name of the current platform.
 
     Returns:
         unicode: *mac* or *win*, depending on the platform.
 
-    Raises:        NotImplementedError: If the current platform is not *mac* or *win*.
+    Raises:        NotImplementedError: If the current platform is not supported.
 
     """
     ptype = QtCore.QSysInfo().productType().lower()
@@ -76,28 +58,27 @@ def platform():
 
 
 class Server(object):
-    """This is wrapper class to store the list of available servers."""
+    """``Server`` contains the hard-coded paths primary, backup, and local
+    work-folders.
 
+    """
     __servers = {
         u'main': {
-            u'mac': u'smb://GW-WORKSTATION/jobs',
-            u'win': u'//GW-WORKSTATION/jobs',
+            u'mac': u'smb://{}/jobs'.format(platform.node()),
+            u'win': u'//{}/jobs'.format(platform.node()),
             u'description': u'Main jobs server'
         },
         u'backup': {
-            u'mac': u'smb://GW-WORKSTATION/jobs-archive',
-            u'win': u'//GW-WORKSTATION/jobs-archive',
+            u'mac': u'smb://{}/jobs-archive'.format(platform.node()),
+            u'win': u'//{}/jobs-archive'.format(platform.node()),
             u'description': u'Jobs backup'
         },
         u'local': {
             u'mac': u'/jobs',
-            u'win': u'//GW-WORKSTATION/jobs-local',
+            u'win': u'//{}/jobs-local'.format(platform.node()),
             u'description': u'Local storage on SSD'
         },
     }
-
-    def __init__(self):
-        pass
 
     @classmethod
     def get_server_platform_name(cls, name, platform):
@@ -112,7 +93,7 @@ class Server(object):
         This is where all active jobs are stored.
 
         """
-        return cls.__servers[u'main'][platform()]
+        return cls.__servers[u'main'][get_platform()]
 
     @classmethod
     def backup(cls):
@@ -120,7 +101,7 @@ class Server(object):
         This is where all active job backup are stored.
 
         """
-        return cls.__servers[u'backup'][platform()]
+        return cls.__servers[u'backup'][get_platform()]
 
     @classmethod
     def local(cls):
@@ -128,22 +109,24 @@ class Server(object):
         when needing quick access to storage using the local SSD drive.
 
         """
-        return cls.__servers['local'][platform()]
+        return cls.__servers['local'][get_platform()]
 
     @classmethod
     def servers(cls):
         """Returns all available servers."""
         arr = []
         for v in cls.__servers.itervalues():
-            arr.append({u'path': v[platform()],
+            arr.append({u'path': v[get_platform()],
                         u'description': v[u'description']})
         arr = sorted(arr, key=lambda x: x[u'path'])
         return arr
 
 
 ASSET_IDENTIFIER = u'workspace.mel'
-"""When a file with the set name is present in the root of a directory, GWBrowser
- will consider it as an asset."""
+"""``ASSET_IDENTIFIER`` is the file needed for GWBrowser to understand a folder
+as an asset. We're using the maya project structure as our asset-base so this is
+a **workspace.mel** file in our case. The file resides in the root of the asset
+directory."""
 
 
 FTHREAD_COUNT = 2
@@ -214,7 +197,7 @@ def psize(n):
     refers to. Difference of dpi...?
 
     """
-    return n * 1.5 if platform() == u'mac' else n * pscale
+    return n * 1.5 if get_platform() == u'mac' else n * pscale
 
 
 MARGIN = 18.0
@@ -279,7 +262,7 @@ def get_oiio_namefilters(as_array=False):
 
     allfiles = [u'*.{}'.format(f) for f in arr]
     allfiles = u' '.join(allfiles)
-    allfiles = 'All files ({})'.format(allfiles)
+    allfiles = u'All files ({})'.format(allfiles)
     namefilters.insert(0, allfiles)
     return u';;'.join(namefilters)
 
@@ -515,11 +498,11 @@ def reveal(path):
 
     """
     path = get_sequence_endpath(path)
-    if platform() == u'win':
+    if get_platform() == u'win':
         args = [u'/select,', QtCore.QDir.toNativeSeparators(path)]
         return QtCore.QProcess.startDetached(u'explorer', args)
 
-    if platform() == u'mac':
+    if get_platform() == u'mac':
         args = [
             u'-e',
             u'tell application "Finder"',
@@ -594,11 +577,15 @@ HIGHLIGHT_RULES = {
 
 
 def get_ranges(arr, padding):
-    """Given an array of numbers the method will return a string representation.
+    """Given an array of numbers the method will return a string representation of
+    the ranges contained in the array.
 
     Args:
-        arr(list):       An array of numbers
+        arr(list):       An array of numbers.
         padding(int):    The number of leading zeros before the number.
+
+    Returns:
+        unicode: A string representation of the given array.
 
     """
     arr = sorted(list(set(arr)))
@@ -614,7 +601,7 @@ def get_ranges(arr, padding):
         if idx + 1 != len(arr):
             if arr[idx + 1] != n + 1:  # break coming up
                 k += 1
-    return u','.join(['-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
+    return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
 
 ValidFilenameRegex = re.compile(
@@ -637,23 +624,26 @@ def get_valid_filename(text):
     """This method will check if the given text conforms Browser's enforced
     filenaming convention.
 
-    A valid ``match`` object if true, ``None`` if the text is invalid.
+    The returned SRE.Match object will contain the groups descripbed below.
 
-    Match.group(1):
-        The job's short name, between 1 and 3 characters.
-    Match.group(2):
-        The current asset-name, between 1 and 12 characters.
-    Match.group(3):
-        The custom description of the file, between 1 - 25 characters.
-    Match.group(4):
-        The file's version. Has to be exactly 3 characters.
-    Match.group(5):
-        The name of the user.
-    Match.group(6):
-        The file's extension (without the '.')
+    .. code-block:: python
+
+       f = u'job_house_interiour_v001_wgergely.ma'
+       match = common.get_valid_filename(f)
+       if match:
+           print match.expand(ur'\\1\\2\\3\\4\\5.\\6')
+           # job_house_interiour_v001_wgergely.ma
+
+    Args:
+        group 1(SRE_Match object):        The job's short name, between 1 and 3 characters.
+        group 2(SRE_Match object):        The current asset-name, between 1 and 12 characters.
+        group 3(SRE_Match object):        The custom description of the file, between 1 - 25 characters.
+        group 4(SRE_Match object):        The file's version. Has to be exactly 3 characters.
+        group 5(SRE_Match object):        The name of the user.
+        group 6(SRE_Match object):        The file's extension (without the '.')
 
     Returns:
-        A valid ``match`` object if true, ``None`` if the text is invalid.
+        SRE_Match: A ``SRE_Match`` object if the filename is valid, otherwise ``None``
 
     """
     return ValidFilenameRegex.search(text)
@@ -662,50 +652,74 @@ def get_valid_filename(text):
 def get_sequence(text):
     """This method will check if the given text contains a sequence element.
 
-    In Browser's terms, a sequence is an file that has a valid number element
-    that can be inremented.
-    There can only be `one` number element - it will always be the number at the
-    end of the file - name, closest to the extension.
+    Strictly speaking, a sequence is any file that has a valid number element.
+    There can only be **one** incrementable element - it will always be the
+    number closest to the end.
 
-    Match.group(1):
-        All the character `before` the sequence.
-    Match.group(2):
-        The sequence number.
-    Match.group(3):
-        All the characters after the sequence number.
+    The regex will understand sequences with the `v` prefix, eg *v001*, *v002*,
+    but works without the prefix as well. Eg. **001**, **002**. In the case of a
+    filename like ``job_sh010_animation_v002.c4d`` **002** will be the
+    prevailing sequence number, ignoring the number in the extension.
+
+    Likewise, in ``job_sh010_animation_v002.0001.c4d`` the sequence number will
+    be **0001**, and not 010 or 002.
+
+    Args:
+        group 1 (SRE_Match):    All the characters **before** the sequence number.
+        group 2 (SRE_Match):    The sequence number, as a string.
+        group 3 (SRE_Match):    All the characters **after** the sequence number.
+
+    .. code-block:: python
+
+       filename = 'job_sh010_animation_v002_wgergely.c4d'
+       match = common.get_sequence(filename)
+       if match:
+           print match.group(1) # 'job_sh010_animation_v'
+           print match.group(2) # '002'
+           print match.group(3) # '_wgergely.c4d'
 
     Returns:
-        A valid ``match`` object if true or ``None`` if the text doesn't contain
-        a number.
+        ``SRE_Match``: ``None`` if the text doesn't contain a number or an ``SRE_Match`` object.
 
     """
     return GetSequenceRegex.search(text)
 
 
 def is_collapsed(text):
-    """In Browser's terminology, a `collapsed` item is a name that represents a
-    sequence. Sequence are annoted by a series of numbers contained inside a bracket.
+    """This method will check for the presence of the bracket-enclosed sequence markers.
 
-    Eg.: `[001 - 050]`
+    When GWBrowser is displaying a sequence of files as a single item,
+    the item is *collapsed*. Every collapsed item contains a start and an end number
+    enclosed in brackets. For instance: ``image_sequence_[001-233].png``
 
-    Match.group(1):
-        All the character `before` the sequence marker.
-    Match.group(2):
-        The sequence marker(eg. `[1 - 50]`).
-    Match.group(3):
-        All the characters after the sequence marker.
+    Args:
+        group 1 (SRE_Match):    All the characters **before** the sequence marker.
+        group 2 (SRE_Match):    The sequence marker(eg. ``[01-50]``), as a string.
+        group 3 (SRE_Match):    All the characters **after** the sequence marker.
+
+    .. code-block:: python
+
+       filename = 'job_sh010_animation_[001-299]_wgergely.png'
+       match = common.get_sequence(filename)
+       if match:
+           print match.group(1) # 'job_sh010_animation_'
+           print match.group(2) # '[001-299]'
+           print match.group(3) # '_wgergely.png'
 
     Returns:
-        A valid ``match`` object if true or ``None`` if the text doesn't is not
-        a collapsed sequence.
+        ``SRE_Match``: If the given name is indeed collpased it returns a ``SRE_Match`` object, otherwise ``None``.
 
     """
     return IsSequenceRegex.search(text)
 
 
 def get_sequence_startpath(path):
-    """Checks the given string and if it denotes a seuqence returns the path for
-    the first file.
+    """If the given path refers to a collapsed item, it will get the name of the
+    the first item in the sequence. In the case of **[0-99]**, the first item is
+    **0**.
+
+    Returns:
+        ``unicode``: The name of the first element in the sequence.
 
     """
     if not is_collapsed(path):
@@ -838,10 +852,10 @@ def find_largest_file(index):
 
 def mount():
     """Mounts the server in macosx if it isn't mounted already."""
-    if platform() == u'win':
+    if get_platform() == u'win':
         return
 
-    if platform() == u'mac':
+    if get_platform() == u'mac':
         mountpoint = u'/volumes/{}'.format(Server.main().split(u'/').pop())
 
         for d in QtCore.QStorageInfo.mountedVolumes():

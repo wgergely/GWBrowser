@@ -2,11 +2,12 @@
 """This module defines. *GWBrowser*'s custom saver widget.
 
 We're using the ``BookmarksWidget`` and ``AssetsWidget`` respectively, including
-the associated models, to set the destination of the regquested file.
+the associated models, to set the destination of the saved file.
 
-We can use the widget to generate a new filename, or if the **currentfile** argument
-is defined we can increment the given file. The saver will then try to factor in
-the given files current location and version number - this will be incremented by +1.
+We can use the widget to generate a new filename, or if the **currentfile**
+argument is defined we can increment the given file's sequence element. The
+saver will then try to factor in the given files current location and version
+number - this will be incremented by +1.
 
 Note:
     The widget itself will only return a filepath and is not performing any file
@@ -584,14 +585,11 @@ class Check(ClickableLabel):
 
 
 class AddFileWidget(QtWidgets.QDialog):
-    """The save dialog to save a file.
-    Contains the header and the saver widgets needed to select the desired path.
+    """The dialog used to save a file. It contains the header and the saver widgets
+    needed to select the desired path.
 
-    When done() is called, the widget will emit the ``fileSaveRequested``,
+    When ``done()`` is called, the widget will emit the ``fileSaveRequested``,
     ``fileDescriptionAdded`` and ``fileThumbnailAdded`` signals.
-
-    The latter two will emit a tuple of paths (bookmark, file path) the data to
-    be provide the information needed to initialize an AssetSettings instance.
 
     """
 
