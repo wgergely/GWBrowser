@@ -105,7 +105,7 @@ class ComboboxButton(QtWidgets.QPushButton):
         self._view = ListWidget(parent=self)
 
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 0.8)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding)
@@ -199,6 +199,10 @@ class ComboboxButton(QtWidgets.QPushButton):
 
         painter = QtGui.QPainter()
         painter.begin(self)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(255, 255, 255, 10))
+        painter.drawRoundedRect(self.rect(), 3, 3)
 
         rect = QtCore.QRect(self.rect())
         if hover and not disabled or self.view().isVisible():
@@ -565,17 +569,13 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             common.MARGIN,
             common.MARGIN
         )
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.setFixedWidth(400)
 
         label = PaintedLabel(u'Add bookmark', size=common.LARGE_FONT_SIZE)
         self.layout().addWidget(label, 0)
 
-        label = QtWidgets.QLabel()
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'bookmark', common.SEPARATOR, 128, opacity=0.1)
-        label.setPixmap(pixmap)
-        self.layout().addWidget(label, 1)
+        self.layout().addSpacing(common.MARGIN)
 
         # Server
         row = add_row()
@@ -614,24 +614,12 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         row.layout().addWidget(label)
         self.pick_root_widget = ComboboxButton(
             u'bookmark', parent=self)
+        description = u'Select the bookmark folder.'
+        self.pick_root_widget.setToolTip(description)
+        self.pick_root_widget.setStatusTip(description)
         row.layout().addWidget(self.pick_root_widget)
 
-        # Bookmarks description
-        row = add_row()
-        row.layout().addSpacing(75)
-        text = u'<p style="font-size: {s}pt; color: rgba({},{},{},{}); font-family: "{f}"">'
-        text += 'Folders containing assets are listed above. '
-        text += 'To pick a custom folder use the "{c}" button.</p>'
-        text = text.format(
-            *common.TEXT.getRgb(),
-            s=common.psize(common.MEDIUM_FONT_SIZE),
-            f=common.SecondaryFont.family(),
-            c=custom_string
-        )
-        label = QtWidgets.QLabel(text)
-        label.setWordWrap(True)
-        label.setAlignment(QtCore.Qt.AlignJustify)
-        row.layout().addWidget(label, 1)
+        self.layout().addSpacing(common.MARGIN)
 
         row = QtWidgets.QWidget(parent=self)
         row.setAttribute(QtCore.Qt.WA_TranslucentBackground)

@@ -21,7 +21,6 @@ Warning:
     above libraries. The library versions are mindful of the *VFX Reference
     Platform* specifications.
 
-
 """
 
 import sys
