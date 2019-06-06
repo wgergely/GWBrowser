@@ -1100,8 +1100,14 @@ AssetTypes = {
 def create_asset_from_template(name, basepath, template):
     """Creates a new asset with the given name.
 
-    The asset is a zip - archive containing the folder - structure. We can define
-    multiple asset - types. These are defined in the ``common.AssetTypes`` variable.
+    An asset is a zip-archive containing the pre-defined folder structure for
+    jobs and assets. The available asset types are defined in the
+    ``common.AssetTypes`` variable.
+
+    Args:
+        name (unicode):         The name of the asset to create.
+        basepath (unicode):     The path the asset should be saved to.
+        template (unicode):     The name of the template file *without* the zip extension.
 
     """
     template_info = QtCore.QFileInfo(

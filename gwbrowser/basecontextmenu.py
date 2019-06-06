@@ -230,7 +230,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         path = common.get_sequence_startpath(
             self.index.data(QtCore.Qt.StatusTipRole))
-        menu_set['Show in file manager  |  Ctrl+S'] = {
+        menu_set['Show in file manager'] = {
             u'icon': pixmap,
             u'action': functools.partial(common.reveal, path)
         }

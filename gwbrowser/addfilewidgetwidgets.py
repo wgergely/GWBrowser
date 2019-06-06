@@ -5,6 +5,7 @@ the current task folder.
 """
 
 import re
+import sys
 import functools
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -163,9 +164,13 @@ class SelectFolderView(QtWidgets.QTreeView):
 
     def set_model(self, model):
         self.setModel(model)
+
+        model.setRootPath('.')
+        index = model.index(model.rootPath())
+        self.setRootIndex(index)
+
         self.model().directoryLoaded.connect(self.index_expanded)
-        root_index = self.model().index(self.model().rootPath())
-        self.setRootIndex(root_index)
+        self.model().directoryLoaded.connect(self.adjust_height)
         self.activated.connect(self.model().destinationChanged)
 
     def index_expanded(self, index):
@@ -189,27 +194,34 @@ class SelectFolderView(QtWidgets.QTreeView):
     def adjust_height(self, *args, **kwargs):
         """Adjusts the size of the view to fix the items exactly."""
         index = self.rootIndex()
+
         height = 0
+        row_height = self.itemDelegate().sizeHint(QtCore.QModelIndex()).height()
         while True:
             index = self.indexBelow(index)
             if not index.isValid():
                 break
-            height += self.itemDelegate().sizeHint(QtCore.QModelIndex()).height()
+            height += row_height
             if height > 300:
                 break
+        if height == 0:
+            height = 3
         self.setFixedHeight(height)
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def set_asset(self, index):
+    def set_root_index(self, index):
         if not index.isValid():
-            self.model().setRootPath(u'.')
+            path = u'.'
         else:
             path = u'/'.join(index.data(common.ParentRole))
-            self.model().setRootPath(path)
 
-        self.model()._asset = index
-        self.model().destinationChanged.emit(QtCore.QModelIndex())
-        self.setRootIndex(self.model().index(self.model().rootPath()))
+        self._asset = index
+
+        self.model().setRootPath(path)
+        index = self.model().index(self.model().rootPath())
+        self.setRootIndex(index)
+
+        self.model().destinationChanged.emit(index)
 
 
 class SelectFolderModel(QtWidgets.QFileSystemModel):
@@ -306,14 +318,6 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
             return flags
         return QtCore.Qt.NoItemFlags
 
-    def data(self, index, role=QtCore.Qt.DisplayRole):
-        """Without a valid asset index, the model will not allow item selection."""
-        if self.rootPath() == u'.':
-            return u'Asset has not yet been selected'
-        if not self.asset().isValid():
-            return u'Asset has not yet been selected'
-        return super(SelectFolderModel, self).data(index, role=role)
-
 
 class SelectFolderButton(ClickableLabel):
     """A ClickableLabel for showing the FolderView."""
@@ -322,7 +326,6 @@ class SelectFolderButton(ClickableLabel):
         super(SelectFolderButton, self).__init__(parent=parent)
         self._view = None
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-        self.setMouseTracking(True)
         self.setText(u'Select destination folder...')
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setObjectName(u'SelectFolderButton')
@@ -367,24 +370,6 @@ class SelectFolderButton(ClickableLabel):
         self.view().move(x, y)
         self.view().setFixedWidth(width)
         self.view().show()
-        self.view().setFocus()
-        self.view().raise_()
-
-        index = QtCore.QModelIndex()
-        if hasattr(self.view().model(), 'sourceModel'):
-            source_index = self.view().model().sourceModel().active_index()
-            if not source_index.isValid():
-                return
-            index = self.view().model().mapFromSource(source_index)
-        else:
-            dest = self.view().model().destination()
-            if dest:
-                index = self.view().model().index(dest)
-
-        self.view().selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
-        self.view().scrollTo(
-            index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def showEvent(self, event):
         return super(SelectFolderButton, self).showEvent(event)
@@ -471,10 +456,14 @@ class SaverListView(BaseInlineIconWidget):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+        self.removeEventFilter(self)
 
     def showEvent(self, event):
         self.widgetShown.emit()
         self.adjust_height()
+
+        if self.selectionModel().hasSelection():
+            self.scrollTo(self.selectionModel().currentIndex())
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):
@@ -492,7 +481,7 @@ class SaverListView(BaseInlineIconWidget):
             if height > 300:
                 break
         if height == 0:
-            height += self.itemDelegate().sizeHint(option, index).height()
+            height += self.itemDelegate().sizeHint(option, QtCore.QModelIndex()).height()
         self.setFixedHeight(height)
 
     def focusOutEvent(self, event):
@@ -612,6 +601,9 @@ class SelectBookmarkView(SaverListView):
     def showEvent(self, event):
         self.widgetShown.emit()
         self.adjust_height()
+
+        if self.selectionModel().hasSelection():
+            self.scrollTo(self.selectionModel().currentIndex())
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):

@@ -64,7 +64,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.move_start_widget_pos = None
 
         self.setWindowTitle(u'Add asset')
-        self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setWindowFlags(

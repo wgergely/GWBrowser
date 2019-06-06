@@ -650,9 +650,14 @@ class PaintedTextButton(ClickableLabel):
         self.font = QtGui.QFont(common.PrimaryFont)
         self.font.setPointSize(self.font.pointSize() + 1)
 
-        self.setMouseTracking(True)
         self.setStatusTip(u'')
         self.setFixedHeight(height)
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def enterEvent(self, event):
+        self.repaint()
 
     def set_parent(self, widget):
         self._parent = widget

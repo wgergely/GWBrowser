@@ -50,45 +50,6 @@ class VersionLabel(QtWidgets.QLabel):
             ur'https://gergely-wootsch.com/gwbrowser-about')
 
 
-class SizeGrip(QtWidgets.QSizeGrip):
-    """Custom size-grip for resizing browser-widget"""
-
-    def __init__(self, browserwidget, parent=None):
-        super(SizeGrip, self).__init__(parent)
-        self.browserwidget = browserwidget
-        self.setFixedWidth(common.INLINE_ICON_SIZE / 2)
-        self.setFixedHeight(common.INLINE_ICON_SIZE / 2)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-
-    def paintEvent(self, event):
-        pass
-
-    def update_widgets(self, tracking):
-        """Seems to be some issue with resizing the views when using using the grip.
-        Also, when mouse-tracking is on resize is slow."""
-        return
-        stackedwidget = self.browserwidget.stackedwidget
-        controlview = self.browserwidget.listcontrolwidget._controlview
-        fileswidget = self.browserwidget.fileswidget
-
-        stackedwidget.setMouseTracking(tracking)
-        for idx in xrange(stackedwidget.count()):
-            widget = stackedwidget.widget(idx)
-            # widget.setUpdatesEnabled(tracking)
-            widget.setMouseTracking(tracking)
-            widget.viewport().setMouseTracking(tracking)
-            widget.updateGeometry()
-
-    def mouseMoveEvent(self, event):
-        self.update_widgets(False)
-        super(SizeGrip, self).mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self.update_widgets(True)
-        super(SizeGrip, self).mouseReleaseEvent(event)
-
-
 class BrowserWidget(QtWidgets.QWidget):
     """Main widget to browse pipline data."""
     initialized = QtCore.Signal()
@@ -269,7 +230,6 @@ class BrowserWidget(QtWidgets.QWidget):
         grip = statusbar.findChild(QtWidgets.QSizeGrip)
         if grip:
             grip.deleteLater()
-        grip = SizeGrip(self, parent=self)
 
         statusbar.addPermanentWidget(VersionLabel(parent=statusbar))
         statusbar.addPermanentWidget(grip)

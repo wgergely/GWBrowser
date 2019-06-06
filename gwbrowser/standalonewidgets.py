@@ -110,7 +110,7 @@ class TrayMenu(BaseContextMenu):
 
 
 class CloseButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
+    """Button used to close/hide a widget or window."""
 
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(parent=parent)
@@ -122,6 +122,28 @@ class CloseButton(ClickableLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        if hover:
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'close', QtGui.QColor(200, 100, 50), common.ROW_BUTTONS_HEIGHT / 2)
+        else:
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+        painter.end()
 
 
 class MinimizeButton(ClickableLabel):
@@ -137,6 +159,28 @@ class MinimizeButton(ClickableLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        if hover:
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'minimize', QtGui.QColor(200, 100, 50), common.ROW_BUTTONS_HEIGHT / 2)
+        else:
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+        painter.end()
 
 
 class HeaderWidget(QtWidgets.QWidget):

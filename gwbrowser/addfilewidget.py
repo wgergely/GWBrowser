@@ -606,6 +606,10 @@ class AddFileWidget(QtWidgets.QDialog):
         self.description_editor_widget = None
         self.thumbnail_widget = None
 
+        self.select_bookmark_button = None
+        self.select_asset_button = None
+        self.select_folder_button = None
+
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
@@ -673,25 +677,27 @@ class AddFileWidget(QtWidgets.QDialog):
         self.description_editor_widget = DescriptionEditor(parent=self)
         row.layout().addWidget(self.description_editor_widget, 1)
 
-        bookmarkbutton = SelectBookmarkButton(parent=self)
-        bookmarkview = SelectBookmarkView()
-        bookmarkview.set_model(bookmark_model)
-        bookmarkbutton.set_view(bookmarkview)
+        # Bookmark
+        view = SelectBookmarkView(parent=self)
+        view.set_model(bookmark_model)
+        self.select_bookmark_button = SelectBookmarkButton(parent=self)
+        self.select_bookmark_button.set_view(view)
+        row.layout().addWidget(self.select_bookmark_button)
 
-        assetbutton = SelectAssetButton(parent=self)
-        assetview = SelectAssetView()
-        assetview.set_model(asset_model)
-        assetbutton.set_view(assetview)
+        # Asset
+        view = SelectAssetView(parent=self)
+        view.set_model(asset_model)
+        self.select_asset_button = SelectAssetButton(parent=self)
+        self.select_asset_button.set_view(view)
+        row.layout().addWidget(self.select_asset_button)
 
-        foldersbutton = SelectFolderButton(parent=self)
-        foldersview = SelectFolderView()
-        foldersview.set_model(SelectFolderModel())
-        foldersbutton.set_view(foldersview)
+        # Folders
+        view = SelectFolderView(parent=self)
+        view.set_model(SelectFolderModel())
+        self.select_folder_button = SelectFolderButton(parent=self)
+        self.select_folder_button.set_view(view)
+        row.layout().addWidget(self.select_folder_button)
 
-        row.layout().addWidget(bookmarkbutton)
-        row.layout().addWidget(assetbutton)
-        row.layout().addWidget(foldersbutton)
-        #
         row = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(row)
         row.layout().setContentsMargins(0, 0, 0, 0)
@@ -735,18 +741,9 @@ class AddFileWidget(QtWidgets.QDialog):
         self.layout().addWidget(statusbar, 1)
 
     def _connectSignals(self):
-        buttons = self.findChildren(SelectFolderButton)
-        bookmarkbutton = [
-            f for f in buttons if f.objectName() == u'SelectBookmarkButton'][-1]
-        assetbutton = [f for f in buttons if f.objectName() ==
-                       u'SelectAssetButton'][-1]
-        foldersbutton = [f for f in buttons if f.objectName()
-                         == u'SelectFolderButton'][-1]
-        header = self.findChild(SaverHeaderWidget)
-
-        b = bookmarkbutton.view()
-        a = assetbutton.view()
-        f = foldersbutton.view()
+        b = self.select_bookmark_button.view()
+        a = self.select_asset_button.view()
+        f = self.select_folder_button.view()
 
         b.widgetShown.connect(a.hide)
         b.widgetShown.connect(f.hide)
@@ -757,6 +754,7 @@ class AddFileWidget(QtWidgets.QDialog):
         f.widgetShown.connect(a.hide)
         f.widgetShown.connect(b.hide)
 
+        header = self.findChild(SaverHeaderWidget)
         header.widgetMoved.connect(b.move)
         header.widgetMoved.connect(a.move)
         header.widgetMoved.connect(f.move)
@@ -765,13 +763,13 @@ class AddFileWidget(QtWidgets.QDialog):
         b.model().sourceModel().modelReset.connect(
             lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
         b.model().sourceModel().modelReset.connect(
-            a.model().sourceModel().modelDataResetRequested.emit)
+            a.model().sourceModel().modelDataResetRequested)
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().set_active)
         b.model().sourceModel().activeChanged.connect(
             lambda x: a.model().sourceModel().modelDataResetRequested.emit())
 
-        a.model().sourceModel().activeChanged.connect(f.set_asset)
+        a.model().sourceModel().activeChanged.connect(f.set_root_index)
         a.model().sourceModel().activeChanged.connect(
             lambda i: f.model().fileTypeChanged.emit(self.extension))
 
@@ -861,10 +859,6 @@ class AddFileWidget(QtWidgets.QDialog):
                                          a.model().filterFlag(common.MarkedAsFavourite))
 
         bookmarkbutton.view().model().sourceModel().modelDataResetRequested.emit()
-        bookmarkbutton.view().model().sourceModel().activeChanged.emit(
-            bookmarkbutton.view().model().sourceModel().active_index())
-        assetbutton.view().model().sourceModel().activeChanged.emit(
-            assetbutton.view().model().sourceModel().active_index())
 
         if self.currentfile:
             # We will check if the previous version had any description or
@@ -1015,3 +1009,9 @@ class AddFileWidget(QtWidgets.QDialog):
             self.description_editor_widget.text()))
 
         return super(AddFileWidget, self).done(result)
+
+    def showEvent(self, event):
+        self.parent().stackedwidget.currentWidget().disabled_overlay_widget.show()
+
+    def hideEvent(self, event):
+        self.parent().stackedwidget.currentWidget().disabled_overlay_widget.hide()

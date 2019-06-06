@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
-""" GWBrowser is a PySide2 based asset-manager to be used in a digital
-production environment.
+"""GWBrowser is a PySide2 based asset-manager used in a digital production
+environment.
 
-The tool was designed to create and navigate folder-structures, hopefully aiding
-an organized workflow.
+The tool was designed to create and navigate folder-structures, aiding an
+organized workflow. Projects, assets and files can be annotated with comments,
+descriptions and thumbnails making navigating digital life a little
+less cumbersome.
 
 Predominantly intended to be run as a standalone PySide2 application, GWBrowser
-can however be embedded in any PySide2 context. This should include (at present
-time in 2019) Maya, Houdini, Nuke. There's a Maya module already available.
+can, however, be embedded in PySide2 contexts. This should include (at the time
+of writing) Maya, Houdini and Nuke.
+
+``mGWBrowser.py`` is the plug-in for launching GWBrowser from inside Maya.
 
 Warning:
-    GWBrowser requires ``OpenImageIO``, ``Numpy``, ``GWAlembic`` (this is just
-    the regular alembic module renamed to avoid name-clashes) and ``PySide2``.
-    Make sure these packages are available for the Python interpreter.
+    GWBrowser requires ``OpenImageIO``, ``Numpy``, ``GWAlembic`` and ``PySide2``
+    to function.
+
+    The standalone version is built against Python 2.7 MSCV1900 and includes the
+    above libraries. The library versions are mindful of the *VFX Reference
+    Platform* specifications.
+
 
 """
 

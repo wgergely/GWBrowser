@@ -675,8 +675,8 @@ class BaseListWidget(QtWidgets.QListView):
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
-        self.setMouseTracking(True)
-        self.viewport().setMouseTracking(True)
+        self.setMouseTracking(False)
+        self.viewport().setMouseTracking(False)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 
@@ -1214,7 +1214,7 @@ class BaseListWidget(QtWidgets.QListView):
                 if index.data(common.FileInfoLoaded):
                     if common.get_platform() == u'mac':
                         mode = common.MacOSPath
-                    elif common.get_platform() == u'windows':
+                    elif common.get_platform() == u'win':
                         mode = common.WindowsPath
                     else:
                         return
