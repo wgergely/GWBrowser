@@ -3,6 +3,7 @@
 
 import os
 import functools
+import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -12,6 +13,9 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
+
+
+log = logging.getLogger(__name__)
 
 
 class ClickableLabel(QtWidgets.QLabel):

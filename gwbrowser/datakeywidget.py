@@ -10,6 +10,8 @@ in the common module.
 
 """
 
+import sys
+import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -24,6 +26,9 @@ from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 from gwbrowser.basecontextmenu import BaseContextMenu
+
+
+log = logging.getLogger(__name__)
 
 
 class DataKeyContextMenu(BaseContextMenu):
@@ -62,7 +67,7 @@ class DataKeyWorker(BaseWorker):
             data[index.row()][common.TodoCountRole] = count
             index.model().dataChanged.emit(index, index)
         except Exception as err:
-            print err
+            sys.stderr.write(u'{}'.format(err))
 
 
 class DataKeyThread(BaseThread):

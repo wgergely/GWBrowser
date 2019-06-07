@@ -16,12 +16,15 @@ Example:
 
 """
 
-
+import logging
 import sys
 import os
 import tempfile
 from PySide2 import QtCore, QtWidgets, QtGui
 import gwbrowser.common as common
+
+
+log = logging.getLogger(__name__)
 
 
 class ScreenGrabber(QtWidgets.QDialog):

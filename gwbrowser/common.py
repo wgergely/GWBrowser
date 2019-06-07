@@ -631,7 +631,7 @@ def get_valid_filename(text):
        f = u'job_house_interiour_v001_wgergely.ma'
        match = common.get_valid_filename(f)
        if match:
-           print match.expand(ur'\\1\\2\\3\\4\\5.\\6')
+           path = match.expand(ur'\\1\\2\\3\\4\\5.\\6')
            # job_house_interiour_v001_wgergely.ma
 
     Args:
@@ -674,9 +674,9 @@ def get_sequence(text):
        filename = 'job_sh010_animation_v002_wgergely.c4d'
        match = common.get_sequence(filename)
        if match:
-           print match.group(1) # 'job_sh010_animation_v'
-           print match.group(2) # '002'
-           print match.group(3) # '_wgergely.c4d'
+           prefix = match.group(1) # 'job_sh010_animation_v'
+           sequence_number = match.group(2) # '002'
+           suffix = match.group(3) # '_wgergely.c4d'
 
     Returns:
         ``SRE_Match``: ``None`` if the text doesn't contain a number or an ``SRE_Match`` object.
@@ -702,9 +702,9 @@ def is_collapsed(text):
        filename = 'job_sh010_animation_[001-299]_wgergely.png'
        match = common.get_sequence(filename)
        if match:
-           print match.group(1) # 'job_sh010_animation_'
-           print match.group(2) # '[001-299]'
-           print match.group(3) # '_wgergely.png'
+           prefix = match.group(1) # 'job_sh010_animation_'
+           sequence_string = match.group(2) # '[001-299]'
+           suffix = match.group(3) # '_wgergely.png'
 
     Returns:
         ``SRE_Match``: If the given name is indeed collpased it returns a ``SRE_Match`` object, otherwise ``None``.
@@ -1125,4 +1125,8 @@ def create_asset_from_template(name, basepath, template):
         f.extractall(dest_info.absolutePath(), members=None, pwd=None)
 
 
-# create_asset('asset1', ur'C:\dev\maya', template=MayaAsset)
+def log_path():
+    """Returns the file used to keep logs"""
+    tempdir = QtCore.QStandardPaths.writableLocation(
+        QtCore.QStandardPaths.TempLocation)
+    return u'{}/gwbrowser.log'.format(tempdir)

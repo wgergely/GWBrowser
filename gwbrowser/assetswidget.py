@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
+import logging
 from PySide2 import QtCore, QtGui
 
 import gwbrowser.gwscandir as gwscandir
@@ -14,6 +15,9 @@ from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings, Active
+
+
+log = logging.getLogger(__name__)
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):

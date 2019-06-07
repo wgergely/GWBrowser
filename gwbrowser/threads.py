@@ -8,11 +8,14 @@ Each thread is assigned a single Worker - usually responsible for taking
 *QModelIndexes* from the thread's python Queue.
 
 """
-
+import logging
 import traceback
 import Queue
 import threading
 from PySide2 import QtCore
+
+
+log = logging.getLogger(__name__)
 
 
 class Unique(Queue.Queue):

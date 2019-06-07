@@ -14,6 +14,7 @@ their contents into a specified directory.
 import re
 import functools
 from PySide2 import QtWidgets, QtCore
+import logging
 
 import gwbrowser.common as common
 from gwbrowser.addfilewidget import NameEditor
@@ -21,6 +22,9 @@ from gwbrowser.addfilewidget import Check
 from gwbrowser.addfilewidget import SaverHeaderWidget
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import CloseButton
+
+
+log = logging.getLogger(__name__)
 
 
 class AddJobWidgetContextMenu(BaseContextMenu):

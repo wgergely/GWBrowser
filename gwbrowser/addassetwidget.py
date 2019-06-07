@@ -13,6 +13,7 @@ their contents into a specified directory.
 import re
 import functools
 from PySide2 import QtWidgets, QtCore
+import logging
 
 import gwbrowser.common as common
 from gwbrowser.addbookmarkswidget import PaintedLabel
@@ -24,6 +25,9 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import CloseButton
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.settings as Settings
+
+
+log = logging.getLogger(__name__)
 
 
 class AddAssetWidgetContextMenu(BaseContextMenu):
@@ -87,14 +91,23 @@ class AddAssetWidget(QtWidgets.QDialog):
         kw = []
         for entry in gwscandir.scandir(self.path):
             kw.append(entry.name)
-        kw.append(u'sh010')
-        kw.append(u'lay_sh010')
-        kw.append(u'ani_sh010')
-        kw.append(u'fx_sh010')
-        kw.append(u'seq010_sh010')
-        kw.append(u'seq010_ani_sh010')
-        kw.append(u'seq010_fx_sh010')
-        kw.append(u'seq010_lay_sh010')
+
+        for n in xrange(98):
+            shot = u'sh{}0'.format(u'{}'.format(n + 1).zfill(2))
+            kw.append(shot)
+            kw.append(u'lay_{}'.format(shot))
+            kw.append(u'lay_{}'.format(shot))
+            kw.append(u'ani_{}'.format(shot))
+            kw.append(u'fx_{}'.format(shot))
+            for m in xrange(98):
+                seq = u'seq{}0'.format(u'{}'.format(m + 1).zfill(2))
+                kw.append(u'{}_{}'.format(seq, shot))
+                kw.append(u'{}_ani_{}'.format(seq, shot))
+                kw.append(u'{}_fx_{}'.format(seq, shot))
+                kw.append(u'{}_lay_{}'.format(seq, shot))
+        kw = sorted(kw)
+        kw = sorted(kw, key=lambda s: len(s))
+
         return kw
 
     def _createUI(self):
@@ -155,6 +168,8 @@ class AddAssetWidget(QtWidgets.QDialog):
         completer = QtWidgets.QCompleter(
             sorted(self.completer_keywords()), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setModelSorting(
+            QtWidgets.QCompleter.CaseInsensitivelySortedModel)
         completer.setCompletionMode(
             QtWidgets.QCompleter.InlineCompletion)
         self.name_widget.setCompleter(completer)

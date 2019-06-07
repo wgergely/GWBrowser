@@ -25,6 +25,7 @@ addittional data. The model will also try to generate thumbnails for any
 import traceback
 import re
 import time
+import logging
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -45,6 +46,9 @@ from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
+
+
+log = logging.getLogger(__name__)
 
 
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)

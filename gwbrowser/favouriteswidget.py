@@ -5,6 +5,7 @@ user.
 """
 
 import os
+import logging
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -18,6 +19,9 @@ from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
 import gwbrowser.gwscandir as gwscandir
+
+
+log = logging.getLogger(__name__)
 
 
 def rsc_path(f, n):

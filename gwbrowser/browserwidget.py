@@ -18,7 +18,7 @@ in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` item
 
 """
 
-
+import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
@@ -31,6 +31,10 @@ from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
+
+
+log = logging.getLogger(__name__)
+log.debug('This is a test message')
 
 
 class VersionLabel(QtWidgets.QLabel):

@@ -22,30 +22,27 @@ import sys
 import uuid
 import functools
 import collections
-
+import logging
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import gwbrowser.common as common
-
 from gwbrowser.editors import ClickableLabel
-
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import HeaderWidget, CloseButton, MinimizeButton
-
 from gwbrowser.capture import ScreenGrabber
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
-
 from gwbrowser.addfilewidgetwidgets import SelectBookmarkButton
 from gwbrowser.addfilewidgetwidgets import SelectBookmarkView
-
 from gwbrowser.addfilewidgetwidgets import SelectAssetButton
 from gwbrowser.addfilewidgetwidgets import SelectAssetView
-
 from gwbrowser.addfilewidgetwidgets import SelectFolderButton
 from gwbrowser.addfilewidgetwidgets import SelectFolderView
 from gwbrowser.addfilewidgetwidgets import SelectFolderModel
 import gwbrowser.editors as editors
+
+
+log = logging.getLogger(__name__)
 
 
 class ThumbnailContextMenu(BaseContextMenu):

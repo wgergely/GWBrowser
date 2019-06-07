@@ -11,7 +11,7 @@ Methods:
     TodoEditorWidget.add_item(): Main function to add a new todo item.
 
 """
-
+import logging
 import uuid
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -21,6 +21,9 @@ from gwbrowser import common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
+
+
+log = logging.getLogger(__name__)
 
 
 class PaintedLabel(QtWidgets.QLabel):

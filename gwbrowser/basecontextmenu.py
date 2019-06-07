@@ -5,6 +5,7 @@ import os
 import functools
 from functools import wraps
 import collections
+import logging
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -12,6 +13,9 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.settings import AssetSettings
+
+
+log = logging.getLogger(__name__)
 
 
 def contextmenu(func):
@@ -49,8 +53,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         self.index = index
         self.setToolTipsVisible(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     @contextmenu
     def add_separator(self, menu_set):

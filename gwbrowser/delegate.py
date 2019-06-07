@@ -4,10 +4,14 @@
 
 import re
 from functools import wraps
+import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
+
+
+log = logging.getLogger(__name__)
 
 
 def paintmethod(func):

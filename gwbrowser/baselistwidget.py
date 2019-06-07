@@ -13,6 +13,7 @@ import re
 import sys
 import traceback
 from functools import wraps
+import logging
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -20,6 +21,9 @@ import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings
+
+
+log = logging.getLogger(__name__)
 
 
 def initdata(func):

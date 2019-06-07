@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
-import functools
 
+import sys
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.settings import Active
@@ -541,6 +542,9 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(u'GWBrowser')
 
         import gwbrowser
+        log_file = open(common.log_path())
+        sys.stdout = log_file
+        sys.stderr = log_file
         self.setApplicationVersion(gwbrowser.__version__)
 
         self.set_model_id()

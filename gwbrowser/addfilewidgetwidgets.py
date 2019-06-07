@@ -7,7 +7,7 @@ the current task folder.
 import re
 import sys
 import functools
-
+import logging
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import gwbrowser.common as common
@@ -18,6 +18,9 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.baselistwidget import BaseInlineIconWidget
+
+
+log = logging.getLogger(__name__)
 
 
 class SelectFolderContextMenu(BaseContextMenu):

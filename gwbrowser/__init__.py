@@ -23,7 +23,9 @@ Warning:
 
 """
 
+
 import sys
+import os
 import importlib
 import traceback
 import platform
@@ -43,7 +45,42 @@ __version__ = u'0.1.50'
 
 # Making sure the PyImath library is loaded as well
 import gwalembic
+import gwbrowser.common as common
 import gwalembic.alembic as alembic
+import logging
+
+
+logging.basicConfig(
+    format='[%(levelname)s] %(filename)s (%(asctime)s):        %(message)s',
+    level=logging.DEBUG,
+    filename=common.log_path(),
+    filemode='a+'
+)
+
+
+def exception_handler(exc_type, exc_value, exc_traceback):
+    """Custom exception handler to log error messages."""
+    logging.error("Uncaught exception", exc_info=(
+        exc_type, exc_value, exc_traceback))
+
+    from PySide2 import QtWidgets
+    app = QtWidgets.QApplication.instance()
+    if not app:
+        app = QtWidgets.QApplication([])
+    mbox = QtWidgets.QMessageBox()
+    mbox.setWindowTitle(u'Uncaught exception')
+    mbox.setIcon(QtWidgets.QMessageBox.Critical)
+    mbox.setStandardButtons(
+        QtWidgets.QMessageBox.Ok)
+    mbox.setText(u'{}: {}'.format(
+        exc_type.__name__, exc_value))
+    mbox.setInformativeText(
+        u''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+    mbox.exec_()
+
+
+# Install exception handler
+sys.excepthook = exception_handler
 
 
 def _ensure_dependencies():
@@ -101,18 +138,12 @@ def exec_():
     for info in get_info():
         sys.stdout.write(u'{}\n'.format(info))
 
-    try:
-        gwbrowser = importlib.import_module(
-            u'{}.standalonewidgets'.format(__name__))
+    exit_code = 0
+    gwbrowser = importlib.import_module(
+        u'{}.standalonewidgets'.format(__name__))
 
-        app = gwbrowser.StandaloneApp([])
-        widget = gwbrowser.StandaloneBrowserWidget()
-        widget.show()
+    app = gwbrowser.StandaloneApp([])
+    widget = gwbrowser.StandaloneBrowserWidget()
+    widget.show()
 
-        app.exec_()
-        exit_code = 0
-    except:
-        sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
-        exit_code = 1
-    finally:
-        raise SystemExit(exit_code)
+    app.exec_()

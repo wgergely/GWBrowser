@@ -13,6 +13,7 @@ to each users.
 
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
+import logging
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
@@ -24,6 +25,7 @@ from gwbrowser.settings import local_settings
 from gwbrowser.editors import ClickableLabel
 
 
+log = logging.getLogger(__name__)
 custom_string = u'Select bookmark'
 
 
