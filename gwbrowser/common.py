@@ -35,6 +35,7 @@ import sys
 import re
 import zipfile
 import platform
+import ConfigParser
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
@@ -74,9 +75,14 @@ class Server(object):
     """``Server`` contains the hard-coded paths primary, backup, and local
     work-folders.
 
+    Note:
+        All values are hardcoded in the ``__servers`` variable, but in the future
+        these will have to be exposed as a configuration file.
+
     """
+
     __servers = {
-        u'main': {
+        u'primary': {
             u'mac': u'smb://{}/jobs'.format(platform.node()),
             u'win': u'//{}/jobs'.format(platform.node()),
             u'description': u'Main jobs server'
@@ -94,19 +100,40 @@ class Server(object):
     }
 
     @classmethod
-    def get_server_platform_name(cls, name, platform):
-        """Returns the name of the server for another platform"""
-        it = cls.__servers.itervalues()
-        val = [v for v in it if [f for f in v.itervalues() if f.endswith(name)]]
-        return val[0][platform]
+    def conf_path(cls):
+        """Returns the path to ``server.conf``."""
+        path = '{}/../templates/servers.conf'.format(__file__)
+        path = os.path.normpath(path)
+        path = os.path.abspath(path)
+        return path
 
     @classmethod
-    def main(cls):
+    def conf(cls):
+        parser = ConfigParser.RawConfigParser()
+        parser.read(cls.conf_path())
+        return parser
+
+    @classmethod
+    def get_server_platform_name(cls, server, platf):
+        """Returns the name of the server for the specified platform."""
+        parser = cls.conf()
+
+        d = {}
+        for section in parser.sections():
+            d[section] = {}
+            for key, val in parser.items(section):
+                d[section][key] = val
+        it = d.itervalues()
+        val = [v for v in it if [f for f in v.itervalues() if f.endswith(server)]]
+        return val[0][platf]
+
+    @classmethod
+    def primary(cls):
         """The path to the primary server.
         This is where all active jobs are stored.
 
         """
-        return cls.__servers[u'main'][get_platform()]
+        return cls.conf().get('primary', get_platform())
 
     @classmethod
     def backup(cls):
@@ -114,7 +141,7 @@ class Server(object):
         This is where all active job backup are stored.
 
         """
-        return cls.__servers[u'backup'][get_platform()]
+        return cls.conf().get('backup', get_platform())
 
     @classmethod
     def local(cls):
@@ -122,7 +149,7 @@ class Server(object):
         when needing quick access to storage using the local SSD drive.
 
         """
-        return cls.__servers['local'][get_platform()]
+        return cls.conf().get('local', get_platform())
 
     @classmethod
     def servers(cls):
@@ -857,13 +884,13 @@ def mount():
         return
 
     if get_platform() == u'mac':
-        mountpoint = u'/volumes/{}'.format(Server.main().split(u'/').pop())
+        mountpoint = u'/volumes/{}'.format(Server.primary()).split(u'/').pop()
 
         for d in QtCore.QStorageInfo.mountedVolumes():
             if d.rootPath().lower() == mountpoint:
                 return  # the server is already mounted
 
-        args = [u'-e', u'mount volume "{}"'.format(Server.main())]
+        args = [u'-e', u'mount volume "{}"'.format(Server.primary())]
         process = QtCore.QProcess()
         process.start(u'osascript', args)
         process.waitForFinished(-1)
@@ -1095,6 +1122,8 @@ ProjectTemplate = 2048
 AssetTypes = {
     MayaAssetTemplate: u'MayaAsset',
     ProjectTemplate: u'Project',
+
+
 }
 
 
@@ -1131,3 +1160,6 @@ def log_path():
     tempdir = QtCore.QStandardPaths.writableLocation(
         QtCore.QStandardPaths.TempLocation)
     return u'{}/gwbrowser.log'.format(tempdir)
+
+
+print Server.get_server_platform_name(Server.primary(), 'win')

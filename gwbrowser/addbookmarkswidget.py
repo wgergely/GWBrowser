@@ -587,7 +587,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         self.pick_server_widget = ComboboxButton(u'server', parent=self)
         description = u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
-            common.Server.main())
+            common.Server.primary())
         self.pick_server_widget.setToolTip(description)
         self.pick_server_widget.setStatusTip(description)
         row.layout().addWidget(self.pick_server_widget, 1)
