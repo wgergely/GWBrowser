@@ -1,16 +1,29 @@
 # -*- coding: utf-8 -*-
-"""The ``common.py`` is module used to define common variables and methods used
-across the project.
+"""The ``common.py`` module is used to define variables and methods used
+across the GWBrowser project.
 
-This includes ``Server``, the class used to define the` network and local server
-entry-points, basic UI properties and information about assets.
+The default server:
+    GWBrowser is intended to be used in a shared network environment.
+    We have the ability to define a primary work server, a backup server and
+    a local path.
 
-*Assets* are directory structures compartmentalizing data. They're folders including a
-special identifier file and further sub-folders. We can assign custom descriptions for
-each of the subfolders here.
+    These paths are set in the ``Server`` (class).
 
-Another important aspect of GWBrowser is its ability to group sequences together.
-The sequence-recognition regexes are also defined in the ``common`` module.
+Jobs and assets
+    *Assets* are directory structures sued to compartmentalize files and folders.
+    The template files used to generate jobs and assets are stored in
+    ``gwbrowser/templates`` folder.
+
+    The asset folder definitions should correspond to the folders stored in the
+    template file - including the folder descriptions. See ``ASSET_FOLDERS``.
+
+Sequences
+    A core aspect of GWBrowser is its ability to group sequentially numbered
+    files into a single sequence (eg image sequences).
+
+    This is done via **regex** functions. See ``get_valid_filename``,
+    ``get_sequence``, ``is_collapsed``, ``get_sequence_startpath`` for the
+    wrapper function around these regexes.
 
 
 
@@ -140,34 +153,22 @@ LTHREAD_COUNT = 1
 
 FTIMER_INTERVAL = 1000
 
-ExportsFolder = u'exports'
-CacheFolder = u'cache'
-TempFolder = u'tmp'
-ModelsFolder = u'models'
-CompScriptsFolder = u'comp_scripts'
-CompsFolder = u'comps'
-ScenesFolder = u'scenes'
+ExportsFolder = u'cache'
+DataFolder = u'data'
+ReferenceFolder = u'references'
 RendersFolder = u'renders'
+ScenesFolder = u'scenes'
+ScriptsFolder = u'scripts'
 TexturesFolder = u'textures'
-ArtworkFolder = u'artwork'
-ReferenceFolder = u'reference'
-PhotosFolder = u'photos'
-CapturesFolder = u'viewport_captures'
 
 ASSET_FOLDERS = {
-    ArtworkFolder: u'2D design- and style-frames',
-    CacheFolder: u'Temporary and discardable files only, use "{}" for persistent files'.format(ExportsFolder.upper()),
-    CapturesFolder: u'Animation work-in-progress takes',
-    CompScriptsFolder: u'Compositing projects (eg. Nuke, After Effects scenes)',
-    CompsFolder: u'Composited prerenders and final image renders',
-    ExportsFolder: u'Persistent caches shared between scenes and assets (eg. animation caches)',
-    ModelsFolder: u'Obsolete, use "{}" instead'.format(ExportsFolder.upper()),
-    PhotosFolder: u'Obsolete, use "{}" instead'.format(ReferenceFolder),
-    ReferenceFolder: u'Generic references',
-    RendersFolder: u'2D and 3D render passes and layers',
-    ScenesFolder: u'2D and 3D scene, project files',
-    TempFolder: u'Used by the system, don\'t save files here',
-    TexturesFolder: u'Textures used by the 2D and 3D projects',
+    ExportsFolder: u'User exported animation, object and simulation cache files',
+    DataFolder: u'System exported caches files',
+    ReferenceFolder: u'Files used for research, reference',
+    RendersFolder: u'Images rendered by the scene files',
+    ScenesFolder: u'Project files for all 2D and 3D scenes',
+    ScriptsFolder: u'Technical dependencies',
+    TexturesFolder: u'Textures used by the 2D/3D projects',
     u'misc': u'',
 }
 
