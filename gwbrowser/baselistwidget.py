@@ -733,7 +733,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Updates
         model.indexUpdated.connect(
-            lambda x: self.update(proxy.mapFromSource(x)))
+            lambda x: self.update(proxy.mapFromSource(x)),
+            type=QtCore.Qt.QueuedConnection)
 
         # Progress
         model.modelAboutToBeReset.connect(self._progress_widget.show)
@@ -836,7 +837,7 @@ class BaseListWidget(QtWidgets.QListView):
         data = source_index.model().model_data()
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] | common.MarkedAsActive
-        source_index.model().dataChanged.emit(source_index, source_index)
+        source_index.model().indexUpdated.emit(source_index)
         source_index.model().activeChanged.emit(source_index)
 
     def deactivate(self, index):
@@ -849,7 +850,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] & ~common.MarkedAsActive
 
-        source_index.model().dataChanged.emit(source_index, source_index)
+        source_index.model().indexUpdated.emit(source_index,)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -985,7 +986,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Let's save the favourites list and emit a dataChanged signal
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1030,7 +1031,7 @@ class BaseListWidget(QtWidgets.QListView):
                         if _seq.expand(ur'\1\3.\4') != key:
                             continue
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
-                index.model().dataChanged.emit(index, index)
+                index.model().indexUpdated.emit(index)
                 return
 
         if state is None or state is True:
@@ -1060,7 +1061,7 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsArchived
 
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     def key_down(self):
         """Custom action on  `down` arrow key-press."""
@@ -1483,7 +1484,7 @@ class BaseInlineIconWidget(BaseListWidget):
         if self.multi_toggle_items:
             for n in self.multi_toggle_items:
                 index = self.model().index(n, 0)
-                self.model().dataChanged.emit(index, index)
+                self.model().indexUpdated.emit(index)
             self.reset_multitoggle()
             self.model().invalidateFilter()
             self.favouritesChanged.emit()

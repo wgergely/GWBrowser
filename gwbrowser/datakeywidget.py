@@ -65,7 +65,7 @@ class DataKeyWorker(BaseWorker):
         try:
             data = index.model().model_data()
             data[index.row()][common.TodoCountRole] = count
-            index.model().dataChanged.emit(index, index)
+            index.model().indexUpdated.emit(index)
         except Exception as err:
             pass
 
@@ -341,7 +341,7 @@ class DataKeyModel(BaseModel):
             return
 
         # Thumbnail image
-        default_thumbnail = ImageCache.instance().get_rsc_pixmap(
+        default_thumbnail = ImageCache.get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
             rowsize)

@@ -169,7 +169,7 @@ class FileInfoWorker(BaseWorker):
 
         # Forces a ui repaint to show the data-change
         if update:
-            index.model().dataChanged.emit(index, index)
+            index.model().indexUpdated.emit(index)
 
 
 class SecondaryFileInfoWorker(FileInfoWorker):
@@ -260,7 +260,7 @@ class FileThumbnailWorker(BaseWorker):
         if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
             # We will always overwrite - when refreshing we will want to refresh
             # the thumbnails too!
-            image = ImageCache.instance().get(
+            image = ImageCache.get(
                 data[common.ThumbnailPathRole], height, overwrite=True)
 
         # If the item doesn't have a saved thumbnail we will check if
@@ -270,25 +270,25 @@ class FileThumbnailWorker(BaseWorker):
             if ext in common.oiio_formats:
                 model = index.model()
                 data = model.model_data()[index.row()]
-                spinner_pixmap = ImageCache.instance().get(
+                spinner_pixmap = ImageCache.get(
                     common.rsc_path(__file__, u'spinner'),
                     data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
                 data[common.ThumbnailRole] = spinner_pixmap
                 data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
                 data[common.FileThumbnailLoaded] = False
-                model.dataChanged.emit(index, index)
+                model.indexUpdated.emit(index)
                 ImageCacheWorker.process_index(index)
             else:
                 data[common.FileThumbnailLoaded] = True
             return
 
         # We have loaded a saved thumbnail and not further processing is needed
-        color = ImageCache.instance().get(
+        color = ImageCache.get(
             data[common.ThumbnailPathRole], u'BackgroundColor')
         data[common.FileThumbnailLoaded] = True
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
 
 class FileInfoThread(BaseThread):
@@ -452,7 +452,7 @@ class FilesModel(BaseModel):
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
 
         # It is quicker to cache these here...
-        default_thumbnail_image = ImageCache.instance().get(
+        default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND

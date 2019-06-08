@@ -95,7 +95,7 @@ class AssetModel(BaseModel):
         server, job, root = self._parent_item
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
-        default_thumbnail_image = ImageCache.instance().get(
+        default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
@@ -155,13 +155,13 @@ class AssetModel(BaseModel):
             settings = AssetSettings(index)
             data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
 
-            image = ImageCache.instance().get(
+            image = ImageCache.get(
                 data[idx][common.ThumbnailPathRole],
                 rowsize.height() - common.ROW_SEPARATOR)
 
             if image:
                 if not image.isNull():
-                    color = ImageCache.instance().get(
+                    color = ImageCache.get(
                         data[idx][common.ThumbnailPathRole],
                         'BackgroundColor')
 

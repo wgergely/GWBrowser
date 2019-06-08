@@ -62,7 +62,7 @@ def oiio(func):
 
             model = index.model()
             data = model.model_data()[index.row()]
-            error_pixmap = ImageCache.instance().get(
+            error_pixmap = ImageCache.get(
                 common.rsc_path(__file__, u'failed'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
 
@@ -74,7 +74,7 @@ def oiio(func):
                 data[common.ThumbnailRole] = error_pixmap
                 data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
                 data[common.FileThumbnailLoaded] = True
-                model.dataChanged.emit(index, index)
+                model.indexUpdated.emit(index)
 
     return func_wrapper
 
@@ -98,7 +98,7 @@ class ImageCacheWorker(BaseWorker):
                 return
             model = index.model()
             data = model.model_data()[index.row()]
-            error_pixmap = ImageCache.instance().get(
+            error_pixmap = ImageCache.get(
                 common.rsc_path(__file__, u'failed'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
             data[common.ThumbnailRole] = error_pixmap
@@ -229,11 +229,11 @@ class ImageCacheWorker(BaseWorker):
         data = model.model_data()[index.row()]
 
         # We will load the image and the background color
-        image = ImageCache.instance().get(
+        image = ImageCache.get(
             data[common.ThumbnailPathRole],
             data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
             overwrite=True)
-        color = ImageCache.instance().get(
+        color = ImageCache.get(
             data[common.ThumbnailPathRole],
             'BackgroundColor',
             overwrite=False)
@@ -241,7 +241,7 @@ class ImageCacheWorker(BaseWorker):
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
         data[common.FileThumbnailLoaded] = True
-        model.dataChanged.emit(index, index)
+        model.indexUpdated.emit(index)
         return True
 
 
@@ -294,7 +294,7 @@ class ImageCache(QtCore.QObject):
         # This will cache all the thumbnail images
         def rsc_path(f): return os.path.normpath(
             os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
-        ImageCache.instance().get(rsc_path(__file__), common.ROW_HEIGHT - 2)
+        ImageCache.get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
         self.threads = {}
         for n in xrange(common.ITHREAD_COUNT):
@@ -443,7 +443,7 @@ class ImageCache(QtCore.QObject):
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     def remove(self, index):
         """Deletes the thumbnail file from storage and the cached entry associated
@@ -470,7 +470,7 @@ class ImageCache(QtCore.QObject):
                                                        ][common.DefaultThumbnailRole]
         data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()
                                                                  ][common.DefaultThumbnailBackgroundRole]
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     @classmethod
     def pick(cls, index):

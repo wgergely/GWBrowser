@@ -78,7 +78,7 @@ class FavouritesModel(FilesModel):
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
 
         # It is quicker to cache these here...
-        default_thumbnail_image = ImageCache.instance().get(
+        default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
@@ -350,7 +350,7 @@ class FavouritesWidget(FilesWidget):
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     def inline_icons_count(self):
         if self.buttons_hidden():
