@@ -67,7 +67,7 @@ class DataKeyWorker(BaseWorker):
             data[index.row()][common.TodoCountRole] = count
             index.model().dataChanged.emit(index, index)
         except Exception as err:
-            sys.stderr.write(u'{}'.format(err))
+            pass
 
 
 class DataKeyThread(BaseThread):

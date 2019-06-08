@@ -829,7 +829,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         else:
             bookmarks[key] = bookmark[key]
             local_settings.setValue(u'bookmarks', bookmarks)
-            sys.stdout.write('# GWBrowser: Bookmark {} added\n'.format(key))
 
         # We will set the newly added Bookmark as the active item
         if self.parent():

@@ -92,7 +92,6 @@ def _ensure_dependencies():
     """
     try:
         for dependency in __dependencies__:
-            # sys.stdout.write(u'GWBrowser: Found "{}"\n'.format(dependency))
             importlib.import_module(dependency)
     except ImportError as err:
         raise ImportError(

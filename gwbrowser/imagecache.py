@@ -75,9 +75,6 @@ def oiio(func):
                 data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
                 data[common.FileThumbnailLoaded] = True
                 model.dataChanged.emit(index, index)
-            tb = traceback.format_exc()
-            sys.stderr.write(
-                '# An error occured processing the thumbnail:\n{}\n'.format(tb))
 
     return func_wrapper
 
@@ -432,8 +429,6 @@ class ImageCache(QtCore.QObject):
         if f.exists():
             f.remove()
         if not image.save(index.data(common.ThumbnailPathRole)):
-            sys.stderr.write('# Capture thumnail error: Error saving {}.\n'.format(
-                index.data(common.ThumbnailPathRole)))
             return
 
         image = self.get(

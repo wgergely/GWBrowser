@@ -246,7 +246,6 @@ class ThumbnailButton(ClickableLabel):
         image = QtGui.QImage()
         image.load(temp_path)
         if image.isNull():
-            sys.stdout.write(u'Could not load image.\n')
             return
 
         self.image = image

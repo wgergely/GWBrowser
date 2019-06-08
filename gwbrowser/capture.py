@@ -223,13 +223,10 @@ class ScreenGrabber(QtWidgets.QDialog):
 
             res = os.system('screencapture -m -i -s {}'.format(temppath))
             if res != 0:
-                sys.stderr.write(u'Error occured capturing the desktop./n')
                 return None
 
             pixmap = QtGui.QPixmap(temppath)
             if pixmap.isNull():
-                sys.stderr.write(
-                    u'Error occured loading the temp capture-file./n')
                 return None
             return pixmap
 

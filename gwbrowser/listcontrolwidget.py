@@ -529,7 +529,6 @@ class AddButton(ControlButton):
                 subfolder = u'{}/{}'.format(data_key, subfolder)
 
             subfolder = subfolder.strip(u'/')
-            sys.stdout.write(subfolder)
 
             widget = saver.AddFileWidget(
                 bookmark_model,

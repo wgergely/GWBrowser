@@ -135,17 +135,14 @@ class BaseWorker(QtCore.QObject):
         except RuntimeError as err:
             errstr = '\nRuntimeError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
-            traceback.print_exc()
             self.error.emit(errstr)
         except ValueError as err:
             errstr = '\nValueError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
-            traceback.print_exc()
             self.error.emit(errstr)
         except Exception as err:
             errstr = '\nError in {}\n{}\n'.format(
                 QtCore.QThread.currentThread(), err)
-            traceback.print_exc()
             self.error.emit(errstr)
         finally:
             if self.shutdown_requested:

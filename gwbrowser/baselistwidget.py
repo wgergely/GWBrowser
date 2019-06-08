@@ -37,8 +37,6 @@ def initdata(func):
             res = func(self, *args, **kwargs)
         except Exception as err:
             tb = traceback.format_exc()
-            sys.stderr.write(
-                '# An error occured loading data:\n{}\n'.format(tb))
             res = None
         finally:
             self.endResetModel()

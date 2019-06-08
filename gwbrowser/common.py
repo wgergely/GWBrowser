@@ -2,15 +2,16 @@
 """The ``common.py`` module is used to define variables and methods used
 across the GWBrowser project.
 
-The default server:
-    GWBrowser is intended to be used in a shared network environment.
-    We have the ability to define a primary work server, a backup server and
-    a local path.
+Server:
+    GWBrowser is intended to be used in a networked environment.
+    We have the ability to define a *primary* work server, a *backup* server and
+    a *local* path for working offline.
 
-    These paths are set in the ``Server`` (class).
+    These paths are provided by the ``Server`` class. The actual configuration values
+    are stored in the ``templates/server.conf`` configuration file.
 
 Jobs and assets
-    *Assets* are directory structures sued to compartmentalize files and folders.
+    *Assets* are directory structures used to compartmentalize files and folders.
     The template files used to generate jobs and assets are stored in
     ``gwbrowser/templates`` folder.
 
@@ -23,18 +24,14 @@ Sequences
 
     This is done via **regex** functions. See ``get_valid_filename``,
     ``get_sequence``, ``is_collapsed``, ``get_sequence_startpath`` for the
-    wrapper function around these regexes.
-
-
+    wrapper functions around the regexes.
 
 """
-
 
 import os
 import sys
 import re
 import zipfile
-import platform
 import ConfigParser
 
 from PySide2 import QtGui, QtCore, QtWidgets
@@ -72,32 +69,14 @@ def get_platform():
 
 
 class Server(object):
-    """``Server`` contains the hard-coded paths primary, backup, and local
-    work-folders.
+    """A utility class providing the platform-specific locations of
+    the ``primary``, ``backup``, and ``local`` servers.
 
     Note:
-        All values are hardcoded in the ``__servers`` variable, but in the future
-        these will have to be exposed as a configuration file.
+        The server values are stored in an external configuration file in
+        ``templates/server.conf``.
 
     """
-
-    __servers = {
-        u'primary': {
-            u'mac': u'smb://{}/jobs'.format(platform.node()),
-            u'win': u'//{}/jobs'.format(platform.node()),
-            u'description': u'Main jobs server'
-        },
-        u'backup': {
-            u'mac': u'smb://{}/jobs-archive'.format(platform.node()),
-            u'win': u'//{}/jobs-archive'.format(platform.node()),
-            u'description': u'Jobs backup'
-        },
-        u'local': {
-            u'mac': u'/jobs',
-            u'win': u'//{}/jobs-local'.format(platform.node()),
-            u'description': u'Local storage on SSD'
-        },
-    }
 
     @classmethod
     def conf_path(cls):
@@ -117,14 +96,16 @@ class Server(object):
     def get_server_platform_name(cls, server, platf):
         """Returns the name of the server for the specified platform."""
         parser = cls.conf()
-
         d = {}
+
         for section in parser.sections():
             d[section] = {}
             for key, val in parser.items(section):
                 d[section][key] = val
+
         it = d.itervalues()
         val = [v for v in it if [f for f in v.itervalues() if f.endswith(server)]]
+
         return val[0][platf]
 
     @classmethod
@@ -155,7 +136,13 @@ class Server(object):
     def servers(cls):
         """Returns all available servers."""
         arr = []
-        for v in cls.__servers.itervalues():
+        parser = cls.conf()
+        d = {}
+        for section in parser.sections():
+            d[section] = {}
+            for key, val in parser.items(section):
+                d[section][key] = val
+        for v in d.itervalues():
             arr.append({u'path': v[get_platform()],
                         u'description': v[u'description']})
         arr = sorted(arr, key=lambda x: x[u'path'])
@@ -173,12 +160,13 @@ FTHREAD_COUNT = 2
 """The number of threads used by the ``FilesWidget`` to get file - information."""
 
 ITHREAD_COUNT = 4
-"""The number of threads used by the ``ImageCache`` to perform generate thumbnails."""
+"""The number of threads used by the ``ImageCache`` to generate thumbnails."""
 
 LTHREAD_COUNT = 1
-"""The number of threads used by the ``DataKeyModel`` get folder file - counts."""
+"""The number of threads used by the ``DataKeyModel`` to count files."""
 
-FTIMER_INTERVAL = 1000
+FTIMER_INTERVAL = 1000  # 1 sec
+"""The frequency of querrying lists to load file and thumbnail info"""
 
 ExportsFolder = u'cache'
 DataFolder = u'data'
@@ -1160,6 +1148,3 @@ def log_path():
     tempdir = QtCore.QStandardPaths.writableLocation(
         QtCore.QStandardPaths.TempLocation)
     return u'{}/gwbrowser.log'.format(tempdir)
-
-
-print Server.get_server_platform_name(Server.primary(), 'win')
