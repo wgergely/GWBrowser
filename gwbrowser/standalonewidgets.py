@@ -258,12 +258,14 @@ class HeaderWidget(QtWidgets.QWidget):
 
 
 class StandaloneBrowserWidget(BrowserWidget):
-    """This window defines the main windows visible when rtunning the tool in
-    standalone-mode.
+    """An subclass of ``BrowserWidget`` adapted to run it as a standalone
+    application.
 
-    We're subclassing ``BrowserWidget`` but modifying it to add an associated
-    ``QSystemTrayIcon`` responsible for quick-access, and window-handles for
-    resizing.
+    ``StandaloneBrowserWidget`` is a frameless window but resizing similar to
+    that of normal windows is implemented.
+
+    ``HeaderWidget`` is used to move the window around. We're also adding a
+    ``QSystemTrayIcon`` responsible for quick-access.
 
     """
 
@@ -279,10 +281,11 @@ class StandaloneBrowserWidget(BrowserWidget):
         """
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
         self.headerwidget = None
+
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
-
+        self.resize_overlay = None
         self.resize_distance = QtWidgets.QApplication.instance().startDragDistance() * 2
         self.resize_override_icons = {
             1: QtCore.Qt.SizeFDiagCursor,
@@ -326,8 +329,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.adjustSize()
 
     def _get_offset_rect(self, offset):
-        """Returns an expanded/contracted rectangle based on the widget's rectangle.
-        Used to get the valid area for resize-operations."""
+        """Returns an expanded/contracted edge rectangle based on the widget's
+        geomtery. Used to get the valid area for resize-operations."""
         rect = self.rect()
         center = rect.center()
         rect.setHeight(rect.height() + offset)
@@ -417,7 +420,8 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.fileswidget.activated.connect(common.execute)
         self.favouriteswidget.activated.connect(common.execute)
-        QtWidgets.QApplication.instance().aboutToQuit.connect(self.save_widget_settings)
+        QtWidgets.QApplication.instance().aboutToQuit.connect(
+            self.save_widget_settings)
 
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""
@@ -490,6 +494,9 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         """
         if self.accept_resize_event(event):
+            w = self.stackedwidget.currentWidget()
+            w.viewport().setHidden(True)
+
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
             self.resize_initial_rect = self.rect()
@@ -499,7 +506,10 @@ class StandaloneBrowserWidget(BrowserWidget):
             self.resize_area = None
 
     def mouseMoveEvent(self, event):
-        """Identify dragable area - vector/distance"""
+        """Custom mouse move event - responsible for resizing the frameless
+        widgets geometry.
+
+        It identifies the dragable edge area, sets the cursor override."""
         if self.resize_initial_pos == QtCore.QPoint(-1, -1):
             self.set_resize_icon(event, clamp=True)
             return
@@ -525,6 +535,9 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""
+        w = self.stackedwidget.currentWidget()
+        w.viewport().setHidden(False)
+
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None

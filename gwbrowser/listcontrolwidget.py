@@ -103,7 +103,7 @@ class TodoButton(ControlButton):
     def state(self):
         index = self._parent.widget(1).model().sourceModel().active_index()
         if not index.isValid():
-            return
+            return False
         if index.data(common.TodoCountRole):
             return True
         return False
@@ -655,12 +655,6 @@ class PaintedTextButton(ClickableLabel):
 
         self.setStatusTip(u'')
         self.setFixedHeight(height)
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def enterEvent(self, event):
-        self.repaint()
 
     def set_parent(self, widget):
         self._parent = widget

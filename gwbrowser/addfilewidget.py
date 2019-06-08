@@ -331,7 +331,7 @@ class SaverFileInfo(QtCore.QObject):
             asset = index.data(common.ParentRole)[-1]
 
         custom = self.parent().window().findChild(Custom).text()
-        regex = re.compile(r'[^0-9a-z]+', flags=re.IGNORECASE)
+        regex = re.compile(ur'[^0-9a-z]+', flags=re.IGNORECASE)
         job = regex.sub(u'', job)[
             :3] if job else u'gw'
 
@@ -348,9 +348,9 @@ class SaverFileInfo(QtCore.QObject):
         user = QtCore.QFileInfo(user).fileName()
         user = regex.sub(u'', user)
         # Numbers are not allowed in the username
-        user = re.sub(r'[0-9]+', u'', user)
+        user = re.sub(ur'[0-9]+', u'', user)
 
-        return '{job}_{asset}_{custom}_{version}_{user}.{ext}'.format(
+        return u'{job}_{asset}_{custom}_{version}_{user}.{ext}'.format(
             job=job,
             asset=asset,
             custom=custom,
@@ -492,7 +492,7 @@ class Custom(QtWidgets.QLineEdit):
         font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
-        self.setPlaceholderText('untitled')
+        self.setPlaceholderText(u'untitled')
         self.setStyleSheet("""QLineEdit{{
             background-color: rgba(0,0,0,0);
             border-bottom: 2px solid rgba(255,255,255,255);
@@ -510,15 +510,15 @@ class Custom(QtWidgets.QLineEdit):
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
-        self.setFixedWidth(metrics.width('untitled'))
+        self.setFixedWidth(metrics.width(u'untitled'))
 
         self.textChanged.connect(self.resizeLineEditToContents)
         self.textChanged.connect(self.verify)
 
     def verify(self, text):
         cpos = self.cursorPosition()
-        text = re.sub(r'[^a-z0-9\-]+', '-', text, flags=re.IGNORECASE)
-        text = re.sub(r'-{2,}', '-', text, flags=re.IGNORECASE)
+        text = re.sub(ur'[^a-z0-9\-]+', '-', text, flags=re.IGNORECASE)
+        text = re.sub(ur'-{2,}', '-', text, flags=re.IGNORECASE)
         self.setText(text)
         self.setCursorPosition(cpos)
 
@@ -527,7 +527,7 @@ class Custom(QtWidgets.QLineEdit):
         font.setPointSize(common.LARGE_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
         width = metrics.width(text)
-        minwidth = metrics.width('untitled')
+        minwidth = metrics.width(u'untitled')
         width = minwidth if width < minwidth else width
         self.setFixedSize(width, self.height())
 

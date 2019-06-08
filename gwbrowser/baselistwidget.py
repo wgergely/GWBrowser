@@ -678,8 +678,8 @@ class BaseListWidget(QtWidgets.QListView):
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
-        self.setMouseTracking(False)
-        self.viewport().setMouseTracking(False)
+        self.setMouseTracking(True)
+        self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 
@@ -850,7 +850,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] & ~common.MarkedAsActive
 
-        source_index.model().indexUpdated.emit(source_index,)
+        source_index.model().indexUpdated.emit(source_index)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -986,7 +986,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Let's save the favourites list and emit a dataChanged signal
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        index.model().indexUpdated.emit(index)
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1031,7 +1030,6 @@ class BaseListWidget(QtWidgets.QListView):
                         if _seq.expand(ur'\1\3.\4') != key:
                             continue
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
-                index.model().indexUpdated.emit(index)
                 return
 
         if state is None or state is True:
@@ -1060,8 +1058,6 @@ class BaseListWidget(QtWidgets.QListView):
                     if _seq.expand(ur'\1\3.\4') != key:
                         continue
                     _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsArchived
-
-        index.model().indexUpdated.emit(index)
 
     def key_down(self):
         """Custom action on  `down` arrow key-press."""
@@ -1400,7 +1396,7 @@ class BaseListWidget(QtWidgets.QListView):
                         hidtext = u'{} items are hidden'.format(hidden_count)
                     text = [f for f in (
                         filtext, favtext, acttext, hidtext) if f]
-                    text = '  |  '.join(text)
+                    text = u'  |  '.join(text)
                     common.draw_aliased_text(
                         painter, font, text_rect, text, align, common.SECONDARY_TEXT)
 
@@ -1434,7 +1430,9 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def mousePressEvent(self, event):
         """The custom mousePressEvent initiates the multi-toggle operation.
-        Only the `favourite` and `archived` buttons are multi-toggle capable."""
+        Only the `favourite` and `archived` buttons are multi-toggle capable.
+
+        """
         if not isinstance(event, QtGui.QMouseEvent):
             return
         index = self.indexAt(event.pos())
@@ -1484,7 +1482,6 @@ class BaseInlineIconWidget(BaseListWidget):
         if self.multi_toggle_items:
             for n in self.multi_toggle_items:
                 index = self.model().index(n, 0)
-                self.model().indexUpdated.emit(index)
             self.reset_multitoggle()
             self.model().invalidateFilter()
             self.favouritesChanged.emit()
@@ -1520,6 +1517,8 @@ class BaseInlineIconWidget(BaseListWidget):
         """Multi-toggle is handled here."""
         if not isinstance(event, QtGui.QMouseEvent):
             return None
+
+        self.update(self.indexAt(event.pos()))
 
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)

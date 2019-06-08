@@ -79,10 +79,6 @@ def exception_handler(exc_type, exc_value, exc_traceback):
     mbox.exec_()
 
 
-# Install exception handler
-sys.excepthook = exception_handler
-
-
 def _ensure_dependencies():
     """Check the dependencies for **GWBrowser** and raises an exception if
     anything seems out of
@@ -132,6 +128,9 @@ def exec_():
 
     """
     _ensure_dependencies()
+
+    # Install exception handler
+    sys.excepthook = exception_handler
 
     # Some basic debugging information
     for info in get_info():

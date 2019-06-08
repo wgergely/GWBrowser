@@ -776,10 +776,11 @@ def get_sequence_paths(index):
 
 
 def draw_aliased_text(painter, font, rect, text, align, color):
-    """Allows drawing aliased text using *QPainterPath*. This is a slow to calculate
-    but ensures the rendered text looks *smooth* (on Windows espcially, I noticed a lot of
-    aliasing issues). We're also eliding the given text to the width of the given
-    rectangle.
+    """Allows drawing aliased text using *QPainterPath*.
+
+    This is a slow to calculate but ensures the rendered text looks *smooth* (on
+    Windows espcially, I noticed a lot of aliasing issues). We're also eliding
+    the given text to the width of the given rectangle.
 
     Args:
         painter (QPainter):         The active painter.

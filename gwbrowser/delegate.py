@@ -147,7 +147,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the thumbnail of an item."""
         painter, option, index, _, _, _, _, _, hover = args
 
-        cursor_pos = QtGui.QCursor().pos()
         if not hover:
             painter.setOpacity(0.666)
         else:
@@ -162,7 +161,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.setWidth(rect.height())
         rect.moveCenter(center)
-
         rect.moveLeft(common.INDICATOR_WIDTH)
 
         image = index.data(common.ThumbnailRole)
@@ -176,20 +174,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.setBrush(color)
         painter.drawRect(rect)
 
-        # Resizing the rectangle to accommodate the image's aspect ratio
-        longer = float(max(image.rect().width(), image.rect().height()))
-        factor = float(rect.width() / float(longer))
-        center = rect.center()
-        if image.rect().width() < image.rect().height():
-            rect.setWidth(int(image.rect().width() * factor))
-        else:
-            rect.setHeight(int(image.rect().height() * factor))
-        rect.moveCenter(center)
-        painter.drawImage(
-            rect,
-            image,
-            image.rect()
-        )
+        irect = image.rect()
+        irect.moveCenter(rect.center())
+        painter.drawImage(irect, image, image.rect())
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
@@ -274,12 +261,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 1)
 
-        pos = QtGui.QCursor().pos()
-        pos = self.parent().mapFromGlobal(pos)
-
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
         color = common.FAVOURITE if archived else sep
+
+        cpos = QtGui.QCursor().pos()
+        cpos = self.parent().mapFromGlobal(cpos)
+        if bg_rect.contains(cpos):
+            color = common.FAVOURITE
+
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(color))
 
@@ -313,6 +303,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
+
+        cpos = QtGui.QCursor().pos()
+        cpos = self.parent().mapFromGlobal(cpos)
+        if rect.contains(cpos):
+            sep = common.FAVOURITE
 
         pixmap = ImageCache.get_rsc_pixmap(
             u'folder', sep, common.INLINE_ICON_SIZE)
@@ -387,6 +382,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = QtGui.QColor(common.SEPARATOR)
             color.setAlpha(150)
 
+        cpos = QtGui.QCursor().pos()
+        cpos = self.parent().mapFromGlobal(cpos)
+        if bg_rect.contains(cpos):
+            color = common.FAVOURITE
+
         pos = QtGui.QCursor().pos()
         pos = self.parent().mapFromGlobal(pos)
 
@@ -444,10 +444,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(bg_rect)
 
         if active:
-            color = self.get_state_color(option, index, common.FAVOURITE)
+            color = common.FAVOURITE
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
-
             painter.setOpacity(0.5)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(bg_rect)
@@ -458,10 +457,17 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(common.SECONDARY_TEXT)
         else:
             painter.setBrush(common.SECONDARY_BACKGROUND)
+
         for n in xrange(self.parent().inline_icons_count()):
             rect, _bg_rect = self.get_inline_icon_rect(
                 option.rect, common.INLINE_ICON_SIZE, n)
             painter.setOpacity(0.3)
+
+            cpos = QtGui.QCursor().pos()
+            cpos = self.parent().mapFromGlobal(cpos)
+            if _bg_rect.contains(cpos):
+                painter.setOpacity(0.5)
+
             painter.drawRoundedRect(
                 _bg_rect, _bg_rect.height() / 2, _bg_rect.height() / 2)
 
@@ -498,7 +504,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveTop(rect.top() - (rect.height() / 2.0) +
                      metrics.lineSpacing())
 
-        color = self.get_state_color(option, index, common.SECONDARY_TEXT)
+        color = common.TEXT if hover else common.SECONDARY_TEXT
 
         if not index.data(common.DescriptionRole):
             text = u'Double-click to add description...'
@@ -567,7 +573,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveTop(rect.top() - (rect.height() / 2.0))
 
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[\W\d\_]+', '', text)
+        text = re.sub(ur'[\W\d\_]+', '', text)
         text = u'  {}  |  {}  '.format(
             text, index.data(common.ParentRole)[-1].upper())
         width = metrics.width(text)
@@ -686,20 +692,18 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 1)
 
-        pos = QtGui.QCursor().pos()
-        pos = self.parent().mapFromGlobal(pos)
-
-        # Icon
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
         color = common.FAVOURITE if archived else sep
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(color))
+
+        cpos = QtGui.QCursor().pos()
+        cpos = self.parent().mapFromGlobal(cpos)
+        if bg_rect.contains(cpos):
+            color = QtGui.QColor(200, 60, 30)
 
         pixmap = ImageCache.get_rsc_pixmap(
             u'remove', color, common.INLINE_ICON_SIZE)
 
-        # Icon
         painter.drawPixmap(rect, pixmap)
 
     def sizeHint(self, option, index):
@@ -736,7 +740,7 @@ class AssetsWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
-        painter, option, index, _, _, _, archived, _, _ = args
+        painter, option, index, _, _, _, archived, _, hover = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
@@ -764,15 +768,15 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub(r'[_]{1,}', '_', text).strip('_')
+        text = re.sub(ur'[^0-9a-zA-Z]+', ' ', text)
+        text = re.sub(ur'[_]{1,}', '_', text).strip(u'_')
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
             rect.width()
         )
-        color = self.get_state_color(
-            option, index, common.SECONDARY_TEXT if archived else common.TEXT)
+        color = common.SECONDARY_TEXT if archived else common.TEXT
+        color = common.TEXT_SELECTED if hover else color
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
@@ -791,10 +795,9 @@ class FilesWidgetDelegate(BaseDelegate):
         args = self._get_paint_args(painter, option, index)
         #
         self.paint_background(*args)
-
         #
         self.paint_thumbnail(*args)
-
+        #
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
@@ -997,8 +1000,8 @@ class FilesWidgetDelegate(BaseDelegate):
         # Name
         text = index.data(QtCore.Qt.DisplayRole)
         # Removing the 'v' from 'v010' style version strings.
-        text = re.sub(r'(.*)(v)([\[0-9\-\]]+.*)',
-                      r'\1\3', text, flags=re.IGNORECASE)
+        text = re.sub(ur'(.*)(v)([\[0-9\-\]]+.*)',
+                      ur'\1\3', text, flags=re.IGNORECASE)
 
         match = common.is_collapsed(text)
         if match:  # sequence collapsed
@@ -1017,7 +1020,7 @@ class FilesWidgetDelegate(BaseDelegate):
             # avoid long and meaningless names
             frange = match.group(2).upper()
             if len(frange) > 17:
-                frange = '{}...{}'.format(frange[0:8], frange[-8:])
+                frange = u'{}...{}'.format(frange[0:8], frange[-8:])
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if active else color
             rect = self._draw(painter, font, rect, frange,

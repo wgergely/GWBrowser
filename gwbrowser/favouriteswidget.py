@@ -350,7 +350,6 @@ class FavouritesWidget(FilesWidget):
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
-        index.model().indexUpdated.emit(index)
 
     def inline_icons_count(self):
         if self.buttons_hidden():
