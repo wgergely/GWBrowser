@@ -341,7 +341,7 @@ color: rgba({});
             rect.setWidth(self.width())
             rect.setHeight(self.height())
 
-            pen = QtGui.QPen(common.SELECTION)
+            pen = QtGui.QPen(common.FAVOURITE)
             pen.setWidth(2)
             painter.setPen(pen)
             color = QtGui.QColor(common.BACKGROUND_SELECTED)

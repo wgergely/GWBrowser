@@ -48,36 +48,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         return args
 
     @staticmethod
-    def get_state_color(option, index, color):
-        """Returns a modified colour taking the current item state into
-        consideration.
-
-        Args:
-            option (QStyleOption): Description of parameter `option`.
-            index (QModelIndex): Item's index.
-            color (QColor): The colour to apply the state to.
-
-        Returns:
-            QColor: The new colour.
-
-        """
-        selected = option.state & QtWidgets.QStyle.State_Selected
-        archived = index.flags() & common.MarkedAsArchived
-        color = QtGui.QColor(color)
-        if selected:
-            color.setRed(color.red() / 0.92)
-            color.setGreen(color.green() / 0.92)
-            # color.setBlue(color.blue() / 0.92)
-            return color
-
-        if archived:  # Disabled colour
-            color.setRed(color.red() / 1.96)
-            color.setGreen(color.green() / 1.96)
-            color.setBlue(color.blue() / 1.96)
-
-        return color
-
-    @staticmethod
     def get_inline_icon_rect(rect, size, idx):
         """Returns the rectangle needed to draw an in-line item icon.
 
@@ -119,7 +89,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, index, selected, _, active, _, _, hover = args
+        painter, option, _, selected, _, active, _, _, hover = args
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
@@ -141,7 +111,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(rect)
 
         if active:
-            color = self.get_state_color(option, index, common.SELECTION)
+            color = common.FAVOURITE
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
             painter.setOpacity(0.5)
@@ -164,7 +134,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
 
         if selected:
-            color = common.SELECTION
+            color = common.FAVOURITE
         else:
             color = common.SEPARATOR
 
@@ -474,7 +444,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(bg_rect)
 
         if active:
-            color = self.get_state_color(option, index, common.SELECTION)
+            color = self.get_state_color(option, index, common.FAVOURITE)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
 

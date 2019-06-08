@@ -262,9 +262,6 @@ class ImageCache(QtCore.QObject):
     _data = {}
     __instance = None
 
-    # Signals
-    thumbnailChanged = QtCore.Signal(QtCore.QModelIndex)
-
     @staticmethod
     def instance():
         """ Static access method. """
@@ -448,8 +445,6 @@ class ImageCache(QtCore.QObject):
     def remove(self, index):
         """Deletes the thumbnail file from storage and the cached entry associated
         with it.
-
-        Emits ``thumbnailChanged`` signal.
 
         """
         if not index.isValid():

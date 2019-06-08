@@ -37,7 +37,7 @@ class SelectFolderContextMenu(BaseContextMenu):
         asset = self.parent().view().model().asset()
         if asset.isValid():
             asset_path = asset.data(common.ParentRole)
-            asset_path = '/'.join(asset_path)
+            asset_path = u'/'.join(asset_path)
             menu_set[u'Reveal asset'] = {
                 u'action': functools.partial(common.reveal, asset_path)
             }
@@ -64,45 +64,39 @@ class SelectFolderDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``FoldersWidget``."""
-        painter, option, index, _, _, _, _, _, _ = args
+        painter, option, index, _, _, _, _, _, hover = args
 
         rect = QtCore.QRect(option.rect)
         root = self.parent().model().parent(index) == self.parent().rootIndex()
         active = self.parent().model().destination(
         ) == self.parent().model().filePath(index)
 
-        if root:
-            color = self.get_state_color(option, index, common.TEXT)
-        else:
-            color = self.get_state_color(option, index, common.SECONDARY_TEXT)
-        rect.setLeft(rect.left() + common.MARGIN)
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Resizing the height and centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(common.INLINE_ICON_SIZE)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.setWidth(rect.width() - (common.MARGIN * 2))
+        rect.moveCenter(center)
 
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetrics(font)
 
         text = index.data(QtCore.Qt.DisplayRole)
+        color = common.TEXT if root else common.SECONDARY_TEXT
+        color = common.TEXT_SELECTED if hover else color
+
         if index.flags() == QtCore.Qt.NoItemFlags:
-            painter.setBrush(common.TEXT)
-            painter.setPen(QtCore.Qt.NoPen)
             common.draw_aliased_text(
-                painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
+                painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
             return
 
         # Asset name
-        text = re.sub(r'[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub(r'[_]{1,}', '_', text).strip('_')
+        text = re.sub(ur'[^0-9a-zA-Z]+', u' ', text)
+        text = re.sub(ur'[_]{1,}', u'_', text).strip(u'_')
         if active:
-            text = ' >  {}  < '.format(text).upper()
+            text = u'>  {}  <'.format(text).upper()
         else:
-            text = ' {} '.format(text).upper()
+            text = u'{}'.format(text).upper()
             # text = '{}'.format(text)
-        rect.setWidth(metrics.width(text))
+        rect.setWidth(metrics.width(text) + common.INDICATOR_WIDTH)
 
         if root:
             painter.setBrush(common.FAVOURITE)
@@ -168,7 +162,7 @@ class SelectFolderView(QtWidgets.QTreeView):
     def set_model(self, model):
         self.setModel(model)
 
-        model.setRootPath('.')
+        model.setRootPath(u'.')
         index = model.index(model.rootPath())
         self.setRootIndex(index)
 
@@ -288,7 +282,7 @@ class SelectFolderModel(QtWidgets.QFileSystemModel):
     def is_model_valid(self):
         """The model is `invalid` if the root path or the asset has not yet#
         been set."""
-        if self.rootPath() == '.':
+        if self.rootPath() == u'.':
             return False
         if not self._asset.isValid():
             return False
@@ -527,7 +521,7 @@ class SelectAssetButton(SelectFolderButton):
 
         widget.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
         widget.model().sourceModel().modelAboutToBeReset.connect(
-            functools.partial(self.setText, 'Select asset...'))
+            functools.partial(self.setText, u'Select asset...'))
         widget.model().sourceModel().modelReset.connect(
             lambda: widget.model().sourceModel().activeChanged.emit(widget.model().sourceModel().active_index()))
 

@@ -241,7 +241,6 @@ SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
 SEPARATOR = QtGui.QColor(45, 45, 45)
 FAVOURITE = QtGui.QColor(120, 110, 200)
-SELECTION = FAVOURITE
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
@@ -252,8 +251,8 @@ SecondaryFont.setPointSize(SMALL_FONT_SIZE)
 def get_oiio_extensions():
     """Returns a list of extension OpenImageIO is capable of reading."""
     extensions = []
-    for f in OpenImageIO.get_string_attribute("extension_list").split(';'):
-        extensions = extensions + f.split(':')[-1].split(',')
+    for f in OpenImageIO.get_string_attribute(u'extension_list').split(u';'):
+        extensions = extensions + f.split(u':')[-1].split(u',')
     return frozenset(extensions)
 
 
@@ -492,7 +491,6 @@ def set_custom_stylesheet(widget):
             TEXT_SELECTED=u'{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
             SEPARATOR=u'{},{},{},{}'.format(*SEPARATOR.getRgb()),
             FAVOURITE=u'{},{},{},{}'.format(*FAVOURITE.getRgb()),
-            SELECTION=u'{},{},{},{}'.format(*SELECTION.getRgb())
         )
         widget.setStyleSheet(qss)
 
