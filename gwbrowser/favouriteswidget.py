@@ -18,8 +18,6 @@ from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
-import gwbrowser.gwscandir as gwscandir
-
 
 log = logging.getLogger(__name__)
 
@@ -284,32 +282,15 @@ class FavouritesWidget(FilesWidget):
 
     def __init__(self, parent=None):
         super(FavouritesWidget, self).__init__(parent=parent)
+        self.setWindowTitle(u'Favourites')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.setAcceptDrops(True)
-        self.setDragEnabled(True)
         self.setDropIndicatorShown(True)
 
-        self.setWindowTitle(u'Favourites')
-        self.setAutoScroll(True)
-
-        self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
+        # Context menu, delegate, model...
         self.context_menu_cls = FavouritesWidgetContextMenu
+        self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
         self.set_model(FavouritesModel(parent=self))
-
-        self._index_timer = QtCore.QTimer()
-        self._index_timer.setInterval(1000)
-        self._index_timer.setSingleShot(False)
-        self._index_timer.timeout.connect(self.initialize_visible_indexes)
-
-        self.model().sourceModel().modelAboutToBeReset.connect(
-            self.reset_thread_worker_queues)
-        self.model().modelAboutToBeReset.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().layoutAboutToBeChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-
-        self.model().modelAboutToBeReset.connect(self._index_timer.stop)
-        self.model().modelReset.connect(self._index_timer.start)
 
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()

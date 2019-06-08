@@ -350,6 +350,7 @@ class BaseModel(QtCore.QAbstractItemModel):
     dataSorted = QtCore.Signal()  # (SortRole, SortOrder)
 
     messageChanged = QtCore.Signal(unicode)
+    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
 
     def __init__(self, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -729,6 +730,10 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.initialize_filter_values()
 
         self.setModel(proxy)
+
+        # Updates
+        model.indexUpdated.connect(
+            lambda x: self.update(proxy.mapFromSource(x)))
 
         # Progress
         model.modelAboutToBeReset.connect(self._progress_widget.show)

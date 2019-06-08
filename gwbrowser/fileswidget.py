@@ -22,7 +22,6 @@ addittional data. The model will also try to generate thumbnails for any
 
 """
 
-import traceback
 import re
 import time
 import logging
@@ -184,7 +183,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
     @QtCore.Slot()
     def begin_processing(self):
         """Instead of relying on a queue, we will use this to set all file information
-        data on the source-model. There's only one thread for this worker
+        data on the source-model. There's only one thread for this worker.
 
         """
         try:
@@ -391,11 +390,13 @@ class FilesModel(BaseModel):
         self.threads[idx].started.connect(set_model)
         self.threads[idx].start()
 
-        self.modelReset.connect(self.reset_file_info_loaded)
-
     @QtCore.Slot()
     def reset_file_info_loaded(self):
-        """Resets the file-info loaded to its default state"""
+        """Set the file-info-loaded state to ``False``. This property is used
+        by the ``SecondaryFileInfoWorker`` to indicate all information has
+        been loaded.
+
+        """
         self.file_info_loaded = False
 
     @initdata
@@ -694,6 +695,8 @@ class FilesModel(BaseModel):
         SecondaryFileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
 
+        self.reset_file_info_loaded()
+
     @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
@@ -769,16 +772,16 @@ class FilesWidget(BaseInlineIconWidget):
         """Initializes the files widget.
 
         Attributes:
-            _index_timer(QTimer):   The timer responsible for pushing the visible
-                                    model indexes to the thread queues.
+            _index_timer(QTimer):   The timer responsible for pushing
+        the visible model indexes to the thread queues to get information.
 
         """
         super(FilesWidget, self).__init__(parent=parent)
+        self.setWindowTitle(u'Files')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
-        self.setWindowTitle(u'Files')
         self.setAutoScroll(True)
 
         # Context menu, delegate, model...
@@ -792,12 +795,16 @@ class FilesWidget(BaseInlineIconWidget):
         self._index_timer.setSingleShot(False)
         self._index_timer.timeout.connect(self.initialize_visible_indexes)
 
-        # Signals
+        # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().modelAboutToBeReset.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().layoutAboutToBeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataTypeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataKeyChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
 
         # We're stopping the index timer when the model is loading.
@@ -807,15 +814,23 @@ class FilesWidget(BaseInlineIconWidget):
         self.model().layoutChanged.connect(self._index_timer.start)
 
         # For performance's sake...
-        self.verticalScrollBar().valueChanged.connect(FileThumbnailWorker.reset_queue)
+        self.verticalScrollBar().valueChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.verticalScrollBar().sliderPressed.connect(
+            self._index_timer.stop)
+        self.verticalScrollBar().sliderReleased.connect(
+            self._index_timer.start)
+
+        # Making sure the SecondaryFileInfoWorker loads the model-data...
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
-        """The sourceModel() loads its data in two steps, there's a single-threaded
-        walkthrough of all directories, and a threaded querry for further information.
+        """The sourceModel() loads its data in multiples steps, there's a
+        single-threaded walk of all sub-directories, and a threaded querry for
+        image and file information.
 
-        This slot is called by the ``_index_timer`` and queues the uninitialized indexes
-        for the thread-workers to consume.
+        This slot is called by the ``_index_timer`` and queues the uninitialized
+        indexes for the thread-workers to consume.
 
         """
         needs_info = []

@@ -34,7 +34,6 @@ from gwbrowser.settings import local_settings, Active, active_monitor
 
 
 log = logging.getLogger(__name__)
-log.debug('This is a test message')
 
 
 class VersionLabel(QtWidgets.QLabel):
@@ -293,9 +292,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
-        signals and slots are connected. I tried coding the widgets in a
-        manner that they can all operate independently and the signal/slot
-        connections are not hard-coded.
+        signals and slots are connected.
 
         """
         b = self.bookmarkswidget
