@@ -303,8 +303,10 @@ class FavouritesWidget(FilesWidget):
 
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.reset_thread_worker_queues)
-        self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
-        self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
+        self.model().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().layoutAboutToBeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
 
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
         self.model().modelReset.connect(self._index_timer.start)

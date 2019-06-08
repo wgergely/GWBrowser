@@ -445,9 +445,7 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        FileInfoWorker.reset_queue()
-        FileThumbnailWorker.reset_queue()
-        ImageCacheWorker.reset_queue()
+        self.reset_thread_worker_queues()
 
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -686,6 +684,17 @@ class FilesModel(BaseModel):
             self._data[dkey][common.SequenceItem][idx] = v
 
     @QtCore.Slot()
+    def reset_thread_worker_queues(self):
+        """This slot removes all queued items from the respective worker queues.
+        Called by the ``modelAboutToBeReset`` signal.
+
+        """
+        FileInfoWorker.reset_queue()
+        FileThumbnailWorker.reset_queue()
+        SecondaryFileInfoWorker.reset_queue()
+        ImageCacheWorker.reset_queue()
+
+    @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
 
@@ -785,9 +794,11 @@ class FilesWidget(BaseInlineIconWidget):
 
         # Signals
         self.model().sourceModel().modelAboutToBeReset.connect(
-            self.reset_thread_worker_queues)
-        self.model().modelAboutToBeReset.connect(self.reset_thread_worker_queues)
-        self.model().layoutAboutToBeChanged.connect(self.reset_thread_worker_queues)
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().layoutAboutToBeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
 
         # We're stopping the index timer when the model is loading.
         self.model().modelAboutToBeReset.connect(self._index_timer.stop)
@@ -797,17 +808,6 @@ class FilesWidget(BaseInlineIconWidget):
 
         # For performance's sake...
         self.verticalScrollBar().valueChanged.connect(FileThumbnailWorker.reset_queue)
-
-    @QtCore.Slot()
-    def reset_thread_worker_queues(self):
-        """This slot removes all queued items from the respective worker queues.
-        Called by the ``modelAboutToBeReset`` signal.
-
-        """
-        FileInfoWorker.reset_queue()
-        FileThumbnailWorker.reset_queue()
-        SecondaryFileInfoWorker.reset_queue()
-        ImageCacheWorker.reset_queue()
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
