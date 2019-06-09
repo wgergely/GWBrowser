@@ -20,6 +20,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
+from gwbrowser.threads import Unique
 from gwbrowser.settings import local_settings
 
 
@@ -678,7 +679,7 @@ class BaseListWidget(QtWidgets.QListView):
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Fixed)
-        self.setMouseTracking(True)
+        # self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
@@ -700,6 +701,16 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setInterval(app.keyboardInputInterval())
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
+
+        self.verticalScrollBar().sliderPressed.connect(
+            lambda: self.setMouseTracking(False))
+        self.verticalScrollBar().sliderPressed.connect(
+            lambda: self.viewport().setMouseTracking(False))
+
+        self.verticalScrollBar().sliderReleased.connect(
+            lambda: self.setMouseTracking(True))
+        self.verticalScrollBar().sliderReleased.connect(
+            lambda: self.viewport().setMouseTracking(True))
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -731,10 +742,8 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.setModel(proxy)
 
-        # Updates
-        model.indexUpdated.connect(
-            lambda x: self.update(proxy.mapFromSource(x)),
-            type=QtCore.Qt.QueuedConnection)
+        # Index repaints
+        model.indexUpdated.connect(self.update_index)
 
         # Progress
         model.modelAboutToBeReset.connect(self._progress_widget.show)
@@ -802,6 +811,19 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataSorted.connect(proxy.invalidateFilter)
         model.dataSorted.connect(self.reselect_previous)
 
+    @QtCore.Slot(QtCore.QModelIndex)
+    def update_index(self, index):
+        """Takes a ``sourceModel()`` index to indicate the item needs to be repainted."""
+        if not index.isValid():
+            return
+        if self.isHidden():
+            return
+
+        index = self.model().mapFromSource(index)
+        rect = self.visualRect(index)
+        if self.rect().contains(rect):
+            self.repaint(rect)
+
     def active_index(self):
         """Returns the active item marked by the *common.MarkedAsActive*
         flag. Returns an invalid index if no items is marked as active.
@@ -837,7 +859,8 @@ class BaseListWidget(QtWidgets.QListView):
         data = source_index.model().model_data()
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] | common.MarkedAsActive
-        source_index.model().indexUpdated.emit(source_index)
+
+        self.repaint(self.visualRect(index))
         source_index.model().activeChanged.emit(source_index)
 
     def deactivate(self, index):
@@ -850,7 +873,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[source_index.row()][common.FlagsRole] = data[source_index.row()
                                                           ][common.FlagsRole] & ~common.MarkedAsActive
 
-        source_index.model().indexUpdated.emit(source_index)
+        self.repaint(self.visualRect(index))
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -1518,7 +1541,9 @@ class BaseInlineIconWidget(BaseListWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
-        self.update(self.indexAt(event.pos()))
+        if not self.verticalScrollBar().isSliderDown():
+            index = self.indexAt(event.pos())
+            self.repaint(self.visualRect(index))
 
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)

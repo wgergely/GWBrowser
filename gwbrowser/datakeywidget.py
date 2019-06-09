@@ -65,7 +65,7 @@ class DataKeyWorker(BaseWorker):
         try:
             data = index.model().model_data()
             data[index.row()][common.TodoCountRole] = count
-            index.model().indexUpdated.emit(index)
+            index.model().dataChanged.emit(index, index)
         except Exception as err:
             pass
 

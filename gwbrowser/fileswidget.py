@@ -22,9 +22,11 @@ addittional data. The model will also try to generate thumbnails for any
 
 """
 
+import sys
 import re
 import time
 import logging
+import traceback
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -188,7 +190,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(3)
+                time.sleep(1)
                 if self.model.file_info_loaded:
                     continue
 
@@ -201,22 +203,16 @@ class SecondaryFileInfoWorker(FileInfoWorker):
                     if not index.data(common.FileInfoLoaded):
                         FileInfoWorker.process_index(index, update=False)
                         all_loaded = False
+                    if not index.data(common.FileThumbnailLoaded):
+                        FileThumbnailWorker.process_index(
+                            index, update=True, make=False)
+                        all_loaded = False
 
                 if all_loaded:
                     self.model.file_info_loaded = True
 
-        except RuntimeError as err:
-            errstr = '\nRuntimeError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
-        except ValueError as err:
-            errstr = '\nValueError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
         except Exception as err:
-            errstr = '\nError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
+            sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:
             if self.shutdown_requested:
                 self.finished.emit()
@@ -237,8 +233,14 @@ class FileThumbnailWorker(BaseWorker):
 
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index):
-        """This worker only considers thumbnails."""
+    def process_index(index, update=True, make=True):
+        """The static method responsible for querrying the file item's thumbnail.
+
+        We will get the thumbnail's path, check if a cached thumbnail exists already,
+        then load it. If there's no thumbnail, we will try to generate a thumbnail
+        using OpenImageIO.
+
+        """
         if not index.isValid():
             return
         if not index.data(QtCore.Qt.StatusTipRole):
@@ -246,7 +248,8 @@ class FileThumbnailWorker(BaseWorker):
         if not index.data(common.FileInfoLoaded):
             return
 
-        index = index.model().mapToSource(index)
+        if hasattr(index.model(), 'mapToSource'):
+            index = index.model().mapToSource(index)
         data = index.model().model_data()[index.row()]
 
         settings = AssetSettings(index)
@@ -258,28 +261,35 @@ class FileThumbnailWorker(BaseWorker):
         image = None
 
         if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
-            # We will always overwrite - when refreshing we will want to refresh
-            # the thumbnails too!
+            # Overriding the cached image:
             image = ImageCache.get(
                 data[common.ThumbnailPathRole], height, overwrite=True)
 
         # If the item doesn't have a saved thumbnail we will check if
-        # OpenImageIO is able to make a thumbnail for it. If not we will
-        # keep the thumbnail as it is
+        # OpenImageIO is able to make a thumbnail for it:
+        if make:
+            if not image:
+                if ext in common.oiio_formats:
+                    model = index.model()
+                    data = model.model_data()[index.row()]
+                    spinner_pixmap = ImageCache.get(
+                        common.rsc_path(__file__, u'spinner'),
+                        data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+                    data[common.ThumbnailRole] = spinner_pixmap
+                    data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+                    data[common.FileThumbnailLoaded] = False
+
+                    if update:
+                        model.indexUpdated.emit(index)
+
+                    ImageCacheWorker.process_index(index)
+                else:
+                    data[common.FileThumbnailLoaded] = True
+                return
+
+        # There's no thumbnail for this item, let's consider it loaded
         if not image:
-            if ext in common.oiio_formats:
-                model = index.model()
-                data = model.model_data()[index.row()]
-                spinner_pixmap = ImageCache.get(
-                    common.rsc_path(__file__, u'spinner'),
-                    data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-                data[common.ThumbnailRole] = spinner_pixmap
-                data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
-                data[common.FileThumbnailLoaded] = False
-                model.indexUpdated.emit(index)
-                ImageCacheWorker.process_index(index)
-            else:
-                data[common.FileThumbnailLoaded] = True
+            data[common.FileThumbnailLoaded] = True
             return
 
         # We have loaded a saved thumbnail and not further processing is needed
@@ -288,7 +298,9 @@ class FileThumbnailWorker(BaseWorker):
         data[common.FileThumbnailLoaded] = True
         data[common.ThumbnailRole] = image
         data[common.ThumbnailBackgroundRole] = color
-        index.model().indexUpdated.emit(index)
+
+        if update:
+            index.model().indexUpdated.emit(index)
 
 
 class FileInfoThread(BaseThread):

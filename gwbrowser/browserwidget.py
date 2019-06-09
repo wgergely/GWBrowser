@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
-"""``BrowserWidget`` is the plug-in's main widget.
-When launched from within Maya it inherints from MayaQWidgetDockableMixin baseclass,
-otherwise MayaQWidgetDockableMixin is replaced with a ``common.LocalContext``, a dummy class.
-
-Example:
-
-.. code-block:: python
-    :linenos:
-
-    from gwbrowser.toolbar import BrowserWidget
-    widget = BrowserWidget()
-    widget.show()
-
-The asset and the file lists are collected by the ``collector.AssetCollector``
-and ```collector.FilesCollector`` classes. The gathered files then are displayed
-in the ``listwidgets.AssetsListWidget`` and ``listwidgets.FilesListWidget`` items.
+"""``browserwidget.py`` is the main widget of GWBrowser.
+It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
 
 """
 
@@ -54,7 +40,8 @@ class VersionLabel(QtWidgets.QLabel):
 
 
 class BrowserWidget(QtWidgets.QWidget):
-    """Main widget to browse pipline data."""
+    """GWBrowser's main widget."""
+
     initialized = QtCore.Signal()
     shutdown = QtCore.Signal()
     resized = QtCore.Signal(QtCore.QRect)

@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Main modules defining the delegates used to represent the QListWidgetItems."""
+"""``delegates.py`` defines the visual appearance of the ``BaseListWidget``
+subclasses.
+
+``BaseDelegate`` holds most of the functions used to draw the background and
+visual indicators.
+
+``BookmarksWidgetDelegate``, ``AssetsWidgetDelegate``, ``FilesWidgetDelegate``
+
+"""
 
 
 import re
@@ -375,12 +383,40 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect, bg_rect = self.get_inline_icon_rect(
             option.rect, common.INLINE_ICON_SIZE, 0)
 
+        painter.setPen(QtCore.Qt.NoPen)
+
         # Icon
         if favourite:
+            # Background
             color = QtGui.QColor(common.FAVOURITE)
-        else:
-            color = QtGui.QColor(common.SEPARATOR)
-            color.setAlpha(150)
+            color.setAlpha(200)
+            painter.setBrush(color)
+            painter.drawRoundedRect(
+                bg_rect, bg_rect.width() / 2, bg_rect.height() / 2)
+
+            # Star icon
+            color = QtGui.QColor(common.SECONDARY_BACKGROUND)
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'favourite', color, common.INLINE_ICON_SIZE)
+
+            painter.drawPixmap(rect, pixmap)
+
+            # Indicator rectangle on the right hand side of the row
+            rect2 = QtCore.QRect(option.rect)
+            center = rect2.center()
+            rect2.setHeight(rect2.height() - common.ROW_SEPARATOR)
+            rect2.moveCenter(center)
+            rect2.setWidth(common.INDICATOR_WIDTH)
+            rect2.moveRight(option.rect.right())
+
+            painter.setBrush(common.FAVOURITE)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRect(rect2)
+
+            return
+
+        color = QtGui.QColor(common.SEPARATOR)
+        color.setAlpha(150)
 
         cpos = QtGui.QCursor().pos()
         cpos = self.parent().mapFromGlobal(cpos)
@@ -394,18 +430,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             u'favourite', color, common.INLINE_ICON_SIZE)
 
         painter.setPen(QtCore.Qt.NoPen)
-
-        if favourite:
-            rect2 = QtCore.QRect(option.rect)
-            rect2.setTop(rect2.top() + 1)
-            rect2.setBottom(rect2.bottom() - 1)
-            rect2.setWidth(common.INDICATOR_WIDTH)
-            rect2.moveRight(option.rect.right())
-
-            painter.setBrush(common.FAVOURITE)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(rect2)
-
         # Icon
         painter.drawPixmap(rect, pixmap)
 
@@ -499,10 +523,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetrics(font)
 
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0) +
-                     metrics.lineSpacing())
+        rect.moveCenter(center)
 
         color = common.TEXT if hover else common.SECONDARY_TEXT
 
@@ -802,8 +825,7 @@ class FilesWidgetDelegate(BaseDelegate):
         #
         left = self.paint_mode(*args)
         self.paint_name(*args, left=left)
-        if index.data(common.FileInfoLoaded):
-            self.paint_description(*args, left=left)
+        self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
@@ -847,9 +869,10 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(metrics.height())
-        rect.moveTop(rect.bottom() - rect.height() + (rect.height() / 3))
+        rect.moveCenter(center)
+        rect.moveTop(rect.top() + (metrics.lineSpacing() / 2.0))
 
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
@@ -861,11 +884,18 @@ class FilesWidgetDelegate(BaseDelegate):
 
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
 
-        text = index.data(common.FileDetailsRole)
+        if not index.data(common.FileInfoLoaded):
+            text = u'-'
+        else:
+            text = index.data(common.FileDetailsRole)
+
         color = common.TEXT if hover else common.SECONDARY_TEXT
         color = common.TEXT if selected else color
         rect = self._draw(painter, font, rect, text, align,
                           color, option, kwargs['left'])
+
+        if not index.data(common.FileInfoLoaded):
+            return
 
         if index.data(common.DescriptionRole):
             color = common.TEXT_SELECTED if hover else common.TEXT
@@ -980,14 +1010,11 @@ class FilesWidgetDelegate(BaseDelegate):
         )
         rect.setRight(rect.right() - common.MARGIN)
 
-        # Resizing the height and centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        # Centering the rectangle
+        center = rect.center()
         rect.setHeight(metrics.height())
-        if index.data(common.FileDetailsRole) or index.data(common.DescriptionRole):
-            rect.moveTop(rect.top() - rect.height() + (rect.height() / 3))
-        else:
-            rect.moveCenter(QtCore.QPoint(
-                rect.center().x(), option.rect.center().y()))
+        rect.moveCenter(center)
+        rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
 
         # Taking the control-icons into consideration
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
@@ -1013,6 +1040,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
             # The extension and the suffix
             color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(painter, font, rect, text, align,
                               color, option, kwargs['left'])
 
@@ -1023,11 +1051,13 @@ class FilesWidgetDelegate(BaseDelegate):
                 frange = u'{}...{}'.format(frange[0:8], frange[-8:])
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if active else color
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(painter, font, rect, frange,
                               align, color, option, kwargs['left'])
 
             # The prefix
             color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(painter, font, rect, match.group(
                 1).upper(), align, color, option, kwargs['left'])
             return
@@ -1043,16 +1073,19 @@ class FilesWidgetDelegate(BaseDelegate):
                     match.group(3).upper())
 
             color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(
                 painter, font, rect, text, align, color, option, kwargs['left'])
             # The frame-range
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if active else color
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(
                 painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
 
             # The prefix
             color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
             rect = self._draw(
                 painter, font, rect, match.group(1).upper(),
                 align, color, option, kwargs['left'])
@@ -1067,6 +1100,7 @@ class FilesWidgetDelegate(BaseDelegate):
             text = text[0].upper()
 
         color = common.TEXT_SELECTED if selected else common.TEXT
+        color = common.TEXT_SELECTED if hover else color
         self._draw(painter, font, rect, text, align,
                    color, option, kwargs['left'])
 

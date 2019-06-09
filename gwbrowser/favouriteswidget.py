@@ -69,6 +69,8 @@ class FavouritesModel(FilesModel):
             common.MarkedAsFavourite
         )
 
+        self.reset_thread_worker_queues()
+
         if not self._parent_item:
             return
         if not all(self._parent_item):
@@ -104,7 +106,6 @@ class FavouritesModel(FilesModel):
         sfavourites = set(favourites)
 
         server, job, root = self._parent_item
-        placeholder_color = common.THUMBNAIL_BACKGROUND
         bookmark = u'{}/{}/{}'.format(server, job, root)
 
         for filepath in sfavourites:
@@ -291,6 +292,38 @@ class FavouritesWidget(FilesWidget):
         self.context_menu_cls = FavouritesWidgetContextMenu
         self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
         self.set_model(FavouritesModel(parent=self))
+
+        # Timer
+        self._index_timer = QtCore.QTimer()
+        self._index_timer.setInterval(common.FTIMER_INTERVAL)
+        self._index_timer.setSingleShot(False)
+        self._index_timer.timeout.connect(self.initialize_visible_indexes)
+
+        # Clearing the queues
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().layoutAboutToBeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataTypeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataKeyChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+
+        # We're stopping the index timer when the model is loading.
+        self.model().modelAboutToBeReset.connect(self._index_timer.stop)
+        self.model().modelReset.connect(self._index_timer.start)
+        self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
+        self.model().layoutChanged.connect(self._index_timer.start)
+
+        # For performance's sake...
+        self.verticalScrollBar().valueChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.verticalScrollBar().sliderPressed.connect(
+            self._index_timer.stop)
+        self.verticalScrollBar().sliderReleased.connect(
+            self._index_timer.start)
 
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()

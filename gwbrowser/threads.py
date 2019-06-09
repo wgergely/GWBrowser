@@ -8,12 +8,14 @@ Each thread is assigned a single Worker - usually responsible for taking
 *QModelIndexes* from the thread's python Queue.
 
 """
+import sys
 import logging
 import traceback
 import Queue
 import threading
 from PySide2 import QtCore
 
+import gwbrowser
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +51,6 @@ class BaseWorker(QtCore.QObject):
 
     queueFinished = QtCore.Signal()
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
-    queueError = QtCore.Signal(basestring)
     finished = QtCore.Signal()
 
     def __init__(self, parent=None):
@@ -132,18 +133,8 @@ class BaseWorker(QtCore.QObject):
                 if index in self.indexes_in_progress:
                     self.indexes_in_progress.remove(index)
 
-        except RuntimeError as err:
-            errstr = '\nRuntimeError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
-        except ValueError as err:
-            errstr = '\nValueError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
-        except Exception as err:
-            errstr = '\nError in {}\n{}\n'.format(
-                QtCore.QThread.currentThread(), err)
-            self.error.emit(errstr)
+        except Exception:
+            sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:
             if self.shutdown_requested:
                 self.finished.emit()
@@ -151,7 +142,7 @@ class BaseWorker(QtCore.QObject):
                 self.begin_processing()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(self, index):
+    def process_index(self, index, update=True, make=True):
         """The actual processing happens here.
         Make sure this overriden in the subclass.
 

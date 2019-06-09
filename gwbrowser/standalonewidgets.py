@@ -555,9 +555,6 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(u'GWBrowser')
 
         import gwbrowser
-        log_file = open(common.log_path())
-        sys.stdout = log_file
-        sys.stderr = log_file
         self.setApplicationVersion(gwbrowser.__version__)
 
         self.set_model_id()

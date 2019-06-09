@@ -440,7 +440,7 @@ class ImageCache(QtCore.QObject):
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
-        index.model().indexUpdated.emit(index)
+        index.model().dataChanged.emit(index, index)
 
     def remove(self, index):
         """Deletes the thumbnail file from storage and the cached entry associated
@@ -465,7 +465,7 @@ class ImageCache(QtCore.QObject):
                                                        ][common.DefaultThumbnailRole]
         data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()
                                                                  ][common.DefaultThumbnailBackgroundRole]
-        index.model().indexUpdated.emit(index)
+        index.model().dataChanged.emit(index, index)
 
     @classmethod
     def pick(cls, index):

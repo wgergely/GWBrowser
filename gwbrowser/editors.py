@@ -367,7 +367,7 @@ color: rgba({});
         source_index = self.index().model().mapToSource(self.index())
         data = source_index.model().model_data()[self.index().row()]
         data[common.DescriptionRole] = self.editor.text()
-        self.index().model().indexUpdated.emit(self.index())
+        self.index().model().dataChanged.emit(self.index(), self.index())
         self.hide()
 
 

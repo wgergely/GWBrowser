@@ -165,7 +165,7 @@ ITHREAD_COUNT = 4
 LTHREAD_COUNT = 1
 """The number of threads used by the ``DataKeyModel`` to count files."""
 
-FTIMER_INTERVAL = 1000  # 1 sec
+FTIMER_INTERVAL = 500  # 0.5 sec
 """The frequency of querrying lists to load file and thumbnail info"""
 
 ExportsFolder = u'cache'
@@ -189,7 +189,7 @@ ASSET_FOLDERS = {
 
 # Sizes
 ROW_HEIGHT = 46.0
-BOOKMARK_ROW_HEIGHT = 54.0
+BOOKMARK_ROW_HEIGHT = 64.0
 ASSET_ROW_HEIGHT = 84.0
 CONTROL_HEIGHT = 38.0
 ROW_SEPARATOR = 1.0
