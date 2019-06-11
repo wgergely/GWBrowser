@@ -89,7 +89,7 @@ class AssetModel(BaseModel):
         active_paths = Active.paths()
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
         server, job, root = self._parent_item
@@ -179,7 +179,7 @@ class AssetModel(BaseModel):
                 flags = flags | common.MarkedAsActive
             if settings.value(u'config/archived'):
                 flags = flags | common.MarkedAsArchived
-            if entry.path.replace(u'\\', u'/') in sfavourites:
+            if entry.path.replace(u'\\', u'/').lower() in sfavourites:
                 flags = flags | common.MarkedAsFavourite
             data[idx][common.FlagsRole] = flags
 

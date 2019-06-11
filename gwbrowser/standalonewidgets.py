@@ -200,7 +200,12 @@ class AppIcon(QtWidgets.QLabel):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
     def contextMenuEvent(self, event):
-        pass
+        """Shows the context menu associated with the tray in the header."""
+        widget = TrayMenu(parent=self.window())
+        pos = self.window().mapToGlobal(event.pos())
+        widget.move(pos)
+        common.move_widget_to_available_geo(widget)
+        widget.show()
 
     def enterEvent(self, event):
         self.repaint()

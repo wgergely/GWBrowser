@@ -957,7 +957,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
@@ -974,9 +974,9 @@ class BaseListWidget(QtWidgets.QListView):
         # otherwise add it. We will also iterate through all individual files
         # as well and set their flags too.
 
-        if key in sfavourites:
+        if key.lower() in sfavourites:
             if state is None or state is False:  # clears flag
-                favourites.remove(key)
+                favourites.remove(key.lower())
                 data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
 
             # Removing flags
@@ -987,12 +987,12 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     if _seq.expand(ur'\1\3.\4') != key:
                         continue
-                    if _item[QtCore.Qt.StatusTipRole] in sfavourites:
-                        favourites.remove(_item[QtCore.Qt.StatusTipRole])
+                    if _item[QtCore.Qt.StatusTipRole].lower() in sfavourites:
+                        favourites.remove(_item[QtCore.Qt.StatusTipRole].lower())
                     _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
         else:
             if state is None or state is True:  # adds flag
-                favourites.append(key)
+                favourites.append(key.lower())
                 data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsFavourite
 
             # Adding flags
@@ -1003,8 +1003,8 @@ class BaseListWidget(QtWidgets.QListView):
                         continue
                     if _seq.expand(ur'\1\3.\4') != key:
                         continue
-                    if _item[QtCore.Qt.StatusTipRole] not in sfavourites:
-                        favourites.append(_item[QtCore.Qt.StatusTipRole])
+                    if _item[QtCore.Qt.StatusTipRole].lower() not in sfavourites:
+                        favourites.append(_item[QtCore.Qt.StatusTipRole].lower())
                     _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsFavourite
 
         # Let's save the favourites list and emit a dataChanged signal
@@ -1030,7 +1030,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         archived = index.flags() & common.MarkedAsArchived
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
@@ -1050,26 +1050,26 @@ class BaseListWidget(QtWidgets.QListView):
                         _seq = _item[common.SequenceRole]
                         if not _seq:
                             continue
-                        if _seq.expand(ur'\1\3.\4') != key:
+                        if _seq.expand(ur'\1\3.\4').lower() != key.lower():
                             continue
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
                 return
 
         if state is None or state is True:
             # Removing favourite flags when the item is to be archived
-            if key in sfavourites:
+            if key.lower() in sfavourites:
                 if state is None or state is False:  # clears flag
-                    favourites.remove(key)
+                    favourites.remove(key.lower())
                     data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
                 if self.model().sourceModel().data_type() == common.SequenceItem:
                     for _item in m._data[m.data_key()][common.FileItem].itervalues():
                         _seq = _item[common.SequenceRole]
                         if not _seq:
                             continue
-                        if _seq.expand(ur'\1\3.\4') != key:
+                        if _seq.expand(ur'\1\3.\4').lower() != key.lower():
                             continue
-                        if _item[QtCore.Qt.StatusTipRole] in sfavourites:
-                            favourites.remove(_item[QtCore.Qt.StatusTipRole])
+                        if _item[QtCore.Qt.StatusTipRole].lower() in sfavourites.lower():
+                            favourites.remove(_item[QtCore.Qt.StatusTipRole].lower())
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
 
             data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived

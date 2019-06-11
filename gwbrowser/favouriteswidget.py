@@ -12,8 +12,8 @@ from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 
+from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import initdata
-from gwbrowser.fileswidget import FilesWidgetContextMenu
 from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
@@ -28,11 +28,10 @@ def rsc_path(f, n):
     return path
 
 
-class FavouritesWidgetContextMenu(FilesWidgetContextMenu):
+class FavouritesWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
-        super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
-        # Adding persistent actions
-
+        super(BaseContextMenu, self).__init__(parent=parent)
+        self.index = index
         if index.isValid():
             self.add_thumbnail_menu()
 
@@ -102,7 +101,7 @@ class FavouritesModel(FilesModel):
         seqs = {}
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
         server, job, root = self._parent_item
@@ -110,7 +109,7 @@ class FavouritesModel(FilesModel):
 
         for filepath in sfavourites:
             fileroot = filepath
-            if bookmark not in fileroot:
+            if bookmark.lower() not in fileroot.lower():
                 continue
 
             fileroot = filepath.replace(bookmark, u'')
@@ -343,7 +342,7 @@ class FavouritesWidget(FilesWidget):
             return
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
         source_index = self.model().mapToSource(index)
@@ -354,8 +353,8 @@ class FavouritesWidget(FilesWidget):
         if collapsed:
             key = collapsed.expand(ur'\1\3')
 
-        if key in sfavourites:
-            favourites.remove(key)
+        if key.lower() in sfavourites:
+            favourites.remove(key.lower())
             data[source_index.row()][common.FlagsRole] = data[source_index.row(
             )][common.FlagsRole] & ~common.MarkedAsFavourite
 
@@ -377,17 +376,15 @@ class FavouritesWidget(FilesWidget):
                             _index = val  # Found it!
                             break
                     if _index:
-                        if _index[QtCore.Qt.StatusTipRole] in favourites:
-                            favourites.remove(_index[QtCore.Qt.StatusTipRole])
+                        if _index[QtCore.Qt.StatusTipRole].lower() in sfavourites:
+                            favourites.remove(_index[QtCore.Qt.StatusTipRole].lower())
                         _index[common.FlagsRole] = _index[common.FlagsRole] & ~common.MarkedAsFavourite
 
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
 
     def inline_icons_count(self):
-        if self.buttons_hidden():
-            return 0
-        return 2
+        return 0
 
     def dragEnterEvent(self, event):
         if event.source() == self:
@@ -417,44 +414,21 @@ class FavouritesWidget(FilesWidget):
             return
 
         event.accept()
-
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
-        sfavourites = set(favourites)
+        favourites = [f.lower() for f in favourites] if favourites else []
 
         for url in mime.urls():
             path = QtCore.QFileInfo(url.toLocalFile()).filePath()
-            if path not in sfavourites:
-                favourites.append(path)
+            if path.lower() not in favourites:
+                favourites.append(path.lower())
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        self.model().sourceModel().modelDataResetRequested.emit()
+        self.favouritesChanged.emit()
 
     def mouseReleaseEvent(self, event):
         """Inline-button methods are triggered here."""
         if not isinstance(event, QtGui.QMouseEvent):
-            self.reset_multitoggle()
             return None
-
-        index = self.indexAt(event.pos())
-        rect = self.visualRect(index)
-
-        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
-            return super(QtWidgets.QListView, self).mouseReleaseEvent(event)
-
-        for n in xrange(self.inline_icons_count()):
-            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
-                rect, common.INLINE_ICON_SIZE, n)
-
-            if not bg_rect.contains(event.pos()):
-                continue
-
-            if n == 0:
-                self.toggle_favourite(index)
-                self.model().invalidateFilter()
-                break
-            if n == 1:
-                common.reveal(index.data(QtCore.Qt.StatusTipRole))
-                break
+        return super(QtWidgets.QListView, self).mouseReleaseEvent(event)
 
     def eventFilter(self, widget, event):
         """Custom event filter used to paint the background icon."""

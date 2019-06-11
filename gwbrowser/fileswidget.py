@@ -488,7 +488,7 @@ class FilesModel(BaseModel):
         seqs = {}
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
         activefile = local_settings.value('activepath/file')
 
@@ -545,7 +545,7 @@ class FilesModel(BaseModel):
 
                 flags = dflags()
 
-                if filepath in sfavourites:
+                if filepath.lower() in sfavourites:
                     flags = flags | common.MarkedAsFavourite
 
                 if activefile:
@@ -620,7 +620,7 @@ class FilesModel(BaseModel):
                                 seq.group(3),
                                 seq.group(4))
 
-                        if key in sfavourites:
+                        if key.lower() in sfavourites:
                             flags = flags | common.MarkedAsFavourite
 
                         seqs[seqpath] = {
@@ -677,7 +677,7 @@ class FilesModel(BaseModel):
                 v[common.SortByLastModified] = 0
 
                 flags = dflags()
-                if filepath in sfavourites:
+                if filepath.lower() in sfavourites:
                     flags = flags | common.MarkedAsFavourite
 
                 if activefile:
@@ -1004,6 +1004,10 @@ class FilesWidget(BaseInlineIconWidget):
         emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
 
         """
+        if not index.data(common.ParentRole):
+            return
+        if len(index.data(common.ParentRole)) < 5:
+            return
         local_settings.setValue(u'activepath/location',
                                 index.data(common.ParentRole)[4])
 

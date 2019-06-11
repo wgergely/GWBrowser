@@ -520,15 +520,15 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
-        locations_icon_pixmap = ImageCache.get_rsc_pixmap(
-            u'location', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        taskfolder_pixmap = ImageCache.get_rsc_pixmap(
+            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_on_pixmap = ImageCache.get_rsc_pixmap(
             u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off_pixmap = QtGui.QPixmap()
 
-        key = u'Change file folder'
+        key = u'Change task folder'
         menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = locations_icon_pixmap
+        menu_set[u'{}:icon'.format(key)] = taskfolder_pixmap
 
         parent_item = self.parent().model().sourceModel()._parent_item
         if not parent_item:

@@ -170,7 +170,7 @@ class BookmarksModel(BaseModel):
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         favourites = local_settings.value(u'favourites')
-        favourites = favourites if favourites else []
+        favourites = [f.lower() for f in favourites] if favourites else []
         favourites = set(favourites)
 
         for file_info in items:
@@ -199,7 +199,7 @@ class BookmarksModel(BaseModel):
             ):
                 flags = flags | common.MarkedAsActive
 
-            if file_info.filePath() in favourites:
+            if file_info.filePath().lower() in favourites:
                 flags = flags | common.MarkedAsFavourite
 
             data = self.model_data()
