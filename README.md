@@ -18,9 +18,10 @@
     </a>
 </p>
 
-___
-## Simple digital asset manager to help small teams to organize animation and film productions.
-___
+_______
+<center> <h3>Simple digital asset manager to help small teams to organize animation and film productions.</h3> </center>
+_______
+
 
 Aimed at small and medium sized teams, GWBrowser was designed to help users locate images and scenes quickly by structuring data and adding descriptions, tags and thumbnails to files. Check out the ``documentation`` for more info!
 
