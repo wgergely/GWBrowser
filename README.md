@@ -22,7 +22,12 @@ ___
 ## Simple digital asset manager to help small teams to organize animation and film productions.
 ___
 
-Aimed at small and medium sized teams, GWBrowser was designed to help users locate images and scenes quickly by structuring data and adding descriptions, tags and thumbnails to files. Check out the ``documentation`` for more info.
+Aimed at small and medium sized teams, GWBrowser was designed to help users locate images and scenes quickly by structuring data and adding descriptions, tags and thumbnails to files. Check out the ``documentation`` for more info!
+
+<p align="center">
+ <img src="./gwbrowser/rsc/banner.png" alt="GWBrowser"/>
+</p>
+
 
 ### Key features
 
