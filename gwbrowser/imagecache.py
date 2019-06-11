@@ -505,7 +505,7 @@ class ImageCache(QtCore.QObject):
 
         """
 
-        k = u'{name}:{size}:{color}'.format(
+        k = u'rsc:{name}:{size}:{color}'.format(
             name=name, size=size, color=u'null' if not color else color.name())
 
         if k in cls._data:
@@ -554,6 +554,15 @@ class ImageCache(QtCore.QObject):
         cls._data[k] = pixmap
         return cls._data[k]
 
+    @classmethod
+    @QtCore.Slot()
+    def reset_cache(cls):
+        """Clears the image-cache."""
+        data = {}
+        for k, v in cls._data.iteritems():
+            if u'rsc:' in k:
+                data[k] = v
+        cls._data = data
 
 # Initializing the ImageCache:
 ImageCache.initialize()

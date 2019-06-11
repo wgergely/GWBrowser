@@ -184,6 +184,47 @@ class MinimizeButton(ClickableLabel):
         painter.end()
 
 
+class AppIcon(QtWidgets.QLabel):
+    """Custom label used to control the standalone app."""
+
+    def __init__(self, parent=None):
+        super(AppIcon, self).__init__(parent=parent)
+        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE)
+        self.setPixmap(pixmap)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAutoFillBackground(True)
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setFixedWidth(common.INLINE_ICON_SIZE)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+    def contextMenuEvent(self, event):
+        pass
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        if hover:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.66)
+
+        painter.drawPixmap(self.rect(), self.pixmap(), self.pixmap().rect())
+        painter.end()
+
+
 class HeaderWidget(QtWidgets.QWidget):
     """Horizontal widget for controlling the position of the widget active window."""
     widgetMoved = QtCore.Signal(QtCore.QPoint)
@@ -204,13 +245,13 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(common.INDICATOR_WIDTH, common.INDICATOR_WIDTH,
-                                         common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
+        o = common.INDICATOR_WIDTH
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addWidget(AppIcon(parent=self))
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))

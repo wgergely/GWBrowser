@@ -525,9 +525,11 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         center = rect.center()
         rect.setHeight(metrics.height())
-        rect.moveCenter(center)
+        rect.moveCenter(
+            QtCore.QPoint(center.x(), center.y() + metrics.lineSpacing())
+        )
 
-        color = common.TEXT if hover else common.SECONDARY_TEXT
+        color = QtGui.QColor(common.TEXT) if hover else QtGui.QColor(common.SECONDARY_TEXT)
 
         if not index.data(common.DescriptionRole):
             text = u'Double-click to add description...'
@@ -591,9 +593,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.setRight(rect.right() - common.MARGIN)
 
         # Centering rect
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.moveCenter(center)
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(ur'[\W\d\_]+', '', text)
@@ -779,9 +781,9 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(metrics.height())
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.moveCenter(center)
 
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
             _, icon_rect = self.get_inline_icon_rect(
@@ -849,6 +851,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setBrush(common.SEPARATOR)
         painter.setOpacity(0.8)
         painter.drawRect(option.rect)
+        painter.setOpacity(1.0)
 
     def _draw(self, painter, font, rect, text, align, color, option, left):
         """Draws a sequence element."""
@@ -953,9 +956,9 @@ class FilesWidgetDelegate(BaseDelegate):
         rect.setRight(rect.right() - common.MARGIN)
 
         # Resizing the height and Centering
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
+        center = rect.center()
         rect.setHeight(metrics.height() + common.INDICATOR_WIDTH)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
+        rect.moveCenter(center)
 
         modes = index.data(common.ParentRole)[-1]
         modes = modes.split(u'/')
