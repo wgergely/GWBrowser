@@ -777,6 +777,75 @@ class FilesModel(BaseModel):
         return mime
 
 
+class DragPixmap(QtWidgets.QWidget):
+    """The widget used to drag the dragged items pixmap and name."""
+
+    def __init__(self, pixmap, text, parent=None):
+        super(DragPixmap, self).__init__(parent=parent)
+        self._pixmap = pixmap
+        self._text = text
+
+        font = common.PrimaryFont
+        metrics = QtGui.QFontMetrics(font)
+        self._text_width = metrics.width(text)
+
+        width = self._text_width + common.MARGIN
+        width = 640 + common.MARGIN if width > 640 else width
+
+        self.setFixedHeight(pixmap.height())
+        self.setFixedWidth(
+            pixmap.width() + common.INDICATOR_WIDTH + width + common.INDICATOR_WIDTH)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAutoFillBackground(True)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.adjustSize()
+
+    @classmethod
+    def pixmap(cls, pixmap, text):
+        """Returns the widget as a rendered pixmap."""
+        w = cls(pixmap, text)
+        pixmap = QtGui.QPixmap(w.size())
+        pixmap.fill(QtCore.Qt.transparent)
+        painter = QtGui.QPainter(pixmap)
+        w.render(painter, QtCore.QPoint(), QtGui.QRegion())
+        return pixmap
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SECONDARY_BACKGROUND)
+        painter.setOpacity(0.6)
+        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.setOpacity(1.0)
+
+        pixmap_rect = QtCore.QRect(0, 0, self.height(), self.height())
+        painter.drawPixmap(pixmap_rect, self._pixmap, self._pixmap.rect())
+
+        width = self._text_width + common.INDICATOR_WIDTH
+        width = 640 if width > 640 else width
+        rect = QtCore.QRect(
+            self._pixmap.rect().width() + common.INDICATOR_WIDTH,
+            0,
+            width,
+            self.height()
+        )
+        common.draw_aliased_text(
+            painter,
+            common.PrimaryFont,
+            rect,
+            self._text,
+            QtCore.Qt.AlignCenter,
+            common.TEXT_SELECTED
+        )
+        painter.end()
+
+
 class FilesWidget(BaseInlineIconWidget):
     """The view used to display the contents of a ``FilesModel`` instance."""
 
@@ -800,6 +869,9 @@ class FilesWidget(BaseInlineIconWidget):
         self.context_menu_cls = FilesWidgetContextMenu
         self.setItemDelegate(FilesWidgetDelegate(parent=self))
         self.set_model(FilesModel(parent=self))
+
+        # Drag start
+        self.drag_source_index = QtCore.QModelIndex()
 
         # Timer
         self._index_timer = QtCore.QTimer()
@@ -1007,6 +1079,68 @@ class FilesWidget(BaseInlineIconWidget):
             return
         self._index_timer.start()
         super(FilesWidget, self).mouseReleaseEvent(event)
+
+    def startDrag(self, supported_actions):
+        """Creating a custom drag object here for displaying setting hotspots."""
+        index = self.selectionModel().currentIndex()
+        model = self.model().sourceModel()
+
+        if not index.isValid():
+            return
+
+        self.drag_source_index = index
+        drag = QtGui.QDrag(self)
+        # Getting the data from the source model
+        drag.setMimeData(model.mimeData([index, ]))
+
+        # Setting our custom cursor icons
+        option = QtWidgets.QStyleOptionViewItem()
+        option.initFrom(self)
+        height = self.itemDelegate().sizeHint(option, index).height()
+
+        def px(s):
+            return ImageCache.get_rsc_pixmap(s, None, common.INLINE_ICON_SIZE)
+
+        # Set drag icon
+        drag.setDragCursor(px('CopyAction'), QtCore.Qt.CopyAction)
+        drag.setDragCursor(px('MoveAction'), QtCore.Qt.MoveAction)
+        # drag.setDragCursor(px('LinkAction'), QtCore.Qt.LinkAction)
+        drag.setDragCursor(px('IgnoreAction'), QtCore.Qt.ActionMask)
+        drag.setDragCursor(px('IgnoreAction'), QtCore.Qt.IgnoreAction)
+        # drag.setDragCursor(px('TargetMoveAction'), QtCore.Qt.TargetMoveAction)
+
+        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+
+        # Set pixmap
+        bookmark = u'/'.join(index.data(common.ParentRole)[:3])
+        path = index.data(QtCore.Qt.StatusTipRole).replace(bookmark, u'')
+        path = path.strip(u'/')
+
+        if no_modifier:
+            pixmap = ImageCache.get_rsc_pixmap('files', None, height)
+            path = common.get_sequence_endpath(path)
+        elif alt_modifier and shift_modifier:
+            pixmap = ImageCache.get_rsc_pixmap('folder', None, height)
+            path = QtCore.QFileInfo(path).dir().path()
+        elif alt_modifier:
+            pixmap = ImageCache.get_rsc_pixmap('files', None, height)
+            path = common.get_sequence_startpath(path)
+        elif shift_modifier:
+            path = u'{}, ++'.format(common.get_sequence_startpath(path))
+            pixmap = ImageCache.get_rsc_pixmap('multiples_files', None, height)
+
+        self.update(index)
+        pixmap = DragPixmap.pixmap(pixmap, path)
+        drag.setPixmap(pixmap)
+        # drag.setHotSpot(pixmap)
+
+        drag.exec_(supported_actions)
+
+        # Cleanup
+        self.drag_source_index = QtCore.QModelIndex()
 
 
 if __name__ == '__main__':

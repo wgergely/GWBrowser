@@ -836,6 +836,20 @@ class FilesWidgetDelegate(BaseDelegate):
         #
         self.paint_selection_indicator(*args)
 
+        if self.parent().drag_source_index.isValid():
+            self.paint_drag_source(*args)
+
+    @paintmethod
+    def paint_drag_source(self, *args, **kwargs):
+        """Overlay do indicate the source of a drag operation."""
+        painter, option, index, selected, _, _, _, _, hover = args
+        if index != self.parent().drag_source_index:
+            return
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.setOpacity(0.8)
+        painter.drawRect(option.rect)
+
     def _draw(self, painter, font, rect, text, align, color, option, left):
         """Draws a sequence element."""
         metrics = QtGui.QFontMetrics(font)
