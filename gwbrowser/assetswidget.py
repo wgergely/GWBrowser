@@ -157,7 +157,8 @@ class AssetModel(BaseModel):
 
             image = ImageCache.get(
                 data[idx][common.ThumbnailPathRole],
-                rowsize.height() - common.ROW_SEPARATOR)
+                rowsize.height() - common.ROW_SEPARATOR,
+                overwrite=True)
 
             if image:
                 if not image.isNull():
