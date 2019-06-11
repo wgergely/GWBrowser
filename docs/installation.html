@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Installing from source</title>
+    
+      <link rel="stylesheet" href="_static/pygments.css">
+      <link rel="stylesheet" href="_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+
+      
+      <script src="_static/theme-vendors.js"></script>
+      <script src="_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="genindex.html" />
+  <link rel="search" title="Search" href="search.html" />
+  <link rel="next" title="GWBrowser API Documentation" href="api.html" />
+  <link rel="prev" title="Overview" href="overview.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="index.html" class="home-link">
+    
+      <img class="logo" src="_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installing from source</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="index.html">Docs</a> &raquo;</li>
+    
+    <li>Installing from source</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+  <li class="prev">
+    <a href="overview.html"
+       title="previous chapter">← Overview</a>
+  </li>
+  <li class="next">
+    <a href="api.html"
+       title="next chapter">GWBrowser API Documentation →</a>
+  </li>
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <div class="section" id="installing-from-source">
+<h1>Installing from source<a class="headerlink" href="#installing-from-source" title="Permalink to this headline">¶</a></h1>
+<p>To build from source clone the repository from github:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/wgergely/GWBrowser
+</pre></div>
+</div>
+<div class="section" id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
+<p>GWBrowser will require the following python libraries to function.</p>
+<div class="section" id="pyside2">
+<h3>PySide2<a class="headerlink" href="#pyside2" title="Permalink to this headline">¶</a></h3>
+<p>GWBrowser was tested against <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code> and <code class="docutils literal notranslate"><span class="pre">Qt5.12</span></code>.
+You can get the <code class="docutils literal notranslate"><span class="pre">PySide2</span></code> - the last official build supporting Python2.7
+was <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code></p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>http://download.qt.io/
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">PySide2</span> <span class="kn">import</span> <span class="n">QtWidgets</span>
+<span class="n">widget</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="openimageio">
+<h3>OpenImageIO<a class="headerlink" href="#openimageio" title="Permalink to this headline">¶</a></h3>
+<p>The python libraries to interface with <code class="docutils literal notranslate"><span class="pre">OpenImageIO</span></code> are imported
+as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">OpenImageIO.OpenImageIO</span> <span class="kn">as</span> <span class="nn">OpenImageIO</span>
+<span class="n">buf</span> <span class="o">=</span> <span class="n">OpenImageIO</span><span class="o">.</span><span class="n">ImageBuf</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">OpenImageIO</span></code> itself requires <code class="docutils literal notranslate"><span class="pre">Numpy</span></code>.</p>
+</div>
+<div class="section" id="alembic">
+<h3>Alembic<a class="headerlink" href="#alembic" title="Permalink to this headline">¶</a></h3>
+<p>This is the standard python alembic library but GWBrowser imports it as
+<code class="docutils literal notranslate"><span class="pre">GWAlembic</span></code> to avoid name-clashes.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gwalembic.alembic</span> <span class="kn">as</span> <span class="nn">alembic</span>
+<span class="n">a</span> <span class="o">=</span> <span class="n">alembic</span><span class="o">.</span><span class="n">Abc</span><span class="o">.</span><span class="n">IArchive</span><span class="p">(</span><span class="s1">&#39;C:/test.abc&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="scandir">
+<h3>Scandir<a class="headerlink" href="#scandir" title="Permalink to this headline">¶</a></h3>
+<p>This is a Python 2 compatible version of the Python 3 <code class="docutils literal notranslate"><span class="pre">scandir</span></code> module.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="kn">as</span> <span class="nn">scandir</span>
+<span class="n">scandir</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;C:/test&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can find the latest version on github.com.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+  <li class="prev">
+    <a href="overview.html"
+       title="previous chapter">← Overview</a>
+  </li>
+  <li class="next">
+    <a href="api.html"
+       title="next chapter">GWBrowser API Documentation →</a>
+  </li>
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>

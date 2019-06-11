@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>gwbrowser.addjobwidget</title>
+    
+      <link rel="stylesheet" href="../../_static/pygments.css">
+      <link rel="stylesheet" href="../../_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+
+      
+      <script src="../../_static/theme-vendors.js"></script>
+      <script src="../../_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="../../index.html" class="home-link">
+    
+      <img class="logo" src="../../_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+    
+      <li><a href="../index.html">Module code</a> &raquo;</li>
+    
+      <li><a href="../gwbrowser.html">gwbrowser</a> &raquo;</li>
+    
+    <li>gwbrowser.addjobwidget</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <h1>Source code for gwbrowser.addjobwidget</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;This module defines the ``AddJobWidget``, the main widget used to add a</span>
+<span class="sd">new job inside an existing server.</span>
+
+<span class="sd">Assets are simple folder-structures, and the main placeholders for files generated</span>
+<span class="sd">during digital production. Jobs are placeholders for addittional assets, eg.</span>
+<span class="sd">shots, sequences, or build assets.</span>
+
+<span class="sd">The job templates themselves are simple zip-files. Adding simply means unzipping</span>
+<span class="sd">their contents into a specified directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtCore</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.addfilewidget</span> <span class="k">import</span> <span class="n">NameEditor</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.addfilewidget</span> <span class="k">import</span> <span class="n">Check</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.addfilewidget</span> <span class="k">import</span> <span class="n">SaverHeaderWidget</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.basecontextmenu</span> <span class="k">import</span> <span class="n">BaseContextMenu</span><span class="p">,</span> <span class="n">contextmenu</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.standalonewidgets</span> <span class="k">import</span> <span class="n">CloseButton</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">AddJobWidgetContextMenu</span><span class="p">(</span><span class="n">BaseContextMenu</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Context menu associated with the ``AddJobWidget``.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AddJobWidgetContextMenu</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">(),</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_reveal_item_menu</span><span class="p">()</span>
+
+    <span class="nd">@contextmenu</span>
+    <span class="k">def</span> <span class="nf">add_reveal_item_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">menu_set</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Menu for thumbnail operations.&quot;&quot;&quot;</span>
+        <span class="n">menu_set</span><span class="p">[</span><span class="s1">&#39;Reveal&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Reveal destination&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">reveal</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">menu_set</span>
+
+
+<div class="viewcode-block" id="AddJobWidget"><a class="viewcode-back" href="../../api.html#gwbrowser.addjobwidget.AddJobWidget">[docs]</a><span class="k">class</span> <span class="nc">AddJobWidget</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QDialog</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Defines the widget used add a job to a selected server.&quot;&quot;&quot;</span>
+    <span class="n">shutdown</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AddJobWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_path</span> <span class="o">=</span> <span class="n">path</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkmark_widget</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_asset_added</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_in_progress</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_event_pos</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_widget_pos</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add job&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">installEventFilter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setContextMenuPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DefaultContextMenu</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowFlags</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">FramelessWindowHint</span> <span class="o">|</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">Window</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_createUI</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_connectSignals</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The active bookmark&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_path</span>
+
+    <span class="k">def</span> <span class="nf">_createUI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates the ``AddAssetsWidget``&#39;s ui and layout.&quot;&quot;&quot;</span>
+        <span class="n">common</span><span class="o">.</span><span class="n">set_custom_stylesheet</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QVBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">,</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedWidth</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">WIDTH</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="n">mainrow</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">(</span><span class="n">mainrow</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">mainrow</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignVCenter</span> <span class="o">|</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignLeft</span><span class="p">)</span>
+        <span class="c1"># top label</span>
+        <span class="kn">from</span> <span class="nn">gwbrowser.addbookmarkswidget</span> <span class="k">import</span> <span class="n">PaintedLabel</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="n">PaintedLabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add new job&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">LARGE_FONT_SIZE</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addSpacing</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1">#</span>
+        <span class="n">mainrow</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">(</span><span class="n">mainrow</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">mainrow</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="n">column</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QVBoxLayout</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
+        <span class="n">column</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">column</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">column</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">column</span><span class="p">)</span>
+
+        <span class="c1"># Row 1</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+        <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+        <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
+        <span class="n">column</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span> <span class="o">=</span> <span class="n">NameEditor</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkmark_widget</span> <span class="o">=</span> <span class="n">Check</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">mainrow</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkmark_widget</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">insertWidget</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">SaverHeaderWidget</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_connectSignals</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">checkmark_widget</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">done</span><span class="p">(</span>
+            <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QDialog</span><span class="o">.</span><span class="n">Accepted</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">QueuedConnection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">textEdited</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">validate_text</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">)</span>
+        <span class="n">closebutton</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">findChild</span><span class="p">(</span><span class="n">CloseButton</span><span class="p">)</span>
+        <span class="n">closebutton</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+            <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">done</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QDialog</span><span class="o">.</span><span class="n">Rejected</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">QueuedConnection</span><span class="p">)</span>
+
+    <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">unicode</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Strips all invalid characters from the input string.&quot;&quot;&quot;</span>
+        <span class="n">cp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">cursorPosition</span><span class="p">()</span>
+        <span class="n">_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[^a-z0-9\_\-]&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+        <span class="n">_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[_]{2,}&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="n">_text</span><span class="p">)</span>
+        <span class="n">_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[-]{2,}&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">_text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_text</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">35</span><span class="p">:</span>
+            <span class="n">_text</span> <span class="o">=</span> <span class="n">_text</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">35</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">_text</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">setCursorPosition</span><span class="p">(</span><span class="n">cp</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">done</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Slot called by the check button to initiate the save.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QDialog</span><span class="o">.</span><span class="n">Rejected</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">AddJobWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">done</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">mbox</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Error adding asset&#39;</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Warning</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setStandardButtons</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Ok</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setDefaultButton</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Ok</span><span class="p">)</span>
+
+        <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;The destination folder does not exists.&#39;</span><span class="p">)</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> does not exist. Make sure a valid bookmark is activated before trying to add the asset.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">()))</span>
+            <span class="k">return</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">isWritable</span><span class="p">():</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not writable.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">()))</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;The destination folder is not writeable. Check if you have permissions to create files and folders.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">():</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;The asset has no name.&#39;</span><span class="p">)</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;You must set a name before adding an asset.&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="sa">ur</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
+        <span class="n">file_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;&quot;</span><span class="si">{}</span><span class="s1">&quot; already exists. Try again with a different name...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">()))</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="c1"># Finally, let&#39;s actually create the asset</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">create_asset_from_template</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">template</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">ProjectTemplate</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;An error occured when creating the asset:&#39;</span><span class="p">)</span>
+            <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Success&#39;</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Succesfully added &quot;</span><span class="si">{}</span><span class="s1">&quot;.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">()))</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">NoIcon</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setStandardButtons</span><span class="p">(</span>
+            <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Yes</span> <span class="o">|</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">No</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setDefaultButton</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">No</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;Do you want to add another asset?&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Yes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">description_widget</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_asset_added</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">reveal</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_widget</span><span class="o">.</span><span class="n">text</span><span class="p">()))</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">AddJobWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">done</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">contextMenuEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">menu</span> <span class="o">=</span> <span class="n">AddJobWidgetContextMenu</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">menu</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">menu</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>

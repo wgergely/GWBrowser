@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>gwbrowser.bookmarkswidget</title>
+    
+      <link rel="stylesheet" href="../../_static/pygments.css">
+      <link rel="stylesheet" href="../../_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+
+      
+      <script src="../../_static/theme-vendors.js"></script>
+      <script src="../../_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="../../index.html" class="home-link">
+    
+      <img class="logo" src="../../_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+    
+      <li><a href="../index.html">Module code</a> &raquo;</li>
+    
+      <li><a href="../gwbrowser.html">gwbrowser</a> &raquo;</li>
+    
+    <li>gwbrowser.bookmarkswidget</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <h1>Source code for gwbrowser.bookmarkswidget</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;``bookmarkswidget.py`` defines the main objects needed for interacting with</span>
+<span class="sd">bookmarks. This includes the utility classes for getting bookmark status and to</span>
+<span class="sd">allow dropping files and urls on the view.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtNetwork</span>
+
+<span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="k">as</span> <span class="nn">gwscandir</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.imagecache</span> <span class="k">import</span> <span class="n">ImageCache</span>
+<span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.basecontextmenu</span> <span class="k">import</span> <span class="n">BaseContextMenu</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.baselistwidget</span> <span class="k">import</span> <span class="n">BaseInlineIconWidget</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.baselistwidget</span> <span class="k">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.baselistwidget</span> <span class="k">import</span> <span class="n">initdata</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">local_settings</span><span class="p">,</span> <span class="n">Active</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">AssetSettings</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.delegate</span> <span class="k">import</span> <span class="n">BookmarksWidgetDelegate</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.addbookmarkswidget</span> <span class="k">import</span> <span class="n">AddBookmarksWidget</span>
+
+
+<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">ImageDownloader</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QObject</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility class to download an image from a url. Used by the drag and drop operations.&quot;&quot;&quot;</span>
+    <span class="c1"># Signals</span>
+    <span class="n">downloaded</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QByteArray</span><span class="p">,</span> <span class="n">unicode</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ImageDownloader</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">url</span> <span class="o">=</span> <span class="n">url</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span> <span class="o">=</span> <span class="n">QtNetwork</span><span class="o">.</span><span class="n">QNetworkAccessManager</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request</span> <span class="o">=</span> <span class="n">QtNetwork</span><span class="o">.</span><span class="n">QNetworkRequest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">finished</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">reply</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">downloaded</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">reply</span><span class="o">.</span><span class="n">readAll</span><span class="p">(),</span> <span class="n">destination</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">downloaded</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">save_image</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">request</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">save_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the downloaded data as an image.&quot;&quot;&quot;</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">()</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">loadFromData</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">loaded</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">convertToFormat</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="o">.</span><span class="n">Format_RGB32</span><span class="p">)</span>
+        <span class="n">image</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">BookmarkInfo</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;QFileInfo for bookmarks.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bookmark</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">bookmark</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">job</span> <span class="o">=</span> <span class="n">bookmark</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">bookmark</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exists</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BookmarkInfo</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">exists</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="kc">False</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">exists</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">count_assets</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">count</span> <span class="o">=</span> <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">count_assets</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">count_assets</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the number of assets inside the given folder.&quot;&quot;&quot;</span>
+        <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">gwscandir</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+                <span class="k">continue</span>
+            <span class="n">identifier_path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">),</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">ASSET_IDENTIFIER</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">identifier_path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">count</span>
+
+
+<span class="k">class</span> <span class="nc">BookmarksWidgetContextMenu</span><span class="p">(</span><span class="n">BaseContextMenu</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Context menu associated with the BookmarksWidget.</span>
+
+<span class="sd">    Methods:</span>
+<span class="sd">        refresh: Refreshes the collector and repopulates the widget.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BookmarksWidgetContextMenu</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="c1"># Adding persistent actions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_add_bookmark_menu</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_mode_toggles_menu</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_thumbnail_menu</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_separator</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_reveal_item_menu</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_copy_menu</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_separator</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_sort_menu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_display_toggles_menu</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_separator</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_refresh_menu</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="BookmarksModel"><a class="viewcode-back" href="../../api.html#gwbrowser.bookmarkswidget.BookmarksModel">[docs]</a><span class="k">class</span> <span class="nc">BookmarksModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The model used store the data necessary to display bookmarks.</span>
+
+<span class="sd">    The model is drop-enabled, and accepts file are urls. The dropped items will</span>
+<span class="sd">    be copied to the root of the bookmark folder.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BookmarksModel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parent_item</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="BookmarksModel.__initdata__"><a class="viewcode-back" href="../../api.html#gwbrowser.bookmarkswidget.BookmarksModel.__initdata__">[docs]</a>    <span class="nd">@initdata</span>
+    <span class="k">def</span> <span class="nf">__initdata__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Collects the data needed to populate the bookmarks model.</span>
+
+<span class="sd">        Bookmarks are made up of a tuple of ``(server, job, root)`` values and</span>
+<span class="sd">        are stored in the local user system settings, eg. the Registry</span>
+<span class="sd">        in under windows. Each bookmarks can be associated with a thumbnail,</span>
+<span class="sd">        custom description and a list of comments, todo items.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            This model does not have threads associated with it as fetching</span>
+<span class="sd">            necessary data is relatively inexpensive.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data_key</span><span class="p">()]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">FileItem</span><span class="p">:</span> <span class="p">{},</span> <span class="n">common</span><span class="o">.</span><span class="n">SequenceItem</span><span class="p">:</span> <span class="p">{}}</span>
+
+        <span class="n">rowsize</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QSize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">WIDTH</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">BOOKMARK_ROW_HEIGHT</span><span class="p">)</span>
+        <span class="n">active_paths</span> <span class="o">=</span> <span class="n">Active</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>
+
+        <span class="n">items</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;bookmarks&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;bookmarks&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[</span><span class="n">BookmarkInfo</span><span class="p">(</span><span class="n">items</span><span class="p">[</span><span class="n">k</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">items</span><span class="p">]</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+
+        <span class="n">thumbcolor</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">SEPARATOR</span><span class="p">)</span>
+        <span class="n">thumbcolor</span><span class="o">.</span><span class="n">setAlpha</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+        <span class="n">default_thumbnail_image</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;bookmark_sm&#39;</span><span class="p">,</span>
+            <span class="n">thumbcolor</span><span class="p">,</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">BOOKMARK_ROW_HEIGHT</span> <span class="o">-</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_SEPARATOR</span><span class="p">)</span>
+        <span class="n">default_thumbnail_image</span> <span class="o">=</span> <span class="n">default_thumbnail_image</span><span class="o">.</span><span class="n">toImage</span><span class="p">()</span>
+        <span class="n">default_background_color</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">THUMBNAIL_BACKGROUND</span>
+
+        <span class="n">favourites</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;favourites&#39;</span><span class="p">)</span>
+        <span class="n">favourites</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">favourites</span><span class="p">]</span> <span class="k">if</span> <span class="n">favourites</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="n">favourites</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">favourites</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">file_info</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+            <span class="c1"># Let&#39;s make sure the Browser&#39;s configuration folder exists</span>
+            <span class="c1"># This folder lives in the root of the bookmarks folder and is</span>
+            <span class="c1"># created here if not created previously.</span>
+            <span class="k">if</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">_confpath</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/.browser/&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+                <span class="n">_confpath</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">_confpath</span><span class="p">)</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">()</span><span class="o">.</span><span class="n">mkpath</span><span class="p">(</span><span class="n">_confpath</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+
+            <span class="n">flags</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ItemIsSelectable</span> <span class="o">|</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ItemIsEnabled</span> <span class="o">|</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ItemIsEditable</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">flags</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ItemIsSelectable</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+
+            <span class="c1"># Active</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">file_info</span><span class="o">.</span><span class="n">server</span> <span class="o">==</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">]</span> <span class="ow">and</span>
+                <span class="n">file_info</span><span class="o">.</span><span class="n">job</span> <span class="o">==</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">]</span> <span class="ow">and</span>
+                <span class="n">file_info</span><span class="o">.</span><span class="n">root</span> <span class="o">==</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">]</span>
+            <span class="p">):</span>
+                <span class="n">flags</span> <span class="o">=</span> <span class="n">flags</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span>
+
+            <span class="k">if</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">favourites</span><span class="p">:</span>
+                <span class="n">flags</span> <span class="o">=</span> <span class="n">flags</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_data</span><span class="p">()</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DisplayRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">job</span><span class="p">,</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">EditRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">job</span><span class="p">,</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ToolTipRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHintRole</span><span class="p">:</span> <span class="n">rowsize</span><span class="p">,</span>
+                <span class="c1">#</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">:</span> <span class="n">flags</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">:</span> <span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">server</span><span class="p">,</span> <span class="n">file_info</span><span class="o">.</span><span class="n">job</span><span class="p">,</span> <span class="n">file_info</span><span class="o">.</span><span class="n">root</span><span class="p">),</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">DescriptionRole</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">TodoCountRole</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">FileDetailsRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">AssetCountRole</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">size</span><span class="p">(),</span>
+                <span class="c1">#</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">DefaultThumbnailRole</span><span class="p">:</span> <span class="n">default_thumbnail_image</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">DefaultThumbnailBackgroundRole</span><span class="p">:</span> <span class="n">default_background_color</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">:</span> <span class="n">default_thumbnail_image</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">:</span> <span class="n">default_background_color</span><span class="p">,</span>
+                <span class="c1">#</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">TypeRole</span><span class="p">:</span> <span class="n">common</span><span class="o">.</span><span class="n">BookmarkItem</span><span class="p">,</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="c1">#</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">SortByName</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">SortByLastModified</span><span class="p">:</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">SortBySize</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">size</span><span class="p">()),</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">file_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Thumbnail</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">thumbnail_path</span><span class="p">()</span>
+
+            <span class="n">image</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">],</span>
+                <span class="n">rowsize</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_SEPARATOR</span><span class="p">,</span>
+                <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">image</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">image</span><span class="o">.</span><span class="n">isNull</span><span class="p">():</span>
+                    <span class="n">color</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                        <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">],</span>
+                        <span class="sa">u</span><span class="s1">&#39;BackgroundColor&#39;</span><span class="p">)</span>
+
+                    <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+
+            <span class="n">description</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/description&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">description</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">DescriptionRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">()</span>
+                <span class="n">settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/description&#39;</span><span class="p">,</span> <span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">DescriptionRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">description</span>
+
+            <span class="c1"># Todos</span>
+            <span class="n">todos</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/todos&#39;</span><span class="p">)</span>
+            <span class="n">todocount</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="n">todos</span><span class="p">:</span>
+                <span class="n">todocount</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">todos</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">todos</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                                 <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;checked&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">todos</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="sa">u</span><span class="s1">&#39;text&#39;</span><span class="p">]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">todocount</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">TodoCountRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">todocount</span></div>
+
+    <span class="k">def</span> <span class="nf">canDropMimeData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Accepts url drops.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">hasUrls</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">dropMimeData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">action</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">parent</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Action to perform when a drop happens.&quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parent</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">hasUrls</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">urls</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">url</span><span class="o">.</span><span class="n">isLocalFile</span><span class="p">():</span>  <span class="c1"># url is coming from the web!</span>
+                <span class="n">destination</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
+                    <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">),</span> <span class="n">url</span><span class="o">.</span><span class="n">fileName</span><span class="p">())</span>
+                <span class="n">downloader</span> <span class="o">=</span> <span class="n">ImageDownloader</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">destination</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+                <span class="n">downloader</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="n">source</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">toLocalFile</span><span class="p">())</span>
+            <span class="n">destination</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">),</span> <span class="n">source</span><span class="o">.</span><span class="n">fileName</span><span class="p">())</span>
+            <span class="n">destination</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">source</span><span class="o">.</span><span class="n">filePath</span><span class="p">()</span> <span class="o">==</span> <span class="n">destination</span><span class="o">.</span><span class="n">filePath</span><span class="p">():</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">destination</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">res</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">(</span>
+                    <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Warning</span><span class="p">,</span>
+                    <span class="sa">u</span><span class="s1">&#39;File already exist&#39;</span><span class="p">,</span>
+                    <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> already exists in the folder. Are you sure you want to override it with the new file?.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                        <span class="n">destination</span><span class="o">.</span><span class="n">fileName</span><span class="p">()),</span>
+                    <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Ok</span> <span class="o">|</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Cancel</span><span class="p">,</span>
+                    <span class="n">parent</span><span class="o">=</span><span class="bp">self</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">res</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Cancel</span><span class="p">:</span>
+                    <span class="k">break</span>  <span class="c1"># Cancels the operation</span>
+                <span class="k">if</span> <span class="n">res</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Ok</span><span class="p">:</span>
+                    <span class="n">QtCore</span><span class="o">.</span><span class="n">QFile</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">destination</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">CopyAction</span><span class="p">:</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">QFile</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span> <span class="n">destination</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">MoveAction</span><span class="p">:</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">QFile</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">source</span><span class="o">.</span><span class="n">filePath</span><span class="p">(),</span> <span class="n">destination</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
+                <span class="k">continue</span>
+            <span class="c1"># return True</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">supportedDropActions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The default accepted drop actions.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">MoveAction</span> <span class="o">|</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">CopyAction</span>
+
+    <span class="k">def</span> <span class="nf">data_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;There is no location associated with the asset widget,</span>
+<span class="sd">        Needed context menu functionality only.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="BookmarksWidget"><a class="viewcode-back" href="../../api.html#gwbrowser.bookmarkswidget.BookmarksWidget">[docs]</a><span class="k">class</span> <span class="nc">BookmarksWidget</span><span class="p">(</span><span class="n">BaseInlineIconWidget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The view used to display the contents of a ``BookmarksModel`` instance.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BookmarksWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context_menu_cls</span> <span class="o">=</span> <span class="n">BookmarksWidgetContextMenu</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setDragDropMode</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QAbstractItemView</span><span class="o">.</span><span class="n">DropOnly</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setDragDropOverwriteMode</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAcceptDrops</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setDropIndicatorShown</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Bookmarks&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setItemDelegate</span><span class="p">(</span><span class="n">BookmarksWidgetDelegate</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_model</span><span class="p">(</span><span class="n">BookmarksModel</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="c1"># I&#39;m not sure why but the proxy is not updated properly after refresh</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">dataSorted</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">invalidate</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">buttons_hidden</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the visibility of the inline icon buttons.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">eventFilter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">widget</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom event filter used to paint the background icon.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BookmarksWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">eventFilter</span><span class="p">(</span><span class="n">widget</span><span class="p">,</span> <span class="n">event</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">widget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">type</span><span class="p">()</span> <span class="o">==</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QEvent</span><span class="o">.</span><span class="n">Paint</span><span class="p">:</span>
+            <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+            <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;bookmark&#39;</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="mi">180</span><span class="p">)</span>
+            <span class="n">rect</span> <span class="o">=</span> <span class="n">pixmap</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span>
+            <span class="n">rect</span><span class="o">.</span><span class="n">moveCenter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">center</span><span class="p">())</span>
+            <span class="n">painter</span><span class="o">.</span><span class="n">drawPixmap</span><span class="p">(</span><span class="n">rect</span><span class="p">,</span> <span class="n">pixmap</span><span class="p">,</span> <span class="n">pixmap</span><span class="o">.</span><span class="n">rect</span><span class="p">())</span>
+            <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="BookmarksWidget.inline_icons_count"><a class="viewcode-back" href="../../api.html#gwbrowser.bookmarkswidget.BookmarksWidget.inline_icons_count">[docs]</a>    <span class="k">def</span> <span class="nf">inline_icons_count</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The number of row-icons an item has.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">buttons_hidden</span><span class="p">():</span>
+            <span class="k">return</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="mi">5</span></div>
+
+    <span class="k">def</span> <span class="nf">save_activated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the activated index to ``LocalSettings``.&quot;&quot;&quot;</span>
+        <span class="n">server</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">root</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/server&#39;</span><span class="p">,</span> <span class="n">server</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/job&#39;</span><span class="p">,</span> <span class="n">job</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/root&#39;</span><span class="p">,</span> <span class="n">root</span><span class="p">)</span>
+        <span class="n">Active</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>  <span class="c1"># Resetting invalid paths</span>
+
+    <span class="k">def</span> <span class="nf">unset_activated</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the activated index to ``LocalSettings``.&quot;&quot;&quot;</span>
+        <span class="n">server</span><span class="p">,</span> <span class="n">job</span><span class="p">,</span> <span class="n">root</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/server&#39;</span><span class="p">,</span> <span class="n">server</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/job&#39;</span><span class="p">,</span> <span class="n">job</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/root&#39;</span><span class="p">,</span> <span class="n">root</span><span class="p">)</span>
+        <span class="n">Active</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>  <span class="c1"># Resetting invalid paths</span>
+
+    <span class="k">def</span> <span class="nf">toggle_archived</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Bookmarks cannot be archived but they&#39;re automatically removed from</span>
+<span class="sd">        from the ``local_settings``.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_multitoggle</span><span class="p">()</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">(</span>
+            <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">NoIcon</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;Remove bookmark?&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;Are you sure you want to remove this bookmark?</span><span class="se">\n</span><span class="s1">Don</span><span class="se">\&#39;</span><span class="s1">t worry, files won</span><span class="se">\&#39;</span><span class="s1">t be affected.&#39;</span><span class="p">,</span>
+            <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Ok</span> <span class="o">|</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Cancel</span><span class="p">,</span>
+            <span class="n">parent</span><span class="o">=</span><span class="bp">self</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">res</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Cancel</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selectionModel</span><span class="p">()</span><span class="o">.</span><span class="n">currentIndex</span><span class="p">()</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Removing the bookmark</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+        <span class="n">bookmarks</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;bookmarks&#39;</span><span class="p">)</span>
+        <span class="n">bookmarks</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;bookmarks&#39;</span><span class="p">,</span> <span class="n">bookmarks</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">():</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">unset_activated</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">modelDataResetRequested</span><span class="o">.</span><span class="n">emit</span><span class="p">()</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">__initdata__</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">show_add_bookmark_widget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Opens a dialog to add a new project to the list of saved locations.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span> <span class="o">=</span> <span class="n">AddBookmarksWidget</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geometry</span><span class="p">()</span><span class="o">.</span><span class="n">center</span><span class="p">()</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span>
+            <span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_bookmarks_widget</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">mouseDoubleClickEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;When the bookmark item is double-clicked the the item will be actiaved.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QMouseEvent</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">())</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">rect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">visualRect</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="n">thumbnail_rect</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
+        <span class="n">thumbnail_rect</span><span class="o">.</span><span class="n">setWidth</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
+        <span class="n">thumbnail_rect</span><span class="o">.</span><span class="n">moveLeft</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+
+        <span class="n">font</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFont</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">PrimaryFont</span><span class="p">)</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontMetrics</span><span class="p">(</span><span class="n">font</span><span class="p">)</span>
+
+        <span class="n">rect</span><span class="o">.</span><span class="n">setLeft</span><span class="p">(</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span>
+            <span class="o">+</span> <span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span>
+            <span class="o">+</span> <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span> <span class="o">-</span> <span class="mi">2</span>
+        <span class="p">)</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">moveTop</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">))</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">setHeight</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">moveTop</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">-</span> <span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">))</span>
+
+        <span class="n">text</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DisplayRole</span><span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\W\d\_]+&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;  </span><span class="si">{}</span><span class="s1">  |  </span><span class="si">{}</span><span class="s1">  &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">text</span><span class="p">,</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+
+        <span class="n">width</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">width</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">moveLeft</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span> <span class="o">+</span> <span class="n">width</span><span class="p">)</span>
+
+        <span class="n">source_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">description_editor_widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="k">return</span>
+        <span class="k">elif</span> <span class="n">thumbnail_rect</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()):</span>
+            <span class="n">ImageCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">pick</span><span class="p">(</span><span class="n">source_index</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">activate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">selectionModel</span><span class="p">()</span><span class="o">.</span><span class="n">currentIndex</span><span class="p">())</span></div>
+</pre></div>
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>

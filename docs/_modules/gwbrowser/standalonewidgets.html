@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>gwbrowser.standalonewidgets</title>
+    
+      <link rel="stylesheet" href="../../_static/pygments.css">
+      <link rel="stylesheet" href="../../_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+
+      
+      <script src="../../_static/theme-vendors.js"></script>
+      <script src="../../_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="../../index.html" class="home-link">
+    
+      <img class="logo" src="../../_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+    
+      <li><a href="../index.html">Module code</a> &raquo;</li>
+    
+      <li><a href="../gwbrowser.html">gwbrowser</a> &raquo;</li>
+    
+    <li>gwbrowser.standalonewidgets</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <h1>Source code for gwbrowser.standalonewidgets</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;The module containing all widgets needed to run GWBrowser in standalone-mode.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span>
+
+<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">Active</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.browserwidget</span> <span class="k">import</span> <span class="n">BrowserWidget</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.basecontextmenu</span> <span class="k">import</span> <span class="n">BaseContextMenu</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.editors</span> <span class="k">import</span> <span class="n">ClickableLabel</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.basecontextmenu</span> <span class="k">import</span> <span class="n">contextmenu</span>
+<span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">local_settings</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.imagecache</span> <span class="k">import</span> <span class="n">ImageCache</span>
+
+
+<span class="k">class</span> <span class="nc">TrayMenu</span><span class="p">(</span><span class="n">BaseContextMenu</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The context-menu associated with the BrowserButton.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">TrayMenu</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">(),</span> <span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">stays_on_top</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_DeleteOnClose</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_show_menu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_toolbar_menu</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_visibility_menu</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">show_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Raises and shows the widget.&quot;&quot;&quot;</span>
+        <span class="n">screen</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">windowHandle</span><span class="p">()</span><span class="o">.</span><span class="n">screen</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">screen</span><span class="o">.</span><span class="n">geometry</span><span class="p">()</span><span class="o">.</span><span class="n">center</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">center</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">showNormal</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">activateWindow</span><span class="p">()</span>
+
+    <span class="nd">@contextmenu</span>
+    <span class="k">def</span> <span class="nf">add_visibility_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">menu_set</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Actions associated with the visibility of the widget.&quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">toggle_window_flag</span><span class="p">():</span>
+            <span class="sd">&quot;&quot;&quot;Sets the WindowStaysOnTopHint for the window.&quot;&quot;&quot;</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">windowFlags</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">flags</span> <span class="o">&amp;</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WindowStaysOnTopHint</span><span class="p">:</span>
+                <span class="n">flags</span> <span class="o">=</span> <span class="n">flags</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WindowStaysOnTopHint</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">flags</span> <span class="o">=</span> <span class="n">flags</span> <span class="o">|</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WindowStaysOnTopHint</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">setWindowFlags</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">showNormal</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">activateWindow</span><span class="p">()</span>
+
+        <span class="n">menu_set</span><span class="p">[</span><span class="s1">&#39;Keep on top of other windows&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;checkable&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s1">&#39;checked&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">windowFlags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WindowStaysOnTopHint</span><span class="p">,</span>
+            <span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="n">toggle_window_flag</span>
+        <span class="p">}</span>
+        <span class="n">menu_set</span><span class="p">[</span><span class="s1">&#39;Restore window...&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">show_window</span>
+        <span class="p">}</span>
+        <span class="n">menu_set</span><span class="p">[</span><span class="s1">&#39;separator1&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">menu_set</span><span class="p">[</span><span class="s1">&#39;Quit&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">shutdown</span><span class="o">.</span><span class="n">emit</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">menu_set</span>
+
+    <span class="nd">@contextmenu</span>
+    <span class="k">def</span> <span class="nf">add_show_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">menu_set</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">(),</span> <span class="s1">&#39;clicked&#39;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">menu_set</span>
+        <span class="n">menu_set</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;show&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="sa">u</span><span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">),</span>
+            <span class="sa">u</span><span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Open...&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">emit</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">menu_set</span>
+
+    <span class="nd">@contextmenu</span>
+    <span class="k">def</span> <span class="nf">add_toolbar_menu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">menu_set</span><span class="p">):</span>
+        <span class="n">active_paths</span> <span class="o">=</span> <span class="n">Active</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>
+        <span class="n">bookmark</span> <span class="o">=</span> <span class="p">(</span><span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">],</span>
+                    <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">],</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">])</span>
+        <span class="n">asset</span> <span class="o">=</span> <span class="n">bookmark</span> <span class="o">+</span> <span class="p">(</span><span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;asset&#39;</span><span class="p">],)</span>
+        <span class="n">location</span> <span class="o">=</span> <span class="n">asset</span> <span class="o">+</span> <span class="p">(</span><span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">],)</span>
+
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">bookmark</span><span class="p">):</span>
+            <span class="n">menu_set</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;bookmark&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="sa">u</span><span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="s1">&#39;bookmark&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">TEXT</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">),</span>
+                <span class="sa">u</span><span class="s1">&#39;disabled&#39;</span><span class="p">:</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">bookmark</span><span class="p">),</span>
+                <span class="sa">u</span><span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Show active bookmark in the file manager...&#39;</span><span class="p">,</span>
+                <span class="sa">u</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">reveal</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">bookmark</span><span class="p">))</span>
+            <span class="p">}</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">asset</span><span class="p">):</span>
+                <span class="n">menu_set</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;asset&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="sa">u</span><span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;assets&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">TEXT</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">),</span>
+                    <span class="sa">u</span><span class="s1">&#39;disabled&#39;</span><span class="p">:</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">asset</span><span class="p">),</span>
+                    <span class="sa">u</span><span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Show active asset in the file manager...&#39;</span><span class="p">,</span>
+                    <span class="sa">u</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">reveal</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">asset</span><span class="p">))</span>
+                <span class="p">}</span>
+                <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">location</span><span class="p">):</span>
+                    <span class="n">menu_set</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="sa">u</span><span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">TEXT</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">),</span>
+                        <span class="sa">u</span><span class="s1">&#39;disabled&#39;</span><span class="p">:</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">location</span><span class="p">),</span>
+                        <span class="sa">u</span><span class="s1">&#39;text&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Show current task folder in the file manager...&#39;</span><span class="p">,</span>
+                        <span class="sa">u</span><span class="s1">&#39;action&#39;</span><span class="p">:</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">reveal</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">location</span><span class="p">))</span>
+                    <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">menu_set</span>
+
+
+<span class="k">class</span> <span class="nc">CloseButton</span><span class="p">(</span><span class="n">ClickableLabel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Button used to close/hide a widget or window.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">CloseButton</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;close&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_BACKGROUND</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedSize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFocusPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoFocus</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">enterEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">leaveEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">option</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyleOption</span><span class="p">()</span>
+        <span class="n">option</span><span class="o">.</span><span class="n">initFrom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">hover</span> <span class="o">=</span> <span class="n">option</span><span class="o">.</span><span class="n">state</span> <span class="o">&amp;</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyle</span><span class="o">.</span><span class="n">State_MouseOver</span>
+
+        <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hover</span><span class="p">:</span>
+            <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;close&#39;</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">50</span><span class="p">),</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;close&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_BACKGROUND</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">drawPixmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">(),</span> <span class="n">pixmap</span><span class="p">,</span> <span class="n">pixmap</span><span class="o">.</span><span class="n">rect</span><span class="p">())</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">MinimizeButton</span><span class="p">(</span><span class="n">ClickableLabel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Custom QLabel with a `clicked` signal.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MinimizeButton</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;minimize&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_BACKGROUND</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedSize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFocusPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoFocus</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">enterEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">leaveEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">option</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyleOption</span><span class="p">()</span>
+        <span class="n">option</span><span class="o">.</span><span class="n">initFrom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">hover</span> <span class="o">=</span> <span class="n">option</span><span class="o">.</span><span class="n">state</span> <span class="o">&amp;</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyle</span><span class="o">.</span><span class="n">State_MouseOver</span>
+
+        <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hover</span><span class="p">:</span>
+            <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;minimize&#39;</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">50</span><span class="p">),</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span>
+                <span class="sa">u</span><span class="s1">&#39;minimize&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_BACKGROUND</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">drawPixmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">(),</span> <span class="n">pixmap</span><span class="p">,</span> <span class="n">pixmap</span><span class="o">.</span><span class="n">rect</span><span class="p">())</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">AppIcon</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Custom label used to control the standalone app.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AppIcon</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAutoFillBackground</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedHeight</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedWidth</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setContextMenuPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DefaultContextMenu</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">contextMenuEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shows the context menu associated with the tray in the header.&quot;&quot;&quot;</span>
+        <span class="n">widget</span> <span class="o">=</span> <span class="n">TrayMenu</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">())</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">())</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">common</span><span class="o">.</span><span class="n">move_widget_to_available_geo</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">enterEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">leaveEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">option</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyleOption</span><span class="p">()</span>
+        <span class="n">option</span><span class="o">.</span><span class="n">initFrom</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">hover</span> <span class="o">=</span> <span class="n">option</span><span class="o">.</span><span class="n">state</span> <span class="o">&amp;</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStyle</span><span class="o">.</span><span class="n">State_MouseOver</span>
+
+        <span class="n">painter</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="p">()</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">begin</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">hover</span><span class="p">:</span>
+            <span class="n">painter</span><span class="o">.</span><span class="n">setOpacity</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">painter</span><span class="o">.</span><span class="n">setOpacity</span><span class="p">(</span><span class="mf">0.66</span><span class="p">)</span>
+
+        <span class="n">painter</span><span class="o">.</span><span class="n">drawPixmap</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixmap</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">pixmap</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">())</span>
+        <span class="n">painter</span><span class="o">.</span><span class="n">end</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">HeaderWidget</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Horizontal widget for controlling the position of the widget active window.&quot;&quot;&quot;</span>
+    <span class="n">widgetMoved</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">HeaderWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">closebutton</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_in_progress</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_event_pos</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_widget_pos</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFocusPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoFocus</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setContextMenuPolicy</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DefaultContextMenu</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_createUI</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_createUI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedHeight</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INLINE_ICON_SIZE</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">AppIcon</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addStretch</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">MinimizeButton</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">CloseButton</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mousePressEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom ``movePressEvent``.</span>
+<span class="sd">        We&#39;re setting the properties needed to moving the main window.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QMouseEvent</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_in_progress</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_event_pos</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move_start_widget_pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">geometry</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">mouseMoveEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The custom mouse move event responsbiel for moving the parent window.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QMouseEvent</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">event</span><span class="o">.</span><span class="n">buttons</span><span class="p">()</span> <span class="o">==</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoButton</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">move_start_widget_pos</span><span class="p">:</span>
+            <span class="n">margins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">contentsMargins</span><span class="p">()</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">move_start_event_pos</span><span class="p">)</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">geometry</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span> <span class="o">+</span> <span class="n">offset</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">move</span><span class="p">(</span>
+                <span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">()</span> <span class="o">-</span> <span class="n">margins</span><span class="o">.</span><span class="n">left</span><span class="p">(),</span>
+                <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">-</span> <span class="n">margins</span><span class="o">.</span><span class="n">top</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="n">bl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">bottomLeft</span><span class="p">()</span>
+            <span class="n">bl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">bl</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">widgetMoved</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">bl</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">contextMenuEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shows the context menu associated with the tray in the header.&quot;&quot;&quot;</span>
+        <span class="n">widget</span> <span class="o">=</span> <span class="n">TrayMenu</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">())</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">())</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">common</span><span class="o">.</span><span class="n">move_widget_to_available_geo</span><span class="p">(</span><span class="n">widget</span><span class="p">)</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="StandaloneBrowserWidget"><a class="viewcode-back" href="../../api.html#gwbrowser.standalonewidgets.StandaloneBrowserWidget">[docs]</a><span class="k">class</span> <span class="nc">StandaloneBrowserWidget</span><span class="p">(</span><span class="n">BrowserWidget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An subclass of ``BrowserWidget`` adapted to run it as a standalone</span>
+<span class="sd">    application.</span>
+
+<span class="sd">    ``StandaloneBrowserWidget`` is a frameless window but resizing similar to</span>
+<span class="sd">    that of normal windows is implemented.</span>
+
+<span class="sd">    ``HeaderWidget`` is used to move the window around. We&#39;re also adding a</span>
+<span class="sd">    ``QSystemTrayIcon`` responsible for quick-access.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="StandaloneBrowserWidget.__init__"><a class="viewcode-back" href="../../api.html#gwbrowser.standalonewidgets.StandaloneBrowserWidget.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Init method.</span>
+
+<span class="sd">        Adding the `HeaderWidget` here - this is the widget responsible for</span>
+<span class="sd">        moving the widget around and providing the close and hide buttons.</span>
+
+<span class="sd">        Also, the properties necessary to resize the frameless window are also</span>
+<span class="sd">        defines here. These properties work in conjunction with the mouse events</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StandaloneBrowserWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">headerwidget</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_overlay</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">startDragDistance</span><span class="p">()</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_override_icons</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">1</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeFDiagCursor</span><span class="p">,</span>
+            <span class="mi">2</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeBDiagCursor</span><span class="p">,</span>
+            <span class="mi">3</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeBDiagCursor</span><span class="p">,</span>
+            <span class="mi">4</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeFDiagCursor</span><span class="p">,</span>
+            <span class="mi">5</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeVerCursor</span><span class="p">,</span>
+            <span class="mi">6</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHorCursor</span><span class="p">,</span>
+            <span class="mi">7</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeVerCursor</span><span class="p">,</span>
+            <span class="mi">8</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHorCursor</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+        <span class="n">icon</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QIcon</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">icon</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">setContextMenu</span><span class="p">(</span><span class="n">TrayMenu</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">setToolTip</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;GWBrowser&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">activated</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">trayActivated</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">installEventFilter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tweak_ui</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">showNormal</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activateWindow</span><span class="p">)</span>
+
+        <span class="n">shortcut</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QShortcut</span><span class="p">(</span>
+            <span class="n">QtGui</span><span class="o">.</span><span class="n">QKeySequence</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Ctrl+Q&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="p">)</span>
+        <span class="n">shortcut</span><span class="o">.</span><span class="n">setAutoRepeat</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">shortcut</span><span class="o">.</span><span class="n">setContext</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ApplicationShortcut</span><span class="p">)</span>
+        <span class="n">shortcut</span><span class="o">.</span><span class="n">activated</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shutdown</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">QueuedConnection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_timer</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+            <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">terminate</span><span class="p">(</span><span class="n">quit_app</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="nb">type</span><span class="o">=</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">QueuedConnection</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">adjustSize</span><span class="p">()</span></div>
+
+    <span class="k">def</span> <span class="nf">_get_offset_rect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">offset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns an expanded/contracted edge rectangle based on the widget&#39;s</span>
+<span class="sd">        geomtery. Used to get the valid area for resize-operations.&quot;&quot;&quot;</span>
+        <span class="n">rect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span>
+        <span class="n">center</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">center</span><span class="p">()</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">setHeight</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">setWidth</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">+</span> <span class="n">offset</span><span class="p">)</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">moveCenter</span><span class="p">(</span><span class="n">center</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rect</span>
+
+    <span class="k">def</span> <span class="nf">accept_resize_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns `True` if the event can be a window resize event.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_offset_rect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span> <span class="o">*</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_offset_rect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span><span class="p">)</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">set_resize_icon</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets an override icon to indicate the draggable area.&quot;&quot;&quot;</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_resize_hotspot</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="n">clamp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">grabMouse</span><span class="p">()</span>
+            <span class="n">icon</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_override_icons</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">app</span><span class="o">.</span><span class="n">overrideCursor</span><span class="p">():</span>
+                <span class="n">app</span><span class="o">.</span><span class="n">changeOverrideCursor</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QCursor</span><span class="p">(</span><span class="n">icon</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">k</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">restoreOverrideCursor</span><span class="p">()</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">setOverrideCursor</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QCursor</span><span class="p">(</span><span class="n">icon</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">releaseMouse</span><span class="p">()</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">restoreOverrideCursor</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">k</span>
+
+    <span class="k">def</span> <span class="nf">get_resize_hotspot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the resizable area from the event&#39;s current position.</span>
+<span class="sd">        If clamp is True we will only check in near the areas near the edges.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">clamp</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">accept_resize_event</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">None</span>
+
+        <span class="c1"># First we have to define the 8 areas showing an indicator icon when</span>
+        <span class="c1"># hovered. Edges:</span>
+        <span class="n">rect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span>
+        <span class="n">edge_hotspots</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">5</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()),</span>
+            <span class="mi">6</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">right</span><span class="p">(),</span> <span class="n">p</span><span class="o">.</span><span class="n">y</span><span class="p">()),</span>
+            <span class="mi">7</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()),</span>
+            <span class="mi">8</span><span class="p">:</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">(),</span> <span class="n">p</span><span class="o">.</span><span class="n">y</span><span class="p">()),</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Corners:</span>
+        <span class="n">topleft_corner</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span><span class="p">)</span>
+        <span class="n">topright_corner</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">(</span><span class="n">topleft_corner</span><span class="p">)</span>
+        <span class="n">topright_corner</span><span class="o">.</span><span class="n">moveRight</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">())</span>
+        <span class="n">bottomleft_corner</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">(</span><span class="n">topleft_corner</span><span class="p">)</span>
+        <span class="n">bottomleft_corner</span><span class="o">.</span><span class="n">moveTop</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span><span class="p">)</span>
+        <span class="n">bottomright_corner</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">(</span><span class="n">topleft_corner</span><span class="p">)</span>
+        <span class="n">bottomright_corner</span><span class="o">.</span><span class="n">moveRight</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">())</span>
+        <span class="n">bottomright_corner</span><span class="o">.</span><span class="n">moveTop</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_distance</span><span class="p">)</span>
+
+        <span class="n">corner_hotspots</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="mi">1</span><span class="p">:</span> <span class="n">topleft_corner</span><span class="p">,</span>
+            <span class="mi">2</span><span class="p">:</span> <span class="n">topright_corner</span><span class="p">,</span>
+            <span class="mi">3</span><span class="p">:</span> <span class="n">bottomleft_corner</span><span class="p">,</span>
+            <span class="mi">4</span><span class="p">:</span> <span class="n">bottomright_corner</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="c1"># We check if the cursor is currently inside one of the corners or edges</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">corner_hotspots</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()]):</span>
+            <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">corner_hotspots</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">corner_hotspots</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">p</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">edge_hotspots</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">p</span> <span class="o">-</span> <span class="n">edge_hotspots</span><span class="p">[</span><span class="n">k</span><span class="p">])</span><span class="o">.</span><span class="n">manhattanLength</span><span class="p">())</span>
+
+    <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">tweak_ui</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Modifies layout for display in standalone-mode.&quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">headerwidget</span> <span class="o">=</span> <span class="n">HeaderWidget</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">insertSpacing</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">insertWidget</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">headerwidget</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">findChild</span><span class="p">(</span><span class="n">MinimizeButton</span><span class="p">)</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">showMinimized</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">findChild</span><span class="p">(</span><span class="n">CloseButton</span><span class="p">)</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">close</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">fileswidget</span><span class="o">.</span><span class="n">activated</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">execute</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">favouriteswidget</span><span class="o">.</span><span class="n">activated</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">execute</span><span class="p">)</span>
+        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">aboutToQuit</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">save_widget_settings</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">trayActivated</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Slot called by the QSystemTrayIcon when clicked.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">Unknown</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activateWindow</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raise_</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">Context</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">DoubleClick</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activateWindow</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">raise_</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">Trigger</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">reason</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">MiddleClick</span><span class="p">:</span>
+            <span class="k">return</span>
+
+    <span class="k">def</span> <span class="nf">save_widget_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Saves the position and size of thew widget to the local settings.&quot;&quot;&quot;</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/width&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">())</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/height&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
+
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/x&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">),</span> <span class="n">pos</span><span class="o">.</span><span class="n">x</span><span class="p">())</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/y&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">),</span> <span class="n">pos</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">hideEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom hide event.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_widget_settings</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StandaloneBrowserWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">hideEvent</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">showEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom show event. When showing the widget we will use the saved</span>
+<span class="sd">        settings to set the widget&#39;s size and position.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StandaloneBrowserWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">showEvent</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+        <span class="bp">cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/width&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/height&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/x&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;widget/</span><span class="si">{}</span><span class="s1">/y&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">cls</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">((</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)):</span>  <span class="c1"># skip if not saved yet</span>
+            <span class="k">return</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QSize</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="c1"># pos = self.mapFromGlobal(pos)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">common</span><span class="o">.</span><span class="n">move_widget_to_available_geo</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">closeEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom close event will minimize the widget to the tray.&quot;&quot;&quot;</span>
+        <span class="n">event</span><span class="o">.</span><span class="n">ignore</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tray</span><span class="o">.</span><span class="n">showMessage</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;GWBrowser&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;GWBrowser will continue running in the background, you can use this icon to restore it</span><span class="se">\&#39;</span><span class="s1">s visibility.&#39;</span><span class="p">,</span>
+            <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSystemTrayIcon</span><span class="o">.</span><span class="n">Information</span><span class="p">,</span>
+            <span class="mi">3000</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mousePressEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The mouse press event responsible for setting the properties needed</span>
+<span class="sd">        by the resize methods.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">accept_resize_event</span><span class="p">(</span><span class="n">event</span><span class="p">):</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stackedwidget</span><span class="o">.</span><span class="n">currentWidget</span><span class="p">()</span>
+            <span class="n">w</span><span class="o">.</span><span class="n">viewport</span><span class="p">()</span><span class="o">.</span><span class="n">setHidden</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">set_resize_icon</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">mouseMoveEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom mouse move event - responsible for resizing the frameless</span>
+<span class="sd">        widgets geometry.</span>
+
+<span class="sd">        It identifies the dragable edge area, sets the cursor override.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span> <span class="o">==</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">set_resize_icon</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">clamp</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">o</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span>
+            <span class="n">geo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">geometry</span><span class="p">()</span>
+
+            <span class="n">g_topleft</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+            <span class="n">g_bottomright</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span><span class="o">.</span><span class="n">bottomRight</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">5</span><span class="p">):</span>
+                <span class="n">geo</span><span class="o">.</span><span class="n">setTop</span><span class="p">(</span><span class="n">g_topleft</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">+</span> <span class="n">o</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">7</span><span class="p">):</span>
+                <span class="n">geo</span><span class="o">.</span><span class="n">setBottom</span><span class="p">(</span><span class="n">g_bottomright</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">+</span> <span class="n">o</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">8</span><span class="p">):</span>
+                <span class="n">geo</span><span class="o">.</span><span class="n">setLeft</span><span class="p">(</span><span class="n">g_topleft</span><span class="o">.</span><span class="n">x</span><span class="p">()</span> <span class="o">+</span> <span class="n">o</span><span class="o">.</span><span class="n">x</span><span class="p">())</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+                <span class="n">geo</span><span class="o">.</span><span class="n">setRight</span><span class="p">(</span><span class="n">g_bottomright</span><span class="o">.</span><span class="n">x</span><span class="p">()</span> <span class="o">+</span> <span class="n">o</span><span class="o">.</span><span class="n">x</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setGeometry</span><span class="p">(</span><span class="n">geo</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">mouseReleaseEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Restores the mouse resize properties.&quot;&quot;&quot;</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stackedwidget</span><span class="o">.</span><span class="n">currentWidget</span><span class="p">()</span>
+        <span class="n">w</span><span class="o">.</span><span class="n">viewport</span><span class="p">()</span><span class="o">.</span><span class="n">setHidden</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_pos</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPoint</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_initial_rect</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize_area</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">restoreOverrideCursor</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="StandaloneApp"><a class="viewcode-back" href="../../api.html#gwbrowser.standalonewidgets.StandaloneApp">[docs]</a><span class="k">class</span> <span class="nc">StandaloneApp</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is the app used to run the browser as a standalone widget.&quot;&quot;&quot;</span>
+    <span class="n">MODEL_ID</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;gwbrowser_standalone&#39;</span>
+
+<div class="viewcode-block" id="StandaloneApp.__init__"><a class="viewcode-back" href="../../api.html#gwbrowser.standalonewidgets.StandaloneApp.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">StandaloneApp</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setApplicationName</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;GWBrowser&#39;</span><span class="p">)</span>
+
+        <span class="kn">import</span> <span class="nn">gwbrowser</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setApplicationVersion</span><span class="p">(</span><span class="n">gwbrowser</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_model_id</span><span class="p">()</span>
+        <span class="n">pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_rsc_pixmap</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;custom&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowIcon</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QIcon</span><span class="p">(</span><span class="n">pixmap</span><span class="p">))</span></div>
+
+    <span class="k">def</span> <span class="nf">set_model_id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Setting this is needed to add custom window icons on windows.</span>
+<span class="sd">        https://github.com/cztomczak/cefpython/issues/395</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QSysInfo</span><span class="p">()</span><span class="o">.</span><span class="n">productType</span><span class="p">()</span> <span class="ow">in</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;windows&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;winrt&#39;</span><span class="p">):</span>
+            <span class="kn">import</span> <span class="nn">ctypes</span>
+            <span class="kn">from</span> <span class="nn">ctypes.wintypes</span> <span class="k">import</span> <span class="n">HRESULT</span>
+            <span class="n">PCWSTR</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">c_wchar_p</span>
+            <span class="n">AppUserModelID</span> <span class="o">=</span> <span class="n">ctypes</span><span class="o">.</span><span class="n">windll</span><span class="o">.</span><span class="n">shell32</span><span class="o">.</span><span class="n">SetCurrentProcessExplicitAppUserModelID</span>
+            <span class="n">AppUserModelID</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">PCWSTR</span><span class="p">]</span>
+            <span class="n">AppUserModelID</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="n">HRESULT</span>
+            <span class="c1"># An identifier that is globally unique for all apps running on Windows</span>
+            <span class="n">hresult</span> <span class="o">=</span> <span class="n">AppUserModelID</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">MODEL_ID</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">hresult</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;SetCurrentProcessExplicitAppUserModelID failed&quot;</span></div>
+</pre></div>
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>

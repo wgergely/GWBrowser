@@ -1,0 +1,72 @@
+######################
+Installing from source
+######################
+
+To build from source clone the repository from github:
+
+.. code-block:: bash
+
+  git clone https://github.com/wgergely/GWBrowser
+
+
+Dependencies
+------------
+
+GWBrowser will require the following python libraries to function.
+
+
+PySide2
+~~~~~~~
+
+GWBrowser was tested against ``Qt5.6`` and ``Qt5.12``.
+You can get the ``PySide2`` - the last official build supporting Python2.7
+was ``Qt5.6``
+
+.. code-block:: text
+
+  http://download.qt.io/
+
+
+.. code-block:: python
+
+  from PySide2 import QtWidgets
+  widget = QtWidgets.QWidget()
+
+
+OpenImageIO
+~~~~~~~~~~~
+
+The python libraries to interface with ``OpenImageIO`` are imported
+as follows:
+
+.. code-block:: python
+
+  import OpenImageIO.OpenImageIO as OpenImageIO
+  buf = OpenImageIO.ImageBuf()
+
+``OpenImageIO`` itself requires ``Numpy``.
+
+Alembic
+~~~~~~~
+
+This is the standard python alembic library but GWBrowser imports it as
+``GWAlembic`` to avoid name-clashes.
+
+.. code-block:: python
+
+   import gwalembic.alembic as alembic
+   a = alembic.Abc.IArchive('C:/test.abc')
+
+
+Scandir
+~~~~~~~
+
+This is a Python 2 compatible version of the Python 3 ``scandir`` module.
+
+.. code-block:: python
+
+   import gwbrowser.gwscandir as scandir
+   scandir.walk(r'C:/test')
+
+
+You can find the latest version on github.com.

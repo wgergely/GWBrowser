@@ -1,0 +1,40 @@
+##############################
+|logo| GWBrowser Documentation
+##############################
+
+.. |logo| image:: _static/custom.png
+   :height: 64px
+   :width: 64px
+   :alt: Logo
+
+
+**GWBrowser is a simple digital asset manager aimed at small and medium sized
+animation and film productions.**
+
+It helps you navigating files and folders associated with digital pipelines by
+creating and annotating the files and folders needed to store data.
+To learn how and what GWBrowser does, you can refer to the Overview or the API
+documentation.
+
+
+Get GWBrowser
+=============
+
+
+
+.. image:: _static/banner.png
+   :alt: GWBrowser
+
+
+.. toctree::
+  :maxdepth: 2
+
+  overview
+  installation
+  api
+  contact
+  licence
+
+
+* :ref:`modindex`
+* :ref:`search`

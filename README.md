@@ -1,4 +1,6 @@
-<center> <h1>GWBrowser</h1> </center>
+<p align="center">
+<h3>GWBrowser</h3>
+</p>
 <p align="center">
  <img src="./gwbrowser/rsc/custom.png" alt="GWBrowser"/>
 </p>
@@ -18,9 +20,12 @@
     </a>
 </p>
 
-_______
-<center> <h3>Simple digital asset manager to help small teams to organize animation and film productions.</h3> </center>
-_______
+
+***
+
+<center><h3>Simple digital asset manager to help small teams to organize animation and film productions.</h3></center>
+
+***
 
 
 Aimed at small and medium sized teams, GWBrowser was designed to help users locate images and scenes quickly by structuring data and adding descriptions, tags and thumbnails to files. Check out the ``documentation`` for more info!

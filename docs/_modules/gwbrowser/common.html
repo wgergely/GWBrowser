@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>gwbrowser.common</title>
+    
+      <link rel="stylesheet" href="../../_static/pygments.css">
+      <link rel="stylesheet" href="../../_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+
+      
+      <script src="../../_static/theme-vendors.js"></script>
+      <script src="../../_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="../../index.html" class="home-link">
+    
+      <img class="logo" src="../../_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+    
+      <li><a href="../index.html">Module code</a> &raquo;</li>
+    
+      <li><a href="../gwbrowser.html">gwbrowser</a> &raquo;</li>
+    
+    <li>gwbrowser.common</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <h1>Source code for gwbrowser.common</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;The ``common.py`` module is used to define variables and methods used</span>
+<span class="sd">across the GWBrowser project.</span>
+
+<span class="sd">Server:</span>
+<span class="sd">    GWBrowser is intended to be used in a networked environment.</span>
+<span class="sd">    We have the ability to define a *primary* work server, a *backup* server and</span>
+<span class="sd">    a *local* path for working offline.</span>
+
+<span class="sd">    These paths are provided by the ``Server`` class. The actual configuration values</span>
+<span class="sd">    are stored in the ``templates/server.conf`` configuration file.</span>
+
+<span class="sd">Jobs and assets</span>
+<span class="sd">    *Assets* are directory structures used to compartmentalize files and folders.</span>
+<span class="sd">    The template files used to generate jobs and assets are stored in</span>
+<span class="sd">    ``gwbrowser/templates`` folder.</span>
+
+<span class="sd">    The asset folder definitions should correspond to the folders stored in the</span>
+<span class="sd">    template file - including the folder descriptions. See ``ASSET_FOLDERS``.</span>
+
+<span class="sd">Sequences</span>
+<span class="sd">    A core aspect of GWBrowser is its ability to group sequentially numbered</span>
+<span class="sd">    files into a single sequence (eg image sequences).</span>
+
+<span class="sd">    This is done via **regex** functions. See ``get_valid_filename``,</span>
+<span class="sd">    ``get_sequence``, ``is_collapsed``, ``get_sequence_startpath`` for the</span>
+<span class="sd">    wrapper functions around the regexes.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
+<span class="kn">import</span> <span class="nn">ConfigParser</span>
+
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtWidgets</span>
+<span class="kn">import</span> <span class="nn">OpenImageIO.OpenImageIO</span> <span class="k">as</span> <span class="nn">OpenImageIO</span>
+
+<span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="k">as</span> <span class="nn">gwscandir</span>
+
+
+<span class="c1"># Flags</span>
+<span class="n">MarkedAsArchived</span> <span class="o">=</span> <span class="mb">0b1000000000</span>
+<span class="n">MarkedAsFavourite</span> <span class="o">=</span> <span class="mb">0b10000000000</span>
+<span class="n">MarkedAsActive</span> <span class="o">=</span> <span class="mb">0b100000000000</span>
+
+<span class="n">COMPANY</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;GWBrowser&#39;</span>
+<span class="n">PRODUCT</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;GWBrowser&#39;</span>
+<span class="n">SLACK_URL</span> <span class="o">=</span> <span class="sa">ur</span><span class="s1">&#39;https://studio-aka.slack.com/&#39;</span>
+
+
+<span class="k">def</span> <span class="nf">get_platform</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the name of the current platform.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        unicode: *mac* or *win*, depending on the platform.</span>
+
+<span class="sd">    Raises:        NotImplementedError: If the current platform is not supported.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ptype</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QSysInfo</span><span class="p">()</span><span class="o">.</span><span class="n">productType</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">ptype</span> <span class="ow">in</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;darwin&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;osx&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;macos&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;mac&#39;</span>
+    <span class="k">if</span> <span class="sa">u</span><span class="s1">&#39;win&#39;</span> <span class="ow">in</span> <span class="n">ptype</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;win&#39;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+        <span class="sa">u</span><span class="s1">&#39;The platform &quot;</span><span class="si">{}</span><span class="s1">&quot; is not supported&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">ptype</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="Server"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server">[docs]</a><span class="k">class</span> <span class="nc">Server</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A utility class providing the platform-specific locations of</span>
+<span class="sd">    the ``primary``, ``backup``, and ``local`` servers.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The server values are stored in an external configuration file in</span>
+<span class="sd">        ``templates/server.conf``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">conf_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the path to ``server.conf``.&quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../templates/servers.conf&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">conf</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">ConfigParser</span><span class="o">.</span><span class="n">RawConfigParser</span><span class="p">()</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">conf_path</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">parser</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">get_server_platform_name</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">platf</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the name of the server for the specified platform.&quot;&quot;&quot;</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">section</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="n">section</span><span class="p">):</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">section</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+
+        <span class="n">it</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">it</span> <span class="k">if</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">itervalues</span><span class="p">()</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">server</span><span class="p">)]]</span>
+
+        <span class="k">return</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">platf</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Server.primary"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.primary">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">primary</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The path to the primary server.</span>
+<span class="sd">        This is where all active jobs are stored.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;primary&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="Server.backup"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.backup">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">backup</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The path to the backup server.</span>
+<span class="sd">        This is where all active job backup are stored.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;backup&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="Server.local"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.local">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">local</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This is a local copy of the jobs folder. Useful to take advantage</span>
+<span class="sd">        when needing quick access to storage using the local SSD drive.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;local&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">servers</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns all available servers.&quot;&quot;&quot;</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">section</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">sections</span><span class="p">():</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">section</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">parser</span><span class="o">.</span><span class="n">items</span><span class="p">(</span><span class="n">section</span><span class="p">):</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">section</span><span class="p">][</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
+            <span class="n">arr</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="sa">u</span><span class="s1">&#39;path&#39;</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">get_platform</span><span class="p">()],</span>
+                        <span class="sa">u</span><span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;description&#39;</span><span class="p">]})</span>
+        <span class="n">arr</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;path&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">arr</span></div>
+
+
+<span class="n">ASSET_IDENTIFIER</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;workspace.mel&#39;</span>
+<span class="sd">&quot;&quot;&quot;``ASSET_IDENTIFIER`` is the file needed for GWBrowser to understand a folder</span>
+<span class="sd">as an asset. We&#39;re using the maya project structure as our asset-base so this is</span>
+<span class="sd">a **workspace.mel** file in our case. The file resides in the root of the asset</span>
+<span class="sd">directory.&quot;&quot;&quot;</span>
+
+
+<span class="n">FTHREAD_COUNT</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="sd">&quot;&quot;&quot;The number of threads used by the ``FilesWidget`` to get file - information.&quot;&quot;&quot;</span>
+
+<span class="n">ITHREAD_COUNT</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="sd">&quot;&quot;&quot;The number of threads used by the ``ImageCache`` to generate thumbnails.&quot;&quot;&quot;</span>
+
+<span class="n">LTHREAD_COUNT</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="sd">&quot;&quot;&quot;The number of threads used by the ``DataKeyModel`` to count files.&quot;&quot;&quot;</span>
+
+<span class="n">FTIMER_INTERVAL</span> <span class="o">=</span> <span class="mi">500</span>  <span class="c1"># 0.5 sec</span>
+<span class="sd">&quot;&quot;&quot;The frequency of querrying lists to load file and thumbnail info&quot;&quot;&quot;</span>
+
+<span class="n">ExportsFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;cache&#39;</span>
+<span class="n">DataFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;data&#39;</span>
+<span class="n">ReferenceFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;references&#39;</span>
+<span class="n">RendersFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;renders&#39;</span>
+<span class="n">ScenesFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;scenes&#39;</span>
+<span class="n">ScriptsFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;scripts&#39;</span>
+<span class="n">TexturesFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;textures&#39;</span>
+
+<span class="n">ASSET_FOLDERS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ExportsFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;User exported animation, object and simulation cache files&#39;</span><span class="p">,</span>
+    <span class="n">DataFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;System exported caches files&#39;</span><span class="p">,</span>
+    <span class="n">ReferenceFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Files used for research, reference&#39;</span><span class="p">,</span>
+    <span class="n">RendersFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Images rendered by the scene files&#39;</span><span class="p">,</span>
+    <span class="n">ScenesFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Project files for all 2D and 3D scenes&#39;</span><span class="p">,</span>
+    <span class="n">ScriptsFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Technical dependencies&#39;</span><span class="p">,</span>
+    <span class="n">TexturesFolder</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Textures used by the 2D/3D projects&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;misc&#39;</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1"># Sizes</span>
+<span class="n">ROW_HEIGHT</span> <span class="o">=</span> <span class="mf">46.0</span>
+<span class="n">BOOKMARK_ROW_HEIGHT</span> <span class="o">=</span> <span class="mf">64.0</span>
+<span class="n">ASSET_ROW_HEIGHT</span> <span class="o">=</span> <span class="mf">84.0</span>
+<span class="n">CONTROL_HEIGHT</span> <span class="o">=</span> <span class="mf">38.0</span>
+<span class="n">ROW_SEPARATOR</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+<span class="n">INLINE_ICONS_MIN_WIDTH</span> <span class="o">=</span> <span class="mf">640.0</span>
+
+<span class="c1"># Font scaling seems at best random given platform differences.</span>
+<span class="c1"># Programmatically scaling might fix matters...</span>
+<span class="n">SMALL_FONT_SIZE</span> <span class="o">=</span> <span class="mf">8.0</span>
+<span class="n">MEDIUM_FONT_SIZE</span> <span class="o">=</span> <span class="mf">9.0</span>
+<span class="n">LARGE_FONT_SIZE</span> <span class="o">=</span> <span class="mf">12.0</span>
+
+<span class="n">pscale</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="sd">&quot;&quot;&quot;The global font scale value. Not implemeted yet.&quot;&quot;&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">psize</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;On macosx the font size seem to be smaller given the same point size....</span>
+<span class="sd">    Sadly I have to use this function to scale the fonts to an acceptable size.</span>
+<span class="sd">    I haven&#39;t figured out where the difference comes from or what the differences</span>
+<span class="sd">    refers to. Difference of dpi...?</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="mf">1.5</span> <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;mac&#39;</span> <span class="k">else</span> <span class="n">n</span> <span class="o">*</span> <span class="n">pscale</span>
+
+
+<span class="n">MARGIN</span> <span class="o">=</span> <span class="mf">18.0</span>
+
+<span class="n">INDICATOR_WIDTH</span> <span class="o">=</span> <span class="mf">4.0</span>
+<span class="n">ROW_BUTTONS_HEIGHT</span> <span class="o">=</span> <span class="mf">36.0</span>
+
+<span class="n">WIDTH</span> <span class="o">=</span> <span class="mf">640.0</span>
+<span class="n">HEIGHT</span> <span class="o">=</span> <span class="mf">480.0</span>
+
+<span class="n">INLINE_ICON_SIZE</span> <span class="o">=</span> <span class="mf">18.0</span>
+<span class="n">THUMBNAIL_IMAGE_SIZE</span> <span class="o">=</span> <span class="mf">1024.0</span>
+
+<span class="n">BACKGROUND_SELECTED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">)</span>
+<span class="n">SECONDARY_BACKGROUND</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">70</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">70</span><span class="p">)</span>
+<span class="n">BACKGROUND</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">88</span><span class="p">,</span> <span class="mi">88</span><span class="p">,</span> <span class="mi">88</span><span class="p">)</span>
+<span class="n">THUMBNAIL_BACKGROUND</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">55</span><span class="p">)</span>
+
+<span class="n">TEXT</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">220</span><span class="p">,</span> <span class="mi">220</span><span class="p">,</span> <span class="mi">220</span><span class="p">)</span>
+<span class="n">TEXT_SELECTED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">250</span><span class="p">,</span> <span class="mi">250</span><span class="p">,</span> <span class="mi">250</span><span class="p">)</span>
+<span class="n">TEXT_DISABLED</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">,</span> <span class="mi">140</span><span class="p">)</span>
+
+<span class="n">TEXT_NOTE</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">150</span><span class="p">,</span> <span class="mi">150</span><span class="p">,</span> <span class="mi">255</span><span class="p">)</span>
+<span class="n">SECONDARY_TEXT</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">)</span>
+
+<span class="n">SEPARATOR</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">45</span><span class="p">,</span> <span class="mi">45</span><span class="p">,</span> <span class="mi">45</span><span class="p">)</span>
+<span class="n">FAVOURITE</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QColor</span><span class="p">(</span><span class="mi">120</span><span class="p">,</span> <span class="mi">110</span><span class="p">,</span> <span class="mi">200</span><span class="p">)</span>
+
+<span class="n">PrimaryFont</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFont</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Roboto Black&#39;</span><span class="p">)</span>
+<span class="n">PrimaryFont</span><span class="o">.</span><span class="n">setPointSize</span><span class="p">(</span><span class="n">MEDIUM_FONT_SIZE</span><span class="p">)</span>
+<span class="n">SecondaryFont</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFont</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Roboto Medium&#39;</span><span class="p">)</span>
+<span class="n">SecondaryFont</span><span class="o">.</span><span class="n">setPointSize</span><span class="p">(</span><span class="n">SMALL_FONT_SIZE</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">get_oiio_extensions</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns a list of extension OpenImageIO is capable of reading.&quot;&quot;&quot;</span>
+    <span class="n">extensions</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">OpenImageIO</span><span class="o">.</span><span class="n">get_string_attribute</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;extension_list&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;;&#39;</span><span class="p">):</span>
+        <span class="n">extensions</span> <span class="o">=</span> <span class="n">extensions</span> <span class="o">+</span> <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">extensions</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">get_oiio_namefilters</span><span class="p">(</span><span class="n">as_array</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Gets all accepted formats from the oiio build as a namefilter list.</span>
+<span class="sd">    Use the return value on the QFileDialog.setNameFilters() method.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">extension_list</span> <span class="o">=</span> <span class="n">OpenImageIO</span><span class="o">.</span><span class="n">get_string_attribute</span><span class="p">(</span><span class="s2">&quot;extension_list&quot;</span><span class="p">)</span>
+    <span class="n">namefilters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">exts</span> <span class="ow">in</span> <span class="n">extension_list</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;;&#39;</span><span class="p">):</span>
+        <span class="n">exts</span> <span class="o">=</span> <span class="n">exts</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">_exts</span> <span class="o">=</span> <span class="n">exts</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">e</span> <span class="o">=</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;*.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">_exts</span><span class="p">]</span>
+        <span class="n">namefilter</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> files (</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">exts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">(),</span> <span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="n">namefilters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">namefilter</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">_e</span> <span class="ow">in</span> <span class="n">_exts</span><span class="p">:</span>
+            <span class="n">arr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_e</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">as_array</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">arr</span>
+
+    <span class="n">allfiles</span> <span class="o">=</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;*.</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">arr</span><span class="p">]</span>
+    <span class="n">allfiles</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">allfiles</span><span class="p">)</span>
+    <span class="n">allfiles</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;All files (</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">allfiles</span><span class="p">)</span>
+    <span class="n">namefilters</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">allfiles</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;;;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">namefilters</span><span class="p">)</span>
+
+
+<span class="n">creative_cloud_formats</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;aep&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;ai&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;eps&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;fla&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;ppj&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;prproj&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;psb&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;psd&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;psq&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;xfl&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">exports_formats</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;abc&#39;</span><span class="p">,</span>  <span class="c1"># Alembic</span>
+    <span class="sa">u</span><span class="s1">&#39;ass&#39;</span><span class="p">,</span>  <span class="c1"># Arnold</span>
+    <span class="sa">u</span><span class="s1">&#39;bgeo&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+    <span class="sa">u</span><span class="s1">&#39;fbx&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;geo&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+    <span class="sa">u</span><span class="s1">&#39;obj&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;rs&#39;</span><span class="p">,</span>  <span class="c1"># Redshift cache file</span>
+    <span class="sa">u</span><span class="s1">&#39;sim&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+    <span class="sa">u</span><span class="s1">&#39;sc&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+    <span class="sa">u</span><span class="s1">&#39;vdb&#39;</span><span class="p">,</span>  <span class="c1"># OpenVDB cache file</span>
+    <span class="sa">u</span><span class="s1">&#39;ifd&#39;</span><span class="p">,</span>  <span class="c1"># Houdini</span>
+<span class="p">]</span>
+<span class="n">scene_formats</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;c4d&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;hud&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;hip&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;ma&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;mb&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;nk&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;nk~&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;mocha&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;rv&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;autosave&#39;</span>
+<span class="p">]</span>
+<span class="n">misc_formats</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="sa">u</span><span class="s1">&#39;pdf&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;zip&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;m4v&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;m4a&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;mov&#39;</span><span class="p">,</span>
+    <span class="sa">u</span><span class="s1">&#39;mp4&#39;</span><span class="p">,</span>
+<span class="p">]</span>
+<span class="n">oiio_formats</span> <span class="o">=</span> <span class="n">get_oiio_namefilters</span><span class="p">(</span><span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">all_formats</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="n">scene_formats</span> <span class="o">+</span>
+    <span class="n">oiio_formats</span> <span class="o">+</span>
+    <span class="n">exports_formats</span> <span class="o">+</span>
+    <span class="n">creative_cloud_formats</span> <span class="o">+</span>
+    <span class="n">misc_formats</span>
+<span class="p">)</span>
+
+<span class="n">NameFilters</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">ExportsFolder</span><span class="p">:</span> <span class="n">all_formats</span><span class="p">,</span>
+    <span class="n">ScenesFolder</span><span class="p">:</span> <span class="n">all_formats</span><span class="p">,</span>
+    <span class="n">RendersFolder</span><span class="p">:</span> <span class="n">all_formats</span><span class="p">,</span>
+    <span class="n">TexturesFolder</span><span class="p">:</span> <span class="n">all_formats</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="sd">&quot;&quot;&quot;A list of expected file - formats associated with the location.&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Extending the</span>
+<span class="n">FlagsRole</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the path of the item.&quot;&quot;&quot;</span>
+<span class="n">ParentRole</span> <span class="o">=</span> <span class="mi">1026</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the paths the item is associated with.&quot;&quot;&quot;</span>
+<span class="n">DescriptionRole</span> <span class="o">=</span> <span class="mi">1027</span>
+<span class="sd">&quot;&quot;&quot;Role used to store the description of the item.&quot;&quot;&quot;</span>
+<span class="n">TodoCountRole</span> <span class="o">=</span> <span class="mi">1028</span>
+<span class="sd">&quot;&quot;&quot;Asset role used to store the number of todos.&quot;&quot;&quot;</span>
+<span class="n">FileDetailsRole</span> <span class="o">=</span> <span class="mi">1029</span>
+<span class="sd">&quot;&quot;&quot;Special role used to save the information string of a file.&quot;&quot;&quot;</span>
+<span class="n">SequenceRole</span> <span class="o">=</span> <span class="mi">1030</span>  <span class="c1"># SRE Match object</span>
+<span class="n">FramesRole</span> <span class="o">=</span> <span class="mi">1031</span>  <span class="c1"># List of frame names</span>
+<span class="n">FileInfoLoaded</span> <span class="o">=</span> <span class="mi">1032</span>
+<span class="n">FileThumbnailLoaded</span> <span class="o">=</span> <span class="mi">1033</span>
+<span class="n">StartpathRole</span> <span class="o">=</span> <span class="mi">1034</span>
+<span class="n">EndpathRole</span> <span class="o">=</span> <span class="mi">1035</span>
+<span class="n">ThumbnailRole</span> <span class="o">=</span> <span class="mi">1036</span>
+<span class="n">ThumbnailPathRole</span> <span class="o">=</span> <span class="mi">1037</span>
+<span class="n">ThumbnailBackgroundRole</span> <span class="o">=</span> <span class="mi">1038</span>
+<span class="n">DefaultThumbnailRole</span> <span class="o">=</span> <span class="mi">1039</span>
+<span class="n">DefaultThumbnailBackgroundRole</span> <span class="o">=</span> <span class="mi">1040</span>
+<span class="n">TypeRole</span> <span class="o">=</span> <span class="mi">1041</span>
+<span class="n">AssetCountRole</span> <span class="o">=</span> <span class="mi">1042</span>
+<span class="n">EntryRole</span> <span class="o">=</span> <span class="mi">1043</span>
+<span class="n">SettingsRole</span> <span class="o">=</span> <span class="mi">1044</span>
+
+<span class="n">SortByName</span> <span class="o">=</span> <span class="mi">2048</span>
+<span class="n">SortByLastModified</span> <span class="o">=</span> <span class="mi">2049</span>
+<span class="n">SortBySize</span> <span class="o">=</span> <span class="mi">2050</span>
+
+<span class="n">FileItem</span> <span class="o">=</span> <span class="mi">1100</span>
+<span class="n">SequenceItem</span> <span class="o">=</span> <span class="mi">1200</span>
+<span class="n">AssetItem</span> <span class="o">=</span> <span class="mi">1300</span>
+<span class="n">BookmarkItem</span> <span class="o">=</span> <span class="mi">1400</span>
+
+<span class="n">LowerCase</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">UpperCase</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="sd">&quot;&quot;&quot;Filename styles&quot;&quot;&quot;</span>
+
+
+<span class="n">FilterTextRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[^0-9\.\#\-\_\/a-zA-Z]+&#39;</span><span class="p">)</span>
+<span class="sd">&quot;&quot;&quot;This is the valid string accepted by the filter editor.&quot;&quot;&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">namekey</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">_nsre</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s1">&#39;([0-9]+)&#39;</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;Key function used to sort alphanumeric filenames.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">text</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">text</span> <span class="ow">in</span> <span class="n">_nsre</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">s</span><span class="p">)]</span>
+
+
+<span class="k">def</span> <span class="nf">move_widget_to_available_geo</span><span class="p">(</span><span class="n">widget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Moves the widget inside the available screen geomtery, if any of the edges</span>
+<span class="sd">    fall outside.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">widget</span><span class="o">.</span><span class="n">window</span><span class="p">():</span>
+        <span class="n">screenID</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">desktop</span><span class="p">()</span><span class="o">.</span><span class="n">screenNumber</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">window</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">screenID</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">desktop</span><span class="p">()</span><span class="o">.</span><span class="n">primaryScreen</span><span class="p">()</span>
+
+    <span class="n">screen</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">screens</span><span class="p">()[</span><span class="n">screenID</span><span class="p">]</span>
+    <span class="n">screen_rect</span> <span class="o">=</span> <span class="n">screen</span><span class="o">.</span><span class="n">availableGeometry</span><span class="p">()</span>
+
+    <span class="c1"># Widget&#39;s rectangle in the global screen space</span>
+    <span class="n">rect</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QRect</span><span class="p">()</span>
+    <span class="n">topLeft</span> <span class="o">=</span> <span class="n">widget</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setTopLeft</span><span class="p">(</span><span class="n">topLeft</span><span class="p">)</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setWidth</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">width</span><span class="p">())</span>
+    <span class="n">rect</span><span class="o">.</span><span class="n">setHeight</span><span class="p">(</span><span class="n">widget</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">left</span><span class="p">():</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">top</span><span class="p">():</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">right</span><span class="p">():</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="o">-</span> <span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">():</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">screen_rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()</span> <span class="o">-</span> <span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">()</span>
+
+    <span class="n">widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+
+<span class="n">_families</span> <span class="o">=</span> <span class="p">[]</span>
+
+
+<span class="k">def</span> <span class="nf">_add_custom_fonts</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Adds custom fonts to the application.&quot;&quot;&quot;</span>
+    <span class="k">global</span> <span class="n">_families</span>
+    <span class="k">if</span> <span class="n">_families</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../rsc/fonts&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">setNameFilters</span><span class="p">((</span><span class="sa">u</span><span class="s1">&#39;*.ttf&#39;</span><span class="p">,))</span>
+
+    <span class="n">entries</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">entryInfoList</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">Files</span> <span class="o">|</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">NoDotAndDotDot</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontDatabase</span><span class="o">.</span><span class="n">addApplicationFont</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">absoluteFilePath</span><span class="p">())</span>
+        <span class="n">family</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontDatabase</span><span class="o">.</span><span class="n">applicationFontFamilies</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">family</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_families</span><span class="p">:</span>
+            <span class="n">_families</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">family</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+
+
+<span class="k">def</span> <span class="nf">set_custom_stylesheet</span><span class="p">(</span><span class="n">widget</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Applies the custom stylesheet to the given widget.&quot;&quot;&quot;</span>
+    <span class="n">_add_custom_fonts</span><span class="p">()</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="vm">__file__</span><span class="p">,</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">pardir</span><span class="p">,</span>
+                <span class="sa">u</span><span class="s1">&#39;rsc&#39;</span><span class="p">,</span>
+                <span class="sa">u</span><span class="s1">&#39;customStylesheet.css&#39;</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">qss</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s1">&#39;strict&#39;</span><span class="p">)</span>
+        <span class="n">qss</span> <span class="o">=</span> <span class="n">qss</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">PRIMARY_FONT</span><span class="o">=</span><span class="n">PrimaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
+            <span class="n">SECONDARY_FONT</span><span class="o">=</span><span class="n">SecondaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
+            <span class="n">SMALL_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">SMALL_FONT_SIZE</span><span class="p">),</span>
+            <span class="n">MEDIUM_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">MEDIUM_FONT_SIZE</span><span class="p">),</span>
+            <span class="n">LARGE_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">LARGE_FONT_SIZE</span><span class="p">),</span>
+            <span class="n">BACKGROUND</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">BACKGROUND_SELECTED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">BACKGROUND_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SECONDARY_BACKGROUND</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="o">*</span><span class="n">SECONDARY_BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SECONDARY_TEXT</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SECONDARY_TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT_DISABLED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_DISABLED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">TEXT_SELECTED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">SEPARATOR</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SEPARATOR</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">FAVOURITE</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">FAVOURITE</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+        <span class="p">)</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="n">qss</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">byte_to_string</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;B&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Converts a numeric byte - value to a human readable string.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;K&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;M&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;G&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;T&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;E&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Z&#39;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">num</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1024.0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">u</span><span class="s2">&quot;</span><span class="si">%3.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">unit</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">/=</span> <span class="mf">1024.0</span>
+    <span class="k">return</span> <span class="sa">u</span><span class="s2">&quot;</span><span class="si">%.1f%s%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Yi&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">reveal</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reveals the specified folder in the file explorer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name(str): A path to the file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;win&#39;</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;/select,&#39;</span><span class="p">,</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">toNativeSeparators</span><span class="p">(</span><span class="n">path</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QProcess</span><span class="o">.</span><span class="n">startDetached</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;explorer&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;mac&#39;</span><span class="p">:</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="sa">u</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;tell application &quot;Finder&quot;&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;activate&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span>
+            <span class="sa">u</span><span class="s1">&#39;select POSIX file &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="o">.</span><span class="n">toNativeSeparators</span><span class="p">(</span><span class="n">path</span><span class="p">)),</span> <span class="sa">u</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;end tell&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QProcess</span><span class="o">.</span><span class="n">startDetached</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;osascript&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> os has not been implemented.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QSysInfo</span><span class="p">()</span><span class="o">.</span><span class="n">productType</span><span class="p">()))</span>
+
+
+<span class="n">NoHighlightFlag</span> <span class="o">=</span> <span class="mb">0b000000</span>
+<span class="n">HeadingHighlight</span> <span class="o">=</span> <span class="mb">0b000001</span>
+<span class="n">QuoteHighlight</span> <span class="o">=</span> <span class="mb">0b000010</span>
+<span class="n">CodeHighlight</span> <span class="o">=</span> <span class="mb">0b000100</span>
+<span class="n">BoldHighlight</span> <span class="o">=</span> <span class="mb">0b001000</span>
+<span class="n">ItalicHighlight</span> <span class="o">=</span> <span class="mb">0b010000</span>
+
+<span class="n">HIGHLIGHT_RULES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="sa">u</span><span class="s1">&#39;spaces&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;([\s\t\n\r]*)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;file_path&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;([a-z]{2,5}:)?([\/</span><span class="se">\\</span><span class="s1">]</span><span class="si">{2}</span><span class="s1">[^\&quot;\*\&lt;\&gt;\?\|]+\.[a-z0-9]{2,4})[\s\t\n\r]*&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;folder_path&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;([a-z]{2,5}:)?([\/</span><span class="se">\\</span><span class="s1">]</span><span class="si">{2}</span><span class="s1">[^\&quot;\*\&lt;\&gt;\?\|\s]+)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;quotes&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;([\&quot;</span><span class="se">\&#39;</span><span class="s1">]+[^\&quot;</span><span class="se">\&#39;</span><span class="s1">]+[</span><span class="se">\&#39;</span><span class="s1">\&quot;]+)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">CodeHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;bold&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;(\*</span><span class="si">{2}</span><span class="s1">|_</span><span class="si">{2}</span><span class="s1">)([^\*_]+)(\*</span><span class="si">{2}</span><span class="s1">|_</span><span class="si">{2}</span><span class="s1">)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">BoldHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;italicized&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;([\*_]</span><span class="si">{1}</span><span class="s1">)([^\*_]+)([\*_]</span><span class="si">{1}</span><span class="s1">)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">ItalicHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;heading&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;^([#]{1,6})&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">HeadingHighlight</span>
+    <span class="p">},</span>
+    <span class="sa">u</span><span class="s1">&#39;quote&#39;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="sa">u</span><span class="s1">&#39;re&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+            <span class="sa">ur</span><span class="s1">&#39;^([&gt;]</span><span class="si">{1}</span><span class="s1">)&#39;</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">),</span>
+        <span class="sa">u</span><span class="s1">&#39;flag&#39;</span><span class="p">:</span> <span class="n">QuoteHighlight</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="get_ranges"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_ranges">[docs]</a><span class="k">def</span> <span class="nf">get_ranges</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">padding</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given an array of numbers the method will return a string representation of</span>
+<span class="sd">    the ranges contained in the array.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        arr(list):       An array of numbers.</span>
+<span class="sd">        padding(int):    The number of leading zeros before the number.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        unicode: A string representation of the given array.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">arr</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">arr</span><span class="p">)))</span>
+    <span class="n">blocks</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">k</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>  <span class="c1"># blocks</span>
+        <span class="n">zfill</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">)</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="n">padding</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">:</span>
+            <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">zfill</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arr</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">arr</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># break coming up</span>
+                <span class="n">k</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;,&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">u</span><span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">blocks</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]))))</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">blocks</span><span class="p">])</span></div>
+
+
+<span class="n">ValidFilenameRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">ur</span><span class="s1">&#39;\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]</span><span class="si">{3}</span><span class="s1">)_([^_]{1,})\.(.*)$&#39;</span><span class="p">,</span>
+    <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+<span class="n">IsSequenceRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">ur</span><span class="s1">&#39;^(.+?)(\[.*\])(.*)$&#39;</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+<span class="n">SequenceStartRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">ur</span><span class="s1">&#39;^(.*)\[([0-9]+).*\](.*)$&#39;</span><span class="p">,</span>
+    <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+<span class="n">SequenceEndRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">ur</span><span class="s1">&#39;^(.*)\[.*?([0-9]+)\](.*)$&#39;</span><span class="p">,</span>
+    <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+<span class="n">GetSequenceRegex</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span>
+    <span class="sa">ur</span><span class="s1">&#39;^(.*?)([0-9]+)([0-9</span><span class="se">\\</span><span class="s1">/]*|[^0-9</span><span class="se">\\</span><span class="s1">/]*(?=.+?))\.([^\.]{2,5})$&#39;</span><span class="p">,</span>
+    <span class="n">flags</span><span class="o">=</span><span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">UNICODE</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_valid_filename"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_valid_filename">[docs]</a><span class="k">def</span> <span class="nf">get_valid_filename</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This method will check if the given text conforms Browser&#39;s enforced</span>
+<span class="sd">    filenaming convention.</span>
+
+<span class="sd">    The returned SRE.Match object will contain the groups descripbed below.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">       f = u&#39;job_house_interiour_v001_wgergely.ma&#39;</span>
+<span class="sd">       match = common.get_valid_filename(f)</span>
+<span class="sd">       if match:</span>
+<span class="sd">           path = match.expand(ur&#39;\\1\\2\\3\\4\\5.\\6&#39;)</span>
+<span class="sd">           # job_house_interiour_v001_wgergely.ma</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        group 1(SRE_Match object):        The job&#39;s short name, between 1 and 3 characters.</span>
+<span class="sd">        group 2(SRE_Match object):        The current asset-name, between 1 and 12 characters.</span>
+<span class="sd">        group 3(SRE_Match object):        The custom description of the file, between 1 - 25 characters.</span>
+<span class="sd">        group 4(SRE_Match object):        The file&#39;s version. Has to be exactly 3 characters.</span>
+<span class="sd">        group 5(SRE_Match object):        The name of the user.</span>
+<span class="sd">        group 6(SRE_Match object):        The file&#39;s extension (without the &#39;.&#39;)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        SRE_Match: A ``SRE_Match`` object if the filename is valid, otherwise ``None``</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">ValidFilenameRegex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_sequence"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_sequence">[docs]</a><span class="k">def</span> <span class="nf">get_sequence</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This method will check if the given text contains a sequence element.</span>
+
+<span class="sd">    Strictly speaking, a sequence is any file that has a valid number element.</span>
+<span class="sd">    There can only be **one** incrementable element - it will always be the</span>
+<span class="sd">    number closest to the end.</span>
+
+<span class="sd">    The regex will understand sequences with the `v` prefix, eg *v001*, *v002*,</span>
+<span class="sd">    but works without the prefix as well. Eg. **001**, **002**. In the case of a</span>
+<span class="sd">    filename like ``job_sh010_animation_v002.c4d`` **002** will be the</span>
+<span class="sd">    prevailing sequence number, ignoring the number in the extension.</span>
+
+<span class="sd">    Likewise, in ``job_sh010_animation_v002.0001.c4d`` the sequence number will</span>
+<span class="sd">    be **0001**, and not 010 or 002.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        group 1 (SRE_Match):    All the characters **before** the sequence number.</span>
+<span class="sd">        group 2 (SRE_Match):    The sequence number, as a string.</span>
+<span class="sd">        group 3 (SRE_Match):    All the characters **after** the sequence number.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">       filename = &#39;job_sh010_animation_v002_wgergely.c4d&#39;</span>
+<span class="sd">       match = common.get_sequence(filename)</span>
+<span class="sd">       if match:</span>
+<span class="sd">           prefix = match.group(1) # &#39;job_sh010_animation_v&#39;</span>
+<span class="sd">           sequence_number = match.group(2) # &#39;002&#39;</span>
+<span class="sd">           suffix = match.group(3) # &#39;_wgergely.c4d&#39;</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``SRE_Match``: ``None`` if the text doesn&#39;t contain a number or an ``SRE_Match`` object.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">GetSequenceRegex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="is_collapsed"><a class="viewcode-back" href="../../api.html#gwbrowser.common.is_collapsed">[docs]</a><span class="k">def</span> <span class="nf">is_collapsed</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This method will check for the presence of the bracket-enclosed sequence markers.</span>
+
+<span class="sd">    When GWBrowser is displaying a sequence of files as a single item,</span>
+<span class="sd">    the item is *collapsed*. Every collapsed item contains a start and an end number</span>
+<span class="sd">    enclosed in brackets. For instance: ``image_sequence_[001-233].png``</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        group 1 (SRE_Match):    All the characters **before** the sequence marker.</span>
+<span class="sd">        group 2 (SRE_Match):    The sequence marker(eg. ``[01-50]``), as a string.</span>
+<span class="sd">        group 3 (SRE_Match):    All the characters **after** the sequence marker.</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">       filename = &#39;job_sh010_animation_[001-299]_wgergely.png&#39;</span>
+<span class="sd">       match = common.get_sequence(filename)</span>
+<span class="sd">       if match:</span>
+<span class="sd">           prefix = match.group(1) # &#39;job_sh010_animation_&#39;</span>
+<span class="sd">           sequence_string = match.group(2) # &#39;[001-299]&#39;</span>
+<span class="sd">           suffix = match.group(3) # &#39;_wgergely.png&#39;</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``SRE_Match``: If the given name is indeed collpased it returns a ``SRE_Match`` object, otherwise ``None``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">IsSequenceRegex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">text</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_sequence_startpath"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_sequence_startpath">[docs]</a><span class="k">def</span> <span class="nf">get_sequence_startpath</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;If the given path refers to a collapsed item, it will get the name of the</span>
+<span class="sd">    the first item in the sequence. In the case of **[0-99]**, the first item is</span>
+<span class="sd">    **0**.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ``unicode``: The name of the first element in the sequence.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_collapsed</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="n">match</span> <span class="o">=</span> <span class="n">SequenceStartRegex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">SequenceStartRegex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\2\3&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="get_sequence_endpath"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_sequence_endpath">[docs]</a><span class="k">def</span> <span class="nf">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Checks the given string and if it denotes a seuqence returns the path for</span>
+<span class="sd">    the last file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_collapsed</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="n">match</span> <span class="o">=</span> <span class="n">SequenceEndRegex</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">SequenceEndRegex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\2\3&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="get_sequence_paths"><a class="viewcode-back" href="../../api.html#gwbrowser.common.get_sequence_paths">[docs]</a><span class="k">def</span> <span class="nf">get_sequence_paths</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given the index, returns a tuple of filenames referring to the</span>
+<span class="sd">    individual sequence items.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_collapsed</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="n">sequence_paths</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">frame</span> <span class="ow">in</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">FramesRole</span><span class="p">):</span>
+        <span class="n">seqpath</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">SequenceRole</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1</span><span class="si">{}</span><span class="s1">\3.\4&#39;</span><span class="p">)</span>
+        <span class="n">sequence_paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seqpath</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">frame</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">sequence_paths</span></div>
+
+
+<span class="k">def</span> <span class="nf">draw_aliased_text</span><span class="p">(</span><span class="n">painter</span><span class="p">,</span> <span class="n">font</span><span class="p">,</span> <span class="n">rect</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">color</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Allows drawing aliased text using *QPainterPath*.</span>
+
+<span class="sd">    This is a slow to calculate but ensures the rendered text looks *smooth* (on</span>
+<span class="sd">    Windows espcially, I noticed a lot of aliasing issues). We&#39;re also eliding</span>
+<span class="sd">    the given text to the width of the given rectangle.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        painter (QPainter):         The active painter.</span>
+<span class="sd">        font (QFont):               The font to use to paint.</span>
+<span class="sd">        rect (QRect):               The rectangle to fit the text in.</span>
+<span class="sd">        text (unicode):             The text to paint.</span>
+<span class="sd">        align (Qt.AlignmentFlag):   The alignment flags.</span>
+<span class="sd">        color (QColor):             The color to use.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        int: The width of the drawn text in pixels.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">painter</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+
+    <span class="n">painter</span><span class="o">.</span><span class="n">setRenderHint</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="o">.</span><span class="n">Antialiasing</span><span class="p">)</span>
+    <span class="n">painter</span><span class="o">.</span><span class="n">setRenderHint</span><span class="p">(</span><span class="n">QtGui</span><span class="o">.</span><span class="n">QPainter</span><span class="o">.</span><span class="n">SmoothPixmapTransform</span><span class="p">)</span>
+
+    <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">(),</span> <span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">())</span>
+    <span class="n">elide</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metrics</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QFontMetrics</span><span class="p">(</span><span class="n">font</span><span class="p">)</span>
+
+    <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">center</span><span class="p">()</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">metrics</span><span class="o">.</span><span class="n">ascent</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="n">elide</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ElideLeft</span>
+
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignLeft</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">elide</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ElideRight</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignRight</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">elide</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ElideLeft</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignHCenter</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">elide</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">ElideMiddle</span>
+
+    <span class="n">text</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">elidedText</span><span class="p">(</span>
+        <span class="n">text</span><span class="p">,</span>
+        <span class="n">elide</span><span class="p">,</span>
+        <span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">metrics</span><span class="o">.</span><span class="n">width</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignLeft</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignRight</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">right</span><span class="p">()</span> <span class="o">-</span> <span class="n">width</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignHCenter</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">left</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">width</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">width</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignTop</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">+</span> <span class="n">metrics</span><span class="o">.</span><span class="n">ascent</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignVCenter</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">center</span><span class="p">()</span><span class="o">.</span><span class="n">y</span><span class="p">()</span> <span class="o">+</span> <span class="p">(</span><span class="n">metrics</span><span class="o">.</span><span class="n">ascent</span><span class="p">()</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignBottom</span> <span class="o">&amp;</span> <span class="n">align</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">rect</span><span class="o">.</span><span class="n">bottom</span><span class="p">()</span> <span class="o">-</span> <span class="n">metrics</span><span class="o">.</span><span class="n">descent</span><span class="p">()</span>
+
+    <span class="c1"># Making sure text fits the rectangle</span>
+    <span class="n">painter</span><span class="o">.</span><span class="n">setBrush</span><span class="p">(</span><span class="n">color</span><span class="p">)</span>
+    <span class="n">painter</span><span class="o">.</span><span class="n">setPen</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoPen</span><span class="p">)</span>
+
+    <span class="n">path</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QPainterPath</span><span class="p">()</span>
+    <span class="n">path</span><span class="o">.</span><span class="n">addText</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">font</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="n">painter</span><span class="o">.</span><span class="n">drawPath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="n">painter</span><span class="o">.</span><span class="n">restore</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">width</span>
+
+
+<span class="k">def</span> <span class="nf">find_largest_file</span><span class="p">(</span><span class="n">index</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Finds the sequence&#39;s largest file from sequence filepath.</span>
+<span class="sd">    The largest files of the sequence will probably hold enough visual information</span>
+<span class="sd">    to be used a s thumbnail image.: )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">entries</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">EntryRole</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">TypeRole</span><span class="p">)</span> <span class="o">==</span> <span class="n">SequenceItem</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">SequenceRole</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span>
+                <span class="sa">ur</span><span class="s1">&#39;\1</span><span class="si">{}</span><span class="s1">\3.\4&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">FramesRole</span><span class="p">)[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">key</span><span class="p">(</span><span class="n">x</span><span class="p">):</span> <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_size</span>
+    <span class="n">entry</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">EntryRole</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">mount</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Mounts the server in macosx if it isn&#39;t mounted already.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;win&#39;</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;mac&#39;</span><span class="p">:</span>
+        <span class="n">mountpoint</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;/volumes/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">Server</span><span class="o">.</span><span class="n">primary</span><span class="p">())</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStorageInfo</span><span class="o">.</span><span class="n">mountedVolumes</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">rootPath</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">mountpoint</span><span class="p">:</span>
+                <span class="k">return</span>  <span class="c1"># the server is already mounted</span>
+
+        <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="sa">u</span><span class="s1">&#39;-e&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;mount volume &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">Server</span><span class="o">.</span><span class="n">primary</span><span class="p">())]</span>
+        <span class="n">process</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QProcess</span><span class="p">()</span>
+        <span class="n">process</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;osascript&#39;</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="n">process</span><span class="o">.</span><span class="n">waitForFinished</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># We will wait here until the drive is available to use...</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStorageInfo</span><span class="o">.</span><span class="n">mountedVolumes</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">rootPath</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="n">mountpoint</span><span class="p">:</span>
+                    <span class="k">return</span>
+        <span class="k">return</span>
+
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> os has not been implemented.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QSysInfo</span><span class="p">()</span><span class="o">.</span><span class="n">productType</span><span class="p">()))</span>
+
+
+<span class="n">WindowsPath</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">UnixPath</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">SlackPath</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">MacOSPath</span> <span class="o">=</span> <span class="mi">3</span>
+
+
+<span class="k">def</span> <span class="nf">copy_path</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">WindowsPath</span><span class="p">,</span> <span class="n">first</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Copies the given path to the clipboard. We have to do some magic here</span>
+<span class="sd">    for the copied paths to be fully qualified.&quot;&quot;&quot;</span>
+    <span class="n">current_parent</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">first</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">get_sequence_startpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">WindowsPath</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="n">current_parent</span><span class="p">,</span>
+            <span class="n">Server</span><span class="o">.</span><span class="n">get_server_platform_name</span><span class="p">(</span><span class="n">current_parent</span><span class="p">,</span> <span class="s1">&#39;win&#39;</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\/</span><span class="se">\\</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="sa">ur</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="n">QtGui</span><span class="o">.</span><span class="n">QClipboard</span><span class="p">()</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">UnixPath</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="n">current_parent</span><span class="p">,</span>
+            <span class="n">Server</span><span class="o">.</span><span class="n">get_server_platform_name</span><span class="p">(</span><span class="n">current_parent</span><span class="p">,</span> <span class="s1">&#39;mac&#39;</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\/</span><span class="se">\\</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="sa">ur</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="n">QtGui</span><span class="o">.</span><span class="n">QClipboard</span><span class="p">()</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">SlackPath</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QUrl</span><span class="p">()</span><span class="o">.</span><span class="n">fromLocalFile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">toString</span><span class="p">()</span>
+        <span class="n">QtGui</span><span class="o">.</span><span class="n">QClipboard</span><span class="p">()</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">MacOSPath</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="n">current_parent</span><span class="p">,</span>
+            <span class="n">Server</span><span class="o">.</span><span class="n">get_server_platform_name</span><span class="p">(</span><span class="n">current_parent</span><span class="p">,</span> <span class="s1">&#39;mac&#39;</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\/</span><span class="se">\\</span><span class="s1">]&#39;</span><span class="p">,</span> <span class="sa">ur</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="n">QtGui</span><span class="o">.</span><span class="n">QClipboard</span><span class="p">()</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span>
+
+
+<span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">first</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Given the model index, executes the index&#39;s path using QDesktopServices.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+        <span class="k">return</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">first</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">get_sequence_startpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QUrl</span><span class="o">.</span><span class="n">fromLocalFile</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">QtGui</span><span class="o">.</span><span class="n">QDesktopServices</span><span class="o">.</span><span class="n">openUrl</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+
+<span class="n">enc</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">getfilesystemencoding</span><span class="p">()</span>
+
+
+<span class="k">def</span> <span class="nf">walk</span><span class="p">(</span><span class="n">top</span><span class="p">,</span> <span class="n">topdown</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">onerror</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">followlinks</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This is a modified version using the C based _scandir module for iterating through</span>
+<span class="sd">    directories. The code is taken from the scandir module but here forcing the code to</span>
+<span class="sd">    use the _scandir(gwscandir) iterator on all platforms.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple(</span>
+<span class="sd">            path(unicode),</span>
+<span class="sd">            folders(DirEntries),</span>
+<span class="sd">            files(DirEntries)</span>
+<span class="sd">        )</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">top</span> <span class="o">=</span> <span class="n">unicode</span><span class="p">(</span><span class="n">top</span><span class="p">,</span> <span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">top</span> <span class="o">=</span> <span class="n">top</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">enc</span><span class="p">)</span>
+        <span class="k">except</span><span class="p">:</span>
+            <span class="k">pass</span>
+    <span class="n">dirs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">nondirs</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># We may not have read permission for top, in which case we can&#39;t</span>
+    <span class="c1"># get a list of the files the directory contains.  os.walk</span>
+    <span class="c1"># always suppressed the exception then, rather than blow up for a</span>
+    <span class="c1"># minor reason when (say) a thousand readable directories are still</span>
+    <span class="c1"># left to visit.  That logic is copied here.</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">scandir_it</span> <span class="o">=</span> <span class="n">gwscandir</span><span class="o">.</span><span class="n">scandir</span><span class="p">(</span><span class="n">top</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">onerror</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">onerror</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">entry</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">scandir_it</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">onerror</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">onerror</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">is_dir</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_dir</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+            <span class="c1"># If is_dir() raises an OSError, consider that the entry is not</span>
+            <span class="c1"># a directory, same behaviour than os.path.isdir().</span>
+            <span class="n">is_dir</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="k">if</span> <span class="n">is_dir</span><span class="p">:</span>
+            <span class="n">dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nondirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">topdown</span> <span class="ow">and</span> <span class="n">is_dir</span><span class="p">:</span>
+            <span class="c1"># Bottom-up: recurse into sub-directory, but exclude symlinks to</span>
+            <span class="c1"># directories if followlinks is False</span>
+            <span class="k">if</span> <span class="n">followlinks</span><span class="p">:</span>
+                <span class="n">walk_into</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">is_symlink</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_symlink</span><span class="p">()</span>
+                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+                    <span class="c1"># If is_symlink() raises an OSError, consider that the</span>
+                    <span class="c1"># entry is not a symbolic link, same behaviour than</span>
+                    <span class="c1"># os.path.islink().</span>
+                    <span class="n">is_symlink</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">walk_into</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">is_symlink</span>
+
+            <span class="k">if</span> <span class="n">walk_into</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">topdown</span><span class="p">,</span> <span class="n">onerror</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">):</span>
+                    <span class="k">yield</span> <span class="n">entry</span>
+
+    <span class="c1"># Yield before recursion if going top down</span>
+    <span class="k">if</span> <span class="n">topdown</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">top</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">nondirs</span>
+
+        <span class="c1"># Recurse into sub-directories</span>
+        <span class="k">for</span> <span class="n">direntry</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+            <span class="n">new_path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">top</span><span class="p">,</span> <span class="n">direntry</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">walk</span><span class="p">(</span><span class="n">new_path</span><span class="p">,</span> <span class="n">topdown</span><span class="p">,</span> <span class="n">onerror</span><span class="p">,</span> <span class="n">followlinks</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">entry</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">top</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">nondirs</span>
+
+
+<span class="k">def</span> <span class="nf">rsc_path</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function to retrieve a resource - file item&quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../rsc/</span><span class="si">{}</span><span class="s1">.png&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">path</span>
+
+
+<span class="k">def</span> <span class="nf">ubytearray</span><span class="p">(</span><span class="n">ustring</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function to convert a unicode string to a QByteArray object.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ustring</span><span class="p">,</span> <span class="n">unicode</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;The provided string has to be a unicode string&#39;</span><span class="p">)</span>
+    <span class="c1"># We convert the string to a hex array</span>
+    <span class="n">hstr</span> <span class="o">=</span> <span class="p">[</span><span class="sa">r</span><span class="s1">&#39;\x</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;hex&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">ustring</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QByteArray</span><span class="o">.</span><span class="n">fromHex</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">hstr</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">clean_filter_text</span><span class="p">(</span><span class="n">filter_text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This method will output a `clean`, readable version of the filter text.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">filter_text</span><span class="p">:</span>
+        <span class="n">filter_text</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">filter_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;\[</span><span class="se">\\</span><span class="s1">\S</span><span class="se">\\</span><span class="s1">\s\]\*&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+        <span class="n">filter_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[</span><span class="se">\\</span><span class="s1">]+&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+        <span class="n">filter_text</span> <span class="o">=</span> <span class="n">FilterTextRegex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+        <span class="n">filter_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\s&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filter_text</span>
+
+
+<span class="k">def</span> <span class="nf">regexify_filter_text</span><span class="p">(</span><span class="n">filter_text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Replaces whitespaces with catch - all regex search elements.&quot;&quot;&quot;</span>
+    <span class="n">filter_text</span> <span class="o">=</span> <span class="n">FilterTextRegex</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+    <span class="n">filter_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\s\s*&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+    <span class="n">filter_text</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\s&#39;</span><span class="p">,</span> <span class="sa">ur</span><span class="s1">&#39;[\S\s]*&#39;</span><span class="p">,</span> <span class="n">filter_text</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">filter_text</span>
+
+
+<span class="k">def</span> <span class="nf">create_asset_template</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">dest</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Responsible for adding the files and folders of the given source to the</span>
+<span class="sd">    given zip - file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">overwrite</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">dest</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> exists already&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">dest</span><span class="p">))</span>
+
+    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span> <span class="k">as</span> <span class="n">zipf</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+                <span class="n">arcname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+                <span class="n">zipf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">d</span><span class="p">),</span> <span class="n">arcname</span><span class="o">=</span><span class="n">arcname</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="n">arcname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+                <span class="n">zipf</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">f</span><span class="p">),</span> <span class="n">arcname</span><span class="o">=</span><span class="n">arcname</span><span class="p">)</span>
+
+
+<span class="n">MayaAssetTemplate</span> <span class="o">=</span> <span class="mi">1024</span>
+<span class="n">ProjectTemplate</span> <span class="o">=</span> <span class="mi">2048</span>
+
+
+<span class="n">AssetTypes</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">MayaAssetTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;MayaAsset&#39;</span><span class="p">,</span>
+    <span class="n">ProjectTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Project&#39;</span><span class="p">,</span>
+
+
+<span class="p">}</span>
+
+
+<span class="k">def</span> <span class="nf">create_asset_from_template</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">basepath</span><span class="p">,</span> <span class="n">template</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a new asset with the given name.</span>
+
+<span class="sd">    An asset is a zip-archive containing the pre-defined folder structure for</span>
+<span class="sd">    jobs and assets. The available asset types are defined in the</span>
+<span class="sd">    ``common.AssetTypes`` variable.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        name (unicode):         The name of the asset to create.</span>
+<span class="sd">        basepath (unicode):     The path the asset should be saved to.</span>
+<span class="sd">        template (unicode):     The name of the template file *without* the zip extension.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">template_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span>
+        <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../templates/</span><span class="si">{}</span><span class="s1">.zip&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">AssetTypes</span><span class="p">[</span><span class="n">template</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">template_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+            <span class="sa">u</span><span class="s1">&#39;The &quot;</span><span class="si">{}</span><span class="s1">.zip&quot; template file could not be located.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">AssetTypes</span><span class="p">[</span><span class="n">template</span><span class="p">]))</span>
+
+    <span class="n">dest_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">basepath</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">dest_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDir</span><span class="p">(</span><span class="n">basepath</span><span class="p">)</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">res</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;An error occured creating the asset folders.&#39;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">template_info</span><span class="o">.</span><span class="n">absoluteFilePath</span><span class="p">(),</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">dest_info</span><span class="o">.</span><span class="n">absolutePath</span><span class="p">(),</span> <span class="n">members</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pwd</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">log_path</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns the file used to keep logs&quot;&quot;&quot;</span>
+    <span class="n">tempdir</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">writableLocation</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">TempLocation</span><span class="p">)</span>
+    <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/gwbrowser.log&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tempdir</span><span class="p">)</span>
+</pre></div>
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>

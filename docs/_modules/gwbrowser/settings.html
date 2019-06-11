@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>gwbrowser.settings</title>
+    
+      <link rel="stylesheet" href="../../_static/pygments.css">
+      <link rel="stylesheet" href="../../_static/theme.css">
+      
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+
+      <!-- sphinx script_files -->
+        <script type="text/javascript" src="../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../_static/doctools.js"></script>
+        <script type="text/javascript" src="../../_static/language_data.js"></script>
+
+      
+      <script src="../../_static/theme-vendors.js"></script>
+      <script src="../../_static/theme.js" defer></script>
+    
+  <link rel="index" title="Index" href="../../genindex.html" />
+  <link rel="search" title="Search" href="../../search.html" /> 
+  </head>
+
+  <body><div id="app" class="theme-container" :class="pageClasses">
+      <!--<navbar @toggle-sidebar="toggleSidebar">
+  <router-link to="../../index.html" class="home-link">
+    
+      <img class="logo" src="../../_static/custom.png" alt="doit logo"/>
+    
+  </router-link>
+
+  <div class="links">
+    <navlinks class="can-hide">
+
+
+
+    </navlinks>
+  </div>
+</navbar>
+
+      
+      <div class="sidebar-mask" @click="toggleSidebar(false)">
+      </div> -->
+
+      <!--
+        <sidebar @toggle-sidebar="toggleSidebar">
+          
+          <navlinks>
+            
+
+
+
+            
+          </navlinks><div class="sidebar-links" role="navigation" aria-label="main navigation">
+  
+</div>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
+</ul>
+
+        </sidebar> -->
+
+      <page>
+          <div class="body-header" role="navigation" aria-label="navigation">
+  
+  <ul class="breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+    
+      <li><a href="../index.html">Module code</a> &raquo;</li>
+    
+      <li><a href="../gwbrowser.html">gwbrowser</a> &raquo;</li>
+    
+    <li>gwbrowser.settings</li>
+  </ul>
+  
+
+  <ul class="page-nav">
+</ul>
+  
+</div>
+<hr>
+          <div class="content" role="main">
+            
+  <h1>Source code for gwbrowser.settings</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;``settings.py`` contains the classes needed to get and set settings for</span>
+<span class="sd">the application and the asset and file items.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtCore</span>
+
+<span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
+
+
+<div class="viewcode-block" id="Active"><a class="viewcode-back" href="../../api.html#gwbrowser.settings.Active">[docs]</a><span class="k">class</span> <span class="nc">Active</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QObject</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Utility class to querry and monitor the changes to the active paths.</span>
+
+<span class="sd">    Active paths are set by the ``LocalSettings`` module and are stored in the</span>
+<span class="sd">    registry at ``HKEY_CURRENT_USER/SOFTWARE/COMPANY/PRODUCT.``</span>
+
+<span class="sd">    The fully set active path is made up of the ``server``, ``job``, ``root``,</span>
+<span class="sd">    ``asset``, ``location`` and ``file`` components.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Signals</span>
+    <span class="n">activeBookmarkChanged</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">()</span>
+    <span class="n">activeAssetChanged</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">()</span>
+    <span class="n">activeLocationChanged</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">(</span><span class="n">unicode</span><span class="p">)</span>
+    <span class="n">activeFileChanged</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Signal</span><span class="p">(</span><span class="n">unicode</span><span class="p">)</span>
+
+    <span class="n">keys</span> <span class="o">=</span> <span class="p">(</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;asset&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;file&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Active</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">macos_mount_timer</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QTimer</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">macos_mount_timer</span><span class="o">.</span><span class="n">setInterval</span><span class="p">(</span><span class="mi">2000</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">macos_mount_timer</span><span class="o">.</span><span class="n">setSingleShot</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">macos_mount_timer</span><span class="o">.</span><span class="n">timeout</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">mount</span><span class="p">)</span>
+        <span class="n">common</span><span class="o">.</span><span class="n">mount</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>
+
+    <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">unicode</span><span class="p">)</span>
+    <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">unicode</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">save_state</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span>
+
+<div class="viewcode-block" id="Active.check_state"><a class="viewcode-back" href="../../api.html#gwbrowser.settings.Active.check_state">[docs]</a>    <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">check_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This method is called by the timeout slot of the `Active.timer` and</span>
+<span class="sd">        check the currently set active item. Emits a changed signal if the</span>
+<span class="sd">        current state differs from the saved state.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">active_paths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span> <span class="o">==</span> <span class="n">active_paths</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">serverChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;server&#39;</span><span class="p">]</span>
+        <span class="n">jobChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;job&#39;</span><span class="p">]</span>
+        <span class="n">rootChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;root&#39;</span><span class="p">]</span>
+        <span class="n">assetChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;asset&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;asset&#39;</span><span class="p">]</span>
+        <span class="n">locationChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">]</span>
+        <span class="n">fileChanged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;file&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;file&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">serverChanged</span> <span class="ow">or</span> <span class="n">jobChanged</span> <span class="ow">or</span> <span class="n">rootChanged</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activeBookmarkChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span> <span class="o">=</span> <span class="n">active_paths</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">assetChanged</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activeAssetChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span> <span class="o">=</span> <span class="n">active_paths</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="n">locationChanged</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activeLocationChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;location&#39;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">fileChanged</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activeFileChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">active_paths</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;file&#39;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_active_paths</span> <span class="o">=</span> <span class="n">active_paths</span></div>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">paths</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the currently set ``active`` paths as a dictionary.</span>
+<span class="sd">        Before returning the values we validate wheather the</span>
+<span class="sd">        saved path refers to an existing folder. The invalid items will be unset.</span>
+
+<span class="sd">        Note:</span>
+<span class="sd">            When the path is fully set it is made up of</span>
+<span class="sd">            `server`/`job`/`root`/`asset`/`file` elements.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            OrderedDict: Object containing the set active path items.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">keys</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+
+        <span class="c1"># Checking active-path and unsetting invalid parts</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
+                <span class="n">path</span> <span class="o">+=</span> <span class="sa">u</span><span class="s1">&#39;/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">get_sequence_startpath</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="n">idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;activepath/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">d</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">get_active_path</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;Returns the currently set, existing ``active`` path as a string.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str or None: The currently set active path.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">paths</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">active_path</span> <span class="o">=</span> <span class="n">Active</span><span class="o">.</span><span class="n">paths</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">active_path</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">active_path</span><span class="p">[</span><span class="n">k</span><span class="p">]:</span>
+                <span class="k">break</span>
+
+            <span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">active_path</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">get_sequence_endpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="n">path</span> <span class="k">if</span> <span class="n">path</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+
+<span class="k">class</span> <span class="nc">LocalSettings</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QSettings</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to store all user-specific settings, such as list of favourites,</span>
+<span class="sd">    widget settings and filter modes.</span>
+
+<span class="sd">    The current path settings are stored under the ``activepath`` section.</span>
+
+<span class="sd">    Activepath keys:</span>
+<span class="sd">        activepath/server: `Active` server (eg. &#39;//server/data&#39;)</span>
+<span class="sd">        activepath/job: `Active` job folder inside the server (eg. &#39;audible_0001&#39;)</span>
+<span class="sd">        activepath/root: `Active` bookmark folder inside the job folder (eg. &#39;seq_010/shots&#39;).</span>
+<span class="sd">        activepath/asset: `Active` asset folder in side the root folder (eg. &#39;shot_010&#39;).</span>
+<span class="sd">        activepath/location:  `Active` location inside the asset folder (eg. ``common.RendersFolder``).</span>
+<span class="sd">        activepath/file:    The relative path to the `active` file (eg. &#39;subfolder/mayascene_v001.ma&#39;).</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LocalSettings</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QSettings</span><span class="o">.</span><span class="n">UserScope</span><span class="p">,</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">COMPANY</span><span class="p">,</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">PRODUCT</span><span class="p">,</span>
+            <span class="n">parent</span><span class="o">=</span><span class="n">parent</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setDefaultFormat</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QSettings</span><span class="o">.</span><span class="n">NativeFormat</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">LocalSettings</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;true&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;false&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;none&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">val</span>
+
+
+<span class="k">class</span> <span class="nc">AssetSettings</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QSettings</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Wrapper class for QSettings for storing asset and file settings.</span>
+
+<span class="sd">    The asset settings will be stored as an ``.conf`` files in the</span>
+<span class="sd">    ``[asset root]/.browser`` folder.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Primarily expects a QModelIndex but when it&#39;s not possible to provide,</span>
+<span class="sd">        it takes a tuple bookmark tuple of server, job, root and a full filepath.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">bookmark</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">_bookmark</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bookmark</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">_bookmark</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="n">args</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+        <span class="n">collapsed</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">is_collapsed</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">collapsed</span><span class="p">:</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="n">collapsed</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1[0]\3&#39;</span><span class="p">)</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">_bookmark</span><span class="p">,</span>
+            <span class="n">filepath</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">bookmark</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_conf_path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/.browser/</span><span class="si">{}</span><span class="s1">.conf&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">bookmark</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thumbnail_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conf_path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;.conf&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;.png&#39;</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">AssetSettings</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conf_path</span><span class="p">(),</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QSettings</span><span class="o">.</span><span class="n">IniFormat</span><span class="p">,</span>
+            <span class="n">parent</span><span class="o">=</span><span class="n">parent</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setFallbacksEnabled</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">conf_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;The configuration files associated with assets are stored in</span>
+<span class="sd">        the root folder of the current bookmark.</span>
+
+<span class="sd">        For example:</span>
+<span class="sd">            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.conf</span>
+<span class="sd">            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.png</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The path to the configuration file as a string.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conf_path</span>
+
+    <span class="k">def</span> <span class="nf">thumbnail_path</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thumbnail_path</span>
+
+    <span class="k">def</span> <span class="nf">value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">val</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">AssetSettings</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;true&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">elif</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;false&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="k">elif</span> <span class="n">val</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;none&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">val</span>
+
+
+<span class="n">local_settings</span> <span class="o">=</span> <span class="n">LocalSettings</span><span class="p">()</span>
+<span class="n">active_monitor</span> <span class="o">=</span> <span class="n">Active</span><span class="p">()</span>
+<span class="sd">&quot;&quot;&quot;An instance of the local configuration created when loading this module.&quot;&quot;&quot;</span>
+</pre></div>
+
+          </div>
+          <div class="page-nav">
+            <div class="inner"><ul class="page-nav">
+</ul><div class="footer" role="contentinfo">
+      &#169; Copyright 2019, Gergely Wootsch.
+    <br>
+    Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.5 with <a href="https://github.com/schettino72/sphinx_press_theme">Press Theme</a>.
+</div>
+            </div>
+          </div>
+      </page>
+  </div></body>
+</html>
