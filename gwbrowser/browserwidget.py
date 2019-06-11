@@ -28,11 +28,11 @@ class VersionLabel(QtWidgets.QLabel):
 
     def __init__(self, parent=None):
         super(VersionLabel, self).__init__(parent=parent)
-        import gwbrowser
-        self.setText(
-            u'<font color=gray size={}pt>{}</font>'.format(
-                common.psize(common.SMALL_FONT_SIZE),
-                gwbrowser.__version__))
+        self.setFixedWidth(common.INLINE_ICON_SIZE)
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setPixmap(
+            ImageCache.get_rsc_pixmap('info', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE))
 
     def mousePressEvent(self, event):
         QtGui.QDesktopServices.openUrl(
@@ -233,7 +233,7 @@ class BrowserWidget(QtWidgets.QWidget):
             common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
         statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
 
-        statusbar.layout().setContentsMargins(20, 20, 20, 20)
+        # statusbar.layout().setContentsMargins(20, 20, 20, 20)
         self.statusbar = statusbar
 
         self.layout().addWidget(self.listcontrolwidget)
