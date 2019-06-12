@@ -57,11 +57,11 @@ Dedicated maya plug-in
  <img src="./gwbrowser/rsc/maya.png" alt="Maya"/>
 </p>
 
+***
+### [Download the latest binary release](https://github.com/wgergely/GWBrowser/releases)
 
-### [Documentation on github.io](https://wgergely.github.io/GWBrowser)
-
-### [Binary release on github](https://github.com/wgergely/GWBrowser/releases)
-
+### [Documentation](https://wgergely.github.io/GWBrowser)
+***
 
 <p align="center">
  <img src="./gwbrowser/rsc/draganddrop.gif" alt="Maya"/>
