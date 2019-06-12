@@ -1123,6 +1123,8 @@ class FilesWidget(BaseInlineIconWidget):
         path = index.data(QtCore.Qt.StatusTipRole).replace(bookmark, u'')
         path = path.strip(u'/')
 
+        pixmap = None
+        path = None
         if no_modifier:
             pixmap = ImageCache.get_rsc_pixmap('files', None, height)
             path = common.get_sequence_endpath(path)
@@ -1135,6 +1137,11 @@ class FilesWidget(BaseInlineIconWidget):
         elif shift_modifier:
             path = u'{}, ++'.format(common.get_sequence_startpath(path))
             pixmap = ImageCache.get_rsc_pixmap('multiples_files', None, height)
+
+        if pixmap is None:
+            return
+        if path is None:
+            return
 
         self.update(index)
         pixmap = DragPixmap.pixmap(pixmap, path)

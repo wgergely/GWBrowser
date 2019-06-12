@@ -22,7 +22,7 @@
     
   <link rel="index" title="Index" href="genindex.html" />
   <link rel="search" title="Search" href="search.html" />
-  <link rel="next" title="GWBrowser API Documentation" href="api.html" />
+  <link rel="next" title="API Documentation" href="api.html" />
   <link rel="prev" title="Overview" href="overview.html" /> 
   </head>
 
@@ -66,7 +66,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="licence.html">Licence</a></li>
 </ul>
@@ -90,7 +90,7 @@
   </li>
   <li class="next">
     <a href="api.html"
-       title="next chapter">GWBrowser API Documentation →</a>
+       title="next chapter">API Documentation →</a>
   </li>
 </ul>
   
@@ -99,19 +99,26 @@
           <div class="content" role="main">
             
   <div class="section" id="installing-from-source">
-<h1>Installing from source<a class="headerlink" href="#installing-from-source" title="Permalink to this headline">¶</a></h1>
+<span id="id1"></span><h1>Installing from source<a class="headerlink" href="#installing-from-source" title="Permalink to this headline">¶</a></h1>
 <p>To build from source clone the repository from github:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/wgergely/GWBrowser
 </pre></div>
 </div>
 <div class="section" id="dependencies">
 <h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
-<p>GWBrowser will require the following python libraries to function.</p>
+<p>GWBrowser relies on a number libraries to function. The project itself
+is written in Python 2.7.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The standalone windows version’s libraries were compiled with MSCv1900
+(not MSCv1500).</p>
+</div>
 <div class="section" id="pyside2">
 <h3>PySide2<a class="headerlink" href="#pyside2" title="Permalink to this headline">¶</a></h3>
 <p>GWBrowser was tested against <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code> and <code class="docutils literal notranslate"><span class="pre">Qt5.12</span></code>.
-You can get the <code class="docutils literal notranslate"><span class="pre">PySide2</span></code> - the last official build supporting Python2.7
-was <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code></p>
+You can get the <code class="docutils literal notranslate"><span class="pre">PySide2</span></code> from the official repository. Note that the last
+official build supporting Python2.7 was <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code>. The GWBrowser binary distribution
+contains a home-built Python2 version of PySide2-Qt5.12.</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>http://download.qt.io/
 </pre></div>
 </div>
@@ -141,12 +148,12 @@ as follows:</p>
 </div>
 <div class="section" id="scandir">
 <h3>Scandir<a class="headerlink" href="#scandir" title="Permalink to this headline">¶</a></h3>
-<p>This is a Python 2 compatible version of the Python 3 <code class="docutils literal notranslate"><span class="pre">scandir</span></code> module.</p>
+<p>This is a Python 2 compatible build of the Python 3 <code class="docutils literal notranslate"><span class="pre">scandir</span></code> module.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="kn">as</span> <span class="nn">scandir</span>
 <span class="n">scandir</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;C:/test&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>You can find the latest version on github.com.</p>
+<p>The module is embedded in GWBrowser (gwscandir.[pyd, so])</p>
 </div>
 </div>
 </div>
@@ -161,7 +168,7 @@ as follows:</p>
   </li>
   <li class="next">
     <a href="api.html"
-       title="next chapter">GWBrowser API Documentation →</a>
+       title="next chapter">API Documentation →</a>
   </li>
 </ul><div class="footer" role="contentinfo">
       &#169; Copyright 2019, Gergely Wootsch.

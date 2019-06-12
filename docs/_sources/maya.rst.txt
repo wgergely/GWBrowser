@@ -1,0 +1,7 @@
+####
+Maya
+####
+
+
+GWBrowser contains an experimental Maya module: ``mGWBrowser.py``.
+This is automatically installed to the `/username/maya`` folder.

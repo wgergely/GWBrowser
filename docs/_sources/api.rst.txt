@@ -1,13 +1,12 @@
+.. _api-documentation:
+
 ###########################
-GWBrowser API Documentation
+API Documentation
 ###########################
 
 .. contents:: Table of Contents
    :depth: 4
 
-
-Overview
-========
 
 .. automodule:: gwbrowser
    :members: exec_, get_info

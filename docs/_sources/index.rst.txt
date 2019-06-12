@@ -13,24 +13,35 @@ animation and film productions.**
 
 It helps you navigating files and folders associated with digital pipelines by
 creating and annotating the files and folders needed to store data.
-To learn how and what GWBrowser does, you can refer to the Overview or the API
-documentation.
-
-
-Get GWBrowser
-=============
-
+To read more on what GWBrowser does and how refer to the :ref:`overview` or
+:ref:`api-documentation`
 
 
 .. image:: _static/banner.png
    :alt: GWBrowser
 
 
+
+Get GWBrowser
+=============
+
+Get the binary release from `github <https://github.com/wgergely/GWBrowser/releases/>`_.
+Otherwise, you can get the repository from github:
+.. code-block:: bash
+
+  git clone https://github.com/wgergely/GWBrowser
+
+See the notes about building from source: :ref:`installing-from-source`.
+
+
+
 .. toctree::
   :maxdepth: 2
 
   overview
+  files
   installation
+  maya
   api
   contact
   licence

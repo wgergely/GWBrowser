@@ -11,7 +11,6 @@ to each users.
 
 """
 
-import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 import logging
 
@@ -445,7 +444,7 @@ class AddButton(ClickableLabel):
         description = u'Click to add a new job to the server'
         self.setStatusTip(description)
         self.setToolTip(description)
-        self.clicked.connect(self.show_add_jobs_widget)
+        self.clicked.connect(self.action)
 
     def enterEvent(self, event):
         self.repaint()
@@ -475,7 +474,7 @@ class AddButton(ClickableLabel):
         painter.end()
 
     @QtCore.Slot()
-    def show_add_jobs_widget(self):
+    def action(self):
         """Slot connected to the clicked signal."""
         parent = self.window().pick_server_widget
         m = parent.view().selectionModel()
@@ -514,6 +513,54 @@ class AddButton(ClickableLabel):
                 w.add_root_folders(rindex)
                 w.validate()
                 return
+
+
+class ConfigButton(ClickableLabel):
+    """The button responsible for showing the ``AddJobWidget``."""
+
+    def __init__(self, parent=None):
+        super(ConfigButton, self).__init__(parent=parent)
+        s = common.ROW_BUTTONS_HEIGHT * 0.66
+        self.setFixedHeight(s)
+        self.setFixedWidth(s)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'settings', common.TEXT, s)
+        self.setPixmap(pixmap)
+
+        description = u'Click to edit the server definitions'
+        self.setStatusTip(description)
+        self.setToolTip(description)
+        self.clicked.connect(self.action)
+
+    def enterEvent(self, event):
+        self.repaint()
+
+    def leaveEvent(self, event):
+        self.repaint()
+
+    def paintEvent(self, event):
+        option = QtWidgets.QStyleOption()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        if hover:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.66)
+        painter.drawPixmap(self.rect(), self.pixmap(), self.pixmap().rect())
+        painter.end()
+
+    @QtCore.Slot()
+    def action(self):
+        """Slot connected to the clicked signal."""
+        from gwbrowser.editservers import ServerEditor
+        widget = ServerEditor()
+        widget.exec_()
+
+        w = self.parent().window()
+        w.initialize()
 
 
 class AddBookmarksWidget(QtWidgets.QDialog):
@@ -591,6 +638,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_server_widget.setToolTip(description)
         self.pick_server_widget.setStatusTip(description)
         row.layout().addWidget(self.pick_server_widget, 1)
+        row.layout().addWidget(ConfigButton(parent=self), 0)
         self.layout().addWidget(row, 1)
 
         # Job
@@ -905,6 +953,13 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_job_widget.view().clear()
 
         path = index.data(QtCore.Qt.StatusTipRole)
+        if not QtCore.QFileInfo(path).exists():
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setWindowTitle(u'An error occuered')
+            mbox.setText(u'The selected server could not be found.')
+            mbox.setInformativeText(u'Check the server settings and make sure the set servers are p[ointing to valid network share.')
+            return mbox.exec_()
+
         for entry in sorted([f for f in gwscandir.scandir(path)], key=lambda x: x.name):
             if entry.name.startswith(u'.'):
                 continue

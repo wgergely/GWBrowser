@@ -1,61 +1,100 @@
-########
-Overview
-########
+.. _overview:
+
+###############
+Getting started
+###############
 
 
 .. contents:: :local:
 
 
-Jobs, bookmarks and assets
-===========================
+.. image:: _static/banner.png
+   :alt: GWBrowser
 
-GWBrowser organizes projects into three parts: **bookmarks**, **assets**
-and **files**. A folder containing one or more *assets* is considered a |bookmark|
+
+Setup
+=====
+
+You can download the latest version from `github <https://github.com/wgergely/GWBrowser/releases/>`_.
+After the download is complete simply extract and run the installer.
+
+
+GWBrowser organizes projects into three parts: **bookmarks**, **assets** and
+**files**. A folder containing one or more asset is considered a |bookmark|
 **bookmark**.
 
+Why bookmarks...?
+-----------------
 
-Adding a job and selecting a bookmark folder
----------------------------------------------
+Depending on your role, and how the project is structured, you likely will likely
+need to interact with only the part of the total project.
 
-With the bookmarks tab selected (click `bookmarks`, or press ``Ctrl+1``) press
-the small bookmark icon |bookmark| to add a new bookmark.
+For instance, if you're a character modeller, folders where shot and sequences
+are stored might not be of interest to you. In this case, you would bookmark
+the folder where your model scenes reside allowing you to focus on the assets
+that matter to you the most.
 
-.. image:: _static/adding_a_bookmark_ui.gif
-   :target: _static/adding_a_bookmark_ui.gif
+Adding jobs and bookmarks
+---------------------------
+
+After installation you will have to GWBrowser which servers to use. Currently
+Currently you can define three servers: a **primary**, **backup** and **local**
+work folder.
+
+With the ``bookmarks`` tab selected (``Ctrl+1``) click the small bookmark icon
+|bookmark| or press ``Ctrl+N`` to show the dialog used to add jobs and bookmarks.
+
+
+.. image:: _static/addbookmarks.png
    :alt: Adding a bookmark...
 
-You will have to select the server, job and the root folder. These 3 selections
-will make up the bookmark. You can also create the folder-structure for a new
-job here by clicking the plus icon next to the job dropdown menu.
+If no jobs exist yet you can create a new one, otherwise select an
+existing one from the dropdown menu.
+
+.. image:: _static/adding_a_bookmark_ui.gif
+   :alt: Adding a bookmark...
 
 .. note::
-   The first time a job is created the bookmark folders don't contain any assets,
-   and therefore GWBrowser won't be able to find and list them. However,
-   once at least one asset has been added to a bookmark, they will show up in
-   the dropdown menu making it easier for other user to add them.
+  The first time a job is created the bookmark folders won't contain any
+  assets, and therefore GWBrowser can't list them. However, once at
+  least one asset has been added to a bookmark, they will show up in the
+  dropdown menu.
 
+The **server, asset** and **root folder** selections make up the final bookmark.
+Once all three has been selected the bookmark can be added.
+
+.. image:: _static/adding_a_bookmark_ui2.gif
+   :alt: Adding a bookmark...
+
+
+######
+Assets
+######
 
 Every bookmark will contain a number of |asset| **assets**. These can be shots,
-sequences, generic containers, etc. In technical terms, *assets* are simply
-folders used to store texture, render, cache, scene or any other files.
+sequences, or generic containers. In technical terms, *assets* are simply
+folders used to store texture, render, cache, scene (or any other files).
 
 .. note::
 
-  All assets must have an *identifier file* in their root. Because we're using
-  the Maya project structure as our base for assets this is a ``workspace.mel``
+  Assets have an *identifier file* in their root. Because GWBrowser uses
+  the Maya project structure as reference this is a ``workspace.mel``
   file.
 
   When the *identifier file* resides in the root of a directory, GWBrowser will
-  understand it as an *asset*, and the parent folder as a *bookmark*:
+  understand it as an *asset*, and the parent folder as a *bookmark*.
+
+  This is what the relationship between bookmarks and assets look like:
 
   .. code-block:: text
 
-    ./SHOTS/ 	<- bookmark
+    ./SHOTS/ 	    <--- bookmark
+    ├── .browser  <--- settings and thumbnails
     ├── SH000/
-    │   ├── `workspace.mel`
-    │   ├── scenes/
-    │   ├── renders/
-    │   └── textures/
+    │   ├── workspace.mel
+    │   ├── scenes/         <--- a task folder
+    │   ├── renders/        <--- another task folder
+    │   └── textures/       <--- and.. you guessed, a task folder!
     ├── SH010/
     │   ├── workspace.mel
     │   ├── scenes/
@@ -68,8 +107,27 @@ folders used to store texture, render, cache, scene or any other files.
         └── textures/
 
 
-Annotating items
-================
+Adding assets
+=============
+
+Select the ``assets`` tab (``Ctrl+2``) and click the small add icon |add|, or
+press ``Ctrl+N`` to add a new asset.
+
+.. image:: _static/assets.gif
+  :target: _static/assets.gif
+  :alt: Assets...
+
+The created asset will be placed in the root of the currently activated
+bookmark folder. If there's no active bookmark, you wont be able to add an asset.
+
+.. tip::
+   To activate a bookmark or asset, double-click it, or press enter when
+   selected.
+
+
+===========
+Annotations
+===========
 
 An important aspect of GWBrowser is to allow adding descriptions and thumbnails.
 
@@ -79,39 +137,22 @@ An important aspect of GWBrowser is to allow adding descriptions and thumbnails.
 
 .. note::
    Descriptions, thumbnails and comments are visible to everyone using the same
-   server, as is marking an item **archived** |active|.
+   bookmark, as is marking an item **archived** |active|.
 
    Marking an item **favourite** |favourite|, however is local to the current
    user.
 
-
-
-Assets & Files
-==============
-
-Adding assets
--------------
-
-Select the ``assets`` tab and click the small add icon |add|, or press
-``Ctrl+N`` to add a new asset.
-
-.. image:: _static/assets.gif
-  :target: _static/assets.gif
-  :alt: Assets...
-
-The created assets will be placed in the root of the currently activated bookmark
-folder. If there's no active bookmark, you wont be able to add an asset.
-
-.. tip::
-   To activate an item, double-click it, or press enter when selected.
+   All data is stored in a folder called ``.browser`` located in the root of the
+   bookmark folder.
 
 
 Archiving items
 ----------------
 
 Much like bookmarks, assets can be annotated, marked as favourites or archived.
-Because most pipelines are non-destructive deleting obsolete assets is not possible.
-We can hide these items by clicking the small eye icon |active|.
+Because most pipelines are non-destructive deleting obsolete assets and files is
+not possible or advised. We can hide these items by clicking the small eye icon
+|active|.
 
 .. image:: _static/assets2.gif
   :target: _static/assets2.gif
@@ -121,121 +162,6 @@ We can hide these items by clicking the small eye icon |active|.
    Marking something archived intended to mean the item is no longer used, eg.
    it is a depreciated shot or character rig. Marking a folder archived is only
    a visual garnish and in no way modifies the underlaying files.
-
-
-Files and task folders
-======================
-
-Each |asset| **asset** contains a number of sub-folders, if you will, |folder|
-**task folders**. As mentioned, these are the standard Maya project folders by
-default, eg. `scenes`, `textures`, `caches`, etc.
-
-At any one time GWBrowser will show the contents of one of the **task folders**.
-We can switch between them by clicking the ``Files`` tab, or pressing
-``Ctrl+3``.
-
-
-.. image:: _static/sequences.gif
-  :target: _static/sequences.gif
-  :alt: Sequences
-
-
-Once the files are loaded you can interact with them as in other file managers.
-Drag and drop is implemented.
-
-
-.. image:: _static/draganddrop.gif
-  :target: _static/draganddrop.gif
-  :alt: Sequences
-
-.. tip::
-  You can preview the selected items thumbnail by pressing the ``SPACE`` key
-  on your keyboard.
-
-.. tip::
-  Clicking the little-folder icon will |folder| will reveal the file in the
-  file explorer.
-
-.. tip::
-  Pressing ``Ctrl+C`` when an item is selected will copy its full path.
-
-.. tip::
-  If you need a path with forward or backslashes, or an URL, you can use
-  **right-click -> Copy** options.
-
-
-
-Sequences
----------
-
-Sequentially numbered files will grouped into a single sequence. *Sequences* have their
-own separate thumbnail and description independent of the individual items.
-
-Use the little arrow button |group|, or press ``Ctrl+G`` to toggle sequence grouping.
-
-.. note::
-   GWBrowser will fetch *all* files inside the task-folder, including files in
-   subfolders. Understandably, this process might take a while depending on the
-   number of files. Be patient!
-
-   It will also automatically generate thumbnails for image files. This can be
-   turned off by clicking the little spin-icon.
-
-.. tip::
-   To refresh the list **right-click -> Refresh**, or press ``Ctrl+R``.
-
-
-|filter| Filters
-----------------
-
-Because of how GWBrowser collects files the raw list can look intimidating.
-For instance, the scenes folder had 100.000+ files in a recent job. Ouch.
-Luckily we can isolate favourites, and use filters to hone in on the files
-we are interested in.
-
-Click the small file-icon |filter|, or press ``Ctrl+F`` to enter your filter.
-
-.. image:: _static/files.gif
-  :target: _static/files.gif
-  :alt: Sequences
-
-.. note::
-   Filters operate on the full file-path, the description and the file
-   information strings.
-
-
-Filter examples
-~~~~~~~~~~~~~~~
-
-Assuming the current *task folder* is set to ``scenes``, you can see all files in
-the **scenes/animation** folder by simply typing:
-
-.. code-block:: text
-
-  animation
-
-If you're a Maya animator, you can show Maya scene files by entering:
-
-.. code-block:: text
-
-  animation ma
-
-In essence, any subfolder or file-name part becomes a keyword you can use for filtering.
-If the animation folder has any subfolders, eg. ``take1``, ``take2``, etc., you
-can enter...
-
-.. code-block:: text
-
-  animation take1 ma
-
-...to show any Maya animation scenes of the specified take.
-
-
-.. note::
-   Filters are persistent and **unique to the current task-folder**.
-   For each task-folder we can set a filter text - these will stay there until
-   manually removed.
-
 
 
 .. |bookmark| image:: _static/bookmark.png

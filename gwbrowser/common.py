@@ -81,7 +81,9 @@ class Server(object):
     @classmethod
     def conf_path(cls):
         """Returns the path to ``server.conf``."""
-        path = '{}/../templates/servers.conf'.format(__file__)
+        datadir = next(f for f in QtCore.QStandardPaths.standardLocations(
+            QtCore.QStandardPaths.DocumentsLocation))
+        path = u'{}/{}/servers.conf'.format(datadir, PRODUCT)
         path = os.path.normpath(path)
         path = os.path.abspath(path)
         return path
@@ -109,12 +111,22 @@ class Server(object):
         return val[0][platf]
 
     @classmethod
+    def _get(cls, section):
+        o = get_platform()
+        parser = cls.conf()
+        if not parser.has_section(section):
+            return None
+        if not parser.has_option(section, o):
+            return None
+        return cls.conf().get(section, o)
+
+    @classmethod
     def primary(cls):
         """The path to the primary server.
         This is where all active jobs are stored.
 
         """
-        return cls.conf().get('primary', get_platform())
+        return cls._get('primary')
 
     @classmethod
     def backup(cls):
@@ -122,7 +134,7 @@ class Server(object):
         This is where all active job backup are stored.
 
         """
-        return cls.conf().get('backup', get_platform())
+        return cls._get('backup')
 
     @classmethod
     def local(cls):
@@ -130,7 +142,7 @@ class Server(object):
         when needing quick access to storage using the local SSD drive.
 
         """
-        return cls.conf().get('local', get_platform())
+        return cls._get('local')
 
     @classmethod
     def servers(cls):

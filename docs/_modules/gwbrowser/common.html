@@ -59,9 +59,14 @@
 </div>
 <h3><a href="../../index.html">Table of Contents</a></h3>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html#assets">Assets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../files.html#filters">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../files.html#further-reading">Further reading</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">GWBrowser API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -125,12 +130,12 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">zipfile</span>
 <span class="kn">import</span> <span class="nn">ConfigParser</span>
+<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtWidgets</span>
 <span class="kn">import</span> <span class="nn">OpenImageIO.OpenImageIO</span> <span class="k">as</span> <span class="nn">OpenImageIO</span>
 
 <span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="k">as</span> <span class="nn">gwscandir</span>
-
 
 <span class="c1"># Flags</span>
 <span class="n">MarkedAsArchived</span> <span class="o">=</span> <span class="mb">0b1000000000</span>
@@ -173,7 +178,9 @@
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">conf_path</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Returns the path to ``server.conf``.&quot;&quot;&quot;</span>
-        <span class="n">path</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../templates/servers.conf&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span>
+        <span class="n">datadir</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">standardLocations</span><span class="p">(</span>
+            <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">DocumentsLocation</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/servers.conf&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">PRODUCT</span><span class="p">)</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">normpath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">path</span>
@@ -200,13 +207,23 @@
 
         <span class="k">return</span> <span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">platf</span><span class="p">]</span>
 
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">section</span><span class="p">):</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">get_platform</span><span class="p">()</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_section</span><span class="p">(</span><span class="n">section</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">parser</span><span class="o">.</span><span class="n">has_option</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">o</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">section</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
+
 <div class="viewcode-block" id="Server.primary"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.primary">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">primary</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The path to the primary server.</span>
 <span class="sd">        This is where all active jobs are stored.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;primary&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s1">&#39;primary&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Server.backup"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.backup">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">backup</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
@@ -214,7 +231,7 @@
 <span class="sd">        This is where all active job backup are stored.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;backup&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s1">&#39;backup&#39;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Server.local"><a class="viewcode-back" href="../../api.html#gwbrowser.common.Server.local">[docs]</a>    <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">local</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
@@ -222,7 +239,7 @@
 <span class="sd">        when needing quick access to storage using the local SSD drive.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">conf</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;local&#39;</span><span class="p">,</span> <span class="n">get_platform</span><span class="p">())</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="s1">&#39;local&#39;</span><span class="p">)</span></div>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span> <span class="nf">servers</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
@@ -1239,6 +1256,14 @@
     <span class="n">tempdir</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">writableLocation</span><span class="p">(</span>
         <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">TempLocation</span><span class="p">)</span>
     <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/gwbrowser.log&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tempdir</span><span class="p">)</span>
+
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;[</span><span class="si">%(levelname)s</span><span class="s1">] </span><span class="si">%(filename)s</span><span class="s1"> (</span><span class="si">%(asctime)s</span><span class="s1">):        </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+    <span class="n">filename</span><span class="o">=</span><span class="n">log_path</span><span class="p">(),</span>
+    <span class="n">filemode</span><span class="o">=</span><span class="s1">&#39;a+&#39;</span>
+<span class="p">)</span>
 </pre></div>
 
           </div>

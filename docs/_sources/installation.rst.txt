@@ -1,3 +1,5 @@
+.. _installing-from-source:
+
 ######################
 Installing from source
 ######################
@@ -12,15 +14,21 @@ To build from source clone the repository from github:
 Dependencies
 ------------
 
-GWBrowser will require the following python libraries to function.
+GWBrowser relies on a number libraries to function. The project itself
+is written in Python 2.7.
+
+.. note::
+  The standalone windows version's libraries were compiled with MSCv1900
+  (not MSCv1500).
 
 
 PySide2
 ~~~~~~~
 
 GWBrowser was tested against ``Qt5.6`` and ``Qt5.12``.
-You can get the ``PySide2`` - the last official build supporting Python2.7
-was ``Qt5.6``
+You can get the ``PySide2`` from the official repository. Note that the last
+official build supporting Python2.7 was ``Qt5.6``. The GWBrowser binary distribution
+contains a home-built Python2 version of PySide2-Qt5.12.
 
 .. code-block:: text
 
@@ -61,7 +69,7 @@ This is the standard python alembic library but GWBrowser imports it as
 Scandir
 ~~~~~~~
 
-This is a Python 2 compatible version of the Python 3 ``scandir`` module.
+This is a Python 2 compatible build of the Python 3 ``scandir`` module.
 
 .. code-block:: python
 
@@ -69,4 +77,4 @@ This is a Python 2 compatible version of the Python 3 ``scandir`` module.
    scandir.walk(r'C:/test')
 
 
-You can find the latest version on github.com.
+The module is embedded in GWBrowser (gwscandir.[pyd, so])
