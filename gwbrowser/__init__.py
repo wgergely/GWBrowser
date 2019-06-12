@@ -28,6 +28,7 @@ import os
 import importlib
 import traceback
 import platform
+import logging
 
 __name__ = u'gwbrowser'
 __author__ = 'Gergely Wootsch'
@@ -41,20 +42,6 @@ __dependencies__ = (
 )
 __version__ = u'0.1.50'
 
-
-# Making sure the PyImath library is loaded as well
-import gwalembic
-import gwbrowser.common as common
-import gwalembic.alembic as alembic
-import logging
-
-
-logging.basicConfig(
-    format='[%(levelname)s] %(filename)s (%(asctime)s):        %(message)s',
-    level=logging.DEBUG,
-    filename=common.log_path(),
-    filemode='a+'
-)
 
 
 def exception_handler(exc_type, exc_value, exc_traceback):

@@ -33,12 +33,12 @@ import sys
 import re
 import zipfile
 import ConfigParser
+import logging
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
-
 
 # Flags
 MarkedAsArchived = 0b1000000000
@@ -1147,3 +1147,11 @@ def log_path():
     tempdir = QtCore.QStandardPaths.writableLocation(
         QtCore.QStandardPaths.TempLocation)
     return u'{}/gwbrowser.log'.format(tempdir)
+
+
+logging.basicConfig(
+    format='[%(levelname)s] %(filename)s (%(asctime)s):        %(message)s',
+    level=logging.DEBUG,
+    filename=log_path(),
+    filemode='a+'
+)
