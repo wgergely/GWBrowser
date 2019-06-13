@@ -22,7 +22,6 @@ import sys
 import uuid
 import functools
 import collections
-import logging
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import gwbrowser.common as common
@@ -41,8 +40,6 @@ from gwbrowser.addfilewidgetwidgets import SelectFolderView
 from gwbrowser.addfilewidgetwidgets import SelectFolderModel
 import gwbrowser.editors as editors
 
-
-log = logging.getLogger(__name__)
 
 
 class ThumbnailContextMenu(BaseContextMenu):
@@ -955,11 +952,11 @@ class AddFileWidget(QtWidgets.QDialog):
         foldersbutton = [f for f in buttons if f.objectName()
                          == u'SelectFolderButton'][-1]
 
-        if not bookmarkbutton.view().active_index().isValid():
+        if not bookmarkbutton.view().model().sourceModel().active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
                 u'', u'Unable to save as the destination bookmark has not yet been selected.', parent=self).exec_()
-        elif not assetbutton.view().active_index().isValid():
+        elif not assetbutton.view().model().sourceModel().active_index().isValid():
             return QtWidgets.QMessageBox(
                 QtWidgets.QMessageBox.NoIcon,
                 u'', u'Unable to save as the destination asset has not yet been selected.', parent=self).exec_()
@@ -988,7 +985,7 @@ class AddFileWidget(QtWidgets.QDialog):
             if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
                 return None
 
-        bookmark = bookmarkbutton.view().active_index().data(common.ParentRole)
+        bookmark = bookmarkbutton.view().model().sourceModel().active_index().data(common.ParentRole)
         # Let's broadcast these settings
         self.fileSaveRequested.emit(file_info.filePath())
         self.fileThumbnailAdded.emit((

@@ -25,8 +25,8 @@ addittional data. The model will also try to generate thumbnails for any
 import sys
 import re
 import time
-import logging
 import traceback
+from functools import wraps
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
@@ -49,10 +49,23 @@ from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
 
-log = logging.getLogger(__name__)
-
-
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
+
+
+def validate_index(func):
+    """Decorator to validate an index"""
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        """This wrapper will make sure the passed parameters are ok to pass onto
+        OpenImageIO. We will also update the index value here."""
+        if not args[0].isValid():
+            return None
+        if not args[0].data(QtCore.Qt.StatusTipRole):
+            return None
+        if not args[0].data(common.ParentRole):
+            return None
+        return func(*args, **kwargs)
+    return func_wrapper
 
 
 class FileInfoWorker(BaseWorker):
@@ -71,24 +84,17 @@ class FileInfoWorker(BaseWorker):
     indexes_in_progress = []
 
     @staticmethod
+    @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index, update=True):
         """The main processing function called by the worker.
         Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
 
         """
-        if not index.isValid():
-            return
-        if not index.data(QtCore.Qt.StatusTipRole):
-            return
-        if not index.data(common.ParentRole):
-            return
         if index.data(common.FileInfoLoaded):
             return
-
         if isinstance(index.model(), FilterProxyModel):
             index = index.model().mapToSource(index)
-
         data = index.model().model_data()[index.row()]
         settings = AssetSettings(index)
 
@@ -190,28 +196,30 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(1)
-                if self.model.file_info_loaded:
-                    continue
+                time.sleep(1) # Will wait 1 sec between each tries
 
                 if not self.model:
+                    continue
+                if self.model.file_info_loaded:
                     continue
 
                 all_loaded = True
                 for n in xrange(self.model.rowCount()):
                     index = self.model.index(n, 0)
+
                     if not index.data(common.FileInfoLoaded):
-                        FileInfoWorker.process_index(index, update=False)
+                        FileInfoWorker.process_index(index, update=True)
                         all_loaded = False
+
                     if not index.data(common.FileThumbnailLoaded):
                         FileThumbnailWorker.process_index(
                             index, update=True, make=False)
-                        all_loaded = False
+
 
                 if all_loaded:
                     self.model.file_info_loaded = True
 
-        except Exception as err:
+        except Exception:
             sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:
             if self.shutdown_requested:
@@ -232,6 +240,7 @@ class FileThumbnailWorker(BaseWorker):
     indexes_in_progress = []
 
     @staticmethod
+    @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index, update=True, make=True):
         """The static method responsible for querrying the file item's thumbnail.
@@ -240,67 +249,57 @@ class FileThumbnailWorker(BaseWorker):
         then load it. If there's no thumbnail, we will try to generate a thumbnail
         using OpenImageIO.
 
+        Args:
+            update (bool): Repaints the associated view if the index is visible
+            make (bool): Will generate a thumbnail image if there isn't one already
+            
         """
-        if not index.isValid():
-            return
-        if not index.data(QtCore.Qt.StatusTipRole):
-            return
         if not index.data(common.FileInfoLoaded):
             return
-
-        if hasattr(index.model(), 'mapToSource'):
+        if index.flags() & common.MarkedAsArchived:
+            return
+        if isinstance(index.model(), FilterProxyModel):
             index = index.model().mapToSource(index)
-        data = index.model().model_data()[index.row()]
 
+        data = index.model().model_data()[index.row()]
         settings = AssetSettings(index)
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
         height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
-
         ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
+        # Checking if we can load an existing image
         if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
-            # Overriding the cached image:
             image = ImageCache.get(
                 data[common.ThumbnailPathRole], height, overwrite=True)
+            if image:
+                color = ImageCache.get(
+                    data[common.ThumbnailPathRole], u'BackgroundColor')
+                data[common.ThumbnailRole] = image
+                data[common.ThumbnailBackgroundRole] = color
+                data[common.FileThumbnailLoaded] = True
+                if update:
+                    index.model().indexUpdated.emit(index)
+                return
 
         # If the item doesn't have a saved thumbnail we will check if
         # OpenImageIO is able to make a thumbnail for it:
-        if make:
-            if not image:
-                if ext in common.oiio_formats:
-                    model = index.model()
-                    data = model.model_data()[index.row()]
-                    spinner_pixmap = ImageCache.get(
-                        common.rsc_path(__file__, u'spinner'),
-                        data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-                    data[common.ThumbnailRole] = spinner_pixmap
-                    data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
-                    data[common.FileThumbnailLoaded] = False
+        if index.model().generate_thumbnails and make and ext in common.oiio_formats:
+            model = index.model()
+            data = model.model_data()[index.row()]
+            spinner_pixmap = ImageCache.get(
+                common.rsc_path(__file__, u'spinner'),
+                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+            data[common.ThumbnailRole] = spinner_pixmap
+            data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+            data[common.FileThumbnailLoaded] = False
 
-                    if update:
-                        model.indexUpdated.emit(index)
+            if update:
+                model.indexUpdated.emit(index)
 
-                    ImageCacheWorker.process_index(index)
-                else:
-                    data[common.FileThumbnailLoaded] = True
-                return
-
-        # There's no thumbnail for this item, let's consider it loaded
-        if not image:
-            data[common.FileThumbnailLoaded] = True
-            return
-
-        # We have loaded a saved thumbnail and not further processing is needed
-        color = ImageCache.get(
-            data[common.ThumbnailPathRole], u'BackgroundColor')
-        data[common.FileThumbnailLoaded] = True
-        data[common.ThumbnailRole] = image
-        data[common.ThumbnailBackgroundRole] = color
-
-        if update:
-            index.model().indexUpdated.emit(index)
+                # Emits an indexUpdated signal if successfully generated the thumbnail
+            ImageCacheWorker.process_index(index)
 
 
 class FileInfoThread(BaseThread):
@@ -702,10 +701,13 @@ class FilesModel(BaseModel):
         Called by the ``modelAboutToBeReset`` signal.
 
         """
+        from gwbrowser.datakeywidget import DataKeyWorker
+
         FileInfoWorker.reset_queue()
         FileThumbnailWorker.reset_queue()
         SecondaryFileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
+        DataKeyWorker.reset_queue()
 
         self.reset_file_info_loaded()
 
@@ -919,9 +921,13 @@ class FilesWidget(BaseInlineIconWidget):
         """
         needs_info = []
         needs_thumbnail = []
+        visible = []
         generate_thumbnails = self.model().sourceModel().generate_thumbnails
 
         if self.verticalScrollBar().isSliderDown():
+            return
+
+        if not self.model().rowCount():
             return
 
         index = self.indexAt(self.rect().topLeft())
@@ -935,7 +941,7 @@ class FilesWidget(BaseInlineIconWidget):
                 needs_info.append(index)
             if not index.data(common.FileThumbnailLoaded):
                 needs_thumbnail.append(index)
-
+            visible.append(index)
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
             if not index.isValid():
@@ -944,6 +950,7 @@ class FilesWidget(BaseInlineIconWidget):
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
         if index.isValid():
+            visible.append(index)
             if not index.data(common.FileInfoLoaded):
                 if index not in needs_info:
                     needs_info.append(index)
@@ -955,11 +962,10 @@ class FilesWidget(BaseInlineIconWidget):
 
         # We want to make sure we keep archived items hidden. If we detect any
         # archived items, we will invalidate the proxy model.
-        if needs_info:
-            if not self.model().filterFlag(common.MarkedAsArchived):
-                if [f for f in needs_info if f.flags() & common.MarkedAsArchived]:
-                    self.model().invalidateFilter()
-                    return
+        if not self.model().filterFlag(common.MarkedAsArchived):
+            if any([f.flags() & common.MarkedAsArchived for f in visible]):
+                self.model().invalidateFilter()
+                return
 
         if needs_info:
             FileInfoWorker.add_to_queue(needs_info)

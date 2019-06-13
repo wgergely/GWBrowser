@@ -9,15 +9,11 @@ Each thread is assigned a single Worker - usually responsible for taking
 
 """
 import sys
-import logging
 import traceback
 import Queue
-import threading
 from PySide2 import QtCore
 
-import gwbrowser
-
-log = logging.getLogger(__name__)
+import gwbrowser.common as common
 
 
 class Unique(Queue.Queue):
@@ -34,18 +30,13 @@ class Unique(Queue.Queue):
         return self.queue.pop()
 
 
-mutex = QtCore.QMutex()
-
-
 class BaseWorker(QtCore.QObject):
     """The base for all workers associated with a QThread.
     `begin_processing` is a blocking function and will take any QModelIndexes in
     in `BaseWorker.Unique` queue.
 
     """
-
     queue = Unique(999999)
-    lock = threading.Lock()
     shutdown_requested = False
     indexes_in_progress = []
 
@@ -55,7 +46,6 @@ class BaseWorker(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
-        self.mutex = QtCore.QMutex()
         self.model = None
 
     @QtCore.Slot()
@@ -73,7 +63,7 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot(tuple)
     @classmethod
-    def add_to_queue(cls, indexes, persistent=True):
+    def add_to_queue(cls, indexes):
         """Converts the list of indexes to ``QPersistentModelIndex`` model indexes
         and adds it to the worker's queue.
 
@@ -83,8 +73,10 @@ class BaseWorker(QtCore.QObject):
         for index in indexes:
             if not index.isValid():
                 continue
-            if persistent:
-                index = QtCore.QPersistentModelIndex(index)
+            if not index.data(QtCore.Qt.StatusTipRole):
+                continue
+            if not index.data(common.ParentRole):
+                continue
             if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in current_queue]:
                 continue
             if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.indexes_in_progress]:
@@ -132,7 +124,6 @@ class BaseWorker(QtCore.QObject):
                 # We'll remove the index from the currently processing items
                 if index in self.indexes_in_progress:
                     self.indexes_in_progress.remove(index)
-
         except Exception:
             sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:

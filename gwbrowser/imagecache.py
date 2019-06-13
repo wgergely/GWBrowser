@@ -20,7 +20,6 @@ import os
 import traceback
 from functools import wraps
 from xml.etree import ElementTree
-import logging
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -31,9 +30,6 @@ import gwbrowser.common as common
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
-
-
-log = logging.getLogger(__name__)
 
 
 def oiio(func):

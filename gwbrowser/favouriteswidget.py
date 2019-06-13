@@ -5,7 +5,6 @@ user.
 """
 
 import os
-import logging
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -17,9 +16,6 @@ from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
-
-
-log = logging.getLogger(__name__)
 
 
 def rsc_path(f, n):

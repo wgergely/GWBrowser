@@ -437,9 +437,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         f = self.browserwidget.fileswidget
         if not f:
             return
-        if not f.active_index().isValid():
+        if not f.model().sourceModel().active_index().isValid():
             return
-        f.deactivate(f.active_index())
+        f.deactivate(f.model().sourceModel().active_index())
 
     @QtCore.Slot()
     def update_active_item(self, *args):
@@ -451,8 +451,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         if not f:
             return
 
-        if f.active_index().isValid():
-            f.deactivate(f.active_index())
+        if f.model().sourceModel().active_index().isValid():
+            f.deactivate(f.model().sourceModel().active_index())
 
         for n in xrange(f.model().rowCount()):
             index = f.model().index(n, 0, parent=QtCore.QModelIndex())

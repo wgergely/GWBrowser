@@ -5,7 +5,6 @@ import os
 import functools
 from functools import wraps
 import collections
-import logging
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -13,9 +12,6 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 from gwbrowser.settings import AssetSettings
-
-
-log = logging.getLogger(__name__)
 
 
 def contextmenu(func):
@@ -364,19 +360,16 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
+        source_index = self.parent().model().mapToSource(self.index)
         refresh_pixmap = ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         if self.index.isValid():
             menu_set[u'Activate'] = {
-                u'action': lambda: self.parent().activate(self.index)
+                u'action': lambda: self.parent().activate(source_index)
             }
 
-        def refresh():
-            self.parent().model().sourceModel().beginResetModel()
-            self.parent().model().sourceModel().__initdata__()
-
         menu_set[u'Refresh'] = {
-            u'action': self.parent().model().sourceModel().__initdata__,
+            u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
             u'icon': refresh_pixmap
         }
 

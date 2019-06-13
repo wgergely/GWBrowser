@@ -12,14 +12,10 @@ visual indicators.
 
 import re
 from functools import wraps
-import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
-
-
-log = logging.getLogger(__name__)
 
 
 def paintmethod(func):
@@ -106,6 +102,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         else:
             color = QtGui.QColor(common.BACKGROUND)
 
+
         rect = QtCore.QRect(option.rect)
         center = rect.center()
         rect.setHeight(rect.height() - common.ROW_SEPARATOR)
@@ -129,6 +126,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if hover:
             painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(rect)
+
 
     @paintmethod
     def paint_selection_indicator(self, *args):
@@ -154,15 +152,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of an item."""
         painter, option, index, _, _, _, _, _, hover = args
-
-        if not hover:
-            painter.setOpacity(0.666)
-        else:
-            painter.setOpacity(0.8)
-
-        if self.parent().active_index() == index:
-            painter.setOpacity(1.0)
-
         # Background rectangle
         rect = QtCore.QRect(option.rect)
         center = rect.center()
@@ -180,7 +169,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
+        if not hover:
+            painter.setOpacity(0.8)
         painter.drawRect(rect)
+        painter.setOpacity(1.0)
 
         irect = image.rect()
         irect.moveCenter(rect.center())
@@ -822,7 +814,7 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_background(*args)
         #
         self.paint_thumbnail(*args)
-        #
+        # #
         self.paint_thumbnail_shadow(*args)
         #
         left = self.paint_mode(*args)
@@ -844,9 +836,11 @@ class FilesWidgetDelegate(BaseDelegate):
     @paintmethod
     def paint_drag_source(self, *args, **kwargs):
         """Overlay do indicate the source of a drag operation."""
-        painter, option, index, selected, _, _, _, _, hover = args
+        painter, option, index, _, _, _, _, _, _ = args
+
         if index != self.parent().drag_source_index:
             return
+
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
         painter.setOpacity(0.8)

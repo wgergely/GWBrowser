@@ -6,7 +6,6 @@ allow dropping files and urls on the view.
 """
 
 import re
-import logging
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
 
@@ -21,9 +20,6 @@ from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
-
-
-log = logging.getLogger(__name__)
 
 
 class ImageDownloader(QtCore.QObject):

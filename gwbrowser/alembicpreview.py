@@ -7,12 +7,8 @@ of an Alembic file.
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import logging
 import gwalembic.alembic as alembic
 import gwbrowser.common as common
-
-
-log = logging.getLogger(__name__)
 
 
 class AlembicNode(QtCore.QObject):

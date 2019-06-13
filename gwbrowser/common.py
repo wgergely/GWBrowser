@@ -33,7 +33,6 @@ import sys
 import re
 import zipfile
 import ConfigParser
-import logging
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
@@ -177,7 +176,7 @@ ITHREAD_COUNT = 4
 LTHREAD_COUNT = 1
 """The number of threads used by the ``DataKeyModel`` to count files."""
 
-FTIMER_INTERVAL = 500  # 0.5 sec
+FTIMER_INTERVAL = 1000  # 1.0 sec
 """The frequency of querrying lists to load file and thumbnail info"""
 
 ExportsFolder = u'cache'
@@ -1157,18 +1156,3 @@ def create_asset_from_template(name, basepath, template):
             raise RuntimeError(u'An error occured creating the asset folders.')
     with zipfile.ZipFile(template_info.absoluteFilePath(), 'r', zipfile.ZIP_DEFLATED) as f:
         f.extractall(dest_info.absolutePath(), members=None, pwd=None)
-
-
-def log_path():
-    """Returns the file used to keep logs"""
-    tempdir = QtCore.QStandardPaths.writableLocation(
-        QtCore.QStandardPaths.TempLocation)
-    return u'{}/gwbrowser.log'.format(tempdir)
-
-
-logging.basicConfig(
-    format='[%(levelname)s] %(filename)s (%(asctime)s):        %(message)s',
-    level=logging.DEBUG,
-    filename=log_path(),
-    filemode='a+'
-)

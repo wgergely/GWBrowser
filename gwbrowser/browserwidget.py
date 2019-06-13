@@ -4,7 +4,6 @@ It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
 
 """
 
-import logging
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
@@ -17,9 +16,6 @@ from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
-
-
-log = logging.getLogger(__name__)
 
 
 class VersionLabel(QtWidgets.QLabel):

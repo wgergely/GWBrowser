@@ -13,7 +13,6 @@ their contents into a specified directory.
 import re
 import functools
 from PySide2 import QtWidgets, QtCore
-import logging
 
 import gwbrowser.common as common
 from gwbrowser.addbookmarkswidget import PaintedLabel
@@ -25,9 +24,6 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import CloseButton
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.settings as Settings
-
-
-log = logging.getLogger(__name__)
 
 
 class AddAssetWidgetContextMenu(BaseContextMenu):

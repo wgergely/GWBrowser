@@ -242,7 +242,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
 
-        self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
@@ -354,7 +353,6 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.tray.activated.connect(self.trayActivated)
 
-        self.setMouseTracking(True)
         self.installEventFilter(self)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)

@@ -11,7 +11,7 @@ in the common module.
 """
 
 import sys
-import logging
+import traceback
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -28,9 +28,6 @@ from gwbrowser.threads import Unique
 from gwbrowser.basecontextmenu import BaseContextMenu
 
 
-log = logging.getLogger(__name__)
-
-
 class DataKeyContextMenu(BaseContextMenu):
     """The context menu associated with the DataKeyView."""
 
@@ -41,16 +38,15 @@ class DataKeyContextMenu(BaseContextMenu):
 
 class DataKeyWorker(BaseWorker):
     """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
-    queue = Unique(999999)
+    queue = Unique(999)
     indexes_in_progress = []
 
+    @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
-    @classmethod
-    def process_index(cls, index):
+    def process_index(index):
         """The actual processing happens here."""
         if not index.isValid():
             return
-
         if not index.data(QtCore.Qt.StatusTipRole):
             return
 
@@ -66,8 +62,8 @@ class DataKeyWorker(BaseWorker):
             data = index.model().model_data()
             data[index.row()][common.TodoCountRole] = count
             index.model().dataChanged.emit(index, index)
-        except Exception as err:
-            pass
+        except Exception:
+            sys.stderr.write(traceback.format_exc())
 
 
 class DataKeyThread(BaseThread):
@@ -99,6 +95,7 @@ class DataKeyViewDelegate(BaseDelegate):
         rect.setHeight(rect.height() - 1)
         rect.moveCenter(center)
         background = QtGui.QColor(common.BACKGROUND)
+        background.setAlpha(150)
         color = common.BACKGROUND_SELECTED if selected or hover else background
         painter.setBrush(color)
         painter.drawRect(rect)
@@ -113,7 +110,7 @@ class DataKeyViewDelegate(BaseDelegate):
         if index.data(common.TodoCountRole):
             color = common.TEXT_SELECTED if hover else common.TEXT
         else:
-            color = common.TEXT_SELECTED if hover else common.SECONDARY_TEXT
+            color = common.TEXT if hover else common.BACKGROUND_SELECTED
         color = common.TEXT_SELECTED if selected else color
 
         font = QtGui.QFont(common.PrimaryFont)
@@ -138,20 +135,27 @@ class DataKeyViewDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if selected else common.FAVOURITE
             color = common.TEXT_SELECTED if hover else color
             items.append((text, color))
-            painter.setOpacity(0.66)
+        else:
+            items.append(('', common.SECONDARY_BACKGROUND))
 
         if index.data(QtCore.Qt.ToolTipRole):
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
             color = common.TEXT_SELECTED if hover else color
             items.append((index.data(QtCore.Qt.ToolTipRole), color))
 
-        for text, color in items:
+        for idx, val in enumerate(items):
+            text, color = val
+            if idx == 0:
+                align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+            else:
+                align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
+
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, u'    |    ', QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, common.SEPARATOR)
+                painter, common.SecondaryFont, rect, u'    |    ', align, common.SEPARATOR)
             rect.setLeft(rect.left() + width)
 
             width = common.draw_aliased_text(
-                painter, common.SecondaryFont, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+                painter, common.SecondaryFont, rect, text, align, color)
             rect.setLeft(rect.left() + width)
 
     def sizeHint(self, option, index):
@@ -293,7 +297,7 @@ class DataKeyModel(BaseModel):
 
         self.threads = {}
         for n in xrange(common.LTHREAD_COUNT):
-            self.threads[n] = DataKeyThread()
+            self.threads[n] = DataKeyThread(parent)
             self.threads[n].start()
 
     @property
@@ -377,13 +381,12 @@ class DataKeyModel(BaseModel):
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
-                common.ParentRole: None,
+                common.ParentRole: self._parent_item,
                 #
                 common.FileInfoLoaded: False,
                 common.FileThumbnailLoaded: True,
                 common.TodoCountRole: 0,
             }
             indexes.append(idx)
-
         DataKeyWorker.add_to_queue(
-            (self.index(f, 0) for f in indexes), persistent=False)
+            (self.index(f, 0) for f in indexes))

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
-import logging
 import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -21,9 +20,6 @@ from gwbrowser.assetswidget import AssetModel
 from gwbrowser.bookmarkswidget import BookmarksModel
 
 from gwbrowser.settings import local_settings
-
-
-log = logging.getLogger(__name__)
 
 
 class ControlButton(ClickableLabel):

@@ -28,7 +28,6 @@ import os
 import importlib
 import traceback
 import platform
-import logging
 
 __name__ = u'gwbrowser'
 __author__ = 'Gergely Wootsch'
@@ -46,9 +45,6 @@ __version__ = u'0.1.50'
 
 def exception_handler(exc_type, exc_value, exc_traceback):
     """Custom exception handler to log error messages."""
-    logging.error("Uncaught exception", exc_info=(
-        exc_type, exc_value, exc_traceback))
-
     from PySide2 import QtWidgets
     app = QtWidgets.QApplication.instance()
     if not app:
