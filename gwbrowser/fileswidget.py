@@ -1091,6 +1091,10 @@ class FilesWidget(BaseInlineIconWidget):
 
         if not index.isValid():
             return
+        if not index.data(QtCore.Qt.StatusTipRole):
+            return
+        if not index.data(common.ParentRole):
+            return
 
         self.drag_source_index = index
         drag = QtGui.QDrag(self)
@@ -1119,12 +1123,12 @@ class FilesWidget(BaseInlineIconWidget):
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
 
         # Set pixmap
-        bookmark = u'/'.join(index.data(common.ParentRole)[:3])
-        path = index.data(QtCore.Qt.StatusTipRole).replace(bookmark, u'')
-        path = path.strip(u'/')
-
         pixmap = None
-        path = None
+        path = index.data(QtCore.Qt.StatusTipRole)
+
+        bookmark = u'/'.join(index.data(common.ParentRole)[:3])
+        path = path.replace(bookmark, u'')
+        path = path.strip(u'/')
         if no_modifier:
             pixmap = ImageCache.get_rsc_pixmap('files', None, height)
             path = common.get_sequence_endpath(path)
@@ -1137,10 +1141,7 @@ class FilesWidget(BaseInlineIconWidget):
         elif shift_modifier:
             path = u'{}, ++'.format(common.get_sequence_startpath(path))
             pixmap = ImageCache.get_rsc_pixmap('multiples_files', None, height)
-
-        if pixmap is None:
-            return
-        if path is None:
+        else:
             return
 
         self.update(index)
