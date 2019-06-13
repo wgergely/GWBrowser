@@ -1,57 +1,26 @@
+####################
 Task folders & files
-====================
+####################
+
 
 Each |asset| **asset** contains a number of |folder|
 **task folders**. These are the standard Maya project folders by
 default, eg. the `scenes`, `textures`, `caches`, etc. folders.
 
-At any one time, GWBrowser will show the contents of **one** of the task
-folders. To switch between them by clicking the ``Files`` tab, or press
-``Ctrl+3``.
-
-Once you make a selection, GWBrowser will load **all** the files found inside
-the task-folder and its subdirectories. Understandably, this process might take
-a while depending on the number of files. Be patient!
 
 .. image:: _static/sequences.gif
   :alt: Sequences
 
-You can interact with the files by dragging and dropping them or double-clicking.
+At any one time, GWBrowser will show the contents of **one** of the task
+folders. To switch between them by clicking the ``Files`` tab, or press
+``Ctrl+3``.
 
-.. image:: _static/draganddrop.gif
-  :alt: Sequences
-
-.. note::
-  The files will **never** be moved, only copied.
-  GWBrowser can't be used to rename, or remove files, only to browse them.
-
-When dragging and dropping sequences we can decide which files to grab by pressing
-the modifier keys **before** the items is dragged:
-
-- Grabbing the **last** item of the sequence: ``Drag``
-- Grabbing the **first** element of the sequence: ``Drag+Alt``
-- Grabbing **all** elements: ``Drag+Shift``
-- Grabbing the **parent folder**: ``Drag+Alt+Shift``
-
-.. image:: _static/files3.gif
-  :alt: Sequences
-
-Locations
-~~~~~~~~~
-
-Clicking the little-folder icon |folder| or pressing ``Ctrl+O`` will reveal the
-selection in the file explorer. Double-clicking a file will open it as it would
-normally in the file-manager.
-
-.. tip::
-  Pressing ``Ctrl+C`` when an item is selected will copy its full path.
-
-  If you need a path with forward or backslashes, or an URL, you can use
-  **right-click -> Copy** options.
-
+GWBrowser will load **all** the files found inside a task-folder and its
+subdirectories. Understandably, this process might take a while depending on the
+number of files. Be patient!
 
 Sequences
----------
+=========
 
 Sequentially numbered files will be grouped into **sequences**. Sequences
 have their own separate thumbnail and description independent of the individual
@@ -65,12 +34,48 @@ and individual items.
    To refresh the list **right-click -> Refresh**, or press ``Ctrl+R``.
 
 
+Dragging sequences
+==================
+
+When dragging and dropping sequences we can decide which files to grab by
+pressing the modifier keys **before** the items is dragged.
+
+.. image:: _static/draganddrop.gif
+  :alt: Sequences
+
+- ``Drag``: Grabs the **last** item of the sequence
+- ``Drag+Alt``: Grabs the **first** element of the sequence.
+- ``Drag+Shift``: Grabs **all** elements
+- ``Drag+Alt+Shift``: Grabs the **parent folder**
+
+.. image:: _static/files3.gif
+  :alt: Sequences
+
+.. note::
+  The files will **never** be moved, only copied.
+  GWBrowser can't be used to rename, or remove files, only to browse them.
+
+
+Revealing items in the file manager
+===================================
+
+Clicking the little-folder icon |folder| or pressing ``Ctrl+O`` will reveal the
+selection in the file explorer. Double-clicking a file will open it as it would
+normally in the file-manager.
+
+.. tip::
+  Pressing ``Ctrl+C`` when an item is selected will copy its full path.
+
+  If you need a path with forward or backslashes, or an URL, you can use
+  **right-click -> Copy** options.
+
+
 Thumbnails
-----------
+==========
 
 Using the amazing `OpenImageIO <https://github.com/OpenImageIO/oiio>`_
-GWBrowser will do it's best to create thumbnails for files it
-understands. If you're experiencing any performance issues you can disable this
+GWBrowser will do its best to create thumbnails for files it
+understands. If you're experiencing performance issues you can disable this
 by clicking the little spinner icon or pressing ``Ctrl+M``.
 
 .. image:: _static/preview.gif
@@ -80,8 +85,8 @@ Preview thumbnails by pressing the ``SPACE`` key. Use the ``arrow down`` and
 ``arrow up`` keys to step back and forwards.
 
 
-Filters
-=======
+Filtering lists
+===============
 
 Because GWbrowser loads **all** files in a task-folder resulting list can look
 intimidating. For instance, the scenes folder had 100.000+ files in a recent
@@ -107,7 +112,7 @@ Filter examples
 Assuming the current *task folder* is ``scenes``, you can show all files in
 the **scenes/animation** folder by typing:
 
-.. code-block:: python
+.. code-block:: java
 
   animation
 
@@ -120,7 +125,7 @@ from Cinema 4D you can show ``*.ma`` scene files by entering:
 
 or specifically hiding ``*.c4d`` files by entering
 
-.. code-block:: python
+.. code-block:: java
 
    animation --c4d
 
@@ -128,7 +133,7 @@ In essence, any subfolder or file-name part becomes a keyword you can use for fi
 If the animation folder has any subfolders, eg. ``take1``, ``take2``, etc., you
 can enter...
 
-.. code-block:: python
+.. code-block:: java
 
   animation take1 ma
 

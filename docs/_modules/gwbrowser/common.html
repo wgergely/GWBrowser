@@ -61,9 +61,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html">Getting started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../overview.html#assets">Assets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html#annotations">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../files.html#filters">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../files.html#further-reading">Further reading</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
@@ -1216,10 +1215,8 @@
 
 
 <span class="n">AssetTypes</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="n">MayaAssetTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;MayaAsset&#39;</span><span class="p">,</span>
-    <span class="n">ProjectTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Project&#39;</span><span class="p">,</span>
-
-
+    <span class="n">MayaAssetTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Asset&#39;</span><span class="p">,</span>
+    <span class="n">ProjectTemplate</span><span class="p">:</span> <span class="sa">u</span><span class="s1">&#39;Job&#39;</span><span class="p">,</span>
 <span class="p">}</span>
 
 
@@ -1236,9 +1233,16 @@
 <span class="sd">        template (unicode):     The name of the template file *without* the zip extension.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">datadir</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">standardLocations</span><span class="p">(</span>
+        <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">DocumentsLocation</span><span class="p">))</span>
     <span class="n">template_info</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span>
-        <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/../templates/</span><span class="si">{}</span><span class="s1">.zip&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="n">AssetTypes</span><span class="p">[</span><span class="n">template</span><span class="p">]))</span>
+        <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">.zip&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">PRODUCT</span><span class="p">,</span> <span class="n">AssetTypes</span><span class="p">[</span><span class="n">template</span><span class="p">]))</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">template_info</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="n">mbox</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">()</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Error creating asset&#39;</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="s1">&#39;The template file could not be located.&#39;</span><span class="p">)</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">setInformativeText</span><span class="p">(</span><span class="s1">&#39;Make sure the Asset.zip and Job.zip files exist and are valid.</span><span class="se">\n\n</span><span class="s1">Template must be placed here:</span><span class="se">\n</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">template_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">()))</span>
+        <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
             <span class="sa">u</span><span class="s1">&#39;The &quot;</span><span class="si">{}</span><span class="s1">.zip&quot; template file could not be located.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">AssetTypes</span><span class="p">[</span><span class="n">template</span><span class="p">]))</span>
 

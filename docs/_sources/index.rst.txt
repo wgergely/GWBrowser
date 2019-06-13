@@ -8,13 +8,12 @@
    :alt: Logo
 
 
-**GWBrowser is a simple digital asset manager aimed at small and medium sized
+**GWBrowser is a simple digital asset manager aimed at small and medium-sized
 animation and film productions.**
 
-It helps you navigating files and folders associated with digital pipelines by
-creating and annotating the files and folders needed to store data.
-To read more on what GWBrowser does and how refer to the :ref:`overview` or
-:ref:`api-documentation`
+It helps you navigate digital productions by creating and annotating the files
+and folders used to keep projects. To learn more on what GWBrowser does and how you
+can have a look at the :ref:`overview` or :ref:`api-documentation`.
 
 
 .. image:: _static/banner.png
@@ -25,15 +24,12 @@ To read more on what GWBrowser does and how refer to the :ref:`overview` or
 Get GWBrowser
 =============
 
-Get the binary release from `github <https://github.com/wgergely/GWBrowser/releases/>`_.
-Otherwise, you can get the repository from github:
-.. code-block:: bash
-
-  git clone https://github.com/wgergely/GWBrowser
-
-See the notes about building from source: :ref:`installing-from-source`.
+You can get the latest version from `Github Releases <https://github.com/wgergely/GWBrowser/releases/>`_
+(see the notes about building from source: :ref:`installing-from-source`).
 
 
+Table of Contents
+=================
 
 .. toctree::
   :maxdepth: 2

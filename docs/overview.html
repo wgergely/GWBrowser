@@ -62,11 +62,17 @@
 <h3><a href="index.html">Table of Contents</a></h3>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Getting started</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#setup">Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#why-bookmarks">Why bookmarks…?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-jobs-and-bookmarks">Adding jobs and bookmarks</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="#assets">Assets</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#adding-assets">Adding assets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#customising-the-job-and-asset-templates">Customising the job and asset templates</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="#annotations">Annotations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#archiving-items">Archiving items</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="files.html">Task folders &amp; files</a></li>
@@ -110,57 +116,50 @@
 <span id="overview"></span><h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#setup" id="id1">Setup</a><ul>
-<li><a class="reference internal" href="#why-bookmarks" id="id2">Why bookmarks…?</a></li>
-<li><a class="reference internal" href="#adding-jobs-and-bookmarks" id="id3">Adding jobs and bookmarks</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#why-bookmarks" id="id1">Why bookmarks…?</a></li>
+<li><a class="reference internal" href="#adding-jobs-and-bookmarks" id="id2">Adding jobs and bookmarks</a></li>
 </ul>
 </div>
 <img alt="GWBrowser" src="_images/banner.png" />
-<div class="section" id="setup">
-<h2><a class="toc-backref" href="#id1">Setup</a><a class="headerlink" href="#setup" title="Permalink to this headline">¶</a></h2>
-<p>You can download the latest version from <a class="reference external" href="https://github.com/wgergely/GWBrowser/releases/">github</a>.
-After the download is complete simply extract and run the installer.</p>
+<div class="section" id="why-bookmarks">
+<h2><a class="toc-backref" href="#id1">Why bookmarks…?</a><a class="headerlink" href="#why-bookmarks" title="Permalink to this headline">¶</a></h2>
 <p>GWBrowser organizes projects into three parts: <strong>bookmarks</strong>, <strong>assets</strong> and
 <strong>files</strong>. A folder containing one or more asset is considered a <img alt="bookmark" src="_images/bookmark.png" />
 <strong>bookmark</strong>.</p>
-<div class="section" id="why-bookmarks">
-<h3><a class="toc-backref" href="#id2">Why bookmarks…?</a><a class="headerlink" href="#why-bookmarks" title="Permalink to this headline">¶</a></h3>
 <p>Depending on your role, and how the project is structured, you likely will likely
-need to interact with only the part of the total project.</p>
-<p>For instance, if you’re a character modeller, folders where shot and sequences
-are stored might not be of interest to you. In this case, you would bookmark
-the folder where your model scenes reside allowing you to focus on the assets
-that matter to you the most.</p>
+need to interact with only the part of the project.</p>
+<p>For instance, if you’re a character modeller, some folders (eg. shots and
+sequences) might not be of interest to you. In this case, you would bookmark the
+folder where your model scenes reside allowing you to focus on the assets that
+matter to you the most.</p>
 </div>
 <div class="section" id="adding-jobs-and-bookmarks">
-<h3><a class="toc-backref" href="#id3">Adding jobs and bookmarks</a><a class="headerlink" href="#adding-jobs-and-bookmarks" title="Permalink to this headline">¶</a></h3>
-<p>After installation you will have to GWBrowser which servers to use. Currently
-Currently you can define three servers: a <strong>primary</strong>, <strong>backup</strong> and <strong>local</strong>
+<h2><a class="toc-backref" href="#id2">Adding jobs and bookmarks</a><a class="headerlink" href="#adding-jobs-and-bookmarks" title="Permalink to this headline">¶</a></h2>
+<p>Before you can add a bookmark GWBrowser must be told which servers to use.
+You can define three a <strong>primary</strong>, <strong>backup</strong> and <strong>local</strong>
 work folder.</p>
 <p>With the <code class="docutils literal notranslate"><span class="pre">bookmarks</span></code> tab selected (<code class="docutils literal notranslate"><span class="pre">Ctrl+1</span></code>) click the small bookmark icon
-<img alt="bookmark" src="_images/bookmark.png" /> or press <code class="docutils literal notranslate"><span class="pre">Ctrl+N</span></code> to show the dialog used to add jobs and bookmarks.</p>
+<img alt="bookmark" src="_images/bookmark.png" /> or press <code class="docutils literal notranslate"><span class="pre">Ctrl+N</span></code> to show the dialogue used to add jobs and bookmarks.</p>
 <img alt="Adding a bookmark..." src="_images/addbookmarks.png" />
-<p>If no jobs exist yet you can create a new one, otherwise select an
+<p>If no jobs exist create a new one, otherwise select an
 existing one from the dropdown menu.</p>
 <img alt="Adding a bookmark..." src="_images/adding_a_bookmark_ui.gif" />
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">The first time a job is created the bookmark folders won’t contain any
+<p>The first time a job is created the <strong>bookmark folders</strong> won’t contain any
 assets, and therefore GWBrowser can’t list them. However, once at
-least one asset has been added to a bookmark, they will show up in the
+least one asset has been added to a bookmark folder, they will show up in the
 dropdown menu.</p>
+<p class="last">See below to learn what constitutes a <strong>bookmark folder</strong>.</p>
 </div>
-<p>The <strong>server, asset</strong> and <strong>root folder</strong> selections make up the final bookmark.
+<p>The <strong>server, asset</strong> and <strong>bookmark folder</strong> selections make up the final bookmark.
 Once all three has been selected the bookmark can be added.</p>
 <img alt="Adding a bookmark..." src="_images/adding_a_bookmark_ui2.gif" />
 </div>
 </div>
-</div>
 <div class="section" id="assets">
 <h1>Assets<a class="headerlink" href="#assets" title="Permalink to this headline">¶</a></h1>
-<p>Every bookmark will contain a number of <img alt="asset" src="_images/assets.png" /> <strong>assets</strong>. These can be shots,
+<p>Every bookmark folder will contain a number of <img alt="asset" src="_images/assets.png" /> <strong>assets</strong>. These can be shots,
 sequences, or generic containers. In technical terms, <em>assets</em> are simply
 folders used to store texture, render, cache, scene (or any other files).</p>
 <div class="admonition note">
@@ -169,15 +168,15 @@ folders used to store texture, render, cache, scene (or any other files).</p>
 the Maya project structure as reference this is a <code class="docutils literal notranslate"><span class="pre">workspace.mel</span></code>
 file.</p>
 <p>When the <em>identifier file</em> resides in the root of a directory, GWBrowser will
-understand it as an <em>asset</em>, and the parent folder as a <em>bookmark</em>.</p>
+understand it as an <em>asset</em>, and the parent folder as a <em>bookmark folder</em>.</p>
 <p>This is what the relationship between bookmarks and assets look like:</p>
-<div class="last highlight-text notranslate"><div class="highlight"><pre><span></span>./SHOTS/        &lt;--- bookmark
-├── .browser  &lt;--- settings and thumbnails
+<div class="last highlight-javascript notranslate"><div class="highlight"><pre><span></span>./SHOTS/                &lt;--- bookmark folder
+├── .browser            &lt;--- settings and thumbnails
 ├── SH000/
 │   ├── workspace.mel
 │   ├── scenes/         &lt;--- a task folder
 │   ├── renders/        &lt;--- another task folder
-│   └── textures/       &lt;--- and.. you guessed, a task folder!
+│   └── textures/       &lt;--- and you guessed, a task folder!
 ├── SH010/
 │   ├── workspace.mel
 │   ├── scenes/
@@ -196,13 +195,24 @@ understand it as an <em>asset</em>, and the parent folder as a <em>bookmark</em>
 <p>Select the <code class="docutils literal notranslate"><span class="pre">assets</span></code> tab (<code class="docutils literal notranslate"><span class="pre">Ctrl+2</span></code>) and click the small add icon <img alt="add" src="_images/add.png" />, or
 press <code class="docutils literal notranslate"><span class="pre">Ctrl+N</span></code> to add a new asset.</p>
 <a class="reference external image-reference" href="_static/assets.gif"><img alt="Assets..." src="_images/assets.gif" /></a>
-<p>The created asset will be placed in the root of the currently activated
-bookmark folder. If there’s no active bookmark, you wont be able to add an asset.</p>
+<p>The created asset will be placed in the root of the currently active
+bookmark folder. If there’s no active bookmark, you won’t be able to add an asset.</p>
 <div class="admonition tip">
 <p class="first admonition-title">Tip</p>
 <p class="last">To activate a bookmark or asset, double-click it, or press enter when
 selected.</p>
 </div>
+</div>
+<div class="section" id="customising-the-job-and-asset-templates">
+<h2>Customising the job and asset templates<a class="headerlink" href="#customising-the-job-and-asset-templates" title="Permalink to this headline">¶</a></h2>
+<p>The template files defining the job and asset folders are located in the
+<code class="docutils literal notranslate"><span class="pre">[username]/Documents/GWBrowser</span></code> folder.</p>
+<p>They are called <strong>Asset.zip</strong> and <strong>Job.zip</strong> respectively. You can replace them
+with any other zip file (make sure to keep the same name).</p>
+</div>
+</div>
+<div class="section" id="annotations">
+<h1>Annotations<a class="headerlink" href="#annotations" title="Permalink to this headline">¶</a></h1>
 <p>An important aspect of GWBrowser is to allow adding descriptions and thumbnails.</p>
 <a class="reference external image-reference" href="_static/annotating1.gif"><img alt="Annotating items" src="_images/annotating1.gif" /></a>
 <div class="admonition note">
@@ -215,7 +225,7 @@ user.</p>
 bookmark folder.</p>
 </div>
 <div class="section" id="archiving-items">
-<h3>Archiving items<a class="headerlink" href="#archiving-items" title="Permalink to this headline">¶</a></h3>
+<h2>Archiving items<a class="headerlink" href="#archiving-items" title="Permalink to this headline">¶</a></h2>
 <p>Much like bookmarks, assets can be annotated, marked as favourites or archived.
 Because most pipelines are non-destructive deleting obsolete assets and files is
 not possible or advised. We can hide these items by clicking the small eye icon
@@ -226,7 +236,6 @@ not possible or advised. We can hide these items by clicking the small eye icon
 <p class="last">Marking something archived intended to mean the item is no longer used, eg.
 it is a depreciated shot or character rig. Marking a folder archived is only
 a visual garnish and in no way modifies the underlaying files.</p>
-</div>
 </div>
 </div>
 </div>
