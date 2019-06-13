@@ -366,8 +366,6 @@ color: rgba({});
         source_index.model().dataChanged.emit(self.index(), self.index())
         self.hide()
 
-        print '!'
-
 
 class FilterIcon(QtWidgets.QLabel):
     """Widget responsible for displaying the keywords list"""
