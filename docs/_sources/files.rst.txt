@@ -22,12 +22,12 @@ number of files. Be patient!
 Sequences
 =========
 
-Sequentially numbered files will be grouped into **sequences**. Sequences
-have their own separate thumbnail and description independent of the individual
+Sequentially numbered files will be grouped into **sequences**. Sequences have
+their own separate thumbnail and description independent of the individual
 items.
 
-Use the little arrow button |group|, or press ``Ctrl+G`` to toggle between groupped
-and individual items.
+Use the little arrow button |group|, or press ``Ctrl+G`` to toggle between
+grouped and individual items.
 
 
 .. tip::
@@ -38,7 +38,7 @@ Dragging sequences
 ==================
 
 When dragging and dropping sequences we can decide which files to grab by
-pressing the modifier keys **before** the items is dragged.
+pressing the modifier keys **before** the items are dragged.
 
 .. image:: _static/draganddrop.gif
   :alt: Sequences
@@ -61,12 +61,12 @@ Revealing items in the file manager
 
 Clicking the little-folder icon |folder| or pressing ``Ctrl+O`` will reveal the
 selection in the file explorer. Double-clicking a file will open it as it would
-normally in the file-manager.
+normally in the file manager.
 
 .. tip::
   Pressing ``Ctrl+C`` when an item is selected will copy its full path.
 
-  If you need a path with forward or backslashes, or an URL, you can use
+  If you need a path with forward-slashes, backslashes or an URL, you can use
   **right-click -> Copy** options.
 
 
@@ -88,6 +88,9 @@ Preview thumbnails by pressing the ``SPACE`` key. Use the ``arrow down`` and
 Filtering lists
 ===============
 
+.. image:: _static/filters.png
+  :alt: Filters
+
 Because GWbrowser loads **all** files in a task-folder resulting list can look
 intimidating. For instance, the scenes folder had 100.000+ files in a recent
 job. Ouch. Luckily we can isolate items marked as favourites and hide obsolete
@@ -105,9 +108,6 @@ Click the small file-icon |filter|, or press ``Ctrl+F`` to edit the filter text.
 
 Filter examples
 ---------------
-
-.. image:: _static/filters.png
-  :alt: Filters
 
 Assuming the current *task folder* is ``scenes``, you can show all files in
 the **scenes/animation** folder by typing:
@@ -147,14 +147,6 @@ can enter...
    For each task-folder we can set a filter text - these will stay there until
    manually removed. This means if we were to switch to the ``renders`` task
    folder we would need to enter a new filter.
-
-
-Further reading
-===============
-
-To customize GWBrowser refer to the API docs. I did my best to keep the modules
-relatively well documented but it isn't perfect.
-
 
 
 .. |bookmark| image:: _static/bookmark.png

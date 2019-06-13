@@ -4,7 +4,7 @@
 API Documentation
 ###########################
 
-.. contents:: Table of Contents
+.. contents::
    :depth: 4
 
 
