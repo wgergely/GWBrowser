@@ -1119,10 +1119,8 @@ ProjectTemplate = 2048
 
 
 AssetTypes = {
-    MayaAssetTemplate: u'MayaAsset',
-    ProjectTemplate: u'Project',
-
-
+    MayaAssetTemplate: u'Asset',
+    ProjectTemplate: u'Job',
 }
 
 
@@ -1139,9 +1137,16 @@ def create_asset_from_template(name, basepath, template):
         template (unicode):     The name of the template file *without* the zip extension.
 
     """
+    datadir = next(f for f in QtCore.QStandardPaths.standardLocations(
+        QtCore.QStandardPaths.DocumentsLocation))
     template_info = QtCore.QFileInfo(
-        u'{}/../templates/{}.zip'.format(__file__, AssetTypes[template]))
+        u'{}/{}/{}.zip'.format(datadir, PRODUCT, AssetTypes[template]))
     if not template_info.exists():
+        mbox = QtWidgets.QMessageBox()
+        mbox.setWindowTitle(u'Error creating asset')
+        mbox.setText('The template file could not be located.')
+        mbox.setInformativeText('Make sure the Asset.zip and Job.zip files exist and are valid.\n\nTemplate must be placed here:\n{}'.format(template_info.filePath()))
+        mbox.exec_()
         raise RuntimeError(
             u'The "{}.zip" template file could not be located.'.format(AssetTypes[template]))
 
