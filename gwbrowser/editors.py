@@ -361,10 +361,12 @@ color: rgba({});
         settings.setValue(u'config/description', self.editor.text())
 
         source_index = self.index().model().mapToSource(self.index())
-        data = source_index.model().model_data()[self.index().row()]
+        data = source_index.model().model_data()[source_index.row()]
         data[common.DescriptionRole] = self.editor.text()
-        self.index().model().dataChanged.emit(self.index(), self.index())
+        source_index.model().dataChanged.emit(self.index(), self.index())
         self.hide()
+
+        print '!'
 
 
 class FilterIcon(QtWidgets.QLabel):
