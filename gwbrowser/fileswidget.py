@@ -252,7 +252,7 @@ class FileThumbnailWorker(BaseWorker):
         Args:
             update (bool): Repaints the associated view if the index is visible
             make (bool): Will generate a thumbnail image if there isn't one already
-            
+
         """
         if not index.data(common.FileInfoLoaded):
             return
@@ -701,13 +701,10 @@ class FilesModel(BaseModel):
         Called by the ``modelAboutToBeReset`` signal.
 
         """
-        from gwbrowser.datakeywidget import DataKeyWorker
-
         FileInfoWorker.reset_queue()
         FileThumbnailWorker.reset_queue()
         SecondaryFileInfoWorker.reset_queue()
         ImageCacheWorker.reset_queue()
-        DataKeyWorker.reset_queue()
 
         self.reset_file_info_loaded()
 
