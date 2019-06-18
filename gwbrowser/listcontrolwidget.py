@@ -777,17 +777,18 @@ class FilesTabButton(PaintedTextButton):
         if not self._view.isHidden():
             painter = QtGui.QPainter()
             painter.begin(self)
+
             rect = self.rect()
-            rect.setTop(rect.top() + 4)
+            center = rect.center()
+            rect.setHeight(common.INLINE_ICON_SIZE + common.INDICATOR_WIDTH)
+            rect.moveCenter(center)
+
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(common.SECONDARY_BACKGROUND)
+            painter.setBrush(QtGui.QColor(0, 0, 0, 30))
 
-            rect.setTop(rect.top() + 6)
-            painter.drawRoundedRect(rect, 6, 6)
-
-            rect.setTop(rect.top() + 6)
+            painter.drawRoundedRect(rect, 4, 4)
             painter.drawRect(rect)
 
             common.draw_aliased_text(
@@ -796,7 +797,7 @@ class FilesTabButton(PaintedTextButton):
                 rect,
                 u'...',
                 QtCore.Qt.AlignCenter,
-                common.TEXT
+                common.SECONDARY_BACKGROUND
             )
             painter.end()
         else:

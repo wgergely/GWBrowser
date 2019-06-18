@@ -67,10 +67,13 @@ class DataKeyWorker(BaseWorker):
         # The underlying data can change whilst walking...
         if not index.isValid():
             return
-
-        data = index.model().model_data()
-        data[index.row()][common.TodoCountRole] = count
-        index.model().dataChanged.emit(index, index)
+        # ..hence it is better to wrap this in a try block
+        try:
+            data = index.model().model_data()
+            data[index.row()][common.TodoCountRole] = count
+            index.model().dataChanged.emit(index, index)
+        except:
+            pass
 
 
 class DataKeyThread(BaseThread):
@@ -145,7 +148,7 @@ class DataKeyViewDelegate(BaseDelegate):
         else:
             color = common.TEXT if selected else common.BACKGROUND
             color = common.TEXT if hover else color
-            items.append(('n/a', color))
+            items.append((u'n/a', color))
 
         if index.data(QtCore.Qt.ToolTipRole):
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT

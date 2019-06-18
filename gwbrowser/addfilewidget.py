@@ -41,7 +41,6 @@ from gwbrowser.addfilewidgetwidgets import SelectFolderModel
 import gwbrowser.editors as editors
 
 
-
 class ThumbnailContextMenu(BaseContextMenu):
     """Context menu associated with the thumbnail."""
 
@@ -188,7 +187,7 @@ class ThumbnailButton(ClickableLabel):
             u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
         self.setPixmap(pixmap)
         self.setStyleSheet(
-            u'background-color: rgba({});'.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
+            u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
 
         self.image = QtGui.QImage()
 
@@ -278,9 +277,9 @@ class ThumbnailButton(ClickableLabel):
         background = ImageCache.get_color_average(image)
 
         self.setPixmap(pixmap)
-        self.setStyleSheet("""QLabel {{background-color: rgba({});}}""".format(
-            u'{},{},{},{}'.format(*background.getRgb())
-        ))
+        self.setStyleSheet(
+            'QLabel {{background-color: rgba({});}}'.format(
+                common.rgb(background)))
 
 
 class SaverHeaderWidget(HeaderWidget):
@@ -411,15 +410,15 @@ class DescriptionEditor(QtWidgets.QLineEdit):
         super(DescriptionEditor, self).__init__(parent=parent)
         self.setPlaceholderText(u'Enter description...')
         self.setStyleSheet("""QLineEdit {{
-            background-color: rgba(0,0,0,0);
-            border-bottom: 2px solid rgba(0,0,0,50);
-            padding: 0px;
-            margin: 0px;
-            color: rgba({});
-            font-family: "{}";
-            font-size: {}pt;
-        }}""".format(
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+    background-color: rgba(0,0,0,0);
+    border-bottom: 2px solid rgba(0,0,0,50);
+    padding: 0px;
+    margin: 0px;
+    color: rgba({});
+    font-family: "{}";
+    font-size: {}pt;
+}}""".format(
+            common.rgb(common.TEXT_SELECTED),
             common.PrimaryFont.family(),
             common.psize(common.MEDIUM_FONT_SIZE)
         ))
@@ -441,7 +440,7 @@ class NameEditor(QtWidgets.QLineEdit):
             font-family: "{}";
             font-size: {}pt;
         }}""".format(
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.rgb(common.TEXT_SELECTED),
             common.PrimaryFont.family(),
             common.psize(common.LARGE_FONT_SIZE)
         ))
@@ -499,7 +498,7 @@ class Custom(QtWidgets.QLineEdit):
             font-family: "{}";
             font-size: {}pt;
         }}""".format(
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.rgb(common.TEXT_SELECTED),
             common.PrimaryFont.family(),
             common.psize(common.MEDIUM_FONT_SIZE)
         ))
@@ -549,7 +548,7 @@ class Check(ClickableLabel):
         self.setPixmap(pixmap)
         self.setStyleSheet("""
             QLabel {{background-color: rgba({});}}
-        """.format(u'{}/{}/{}/{}'.format(*common.BACKGROUND.getRgb())))
+        """.format(common.rgb(common.BACKGROUND)))
 
     def paintEvent(self, event):
         """Custom paint event."""
@@ -718,7 +717,7 @@ class AddFileWidget(QtWidgets.QDialog):
             font-family: "{family}";
             font-size: {size}pt;
         }}""".format(
-            color='{},{},{},{}'.format(*common.SECONDARY_TEXT.getRgb()),
+            color=common.rgb(common.SECONDARY_TEXT),
             family=common.PrimaryFont.family(),
             size=common.psize(common.SMALL_FONT_SIZE)
         ))
@@ -934,7 +933,7 @@ class AddFileWidget(QtWidgets.QDialog):
         prefix = match.expand(ur'\1_\2_')
         n = match.group(4)
         suffix = match.expand(ur'_<span style="color:rgba({});">{}</span>_\5.\6'.format(
-            u'{},{},{},{}'.format(*common.FAVOURITE.getRgb()),
+            common.rgb(common.FAVOURITE),
             u'{}'.format(int(n) + int(increment)).zfill(len(n))
         ))
         return prefix, suffix
@@ -985,7 +984,8 @@ class AddFileWidget(QtWidgets.QDialog):
             if mbox.exec_() == QtWidgets.QMessageBox.Cancel:
                 return None
 
-        bookmark = bookmarkbutton.view().model().sourceModel().active_index().data(common.ParentRole)
+        bookmark = bookmarkbutton.view().model().sourceModel(
+        ).active_index().data(common.ParentRole)
         # Let's broadcast these settings
         self.fileSaveRequested.emit(file_info.filePath())
         self.fileThumbnailAdded.emit((

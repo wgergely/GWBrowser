@@ -426,16 +426,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         def show_thumbnail_picker():
             """Creates and shows the thumbnail picker widget."""
-            rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
             widget = editors.ThumbnailsWidget(parent=self.parent())
-
             widget.thumbnailSelected.connect(add_thumbnail_from_library)
+
             widget.show()
-
-            wpos = QtCore.QPoint(widget.width() / 2.0, widget.height() / 2.0)
-            widget.move(rect.center() - wpos)
-            common.move_widget_to_available_geo(widget)
-
             widget.setFocus(QtCore.Qt.PopupFocusReason)
 
         menu_set[key]['From library...'] = {

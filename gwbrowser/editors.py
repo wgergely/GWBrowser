@@ -309,7 +309,7 @@ color: rgba({});
             """.format(
             common.SecondaryFont.family(),
             common.psize(common.SMALL_FONT_SIZE),
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.rgb(common.TEXT_SELECTED),
         ))
 
         label = QtWidgets.QLabel(u'Edit description')
@@ -317,10 +317,10 @@ color: rgba({});
         label.setStyleSheet(
             'font-family: "{}";\
             font-size: {}pt;\
-            color: rgba({},{},{},{});'.format(
+            color: rgba({});'.format(
                 common.PrimaryFont.family(),
                 common.psize(common.SMALL_FONT_SIZE),
-                *common.TEXT.getRgb()
+                common.rgb(common.TEXT)
             ))
 
         self.layout().addStretch(1)
@@ -448,7 +448,7 @@ QLineEdit:focus {{
     outline: 0;
 }}
         """.format(
-            '{},{},{},{}'.format(*common.TEXT_SELECTED.getRgb()),
+            common.rgb(common.TEXT_SELECTED),
             common.PrimaryFont.family(),
             common.psize(common.LARGE_FONT_SIZE)
         ))
@@ -616,12 +616,14 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.thumbnail_size = 128
-        self.columns = 3
+
+        self.columns = 5
+        rows = 4
 
         self._createUI()
 
         self.setFixedHeight(
-            (self.thumbnail_size + common.INDICATOR_WIDTH) * 6 + (common.INDICATOR_WIDTH * 2))
+            (self.thumbnail_size + common.INDICATOR_WIDTH) * rows + (common.INDICATOR_WIDTH * 2))
         self.setFixedWidth(
             (self.thumbnail_size + common.INDICATOR_WIDTH) * self.columns + (common.INDICATOR_WIDTH * 2))
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -686,6 +688,15 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
     def keyPressEvent(self, event):
         """Closes the widget on any key-press."""
         self.close()
+
+    def showEvent(self, event):
+        if self.parent():
+            center = self.parent().mapToGlobal(self.parent().geometry().center())
+            self.move(QtCore.QPoint(
+                center.x() - (self.rect().width() / 2),
+                center.y() - (self.rect().height() / 2),
+            ))
+            common.move_widget_to_available_geo(self)
 
 
 if __name__ == '__main__':

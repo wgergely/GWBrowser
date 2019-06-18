@@ -2,29 +2,33 @@
 """The ``common.py`` module is used to define variables and methods used
 across the GWBrowser project.
 
-Server:
-    GWBrowser is intended to be used in a networked environment.
-    We have the ability to define a *primary* work server, a *backup* server and
-    a *local* path for working offline.
+GWBrowser is intended to be used in a networked environment.
+Users users have the ability to define a **primary**, **backup** and
+a **local** paths to store assets and bookmarks.
 
-    These paths are provided by the ``Server`` class. The actual configuration values
-    are stored in the ``templates/server.conf`` configuration file.
+Access to the saved paths are provided by the :class:`.Server` object. The actual
+configuration values are stored in the ``templates/server.conf`` configuration
+file.
 
-Jobs and assets
-    *Assets* are directory structures used to compartmentalize files and folders.
-    The template files used to generate jobs and assets are stored in
-    ``gwbrowser/templates`` folder.
+Job and assets templates
+########################
 
-    The asset folder definitions should correspond to the folders stored in the
-    template file - including the folder descriptions. See ``ASSET_FOLDERS``.
+*Assets* are directory structures used to compartmentalize files and folders.
+The template files used to generate jobs and assets are stored in
+``gwbrowser/templates`` folder.
+
+The asset folder definitions should correspond to the folders stored in the
+template file - including the folder descriptions. See ``ASSET_FOLDERS``.
 
 Sequences
-    A core aspect of GWBrowser is its ability to group sequentially numbered
-    files into a single sequence (eg image sequences).
+#########
 
-    This is done via **regex** functions. See ``get_valid_filename``,
-    ``get_sequence``, ``is_collapsed``, ``get_sequence_startpath`` for the
-    wrapper functions around the regexes.
+A core aspect of GWBrowser is the ability to group sequentially numbered
+files into a single item (eg. image sequences).
+
+Sequences are recognised via **regex** functions defined here. See
+:func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
+:func:`.get_sequence_startpath`,  :func:`.get_ranges` for the wrapper functions.
 
 """
 
@@ -72,8 +76,11 @@ class Server(object):
     the ``primary``, ``backup``, and ``local`` servers.
 
     Note:
-        The server values are stored in an external configuration file in
-        ``templates/server.conf``.
+        The server values are stored in an external configuration file boundled
+        with GWBrowser found at ``templates/server.conf``. However, a copy of
+        this configuration file is deployed at installation-time to the
+        ~/Documents/GWBrowser folder where GWBrowser will expect to find and
+        load it.
 
     """
 
@@ -226,6 +233,18 @@ def psize(n):
     """
     return n * 1.5 if get_platform() == u'mac' else n * pscale
 
+
+def rgb(color):
+    """Returns an rgba string representation of the given color.
+
+    Args:
+        color (QtGui.QColor): The `QColor` to convert.
+
+    Returns:
+        unicode: The string representation of the color./
+
+    """
+    return u'{},{},{},{}'.format(*color.getRgb())
 
 MARGIN = 18.0
 
@@ -491,17 +510,15 @@ def set_custom_stylesheet(widget):
             SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
             MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
             LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
-            BACKGROUND=u'{},{},{},{}'.format(*BACKGROUND.getRgb()),
-            BACKGROUND_SELECTED=u'{},{},{},{}'.format(
-                *BACKGROUND_SELECTED.getRgb()),
-            SECONDARY_BACKGROUND=u'{},{},{},{}'.format(
-                *SECONDARY_BACKGROUND.getRgb()),
-            TEXT=u'{},{},{},{}'.format(*TEXT.getRgb()),
-            SECONDARY_TEXT=u'{},{},{},{}'.format(*SECONDARY_TEXT.getRgb()),
-            TEXT_DISABLED=u'{},{},{},{}'.format(*TEXT_DISABLED.getRgb()),
-            TEXT_SELECTED=u'{},{},{},{}'.format(*TEXT_SELECTED.getRgb()),
-            SEPARATOR=u'{},{},{},{}'.format(*SEPARATOR.getRgb()),
-            FAVOURITE=u'{},{},{},{}'.format(*FAVOURITE.getRgb()),
+            BACKGROUND=rgb(BACKGROUND),
+            BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
+            SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),
+            TEXT=rgb(TEXT),
+            SECONDARY_TEXT=rgb(SECONDARY_TEXT),
+            TEXT_DISABLED=rgb(TEXT_DISABLED),
+            TEXT_SELECTED=rgb(TEXT_DISABLED),
+            SEPARATOR=rgb(SEPARATOR),
+            FAVOURITE=rgb(FAVOURITE),
         )
         widget.setStyleSheet(qss)
 

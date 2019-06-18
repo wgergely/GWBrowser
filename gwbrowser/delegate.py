@@ -527,6 +527,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             text = u'Double-click to add description...'
             color.setAlpha(100)
         elif index.data(common.DescriptionRole):
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
             text = index.data(common.DescriptionRole)
 
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
@@ -794,6 +795,8 @@ class AssetsWidgetDelegate(BaseDelegate):
         )
         color = common.SECONDARY_TEXT if archived else common.TEXT
         color = common.TEXT_SELECTED if hover else color
+        if index.data(common.DescriptionRole):
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
