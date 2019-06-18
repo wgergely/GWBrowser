@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -100,7 +100,6 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span>
 
 <span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
@@ -113,9 +112,6 @@
 <span class="kn">from</span> <span class="nn">gwbrowser.listcontrolwidget</span> <span class="k">import</span> <span class="n">ListControlWidget</span>
 <span class="kn">from</span> <span class="nn">gwbrowser.imagecache</span> <span class="k">import</span> <span class="n">ImageCache</span>
 <span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">local_settings</span><span class="p">,</span> <span class="n">Active</span><span class="p">,</span> <span class="n">active_monitor</span>
-
-
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">VersionLabel</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">):</span>
@@ -450,8 +446,7 @@
         <span class="c1"># Bookmark/Asset/FileModel/View  -&gt;  DataKeyModel/View</span>
         <span class="c1"># These connections are responsible for keeping the DataKeyModel updated</span>
         <span class="c1"># when navigating the list widgets.</span>
-        <span class="n">b</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">modelReset</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">modelDataResetRequested</span><span class="p">)</span>
-        <span class="n">a</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">modelReset</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">modelDataResetRequested</span><span class="p">)</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">modelReset</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">modelDataResetRequested</span><span class="p">)</span>
         <span class="n">f</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">modelReset</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">modelDataResetRequested</span><span class="p">)</span>
 
         <span class="n">b</span><span class="o">.</span><span class="n">activated</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>

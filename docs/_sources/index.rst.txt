@@ -13,7 +13,7 @@ animation and film productions.**
 
 It helps you navigate digital productions by creating and annotating the files
 and folders used to keep projects. To learn more on what GWBrowser does and how you
-can have a look at the :ref:`overview` or :ref:`api-documentation`.
+can have a look at the :ref:`overview` or :ref:`modules-documentation`.
 
 
 .. image:: _static/banner.png

@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -98,29 +98,33 @@
 <span class="sd">&quot;&quot;&quot;The ``common.py`` module is used to define variables and methods used</span>
 <span class="sd">across the GWBrowser project.</span>
 
-<span class="sd">Server:</span>
-<span class="sd">    GWBrowser is intended to be used in a networked environment.</span>
-<span class="sd">    We have the ability to define a *primary* work server, a *backup* server and</span>
-<span class="sd">    a *local* path for working offline.</span>
+<span class="sd">GWBrowser is intended to be used in a networked environment.</span>
+<span class="sd">Users users have the ability to define a **primary**, **backup** and</span>
+<span class="sd">a **local** paths to store assets and bookmarks.</span>
 
-<span class="sd">    These paths are provided by the ``Server`` class. The actual configuration values</span>
-<span class="sd">    are stored in the ``templates/server.conf`` configuration file.</span>
+<span class="sd">Access to the saved paths are provided by the :class:`.Server` object. The actual</span>
+<span class="sd">configuration values are stored in the ``templates/server.conf`` configuration</span>
+<span class="sd">file.</span>
 
-<span class="sd">Jobs and assets</span>
-<span class="sd">    *Assets* are directory structures used to compartmentalize files and folders.</span>
-<span class="sd">    The template files used to generate jobs and assets are stored in</span>
-<span class="sd">    ``gwbrowser/templates`` folder.</span>
+<span class="sd">Job and assets templates</span>
+<span class="sd">########################</span>
 
-<span class="sd">    The asset folder definitions should correspond to the folders stored in the</span>
-<span class="sd">    template file - including the folder descriptions. See ``ASSET_FOLDERS``.</span>
+<span class="sd">*Assets* are directory structures used to compartmentalize files and folders.</span>
+<span class="sd">The template files used to generate jobs and assets are stored in</span>
+<span class="sd">``gwbrowser/templates`` folder.</span>
+
+<span class="sd">The asset folder definitions should correspond to the folders stored in the</span>
+<span class="sd">template file - including the folder descriptions. See ``ASSET_FOLDERS``.</span>
 
 <span class="sd">Sequences</span>
-<span class="sd">    A core aspect of GWBrowser is its ability to group sequentially numbered</span>
-<span class="sd">    files into a single sequence (eg image sequences).</span>
+<span class="sd">#########</span>
 
-<span class="sd">    This is done via **regex** functions. See ``get_valid_filename``,</span>
-<span class="sd">    ``get_sequence``, ``is_collapsed``, ``get_sequence_startpath`` for the</span>
-<span class="sd">    wrapper functions around the regexes.</span>
+<span class="sd">A core aspect of GWBrowser is the ability to group sequentially numbered</span>
+<span class="sd">files into a single item (eg. image sequences).</span>
+
+<span class="sd">Sequences are recognised via **regex** functions defined here. See</span>
+<span class="sd">:func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,</span>
+<span class="sd">:func:`.get_sequence_startpath`,  :func:`.get_ranges` for the wrapper functions.</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 
@@ -129,7 +133,6 @@
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">zipfile</span>
 <span class="kn">import</span> <span class="nn">ConfigParser</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtWidgets</span>
 <span class="kn">import</span> <span class="nn">OpenImageIO.OpenImageIO</span> <span class="k">as</span> <span class="nn">OpenImageIO</span>
@@ -169,8 +172,11 @@
 <span class="sd">    the ``primary``, ``backup``, and ``local`` servers.</span>
 
 <span class="sd">    Note:</span>
-<span class="sd">        The server values are stored in an external configuration file in</span>
-<span class="sd">        ``templates/server.conf``.</span>
+<span class="sd">        The server values are stored in an external configuration file boundled</span>
+<span class="sd">        with GWBrowser found at ``templates/server.conf``. However, a copy of</span>
+<span class="sd">        this configuration file is deployed at installation-time to the</span>
+<span class="sd">        ~/Documents/GWBrowser folder where GWBrowser will expect to find and</span>
+<span class="sd">        load it.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -273,7 +279,7 @@
 <span class="n">LTHREAD_COUNT</span> <span class="o">=</span> <span class="mi">1</span>
 <span class="sd">&quot;&quot;&quot;The number of threads used by the ``DataKeyModel`` to count files.&quot;&quot;&quot;</span>
 
-<span class="n">FTIMER_INTERVAL</span> <span class="o">=</span> <span class="mi">500</span>  <span class="c1"># 0.5 sec</span>
+<span class="n">FTIMER_INTERVAL</span> <span class="o">=</span> <span class="mi">1000</span>  <span class="c1"># 1.0 sec</span>
 <span class="sd">&quot;&quot;&quot;The frequency of querrying lists to load file and thumbnail info&quot;&quot;&quot;</span>
 
 <span class="n">ExportsFolder</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;cache&#39;</span>
@@ -323,6 +329,18 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">n</span> <span class="o">*</span> <span class="mf">1.5</span> <span class="k">if</span> <span class="n">get_platform</span><span class="p">()</span> <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;mac&#39;</span> <span class="k">else</span> <span class="n">n</span> <span class="o">*</span> <span class="n">pscale</span>
 
+
+<span class="k">def</span> <span class="nf">rgb</span><span class="p">(</span><span class="n">color</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns an rgba string representation of the given color.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        color (QtGui.QColor): The `QColor` to convert.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        unicode: The string representation of the color./</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">color</span><span class="o">.</span><span class="n">getRgb</span><span class="p">())</span>
 
 <span class="n">MARGIN</span> <span class="o">=</span> <span class="mf">18.0</span>
 
@@ -588,17 +606,15 @@
             <span class="n">SMALL_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">SMALL_FONT_SIZE</span><span class="p">),</span>
             <span class="n">MEDIUM_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">MEDIUM_FONT_SIZE</span><span class="p">),</span>
             <span class="n">LARGE_FONT_SIZE</span><span class="o">=</span><span class="n">psize</span><span class="p">(</span><span class="n">LARGE_FONT_SIZE</span><span class="p">),</span>
-            <span class="n">BACKGROUND</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">BACKGROUND_SELECTED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="o">*</span><span class="n">BACKGROUND_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">SECONDARY_BACKGROUND</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-                <span class="o">*</span><span class="n">SECONDARY_BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">TEXT</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">SECONDARY_TEXT</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SECONDARY_TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">TEXT_DISABLED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_DISABLED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">TEXT_SELECTED</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">SEPARATOR</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">SEPARATOR</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
-            <span class="n">FAVOURITE</span><span class="o">=</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">FAVOURITE</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">BACKGROUND</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">BACKGROUND</span><span class="p">),</span>
+            <span class="n">BACKGROUND_SELECTED</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">BACKGROUND_SELECTED</span><span class="p">),</span>
+            <span class="n">SECONDARY_BACKGROUND</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">SECONDARY_BACKGROUND</span><span class="p">),</span>
+            <span class="n">TEXT</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">TEXT</span><span class="p">),</span>
+            <span class="n">SECONDARY_TEXT</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">SECONDARY_TEXT</span><span class="p">),</span>
+            <span class="n">TEXT_DISABLED</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">TEXT_DISABLED</span><span class="p">),</span>
+            <span class="n">TEXT_SELECTED</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">TEXT_DISABLED</span><span class="p">),</span>
+            <span class="n">SEPARATOR</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">SEPARATOR</span><span class="p">),</span>
+            <span class="n">FAVOURITE</span><span class="o">=</span><span class="n">rgb</span><span class="p">(</span><span class="n">FAVOURITE</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">widget</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="n">qss</span><span class="p">)</span>
 
@@ -1253,21 +1269,6 @@
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;An error occured creating the asset folders.&#39;</span><span class="p">)</span>
     <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">template_info</span><span class="o">.</span><span class="n">absoluteFilePath</span><span class="p">(),</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">f</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">dest_info</span><span class="o">.</span><span class="n">absolutePath</span><span class="p">(),</span> <span class="n">members</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pwd</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
-
-
-<span class="k">def</span> <span class="nf">log_path</span><span class="p">():</span>
-    <span class="sd">&quot;&quot;&quot;Returns the file used to keep logs&quot;&quot;&quot;</span>
-    <span class="n">tempdir</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">writableLocation</span><span class="p">(</span>
-        <span class="n">QtCore</span><span class="o">.</span><span class="n">QStandardPaths</span><span class="o">.</span><span class="n">TempLocation</span><span class="p">)</span>
-    <span class="k">return</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/gwbrowser.log&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tempdir</span><span class="p">)</span>
-
-
-<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
-    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;[</span><span class="si">%(levelname)s</span><span class="s1">] </span><span class="si">%(filename)s</span><span class="s1"> (</span><span class="si">%(asctime)s</span><span class="s1">):        </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
-    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
-    <span class="n">filename</span><span class="o">=</span><span class="n">log_path</span><span class="p">(),</span>
-    <span class="n">filemode</span><span class="o">=</span><span class="s1">&#39;a+&#39;</span>
-<span class="p">)</span>
 </pre></div>
 
           </div>

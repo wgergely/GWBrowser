@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -121,8 +121,8 @@
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">re</span>
 <span class="kn">import</span> <span class="nn">time</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">wraps</span>
 
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtGui</span>
 
@@ -145,10 +145,23 @@
 <span class="kn">from</span> <span class="nn">gwbrowser.threads</span> <span class="k">import</span> <span class="n">Unique</span>
 
 
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
-
 <span class="k">def</span> <span class="nf">qlast_modified</span><span class="p">(</span><span class="n">n</span><span class="p">):</span> <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QDateTime</span><span class="o">.</span><span class="n">fromMSecsSinceEpoch</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">validate_index</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Decorator to validate an index&quot;&quot;&quot;</span>
+    <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">func_wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This wrapper will make sure the passed parameters are ok to pass onto</span>
+<span class="sd">        OpenImageIO. We will also update the index value here.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">func_wrapper</span>
 
 
 <div class="viewcode-block" id="FileInfoWorker"><a class="viewcode-back" href="../../api.html#gwbrowser.fileswidget.FileInfoWorker">[docs]</a><span class="k">class</span> <span class="nc">FileInfoWorker</span><span class="p">(</span><span class="n">BaseWorker</span><span class="p">):</span>
@@ -167,24 +180,17 @@
     <span class="n">indexes_in_progress</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="nd">@staticmethod</span>
+    <span class="nd">@validate_index</span>
     <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The main processing function called by the worker.</span>
 <span class="sd">        Upon loading all the information ``FileInfoLoaded`` is set to ``True``.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
-            <span class="k">return</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">):</span>
-            <span class="k">return</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">):</span>
-            <span class="k">return</span>
         <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">):</span>
             <span class="k">return</span>
-
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="n">FilterProxyModel</span><span class="p">):</span>
             <span class="n">index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-
         <span class="n">data</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
 
@@ -286,28 +292,30 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">while</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_requested</span><span class="p">:</span>
-                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">file_info_loaded</span><span class="p">:</span>
-                    <span class="k">continue</span>
+                <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># Will wait 1 sec between each tries</span>
 
                 <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">file_info_loaded</span><span class="p">:</span>
                     <span class="k">continue</span>
 
                 <span class="n">all_loaded</span> <span class="o">=</span> <span class="kc">True</span>
                 <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">rowCount</span><span class="p">()):</span>
                     <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">):</span>
-                        <span class="n">FileInfoWorker</span><span class="o">.</span><span class="n">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="n">FileInfoWorker</span><span class="o">.</span><span class="n">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                         <span class="n">all_loaded</span> <span class="o">=</span> <span class="kc">False</span>
+
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">):</span>
                         <span class="n">FileThumbnailWorker</span><span class="o">.</span><span class="n">process_index</span><span class="p">(</span>
                             <span class="n">index</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">make</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                        <span class="n">all_loaded</span> <span class="o">=</span> <span class="kc">False</span>
+
 
                 <span class="k">if</span> <span class="n">all_loaded</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">file_info_loaded</span> <span class="o">=</span> <span class="kc">True</span>
 
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()))</span>
         <span class="k">finally</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">shutdown_requested</span><span class="p">:</span>
@@ -328,6 +336,7 @@
     <span class="n">indexes_in_progress</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="nd">@staticmethod</span>
+    <span class="nd">@validate_index</span>
     <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">)</span>
     <span class="k">def</span> <span class="nf">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">make</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The static method responsible for querrying the file item&#39;s thumbnail.</span>
@@ -336,67 +345,57 @@
 <span class="sd">        then load it. If there&#39;s no thumbnail, we will try to generate a thumbnail</span>
 <span class="sd">        using OpenImageIO.</span>
 
+<span class="sd">        Args:</span>
+<span class="sd">            update (bool): Repaints the associated view if the index is visible</span>
+<span class="sd">            make (bool): Will generate a thumbnail image if there isn&#39;t one already</span>
+
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
-            <span class="k">return</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">):</span>
-            <span class="k">return</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">):</span>
             <span class="k">return</span>
-
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="s1">&#39;mapToSource&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="n">FilterProxyModel</span><span class="p">):</span>
             <span class="n">index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
 
+        <span class="n">data</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
         <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
 
         <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">thumbnail_path</span><span class="p">()</span>
         <span class="n">height</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHintRole</span><span class="p">]</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_SEPARATOR</span>
-
         <span class="n">ext</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
         <span class="n">image</span> <span class="o">=</span> <span class="kc">None</span>
 
+        <span class="c1"># Checking if we can load an existing image</span>
         <span class="k">if</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QFileInfo</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">])</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-            <span class="c1"># Overriding the cached image:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
                 <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">],</span> <span class="n">height</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">image</span><span class="p">:</span>
+                <span class="n">color</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                    <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">],</span> <span class="sa">u</span><span class="s1">&#39;BackgroundColor&#39;</span><span class="p">)</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+                    <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">indexUpdated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+                <span class="k">return</span>
 
         <span class="c1"># If the item doesn&#39;t have a saved thumbnail we will check if</span>
         <span class="c1"># OpenImageIO is able to make a thumbnail for it:</span>
-        <span class="k">if</span> <span class="n">make</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">image</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">ext</span> <span class="ow">in</span> <span class="n">common</span><span class="o">.</span><span class="n">oiio_formats</span><span class="p">:</span>
-                    <span class="n">model</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>
-                    <span class="n">data</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
-                    <span class="n">spinner_pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-                        <span class="n">common</span><span class="o">.</span><span class="n">rsc_path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;spinner&#39;</span><span class="p">),</span>
-                        <span class="n">data</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHintRole</span><span class="p">]</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_SEPARATOR</span><span class="p">)</span>
-                    <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">spinner_pixmap</span>
-                    <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">THUMBNAIL_BACKGROUND</span>
-                    <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">generate_thumbnails</span> <span class="ow">and</span> <span class="n">make</span> <span class="ow">and</span> <span class="n">ext</span> <span class="ow">in</span> <span class="n">common</span><span class="o">.</span><span class="n">oiio_formats</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
+            <span class="n">spinner_pixmap</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">rsc_path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;spinner&#39;</span><span class="p">),</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">SizeHintRole</span><span class="p">]</span><span class="o">.</span><span class="n">height</span><span class="p">()</span> <span class="o">-</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_SEPARATOR</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">spinner_pixmap</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">THUMBNAIL_BACKGROUND</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
 
-                    <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
-                        <span class="n">model</span><span class="o">.</span><span class="n">indexUpdated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">indexUpdated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
 
-                    <span class="n">ImageCacheWorker</span><span class="o">.</span><span class="n">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="k">return</span>
-
-        <span class="c1"># There&#39;s no thumbnail for this item, let&#39;s consider it loaded</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">image</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="k">return</span>
-
-        <span class="c1"># We have loaded a saved thumbnail and not further processing is needed</span>
-        <span class="n">color</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
-            <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailPathRole</span><span class="p">],</span> <span class="sa">u</span><span class="s1">&#39;BackgroundColor&#39;</span><span class="p">)</span>
-        <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">image</span>
-        <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ThumbnailBackgroundRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
-
-        <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
-            <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">indexUpdated</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
+                <span class="c1"># Emits an indexUpdated signal if successfully generated the thumbnail</span>
+            <span class="n">ImageCacheWorker</span><span class="o">.</span><span class="n">process_index</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
 
 
 <span class="k">class</span> <span class="nc">FileInfoThread</span><span class="p">(</span><span class="n">BaseThread</span><span class="p">):</span>
@@ -1015,9 +1014,13 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">needs_info</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">needs_thumbnail</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">visible</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">generate_thumbnails</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">generate_thumbnails</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verticalScrollBar</span><span class="p">()</span><span class="o">.</span><span class="n">isSliderDown</span><span class="p">():</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">rowCount</span><span class="p">():</span>
             <span class="k">return</span>
 
         <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
@@ -1031,7 +1034,7 @@
                 <span class="n">needs_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileThumbnailLoaded</span><span class="p">):</span>
                 <span class="n">needs_thumbnail</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-
+            <span class="n">visible</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
             <span class="n">rect</span><span class="o">.</span><span class="n">moveTop</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">top</span><span class="p">()</span> <span class="o">+</span> <span class="n">rect</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
             <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="n">rect</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
@@ -1040,6 +1043,7 @@
         <span class="c1"># Here we add the last index of the window</span>
         <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">bottomLeft</span><span class="p">())</span>
         <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+            <span class="n">visible</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">index</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">needs_info</span><span class="p">:</span>
                     <span class="n">needs_info</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
@@ -1051,11 +1055,10 @@
 
         <span class="c1"># We want to make sure we keep archived items hidden. If we detect any</span>
         <span class="c1"># archived items, we will invalidate the proxy model.</span>
-        <span class="k">if</span> <span class="n">needs_info</span><span class="p">:</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">filterFlag</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span><span class="p">):</span>
-                <span class="k">if</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">needs_info</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span><span class="p">]:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">invalidateFilter</span><span class="p">()</span>
-                    <span class="k">return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">filterFlag</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">visible</span><span class="p">]):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">invalidateFilter</span><span class="p">()</span>
+                <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">needs_info</span><span class="p">:</span>
             <span class="n">FileInfoWorker</span><span class="o">.</span><span class="n">add_to_queue</span><span class="p">(</span><span class="n">needs_info</span><span class="p">)</span>

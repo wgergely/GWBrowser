@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../licence.html">Licence</a></li>
 </ul>
@@ -122,7 +122,6 @@
 <span class="kn">import</span> <span class="nn">importlib</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">import</span> <span class="nn">platform</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="vm">__name__</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;gwbrowser&#39;</span>
 <span class="n">__author__</span> <span class="o">=</span> <span class="s1">&#39;Gergely Wootsch&#39;</span>
@@ -134,15 +133,12 @@
     <span class="sa">u</span><span class="s1">&#39;numpy&#39;</span><span class="p">,</span>
     <span class="sa">u</span><span class="s1">&#39;PySide2.QtCore&#39;</span>
 <span class="p">)</span>
-<span class="n">__version__</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;0.1.50&#39;</span>
+<span class="n">__version__</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;0.1.51&#39;</span>
 
 
 
 <span class="k">def</span> <span class="nf">exception_handler</span><span class="p">(</span><span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_traceback</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Custom exception handler to log error messages.&quot;&quot;&quot;</span>
-    <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Uncaught exception&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="p">(</span>
-        <span class="n">exc_type</span><span class="p">,</span> <span class="n">exc_value</span><span class="p">,</span> <span class="n">exc_traceback</span><span class="p">))</span>
-
     <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span>
     <span class="n">app</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">app</span><span class="p">:</span>
@@ -216,7 +212,6 @@
     <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">get_info</span><span class="p">():</span>
         <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">info</span><span class="p">))</span>
 
-    <span class="n">exit_code</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="n">gwbrowser</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span>
         <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.standalonewidgets&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="vm">__name__</span><span class="p">))</span>
 

@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -105,15 +105,11 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span> <span class="nn">sys</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">import</span> <span class="nn">Queue</span>
-<span class="kn">import</span> <span class="nn">threading</span>
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtCore</span>
 
-<span class="kn">import</span> <span class="nn">gwbrowser</span>
-
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
 
 
 <span class="k">class</span> <span class="nc">Unique</span><span class="p">(</span><span class="n">Queue</span><span class="o">.</span><span class="n">Queue</span><span class="p">):</span>
@@ -130,18 +126,13 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">queue</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
 
 
-<span class="n">mutex</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QMutex</span><span class="p">()</span>
-
-
 <div class="viewcode-block" id="BaseWorker"><a class="viewcode-back" href="../../api.html#gwbrowser.threads.BaseWorker">[docs]</a><span class="k">class</span> <span class="nc">BaseWorker</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QObject</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;The base for all workers associated with a QThread.</span>
 <span class="sd">    `begin_processing` is a blocking function and will take any QModelIndexes in</span>
 <span class="sd">    in `BaseWorker.Unique` queue.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
-
     <span class="n">queue</span> <span class="o">=</span> <span class="n">Unique</span><span class="p">(</span><span class="mi">999999</span><span class="p">)</span>
-    <span class="n">lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
     <span class="n">shutdown_requested</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">indexes_in_progress</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -151,7 +142,6 @@
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">BaseWorker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mutex</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QMutex</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">()</span>
@@ -169,7 +159,7 @@
 
     <span class="nd">@QtCore</span><span class="o">.</span><span class="n">Slot</span><span class="p">(</span><span class="nb">tuple</span><span class="p">)</span>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">add_to_queue</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">indexes</span><span class="p">,</span> <span class="n">persistent</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">add_to_queue</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">indexes</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Converts the list of indexes to ``QPersistentModelIndex`` model indexes</span>
 <span class="sd">        and adds it to the worker&#39;s queue.</span>
 
@@ -179,8 +169,10 @@
         <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">indexes</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
                 <span class="k">continue</span>
-            <span class="k">if</span> <span class="n">persistent</span><span class="p">:</span>
-                <span class="n">index</span> <span class="o">=</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QPersistentModelIndex</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">):</span>
+                <span class="k">continue</span>
             <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">current_queue</span><span class="p">]:</span>
                 <span class="k">continue</span>
             <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">indexes_in_progress</span><span class="p">]:</span>
@@ -228,7 +220,6 @@
                 <span class="c1"># We&#39;ll remove the index from the currently processing items</span>
                 <span class="k">if</span> <span class="n">index</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexes_in_progress</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">indexes_in_progress</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-
         <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
             <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()))</span>
         <span class="k">finally</span><span class="p">:</span>

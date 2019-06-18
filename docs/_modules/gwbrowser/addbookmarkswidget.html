@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -95,20 +95,19 @@
             
   <h1>Source code for gwbrowser.addbookmarkswidget</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
-<span class="sd">&quot;&quot;&quot;**addbookmarkswidget.py** defines ``AddBookmarksWidget`` and the supplemetary widgets</span>
-<span class="sd">needed to select a **server**, **job** and **root** folder.</span>
+<span class="sd">&quot;&quot;&quot;**addbookmarkswidget.py** defines ``AddBookmarksWidget`` and the supplemetary</span>
+<span class="sd">widgets needed to select a **server**, **job** and **root** folder.</span>
 
-<span class="sd">These three choices together (saved as a tuple) make up a **bookmark**.</span>
-<span class="sd">The final path will, unsurprisingly, be a composite of the above, like so:</span>
+<span class="sd">These three choices together (saved as a tuple) make up a **bookmark**. The</span>
+<span class="sd">final path will, unsurprisingly, be a composite of the above, like so:</span>
 <span class="sd">*server/job/root*. Eg.: **//network_server/my_job/shots.**</span>
 
-<span class="sd">The actual bookmarks are stored, on Windows, in the *Registry* and are unique</span>
-<span class="sd">to each users.</span>
+<span class="sd">The actual bookmarks are stored, on Windows, in the *Registry* and are unique to</span>
+<span class="sd">each users.</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="k">as</span> <span class="nn">gwscandir</span>
 <span class="kn">from</span> <span class="nn">gwbrowser.imagecache</span> <span class="k">import</span> <span class="n">ImageCache</span>
@@ -120,7 +119,6 @@
 <span class="kn">from</span> <span class="nn">gwbrowser.editors</span> <span class="k">import</span> <span class="n">ClickableLabel</span>
 
 
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 <span class="n">custom_string</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;Select bookmark&#39;</span>
 
 

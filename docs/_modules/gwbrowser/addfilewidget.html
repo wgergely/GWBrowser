@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -118,7 +118,6 @@
 <span class="kn">import</span> <span class="nn">uuid</span>
 <span class="kn">import</span> <span class="nn">functools</span>
 <span class="kn">import</span> <span class="nn">collections</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span>
 
 <span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
@@ -136,9 +135,6 @@
 <span class="kn">from</span> <span class="nn">gwbrowser.addfilewidgetwidgets</span> <span class="k">import</span> <span class="n">SelectFolderView</span>
 <span class="kn">from</span> <span class="nn">gwbrowser.addfilewidgetwidgets</span> <span class="k">import</span> <span class="n">SelectFolderModel</span>
 <span class="kn">import</span> <span class="nn">gwbrowser.editors</span> <span class="k">as</span> <span class="nn">editors</span>
-
-
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">ThumbnailContextMenu</span><span class="p">(</span><span class="n">BaseContextMenu</span><span class="p">):</span>
@@ -287,7 +283,7 @@
             <span class="sa">u</span><span class="s1">&#39;pick_thumbnail&#39;</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">FAVOURITE</span><span class="p">,</span> <span class="n">common</span><span class="o">.</span><span class="n">ROW_HEIGHT</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span>
-            <span class="sa">u</span><span class="s1">&#39;background-color: rgba(</span><span class="si">{}</span><span class="s1">);&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">())))</span>
+            <span class="sa">u</span><span class="s1">&#39;background-color: rgba(</span><span class="si">{}</span><span class="s1">);&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">BACKGROUND</span><span class="p">)))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">image</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QImage</span><span class="p">()</span>
 
@@ -377,9 +373,9 @@
         <span class="n">background</span> <span class="o">=</span> <span class="n">ImageCache</span><span class="o">.</span><span class="n">get_color_average</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;QLabel {{background-color: rgba(</span><span class="si">{}</span><span class="s2">);}}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">background</span><span class="o">.</span><span class="n">getRgb</span><span class="p">())</span>
-        <span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span>
+            <span class="s1">&#39;QLabel {{background-color: rgba(</span><span class="si">{}</span><span class="s1">);}}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">background</span><span class="p">)))</span>
 
 
 <span class="k">class</span> <span class="nc">SaverHeaderWidget</span><span class="p">(</span><span class="n">HeaderWidget</span><span class="p">):</span>
@@ -510,15 +506,15 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">DescriptionEditor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setPlaceholderText</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Enter description...&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;QLineEdit {{</span>
-<span class="s2">            background-color: rgba(0,0,0,0);</span>
-<span class="s2">            border-bottom: 2px solid rgba(0,0,0,50);</span>
-<span class="s2">            padding: 0px;</span>
-<span class="s2">            margin: 0px;</span>
-<span class="s2">            color: rgba(</span><span class="si">{}</span><span class="s2">);</span>
-<span class="s2">            font-family: &quot;</span><span class="si">{}</span><span class="s2">&quot;;</span>
-<span class="s2">            font-size: </span><span class="si">{}</span><span class="s2">pt;</span>
-<span class="s2">        }}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+<span class="s2">    background-color: rgba(0,0,0,0);</span>
+<span class="s2">    border-bottom: 2px solid rgba(0,0,0,50);</span>
+<span class="s2">    padding: 0px;</span>
+<span class="s2">    margin: 0px;</span>
+<span class="s2">    color: rgba(</span><span class="si">{}</span><span class="s2">);</span>
+<span class="s2">    font-family: &quot;</span><span class="si">{}</span><span class="s2">&quot;;</span>
+<span class="s2">    font-size: </span><span class="si">{}</span><span class="s2">pt;</span>
+<span class="s2">}}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="p">),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">PrimaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">psize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MEDIUM_FONT_SIZE</span><span class="p">)</span>
         <span class="p">))</span>
@@ -540,7 +536,7 @@
 <span class="s2">            font-family: &quot;</span><span class="si">{}</span><span class="s2">&quot;;</span>
 <span class="s2">            font-size: </span><span class="si">{}</span><span class="s2">pt;</span>
 <span class="s2">        }}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="p">),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">PrimaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">psize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">LARGE_FONT_SIZE</span><span class="p">)</span>
         <span class="p">))</span>
@@ -598,7 +594,7 @@
 <span class="s2">            font-family: &quot;</span><span class="si">{}</span><span class="s2">&quot;;</span>
 <span class="s2">            font-size: </span><span class="si">{}</span><span class="s2">pt;</span>
 <span class="s2">        }}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">TEXT_SELECTED</span><span class="p">),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">PrimaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
             <span class="n">common</span><span class="o">.</span><span class="n">psize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MEDIUM_FONT_SIZE</span><span class="p">)</span>
         <span class="p">))</span>
@@ -648,7 +644,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">setPixmap</span><span class="p">(</span><span class="n">pixmap</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setStyleSheet</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">            QLabel {{background-color: rgba(</span><span class="si">{}</span><span class="s2">);}}</span>
-<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">BACKGROUND</span><span class="o">.</span><span class="n">getRgb</span><span class="p">())))</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">BACKGROUND</span><span class="p">)))</span>
 
     <span class="k">def</span> <span class="nf">paintEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Custom paint event.&quot;&quot;&quot;</span>
@@ -817,7 +813,7 @@
 <span class="s2">            font-family: &quot;</span><span class="si">{family}</span><span class="s2">&quot;;</span>
 <span class="s2">            font-size: </span><span class="si">{size}</span><span class="s2">pt;</span>
 <span class="s2">        }}&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">color</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_TEXT</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">color</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">SECONDARY_TEXT</span><span class="p">),</span>
             <span class="n">family</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">PrimaryFont</span><span class="o">.</span><span class="n">family</span><span class="p">(),</span>
             <span class="n">size</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">psize</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">SMALL_FONT_SIZE</span><span class="p">)</span>
         <span class="p">))</span>
@@ -1033,7 +1029,7 @@
         <span class="n">prefix</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1_\2_&#39;</span><span class="p">)</span>
         <span class="n">n</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
         <span class="n">suffix</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;_&lt;span style=&quot;color:rgba(</span><span class="si">{}</span><span class="s1">);&quot;&gt;</span><span class="si">{}</span><span class="s1">&lt;/span&gt;_\5.\6&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">,</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">common</span><span class="o">.</span><span class="n">FAVOURITE</span><span class="o">.</span><span class="n">getRgb</span><span class="p">()),</span>
+            <span class="n">common</span><span class="o">.</span><span class="n">rgb</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FAVOURITE</span><span class="p">),</span>
             <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">increment</span><span class="p">))</span><span class="o">.</span><span class="n">zfill</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
         <span class="p">))</span>
         <span class="k">return</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">suffix</span>
@@ -1051,11 +1047,11 @@
         <span class="n">foldersbutton</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">buttons</span> <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">objectName</span><span class="p">()</span>
                          <span class="o">==</span> <span class="sa">u</span><span class="s1">&#39;SelectFolderButton&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">bookmarkbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">bookmarkbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
             <span class="k">return</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">(</span>
                 <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">NoIcon</span><span class="p">,</span>
                 <span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Unable to save as the destination bookmark has not yet been selected.&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="n">assetbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">assetbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
             <span class="k">return</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="p">(</span>
                 <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">NoIcon</span><span class="p">,</span>
                 <span class="sa">u</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;Unable to save as the destination asset has not yet been selected.&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
@@ -1084,7 +1080,8 @@
             <span class="k">if</span> <span class="n">mbox</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span> <span class="o">==</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QMessageBox</span><span class="o">.</span><span class="n">Cancel</span><span class="p">:</span>
                 <span class="k">return</span> <span class="kc">None</span>
 
-        <span class="n">bookmark</span> <span class="o">=</span> <span class="n">bookmarkbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)</span>
+        <span class="n">bookmark</span> <span class="o">=</span> <span class="n">bookmarkbutton</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">(</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">)</span>
         <span class="c1"># Let&#39;s broadcast these settings</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fileSaveRequested</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">file_info</span><span class="o">.</span><span class="n">filePath</span><span class="p">())</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">fileThumbnailAdded</span><span class="o">.</span><span class="n">emit</span><span class="p">((</span>

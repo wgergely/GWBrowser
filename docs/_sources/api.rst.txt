@@ -1,8 +1,8 @@
-.. _api-documentation:
+.. _modules-documentation:
 
-###########################
-API Documentation
-###########################
+############################
+Python Modules Documentation
+############################
 
 .. contents::
    :depth: 4
@@ -20,7 +20,7 @@ common.py
 ---------
 
 .. automodule:: gwbrowser.common
-   :members: ASSET_IDENTIFIER, FTHREAD_COUNT, ITHREAD_COUNT, LTHREAD_COUNT, get_ranges, get_valid_filename, get_sequence, is_collapsed, get_sequence_startpath, get_sequence_endpath, get_sequence_paths
+   :members: get_ranges, get_valid_filename, get_sequence, is_collapsed, get_sequence_startpath, get_sequence_endpath, get_sequence_paths, ASSET_IDENTIFIER, FTHREAD_COUNT, ITHREAD_COUNT, LTHREAD_COUNT
    :no-undoc-members:
 
 
@@ -87,7 +87,7 @@ baselistwidget.py
 
 
 .. autoclass:: BaseListWidget
-   :members: set_model, active_index
+   :members: set_model
    :no-undoc-members:
 
 

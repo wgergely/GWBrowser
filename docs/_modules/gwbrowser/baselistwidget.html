@@ -65,7 +65,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../files.html">Task folders &amp; files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installing from source</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../licence.html">Licence</a></li>
 </ul>
@@ -106,21 +106,15 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">re</span>
-<span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">traceback</span>
 <span class="kn">from</span> <span class="nn">functools</span> <span class="k">import</span> <span class="n">wraps</span>
-<span class="kn">import</span> <span class="nn">logging</span>
 
 <span class="kn">from</span> <span class="nn">PySide2</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtGui</span><span class="p">,</span> <span class="n">QtCore</span>
 
 <span class="kn">import</span> <span class="nn">gwbrowser.gwscandir</span> <span class="k">as</span> <span class="nn">gwscandir</span>
 <span class="kn">import</span> <span class="nn">gwbrowser.common</span> <span class="k">as</span> <span class="nn">common</span>
 <span class="kn">import</span> <span class="nn">gwbrowser.editors</span> <span class="k">as</span> <span class="nn">editors</span>
-<span class="kn">from</span> <span class="nn">gwbrowser.threads</span> <span class="k">import</span> <span class="n">Unique</span>
-<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">local_settings</span>
-
-
-<span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">gwbrowser.settings</span> <span class="k">import</span> <span class="n">local_settings</span><span class="p">,</span> <span class="n">AssetSettings</span>
 
 
 <span class="k">def</span> <span class="nf">initdata</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
@@ -775,7 +769,7 @@
             <span class="n">k</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">setResizeMode</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QListView</span><span class="o">.</span><span class="n">Fixed</span><span class="p">)</span>
-        <span class="c1"># self.setMouseTracking(True)</span>
+        <span class="c1"># self.setMouseTracking(False)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">viewport</span><span class="p">()</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setSelectionMode</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QAbstractItemView</span><span class="o">.</span><span class="n">SingleSelection</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setUniformItemSizes</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
@@ -798,13 +792,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">timer</span><span class="o">.</span><span class="n">setSingleShot</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">timed_search_string</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;&#39;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">verticalScrollBar</span><span class="p">()</span><span class="o">.</span><span class="n">sliderPressed</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
-            <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">False</span><span class="p">))</span>
+        <span class="c1"># self.verticalScrollBar().sliderPressed.connect(</span>
+        <span class="c1">#     lambda: self.setMouseTracking(False))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verticalScrollBar</span><span class="p">()</span><span class="o">.</span><span class="n">sliderPressed</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
             <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewport</span><span class="p">()</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">False</span><span class="p">))</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">verticalScrollBar</span><span class="p">()</span><span class="o">.</span><span class="n">sliderReleased</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
-            <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
+        <span class="c1"># self.verticalScrollBar().sliderReleased.connect(</span>
+        <span class="c1">#     lambda: self.setMouseTracking(True))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">verticalScrollBar</span><span class="p">()</span><span class="o">.</span><span class="n">sliderReleased</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span>
             <span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">viewport</span><span class="p">()</span><span class="o">.</span><span class="n">setMouseTracking</span><span class="p">(</span><span class="kc">True</span><span class="p">))</span>
 
@@ -920,16 +914,6 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">rect</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">(</span><span class="n">rect</span><span class="p">)</span>
 
-<div class="viewcode-block" id="BaseListWidget.active_index"><a class="viewcode-back" href="../../api.html#gwbrowser.baselistwidget.BaseListWidget.active_index">[docs]</a>    <span class="k">def</span> <span class="nf">active_index</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Returns the active item marked by the *common.MarkedAsActive*</span>
-<span class="sd">        flag. Returns an invalid index if no items is marked as active.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">()</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
-            <span class="k">return</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapFromSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span></div>
-
     <span class="k">def</span> <span class="nf">activate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Sets the given index as ``active``.</span>
 
@@ -949,25 +933,33 @@
         <span class="k">if</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">deactivate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">active_index</span><span class="p">())</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="n">FilterProxyModel</span><span class="p">):</span>
+            <span class="n">source_index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">source_index</span> <span class="o">=</span> <span class="n">index</span>
 
-        <span class="n">source_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deactivate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">active_index</span><span class="p">())</span>
+
         <span class="n">data</span> <span class="o">=</span> <span class="n">source_index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()</span>
-        <span class="n">data</span><span class="p">[</span><span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()</span>
-                                                          <span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visualRect</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
         <span class="n">source_index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">activeChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">source_index</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visualRect</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
 
     <span class="k">def</span> <span class="nf">deactivate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Unsets the active flag.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">isValid</span><span class="p">():</span>
             <span class="k">return</span>
 
-        <span class="n">source_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">(),</span> <span class="n">FilterProxyModel</span><span class="p">):</span>
+            <span class="n">source_index</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">source_index</span> <span class="o">=</span> <span class="n">index</span>
+
         <span class="n">data</span> <span class="o">=</span> <span class="n">source_index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()</span>
-        <span class="n">data</span><span class="p">[</span><span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()</span>
-                                                          <span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsActive</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">repaint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">visualRect</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
 
@@ -1075,16 +1067,17 @@
                 <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                 <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
 
-            <span class="c1"># Removing flags</span>
+            <span class="c1"># Removing flags for all subsequent sequence files</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">data_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">common</span><span class="o">.</span><span class="n">SequenceItem</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">data_key</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FileItem</span><span class="p">]</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
                     <span class="n">_seq</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">SequenceRole</span><span class="p">]</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">_seq</span><span class="p">:</span>
                         <span class="k">continue</span>
-                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                         <span class="k">continue</span>
                     <span class="k">if</span> <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">sfavourites</span><span class="p">:</span>
-                        <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+                        <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span>
+                            <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                     <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>  <span class="c1"># adds flag</span>
@@ -1097,13 +1090,14 @@
                     <span class="n">_seq</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">SequenceRole</span><span class="p">]</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">_seq</span><span class="p">:</span>
                         <span class="k">continue</span>
-                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                         <span class="k">continue</span>
                     <span class="k">if</span> <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sfavourites</span><span class="p">:</span>
-                        <span class="n">favourites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+                        <span class="n">favourites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                            <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                     <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
 
-        <span class="c1"># Let&#39;s save the favourites list and emit a dataChanged signal</span>
+        <span class="c1"># Let&#39;s save the favourites list</span>
         <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;favourites&#39;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">favourites</span><span class="p">))))</span>
 
     <span class="k">def</span> <span class="nf">toggle_archived</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
@@ -1124,10 +1118,13 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">index</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">FileInfoLoaded</span><span class="p">):</span>
             <span class="k">return</span>
 
-        <span class="n">archived</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+        <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+
         <span class="n">favourites</span> <span class="o">=</span> <span class="n">local_settings</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;favourites&#39;</span><span class="p">)</span>
         <span class="n">favourites</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">favourites</span><span class="p">]</span> <span class="k">if</span> <span class="n">favourites</span> <span class="k">else</span> <span class="p">[]</span>
         <span class="n">sfavourites</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">favourites</span><span class="p">)</span>
+
+        <span class="n">archived</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
 
         <span class="n">source_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">mapToSource</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">source_index</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">model_data</span><span class="p">()[</span><span class="n">source_index</span><span class="o">.</span><span class="n">row</span><span class="p">()]</span>
@@ -1141,7 +1138,15 @@
         <span class="k">if</span> <span class="n">archived</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>  <span class="c1"># clears flag</span>
                 <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+                <span class="n">settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/archived&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+                <span class="c1"># Removing flags for all subsequent sequence files</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">data_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">common</span><span class="o">.</span><span class="n">SequenceItem</span><span class="p">:</span>
+
+                    <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FramesRole</span><span class="p">])</span>
+
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_progress_widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
                     <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">data_key</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FileItem</span><span class="p">]</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
                         <span class="n">_seq</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">SequenceRole</span><span class="p">]</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">_seq</span><span class="p">:</span>
@@ -1149,34 +1154,86 @@
                         <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                             <span class="k">continue</span>
                         <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+
+                        <span class="c1"># Saving the settings to a file</span>
+                        <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span>
+                            <span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">(),</span>
+                            <span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                             <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                             <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span>
+                             <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">])</span>
+                        <span class="p">)</span>
+                        <span class="n">settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/archived&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+                        <span class="c1"># Signalling progress</span>
+                        <span class="n">n</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">messageChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span>
+                            <span class="sa">u</span><span class="s1">&#39;Saving settings (</span><span class="si">{}</span><span class="s1"> of </span><span class="si">{}</span><span class="s1">)...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+                        <span class="p">)</span>
+                        <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">processEvents</span><span class="p">(</span>
+                            <span class="n">QtCore</span><span class="o">.</span><span class="n">QEventLoop</span><span class="o">.</span><span class="n">ExcludeUserInputEvents</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_progress_widget</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
                 <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+
             <span class="c1"># Removing favourite flags when the item is to be archived</span>
             <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">sfavourites</span><span class="p">:</span>
                 <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">state</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>  <span class="c1"># clears flag</span>
                     <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                     <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
+
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">data_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">common</span><span class="o">.</span><span class="n">SequenceItem</span><span class="p">:</span>
                     <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">data_key</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FileItem</span><span class="p">]</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
+
                         <span class="n">_seq</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">SequenceRole</span><span class="p">]</span>
                         <span class="k">if</span> <span class="ow">not</span> <span class="n">_seq</span><span class="p">:</span>
                             <span class="k">continue</span>
                         <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                             <span class="k">continue</span>
-                        <span class="k">if</span> <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">sfavourites</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
-                            <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
+                        <span class="k">if</span> <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">sfavourites</span><span class="p">:</span>
+                            <span class="n">favourites</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span>
+                                <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
                         <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
 
             <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/archived&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">data_type</span><span class="p">()</span> <span class="o">==</span> <span class="n">common</span><span class="o">.</span><span class="n">SequenceItem</span><span class="p">:</span>
+
+                <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">c</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FramesRole</span><span class="p">])</span>
+
+                <span class="bp">self</span><span class="o">.</span><span class="n">_progress_widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
                 <span class="k">for</span> <span class="n">_item</span> <span class="ow">in</span> <span class="n">m</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">data_key</span><span class="p">()][</span><span class="n">common</span><span class="o">.</span><span class="n">FileItem</span><span class="p">]</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
                     <span class="n">_seq</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">SequenceRole</span><span class="p">]</span>
                     <span class="k">if</span> <span class="ow">not</span> <span class="n">_seq</span><span class="p">:</span>
                         <span class="k">continue</span>
-                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span> <span class="o">!=</span> <span class="n">key</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">_seq</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;\1\3.\4&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
                         <span class="k">continue</span>
                     <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">=</span> <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">FlagsRole</span><span class="p">]</span> <span class="o">|</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
+
+                    <span class="c1"># Saving the settings to a file</span>
+                    <span class="n">settings</span> <span class="o">=</span> <span class="n">AssetSettings</span><span class="p">(</span>
+                        <span class="n">QtCore</span><span class="o">.</span><span class="n">QModelIndex</span><span class="p">(),</span>
+                        <span class="p">(</span><span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                         <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                         <span class="n">_item</span><span class="p">[</span><span class="n">common</span><span class="o">.</span><span class="n">ParentRole</span><span class="p">][</span><span class="mi">2</span><span class="p">],</span>
+                         <span class="n">_item</span><span class="p">[</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">StatusTipRole</span><span class="p">])</span>
+                    <span class="p">)</span>
+                    <span class="n">settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;config/archived&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+                    <span class="c1"># Signalling progress</span>
+                    <span class="n">n</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">()</span><span class="o">.</span><span class="n">sourceModel</span><span class="p">()</span><span class="o">.</span><span class="n">messageChanged</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span>
+                        <span class="sa">u</span><span class="s1">&#39;Saving settings (</span><span class="si">{}</span><span class="s1"> of </span><span class="si">{}</span><span class="s1">)...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QApplication</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">processEvents</span><span class="p">(</span>
+                        <span class="n">QtCore</span><span class="o">.</span><span class="n">QEventLoop</span><span class="o">.</span><span class="n">ExcludeUserInputEvents</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_progress_widget</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+
+        <span class="c1"># Let&#39;s save the favourites list</span>
+        <span class="n">local_settings</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;favourites&#39;</span><span class="p">,</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">favourites</span><span class="p">))))</span>
 
     <span class="k">def</span> <span class="nf">key_down</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Custom action on  `down` arrow key-press.&quot;&quot;&quot;</span>
@@ -1648,20 +1705,19 @@
             <span class="k">return</span> <span class="nb">super</span><span class="p">(</span><span class="n">BaseInlineIconWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">mouseMoveEvent</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
 
         <span class="n">pos</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">pos</span><span class="p">()</span>
-
         <span class="n">pos</span><span class="o">.</span><span class="n">setX</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+
         <span class="n">initial_index</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indexAt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multi_toggle_pos</span><span class="p">)</span>
         <span class="n">idx</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()</span>
-
-        <span class="n">favourite</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
-        <span class="n">archived</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
 
         <span class="c1"># Filter the current item</span>
         <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">multi_toggle_item</span><span class="p">:</span>
             <span class="k">return</span>
-
         <span class="bp">self</span><span class="o">.</span><span class="n">multi_toggle_item</span> <span class="o">=</span> <span class="n">index</span>
+
+        <span class="n">favourite</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsFavourite</span>
+        <span class="n">archived</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">flags</span><span class="p">()</span> <span class="o">&amp;</span> <span class="n">common</span><span class="o">.</span><span class="n">MarkedAsArchived</span>
 
         <span class="c1"># Before toggling the item, we&#39;re saving it&#39;s state</span>
 
