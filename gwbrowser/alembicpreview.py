@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Module defines the preview widget used to display the contents
-of an Alembic file.
+"""Module defines the preview widget used to display the contents of an Alembic
+file.
 
 """
 

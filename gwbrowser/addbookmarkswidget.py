@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""**addbookmarkswidget.py** defines ``AddBookmarksWidget`` and the supplemetary widgets
-needed to select a **server**, **job** and **root** folder.
+"""**addbookmarkswidget.py** defines ``AddBookmarksWidget`` and the supplemetary
+widgets needed to select a **server**, **job** and **root** folder.
 
-These three choices together (saved as a tuple) make up a **bookmark**.
-The final path will, unsurprisingly, be a composite of the above, like so:
+These three choices together (saved as a tuple) make up a **bookmark**. The
+final path will, unsurprisingly, be a composite of the above, like so:
 *server/job/root*. Eg.: **//network_server/my_job/shots.**
 
-The actual bookmarks are stored, on Windows, in the *Registry* and are unique
-to each users.
+The actual bookmarks are stored, on Windows, in the *Registry* and are unique to
+each users.
 
 """
 
