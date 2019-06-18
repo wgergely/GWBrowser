@@ -41,10 +41,17 @@ class DataKeyWorker(BaseWorker):
     queue = Unique(999)
     indexes_in_progress = []
 
+    # @classmethod
+    # def reset_queue(cls):
+    #     print '!!'
+
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index):
-        """The actual processing happens here."""
+        """Walks the path using ``gwscandir`` set in the StatusTipRole.
+        Used to count the number of existing files in each task-folder.
+
+        """
         if not index.isValid():
             return
         if not index.data(QtCore.Qt.StatusTipRole):
@@ -57,13 +64,13 @@ class DataKeyWorker(BaseWorker):
                 if count > 999:
                     break
 
-        # The underlying data can change whilst the calculating
-        try:
-            data = index.model().model_data()
-            data[index.row()][common.TodoCountRole] = count
-            index.model().dataChanged.emit(index, index)
-        except Exception:
-            sys.stderr.write(traceback.format_exc())
+        # The underlying data can change whilst walking...
+        if not index.isValid():
+            return
+
+        data = index.model().model_data()
+        data[index.row()][common.TodoCountRole] = count
+        index.model().dataChanged.emit(index, index)
 
 
 class DataKeyThread(BaseThread):
@@ -136,7 +143,9 @@ class DataKeyViewDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if hover else color
             items.append((text, color))
         else:
-            items.append(('', common.SECONDARY_BACKGROUND))
+            color = common.TEXT if selected else common.BACKGROUND
+            color = common.TEXT if hover else color
+            items.append(('n/a', color))
 
         if index.data(QtCore.Qt.ToolTipRole):
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
@@ -162,7 +171,7 @@ class DataKeyViewDelegate(BaseDelegate):
         """Returns the size of the DataKeyViewDelegate items."""
         width = self.parent().width()
         height = index.data(QtCore.Qt.SizeHintRole).height()
-        return QtCore.QSize(width, height)
+        return QtCore.QSize(width, height * 0.80)
 
 
 class DataKeyView(QtWidgets.QListView):
@@ -303,13 +312,8 @@ class DataKeyModel(BaseModel):
     @property
     def _parent_item(self):
         """We will use the currently active asset as the parent."""
-        assetswidget = self.view.parent().parent().parent().assetswidget
-        index = assetswidget.model().sourceModel().active_index()
-        if not index.isValid():
-            return None
-        if not index.data(common.ParentRole):
-            return None
-        return index.data(common.ParentRole)
+        view = self.view.parent().parent().parent().fileswidget
+        return view.model().sourceModel()._parent_item
 
     @_parent_item.setter
     def _parent_item(self, val):
@@ -388,5 +392,4 @@ class DataKeyModel(BaseModel):
                 common.TodoCountRole: 0,
             }
             indexes.append(idx)
-        DataKeyWorker.add_to_queue(
-            (self.index(f, 0) for f in indexes))
+        DataKeyWorker.add_to_queue([self.index(f, 0) for f in indexes])
