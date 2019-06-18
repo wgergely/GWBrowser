@@ -118,7 +118,6 @@ def exec_():
     for info in get_info():
         sys.stdout.write(u'{}\n'.format(info))
 
-    exit_code = 0
     gwbrowser = importlib.import_module(
         u'{}.standalonewidgets'.format(__name__))
 
