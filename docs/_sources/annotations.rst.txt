@@ -1,0 +1,44 @@
+###########
+Annotations
+###########
+
+An important aspect of GWBrowser is to allow adding descriptions and thumbnails,
+and marking items as *favourites* and *archived*.
+
+.. image:: _static/annotating1.gif
+   :target: _static/annotating1.gif
+   :alt: Annotating items
+
+.. note::
+   Descriptions, thumbnails and comments are visible to everyone using the same
+   bookmark, as is marking an item **archived** |active|.
+
+   Marking an item **favourite** |favourite|, however is local to the current
+   user.
+
+   All data is stored in a folder called ``.browser`` located in the root of the
+   bookmark folder.
+
+
+Much like bookmarks, assets can be annotated, marked as favourites or archived.
+Because most pipelines are non-destructive deleting obsolete assets and files is
+not possible. We can hide these items by clicking the small eye icon |active|.
+
+.. image:: _static/assets2.gif
+  :target: _static/assets2.gif
+  :alt: Assets...
+
+.. tip::
+   Marking something archived intended to mean the item is no longer used, eg.
+   it is a depreciated shot or character rig. Marking a folder archived is only
+   a visual garnish and in no way modifies the underlaying files.
+
+
+.. |bookmark| image:: _static/bookmark.png
+.. |asset| image:: _static/assets.png
+.. |active| image:: _static/active.png
+.. |add| image:: _static/add.png
+.. |folder| image:: _static/folder.png
+.. |favourite| image:: _static/favourite.png
+.. |group| image:: _static/expand.png
+.. |filter| image:: _static/filter.png

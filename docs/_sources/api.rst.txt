@@ -13,7 +13,7 @@ Python Modules Documentation
    :no-undoc-members:
 
 
-Core modules
+Core Modules
 ============
 
 common.py
@@ -68,7 +68,7 @@ settings.py
 
 
 UI Elements
-=========================
+===========
 
 
 baselistwidget.py
@@ -93,17 +93,6 @@ baselistwidget.py
 
 .. autoclass:: StackedWidget
    :no-undoc-members:
-
-
-.. Add widgets
-.. -----------
-..
-.. GWBrowser can create projects and assets based template files.
-.. The templates themselves are simple zip files containing a folder structure.
-.. See the **gwbrowser/templates** folder.
-..
-.. The 3 widgets used to add items are ``AddBookmarksWidget``, ``AddAssetWidget`` and ``AddJobWidget``.
-
 
 
 addjobwidget.py

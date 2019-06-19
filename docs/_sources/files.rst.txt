@@ -1,5 +1,5 @@
 ####################
-Task folders & files
+Task Folders & Files
 ####################
 
 
@@ -34,7 +34,7 @@ grouped and individual items.
    To refresh the list **right-click -> Refresh**, or press ``Ctrl+R``.
 
 
-Dragging sequences
+Dragging Sequences
 ==================
 
 When dragging and dropping sequences we can decide which files to grab by
@@ -56,7 +56,7 @@ pressing the modifier keys **before** the items are dragged.
   GWBrowser can't be used to rename, or remove files, only to browse them.
 
 
-Revealing items in the file manager
+Revealing Items in the File Manager
 ===================================
 
 Clicking the little-folder icon |folder| or pressing ``Ctrl+O`` will reveal the
@@ -85,7 +85,7 @@ Preview thumbnails by pressing the ``SPACE`` key. Use the ``arrow down`` and
 ``arrow up`` keys to step back and forwards.
 
 
-Filtering lists
+Filtering Lists
 ===============
 
 .. image:: _static/filters.png
@@ -106,7 +106,7 @@ Click the small file-icon |filter|, or press ``Ctrl+F`` to edit the filter text.
   Filters operate on the full file-path, the user-descriptions and the file
   information strings.
 
-Filter examples
+Filter Examples
 ---------------
 
 Assuming the current *task folder* is ``scenes``, you can show all files in

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Installing from source</title>
+      <title>Installing From Source</title>
     
       <link rel="stylesheet" href="_static/pygments.css">
       <link rel="stylesheet" href="_static/theme.css">
@@ -23,7 +23,7 @@
   <link rel="index" title="Index" href="genindex.html" />
   <link rel="search" title="Search" href="search.html" />
   <link rel="next" title="Maya" href="maya.html" />
-  <link rel="prev" title="Task folders &amp; files" href="files.html" /> 
+  <link rel="prev" title="Task Folders &amp; Files" href="files.html" /> 
   </head>
 
   <body><div id="app" class="theme-container" :class="pageClasses">
@@ -61,16 +61,15 @@
 </div>
 <h3><a href="index.html">Table of Contents</a></h3>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Getting started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="overview.html#assets">Assets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="overview.html#annotations">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="files.html">Task folders &amp; files</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Installing from source</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Bookmarks &amp; Assets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="files.html">Task Folders &amp; Files</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installing From Source</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="maya.html">Maya</a></li>
-<li class="toctree-l1"><a class="reference internal" href="api.html">API Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">Python Modules Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="contact.html">Contact</a></li>
 <li class="toctree-l1"><a class="reference internal" href="licence.html">Licence</a></li>
 </ul>
@@ -83,14 +82,14 @@
   <ul class="breadcrumbs">
     <li><a href="index.html">Docs</a> &raquo;</li>
     
-    <li>Installing from source</li>
+    <li>Installing From Source</li>
   </ul>
   
 
   <ul class="page-nav">
   <li class="prev">
     <a href="files.html"
-       title="previous chapter">← Task folders &amp; files</a>
+       title="previous chapter">← Task Folders &amp; Files</a>
   </li>
   <li class="next">
     <a href="maya.html"
@@ -103,20 +102,17 @@
           <div class="content" role="main">
             
   <div class="section" id="installing-from-source">
-<span id="id1"></span><h1>Installing from source<a class="headerlink" href="#installing-from-source" title="Permalink to this headline">¶</a></h1>
+<span id="id1"></span><h1>Installing From Source<a class="headerlink" href="#installing-from-source" title="Permalink to this headline">¶</a></h1>
 <p>To build from source clone the repository from github:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/wgergely/GWBrowser
 </pre></div>
 </div>
 <div class="section" id="dependencies">
 <h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
-<p>GWBrowser relies on a number libraries to function. The project itself
-is written in Python 2.7.</p>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The standalone windows version’s libraries were compiled with MSCv1900
-(not MSCv1500).</p>
-</div>
+<p>GWBrowser relies on a number libraries to function detailed below.
+The code is written in Python 2. Python 3 has not yet been tested.</p>
+<p>The Windows binary distributions were compiled against MSC v1900 (Microsoft
+Visual Studio 14.0).</p>
 <div class="section" id="pyside2">
 <h3>PySide2<a class="headerlink" href="#pyside2" title="Permalink to this headline">¶</a></h3>
 <p>GWBrowser was tested against <code class="docutils literal notranslate"><span class="pre">Qt5.6</span></code> and <code class="docutils literal notranslate"><span class="pre">Qt5.12</span></code>.
@@ -168,7 +164,7 @@ as follows:</p>
             <div class="inner"><ul class="page-nav">
   <li class="prev">
     <a href="files.html"
-       title="previous chapter">← Task folders &amp; files</a>
+       title="previous chapter">← Task Folders &amp; Files</a>
   </li>
   <li class="next">
     <a href="maya.html"

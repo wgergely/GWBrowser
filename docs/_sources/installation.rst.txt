@@ -1,7 +1,7 @@
 .. _installing-from-source:
 
 ######################
-Installing from source
+Installing From Source
 ######################
 
 To build from source clone the repository from github:
@@ -14,12 +14,12 @@ To build from source clone the repository from github:
 Dependencies
 ------------
 
-GWBrowser relies on a number libraries to function. The project itself
-is written in Python 2.7.
+GWBrowser relies on a number libraries to function detailed below.
+The code is written in Python 2. Python 3 has not yet been tested.
 
-.. note::
-  The standalone windows version's libraries were compiled with MSCv1900
-  (not MSCv1500).
+
+The Windows binary distributions were compiled against MSC v1900 (Microsoft
+Visual Studio 14.0).
 
 
 PySide2

@@ -1,8 +1,8 @@
 .. _overview:
 
-###############
-Getting started
-###############
+##################
+Bookmarks & Assets
+##################
 
 
 .. contents:: :local:
@@ -12,160 +12,118 @@ Getting started
    :alt: GWBrowser
 
 
-Why bookmarks...?
+Why Bookmarks...?
 =================
 
 GWBrowser organizes projects into three parts: **bookmarks**, **assets** and
-**files**. A folder containing one or more asset is considered a |bookmark|
-**bookmark**.
+**files**. A bookmark is an entry-point to a project, whilst assets are
+folders used to store scenes and render-files.
 
-Depending on your role, and how the project is structured, you likely will likely
-need to interact with only the part of the project.
+Depending on your role, and the project, you will likely
+only need to interact with a specific part of the project. This is where
+bookmarks come handy.
 
 For instance, if you're a character modeller, some folders (eg. shots and
-sequences) might not be of interest to you. In this case, you would bookmark the
-folder where your model scenes reside allowing you to focus on the assets that
-matter to you the most.
+sequences) might not be of interest to you. You would then only bookmark the
+folder where your model scenes reside and ignoring all the extra stuff you don't
+care about that much.
 
-Adding jobs and bookmarks
-=========================
 
-Before you can add a bookmark GWBrowser must be told which servers to use.
-You can define three a **primary**, **backup** and **local**
-work folder.
+Creating Jobs
+=============
 
-With the ``bookmarks`` tab selected (``Ctrl+1``) click the small bookmark icon
-|bookmark| or press ``Ctrl+N`` to show the dialogue used to add jobs and bookmarks.
+Before you can add a bookmark GWBrowser must be told where jobs are stored. You
+can define a **primary**, **backup** and **local** paths.
+
+Select the ``bookmarks`` tab (``Ctrl+1``) and click the small bookmark icon
+|bookmark|, or press ``Ctrl+N``, to show the *add bookmarks window*.
 
 
 .. image:: _static/addbookmarks.png
    :alt: Adding a bookmark...
 
-If no jobs exist create a new one, otherwise select an
-existing one from the dropdown menu.
+If no jobs exist yet, you'll have to create one, otherwise, you can select an
+existing one from the dropdown menu:
 
 .. image:: _static/adding_a_bookmark_ui.gif
    :alt: Adding a bookmark...
 
 .. note::
-  The first time a job is created the **bookmark folders** won't contain any
-  assets, and therefore GWBrowser can't list them. However, once at
-  least one asset has been added to a bookmark folder, they will show up in the
-  dropdown menu.
+  The first time a job is created **bookmark folders** won't contain any assets.
+  Once at least one asset has been added to a bookmark folder, they will show up
+  in the dropdown menu.
 
-  See below to learn what constitutes a **bookmark folder**.
+  See below to learn what constitutes a :ref:`bookmark folder<bookmark_folders>`.
 
-The **server, asset** and **bookmark folder** selections make up the final bookmark.
-Once all three has been selected the bookmark can be added.
+The **server, asset** and **bookmark folder** selections make up the final
+bookmark:
 
 .. image:: _static/adding_a_bookmark_ui2.gif
    :alt: Adding a bookmark...
 
 
-######
-Assets
-######
+Creating Assets
+===============
 
-Every bookmark folder will contain a number of |asset| **assets**. These can be shots,
-sequences, or generic containers. In technical terms, *assets* are simply
+Every bookmark folder will contain a number of |asset| **assets**. These can be
+shots, sequences, character assets, etc. In technical terms, *assets* are simply
 folders used to store texture, render, cache, scene (or any other files).
+
+.. _bookmark_folders:
+
+.. code-block:: text
+
+  ./SHOTS/                <--- bookmark folder
+  ├── .browser            <--- GWBrowser settings and thumbnails
+  ├── SH000/
+  │   ├── workspace.mel
+  │   ├── scenes/         <--- a task folder
+  │   ├── renders/        <--- another task folder
+  │   └── textures/       <--- and you guessed, a task folder!
+  ├── SH010/
+  │   ├── workspace.mel
+  │   ├── scenes/
+  │   ├── renders/
+  │   └── textures/
+  └── SH020/
+      ├── workspace.mel   <--- identifier file
+      ├── scenes/
+      ├── renders/
+      └── textures/
 
 .. note::
 
-  Assets have an *identifier file* in their root. Because GWBrowser uses
-  the Maya project structure as reference this is a ``workspace.mel``
-  file.
+  Assets have an *identifier file* in their root used by GWBrowser to find them.
+  Because we're using the Maya project structure as reference this is a
+  ``workspace.mel`` file.
 
   When the *identifier file* resides in the root of a directory, GWBrowser will
   understand it as an *asset*, and the parent folder as a *bookmark folder*.
 
-  This is what the relationship between bookmarks and assets look like:
 
-  .. code-block:: javascript
-
-    ./SHOTS/                <--- bookmark folder
-    ├── .browser            <--- settings and thumbnails
-    ├── SH000/
-    │   ├── workspace.mel
-    │   ├── scenes/         <--- a task folder
-    │   ├── renders/        <--- another task folder
-    │   └── textures/       <--- and you guessed, a task folder!
-    ├── SH010/
-    │   ├── workspace.mel
-    │   ├── scenes/
-    │   ├── renders/
-    │   └── textures/
-    └── SH020/
-        ├── workspace.mel
-        ├── scenes/
-        ├── renders/
-        └── textures/
-
-
-Adding assets
-=============
-
-Select the ``assets`` tab (``Ctrl+2``) and click the small add icon |add|, or
-press ``Ctrl+N`` to add a new asset.
+To create a new asset, select the ``assets`` tab (``Ctrl+2``) and click the
+small add icon |add|, or press ``Ctrl+N``.
 
 .. image:: _static/assets.gif
   :target: _static/assets.gif
   :alt: Assets...
 
-The created asset will be placed in the root of the currently active
-bookmark folder. If there's no active bookmark, you won't be able to add an asset.
+The created asset will be placed in the root of the currently active bookmark
+folder. If there's no active bookmark, you won't be able to add an asset.
 
 .. tip::
    To activate a bookmark or asset, double-click it, or press enter when
    selected.
 
-Customising the job and asset templates
+
+Customising the Job and Asset Templates
 =======================================
 
 The template files defining the job and asset folders are located in the
-``[username]/Documents/GWBrowser`` folder.
+``[username]/Documents/GWBrowser`` folder on windows.
 
 They are called **Asset.zip** and **Job.zip** respectively. You can replace them
 with any other zip file (make sure to keep the same name).
-
-
-###########
-Annotations
-###########
-
-An important aspect of GWBrowser is to allow adding descriptions and thumbnails.
-
-.. image:: _static/annotating1.gif
-   :target: _static/annotating1.gif
-   :alt: Annotating items
-
-.. note::
-   Descriptions, thumbnails and comments are visible to everyone using the same
-   bookmark, as is marking an item **archived** |active|.
-
-   Marking an item **favourite** |favourite|, however is local to the current
-   user.
-
-   All data is stored in a folder called ``.browser`` located in the root of the
-   bookmark folder.
-
-
-Archiving items
-===============
-
-Much like bookmarks, assets can be annotated, marked as favourites or archived.
-Because most pipelines are non-destructive deleting obsolete assets and files is
-not possible or advised. We can hide these items by clicking the small eye icon
-|active|.
-
-.. image:: _static/assets2.gif
-  :target: _static/assets2.gif
-  :alt: Assets...
-
-.. tip::
-   Marking something archived intended to mean the item is no longer used, eg.
-   it is a depreciated shot or character rig. Marking a folder archived is only
-   a visual garnish and in no way modifies the underlaying files.
 
 
 .. |bookmark| image:: _static/bookmark.png
