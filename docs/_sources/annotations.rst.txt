@@ -34,6 +34,7 @@ not possible. We can hide these items by clicking the small eye icon |active|.
    a visual garnish and in no way modifies the underlaying files.
 
 
+
 .. |bookmark| image:: _static/bookmark.png
 .. |asset| image:: _static/assets.png
 .. |active| image:: _static/active.png

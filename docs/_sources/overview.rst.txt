@@ -7,7 +7,6 @@ Bookmarks & Assets
 
 .. contents:: :local:
 
-
 .. image:: _static/banner.png
    :alt: GWBrowser
 
@@ -124,6 +123,16 @@ The template files defining the job and asset folders are located in the
 
 They are called **Asset.zip** and **Job.zip** respectively. You can replace them
 with any other zip file (make sure to keep the same name).
+
+
+Index
+-----
+
+.. toctree::
+  :maxdepth: 2
+
+  annotations
+  files
 
 
 .. |bookmark| image:: _static/bookmark.png

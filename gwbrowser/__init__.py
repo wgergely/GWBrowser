@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
-"""**GWBrowser is a simple digital asset manager aimed at small and medium sized
-animation and film productions.**
-
-Designed to create and navigate files and folders of a digital production,
-GWBrowser can annotate assets and files using comments, descriptions and
-thumbnails, making navigating productions a little less cumbersome.
+"""**GWBrowser is a simple asset browser used to create and navigate
+the files and folders of animation or film productions.**
 
 Predominantly intended to be run as a standalone PySide2 application, GWBrowser
 can, however, be embedded in PySide2 contexts. This should include (at the time

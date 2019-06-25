@@ -8,24 +8,27 @@
    :alt: Logo
 
 
-**GWBrowser is a simple digital asset manager aimed at small and medium-sized
-animation and film productions.**
-
-It helps you navigate digital productions by creating and annotating the files
-and folders used to keep projects. To learn more on what GWBrowser does and how you
-can have a look at the :ref:`overview` or :ref:`modules-documentation`.
-
+**GWBrowser is a simple asset browser used to create, annotate and navigate
+the files and folders of animation and film productions.**
 
 .. image:: _static/banner.png
    :alt: GWBrowser
 
+To see how GWBrowser works see :ref:`overview`. There's a bit more information
+on the technical side of things at :ref:`modules-documentation`.
 
 
-Get GWBrowser
-=============
+.. image:: _static/assets.gif
+  :target: _static/assets.gif
+  :alt: Assets...
+
+
+
+Download
+========
 
 You can get the latest version from `Github Releases <https://github.com/wgergely/GWBrowser/releases/>`_
-(see the notes about building from source: :ref:`installing-from-source`).
+See the notes about building from source: :ref:`installing-from-source`.
 
 
 Table of Contents
@@ -39,12 +42,20 @@ Table of Contents
   files
 
   installation
-  
+
   maya
   api
   contact
   licence
 
-
 * :ref:`modindex`
 * :ref:`search`
+
+.. |bookmark| image:: _static/bookmark.png
+.. |asset| image:: _static/assets.png
+.. |active| image:: _static/active.png
+.. |add| image:: _static/add.png
+.. |folder| image:: _static/folder.png
+.. |favourite| image:: _static/favourite.png
+.. |group| image:: _static/expand.png
+.. |filter| image:: _static/filter.png
