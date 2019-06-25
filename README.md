@@ -23,12 +23,15 @@
 
 ***
 
-<center><h3>Simple digital asset manager to help small teams to organize animation and film productions.</h3></center>
+<center><h3>Simple asset browser to help small teams to organize animation and
+film productions.</h3></center>
 
 ***
 
 
-Aimed at small and medium sized teams, GWBrowser was designed to help users locate images and scenes quickly by structuring data and adding descriptions, tags and thumbnails to files.
+Aimed at small and medium sized teams, GWBrowser can help you find files and
+folders by filtering, adding descriptions, thumbnails and notes to assets and files.
+
 
 <p align="center">
  <img src="./gwbrowser/rsc/banner.png" alt="GWBrowser"/>
@@ -39,7 +42,8 @@ Aimed at small and medium sized teams, GWBrowser was designed to help users loca
 
 * **MacOS** & **Windows** standalone versions
 * **Maya** plugin
-* To-dos, task lists & custom descriptions
+* Creates job and asset folder templates
+* To-do lists and descriptions
 * Automatic thumbnails by **OpenImageIO** from most image and video formats
 * MacOS-style thumbnail previews
 * Screen-captures as thumbnails
@@ -74,4 +78,4 @@ Dedicated maya plug-in
 [hello@gergely-wootsch.com](mailto:hello@gergely-wootsch.com)   
 [gergely-wootsch.com](http://gergely-wootsch.com)
 
-Huge thanks for [Glassworks Barcelona](https://www.glassworksvfx.com/) and [Studio Aka](https://studioaka.co.uk/) the inspiration, space and time over the years.
+Huge thanks for [Glassworks Barcelona](https://www.glassworksvfx.com/) and [Studio Aka](https://studioaka.co.uk/) para todo.
