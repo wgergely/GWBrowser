@@ -141,6 +141,7 @@ class AssetModel(BaseModel):
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.AssetItem,
+                common.FramesRole: [],
                 #
                 common.SortByName: entry.path.replace(u'\\', u'/'),
                 common.SortByLastModified: entry.path.replace(u'\\', u'/'),
