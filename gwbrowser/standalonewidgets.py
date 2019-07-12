@@ -255,7 +255,7 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
-        self.layout().addWidget(AppIcon(parent=self))
+        # self.layout().addWidget(AppIcon(parent=self))
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
