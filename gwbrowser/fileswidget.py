@@ -413,7 +413,7 @@ class FilesModel(BaseModel):
     @initdata
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and
-        sequence definitions by running a file-iterator from
+        sequence definitions by running a file-iterator stemming from
         ``self._parent_item``.
 
         Getting all additional information, like description, item flags,
@@ -584,10 +584,21 @@ class FilesModel(BaseModel):
                     common.SortBySize: 0,
                 }
 
-                if len(fileroot.split(u'/')) <= 4:
-                    # self._keywords[fileroot] = fileroot
-                    add_keywords(fileroot.split(u'/'))
+                # Keywords for filtering
+                _rr = u'%%{}'.format(fileroot)
+                self._keywords[_rr] = _rr
+                self._keywords[filename] = filename
+
+                split_root = fileroot.split(u'/')
+                _rr = u'%%{}'.format(split_root[0])
+                self._keywords[_rr] = _rr
+                if len(split_root) <= 4:
+                    add_keywords(split_root)
                     add_keywords(re.split(ur'[\._\-\s]+', filename))
+
+                    for _root in split_root:
+                        add_keywords(re.split(ur'[\._\-\s]+', _root))
+                        self._keywords[_root] = _root
 
                 # If the file in question is a sequence, we will also save a reference
                 # to it in `self._model_data[location][True]` dictionary.

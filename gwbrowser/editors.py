@@ -396,7 +396,7 @@ class EditorContextMenu(BaseContextMenu):
         """Custom context menu to add a keyword to the search list."""
         pixmap = ImageCache.get_rsc_pixmap(
             u'filter', common.TEXT, common.INLINE_ICON_SIZE)
-        kws = self.parent().parent().keywords()
+        kws = self.parent().parent().parent().keywords()
 
         def insert_keyword(s):
             """The action to execute when a keyword is inserted."""
@@ -457,7 +457,7 @@ QLineEdit:focus {{
 
     def contextMenuEvent(self, event):
         """Custom context menu for the editor widget."""
-        if not self.parent().keywords():
+        if not self.parent().parent().keywords():
             return
 
         widget = EditorContextMenu(parent=self)
@@ -470,12 +470,13 @@ QLineEdit:focus {{
 
 
 class FilterEditor(QtWidgets.QWidget):
-    """Editor widget used to set the filter for the current model."""
+    """Editor widget used to set a text filter on the associated model."""
     finished = QtCore.Signal(unicode)
 
     def __init__(self, text, parent=None):
         super(FilterEditor, self).__init__(parent=parent)
         self.editor_widget = None
+        self.subfolders_widget = None
         self.context_menu_open = False
 
         self.row1_height = common.ROW_BUTTONS_HEIGHT * 1.5
@@ -483,11 +484,6 @@ class FilterEditor(QtWidgets.QWidget):
 
         self._createUI()
         self._connectSignals()
-        self.setFocusProxy(self.editor_widget)
-
-        self.editor_widget.setText(u'' if text == u'/' else text)
-        self.editor_widget.selectAll()
-        self.editor_widget.focusOutEvent = self.focusOutEvent
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
@@ -495,31 +491,50 @@ class FilterEditor(QtWidgets.QWidget):
         self.setWindowFlags(QtCore.Qt.Window |
                             QtCore.Qt.FramelessWindowHint)
 
-    def keywords(self):
-        """Shortcut to the keyword values we stored."""
-        if not self.parent():
-            return {}
-        return self.parent().parent().stackedwidget.currentWidget().model().sourceModel().keywords()
-
-    def _createUI(self):
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        label = FilterIcon(parent=self)
-        self.editor_widget = Editor(parent=self)
+        self.editor_widget.setText(u'' if text == u'/' else text)
+        self.editor_widget.selectAll()
+        self.editor_widget.setFocus()
 
         # Settings the completer associated with the Editor widget
-        completer = QtWidgets.QCompleter(
-            sorted(self.keywords().keys()), self)
+        keys = self.keywords().keys()
+        completer = QtWidgets.QCompleter(sorted(keys), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
         completer.setCompletionMode(
             QtWidgets.QCompleter.InlineCompletion)
         self.editor_widget.setCompleter(completer)
 
-        self.layout().addWidget(label, 0)
-        self.layout().addWidget(self.editor_widget, 1)
+        for item in sorted([f.replace(u'%%', u'') for f in keys if u'%%' in f]):
+            self.subfolders_widget.addItem(item)
+
+    def keywords(self):
+        """Shortcut to access the models filter keyword values."""
+        if not self.parent():
+            return {}
+        return self.parent().parent().stackedwidget.currentWidget().model().sourceModel().keywords()
+
+    def _createUI(self):
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        row = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(row)
+        row.layout().setContentsMargins(0, 0, 0, 0)
+        row.layout().setSpacing(0)
+        row.layout().setAlignment(QtCore.Qt.AlignCenter)
+        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
+        label = FilterIcon(parent=self)
+        self.editor_widget = Editor(parent=self)
+
+        row.layout().addWidget(label, 0)
+        row.layout().addWidget(self.editor_widget, 1)
+        self.layout().addWidget(row, 1)
+
+        self.subfolders_widget = QtWidgets.QListWidget()
+        self.layout().addWidget(self.subfolders_widget, 1)
 
     def _connectSignals(self):
         self.finished.connect(self.close)
