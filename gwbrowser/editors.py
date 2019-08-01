@@ -716,6 +716,6 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    widget = ThumbnailsWidget()
+    widget = FilterEditor('')
     widget.show()
     app.exec_()
