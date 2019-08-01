@@ -455,7 +455,10 @@ class StandaloneBrowserWidget(BrowserWidget):
         """Modifies layout for display in standalone-mode."""
 
         self.headerwidget = HeaderWidget(parent=self)
-        self.layout().setContentsMargins(2, 2, 2, 2)
+
+        o = 4 # offset around the widget
+
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
         self.layout().insertWidget(0, self.headerwidget)
 

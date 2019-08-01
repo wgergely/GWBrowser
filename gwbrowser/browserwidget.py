@@ -48,6 +48,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.setWindowFlags(
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
