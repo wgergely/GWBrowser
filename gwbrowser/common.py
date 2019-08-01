@@ -50,7 +50,7 @@ MarkedAsActive = 0b100000000000
 
 COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
-SLACK_URL = ur'https://studio-aka.slack.com/'
+SLACK_URL = ur'https://gwbcn.slack.com/'
 
 
 def get_platform():
