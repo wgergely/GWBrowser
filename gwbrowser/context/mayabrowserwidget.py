@@ -18,7 +18,11 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-from gwalembic.alembic import Abc
+try: # No need to use our bundled alembic module if one is already present in our environment
+    from alembic import Abc
+except ImportError:
+    from gwalembic.alembic import Abc
+
 from gwbrowser.settings import Active
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache

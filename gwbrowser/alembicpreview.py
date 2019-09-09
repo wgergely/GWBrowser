@@ -7,7 +7,11 @@ file.
 
 from PySide2 import QtCore, QtWidgets, QtGui
 
-import gwalembic.alembic as alembic
+try: # No need to use our bundled alembic module if one is already present in our environment
+    import alembic
+except ImportError:
+    import gwalembic.alembic as alembic
+
 import gwbrowser.common as common
 
 
