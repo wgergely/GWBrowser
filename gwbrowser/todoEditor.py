@@ -11,6 +11,7 @@ Methods:
     TodoEditorWidget.add_item(): Main function to add a new todo item.
 
 """
+
 import uuid
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -31,6 +32,7 @@ class PaintedLabel(QtWidgets.QLabel):
         self._font.setPointSize(size)
         metrics = QtGui.QFontMetrics(self._font)
         self.setFixedHeight(metrics.height())
+        self.setFixedWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum,
@@ -41,7 +43,7 @@ class PaintedLabel(QtWidgets.QLabel):
         """Custom paint event to use the aliased paint method."""
         painter = QtGui.QPainter()
         painter.begin(self)
-        color = common.FAVOURITE
+        color = common.SECONDARY_BACKGROUND
         common.draw_aliased_text(
             painter, self._font, self.rect(), self.text(), QtCore.Qt.AlignCenter, color)
         painter.end()
@@ -356,47 +358,61 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             QtGui.QDesktopServices.openUrl(url)
 
 
-class AddButton(QtWidgets.QLabel):
-    """Custom icon button to add a new todo item."""
+class CustomButton(QtWidgets.QLabel):
+    """Custom button used to draw the editor control buttons."""
     pressed = QtCore.Signal()
 
-    def __init__(self, parent=None):
-        super(AddButton, self).__init__(parent=parent)
+    def __init__(self, button, size=32.0, parent=None):
+        super(CustomButton, self).__init__(parent=parent)
+        self.button = button
+        self._size = size
+
         self.setMouseTracking(True)
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'add', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setFixedHeight(self._size)
+        self.setFixedWidth(self._size)
+        self.setPixmap(self._pixmap())
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
+        # Checking if the cursor is over the button when released
+        cursor = QtGui.QCursor()
+        pos = self.mapFromGlobal(cursor.pos())
+        if not self.rect().contains(pos):
+            return
+
         self.pressed.emit()
 
+    def enterEvent(self, event):
+        self.setPixmap(self._pixmap(type=event.type()))
+        self.repaint()
 
-class RemoveButton(QtWidgets.QLabel):
+    def leaveEvent(self, event):
+        self.setPixmap(self._pixmap(type=event.type()))
+        self.repaint()
+
+    def _pixmap(self, type=QtCore.QEvent.Leave):
+        if self.button is None:
+            return QtGui.QPixmap(self._size, self._size)
+
+        if type == QtCore.QEvent.Leave:
+            return ImageCache.get_rsc_pixmap(
+                self.button, common.SECONDARY_BACKGROUND, self._size)
+        if type == QtCore.QEvent.Enter:
+            return ImageCache.get_rsc_pixmap(
+                self.button, common.FAVOURITE, self._size)
+
+        return QtGui.QPixmap(self._size, self._size)
+
+
+class RemoveButton(CustomButton):
     """Custom icon button to remove an item or close the editor."""
 
     def __init__(self, parent=None):
-        super(RemoveButton, self).__init__(parent=parent)
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', common.FAVOURITE, 32)
-        self.setPixmap(pixmap)
-
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setMouseTracking(True)
+        super(RemoveButton, self).__init__(u'remove', parent=parent)
         self.setAcceptDrops(True)
-
-    def mouseReleaseEvent(self, event):
-        """We're handling the close event here."""
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.parent().parent().close()
 
     def dragEnterEvent(self, event):
         """Accepting the drag operation."""
@@ -503,12 +519,9 @@ class DragIndicatorButton(QtWidgets.QLabel):
         # Preparing the drag...
         remove_button = parent_widget.parent().parent(
         ).parent().parent().findChild(RemoveButton)
-        # Ugh, ugly code...
-        add_button = parent_widget.parent().parent().parent().parent().findChild(AddButton)
-        pixmap = pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = ImageCache.get_rsc_pixmap(
             u'remove', QtGui.QColor(255, 0, 0), 32)
         remove_button.setPixmap(pixmap)
-        add_button.setHidden(True)
         parent_widget.parent().separator.setHidden(False)
         overlay_widget.show()
 
@@ -522,7 +535,6 @@ class DragIndicatorButton(QtWidgets.QLabel):
         pixmap = ImageCache.get_rsc_pixmap(
             u'remove', common.FAVOURITE, 32)
         remove_button.setPixmap(pixmap)
-        add_button.setHidden(False)
 
 
 class CheckBoxButton(QtWidgets.QLabel):
@@ -738,38 +750,6 @@ class TodoEditors(QtWidgets.QWidget):
             return (idx, lines[idx])
 
 
-class MoveWidget(QtWidgets.QWidget):
-    """Widget used to move the editor window."""
-    widgetMoved = QtCore.Signal(QtCore.QPoint)
-
-    def __init__(self, parent=None):
-        super(MoveWidget, self).__init__(parent=parent)
-        self.setMouseTracking(True)
-
-        self.move_in_progress = False
-        self.move_start_event_pos = None
-        self.move_start_widget_pos = None
-
-    def mousePressEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.move_in_progress = True
-        self.move_start_event_pos = event.pos()
-        self.move_start_widget_pos = self.mapToGlobal(
-            self.geometry().topLeft())
-
-    def mouseMoveEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.buttons() == QtCore.Qt.NoButton:
-            return
-        if self.move_start_widget_pos:
-            offset = (event.pos() - self.move_start_event_pos)
-            pos = self.mapToGlobal(self.geometry().topLeft()) + offset
-            self.parent().move(pos)
-            self.widgetMoved.emit(pos)
-
-
 class TodoItemWidget(QtWidgets.QWidget):
     """The item-wrapper widget holding the checkbox, drag indicator and editor widgets."""
 
@@ -777,10 +757,6 @@ class TodoItemWidget(QtWidgets.QWidget):
         super(TodoItemWidget, self).__init__(parent=parent)
         self.editor = None
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAutoFillBackground(True)
-
         self._createUI()
 
     def _createUI(self):
@@ -789,73 +765,118 @@ class TodoItemWidget(QtWidgets.QWidget):
         self.layout().setSpacing(6)
 
 
-class ResizeWidget(QtWidgets.QWidget):
-    """Widget used to move the editor window."""
-
-    def __init__(self, parent=None):
-        super(ResizeWidget, self).__init__(parent=parent)
-        self.setMouseTracking(True)
-        self.setFixedHeight(12)
-        self.move_in_progress = False
-        self.move_start_event_pos = None
-        self.move_start_geo = None
-
-    def mousePressEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.move_in_progress = True
-        self.move_start_event_pos = event.pos()
-        self.move_start_geo = self.parent().rect()
-
-    def mouseMoveEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.buttons() == QtCore.Qt.NoButton:
-            return
-
-        offset = (event.pos() - self.move_start_event_pos)
-        if self.move_start_geo:
-            rect = self.parent().geometry()
-            rect.setRight(
-                rect.left() + self.move_start_geo.width() + offset.x())
-            rect.setBottom(rect.bottom() + offset.y())
-            self.parent().setGeometry(rect)
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.move_in_progress = False
-        self.move_start_event_pos = None
-        self.move_start_geo = None
-
-
 class TodoEditorWidget(QtWidgets.QWidget):
-    """Main widget containing the Todo items."""
+    """Main widget used to view and edit and add Notes and Tasks."""
 
     def __init__(self, index, parent=None):
         super(TodoEditorWidget, self).__init__(parent=parent)
-
         self.editors = None
         self._index = index
 
-        self.setObjectName(u'todoitemswrapper')
-        self.setWindowTitle(u'Todo Editor')
+        self.setWindowTitle(u'Notes and Task')
         self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint
-        )
-        self.setMinimumWidth(640)
-        self.setMinimumHeight(800)
 
         self._createUI()
+        self._init_settings()
         self.installEventFilter(self)
 
-        if not index.isValid():
+        # Resize
+        if self.parent():
+            self.parent().parent().parent().resized.connect(self._updateGeometry)
+
+        # I will have to implement a lock and make sure we're not overwriting
+        # comments if more than one user is editing items in the same time.
+
+        if self.index.isValid():
+            settings = AssetSettings(self.index)
+            print settings.conf_path()
+
+            self.save_timer = QtCore.QTimer(parent=self)
+            self.save_timer.setInterval(2000)
+            self.save_timer.setSingleShot(False)
+            self.save_timer.timeout.connect(self.check_settings)
+            # self.save_timer.timeout.connect(self.save_settings)
+            self.save_timer.start()
+
+    def _updateGeometry(self, *args, **kwargs):
+        geo = self.parent().viewport().rect()
+        self.resize(geo.width(), geo.height())
+
+
+    def _createUI(self):
+        """Creates the ui layout."""
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setSpacing(0)
+        o = common.INDICATOR_WIDTH
+        self.layout().setContentsMargins(o, o, o, o)
+
+        # Top row
+        row = QtWidgets.QWidget()
+        QtWidgets.QHBoxLayout(row)
+        row.setStyleSheet("""background: rgba({});""".format(common.rgb(common.SECONDARY_TEXT)))
+        row.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Minimum
+        )
+
+        # We'll grab the current index's thumbnail...
+        if self.parent():
+            header_index = self.parent().model().mapFromSource(self.index)
+            header_rect = self.parent().visualRect(header_index)
+
+            thumbnail = QtWidgets.QLabel()
+            pixmap = QtGui.QPixmap()
+            pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
+            thumbnail.setPixmap(pixmap)
+            thumbnail.setScaledContents(True)
+            thumbnail.setFixedHeight(common.ROW_HEIGHT)
+            row.layout().addWidget(thumbnail, 0)
+
+        # Name label
+        if self.index.isValid():
+            p = self.index.data(common.ParentRole)
+            text = u'{} - {}'.format(p[-1], p[-2]).upper()
+        else:
+            text = u''
+        label = PaintedLabel(text, size=common.LARGE_FONT_SIZE)
+        row.layout().addWidget(label, 0)
+
+        row.layout().addStretch(1)
+
+        # Add button
+        self.add_button = CustomButton(u'todo')
+        self.add_button.pressed.connect(self.add_new_item)
+        row.layout().addWidget(self.add_button, 0)
+
+
+        self.remove_button = RemoveButton()
+        self.remove_button.pressed.connect(self.close)
+        row.layout().addWidget(self.remove_button, 0)
+
+        self.editors = TodoEditors()
+        self.setMinimumWidth(self.editors.minimumWidth() + 6)
+        self.setMinimumHeight(100)
+
+        self.scrollarea = QtWidgets.QScrollArea()
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setWidget(self.editors)
+        # self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        self.layout().addWidget(row)
+        self.layout().addWidget(self.scrollarea)
+
+        common.set_custom_stylesheet(self)
+
+    def _init_settings(self):
+        """Populates the widget with the saved notes"""
+        if not self.index.isValid():
             return
 
-        settings = AssetSettings(index)
+        settings = AssetSettings(self.index)
         items = settings.value(u'config/todos')
         if not items:
             return
@@ -865,14 +886,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 text=items[k][u'text'],
                 checked=items[k][u'checked']
             )
-
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-        self.save_timer = QtCore.QTimer(parent=self)
-        self.save_timer.setInterval(2000)
-        self.save_timer.setSingleShot(False)
-        self.save_timer.timeout.connect(self.save_settings)
-        self.save_timer.start()
 
     @property
     def index(self):
@@ -889,6 +902,11 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter.setFont(font)
 
             rect = QtCore.QRect(self.rect())
+
+            painter.setBrush(common.TEXT)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.drawRect(rect)
+
             center = rect.center()
             rect.setWidth(rect.width() - common.MARGIN)
             rect.setHeight(rect.height() - common.MARGIN)
@@ -1026,78 +1044,41 @@ class TodoEditorWidget(QtWidgets.QWidget):
         return item
 
     @QtCore.Slot()
+    def check_settings(self):
+        """Saves the current list of todo items to the assets configuration file."""
+        if not self.index.isValid():
+            return
+
+        # Ours
+        ours = self._collect_data()
+
+        # Theirs
+        settings = AssetSettings(self.index)
+        theirs = settings.value(u'config/todos')
+
+        # Let's check the number of items
+        print 'Checking settings...'
+        if cmp(ours, theirs) == 0: # the dictionaries are equal
+            print 'Up to date!'
+            return
+
+    @QtCore.Slot()
     def save_settings(self):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
+
+        data = self._collect_data()
         settings = AssetSettings(self.index)
-        todos = self._collect_data()
-        settings.setValue(u'config/todos', todos)
+        settings.setValue(u'config/todos', data)
 
         model = self.index.model()
-        model.setData(self.index, len(todos), role=common.TodoCountRole)
+        model.setData(self.index, len(data), role=common.TodoCountRole)
 
     @QtCore.Slot()
-    def add_new_item(self):
+    def add_new_item(self, html=u'', idx=0):
         """Adds a new item with some default styling."""
-        html = u''
-        self.add_item(text=html, idx=0)
-
-    def _createUI(self):
-        """Creates the ui layout."""
-        QtWidgets.QVBoxLayout(self)
-        self.layout().setSpacing(0)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-
-        self.remove_button = RemoveButton()
-        self.remove_button.setFocusPolicy(QtCore.Qt.NoFocus)
-
-        row = MoveWidget()
-        row.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        row.setFocusPolicy(QtCore.Qt.NoFocus)
-
-        QtWidgets.QHBoxLayout(row)
-        self.add_button = AddButton()
-        self.add_button.pressed.connect(self.add_new_item)
-        self.add_button.pressed.connect(self.update)
-        self.add_button.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.add_button.setFixedWidth(32)
-        self.add_button.setFixedHeight(32)
-        self.add_button.setAlignment(QtCore.Qt.AlignCenter)
-        pixmap = ImageCache.get_rsc_pixmap(u'todo', common.FAVOURITE, 32)
-        self.add_button.setPixmap(pixmap)
-        row.layout().addWidget(self.add_button, 0)
-
-        if self.index.isValid():
-            parent = self.index.data(common.ParentRole)[-1]
-            text = u'{} | Notes and Tasks'.format(parent.upper())
-        else:
-            text = u'Notes and Tasks'
-
-        label = PaintedLabel(text, size=common.LARGE_FONT_SIZE)
-        row.layout().addWidget(label, 1)
-        row.layout().addWidget(self.remove_button, 0)
-
-        self.editors = TodoEditors()
-        self.setMinimumWidth(self.editors.minimumWidth() + 6)
-        self.setMinimumHeight(100)
-
-        self.scrollarea = QtWidgets.QScrollArea()
-        self.scrollarea.setWidgetResizable(True)
-        self.scrollarea.setWidget(self.editors)
-        self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
-
-        self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-
-        self.layout().addWidget(row)
-        self.layout().addWidget(self.scrollarea)
-        self.layout().addWidget(ResizeWidget())
-
-        common.set_custom_stylesheet(self)
+        self.add_item(text=html, idx=idx)
 
     def _collect_data(self):
         """Returns all the items found in the todo widget."""
@@ -1118,45 +1099,19 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saving the contents on close/hide."""
         self.save_settings()
 
-        cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
-
-        pos = self.mapToGlobal(self.rect().topLeft())
-        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
-
-    def focusOutEvent(self, event):
-        if event.lostFocus():
-            self.close()
-
     def sizeHint(self):
-        return QtCore.QSize(800, 600)
+        """Custom size."""
+        if not self.parent():
+            return QtCore.QSize(800, 600)
+        print self.parent().rect().size()
+        return self.parent().rect().size()
 
     def showEvent(self, event):
-        app = QtWidgets.QApplication.instance()
-        geo = app.desktop().availableGeometry(self.parent())
-        if geo:
-            self.move(
-                (geo.width() / 2) - (self.width() / 2),
-                (geo.height() / 2) - (self.height() / 2)
-            )
-
-        cls = self.__class__.__name__
-        width = local_settings.value(u'widget/{}/width'.format(cls))
-        height = local_settings.value(u'widget/{}/height'.format(cls))
-        x = local_settings.value(u'widget/{}/x'.format(cls))
-        y = local_settings.value(u'widget/{}/y'.format(cls))
-
-        if not all((width, height, x, y)):  # skip if not saved yet
+        """Custom show event."""
+        if not self.parent():
             return
-        size = QtCore.QSize(width, height)
-        pos = QtCore.QPoint(x, y)
 
-        self.move(pos)
-        self.resize(size)
-        common.move_widget_to_available_geo(self)
-
+        self.setFocus()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
