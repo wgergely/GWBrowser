@@ -1130,7 +1130,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Custom size."""
         if not self.parent():
             return QtCore.QSize(800, 600)
-        return self.parent().rect().size()
+        return self.parent().viewport().rect().size()
 
     def showEvent(self, event):
         """Custom show event."""
