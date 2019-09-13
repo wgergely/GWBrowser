@@ -262,7 +262,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def dropEvent(self, event):
         """Custom drop event to add content from mime-data."""
-        index = self.window().index
+        index = self.parent().parent().parent().parent().parent().index
         if not index.isValid():
             return
 
@@ -290,7 +290,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         the clipboard we will save into our cache folder.
 
         """
-        index = self.window().index
+        index = self.parent().parent().parent().parent().parent().index
         if not index.isValid():
             return
 
@@ -407,6 +407,26 @@ class CustomButton(QtWidgets.QLabel):
         return QtGui.QPixmap(self._size, self._size)
 
 
+class RemoveNoteButton(CustomButton):
+    def __init__(self, parent=None):
+        super(RemoveNoteButton, self).__init__(
+            u'remove', size=common.INLINE_ICON_SIZE, parent=parent)
+        self.pressed.connect(self.remove_note)
+
+    def remove_note(self):
+        self.setUpdatesEnabled(False)
+
+        editors_widget = self.parent().parent()
+        idx = editors_widget.items.index(self.parent())
+        row = editors_widget.items.pop(idx)
+        editors_widget.layout().removeWidget(row)
+        row.deleteLater()
+
+        self.setUpdatesEnabled(True)
+
+        editor = self.parent().parent().parent().parent().parent()
+        editor.save_settings()
+
 class RemoveButton(CustomButton):
     """Custom icon button to remove an item or close the editor."""
 
@@ -423,7 +443,7 @@ class RemoveButton(CustomButton):
         """Drop event responsible for deleting an item from the todo list."""
         self.setUpdatesEnabled(False)
 
-        editors_widget = self.parent().parent().editors
+        editors_widget = self.parent().parent().todoeditors_widget
         idx = editors_widget.items.index(event.source())
         row = editors_widget.items.pop(idx)
         editors_widget.layout().removeWidget(row)
@@ -770,7 +790,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
     def __init__(self, index, parent=None):
         super(TodoEditorWidget, self).__init__(parent=parent)
-        self.editors = None
+        self.todoeditors_widget = None
         self._index = index
 
         self.setWindowTitle(u'Notes and Task')
@@ -778,7 +798,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self._createUI()
-        self._init_settings()
+        self.refresh()
         self.installEventFilter(self)
 
         # Resize
@@ -787,13 +807,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         # I will have to implement a lock and make sure we're not overwriting
         # comments if more than one user is editing items in the same time.
-
         if self.index.isValid():
             settings = AssetSettings(self.index)
-            print settings.conf_path()
-
             self.save_timer = QtCore.QTimer(parent=self)
-            self.save_timer.setInterval(2000)
+            self.save_timer.setInterval(4000)
             self.save_timer.setSingleShot(False)
             self.save_timer.timeout.connect(self.check_settings)
             # self.save_timer.timeout.connect(self.save_settings)
@@ -802,7 +819,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
         self.resize(geo.width(), geo.height())
-
 
     def _createUI(self):
         """Creates the ui layout."""
@@ -849,18 +865,21 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.add_button.pressed.connect(self.add_new_item)
         row.layout().addWidget(self.add_button, 0)
 
+        self.refresh_button = CustomButton(u'refresh')
+        self.refresh_button.pressed.connect(self.refresh)
+        row.layout().addWidget(self.refresh_button, 0)
 
         self.remove_button = RemoveButton()
         self.remove_button.pressed.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
-        self.editors = TodoEditors()
-        self.setMinimumWidth(self.editors.minimumWidth() + 6)
+        self.todoeditors_widget = TodoEditors()
+        self.setMinimumWidth(self.todoeditors_widget.minimumWidth() + 6)
         self.setMinimumHeight(100)
 
         self.scrollarea = QtWidgets.QScrollArea()
         self.scrollarea.setWidgetResizable(True)
-        self.scrollarea.setWidget(self.editors)
+        self.scrollarea.setWidget(self.todoeditors_widget)
         # self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -871,10 +890,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         common.set_custom_stylesheet(self)
 
-    def _init_settings(self):
-        """Populates the widget with the saved notes"""
+    def refresh(self):
+        """Populates the list based on the saved configuration file."""
         if not self.index.isValid():
             return
+
+        # First we will delete the existing items and re-populate the list
+        # from the configuration file.
+        for idx in reversed(xrange(len(list(self.todoeditors_widget.items)))):
+            row = self.todoeditors_widget.items.pop(idx)
+            self.todoeditors_widget.layout().removeWidget(row)
+            row.deleteLater()
 
         settings = AssetSettings(self.index)
         items = settings.value(u'config/todos')
@@ -912,8 +938,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             rect.setHeight(rect.height() - common.MARGIN)
             rect.moveCenter(center)
 
-            text = u'No todo items in the list. Yet.\nYou can add a new item by clikcing the pencil icon on the top.'
-            text = text if not len(self.editors.items) else u''
+            text = u'You can add a new note by clicking the pencil icon on the top.'
+            text = text if not len(self.todoeditors_widget.items) else u''
             common.draw_aliased_text(
                 painter, font, rect, text, QtCore.Qt.AlignCenter, common.FAVOURITE)
             painter.end()
@@ -921,8 +947,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
     def _get_next_enabled(self, n):
         hasEnabled = False
-        for i in xrange(len(self.editors.items)):
-            item = self.editors.items[i]
+        for i in xrange(len(self.todoeditors_widget.items)):
+            item = self.todoeditors_widget.items[i]
             editor = item.findChild(TodoItemEditor)
             if editor.isEnabled():
                 hasEnabled = True
@@ -932,29 +958,29 @@ class TodoEditorWidget(QtWidgets.QWidget):
             return -1
 
         # Finding the next enabled editor
-        for _ in xrange(len(self.editors.items) - n):
+        for _ in xrange(len(self.todoeditors_widget.items) - n):
             n += 1
-            if n >= len(self.editors.items):
+            if n >= len(self.todoeditors_widget.items):
                 return self._get_next_enabled(-1)
-            item = self.editors.items[n]
+            item = self.todoeditors_widget.items[n]
             editor = item.findChild(TodoItemEditor)
             if editor.isEnabled():
                 return n
 
     def key_tab(self):
         """Defining tabbing forward between items."""
-        if not self.editors.items:
+        if not self.todoeditors_widget.items:
             return
 
         n = 0
-        for n, item in enumerate(self.editors.items):
+        for n, item in enumerate(self.todoeditors_widget.items):
             editor = item.findChild(TodoItemEditor)
             if editor.hasFocus():
                 break
 
         n = self._get_next_enabled(n)
         if n > -1:
-            item = self.editors.items[n]
+            item = self.todoeditors_widget.items[n]
             editor = item.findChild(TodoItemEditor)
             editor.setFocus()
             self.scrollarea.ensureWidgetVisible(
@@ -962,14 +988,14 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
     def key_return(self,):
         """Control enter toggles the state of the checkbox."""
-        for item in self.editors.items:
+        for item in self.todoeditors_widget.items:
             editor = item.findChild(TodoItemEditor)
             checkbox = item.findChild(CheckBoxButton)
             if editor.hasFocus():
                 if not editor.document().toPlainText():
-                    idx = self.editors.items.index(editor.parent())
-                    row = self.editors.items.pop(idx)
-                    self.editors.layout().removeWidget(row)
+                    idx = self.todoeditors_widget.items.index(editor.parent())
+                    row = self.todoeditors_widget.items.pop(idx)
+                    self.todoeditors_widget.layout().removeWidget(row)
                     row.deleteLater()
                 checkbox.clicked.emit(not checkbox.checked)
                 break
@@ -1015,6 +1041,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         editor.setFocusPolicy(QtCore.Qt.StrongFocus)
         drag = DragIndicatorButton(checked=False)
         drag.setFocusPolicy(QtCore.Qt.NoFocus)
+        remove = RemoveNoteButton()
+        remove.setFocusPolicy(QtCore.Qt.NoFocus)
 
         def toggle_disabled(b, widget=None):
             widget.setDisabled(not b)
@@ -1028,13 +1056,14 @@ class TodoEditorWidget(QtWidgets.QWidget):
         item.layout().addWidget(checkbox)
         item.layout().addWidget(drag)
         item.layout().addWidget(editor, 1)
+        item.layout().addWidget(remove)
 
         if idx is None:
-            self.editors.layout().addWidget(item, 0)
-            self.editors.items.append(item)
+            self.todoeditors_widget.layout().addWidget(item, 0)
+            self.todoeditors_widget.items.append(item)
         else:
-            self.editors.layout().insertWidget(idx, item, 0)
-            self.editors.items.insert(idx, item)
+            self.todoeditors_widget.layout().insertWidget(idx, item, 0)
+            self.todoeditors_widget.items.insert(idx, item)
 
         checkbox.clicked.emit(checkbox._checked)
 
@@ -1057,9 +1086,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         theirs = settings.value(u'config/todos')
 
         # Let's check the number of items
-        print 'Checking settings...'
-        if cmp(ours, theirs) == 0: # the dictionaries are equal
-            print 'Up to date!'
+        if cmp(ours, theirs) == 0: # Everything seems to be up-to-date
             return
 
     @QtCore.Slot()
@@ -1083,8 +1110,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def _collect_data(self):
         """Returns all the items found in the todo widget."""
         data = {}
-        for n in xrange(len(self.editors.items)):
-            item = self.editors.items[n]
+        for n in xrange(len(self.todoeditors_widget.items)):
+            item = self.todoeditors_widget.items[n]
             editor = item.findChild(TodoItemEditor)
             checkbox = item.findChild(CheckBoxButton)
             if not editor.document().toPlainText():
@@ -1103,15 +1130,14 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Custom size."""
         if not self.parent():
             return QtCore.QSize(800, 600)
-        print self.parent().rect().size()
         return self.parent().rect().size()
 
     def showEvent(self, event):
         """Custom show event."""
         if not self.parent():
             return
+        self.setFocus(QtCore.Qt.OtherFocusReason)
 
-        self.setFocus()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

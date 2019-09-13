@@ -434,13 +434,10 @@ class BookmarksWidget(BaseInlineIconWidget):
         """Opens a dialog to add a new project to the list of saved locations."""
         if not self.add_bookmarks_widget:
             self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
-
-        pos = self.geometry().center()
-        pos = self.mapToGlobal(pos)
-        self.add_bookmarks_widget.move(
-            pos.x() - self.add_bookmarks_widget.width() / 2,
-            pos.y() - self.add_bookmarks_widget.height() / 2)
-
+            self.parent().parent().resized.connect(
+                self.add_bookmarks_widget._updateGeometry)
+            self.parent().parent().headerwidget.widgetMoved.connect(
+                self.add_bookmarks_widget._updateGeometry)
         self.add_bookmarks_widget.exec_()
 
     def mouseDoubleClickEvent(self, event):

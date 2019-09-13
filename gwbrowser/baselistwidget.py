@@ -1651,6 +1651,13 @@ class BaseInlineIconWidget(BaseListWidget):
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
         from gwbrowser.todoEditor import TodoEditorWidget
+
+        # Let's check if other editors are open and close them if so
+        editors = [f for f in self.children() if isinstance(f, TodoEditorWidget)]
+        if editors:
+            for editor in editors:
+                editor.close()
+
         source_index = self.model().mapToSource(index)
         widget = TodoEditorWidget(source_index, parent=self)
         widget.show()

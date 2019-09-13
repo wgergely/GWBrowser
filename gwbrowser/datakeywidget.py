@@ -41,10 +41,6 @@ class DataKeyWorker(BaseWorker):
     queue = Unique(999)
     indexes_in_progress = []
 
-    # @classmethod
-    # def reset_queue(cls):
-    #     print '!!'
-
     @staticmethod
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(index):

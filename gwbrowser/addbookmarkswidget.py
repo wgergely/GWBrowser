@@ -23,7 +23,7 @@ from gwbrowser.settings import local_settings
 from gwbrowser.editors import ClickableLabel
 
 
-custom_string = u'Select bookmark'
+custom_string = u'Select a custom bookmark folder...'
 
 
 class PaintedButton(QtWidgets.QPushButton):
@@ -555,6 +555,11 @@ class ConfigButton(ClickableLabel):
         """Slot connected to the clicked signal."""
         from gwbrowser.editservers import ServerEditor
         widget = ServerEditor()
+
+        pos = self.window().mapToGlobal(self.window().rect().topLeft())
+        widget.move(pos)
+        widget.resize(self.window().rect().size())
+
         widget.exec_()
 
         w = self.parent().window()
@@ -574,7 +579,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         super(AddBookmarksWidget, self).__init__(parent=parent)
         self.new_key = None
 
-        self.setWindowTitle(u'Add bookmark')
+        self.setWindowTitle(u'Add new bookmark')
         self.installEventFilter(self)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
@@ -582,7 +587,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         self._createUI()
         self._connectSignals()
-        self.initialize()
 
     def initialize(self):
         """Populates the comboboxes and selects the currently active items (if there's any)."""
@@ -593,7 +597,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.pick_job_widget.view().selectionModel().currentIndex())
 
         self.validate()
-        self.adjustSize()
 
     def _createUI(self):
         """Creates the AddBookmarksWidget's ui and layout."""
@@ -605,21 +608,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             row.layout().setAlignment(QtCore.Qt.AlignCenter)
             row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
             row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-            self.layout().addWidget(row, 1)
+            self.layout().addWidget(row)
             return row
 
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(
-            common.MARGIN,
-            common.MARGIN,
-            common.MARGIN,
-            common.MARGIN
-        )
+        o = common.MARGIN * 2
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
-        self.setFixedWidth(400)
 
-        label = PaintedLabel(u'Add bookmark', size=common.LARGE_FONT_SIZE)
+        label = PaintedLabel(u'Add new bookmark', size=common.LARGE_FONT_SIZE)
         self.layout().addWidget(label, 0)
 
         self.layout().addSpacing(common.MARGIN)
@@ -637,7 +635,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_server_widget.setStatusTip(description)
         row.layout().addWidget(self.pick_server_widget, 1)
         row.layout().addWidget(ConfigButton(parent=self), 0)
-        self.layout().addWidget(row, 1)
+        self.layout().addWidget(row)
 
         # Job
         row = add_row()
@@ -668,11 +666,13 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.pick_root_widget)
 
         self.layout().addSpacing(common.MARGIN)
+        self.layout().addStretch(1)
 
         row = QtWidgets.QWidget(parent=self)
         row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         QtWidgets.QHBoxLayout(row)
+
 
         self.ok_button = PaintedButton(u'Add bookmark')
         row.layout().addWidget(self.ok_button, 1)
@@ -724,15 +724,23 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.reject)
 
+    def _updateGeometry(self, *args, **kwargs):
+        pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
+        self.move(pos)
+        self.resize(self.parent().rect().size())
+
+    def sizeHint(self):
+        return self.parent().rect().size()
+
     def get_root_folder_items(self, path, depth=4, count=0, arr=None):
         """Scans the given path recursively and returns all root-folder candidates.
-        The recursion-depth is limited by the `depth`.
+        The recursion-depth is limited by the `depth` property.
 
         Args:
             depth (int): The number of subfolders to scan.
 
         Returns:
-            A list of QFileInfo items
+            A list of ``QFileInfo`` items.
 
         """
         path = path.replace(u'\\', u'/')
@@ -1007,6 +1015,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             # Disabling the item if it has already been added to the widget
             if entry.replace(u'\\', u'/') in bookmarks:
                 item.setFlags(QtCore.Qt.NoItemFlags)
+                item.setData(QtCore.Qt.DisplayRole, u'{} (bookmark already added)'.format(name))
 
             self.pick_root_widget.view().addItem(item)
 
@@ -1020,8 +1029,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_root_widget.view().insertItem(0, item)
 
     def showEvent(self, event):
+        """Custom show event responsible for placing the widget inthe right place."""
         if self.parent():
             self.parent().disabled_overlay_widget.show()
+
+        # This will automatically update the widget when it is shows
+        self.initialize()
+
+        if self.parent():
+            pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
+            self.move(pos)
 
     def hideEvent(self, event):
         if self.parent():

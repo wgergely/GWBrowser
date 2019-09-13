@@ -40,7 +40,7 @@ class ServerEditor(QtWidgets.QDialog):
         self._initValues()
 
     def _createUI(self):
-        def hrow(parent=None):
+        def hrow(parent=None, padding=0):
             """macro for adding a new row"""
             w = QtWidgets.QWidget(parent=parent)
             QtWidgets.QHBoxLayout(w)
@@ -54,6 +54,7 @@ class ServerEditor(QtWidgets.QDialog):
             w.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
             w.setAttribute(QtCore.Qt.WA_NoBackground)
             w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+            w.layout().addSpacing(padding)
             return w
 
         def add_label(text, parent=None):
@@ -68,15 +69,18 @@ class ServerEditor(QtWidgets.QDialog):
 
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = common.MARGIN * 2
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
+        from gwbrowser.addbookmarkswidget import PaintedLabel
+        label = PaintedLabel(u'Configure Servers', size=common.LARGE_FONT_SIZE)
+        self.layout().addWidget(label)
         # Primary server
         add_label(u'Primary server')
         # Mac
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'MacOS')
         label.setFixedWidth(80)
@@ -89,7 +93,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.primary_mac_editor, 1)
 
         # Win
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Windows')
         label.setFixedWidth(80)
@@ -102,7 +106,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.primary_win_editor, 1)
 
         # Description
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Description')
         label.setFixedWidth(80)
@@ -117,7 +121,7 @@ class ServerEditor(QtWidgets.QDialog):
         # Backup server
         add_label(u'Backup server')
         # Mac
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'MacOS')
         label.setFixedWidth(80)
@@ -130,7 +134,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.backup_mac_editor, 1)
 
         # Win
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Windows')
         label.setFixedWidth(80)
@@ -143,7 +147,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.backup_win_editor, 1)
 
         # Description
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Description')
         label.setFixedWidth(80)
@@ -158,7 +162,7 @@ class ServerEditor(QtWidgets.QDialog):
         # Backup server
         add_label(u'Local work-folder')
         # Mac
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'MacOS')
         label.setFixedWidth(80)
@@ -171,7 +175,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.local_mac_editor, 1)
 
         # Win
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Windows')
         label.setFixedWidth(80)
@@ -184,7 +188,7 @@ class ServerEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.local_win_editor, 1)
 
         # Description
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         self.layout().addWidget(row, 1)
         label = QtWidgets.QLabel(u'Description')
         label.setFixedWidth(80)
@@ -199,10 +203,11 @@ class ServerEditor(QtWidgets.QDialog):
 
         self.ok_button = QtWidgets.QPushButton(u'Ok')
         self.cancel_button = QtWidgets.QPushButton(u'Cancel')
-        row = hrow(parent=self)
+        row = hrow(parent=self, padding=o)
         row.layout().addWidget(self.ok_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
-        self.layout().addWidget(row, 1)
+        self.layout().addStretch(1)
+        self.layout().addWidget(row)
 
     def _connectSignals(self):
         pass
@@ -277,7 +282,7 @@ class ServerEditor(QtWidgets.QDialog):
             with open(common.Server.conf_path(), u'w+') as configfile:
                 parser.write(configfile)
             return super(ServerEditor, self).done(r)
-            
+
         return super(ServerEditor, self).done(r)
 
 if __name__ == '__main__':
