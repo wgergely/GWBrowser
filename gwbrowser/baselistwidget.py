@@ -672,12 +672,16 @@ class BaseListWidget(QtWidgets.QListView):
         self._buttons_hidden = False if local_settings.value(
             k) is None else local_settings.value(k)
 
-        self.setResizeMode(QtWidgets.QListView.Fixed)
+        self.setResizeMode(QtWidgets.QListView.Adjust)
         # self.setMouseTracking(False)
         self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -1552,8 +1556,10 @@ class BaseInlineIconWidget(BaseListWidget):
             return None
 
         index = self.indexAt(event.pos())
+        if not index.isValid():
+            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+
         rect = self.visualRect(index)
-        # idx = index.row()
 
         if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
@@ -1571,6 +1577,7 @@ class BaseInlineIconWidget(BaseListWidget):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                 rect, common.INLINE_ICON_SIZE, n)
 
+            print rect, bg_rect, event.pos()
             if not bg_rect.contains(event.pos()):
                 continue
 
@@ -1670,8 +1677,8 @@ class StackedWidget(QtWidgets.QStackedWidget):
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
         )
         self.setObjectName(u'BrowserStackedWidget')
 

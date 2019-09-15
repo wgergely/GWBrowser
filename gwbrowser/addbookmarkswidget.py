@@ -1039,6 +1039,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         if self.parent():
             pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
             self.move(pos)
+            self.resize(self.parent().width(), self.parent().height())
 
     def hideEvent(self, event):
         if self.parent():
