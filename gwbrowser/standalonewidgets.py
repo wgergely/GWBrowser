@@ -356,6 +356,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.installEventFilter(self)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
 
         self.initialized.connect(self.tweak_ui)
         self.initialized.connect(self.showNormal)
@@ -456,7 +457,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         self.headerwidget = HeaderWidget(parent=self)
 
-        o = 4 # offset around the widget
+        o = common.INDICATOR_WIDTH # offset around the widget
 
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
@@ -547,10 +548,11 @@ class StandaloneBrowserWidget(BrowserWidget):
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
             self.resize_initial_rect = self.rect()
-        else:
-            self.resize_initial_pos = QtCore.QPoint(-1, -1)
-            self.resize_initial_rect = None
-            self.resize_area = None
+            return
+
+        self.resize_initial_pos = QtCore.QPoint(-1, -1)
+        self.resize_initial_rect = None
+        self.resize_area = None
 
     def mouseMoveEvent(self, event):
         """Custom mouse move event - responsible for resizing the frameless
@@ -584,6 +586,15 @@ class StandaloneBrowserWidget(BrowserWidget):
         """Restores the mouse resize properties."""
         w = self.stackedwidget.currentWidget()
         w.viewport().setHidden(False)
+
+        if self.resize_initial_pos != QtCore.QPoint(-1, -1):
+            print '!'
+            self.stackedwidget.currentWidget().viewport().updateGeometry()
+            self.stackedwidget.currentWidget().viewport().adjustSize()
+            self.stackedwidget.currentWidget().updateGeometry()
+            self.stackedwidget.currentWidget().adjustSize()
+            self.stackedwidget.adjustSize()
+            self.stackedwidget.updateGeometry()
 
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
