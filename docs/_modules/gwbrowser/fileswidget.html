@@ -508,7 +508,7 @@
 <div class="viewcode-block" id="FilesModel.__initdata__"><a class="viewcode-back" href="../../api.html#gwbrowser.fileswidget.FilesModel.__initdata__">[docs]</a>    <span class="nd">@initdata</span>
     <span class="k">def</span> <span class="nf">__initdata__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;The method is responsible for getting the bare-bones file and</span>
-<span class="sd">        sequence definitions by running a file-iterator from</span>
+<span class="sd">        sequence definitions by running a file-iterator stemming from</span>
 <span class="sd">        ``self._parent_item``.</span>
 
 <span class="sd">        Getting all additional information, like description, item flags,</span>
@@ -679,10 +679,21 @@
                     <span class="n">common</span><span class="o">.</span><span class="n">SortBySize</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
                 <span class="p">}</span>
 
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fileroot</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">))</span> <span class="o">&lt;=</span> <span class="mi">4</span><span class="p">:</span>
-                    <span class="c1"># self._keywords[fileroot] = fileroot</span>
-                    <span class="n">add_keywords</span><span class="p">(</span><span class="n">fileroot</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">))</span>
+                <span class="c1"># Keywords for filtering</span>
+                <span class="n">_rr</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">%%{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">fileroot</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_keywords</span><span class="p">[</span><span class="n">_rr</span><span class="p">]</span> <span class="o">=</span> <span class="n">_rr</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_keywords</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span> <span class="o">=</span> <span class="n">filename</span>
+
+                <span class="n">split_root</span> <span class="o">=</span> <span class="n">fileroot</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
+                <span class="n">_rr</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">%%{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">split_root</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_keywords</span><span class="p">[</span><span class="n">_rr</span><span class="p">]</span> <span class="o">=</span> <span class="n">_rr</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_root</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">4</span><span class="p">:</span>
+                    <span class="n">add_keywords</span><span class="p">(</span><span class="n">split_root</span><span class="p">)</span>
                     <span class="n">add_keywords</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\._\-\s]+&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+
+                    <span class="k">for</span> <span class="n">_root</span> <span class="ow">in</span> <span class="n">split_root</span><span class="p">:</span>
+                        <span class="n">add_keywords</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">ur</span><span class="s1">&#39;[\._\-\s]+&#39;</span><span class="p">,</span> <span class="n">_root</span><span class="p">))</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">_keywords</span><span class="p">[</span><span class="n">_root</span><span class="p">]</span> <span class="o">=</span> <span class="n">_root</span>
 
                 <span class="c1"># If the file in question is a sequence, we will also save a reference</span>
                 <span class="c1"># to it in `self._model_data[location][True]` dictionary.</span>

@@ -118,7 +118,7 @@
 <span class="kn">from</span> <span class="nn">gwbrowser.editors</span> <span class="k">import</span> <span class="n">ClickableLabel</span>
 
 
-<span class="n">custom_string</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;Select bookmark&#39;</span>
+<span class="n">custom_string</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;Select a custom bookmark folder...&#39;</span>
 
 
 <span class="k">class</span> <span class="nc">PaintedButton</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QPushButton</span><span class="p">):</span>
@@ -650,6 +650,11 @@
         <span class="sd">&quot;&quot;&quot;Slot connected to the clicked signal.&quot;&quot;&quot;</span>
         <span class="kn">from</span> <span class="nn">gwbrowser.editservers</span> <span class="k">import</span> <span class="n">ServerEditor</span>
         <span class="n">widget</span> <span class="o">=</span> <span class="n">ServerEditor</span><span class="p">()</span>
+
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="n">widget</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+
         <span class="n">widget</span><span class="o">.</span><span class="n">exec_</span><span class="p">()</span>
 
         <span class="n">w</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">window</span><span class="p">()</span>
@@ -669,7 +674,7 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">AddBookmarksWidget</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="n">parent</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">new_key</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add bookmark&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add new bookmark&#39;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">installEventFilter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">setWindowFlags</span><span class="p">(</span>
             <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">FramelessWindowHint</span> <span class="o">|</span>
@@ -677,7 +682,6 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_createUI</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_connectSignals</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Populates the comboboxes and selects the currently active items (if there&#39;s any).&quot;&quot;&quot;</span>
@@ -688,7 +692,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">pick_job_widget</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">selectionModel</span><span class="p">()</span><span class="o">.</span><span class="n">currentIndex</span><span class="p">())</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">adjustSize</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">_createUI</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Creates the AddBookmarksWidget&#39;s ui and layout.&quot;&quot;&quot;</span>
@@ -700,21 +703,16 @@
             <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setAlignment</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">AlignCenter</span><span class="p">)</span>
             <span class="n">row</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
             <span class="n">row</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">row</span>
 
         <span class="n">common</span><span class="o">.</span><span class="n">set_custom_stylesheet</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QVBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span>
-            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span>
-            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span>
-            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">,</span>
-            <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span>
-        <span class="p">)</span>
+        <span class="n">o</span> <span class="o">=</span> <span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">,</span> <span class="n">o</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">setSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">INDICATOR_WIDTH</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">setFixedWidth</span><span class="p">(</span><span class="mi">400</span><span class="p">)</span>
 
-        <span class="n">label</span> <span class="o">=</span> <span class="n">PaintedLabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add bookmark&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">LARGE_FONT_SIZE</span><span class="p">)</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="n">PaintedLabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add new bookmark&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">common</span><span class="o">.</span><span class="n">LARGE_FONT_SIZE</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">)</span>
@@ -732,7 +730,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pick_server_widget</span><span class="o">.</span><span class="n">setStatusTip</span><span class="p">(</span><span class="n">description</span><span class="p">)</span>
         <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pick_server_widget</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">ConfigButton</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
 
         <span class="c1"># Job</span>
         <span class="n">row</span> <span class="o">=</span> <span class="n">add_row</span><span class="p">()</span>
@@ -763,11 +761,13 @@
         <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pick_root_widget</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addSpacing</span><span class="p">(</span><span class="n">common</span><span class="o">.</span><span class="n">MARGIN</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addStretch</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">row</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">(</span><span class="n">parent</span><span class="o">=</span><span class="bp">self</span><span class="p">)</span>
         <span class="n">row</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_TranslucentBackground</span><span class="p">)</span>
         <span class="n">row</span><span class="o">.</span><span class="n">setAttribute</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">WA_NoSystemBackground</span><span class="p">)</span>
         <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
 
         <span class="bp">self</span><span class="o">.</span><span class="n">ok_button</span> <span class="o">=</span> <span class="n">PaintedButton</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Add bookmark&#39;</span><span class="p">)</span>
         <span class="n">row</span><span class="o">.</span><span class="n">layout</span><span class="p">()</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ok_button</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
@@ -819,15 +819,23 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">ok_button</span><span class="o">.</span><span class="n">pressed</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">add_bookmark</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">close_button</span><span class="o">.</span><span class="n">pressed</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reject</span><span class="p">)</span>
 
+    <span class="k">def</span> <span class="nf">_updateGeometry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">())</span>
+
+    <span class="k">def</span> <span class="nf">sizeHint</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+
     <span class="k">def</span> <span class="nf">get_root_folder_items</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">count</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">arr</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Scans the given path recursively and returns all root-folder candidates.</span>
-<span class="sd">        The recursion-depth is limited by the `depth`.</span>
+<span class="sd">        The recursion-depth is limited by the `depth` property.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            depth (int): The number of subfolders to scan.</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            A list of QFileInfo items</span>
+<span class="sd">            A list of ``QFileInfo`` items.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span>
@@ -1102,6 +1110,7 @@
             <span class="c1"># Disabling the item if it has already been added to the widget</span>
             <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;/&#39;</span><span class="p">)</span> <span class="ow">in</span> <span class="n">bookmarks</span><span class="p">:</span>
                 <span class="n">item</span><span class="o">.</span><span class="n">setFlags</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">NoItemFlags</span><span class="p">)</span>
+                <span class="n">item</span><span class="o">.</span><span class="n">setData</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">DisplayRole</span><span class="p">,</span> <span class="sa">u</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> (bookmark already added)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">pick_root_widget</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">addItem</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
 
@@ -1115,8 +1124,17 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pick_root_widget</span><span class="o">.</span><span class="n">view</span><span class="p">()</span><span class="o">.</span><span class="n">insertItem</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">showEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Custom show event responsible for placing the widget inthe right place.&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">():</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">disabled_overlay_widget</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+        <span class="c1"># This will automatically update the widget when it is shows</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">():</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">mapToGlobal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">rect</span><span class="p">()</span><span class="o">.</span><span class="n">topLeft</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">width</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">()</span><span class="o">.</span><span class="n">height</span><span class="p">())</span>
 
     <span class="k">def</span> <span class="nf">hideEvent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent</span><span class="p">():</span>

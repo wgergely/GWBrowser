@@ -808,12 +808,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         # I will have to implement a lock and make sure we're not overwriting
         # comments if more than one user is editing items in the same time.
         if self.index.isValid():
-            settings = AssetSettings(self.index)
             self.save_timer = QtCore.QTimer(parent=self)
             self.save_timer.setInterval(4000)
             self.save_timer.setSingleShot(False)
             self.save_timer.timeout.connect(self.check_settings)
-            # self.save_timer.timeout.connect(self.save_settings)
             self.save_timer.start()
 
     def _updateGeometry(self, *args, **kwargs):
@@ -835,6 +833,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
+        row.setAttribute(QtCore.Qt.WA_NoBackground)
+        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         # We'll grab the current index's thumbnail...
         if self.parent():
@@ -1076,6 +1076,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
     @QtCore.Slot()
     def check_settings(self):
         """Saves the current list of todo items to the assets configuration file."""
+        return
+
+        # I'll have to implement  this propertly when time permits...
         if not self.index.isValid():
             return
 
