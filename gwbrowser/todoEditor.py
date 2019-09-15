@@ -830,9 +830,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
         # Top row
         row = QtWidgets.QWidget()
         QtWidgets.QHBoxLayout(row)
-        row.setStyleSheet("""background: rgba({});""".format(common.rgb(common.SECONDARY_TEXT)))
+        # row.setStyleSheet("""background: rgba({});""".format(common.rgb(common.SECONDARY_TEXT)))
         row.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
 
@@ -846,7 +846,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
             thumbnail.setPixmap(pixmap)
             thumbnail.setScaledContents(True)
-            thumbnail.setFixedHeight(common.ROW_HEIGHT)
+            thumbnail.setFixedHeight(pixmap.height())
+            thumbnail.setFixedWidth(pixmap.width())
             row.layout().addWidget(thumbnail, 0)
 
         # Name label
