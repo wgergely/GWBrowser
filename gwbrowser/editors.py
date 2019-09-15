@@ -385,6 +385,7 @@ class FilterIcon(QtWidgets.QLabel):
 
 class EditorContextMenu(BaseContextMenu):
     """The context menu associated with the filter text editor."""
+    finished = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(EditorContextMenu, self).__init__(
@@ -404,9 +405,7 @@ class EditorContextMenu(BaseContextMenu):
             s = u' '.join(s)
 
             self.parent().insert(s)
-            self.parent().parent().finished.emit(self.parent().text())
-            parent = self.parent().parent().parent().parent()
-            parent.listcontrolwidget._filterbutton.action()
+            self.finished.emit(self.parent().text())
 
         for k in sorted(list(kws.iterkeys())):
             text = kws[k].split(u'/')
@@ -421,6 +420,7 @@ class EditorContextMenu(BaseContextMenu):
 
 class Editor(QtWidgets.QLineEdit):
     """Customized QLineEditor to input out filter text."""
+    finished = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(Editor, self).__init__(parent=parent)
@@ -461,6 +461,7 @@ QLineEdit:focus {{
             return
 
         widget = EditorContextMenu(parent=self)
+        widget.finished.connect(self.finished)
         pos = self.rect().bottomLeft()
         pos = self.mapToGlobal(pos)
         widget.move(pos)
@@ -479,7 +480,7 @@ class FilterEditor(QtWidgets.QWidget):
         self.subfolders_widget = None
         self.context_menu_open = False
 
-        self.row1_height = common.ROW_BUTTONS_HEIGHT * 1.5
+        self.row1_height = common.ROW_BUTTONS_HEIGHT
         self.row2_height = self.parent().geometry().height() - self.row1_height
 
         self._createUI()
@@ -503,8 +504,25 @@ class FilterEditor(QtWidgets.QWidget):
             QtWidgets.QCompleter.InlineCompletion)
         self.editor_widget.setCompleter(completer)
 
-        for item in sorted([f.replace(u'%%', u'') for f in keys if u'%%' in f]):
+        scrollToItem = None
+        for key in sorted([f.replace(u'%%', u'') for f in keys if u'%%' in f]):
+            item = QtWidgets.QListWidgetItem()
+            item.setData(QtCore.Qt.DisplayRole, key.upper())
+            item.setData(common.DescriptionRole, key.upper())
+            item.setData(QtCore.Qt.StatusTipRole, key.upper())
+            item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
+                common.WIDTH, common.INLINE_ICON_SIZE * 1.2))
+
+            if self.editor_widget.text().lower() != key.lower():
+                scrollToItem = item
+                item.setForeground(QtGui.QBrush(common.SECONDARY_TEXT))
+            else:
+                item.setForeground(QtGui.QBrush(common.TEXT))
+
             self.subfolders_widget.addItem(item)
+
+        if scrollToItem:
+            self.subfolders_widget.scrollToItem(item, hint=QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def keywords(self):
         """Shortcut to access the models filter keyword values."""
@@ -514,8 +532,9 @@ class FilterEditor(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
+        o = common.INDICATOR_WIDTH
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
         row = QtWidgets.QWidget()
@@ -528,16 +547,20 @@ class FilterEditor(QtWidgets.QWidget):
 
         label = FilterIcon(parent=self)
         self.editor_widget = Editor(parent=self)
+        self.editor_widget.finished.connect(self.finished)
 
         row.layout().addWidget(label, 0)
         row.layout().addWidget(self.editor_widget, 1)
-        self.layout().addWidget(row, 1)
+        self.layout().addWidget(row, 0)
 
         self.subfolders_widget = QtWidgets.QListWidget()
+
         self.layout().addWidget(self.subfolders_widget, 1)
 
     def _connectSignals(self):
         self.finished.connect(self.close)
+        self.subfolders_widget.itemActivated.connect(lambda i: self.finished.emit(i.text()))
+        self.subfolders_widget.itemClicked.connect(lambda i: self.finished.emit(i.text()))
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
