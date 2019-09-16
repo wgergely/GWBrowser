@@ -906,22 +906,16 @@ def mount():
             if d.rootPath().lower() == mountpoint.lower():
                 return  # the server is already mounted and we're good to go
 
-        raise RuntimeError(
-            u'Primary ({}) server is not mounted. Make sure you mount it before launching GWBrowser.'.format(Server.primary()))
-        # args = [u'-e', u'mount volume "{}"'.format(Server.primary())]
-        # process = QtCore.QProcess()
-        # process.start(u'osascript', args)
-        # process.waitForFinished(-1)
-        #
-        # # We will wait here until the drive is available to use...
-        # while True:
-        #     for d in QtCore.QStorageInfo.mountedVolumes():
-        #         if d.rootPath().lower() == mountpoint:
-        #             return
-        # return
-
-    raise NotImplementedError('{} os has not been implemented.'.format(
-        QtCore.QSysInfo().productType()))
+        mbox = QtWidgets.QMessageBox()
+        mbox.setWindowTitle(u'Server no mounted')
+        mbox.setText(
+            u'Could not find {} - it probably is not mounted.'.format(Server.primary())
+        )
+        mbox.setInformativeText(
+            u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.'')
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Ok
+        )
 
 
 WindowsPath = 0

@@ -30,11 +30,11 @@ class Active(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(Active, self).__init__(parent=parent)
-        # self.macos_mount_timer = QtCore.QTimer()
-        # self.macos_mount_timer.setInterval(2000)
-        # self.macos_mount_timer.setSingleShot(False)
-        # self.macos_mount_timer.timeout.connect(common.mount)
-        # common.mount()
+        self.macos_mount_timer = QtCore.QTimer()
+        self.macos_mount_timer.setInterval(5000)
+        self.macos_mount_timer.setSingleShot(False)
+        self.macos_mount_timer.timeout.connect(common.mount)
+        common.mount()
 
         self._active_paths = self.paths()
 
