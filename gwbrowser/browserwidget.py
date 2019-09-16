@@ -18,6 +18,7 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
 from gwbrowser.todoEditor import CustomButton
 
+
 class VersionLabel(CustomButton):
     """Small version label responsible for displaying information
     about GWBrowser."""
@@ -166,9 +167,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initialized.emit()
 
         if local_settings.value(u'firstrun') is None:
-            QtGui.QDesktopServices.openUrl(
-                ur'https://gergely-wootsch.com/gwbrowser-about')
             local_settings.setValue(u'firstrun', False)
+            # QtGui.QDesktopServices.openUrl(
+            #     ur'https://gergely-wootsch.com/gwbrowser-about')
 
     def _createUI(self):
         app = QtWidgets.QApplication.instance()
