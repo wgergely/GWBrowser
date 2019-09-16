@@ -895,6 +895,7 @@ def find_largest_file(index):
 
 def mount():
     """Mounts the server in macosx if it isn't mounted already."""
+    # No need to do anything in windows
     if get_platform() == u'win':
         return
 
@@ -902,20 +903,22 @@ def mount():
         mountpoint = u'/volumes/{}'.format(Server.primary()).split(u'/').pop()
 
         for d in QtCore.QStorageInfo.mountedVolumes():
-            if d.rootPath().lower() == mountpoint:
-                return  # the server is already mounted
+            if d.rootPath().lower() == mountpoint.lower():
+                return  # the server is already mounted and we're good to go
 
-        args = [u'-e', u'mount volume "{}"'.format(Server.primary())]
-        process = QtCore.QProcess()
-        process.start(u'osascript', args)
-        process.waitForFinished(-1)
-
-        # We will wait here until the drive is available to use...
-        while True:
-            for d in QtCore.QStorageInfo.mountedVolumes():
-                if d.rootPath().lower() == mountpoint:
-                    return
-        return
+        raise RuntimeError(
+            u'Primary ({}) server is not mounted. Make sure you mount it before launching GWBrowser.'.format(Server.primary()))
+        # args = [u'-e', u'mount volume "{}"'.format(Server.primary())]
+        # process = QtCore.QProcess()
+        # process.start(u'osascript', args)
+        # process.waitForFinished(-1)
+        #
+        # # We will wait here until the drive is available to use...
+        # while True:
+        #     for d in QtCore.QStorageInfo.mountedVolumes():
+        #         if d.rootPath().lower() == mountpoint:
+        #             return
+        # return
 
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
