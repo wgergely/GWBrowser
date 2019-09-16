@@ -442,7 +442,7 @@ class BookmarksWidget(BaseInlineIconWidget):
                 self.parent().parent().headerwidget.widgetMoved.connect(
                     self.add_bookmarks_widget._updateGeometry)
 
-        self.add_bookmarks_widget.exec_()
+        self.add_bookmarks_widget.show()
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""
