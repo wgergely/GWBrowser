@@ -912,7 +912,7 @@ def mount():
             u'Could not find {} - it probably is not mounted.'.format(Server.primary())
         )
         mbox.setInformativeText(
-            u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.'')
+            u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.')
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Ok
         )
