@@ -456,6 +456,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         """Modifies layout for display in standalone-mode."""
 
         self.headerwidget = HeaderWidget(parent=self)
+        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
 
         o = common.INDICATOR_WIDTH # offset around the widget
 
@@ -488,15 +489,15 @@ class StandaloneBrowserWidget(BrowserWidget):
         if reason == QtWidgets.QSystemTrayIcon.MiddleClick:
             return
 
+    @QtCore.Slot()
     def save_widget_settings(self):
         """Saves the position and size of thew widget to the local settings."""
         cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/width'.format(cls), self.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), self.height())
-
-        pos = self.mapToGlobal(self.rect().topLeft())
-        local_settings.setValue(u'widget/{}/x'.format(cls), pos.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), pos.y())
+        geo = self.geometry()
+        local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
+        local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
+        local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
+        local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
     def hideEvent(self, event):
         """Custom hide event."""
@@ -535,6 +536,7 @@ class StandaloneBrowserWidget(BrowserWidget):
             QtWidgets.QSystemTrayIcon.Information,
             3000
         )
+        self.save_widget_settings()
 
     def mousePressEvent(self, event):
         """The mouse press event responsible for setting the properties needed
@@ -588,13 +590,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         w.viewport().setHidden(False)
 
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
-            print '!'
-            self.stackedwidget.currentWidget().viewport().updateGeometry()
-            self.stackedwidget.currentWidget().viewport().adjustSize()
-            self.stackedwidget.currentWidget().updateGeometry()
-            self.stackedwidget.currentWidget().adjustSize()
-            self.stackedwidget.adjustSize()
-            self.stackedwidget.updateGeometry()
+            self.save_widget_settings()
 
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None

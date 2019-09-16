@@ -5,6 +5,7 @@ user.
 """
 
 import os
+import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -17,7 +18,6 @@ from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
-
 def rsc_path(f, n):
     path = u'{}/../rsc/{}.png'.format(f, n)
     path = os.path.normpath(os.path.abspath(path))
@@ -28,6 +28,9 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
+
+        self.add_remove_favourite_menu()
+
         if index.isValid():
             self.add_thumbnail_menu()
 
@@ -45,7 +48,6 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         self.add_separator()
 
         self.add_refresh_menu()
-
 
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
@@ -98,17 +100,30 @@ class FavouritesModel(FilesModel):
 
         favourites = local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
+
+        # When a favourite is saved there's a superflous key saved for sequence items
+        # we don't want to display. Removing these here:
+        if favourites:
+            superfluous = set()
+            for f in favourites:
+                seq = common.get_sequence(f)
+                if seq:
+                    superfluous.add(seq.expand(ur'\1\3.\4'))
+            favourites = [f for f in favourites if f not in superfluous]
         sfavourites = set(favourites)
 
         server, job, root = self._parent_item
-        bookmark = u'{}/{}/{}'.format(server, job, root)
 
         for filepath in sfavourites:
             fileroot = filepath
-            if bookmark.lower() not in fileroot.lower():
-                continue
 
-            fileroot = filepath.replace(bookmark, u'')
+            # I think it is best if I include all favourites in the widget,
+            # regardless of the bookmark. There might be a performance draw-back
+            # but it is worth testing this
+            # if bookmark.lower() not in fileroot.lower():
+            #     continue
+
+            # fileroot = filepath.replace(bookmark, u'')
             seq = common.get_sequence(filepath)
             filename = filepath.split(u'/')[-1]
             ext = filename.split(u'.')[-1].lower()
@@ -326,58 +341,6 @@ class FavouritesWidget(FilesWidget):
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return True
-
-    def toggle_favourite(self, index, state=None):
-        """Removes the given index (and all sub-files if sequence) from favourites.
-
-        Args:
-            item (QListWidgetItem): The item to change.
-
-        """
-        if not index.isValid():
-            return
-
-        favourites = local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-        sfavourites = set(favourites)
-
-        source_index = self.model().mapToSource(index)
-        data = source_index.model().model_data()
-
-        key = index.data(QtCore.Qt.StatusTipRole)
-        collapsed = common.is_collapsed(key)
-        if collapsed:
-            key = collapsed.expand(ur'\1\3')
-
-        if key.lower() in sfavourites:
-            favourites.remove(key.lower())
-            data[source_index.row()][common.FlagsRole] = data[source_index.row(
-            )][common.FlagsRole] & ~common.MarkedAsFavourite
-
-            # When toggling a sequence item, we will toggle all the individual sequence items as well
-            if self.model().sourceModel().data_type() == common.SequenceItem:
-                m = self.model().sourceModel()
-                k = m.data_key()
-                t = common.FileItem
-                _data = m._data[k][t]
-
-                # Let's find the item in the model data
-                for frame in data[source_index.row()][common.FramesRole]:
-                    _path = data[source_index.row()][common.SequenceRole].expand(
-                        ur'\1{}\3.\4')
-                    _path = _path.format(frame)
-                    _index = None
-                    for val in _data.itervalues():
-                        if val[QtCore.Qt.StatusTipRole] == _path:
-                            _index = val  # Found it!
-                            break
-                    if _index:
-                        if _index[QtCore.Qt.StatusTipRole].lower() in sfavourites:
-                            favourites.remove(_index[QtCore.Qt.StatusTipRole].lower())
-                        _index[common.FlagsRole] = _index[common.FlagsRole] & ~common.MarkedAsFavourite
-
-        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        self.favouritesChanged.emit()
 
     def inline_icons_count(self):
         return 0

@@ -1028,7 +1028,12 @@ class FilesWidgetDelegate(BaseDelegate):
         center = rect.center()
         rect.setHeight(metrics.height())
         rect.moveCenter(center)
-        rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
+        if hover:
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
+        elif not hover and not index.data(common.FileDetailsRole) and not index.data(common.DescriptionRole):
+            rect.moveTop(rect.top())
+        else:
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
 
         # Taking the control-icons into consideration
         if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
@@ -1137,16 +1142,16 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
         self.paint_thumbnail(*args)
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
-        self.paint_thumbnail_shadow(*args)
+        # self.paint_thumbnail_shadow(*args)
         #
         left = 0
         self.paint_name(*args, left=left)
         if index.data(common.FileInfoLoaded):
             self.paint_description(*args, left=left)
         #
-        self.paint_inline_icons_background(*args)
-        self.paint_folder_icon(*args)
-        self.paint_favourite_icon(*args)
+        # self.paint_inline_icons_background(*args)
+        # self.paint_folder_icon(*args)
+        # self.paint_favourite_icon(*args)
         #
         self.paint_selection_indicator(*args)
 

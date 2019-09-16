@@ -261,7 +261,10 @@ class FileThumbnailWorker(BaseWorker):
         if isinstance(index.model(), FilterProxyModel):
             index = index.model().mapToSource(index)
 
-        data = index.model().model_data()[index.row()]
+        try:
+            data = index.model().model_data()[index.row()]
+        except KeyError:
+            return
         settings = AssetSettings(index)
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()

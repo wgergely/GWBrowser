@@ -937,7 +937,7 @@ class BaseListWidget(QtWidgets.QListView):
     def toggle_favourite(self, index, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
-        instead of the currentItem.
+        instead of the current item state.
 
         Args:
             item (QListWidgetItem): The item to change.
@@ -1007,6 +1007,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Let's save the favourites list
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        self.favouritesChanged.emit()
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1577,7 +1578,6 @@ class BaseInlineIconWidget(BaseListWidget):
             _, bg_rect = self.itemDelegate().get_inline_icon_rect(
                 rect, common.INLINE_ICON_SIZE, n)
 
-            print rect, bg_rect, event.pos()
             if not bg_rect.contains(event.pos()):
                 continue
 

@@ -16,23 +16,28 @@ from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.todoEditor import CustomButton
 
-
-class VersionLabel(QtWidgets.QLabel):
+class VersionLabel(CustomButton):
     """Small version label responsible for displaying information
     about GWBrowser."""
 
     def __init__(self, parent=None):
-        super(VersionLabel, self).__init__(parent=parent)
-        self.setFixedWidth(common.INLINE_ICON_SIZE)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setPixmap(
-            ImageCache.get_rsc_pixmap('info', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE))
+        import gwbrowser
+        import OpenImageIO.OpenImageIO as oiio
+        message = u'Click to read the documentation | v{} | PySide2 {} | OpenImageIO {}'.format(
+            gwbrowser.__version__,
+            QtCore.__version__,
+            oiio.__version__
+        )
+        super(VersionLabel, self).__init__(
+            u'info',
+            size=common.INLINE_ICON_SIZE,
+            message=message,
+            parent=parent)
+        self.pressed.connect(
+            lambda: QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about'))
 
-    def mousePressEvent(self, event):
-        QtGui.QDesktopServices.openUrl(
-            ur'https://gergely-wootsch.com/gwbrowser-about')
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -213,13 +218,10 @@ class BrowserWidget(QtWidgets.QWidget):
         statusbar = QtWidgets.QStatusBar()
         statusbar.setSizeGripEnabled(False)
 
-        # Swapping the default grip with my custom one
-        grip = statusbar.findChild(QtWidgets.QSizeGrip)
-        if grip:
-            grip.deleteLater()
-
-        statusbar.addPermanentWidget(VersionLabel(parent=statusbar))
-        statusbar.addPermanentWidget(grip)
+        version_widget = VersionLabel(parent=statusbar)
+        version_widget.message.connect(lambda s: statusbar.showMessage(s, 4000))
+        statusbar.addPermanentWidget(version_widget)
+        # statusbar.addPermanentWidget(grip)
         statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         statusbar.setSizePolicy(

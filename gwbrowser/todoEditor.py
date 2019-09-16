@@ -361,11 +361,13 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 class CustomButton(QtWidgets.QLabel):
     """Custom button used to draw the editor control buttons."""
     pressed = QtCore.Signal()
+    message = QtCore.Signal(unicode)
 
-    def __init__(self, button, size=32.0, parent=None):
+    def __init__(self, button, size=32.0, message=None, parent=None):
         super(CustomButton, self).__init__(parent=parent)
         self.button = button
         self._size = size
+        self._message = message
 
         self.setMouseTracking(True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -388,6 +390,9 @@ class CustomButton(QtWidgets.QLabel):
     def enterEvent(self, event):
         self.setPixmap(self._pixmap(type=event.type()))
         self.repaint()
+
+        if self._message:
+            self.message.emit(self._message)
 
     def leaveEvent(self, event):
         self.setPixmap(self._pixmap(type=event.type()))

@@ -538,3 +538,20 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'action': functools.partial(self.parent().model().sourceModel().dataKeyChanged.emit, entry)
             }
         return menu_set
+
+    @contextmenu
+    def add_remove_favourite_menu(self, menu_set):
+        """Ads the menu-items needed to add set favourite or archived status."""
+        remove_icon = ImageCache.get_rsc_pixmap(
+            u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+
+        favourite = self.index.flags() & common.MarkedAsFavourite
+
+        menu_set[u'favourite'] = {
+            u'text': 'Remove favourite',
+            u'icon': remove_icon,
+            u'checkable': False,
+            u'action': functools.partial(
+                self.parent().toggle_favourite, self.index, state=not favourite)
+        }
+        return menu_set
