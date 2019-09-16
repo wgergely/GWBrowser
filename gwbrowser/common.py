@@ -906,16 +906,17 @@ def mount():
             if d.rootPath().lower() == mountpoint.lower():
                 return  # the server is already mounted and we're good to go
 
-        mbox = QtWidgets.QMessageBox()
-        mbox.setWindowTitle(u'Server no mounted')
-        mbox.setText(
-            u'Could not find {} - it probably is not mounted.'.format(Server.primary())
-        )
-        mbox.setInformativeText(
-            u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.')
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Ok
-        )
+        if QtWidgets.QApplication.instance():
+            mbox = QtWidgets.QMessageBox()
+            mbox.setWindowTitle(u'Server no mounted')
+            mbox.setText(
+                u'Could not find {} - it probably is not mounted.'.format(Server.primary())
+            )
+            mbox.setInformativeText(
+                u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.')
+            mbox.setStandardButtons(
+                QtWidgets.QMessageBox.Ok
+            )
 
 
 WindowsPath = 0
