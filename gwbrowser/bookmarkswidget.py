@@ -436,8 +436,12 @@ class BookmarksWidget(BaseInlineIconWidget):
             self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
             self.parent().parent().resized.connect(
                 self.add_bookmarks_widget._updateGeometry)
-            self.parent().parent().headerwidget.widgetMoved.connect(
-                self.add_bookmarks_widget._updateGeometry)
+
+            # In DCC contexes we might not have a header widget
+            if hasattr(self.parent().parent(), u'headerwidget'):
+                self.parent().parent().headerwidget.widgetMoved.connect(
+                    self.add_bookmarks_widget._updateGeometry)
+
         self.add_bookmarks_widget.exec_()
 
     def mouseDoubleClickEvent(self, event):
