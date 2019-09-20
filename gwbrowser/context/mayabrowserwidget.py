@@ -39,35 +39,55 @@ from gwbrowser.settings import AssetSettings
 
 @QtCore.Slot()
 def show():
-    """The main function to initialize/show the ``MayaBrowserWidget`` as a
-    dockable widget.
+    """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable widget.
+
+    The function will create ``MayaBrowserWidget`` if it doesn't yet exist and dock it
+    to the _AttributeEditor_. If it exists it will get the existing instance and show
+    it if not currently visible, hide it if visible.
+
+    Usage
+
+        Run the following python code inside maya:
+
+        .. code-block:: python
+
+            import gwbrowser.context.mayabrowserwidget as mayabrowserwidget
+            mayabrowserwidget.show()
 
     """
     app = QtWidgets.QApplication.instance()
-    try:
-        for widget in app.allWidgets():
-            # Skipping the workspaceControls
-            match = re.match(
-                ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
-            if match:
-                continue
-            match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
-            if not match:
-                continue
-            if widget.isFloating():
-                widget.raise_()
-            else:
-                widget.show()
-            return
-    except Exception:
-        sys.stdout.write(
-            u'# GWBrowser: Could not show widget:\n{}\n'.format(traceback.print_exc()))
 
-    # Widget does not exists yet, must create it
+    # We will check if there's already a _MayaBrowserWidget_ instance
+    for widget in app.allWidgets():
+        if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+            continue # Skipping workspaceControls objects, just in case
+
+        match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
+        if not match:
+            continue
+
+        if widget.isFloating():
+            common.move_widget_to_available_geo(widget.window())
+            widget.window().raise_()
+            return
+
+        workspace_control = widget.parent().objectName()
+        if cmds.workspaceControl(workspace_control, q=True, exists=True):
+            state = cmds.workspaceControl(workspace_control, q=True, collapse=True)
+            cmds.workspaceControl(workspace_control, e=True, collapse=not state)
+        else:
+            widget.setVisible(not widget.isVisible())
+        return
+
+    # Initializing MayaBrowserWidget...
     try:
         widget = MayaBrowserWidget()
         widget.show()
 
+        sys.stdout.write(
+            u'# GWBrowser: Initialized.\n{}\n'.format(traceback.print_exc()))
+
+        # We will defer the execution, otherwise the widget does not dock properly
         for widget in app.allWidgets():
             match = re.match(
                 ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
