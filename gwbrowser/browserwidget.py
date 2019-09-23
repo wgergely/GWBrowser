@@ -39,6 +39,12 @@ class VersionLabel(CustomButton):
         self.pressed.connect(
             lambda: QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about'))
 
+        self.timer = QtCore.QTimer()
+        self.timer.setSingleShot(False)
+        self.timer.setInterval(3600000) # Will check for a new version every 1 hour
+        
+        self.timer.timeout()
+
 
 
 class BrowserWidget(QtWidgets.QWidget):
