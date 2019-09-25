@@ -60,7 +60,6 @@ def uninitializePlugin(plugin):
     # Then we try and delete the main widget itself
     app = QtWidgets.QApplication.instance()
     try:
-
         for widget in app.allWidgets():
             match = re.match(
                 ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
@@ -70,9 +69,8 @@ def uninitializePlugin(plugin):
             match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
             if match:
                 widget.remove_context_callbacks()
-                widget.shutdown_timer.timeout.connect(widget.terminate)
-                widget.shutdown_timer.start()
-
+                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.terminate)
+                widget.browserwidget.shutdown_timer.start()
     except Exception as err:
         raise Exception(err)
 
@@ -84,10 +82,10 @@ def uninitializePlugin(plugin):
         sys.stdout.write(
             '# GWBrowser: Failed to delete the workspace control.\n')
 
-    try:
-        del sys.modules['gwbrowser']
-        for k in sys.modules.items():
-            if 'gwbrowser.' in k:
-                del sys.modules[k]
-    except Exception as err:
-        sys.stdout.write('# GWBrowser: Failed unload the python modules.\n')
+    # try:
+    #     del sys.modules['gwbrowser']
+    #     for k in sys.modules.items():
+    #         if 'gwbrowser.' in k:
+    #             del sys.modules[k]
+    # except Exception as err:
+    #     sys.stdout.write('# GWBrowser: Failed unload the python modules.\n')

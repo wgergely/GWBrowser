@@ -212,7 +212,7 @@ ASSET_ROW_HEIGHT = 84.0
 CONTROL_HEIGHT = 38.0
 ROW_SEPARATOR = 1.0
 
-INLINE_ICONS_MIN_WIDTH = 640.0
+INLINE_ICONS_MIN_WIDTH = 320.0
 
 # Font scaling seems at best random given platform differences.
 # Programmatically scaling might fix matters...

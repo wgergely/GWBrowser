@@ -429,9 +429,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         self._createUI()
 
+        self.workspace_timer = QtCore.QTimer()
+        self.workspace_timer.setSingleShot(False)
+        self.workspace_timer.setInterval(5000)
+        self.workspace_timer.timeout.connect(self.set_workspace)
+
         self.browserwidget.initialized.connect(self.connectSignals)
-        self.browserwidget.initialized.connect(
-            self.add_context_callbacks)
+        self.browserwidget.initialized.connect(self.add_context_callbacks)
+        self.browserwidget.initialized.connect(self.set_workspace)
+        self.browserwidget.initialized.connect(self.workspace_timer.start)
 
         self.browserwidget.initialize()
 
@@ -521,9 +527,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
         # Asset/project
         assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
-        # Once the widget is initialized we'll set the workspace to the active asset
-        self.browserwidget.initialized.connect(
-            lambda: self.set_workspace(assetswidget.model().sourceModel().active_index()))
 
         # Context menu
         bookmarkswidget.customContextMenuRequested.connect(
@@ -733,14 +736,24 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         common.move_widget_to_available_geo(widget)
         widget.exec_()
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def set_workspace(self, index):
-        """Slot responsible for updating the maya worspace."""
+    @QtCore.Slot()
+    def set_workspace(self):
+        """Slot responsible for updating the maya workspace."""
+        index = self.browserwidget.assetswidget.model().sourceModel().active_index()
+        if not index.isValid():
+            return
         parent = index.data(common.ParentRole)
+        if not parent:
+            return
         if not all(parent):
             return
+
         file_info = QtCore.QFileInfo(u'/'.join(parent))
+        if file_info.filePath().lower() == cmds.workspace(q=True, sn=True).lower():
+            return
+
         cmds.workspace(file_info.filePath(), openWorkspace=True)
+        print '# GWBrowser: Maya Workspace set to {}'.format(file_info.filePath())
 
     def show(self, dockable=True):
         """Initializes the Maya workspace control on show."""
