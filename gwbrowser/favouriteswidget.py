@@ -49,8 +49,20 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
 
         self.add_refresh_menu()
 
+
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
+
+    def __init__(self, parent=None):
+        super(FavouritesModel, self).__init__(threads=0, parent=parent)
+
+    @property
+    def generate_thumbnails(self):
+        return False
+
+    @generate_thumbnails.setter
+    def generate_thumbnails(self, val):
+        pass
 
     @initdata
     def __initdata__(self):
@@ -66,8 +78,6 @@ class FavouritesModel(FilesModel):
             common.MarkedAsFavourite
         )
 
-        self.reset_thread_worker_queues()
-
         if not self._parent_item:
             return
         if not all(self._parent_item):
@@ -78,9 +88,12 @@ class FavouritesModel(FilesModel):
 
         # It is quicker to cache these here...
         default_thumbnail_image = ImageCache.get(
-            common.rsc_path(__file__, u'placeholder'),
+            common.rsc_path(__file__, u'favourite_sm'),
             rowsize.height() - common.ROW_SEPARATOR)
-        default_background_color = common.THUMBNAIL_BACKGROUND
+        folder_thumbnail_image = ImageCache.get(
+            common.rsc_path(__file__, u'folder_sm2'),
+            rowsize.height() - common.ROW_SEPARATOR)
+        default_background_color = QtGui.QColor(0, 0, 0, 0)
 
         thumbnails = {}
         defined_thumbnails = set(
@@ -112,32 +125,36 @@ class FavouritesModel(FilesModel):
             favourites = [f for f in favourites if f not in superfluous]
         sfavourites = set(favourites)
 
-        server, job, root = self._parent_item
+        # server, job, root = self._parent_item
+        server = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.TempLocation)
+        job = 'gwbrowser'
+        root = 'favourites'
 
         for filepath in sfavourites:
             fileroot = filepath
 
-            # I think it is best if I include all favourites in the widget,
-            # regardless of the bookmark. There might be a performance draw-back
-            # but it is worth testing this
-            # if bookmark.lower() not in fileroot.lower():
-            #     continue
-
-            # fileroot = filepath.replace(bookmark, u'')
             seq = common.get_sequence(filepath)
             filename = filepath.split(u'/')[-1]
-            ext = filename.split(u'.')[-1].lower()
 
-            if ext in defined_thumbnails:
-                placeholder_image = thumbnails[ext]
+            _, ext = os.path.splitext(filename)
+            ext = ext.strip('.')
+
+            if not ext:
+                placeholder_image = folder_thumbnail_image
+                sortbyname = u'~{}'.format(filename)
             else:
-                placeholder_image = default_thumbnail_image
+                if ext in defined_thumbnails:
+                    placeholder_image = thumbnails[ext]
+                else:
+                    placeholder_image = default_thumbnail_image
+                sortbyname = filename
 
             flags = dflags()
 
             idx = len(self._data[dkey][common.FileItem])
+
             self._data[dkey][common.FileItem][idx] = {
-                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.DisplayRole: filename if ext else filepath,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
@@ -145,7 +162,7 @@ class FavouritesModel(FilesModel):
                 common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, fileroot),
-                common.DescriptionRole: u'',
+                common.DescriptionRole: filepath if ext else '',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
                 common.SequenceRole: seq,
@@ -162,11 +179,10 @@ class FavouritesModel(FilesModel):
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
-                common.SortByName: filepath,
-                # common.SortByLastModified: stat.st_mtime,
-                # common.SortBySize: stat.st_size,
-                common.SortByLastModified: 0,
-                common.SortBySize: 0,
+                common.SortByName: sortbyname,
+                # Favourites don't have modified and size attributes
+                common.SortByLastModified: len(sortbyname),
+                common.SortBySize: len(sortbyname),
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -304,36 +320,23 @@ class FavouritesWidget(FilesWidget):
         self.set_model(FavouritesModel(parent=self))
 
         # Timer
-        self._index_timer = QtCore.QTimer()
-        self._index_timer.setInterval(common.FTIMER_INTERVAL)
-        self._index_timer.setSingleShot(False)
-        self._index_timer.timeout.connect(self.initialize_visible_indexes)
+        self.index_update_timer = QtCore.QTimer(parent=self)
+        self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
+        self.index_update_timer.setSingleShot(False)
+        self.index_update_timer.timeout.connect(self.initialize_visible_indexes)
 
-        # Clearing the queues
-        self.model().sourceModel().modelAboutToBeReset.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().modelAboutToBeReset.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().layoutAboutToBeChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().sourceModel().dataTypeChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().sourceModel().dataKeyChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
 
         # We're stopping the index timer when the model is loading.
-        self.model().modelAboutToBeReset.connect(self._index_timer.stop)
-        self.model().modelReset.connect(self._index_timer.start)
-        self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
-        self.model().layoutChanged.connect(self._index_timer.start)
+        self.model().modelAboutToBeReset.connect(self.index_update_timer.stop)
+        self.model().modelReset.connect(self.index_update_timer.start)
+        self.model().layoutAboutToBeChanged.connect(self.index_update_timer.stop)
+        self.model().layoutChanged.connect(self.index_update_timer.start)
 
         # For performance's sake...
-        self.verticalScrollBar().valueChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
         self.verticalScrollBar().sliderPressed.connect(
-            self._index_timer.stop)
+            self.index_update_timer.stop)
         self.verticalScrollBar().sliderReleased.connect(
-            self._index_timer.start)
+            self.index_update_timer.start)
 
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()

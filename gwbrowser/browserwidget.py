@@ -39,11 +39,12 @@ class VersionLabel(CustomButton):
         self.pressed.connect(
             lambda: QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about'))
 
-        self.timer = QtCore.QTimer()
+        self.timer = QtCore.QTimer(parent=self)
         self.timer.setSingleShot(False)
         self.timer.setInterval(3600000) # Will check for a new version every 1 hour
-        
-        self.timer.timeout()
+
+        import gwbrowser.versioncontrol.versioncontrol as vc
+        self.timer.timeout.connect(vc.check)
 
 
 
@@ -81,7 +82,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.settingstimer.setTimerType(QtCore.Qt.CoarseTimer)
         self.settingstimer.timeout.connect(active_monitor.check_state)
 
-        self.initializer = QtCore.QTimer()
+        self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
         self.initializer.setInterval(200)
         self.initializer.timeout.connect(self.initialize)
@@ -90,7 +91,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Shutdown monitor - we will exit the application when all the threads
         # have finished running
-        self.shutdown_timer = QtCore.QTimer()
+        self.shutdown_timer = QtCore.QTimer(parent=self)
         self.shutdown_timer.setInterval(250)
         self.shutdown_timer.setSingleShot(False)
 
@@ -253,7 +254,9 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def terminate(self, quit_app=False):
-        """When all the threads quit, we'll exit the main application too."""
+        """Terminates the browserwidget gracefully by stopping the associated threads.
+
+        """
         self.__qn += 1
         self.statusbar.showMessage(u'Quitting...')
 
@@ -271,7 +274,8 @@ class BrowserWidget(QtWidgets.QWidget):
                 self.deleteLater()
 
         # Forcing the application to close after n tries
-        if self.__qn < 20:  # circa 5 seconds to wrap things up, will exit by force after
+        # circa 5 seconds to wrap things up, will exit by force after
+        if self.__qn < 20:
             return
 
         # After that time we will force-terminate the threads

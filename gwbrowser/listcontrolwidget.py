@@ -300,7 +300,7 @@ class ToggleFavouriteButton(ControlButton):
 
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(parent=parent)
-        description = u'Ctrl+Shift+F  |  Show my favourites only'
+        description = u'Ctrl+Shift+F  |  Show starred only'
         self.setToolTip(description)
         self.setStatusTip(description)
 
@@ -852,7 +852,7 @@ class FavouritesTabButton(PaintedTextButton):
     def __init__(self, parent=None):
         super(FavouritesTabButton, self).__init__(parent=parent)
         self.index = 3
-        self.set_text(u'My favourites')
+        self.set_text(u'Starred')
         self.setStatusTip(u'Ctrl+4  |  Click to see your saved favourites')
 
         shortcut = QtWidgets.QShortcut(

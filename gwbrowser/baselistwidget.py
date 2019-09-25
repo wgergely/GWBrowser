@@ -436,7 +436,11 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @QtCore.Slot()
     def sort_data(self):
-        """We're making a list of proxy data indexes to map to sorted items."""
+        """Function responsible for sorting data dictionary.
+        It takes the currently set sort order and creates a new
+        data dictionary with the new order.
+
+        """
         data = self.model_data()
 
         sortrole = self.sortRole()

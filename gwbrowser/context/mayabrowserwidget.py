@@ -286,23 +286,22 @@ class MayaBrowserButton(ClickableLabel):
 
 
 class MayaBrowserWidgetContextMenu(BaseContextMenu):
-    """The context menu holding all Maya specific actions."""
+    """The context menu for all Maya specific actions."""
 
     def __init__(self, index, parent=None):
         super(MayaBrowserWidgetContextMenu, self).__init__(
             index, parent=parent)
+
         # Scenes
         if index.isValid():
-            if self.parent().model().sourceModel().data_key() == common.ScenesFolder:
-                self.add_scenes_menu()
+            self.add_scenes_menu()
         self.add_save_as_menu()
 
         self.add_separator()
 
         # Caches
         if index.isValid():
-            if self.parent().model().sourceModel().data_key() == common.ExportsFolder:
-                self.add_readalembic_menu()
+            self.add_readalembic_menu()
 
         self.add_writealembic_menu()
         self.add_writeobj_menu()
@@ -333,7 +332,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_writealembic_menu(self, menu_set, browserwidget=None):
-        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        objectset_pixmap = QtGui.QPixmap(u':objectSet.svg')
         exporter = AlembicExport()
 
         key = u'alembic'
@@ -355,7 +354,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_writeobj_menu(self, menu_set, browserwidget=None):
-        objectset_pixmap = QtGui.QPixmap(':objectSet.svg')
+        objectset_pixmap = QtGui.QPixmap(u':objectSet.svg')
         exporter = BaseExporter()
 
         key = u'obj'
@@ -382,12 +381,12 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         if common.get_sequence(scene.fileName()):
             menu_set[u'increment'] = {
                 u'text': u'Save as increment...',
-                u'icon': QtGui.QPixmap(':mayaIcon.png'),
+                u'icon': QtGui.QPixmap(u':mayaIcon.png'),
                 u'action': lambda: browserwidget.save_scene(increment=True)
             }
         menu_set[u'new'] = {
             u'text': u'Save as new...',
-            u'icon': QtGui.QPixmap(':mayaIcon.png'),
+            u'icon': QtGui.QPixmap(u':mayaIcon.png'),
             u'action': lambda: browserwidget.save_scene(increment=False)
         }
         return menu_set
@@ -400,17 +399,17 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         menu_set[u'open'] = {
             u'text': u'Open scene',
-            u'icon': QtGui.QPixmap(':mayaIcon.png'),
+            u'icon': QtGui.QPixmap(u':mayaIcon.png'),
             u'action': functools.partial(browserwidget.open_scene, file_info.filePath())
         }
         menu_set[u'importlocal'] = {
             u'text': u'Import scene',
-            u'icon': QtGui.QPixmap(':mayaIcon.png'),
+            u'icon': QtGui.QPixmap(u':mayaIcon.png'),
             u'action': functools.partial(browserwidget.import_scene, file_info.filePath())
         }
         menu_set[u'import'] = {
             u'text': u'Import scene as reference',
-            u'icon': QtGui.QPixmap(':mayaIcon.png'),
+            u'icon': QtGui.QPixmap(u':mayaIcon.png'),
             u'action': functools.partial(browserwidget.import_referenced_scene, file_info.filePath())
         }
         return menu_set
@@ -433,8 +432,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.browserwidget.initialized.connect(self.connectSignals)
         self.browserwidget.initialized.connect(
             self.add_context_callbacks)
-        self.browserwidget.shutdown_timer.timeout.connect(
-            lambda: self.terminate(quit_app=False), type=QtCore.Qt.QueuedConnection)
 
         self.browserwidget.initialize()
 
@@ -517,8 +514,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     @QtCore.Slot()
     def connectSignals(self):
+        bookmarkswidget = self.browserwidget.bookmarkswidget
         assetswidget = self.browserwidget.assetswidget
         fileswidget = self.browserwidget.fileswidget
+        favouriteswidget = self.browserwidget.favouriteswidget
 
         # Asset/project
         assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
@@ -527,12 +526,18 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             lambda: self.set_workspace(assetswidget.model().sourceModel().active_index()))
 
         # Context menu
-        fileswidget.customContextMenuRequested.connect(
+        bookmarkswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
         assetswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
+        fileswidget.customContextMenuRequested.connect(
+            self.customFilesContextMenuEvent)
+        favouriteswidget.customContextMenuRequested.connect(
+            self.customFilesContextMenuEvent)
 
         fileswidget.activated.connect(lambda x: self.open_scene(
+            common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
+        favouriteswidget.activated.connect(lambda x: self.open_scene(
             common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
         fileswidget.model().sourceModel().modelReset.connect(self.unmark_active)
         fileswidget.model().sourceModel().modelReset.connect(self.update_active_item)
@@ -795,15 +800,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         saver.exec_()
 
     def open_scene(self, path):
-        """Opens the given scene."""
+        """Maya Command: Opens the given path in Maya using ``cmds.file``.
+
+        """
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
-        if not file_info.exists():
-            sys.stderr.write(
-                '# GWBrowser: File {} does not exist.\n'.format(path))
-            return
         result = self.is_scene_modified()
         if result == QtWidgets.QMessageBox.Cancel:
             return
+
         cmds.file(file_info.filePath(), open=True, force=True)
 
     def import_scene(self, path):
@@ -897,23 +901,26 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         prompted to save the scene.
 
         """
-        if cmds.file(q=True, modified=True):
-            mbox = QtWidgets.QMessageBox(parent=self)
-            mbox.setText(
-                u'Current scene has unsaved changes.'
-            )
-            mbox.setInformativeText(u'Save the scene now?')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Save
-                | QtWidgets.QMessageBox.Discard
-                | QtWidgets.QMessageBox.Cancel
-            )
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
-            result = mbox.exec_()
+        if not cmds.file(q=True, modified=True):
+            return
 
-            if result == QtWidgets.QMessageBox.Cancel:
-                return result
-            elif result == QtWidgets.QMessageBox.Save:
-                cmds.SaveScene()
-                return result
+        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox.setText(
+            u'Current scene has unsaved changes.'
+        )
+        mbox.setInformativeText(u'Do you want to save it before continuing?')
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Save
+            | QtWidgets.QMessageBox.No
+            | QtWidgets.QMessageBox.Cancel
+        )
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Save)
+        result = mbox.exec_()
+
+        if result == QtWidgets.QMessageBox.Cancel:
             return result
+        elif result == QtWidgets.QMessageBox.Save:
+            cmds.SaveScene()
+            return result
+
+        return result

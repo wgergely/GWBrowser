@@ -70,7 +70,8 @@ def uninitializePlugin(plugin):
             match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
             if match:
                 widget.remove_context_callbacks()
-                widget.shutdown.emit()
+                widget.shutdown_timer.timeout.connect(widget.terminate)
+                widget.shutdown_timer.start()
 
     except Exception as err:
         raise Exception(err)

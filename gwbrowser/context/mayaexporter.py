@@ -129,7 +129,7 @@ class AlembicExport(BaseExporter):
     """
 
     def export(self, filepath, outliner_set, startframe, endframe, step=1.0, preroll=100.0):
-        """Main Alembic exports. We will querry the outliner_set items and
+        """Main Alembic export script. We will querry the outliner_set items and
         we'll flatten the hierarchy before exporting."""
 
         def is_intermediate(s): return cmds.getAttr(

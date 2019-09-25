@@ -887,10 +887,10 @@ class FilesWidget(BaseInlineIconWidget):
         self.drag_source_index = QtCore.QModelIndex()
 
         # Timer
-        self._index_timer = QtCore.QTimer()
-        self._index_timer.setInterval(common.FTIMER_INTERVAL)
-        self._index_timer.setSingleShot(False)
-        self._index_timer.timeout.connect(self.initialize_visible_indexes)
+        self.index_update_timer = QtCore.QTimer(parent=self)
+        self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
+        self.index_update_timer.setSingleShot(False)
+        self.index_update_timer.timeout.connect(self.initialize_visible_indexes)
 
         # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
@@ -905,29 +905,29 @@ class FilesWidget(BaseInlineIconWidget):
             self.model().sourceModel().reset_thread_worker_queues)
 
         # We're stopping the index timer when the model is loading.
-        self.model().modelAboutToBeReset.connect(self._index_timer.stop)
-        self.model().modelReset.connect(self._index_timer.start)
-        self.model().layoutAboutToBeChanged.connect(self._index_timer.stop)
-        self.model().layoutChanged.connect(self._index_timer.start)
+        self.model().modelAboutToBeReset.connect(self.index_update_timer.stop)
+        self.model().modelReset.connect(self.index_update_timer.start)
+        self.model().layoutAboutToBeChanged.connect(self.index_update_timer.stop)
+        self.model().layoutChanged.connect(self.index_update_timer.start)
 
         # For performance's sake...
         self.verticalScrollBar().valueChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.verticalScrollBar().sliderPressed.connect(
-            self._index_timer.stop)
+            self.index_update_timer.stop)
         self.verticalScrollBar().sliderReleased.connect(
-            self._index_timer.start)
+            self.index_update_timer.start)
 
         # Making sure the SecondaryFileInfoWorker loads the model-data...
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
-        """The sourceModel() loads its data in multiples steps, there's a
+        """The sourceModel() loads its data in multiples steps: There's a
         single-threaded walk of all sub-directories, and a threaded querry for
         image and file information.
 
-        This slot is called by the ``_index_timer`` and queues the uninitialized
-        indexes for the thread-workers to consume.
+        This slot is called by the ``index_update_timer`` and queues the
+        uninitialized indexes for the thread-workers to consume.
 
         """
         needs_info = []
@@ -1004,6 +1004,12 @@ class FilesWidget(BaseInlineIconWidget):
             return True
 
         return False
+
+    def showEvent(self, event):
+        self.index_update_timer.start()
+
+    def hideEvent(self, event):
+        self.index_update_timer.stop()
 
     def inline_icons_count(self):
         if self.buttons_hidden():
@@ -1092,13 +1098,13 @@ class FilesWidget(BaseInlineIconWidget):
     def mousePressEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        self._index_timer.stop()
+        self.index_update_timer.stop()
         super(FilesWidget, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        self._index_timer.start()
+        self.index_update_timer.start()
         super(FilesWidget, self).mouseReleaseEvent(event)
 
     def startDrag(self, supported_actions):

@@ -11,6 +11,7 @@ visual indicators.
 
 
 import re
+import os
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -1135,43 +1136,88 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
             return
 
         args = self._get_paint_args(painter, option, index)
-        #
+
         self.paint_background(*args)
 
-        #
+
         self.paint_thumbnail(*args)
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
         # self.paint_thumbnail_shadow(*args)
-        #
+
         left = 0
         self.paint_name(*args, left=left)
         if index.data(common.FileInfoLoaded):
             self.paint_description(*args, left=left)
-        #
-        # self.paint_inline_icons_background(*args)
-        # self.paint_folder_icon(*args)
-        # self.paint_favourite_icon(*args)
-        #
+
         self.paint_selection_indicator(*args)
 
     @paintmethod
-    def paint_folder_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, _, _, _ = args
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
+    def paint_name(self, *args, **kwargs):
+        """Paints the ``FilesWidget``'s name."""
+        painter, option, index, selected, _, active, _, _, hover = args
+        if not index.data(QtCore.Qt.DisplayRole):
             return
 
-        rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 1)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
+        metrics = QtGui.QFontMetrics(font)
 
-        sep = QtGui.QColor(common.SEPARATOR)
-        sep.setAlpha(150)
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
 
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'folder', sep, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawPixmap(rect, pixmap)
+        # Centering the rectangle
+        center = rect.center()
+        rect.setHeight(metrics.height())
+        rect.moveCenter(center)
+        if index.data(common.DescriptionRole):
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
+
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+
+        # Name
+        text = index.data(QtCore.Qt.DisplayRole)
+        name, ext = os.path.splitext(text)
+        if ext:
+            text = u'{}{}'.format(name.upper(), ext.lower())
+        else:
+            text = name.upper()
+
+        color = common.TEXT_SELECTED if selected else common.TEXT
+        color = common.TEXT_SELECTED if hover else color
+        common.draw_aliased_text(painter, font, rect, text, align, color)
+
+    @paintmethod
+    def paint_description(self, *args, **kwargs):
+        """Paints the item description inside the ``FilesWidget``."""
+        painter, option, index, selected, _, _, _, _, hover = args
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
+        metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        rect.setRight(rect.right() - common.MARGIN)
+
+        # Resizing the height and centering
+        center = rect.center()
+        rect.setHeight(metrics.height())
+        rect.moveCenter(center)
+        rect.moveTop(rect.top() + (metrics.lineSpacing() / 2.0))
+
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+        text = index.data(common.DescriptionRole)
+
+        color = common.TEXT if hover else common.SECONDARY_TEXT
+        color = common.TEXT if selected else color
+        common.draw_aliased_text(painter, font, rect, text, align, color)
