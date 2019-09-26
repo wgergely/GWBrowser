@@ -578,7 +578,7 @@ class FilterEditor(QtWidgets.QWidget):
             self.close()
 
 
-class ThumbnailLabel(ClickableLabel):
+class ThumbnailLabel(QtWidgets.QLabel):
     """Custom QLabel to select a thumbnail."""
     clicked = QtCore.Signal(unicode)
 

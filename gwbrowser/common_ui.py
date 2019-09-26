@@ -7,7 +7,7 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
 
-def add_row(label, parent=None, padding=common.MARGIN):
+def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT):
     """macro for adding a new row"""
     w = QtWidgets.QWidget(parent=parent)
     QtWidgets.QHBoxLayout(w)
@@ -19,7 +19,7 @@ def add_row(label, parent=None, padding=common.MARGIN):
         QtWidgets.QSizePolicy.Expanding,
         QtWidgets.QSizePolicy.Expanding,
     )
-    w.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+    w.setFixedHeight(height)
     w.setAttribute(QtCore.Qt.WA_NoBackground)
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
@@ -121,7 +121,6 @@ class ClickableLabel(QtWidgets.QLabel):
     doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
-
     def __init__(self, pixmap, color, size, description=u'', parent=None):
         super(ClickableLabel, self).__init__(parent=parent)
         self._pixmap = ImageCache.get_rsc_pixmap(pixmap, color, size)
@@ -134,7 +133,7 @@ class ClickableLabel(QtWidgets.QLabel):
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
         self.setAttribute(QtCore.Qt.WA_NoBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        
+
         self.clicked.connect(self.action)
 
     @QtCore.Slot()
@@ -153,6 +152,7 @@ class ClickableLabel(QtWidgets.QLabel):
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip())
+        import sys
         self.repaint()
 
     def leaveEvent(self, event):

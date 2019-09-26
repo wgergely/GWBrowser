@@ -5,18 +5,28 @@ the current task folder.
 """
 
 import re
+import uuid
 import functools
 from PySide2 import QtCore, QtWidgets, QtGui
 
+from gwbrowser.settings import local_settings
 import gwbrowser.common as common
-from gwbrowser.common_ui import ClickableLabel
+import gwbrowser.editors as editors
+from gwbrowser.common_ui import ClickableLabel, add_row
 from gwbrowser.bookmarkswidget import BookmarksModel
+from gwbrowser.assetswidget import AssetModel
+
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
-from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
+
+from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
+
+from gwbrowser.capture import ScreenGrabber
+from gwbrowser.imagecache import ImageCache
+from gwbrowser.imagecache import ImageCacheWorker
 
 
 class SelectButton(QtWidgets.QLabel):
@@ -60,8 +70,11 @@ class SelectButton(QtWidgets.QLabel):
         self.clicked.connect(self.show_view)
         self.widgetMoved.connect(self.adjust_view)
         self.view().activated.connect(self.activated)
-        self.view().activated.connect(lambda x: self.activeChanged.emit(self.view().model().mapToSource(x)))
-        self.view().model().sourceModel().modelReset.connect(self.select_active)
+
+        if hasattr(self.view().model(), 'sourceModel'):
+            self.view().activated.connect(
+                lambda x: self.activeChanged.emit(self.view().model().mapToSource(x)))
+            self.view().model().sourceModel().modelReset.connect(self.select_active)
 
     def has_selection(self):
         return self.view().selectionModel().hasSelection()
@@ -87,14 +100,10 @@ class SelectButton(QtWidgets.QLabel):
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.Window)
 
-        pos = self.rect().bottomLeft()
-        y = self.mapToGlobal(pos).y()
-        pos = self.rect().bottomLeft()
-        x = self.mapToGlobal(pos).x()
-        y = self.mapToGlobal(pos).y()
-        width = self.rect().width()
-        self.view().move(x, y)
-        self.view().setFixedWidth(width)
+        self.view().move(
+            self.window().geometry().bottomLeft().x(),
+            self.window().geometry().bottomLeft().y())
+        self.view().setFixedWidth(self.window().geometry().width())
 
         self.view().show()
         self.view().raise_()
@@ -102,8 +111,12 @@ class SelectButton(QtWidgets.QLabel):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def activated(self, index):
-        source_index = self.view().model().mapToSource(index)
-        self.setText(source_index.data(QtCore.Qt.DisplayRole))
+        if not index.isValid():
+            return
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+
+        self.setText(index.data(QtCore.Qt.DisplayRole))
         self.repaint()
 
     @QtCore.Slot(QtCore.QRect)
@@ -178,7 +191,8 @@ class SelectButton(QtWidgets.QLabel):
             return
         if event.button() == QtCore.Qt.LeftButton:
             pos = QtGui.QCursor().pos()
-            if self.geometry().contains(pos):
+            pos = self.mapFromGlobal(pos)
+            if self.rect().contains(pos):
                 self.clicked.emit()
 
     def hideEvent(self, event):
@@ -192,453 +206,6 @@ class SelectButton(QtWidgets.QLabel):
 
     def moveEvent(self, event):
         self.widgetMoved.emit(self.rect())
-
-
-class SelectListView(BaseInlineIconWidget):
-    widgetShown = QtCore.Signal()
-
-    def __init__(self, model, delegate, parent=None):
-        super(SelectListView, self).__init__(parent=parent)
-        self.set_model(model)
-        delegate.setParent(self)
-        self.setItemDelegate(delegate)
-
-        # common.set_custom_stylesheet(self)
-
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
-        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
-        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-        self.removeEventFilter(self)
-
-        self._connectSignals()
-
-    def _connectSignals(self):
-        self.clicked.connect(self.hide)
-        self.clicked.connect(self.activated)
-
-    def showEvent(self, event):
-        self.widgetShown.emit()
-        self.adjust_height()
-
-        if self.selectionModel().hasSelection():
-            self.scrollTo(self.selectionModel().currentIndex())
-
-    @QtCore.Slot()
-    def adjust_height(self, *args, **kwargs):
-        """Adjusts the size of the view to fit the contents exactly."""
-        height = 0
-
-        option = QtWidgets.QStyleOptionViewItem()
-        option.initFrom(self)
-
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0)
-            if not index.isValid():
-                break
-            height += self.itemDelegate().sizeHint(option, index).height()
-            if height > 300:
-                break
-        if height == 0:
-            self.hide()
-            return
-        #     height += self.itemDelegate().sizeHint(option, QtCore.QModelIndex()).height()
-        self.setFixedHeight(height)
-
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            self.hide()
-
-    def mouseDoubleClickEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.activate(self.selectionModel().currentIndex())
-
-    def inline_icons_count(self):
-        return 0
-
-
-# class SelectFolderContextMenu(BaseContextMenu):
-#     """Context menu associated with the thumbnail."""
-#
-#     def __init__(self, parent=None):
-#         super(SelectFolderContextMenu, self).__init__(
-#             QtCore.QModelIndex(), parent=parent)
-#         self.add_reveal_item_menu()
-#
-#     @contextmenu
-#     def add_reveal_item_menu(self, menu_set):
-#         """Menu for thumbnail operations."""
-#         asset = self.parent().view().model().asset()
-#         if asset.isValid():
-#             asset_path = asset.data(common.ParentRole)
-#             asset_path = u'/'.join(asset_path)
-#             menu_set[u'Reveal asset'] = {
-#                 u'action': functools.partial(common.reveal, asset_path)
-#             }
-#             destination = self.parent().view().model().destination()
-#             if destination:
-#                 menu_set[u'Reveal destination'] = {
-#                     u'action': functools.partial(common.reveal, destination)
-#                 }
-#         return menu_set
-#
-#
-# class SelectFolderDelegate(BaseDelegate):
-#     """Delegate responsible for painting the FolderWidget items."""
-#
-#     def __init__(self, parent=None):
-#         super(SelectFolderDelegate, self).__init__(parent=parent)
-#
-#     def paint(self, painter, option, index):
-#         """Defines how the BookmarksWidgetItems should be painted."""
-#         args = self._get_paint_args(painter, option, index)
-#         self.paint_background(*args)
-#         self.paint_name(*args)
-#
-#     @paintmethod
-#     def paint_name(self, *args):
-#         """Paints the item names inside the ``FoldersWidget``."""
-#         painter, option, index, _, _, _, _, _, hover = args
-#
-#         rect = QtCore.QRect(option.rect)
-#         root = self.parent().model().parent(index) == self.parent().rootIndex()
-#         active = self.parent().model().destination(
-#         ) == self.parent().model().filePath(index)
-#
-#         center = rect.center()
-#         rect.setHeight(common.INLINE_ICON_SIZE)
-#         rect.setWidth(rect.width() - (common.MARGIN * 2))
-#         rect.moveCenter(center)
-#
-#         font = QtGui.QFont(common.PrimaryFont)
-#         metrics = QtGui.QFontMetrics(font)
-#
-#         text = index.data(QtCore.Qt.DisplayRole)
-#         color = common.TEXT if root else common.SECONDARY_TEXT
-#         color = common.TEXT_SELECTED if hover else color
-#
-#         if index.flags() == QtCore.Qt.NoItemFlags:
-#             common.draw_aliased_text(
-#                 painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT)
-#             return
-#
-#         # Asset name
-#         text = re.sub(ur'[^0-9a-zA-Z]+', u' ', text)
-#         text = re.sub(ur'[_]{1,}', u'_', text).strip(u'_')
-#         if active:
-#             text = u'>  {}  <'.format(text).upper()
-#         else:
-#             text = u'{}'.format(text).upper()
-#             # text = '{}'.format(text)
-#         rect.setWidth(metrics.width(text) + common.INDICATOR_WIDTH)
-#
-#         if root:
-#             painter.setBrush(common.FAVOURITE)
-#             pen = QtGui.QPen(common.FAVOURITE)
-#         else:
-#             painter.setBrush(common.SECONDARY_BACKGROUND)
-#             pen = QtGui.QPen(common.SECONDARY_BACKGROUND)
-#
-#             pen.setWidth(common.INDICATOR_WIDTH)
-#         if self.parent().model().destination() == self.parent().model().filePath(index):
-#             color = QtGui.QColor(30, 200, 120)
-#             painter.setBrush(color)
-#             pen.setColor(color)
-#             color = common.TEXT_SELECTED
-#         painter.setPen(pen)
-#
-#         painter.drawRoundedRect(rect, 2, 2)
-#         common.draw_aliased_text(
-#             painter, common.PrimaryFont, rect, text, QtCore.Qt.AlignCenter, color)
-#
-#     @paintmethod
-#     def paint_background(self, *args):
-#         """Paints the background."""
-#         painter, option, index, _, _, _, _, _, _ = args
-#         if index.flags() == QtCore.Qt.NoItemFlags:
-#             return
-#         hover = option.state & QtWidgets.QStyle.State_MouseOver
-#
-#         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-#         color = QtGui.QColor(common.BACKGROUND)
-#         if hover:
-#             color = QtGui.QColor(common.BACKGROUND_SELECTED)
-#
-#         rect = QtCore.QRect(option.rect)
-#         root = self.parent().model().parent(index) == self.parent().rootIndex()
-#         if root:
-#             rect.setTop(rect.top() + 2)
-#         painter.setBrush(QtGui.QBrush(color))
-#         painter.drawRect(rect)
-#
-#     def sizeHint(self, index, parent=QtCore.QModelIndex()):
-#         return QtCore.QSize(common.WIDTH, common.ROW_BUTTONS_HEIGHT)
-
-#
-# class SelectFolderView(QtWidgets.QTreeView):
-#     """Simple tree view for browsing the available folders."""
-#     widgetShown = QtCore.Signal()
-#
-#     def __init__(self, parent=None):
-#         super(SelectFolderView, self).__init__(parent=parent)
-#         self.setHeaderHidden(True)
-#         self.setItemDelegate(SelectFolderDelegate(parent=self))
-#         self.setIndentation(common.MARGIN / 2)
-#         self.setRootIsDecorated(False)
-#         common.set_custom_stylesheet(self)
-#
-#         self.clicked.connect(lambda i: self.collapse(
-#             i) if self.isExpanded(i) else self.expand(i), type=QtCore.Qt.QueuedConnection)
-#         self.clicked.connect(self.index_expanded,
-#                              type=QtCore.Qt.QueuedConnection)
-#         self.activated.connect(self.hide)
-#
-#     def set_model(self, model):
-#         self.setModel(model)
-#
-#         model.setRootPath(u'.')
-#         index = model.index(model.rootPath())
-#         self.setRootIndex(index)
-#
-#         self.model().directoryLoaded.connect(self.index_expanded)
-#         self.model().directoryLoaded.connect(self.adjust_height)
-#         self.activated.connect(self.model().destinationChanged)
-#
-#     def index_expanded(self, index):
-#         self.adjust_height()
-#
-#     def showEvent(self, event):
-#         self.widgetShown.emit()
-#         self.adjust_height()
-#
-#         if self.model().destination():
-#             self.collapseAll()
-#             index = self.model().index(self.model().destination())
-#             self.selectionModel().setCurrentIndex(
-#                 index, QtCore.QItemSelectionModel.ClearAndSelect)
-#             self.expand(index)
-#             self.scrollTo(index)
-#
-#         super(SelectFolderView, self).showEvent(event)
-#
-#     @QtCore.Slot()
-#     def adjust_height(self, *args, **kwargs):
-#         """Adjusts the size of the view to fix the items exactly."""
-#         index = self.rootIndex()
-#
-#         height = 0
-#         row_height = self.itemDelegate().sizeHint(QtCore.QModelIndex()).height()
-#         while True:
-#             index = self.indexBelow(index)
-#             if not index.isValid():
-#                 break
-#             height += row_height
-#             if height > 300:
-#                 break
-#         if height == 0:
-#             height = 3
-#         self.setFixedHeight(height)
-#
-#     @QtCore.Slot(QtCore.QModelIndex)
-#     def set_root_index(self, index):
-#         if not index.isValid():
-#             path = u'.'
-#         else:
-#             path = u'/'.join(index.data(common.ParentRole))
-#
-#         self._asset = index
-#
-#         self.model().setRootPath(path)
-#         index = self.model().index(self.model().rootPath())
-#         self.setRootIndex(index)
-#
-#         self.model().destinationChanged.emit(index)
-
-#
-# class SelectFolderModel(QtWidgets.QFileSystemModel):
-#     """Contains all the available folders for saving a file."""
-#     destinationChanged = QtCore.Signal(QtCore.QModelIndex)
-#     fileTypeChanged = QtCore.Signal(unicode)
-#
-#     def __init__(self, parent=None):
-#         super(SelectFolderModel, self).__init__(parent=parent)
-#         self.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
-#         self._asset = QtCore.QModelIndex()
-#         self._destination = None
-#
-#     @QtCore.Slot(unicode)
-#     def set_filetype(self, suffix):
-#         """Setting a filetype will automatically define a default location
-#         for the file."""
-#         if not self.asset().isValid():
-#             return  # can't set the destination without the asset
-#
-#         # Check if the suffix is `understood` by the Browser
-#         parent = list(self.asset().data(common.ParentRole))
-#         index = QtCore.QModelIndex()
-#
-#         if suffix in common.exports_formats:
-#             location = common.ExportsFolder
-#             destination = u'/'.join(parent + [common.ExportsFolder, suffix])
-#             destination_dir = QtCore.QDir(destination)
-#             if not destination_dir.exists():
-#                 if not self.create_folder(location, suffix, destination_dir):
-#                     return
-#             index = self.index(destination)
-#         elif suffix in (list(common.scene_formats) + list(common.creative_cloud_formats)):
-#             location = common.ScenesFolder
-#             destination = u'/'.join(parent + [common.ScenesFolder])
-#             destination_dir = QtCore.QDir(destination)
-#             if not destination_dir.exists():
-#                 if not self.create_folder(location, suffix, destination_dir):
-#                     return
-#             index = self.index(destination)
-#         else:
-#             destination = u'/'.join(parent)
-#             index = self.index(destination)
-#         if index.isValid():
-#             self.destinationChanged.emit(index)
-#
-#     def create_folder(self, location, suffix, destination_dir):
-#         """Creates a folder inside the asset to store the given suffix
-#         files."""
-#         result = QtWidgets.QMessageBox(
-#             QtWidgets.QMessageBox.Warning,
-#             u'Destination folder missing',
-#             u'The default destination folder for "{}" files is missing.\nDo you want to create it now?\n\n({})'.format(
-#                 suffix, destination_dir.absolutePath()),
-#             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-#         ).exec_()
-#         if result == QtWidgets.QMessageBox.Ok:
-#             return QtCore.QDir().mkpath(destination_dir.absolutePath())
-#         return False
-#
-#     def is_model_valid(self):
-#         """The model is `invalid` if the root path or the asset has not yet#
-#         been set."""
-#         if self.rootPath() == u'.':
-#             return False
-#         if not self._asset.isValid():
-#             return False
-#         return True
-#
-#     def asset(self):
-#         """The active asset."""
-#         return self._asset
-#
-#     def columnCount(self, index, parent=QtCore.QModelIndex()):
-#         return 1
-#
-#     def destination(self):
-#         """The folder to save the file into."""
-#         return self._destination
-#
-#     @QtCore.Slot(QtCore.QModelIndex)
-#     def set_destination(self, index):
-#         """The folder to save the file into."""
-#         if not index.isValid():
-#             self._destination = None
-#         self._destination = self.filePath(index)
-#
-#     def flags(self, index):
-#         """Without a valid asset index, the model will not allow item selection."""
-#         if self.is_model_valid():
-#             flags = super(SelectFolderModel, self).flags(index)
-#             if self.filePath(index) == self._destination:
-#                 flags = flags | common.MarkedAsActive
-#             return flags
-#         return QtCore.Qt.NoItemFlags
-
-
-#
-# class SelectAssetDelegate(AssetsWidgetDelegate):
-#     """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
-#
-#     def paint(self, painter, option, index):
-#         """Defines how the ``AssetsWidget``'s' items should be painted."""
-#         args = self._get_paint_args(painter, option, index)
-#
-#         self.paint_background(*args)
-#         #
-#         self.paint_thumbnail(*args)
-#         self.paint_archived(*args)
-#         self.paint_thumbnail_shadow(*args)
-#         #
-#         self.paint_name(*args)
-#         self.paint_description(*args)
-#         #
-#         self.paint_selection_indicator(*args)
-#
-#     def sizeHint(self, option, index):
-#         return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
-#
-# #
-
-
-#
-# class SelectAssetView(SelectListView):
-#     """Simple tree view for browsing the available assets."""
-#
-#     def __init__(self, parent=None):
-#         super(SelectAssetView, self).__init__(parent=parent)
-#         self.setItemDelegate(SelectAssetDelegate(parent=self))
-#         self.clicked.connect(self.activate)
-#         self.clicked.connect(self.hide)
-
-
-# class SelectAssetButton(SelectFolderButton):
-#     """The button responsible for showing the assets view."""
-#
-#     def __init__(self, parent=None):
-#         super(SelectAssetButton, self).__init__(parent=parent)
-#
-#         self.setText('Select asset...')
-#         self.setObjectName(u'SelectAssetButton')
-#
-#         w = SelectAssetView(parent=self)
-#         self._view = w
-#         w.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
-#         w.model().sourceModel().modelAboutToBeReset.connect(lambda: self.setText(u'Select asset...'))
-#         w.model().sourceModel().modelReset.connect(
-#             lambda: w.model().sourceModel().activeChanged.emit(w.model().sourceModel().active_index()))
-#
-#     def paintEvent(self, event):
-#         option = QtWidgets.QStyleOption()
-#         option.initFrom(self)
-#         hover = option.state & QtWidgets.QStyle.State_MouseOver
-#         color = common.FAVOURITE if hover else common.TEXT
-#
-#         if self.view().model().sourceModel().active_index().isValid():
-#             color = QtGui.QColor(30, 200, 120)
-#
-#         painter = QtGui.QPainter()
-#         painter.begin(self)
-#         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-#         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-#
-#         common.draw_aliased_text(
-#             painter, common.PrimaryFont, self.rect(),
-#             self.text(), QtCore.Qt.AlignCenter, color)
-#
-#         rect = QtCore.QRect(self.rect())
-#         rect.setTop(rect.bottom() - 1)
-#         painter.setPen(QtCore.Qt.NoPen)
-#         painter.setBrush(color)
-#         painter.drawRoundedRect(rect, 1, 1)
-#
-#         painter.end()
-#
-#     @QtCore.Slot(QtCore.QModelIndex)
-#     def activeAssetChanged(self, index):
-#         if not index.isValid():
-#             return
-#         parent = index.data(common.ParentRole)
-#         # text = u'{}'.format(parent[1], parent[-1])
-#         self.setText(parent[-1].upper())
 
 
 class SelectBookmarkDelegate(BookmarksWidgetDelegate):
@@ -661,86 +228,510 @@ class SelectBookmarkDelegate(BookmarksWidgetDelegate):
     def sizeHint(self, option, index):
         return QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
 
-#
-# class SelectBookmarkView(SelectListView):
-#     """Simple tree view for browsing the available assets."""
-#
-#     def __init__(self, parent=None):
-#         super(SelectBookmarkView, self).__init__(parent=parent)
-#         self.setItemDelegate(SelectBookmarkDelegate(parent=self))
-#         self.clicked.connect(self.activate, type=QtCore.Qt.QueuedConnection)
-#         self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
-#         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-#
-#     def showEvent(self, event):
-#         self.widgetShown.emit()
-#         self.adjust_height()
-#
-#         if self.selectionModel().hasSelection():
-#             self.scrollTo(self.selectionModel().currentIndex())
-#
-#     @QtCore.Slot()
-#     def adjust_height(self, *args, **kwargs):
-#         """Adjusts the size of the view to fit the contents exactly."""
-#         height = 0
-#         for n in xrange(self.model().rowCount()):
-#             index = self.model().index(n, 0)
-#             if not index.isValid():
-#                 break
-#             height += self.itemDelegate().sizeHint(None, None).height()
-#             if height > 300:
-#                 break
-#         if height == 0:
-#             height += self.itemDelegate().sizeHint(None, None).height()
-#         self.setFixedHeight(height)
-#
-#     def focusOutEvent(self, event):
-#         """Closes the editor on focus loss."""
-#         if event.lostFocus():
-#             self.hide()
-#
-#     def mouseDoubleClickEvent(self, event):
-#         if not isinstance(event, QtGui.QMouseEvent):
-#             return
-#         self.activate(self.selectionModel().currentIndex())
-#
-#     def inline_icons_count(self):
-#         return 0
+
+class SelectAssetDelegate(AssetsWidgetDelegate):
+    """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
+
+    def paint(self, painter, option, index):
+        """Defines how the ``AssetsWidget``'s' items should be painted."""
+        args = self._get_paint_args(painter, option, index)
+        self.paint_background(*args)
+        #
+        self.paint_thumbnail(*args)
+        self.paint_archived(*args)
+        #
+        self.paint_thumbnail_shadow(*args)
+        self.paint_name(*args)
+        #
+        self.paint_description(*args)
+        #
+        self.paint_selection_indicator(*args)
+
+    def sizeHint(self, option, index):
+        return QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
 
 
-# class SelectBookmarkButton(SelectAssetButton):
-#     """The button responsible for showing the assets view."""
+class SelectListView(BaseInlineIconWidget):
+
+    def __init__(self, model, delegate, parent=None):
+        super(SelectListView, self).__init__(parent=parent)
+        self.set_model(model)
+        delegate.setParent(self)
+        self.setItemDelegate(delegate)
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.removeEventFilter(self)
+
+        self._connectSignals()
+
+    def _connectSignals(self):
+        self.selectionModel().currentChanged.connect(self.hide)
+        self.selectionModel().currentChanged.connect(self.activated)
+
+    def showEvent(self, event):
+        self.adjust_size()
+        if self.selectionModel().hasSelection():
+            self.scrollTo(self.selectionModel().currentIndex())
+
+    @QtCore.Slot()
+    def adjust_size(self, *args, **kwargs):
+        """Adjusts the size of the view to fit the contents exactly."""
+        height = 0
+
+        option = QtWidgets.QStyleOptionViewItem()
+        option.initFrom(self)
+
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            if not index.isValid():
+                break
+            height += self.itemDelegate().sizeHint(option, index).height()
+            if height > 300:
+                break
+        if height == 0:
+            self.hide()
+            return
+        self.setFixedHeight(height)
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
+
+    def mouseDoubleClickEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.activate(self.selectionModel().currentIndex())
+
+    def inline_icons_count(self):
+        return 0
+
+
+class SelectFolderModel(QtWidgets.QFileSystemModel):
+    def __init__(self, parent=None):
+        super(SelectFolderModel, self).__init__(parent=parent)
+        self.setFilter(QtCore.QDir.AllDirs | QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        self.setNameFilterDisables(True)
+
+    def flags(self, index):
+        """The flag values are stored in the model as a separate role."""
+        if self.isDir(index):
+            return super(SelectFolderModel, self).flags(index)
+        return QtCore.Qt.NoItemFlags
+
+
+class SelectFolderView(QtWidgets.QTreeView):
+    activeChanged = QtCore.Slot(tuple)
+
+    def __init__(self, model, parent=None):
+        super(SelectFolderView, self).__init__(parent=parent)
+        self.setModel(model)
+        model.setParent(self)
+
+        self._connectSignals()
+
+    def _connectSignals(self):
+        self.model().directoryLoaded.connect(self.resize_columns)
+        self.activated.connect(self.hide)
+        self.activated.connect(self.active_changed)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def active_changed(self, index):
+        if not index.isValid():
+            return
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+
+        import sys
+        root_path = self.model().filePath(self.rootIndex())
+        addfile_folderpath = self.model().filePath(index)
+        sys.stderr.write(addfile_folderpath)
+
+        # local_settings.setValue(u'activepath/addfile_folderpath', path)
+
+    @QtCore.Slot(unicode)
+    def resize_columns(self):
+        for n in xrange(self.model().columnCount()):
+            self.resizeColumnToContents(n)
+
+    @QtCore.Slot(QtCore.QModelIndex)
+    def set_active(self, index):
+        if not index.isValid():
+            return
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+
+        path = index.data(QtCore.Qt.StatusTipRole)
+        if not path:
+            return
+
+        self.model().setRootPath(path)
+        index = self.model().index(self.model().rootPath())
+        self.setRootIndex(index)
+
+    def focusOutEvent(self, event):
+        """Closes the editor on focus loss."""
+        if event.lostFocus():
+            self.hide()
+
+
+
+class SelectFolderContextMenu(BaseContextMenu):
+    """Context menu associated with the thumbnail."""
+
+    def __init__(self, parent=None):
+        super(SelectFolderContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+        self.add_reveal_item_menu()
+
+    @contextmenu
+    def add_reveal_item_menu(self, menu_set):
+        """Menu for thumbnail operations."""
+        asset = self.parent().view().model().asset()
+        if asset.isValid():
+            asset_path = asset.data(common.ParentRole)
+            asset_path = u'/'.join(asset_path)
+            menu_set[u'Reveal asset'] = {
+                u'action': functools.partial(common.reveal, asset_path)
+            }
+            destination = self.parent().view().model().destination()
+            if destination:
+                menu_set[u'Reveal destination'] = {
+                    u'action': functools.partial(common.reveal, destination)
+                }
+        return menu_set
+
+
+# class SelectFolderView(QtWidgets.QTreeView):
+#     """Simple tree view for browsing the available folders."""
+#     widgetShown = QtCore.Signal()
 #
 #     def __init__(self, parent=None):
-#         super(SelectBookmarkButton, self).__init__(parent=parent)
-#         self.setText('Select bookmark')
-#         self.setObjectName(u'SelectBookmarkButton')
+#         super(SelectFolderView, self).__init__(parent=parent)
+#         self.setHeaderHidden(True)
+#         self.setItemDelegate(SelectFolderDelegate(parent=self))
+#         self.setIndentation(common.MARGIN / 2)
+#         self.setRootIsDecorated(False)
+#         common.set_custom_stylesheet(self)
 #
-#         w = SelectBookmarkView(parent=parent)
-#         self._view = w
+#         self.clicked.connect(lambda i: self.collapse(
+#             i) if self.isExpanded(i) else self.expand(i), type=QtCore.Qt.QueuedConnection)
+#         self.clicked.connect(self.index_expanded,
+#                              type=QtCore.Qt.QueuedConnection)
+#         self.activated.connect(self.hide)
+
+#     def create_folder(self, location, suffix, destination_dir):
+#         """Creates a folder inside the asset to store the given suffix
+#         files."""
+#         result = QtWidgets.QMessageBox(
+#             QtWidgets.QMessageBox.Warning,
+#             u'Destination folder missing',
+#             u'The default destination folder for "{}" files is missing.\nDo you want to create it now?\n\n({})'.format(
+#                 suffix, destination_dir.absolutePath()),
+#             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+#         ).exec_()
+#         if result == QtWidgets.QMessageBox.Ok:
+#             return QtCore.QDir().mkpath(destination_dir.absolutePath())
+#         return False
 #
-#         w.model().sourceModel().activeChanged.connect(self.activeAssetChanged)
-#         w.model().sourceModel().modelAboutToBeReset.connect(lambda: self.setText(u'Select...'))
-#         # w.model().sourceModel().modelReset.connect(
-#         #     lambda: w.model().sourceModel().activeChanged.emit(w.model().sourceModel().active_index()))
-#
-#     @QtCore.Slot(QtCore.QModelIndex)
-#     def activeAssetChanged(self, index):
-#         if not index.isValid():
-#             return
-#         parent = index.data(common.ParentRole)
-#         text = u'{}: {}'.format(parent[1], parent[-1])
-#         self.setText(text.upper())
+
+
+class ThumbnailContextMenu(BaseContextMenu):
+    """Context menu associated with the thumbnail."""
+
+    def __init__(self, parent=None):
+        super(ThumbnailContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+        self.add_thumbnail_menu()
+
+    @contextmenu
+    def add_thumbnail_menu(self, menu_set):
+        """Menu for thumbnail operations."""
+        capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+            u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+
+        menu_set[u'Capture thumbnail'] = {
+            u'icon': capture_thumbnail_pixmap,
+            u'action': self.parent().capture_thumbnail
+        }
+        menu_set['Add from library...'] = {
+            u'text': 'Add from library...',
+            u'icon': pick_thumbnail_pixmap,
+            u'action': self.parent().show_thumbnail_picker
+        }
+        menu_set[u'Pick thumbnail'] = {
+            u'icon': pick_thumbnail_pixmap,
+            u'action': self.parent().pick_thumbnail
+        }
+        menu_set[u'separator'] = {}
+        menu_set[u'Reset thumbnail'] = {
+            u'icon': remove_thumbnail_pixmap,
+            u'action': self.parent().reset_thumbnail
+        }
+        return menu_set
+
+
+class ThumbnailButton(ClickableLabel):
+    """Button used to select the thumbnail for this item."""
+
+    def __init__(self, size, description=u'', parent=None):
+        super(ThumbnailButton, self).__init__(u'pick_thumbnail', common.FAVOURITE, size, description=description, parent=parent)
+        self.reset_thumbnail()
+        self.image = QtGui.QImage()
+
+    def contextMenuEvent(self, event):
+        menu = ThumbnailContextMenu(parent=self)
+        pos = self.rect().center()
+        pos = self.mapToGlobal(pos)
+        menu.move(pos)
+        menu.exec_()
+
+    def isEnabled(self):
+        return True
+
+    def reset_thumbnail(self):
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
+        self.setStyleSheet(
+            u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
+
+        self._pixmap = pixmap
+        self.image = QtGui.QImage()
+
+    def show_thumbnail_picker(self):
+        """Shows the dialog used to select a thumbnail from the library."""
+
+        @QtCore.Slot(unicode)
+        def _add_thumbnail_from_library(path):
+            image = QtGui.QImage()
+            if not image.load(path):
+                return
+
+            self.image = image
+            self.update_thumbnail_preview()
+
+        rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
+        widget = editors.ThumbnailsWidget(parent=self.parent())
+        widget.thumbnailSelected.connect(_add_thumbnail_from_library)
+        widget.show()
+        widget.setFocus(QtCore.Qt.PopupFocusReason)
+
+        wpos = QtCore.QPoint(widget.width() / 2.0, widget.height() / 2.0)
+        widget.move(rect.center() - wpos)
+        common.move_widget_to_available_geo(widget)
+
+    def pick_thumbnail(self):
+        """Prompt to select an image file."""
+        dialog = QtWidgets.QFileDialog(parent=self)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilter(common.get_oiio_namefilters())
+
+        # Setting the dialog's root path
+        dialog.setOption(
+            QtWidgets.QFileDialog.DontUseCustomDirectoryIcons, True)
+
+        if not dialog.exec_():
+            return
+        if not dialog.selectedFiles():
+            return
+
+        temp_path = u'{}/browser_temp_thumbnail_{}.png'.format(
+            QtCore.QDir.tempPath(), uuid.uuid1())
+
+        ImageCacheWorker.process_index(
+            QtCore.QModelIndex(),
+            source=next(f for f in dialog.selectedFiles()),
+            dest=temp_path
+        )
+
+        image = QtGui.QImage()
+        image.load(temp_path)
+        if image.isNull():
+            return
+
+        self.image = image
+        self.update_thumbnail_preview()
+
+    def capture_thumbnail(self):
+        """Captures a thumbnail."""
+        pixmap = ScreenGrabber.capture()
+
+        if not pixmap:
+            return
+        if pixmap.isNull():
+            return
+
+        image = ImageCache.resize_image(
+            pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+        self.image = image
+        self.update_thumbnail_preview()
+
+    def update_thumbnail_preview(self):
+        """Sets the label's pixmap to the currently set thumbnail image."""
+        if not self.image:
+            return
+        if self.image.isNull():
+            return
+
+        # Resizing for display
+        image = ImageCache.resize_image(
+            self.image, self.height())
+
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
+        background = ImageCache.get_color_average(image)
+
+        self._pixmap = pixmap
+        self.setStyleSheet(
+            'QLabel {{background-color: rgba({});}}'.format(
+                common.rgb(background)))
+
+
+class DescriptionEditor(QtWidgets.QLineEdit):
+    """Editor widget to input the description of the file."""
+
+    def __init__(self, parent=None):
+        super(DescriptionEditor, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter description...')
+        self.setStyleSheet("""QLineEdit {{
+    background-color: rgba(0,0,0,0);
+    border-bottom: 2px solid rgba(0,0,0,50);
+    padding: 0px;
+    margin: 0px;
+    color: rgba({});
+    font-family: "{}";
+    font-size: {}pt;
+}}""".format(
+            common.rgb(common.TEXT_SELECTED),
+            common.PrimaryFont.family(),
+            common.psize(common.MEDIUM_FONT_SIZE)
+        ))
+        self.setFixedHeight(36)
+
+
+
+class AddFileWidget(QtWidgets.QDialog):
+    """The dialog used to save a file. It contains the header and the saver widgets
+    needed to select the desired path.
+
+    When ``done()`` is called, the widget will emit the ``fileSaveRequested``,
+    ``fileDescriptionAdded`` and ``fileThumbnailAdded`` signals.
+
+    """
+
+    # Signals
+    fileSaveRequested = QtCore.Signal(basestring)
+    fileDescriptionAdded = QtCore.Signal(tuple)
+    fileThumbnailAdded = QtCore.Signal(tuple)
+
+    def __init__(self, extension=u'txt', increment_version=None, parent=None):
+        super(AddFileWidget, self).__init__(parent=parent)
+        self.thumbnail_widget = None
+        self.description_editor_widget = None
+        self.bookmark_widget = None
+        self.asset_widget = None
+        self.folder_widget = None
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(
+            QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+        self._createUI()
+        self._connectSignals()
+        self.initialize()
+
+    def _createUI(self):
+        # Bookmarks
+        bookmark_model = BookmarksModel()
+        bookmark_delegate = SelectBookmarkDelegate()
+        bookmark_view = SelectListView(bookmark_model, bookmark_delegate)
+        self.bookmark_widget = SelectButton(u'Select bookmark...', bookmark_view)
+
+        # Assets
+        asset_model = AssetModel()
+        asset_delegate = SelectAssetDelegate()
+        asset_view = SelectListView(asset_model, asset_delegate)
+        self.asset_widget = SelectButton(u'Select asset...', asset_view)
+
+        folder_model = SelectFolderModel()
+        folder_view = SelectFolderView(folder_model)
+        self.folder_widget = SelectButton(u'Select folder...', folder_view)
+
+        # Connecting the bookmarks model and asset models
+        bookmark_view.selectionModel().currentChanged.connect(asset_model.set_active)
+        bookmark_view.selectionModel().currentChanged.connect(asset_view.model().sourceModel().modelDataResetRequested)
+        asset_view.selectionModel().currentChanged.connect(folder_view.set_active)
+
+        o = common.MARGIN / 2.0
+        common.set_custom_stylesheet(self)
+        QtWidgets.QVBoxLayout(self)
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.setFixedWidth(common.WIDTH * 1.5)
+
+        row = add_row(u'', parent=self, height=common.ROW_HEIGHT, padding=0)
+
+        self.thumbnail_widget = ThumbnailButton(common.ROW_HEIGHT, description=u'Add thumbnail...', parent=self)
+        row.layout().addWidget(self.thumbnail_widget, 0)
+
+        self.description_editor_widget = DescriptionEditor(parent=self)
+        row.layout().addWidget(self.description_editor_widget, 1)
+
+        row.layout().addWidget(self.bookmark_widget, 0)
+        row.layout().addWidget(self.asset_widget, 0)
+        row.layout().addWidget(self.folder_widget, 0)
+
+
+    def _connectSignals(self):
+        pass
+
+    def initialize(self):
+        pass
+        self.bookmark_widget.view().model().sourceModel().modelDataResetRequested.emit()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-
-    # Bookmarks
-    model = BookmarksModel()
-    delegate = SelectBookmarkDelegate()
-    view = SelectListView(model, delegate)
-    widget = SelectButton('Select bookmark...', view)
+    widget = AddFileWidget()
     widget.show()
+    #
+    # # Bookmarks
+    # bookmark_model = BookmarksModel()
+    # bookmark_delegate = SelectBookmarkDelegate()
+    # bookmark_view = SelectListView(bookmark_model, bookmark_delegate)
+    # self.bookmark_widget = SelectButton(u'Select bookmark...', bookmark_view)
+    # self.bookmark_widget.show()
+    #
+    # # Assets
+    # asset_model = AssetModel()
+    # asset_delegate = SelectAssetDelegate()
+    # asset_view = SelectListView(asset_model, asset_delegate)
+    # self.asset_widget = SelectButton(u'Select asset...', asset_view)
+    # self.asset_widget.show()
+    #
+    # folder_model = SelectFolderModel()
+    # folder_view = SelectFolderView(folder_model)
+    # self.folder_widget = SelectButton(u'Select folder...', folder_view)
+    # self.folder_widget.show()
+    #
+    # # Connecting the bookmarks model and asset models
+    # bookmark_view.selectionModel().currentChanged.connect(asset_model.set_active)
+    # bookmark_view.selectionModel().currentChanged.connect(asset_view.model().sourceModel().modelDataResetRequested)
+    # asset_view.selectionModel().currentChanged.connect(folder_view.set_active)
+    #
+    # # Ready to load
+    # bookmark_view.model().sourceModel().modelDataResetRequested.emit()
 
-    view.model().sourceModel().modelDataResetRequested.emit()
     app.exec_()
