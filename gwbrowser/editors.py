@@ -12,23 +12,7 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
-
-
-class ClickableLabel(QtWidgets.QLabel):
-    clicked = QtCore.Signal()
-
-    def __init__(self, parent=None):
-        super(ClickableLabel, self).__init__(parent=parent)
-        self.setFixedSize(QtCore.QSize(
-            common.ROW_BUTTONS_HEIGHT, common.ROW_BUTTONS_HEIGHT))
-        self.setAlignment(QtCore.Qt.AlignCenter)
-
-    def mouseReleaseEvent(self, event):
-        """Only triggered when the left buttons is pressed."""
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.button() == QtCore.Qt.LeftButton:
-            self.clicked.emit()
+from gwbrowser.common_ui import ClickableLabel
 
 
 class ThumbnailViewer(QtWidgets.QLabel):

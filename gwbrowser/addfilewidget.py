@@ -18,14 +18,13 @@ Note:
 
 
 import re
-import sys
 import uuid
 import functools
 import collections
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import gwbrowser.common as common
-from gwbrowser.editors import ClickableLabel
+from gwbrowser.common_ui import ClickableLabel
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.standalonewidgets import HeaderWidget, CloseButton, MinimizeButton
 from gwbrowser.capture import ScreenGrabber
@@ -137,40 +136,11 @@ class SaverContextMenu(BaseContextMenu):
 
 class ThumbnailButton(ClickableLabel):
     """Button used to select the thumbnail for this item."""
-    doubleClicked = QtCore.Signal()
 
-    def __init__(self, parent=None):
-        super(ThumbnailButton, self).__init__(parent=parent)
-        self.image = QtGui.QImage()
-
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+    def __init__(self, size, description=u'', parent=None):
+        super(ThumbnailButton, self).__init__(u'pick_thumbnail', common.FAVOURITE, size, description=description, parent=parent)
         self.reset_thumbnail()
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        """Custom paint event."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        option = QtWidgets.QStyleOptionButton()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-        if hover:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.666)
-
-        rect = self.pixmap().rect()
-        rect.moveCenter(self.rect().center())
-        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
-
-        painter.end()
+        self.image = QtGui.QImage()
 
     def contextMenuEvent(self, event):
         menu = ThumbnailContextMenu(parent=self)
@@ -179,23 +149,20 @@ class ThumbnailButton(ClickableLabel):
         menu.move(pos)
         menu.exec_()
 
-    def mouseDoubleClickEvent(self, event):
-        self.doubleClicked.emit()
-
     def reset_thumbnail(self):
         pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.FAVOURITE, common.ROW_HEIGHT)
-        self.setPixmap(pixmap)
         self.setStyleSheet(
             u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
 
+        self._pixmap = pixmap
         self.image = QtGui.QImage()
 
     def show_thumbnail_picker(self):
         """Shows the dialog used to select a thumbnail from the library."""
 
         @QtCore.Slot(unicode)
-        def add_thumbnail_from_library(path):
+        def _add_thumbnail_from_library(path):
             image = QtGui.QImage()
             if not image.load(path):
                 return
@@ -205,7 +172,7 @@ class ThumbnailButton(ClickableLabel):
 
         rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
         widget = editors.ThumbnailsWidget(parent=self.parent())
-        widget.thumbnailSelected.connect(add_thumbnail_from_library)
+        widget.thumbnailSelected.connect(_add_thumbnail_from_library)
         widget.show()
         widget.setFocus(QtCore.Qt.PopupFocusReason)
 
@@ -536,44 +503,6 @@ class Suffix(BaseNameLabel):
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
 
 
-class Check(ClickableLabel):
-    """The checkbox button."""
-
-    def __init__(self, parent=None):
-        super(Check, self).__init__(parent=parent)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedSize(common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
-        pixmap = ImageCache.get_rsc_pixmap(
-            'check', common.FAVOURITE, common.ROW_HEIGHT / 1.5)
-        self.setPixmap(pixmap)
-        self.setStyleSheet("""
-            QLabel {{background-color: rgba({});}}
-        """.format(common.rgb(common.BACKGROUND)))
-
-    def paintEvent(self, event):
-        """Custom paint event."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        option = QtWidgets.QStyleOptionButton()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-        if hover:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.666)
-
-        rect = self.pixmap().rect()
-        rect.moveCenter(self.rect().center())
-        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
-
-        painter.end()
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
 
 
 class AddFileWidget(QtWidgets.QDialog):
@@ -590,7 +519,7 @@ class AddFileWidget(QtWidgets.QDialog):
     fileDescriptionAdded = QtCore.Signal(tuple)
     fileThumbnailAdded = QtCore.Signal(tuple)
 
-    def __init__(self, bookmark_model, asset_model, extension, currentfile=None, parent=None):
+    def __init__(self, extension=u'txt', currentfile=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
         self.extension = extension
         self.currentfile = currentfile
@@ -606,8 +535,10 @@ class AddFileWidget(QtWidgets.QDialog):
         self.setWindowFlags(
             QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self._createUI(bookmark_model, asset_model)
+
+        self._createUI()
         self._connectSignals()
+
         self.initialize()
 
     @property
@@ -626,7 +557,7 @@ class AddFileWidget(QtWidgets.QDialog):
         menu.move(pos)
         menu.exec_()
 
-    def _createUI(self, bookmark_model, asset_model):
+    def _createUI(self):
         """Creates the ``AddFileWidget``'s ui and layout."""
         common.set_custom_stylesheet(self)
         #
@@ -645,7 +576,9 @@ class AddFileWidget(QtWidgets.QDialog):
         mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
         mainrow.layout().setAlignment(QtCore.Qt.AlignCenter)
         #
-        self.thumbnail_widget = ThumbnailButton(parent=self)
+        self.thumbnail_widget = ThumbnailButton(common.ASSET_ROW_HEIGHT, description=u'Add thumbnail...', parent=self)
+
+
         self.thumbnail_widget.setFixedSize(
             common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
         mainrow.layout().addWidget(self.thumbnail_widget)
@@ -670,17 +603,11 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.description_editor_widget, 1)
 
         # Bookmark
-        view = SelectBookmarkView(parent=self)
-        view.set_model(bookmark_model)
         self.select_bookmark_button = SelectBookmarkButton(parent=self)
-        self.select_bookmark_button.set_view(view)
         row.layout().addWidget(self.select_bookmark_button)
 
         # Asset
-        view = SelectAssetView(parent=self)
-        view.set_model(asset_model)
         self.select_asset_button = SelectAssetButton(parent=self)
-        self.select_asset_button.set_view(view)
         row.layout().addWidget(self.select_asset_button)
 
         # Folders
@@ -700,7 +627,7 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(Suffix(parent=self), 1)
         column.layout().addWidget(row, 1)
 
-        mainrow.layout().addWidget(Check(parent=self))
+        mainrow.layout().addWidget(ClickableLabel(u'check', common.FAVOURITE, common.ASSET_ROW_HEIGHT, description=u'Save file...', parent=self))
         self.layout().insertWidget(0, SaverHeaderWidget(parent=self))
 
         minimizebutton = self.findChild(MinimizeButton)
@@ -1008,3 +935,10 @@ class AddFileWidget(QtWidgets.QDialog):
 
     def hideEvent(self, event):
         self.parent().stackedwidget.currentWidget().disabled_overlay_widget.hide()
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    w = AddFileWidget()
+    w.show()
+    app.exec_()

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
-import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.datakeywidget import DataKeyView
@@ -9,7 +8,7 @@ import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 
 from gwbrowser.editors import FilterEditor
-from gwbrowser.editors import ClickableLabel
+from gwbrowser.common_ui import ClickableLabel
 import gwbrowser.settings as Settings
 
 from gwbrowser.imagecache import ImageCache
@@ -24,27 +23,12 @@ from gwbrowser.settings import local_settings
 
 class ControlButton(ClickableLabel):
     """Baseclass used for controls buttons to control list display."""
-    message = QtCore.Signal(unicode)
 
-    def __init__(self, parent=None):
-        super(ControlButton, self).__init__(parent=parent)
+    def __init__(self, size=common.INLINE_ICON_SIZE, parent=None):
+        super(ControlButton, self).__init__(size=size, parent=parent)
         self._parent = None
-        self.setFixedSize(
-            common.INLINE_ICON_SIZE,
-            common.INLINE_ICON_SIZE,
-        )
         self.clicked.connect(self.action, type=QtCore.Qt.QueuedConnection)
         self.setStatusTip(u'')
-
-    def enterEvent(self, event):
-        self.message.emit(self.statusTip())
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def pixmap(self, c):
-        return QtGui.QPixmap(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
 
     def current(self):
         if not self._parent:

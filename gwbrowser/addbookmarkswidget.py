@@ -20,70 +20,10 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
 from gwbrowser.settings import local_settings
-from gwbrowser.editors import ClickableLabel
+from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableLabel, add_row
 
 
 custom_string = u'Select a custom bookmark folder...'
-
-
-class PaintedButton(QtWidgets.QPushButton):
-    """Custom button class for used for the Ok and Cancel buttons."""
-
-    def __init__(self, text, parent=None):
-        super(PaintedButton, self).__init__(text, parent=parent)
-
-    def paintEvent(self, event):
-        """Paint event for smooth font display."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        color = common.TEXT if self.isEnabled() else common.SECONDARY_TEXT
-        color = common.TEXT_SELECTED if hover else color
-
-        bg_color = common.SECONDARY_TEXT if self.isEnabled() else QtGui.QColor(0, 0, 0, 20)
-        painter.setBrush(bg_color)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRoundedRect(self.rect(), 2, 2)
-
-        rect = QtCore.QRect(self.rect())
-        center = rect.center()
-        rect.setWidth(rect.width() - (common.INDICATOR_WIDTH * 2))
-        rect.moveCenter(center)
-        common.draw_aliased_text(
-            painter,
-            common.PrimaryFont,
-            rect,
-            self.text(),
-            QtCore.Qt.AlignCenter,
-            color
-        )
-
-        painter.end()
-
-
-class PaintedLabel(QtWidgets.QLabel):
-    """Used for static informative text."""
-
-    def __init__(self, text, size=common.MEDIUM_FONT_SIZE, parent=None):
-        super(PaintedLabel, self).__init__(text, parent=parent)
-        self._font = QtGui.QFont(common.PrimaryFont)
-        self._font.setPointSize(size)
-        metrics = QtGui.QFontMetrics(self._font)
-        self.setFixedHeight(metrics.height())
-        self.setFixedWidth(metrics.width(text) + 2)
-
-    def paintEvent(self, event):
-        """Custom paint event to use the aliased paint method."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        color = common.TEXT
-        common.draw_aliased_text(
-            painter, self._font, self.rect(), self.text(), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
-        painter.end()
 
 
 class ComboboxContextMenu(BaseContextMenu):
@@ -97,13 +37,15 @@ class ComboboxContextMenu(BaseContextMenu):
 class ComboboxButton(QtWidgets.QPushButton):
     """Custom button uised for selecting a server, job or root folder."""
 
-    def __init__(self, itemtype, parent=None):
+    def __init__(self, itemtype, description=u'', parent=None):
         super(ComboboxButton, self).__init__(parent=parent)
         self.type = itemtype
         self.context_menu_cls = ComboboxContextMenu
         self._view = ListWidget(parent=self)
 
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setStatusTip(description)
+        self.setToolTip(description)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 0.8)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
@@ -185,7 +127,7 @@ class ComboboxButton(QtWidgets.QPushButton):
 
         index = self.view().selectionModel().currentIndex()
         if not self.view().selectionModel().hasSelection():
-            text = u'Select {}'.format(self.type)
+            text = u'Select a {}...'.format(self.type)
             color = common.TEXT
         else:
             text = index.data(QtCore.Qt.DisplayRole)
@@ -206,8 +148,6 @@ class ComboboxButton(QtWidgets.QPushButton):
         rect = QtCore.QRect(self.rect())
         if hover and not disabled or self.view().isVisible():
             color = common.TEXT_SELECTED
-            # Popup open
-
             if self.view().isVisible():
                 painter.setBrush(common.SECONDARY_BACKGROUND)
             else:
@@ -427,57 +367,23 @@ class ListWidget(QtWidgets.QListWidget):
         self.parent().repaint()
 
 
-class AddButton(ClickableLabel):
+class AddJobButton(ClickableLabel):
     """The button responsible for showing the ``AddJobWidget``."""
 
-    def __init__(self, parent=None):
-        super(AddButton, self).__init__(parent=parent)
-        s = common.ROW_BUTTONS_HEIGHT * 0.66
-        self.setFixedHeight(s)
-        self.setFixedWidth(s)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'add_folder', common.TEXT, s)
-        self.setPixmap(pixmap)
-
-        description = u'Click to add a new job to the server'
-        self.setStatusTip(description)
-        self.setToolTip(description)
-        self.clicked.connect(self.action)
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        disabled = False
+    def isEnabled(self):
+        """The state of the button will disabled if no server has been selected."""
         m = self.window().pick_server_widget.view().selectionModel()
         if not m.hasSelection():
-            disabled = True
-
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        if hover:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.66)
-        if disabled:
-            painter.setOpacity(0.20)
-        painter.drawPixmap(self.rect(), self.pixmap(), self.pixmap().rect())
-        painter.end()
+            return False
+        return True
 
     @QtCore.Slot()
     def action(self):
         """Slot connected to the clicked signal."""
-        parent = self.window().pick_server_widget
-        m = parent.view().selectionModel()
-        if not m.hasSelection():
+        if not self.isEnabled():
             return
+
+        m = self.window().pick_server_widget.view().selectionModel()
         index = m.currentIndex()
         if not index.isValid():
             return
@@ -500,8 +406,10 @@ class AddButton(ClickableLabel):
         # Selecting the newly added job
         last_asset_added = u'{}/{}'.format(
             sindex.data(QtCore.Qt.StatusTipRole), widget.last_asset_added)
+
         for n in xrange(w.pick_job_widget.view().model().rowCount()):
             index = w.pick_job_widget.view().model().index(n, 0)
+
             if index.data(QtCore.Qt.StatusTipRole).lower() == last_asset_added.lower():
                 w.pick_job_widget.view().selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
@@ -511,59 +419,6 @@ class AddButton(ClickableLabel):
                 w.add_root_folders(rindex)
                 w.validate()
                 return
-
-
-class ConfigButton(ClickableLabel):
-    """The button responsible for showing the ``AddJobWidget``."""
-
-    def __init__(self, parent=None):
-        super(ConfigButton, self).__init__(parent=parent)
-        s = common.ROW_BUTTONS_HEIGHT * 0.66
-        self.setFixedHeight(s)
-        self.setFixedWidth(s)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'settings', common.TEXT, s)
-        self.setPixmap(pixmap)
-
-        description = u'Click to edit the server definitions'
-        self.setStatusTip(description)
-        self.setToolTip(description)
-        self.clicked.connect(self.action)
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        if hover:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.66)
-        painter.drawPixmap(self.rect(), self.pixmap(), self.pixmap().rect())
-        painter.end()
-
-    @QtCore.Slot()
-    def action(self):
-        """Slot connected to the clicked signal."""
-        from gwbrowser.editservers import ServerEditor
-        widget = ServerEditor()
-
-        pos = self.window().mapToGlobal(self.window().rect().topLeft())
-        widget.move(pos)
-        widget.resize(self.window().rect().size())
-
-        widget.exec_()
-
-        w = self.parent().window()
-        w.initialize()
 
 
 class AddBookmarksWidget(QtWidgets.QDialog):
@@ -579,7 +434,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         super(AddBookmarksWidget, self).__init__(parent=parent)
         self.new_key = None
 
-        self.setWindowTitle(u'Add new bookmark')
+        self.setWindowTitle(u'Add bookmark')
         self.installEventFilter(self)
         self.setWindowFlags(
             QtCore.Qt.FramelessWindowHint |
@@ -600,17 +455,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
     def _createUI(self):
         """Creates the AddBookmarksWidget's ui and layout."""
-        def add_row():
-            row = QtWidgets.QWidget()
-            QtWidgets.QHBoxLayout(row)
-            row.layout().setContentsMargins(0, 0, 0, 0)
-            row.layout().setSpacing(common.INDICATOR_WIDTH)
-            row.layout().setAlignment(QtCore.Qt.AlignCenter)
-            row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-            row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-            self.layout().addWidget(row)
-            return row
-
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN * 2
@@ -623,56 +467,37 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.layout().addSpacing(common.MARGIN)
 
         # Server
-        row = add_row()
-        label = PaintedLabel(u'Server')
-        label.setFixedWidth(75)
-        row.layout().addWidget(label, 0)
-
-        self.pick_server_widget = ComboboxButton(u'server', parent=self)
-        description = u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
+        row = add_row(u'Select server', parent=self)
+        description=u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
             common.Server.primary())
-        self.pick_server_widget.setToolTip(description)
-        self.pick_server_widget.setStatusTip(description)
+        self.pick_server_widget = ComboboxButton(u'server', description=description, parent=self)
         row.layout().addWidget(self.pick_server_widget, 1)
-        row.layout().addWidget(ConfigButton(parent=self), 0)
-        self.layout().addWidget(row)
 
         # Job
-        row = add_row()
-        label = PaintedLabel(u'Job')
-        label.setFixedWidth(75)
-        row.layout().addWidget(label, 0)
-
-        self.pick_job_widget = ComboboxButton(u'job', parent=self)
+        row = add_row(u'Select job', parent=self)
         description = u'Click to select the job.\nEach job contains multiple locations to keep files and folders, referred to as a "bookmark".\n\nEg. the "data/shots" and "data/assets" folders.'
-        self.pick_job_widget.setToolTip(description)
-        self.pick_job_widget.setStatusTip(description)
+        self.pick_job_widget = ComboboxButton(u'job', description=description, parent=self)
         row.layout().addWidget(self.pick_job_widget, 1)
-        self.add_job_widget = AddButton(parent=self)
+        self.add_job_widget = AddJobButton(
+            u'add_folder',
+            common.TEXT,
+            common.ROW_BUTTONS_HEIGHT*0.66,
+            description=u'Click to add a new job to the server',
+            parent=self
+        )
         row.layout().addWidget(self.add_job_widget, 0)
 
-        self.layout().addWidget(row)
-
         # Bookmarks folder
-        row = add_row()
-        label = PaintedLabel(u'Bookmark')
-        label.setFixedWidth(75)
-        row.layout().addWidget(label)
-        self.pick_root_widget = ComboboxButton(
-            u'bookmark', parent=self)
+        row = add_row(u'Select bookmark', parent=self)
         description = u'Select the bookmark folder.'
-        self.pick_root_widget.setToolTip(description)
-        self.pick_root_widget.setStatusTip(description)
+        self.pick_root_widget = ComboboxButton(
+            u'bookmark', description=description, parent=self)
         row.layout().addWidget(self.pick_root_widget)
 
         self.layout().addSpacing(common.MARGIN)
         self.layout().addStretch(1)
 
-        row = QtWidgets.QWidget(parent=self)
-        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        QtWidgets.QHBoxLayout(row)
-
+        row = add_row('', parent=self)
 
         self.ok_button = PaintedButton(u'Add bookmark')
         row.layout().addWidget(self.ok_button, 1)

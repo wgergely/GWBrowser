@@ -28,7 +28,7 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.browserwidget import BrowserWidget
-from gwbrowser.editors import ClickableLabel
+from gwbrowser.common_ui import ClickableLabel
 from gwbrowser.bookmarkswidget import BookmarksModel
 from gwbrowser.assetswidget import AssetModel
 

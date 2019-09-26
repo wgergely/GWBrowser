@@ -4,9 +4,11 @@
 
 from PySide2 import QtWidgets, QtCore
 import gwbrowser.common as common
+from gwbrowser.common_ui import (
+    PaintedButton, PaintedLabel, add_row, add_label, add_line_edit)
 
 
-class ServerEditor(QtWidgets.QDialog):
+class ServersSettingsWidget(QtWidgets.QWidget):
     """Dialog to edit the server configuration.
 
     The server information is stored in the templates/servers.conf
@@ -16,7 +18,7 @@ class ServerEditor(QtWidgets.QDialog):
     """
 
     def __init__(self, parent=None):
-        super(ServerEditor, self).__init__(parent=parent)
+        super(ServersSettingsWidget, self).__init__(parent=parent)
         self.primary_mac_editor = None
         self.primary_win_editor = None
         self.primary_description = None
@@ -29,263 +31,142 @@ class ServerEditor(QtWidgets.QDialog):
         self.local_win_description = None
         self.local_description = None
 
-        self.ok_button = None
-        self.cancel_button = None
+        self.save_button = None
 
         self.setWindowTitle(u'Edit the default servers definitions')
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
         self._createUI()
         self._connectSignals()
-        self._initValues()
+        self._init_values()
 
     def _createUI(self):
-        def hrow(parent=None, padding=0):
-            """macro for adding a new row"""
-            w = QtWidgets.QWidget(parent=parent)
-            QtWidgets.QHBoxLayout(w)
-            w.layout().setContentsMargins(0, 0, 0, 0)
-            w.layout().setSpacing(common.INDICATOR_WIDTH)
-            w.layout().setAlignment(QtCore.Qt.AlignCenter)
-            w.setSizePolicy(
-                QtWidgets.QSizePolicy.Expanding,
-                QtWidgets.QSizePolicy.Expanding,
-            )
-            w.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-            w.setAttribute(QtCore.Qt.WA_NoBackground)
-            w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-            w.layout().addSpacing(padding)
-            return w
-
-        def add_label(text, parent=None):
-            label = QtWidgets.QLabel(text, parent=parent)
-            label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
-            label.setSizePolicy(
-                QtWidgets.QSizePolicy.Expanding,
-                QtWidgets.QSizePolicy.Expanding
-            )
-            label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-            self.layout().addWidget(label, 0)
-
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN * 2
+        o = common.MARGIN
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        from gwbrowser.addbookmarkswidget import PaintedLabel
-        label = PaintedLabel(u'Configure Servers', size=common.LARGE_FONT_SIZE)
+        label = PaintedLabel(u'Servers Settings', size=common.LARGE_FONT_SIZE, color=common.TEXT)
         self.layout().addWidget(label)
+
         # Primary server
-        add_label(u'Primary server')
-        # Mac
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'MacOS')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.primary_mac_editor = QtWidgets.QLineEdit(parent=self)
-        self.primary_mac_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.primary_mac_editor, 1)
-
-        # Win
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Windows')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.primary_win_editor = QtWidgets.QLineEdit(parent=self)
-        self.primary_win_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.primary_win_editor, 1)
-
-        # Description
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Description')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.primary_description = QtWidgets.QLineEdit(parent=self)
-        self.primary_description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.primary_description, 1)
+        add_label(u'Primary server', parent=self)
+        row = add_row(u'MacOS', parent=self)
+        self.primary_mac_editor = add_line_edit(
+            u'eg. /Volumes/jobs...', parent=row)
+        row = add_row(u'Windows', parent=self, padding=o)
+        self.primary_win_editor = add_line_edit(
+            u'eg. //myserver/jobs...', parent=row)
+        row = add_row(u'Description', parent=self, padding=o)
+        self.primary_description = add_line_edit(
+            u'Enter a description...', parent=row)
 
         # Backup server
-        add_label(u'Backup server')
-        # Mac
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'MacOS')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.backup_mac_editor = QtWidgets.QLineEdit(parent=self)
-        self.backup_mac_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.backup_mac_editor, 1)
-
-        # Win
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Windows')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.backup_win_editor = QtWidgets.QLineEdit(parent=self)
-        self.backup_win_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.backup_win_editor, 1)
-
-        # Description
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Description')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.backup_description = QtWidgets.QLineEdit(parent=self)
-        self.backup_description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.backup_description, 1)
+        add_label(u'Secondary server', parent=self)
+        row = add_row(u'MacOS', parent=self, padding=o)
+        self.backup_mac_editor = add_line_edit(
+            u'eg. /Volumes/jobs...', parent=row)
+        row = add_row(u'Windows', parent=self, padding=o)
+        self.backup_win_editor = add_line_edit(
+            u'eg. //myserver/jobs...', parent=row)
+        row = add_row(u'Description', parent=self, padding=o)
+        self.backup_description = add_line_edit(
+            u'Enter a description...', parent=row)
 
         # Backup server
-        add_label(u'Local work-folder')
-        # Mac
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'MacOS')
-        label.setFixedWidth(80)
+        add_label(u'Local job folder', parent=self)
+        row = add_row(u'MacOS', parent=self, padding=o)
+        self.local_mac_editor = add_line_edit(u'eg. /jobs...', parent=row)
+        row = add_row(u'Windows', parent=self, padding=o)
+        self.local_win_editor = add_line_edit(u'eg. C:/jobs...', parent=row)
+        row = add_row(u'Description', parent=self, padding=o)
+        self.local_description = add_line_edit(
+            u'Enter a description...', parent=row)
 
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.local_mac_editor = QtWidgets.QLineEdit(parent=self)
-        self.local_mac_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.local_mac_editor, 1)
-
-        # Win
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Windows')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.local_win_editor = QtWidgets.QLineEdit(parent=self)
-        self.local_win_editor.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.local_win_editor, 1)
-
-        # Description
-        row = hrow(parent=self, padding=o)
-        self.layout().addWidget(row, 1)
-        label = QtWidgets.QLabel(u'Description')
-        label.setFixedWidth(80)
-
-        label.setDisabled(True)
-        row.layout().addWidget(label, 0)
-
-        self.local_description = QtWidgets.QLineEdit(parent=self)
-        self.local_description.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
-        row.layout().addWidget(self.local_description, 1)
-
-
-        self.ok_button = QtWidgets.QPushButton(u'Ok')
-        self.cancel_button = QtWidgets.QPushButton(u'Cancel')
-        row = hrow(parent=self, padding=o)
-        row.layout().addWidget(self.ok_button, 1)
-        row.layout().addWidget(self.cancel_button, 1)
+        # Save
+        row = add_row(u'', parent=self, padding=o)
+        self.save_button = PaintedButton(u'Save', parent=row)
+        row.layout().addWidget(self.save_button, 1)
         self.layout().addStretch(1)
         self.layout().addWidget(row)
 
     def _connectSignals(self):
-        pass
-        self.ok_button.clicked.connect(lambda: self.done(0))
-        self.cancel_button.clicked.connect(self.reject)
+        self.save_button.clicked.connect(self.save_settings)
 
-    def _initValues(self):
+    def _init_values(self):
+        """Populates the edit fields with the saved values."""
         parser = common.Server.conf()
-        def get(section, key):
+
+        def _get(section, key):
             try:
                 return parser.get(section, key)
             except:
-                return ''
+                return u''
 
-        self.primary_mac_editor.setText(get('primary', 'mac'))
-        self.primary_win_editor.setText(get('primary', 'win'))
-        self.primary_description.setText(get('primary', 'description'))
+        self.primary_mac_editor.setText(_get(u'primary', u'mac'))
+        self.primary_win_editor.setText(_get(u'primary', u'win'))
+        self.primary_description.setText(_get(u'primary', u'description'))
 
-        self.backup_mac_editor.setText(get('backup', 'mac'))
-        self.backup_win_editor.setText(get('backup', 'win'))
-        self.backup_description.setText(get('backup', 'description'))
+        self.backup_mac_editor.setText(_get(u'backup', u'mac'))
+        self.backup_win_editor.setText(_get(u'backup', u'win'))
+        self.backup_description.setText(_get(u'backup', u'description'))
 
-        self.local_mac_editor.setText(get('local', 'mac'))
-        self.local_win_editor.setText(get('local', 'win'))
-        self.local_description.setText(get('local', 'description'))
+        self.local_mac_editor.setText(_get(u'local', u'mac'))
+        self.local_win_editor.setText(_get(u'local', u'win'))
+        self.local_description.setText(_get(u'local', u'description'))
 
     def sizeHint(self):
         return QtCore.QSize(500, 500)
 
-    def reject(self):
-        self.done(1)
-
     @QtCore.Slot()
-    def done(self, r=0):
-        if r == 0:
-            values = {
-                u'primary:mac': self.primary_mac_editor.text(),
-                u'primary:win': self.primary_win_editor.text(),
-                u'primary:description': self.primary_description.text(),
-                u'backup:mac': self.backup_mac_editor.text(),
-                u'backup:win': self.backup_win_editor.text(),
-                u'backup:description': self.backup_description.text(),
-                u'local:mac': self.local_mac_editor.text(),
-                u'local:win': self.local_win_editor.text(),
-                u'local:description': self.local_description.text(),
-            }
-            if not all(values.values()):
-                mbox = QtWidgets.QMessageBox(parent=self)
-                mbox.setWindowTitle(u'Error adding asset')
-                mbox.setIcon(QtWidgets.QMessageBox.Warning)
-                mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-                mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-                mbox.setWindowTitle(u'Missing value')
+    def save_settings(self):
+        """"""
+        values = {
+            u'primary:mac': self.primary_mac_editor.text(),
+            u'primary:win': self.primary_win_editor.text(),
+            u'primary:description': self.primary_description.text(),
+            u'backup:mac': self.backup_mac_editor.text(),
+            u'backup:win': self.backup_win_editor.text(),
+            u'backup:description': self.backup_description.text(),
+            u'local:mac': self.local_mac_editor.text(),
+            u'local:win': self.local_win_editor.text(),
+            u'local:description': self.local_description.text(),
+        }
 
-                mbox.setText(u'All fields must be filled out!')
-                mbox.setInformativeText(u'Make sure all the fields have been filled out with a path to a server, and/or a description')
-                return mbox.exec_()
+        if not all((values[u'primary:win'], values[u'primary:mac'])):
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setWindowTitle(u'Primary not set')
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            mbox.setText(u'Primary server has to be set.')
+            mbox.setInformativeText(
+                u'It usually is a network path of the server where jobs are stored, eg. //myserver/jobs')
+            return mbox.exec_()
 
-            parser = common.Server.conf()
-            for k in values:
-                section, key = k.split(u':')
-                if not parser.has_section(section):
-                    parser.add_section(section)
-                parser.set(section, key, values[k])
+        parser = common.Server.conf()
+        for k in values:
+            section, key = k.split(u':')
+            if not parser.has_section(section):
+                parser.add_section(section)
+            parser.set(section, key, values[k])
 
-            # Making the path if the folder doesn't exist
-            file_info = QtCore.QFileInfo(common.Server.conf_path())
-            if not file_info.exists():
-                file_info.dir().mkpath(file_info.dir().path())
+        # Making the path if the folder doesn't exist
+        file_info = QtCore.QFileInfo(common.Server.conf_path())
+        if not file_info.exists():
+            file_info.dir().mkpath(file_info.dir().path())
 
-            # Creating the config file if it doesn't exist
-            with open(common.Server.conf_path(), u'w+') as configfile:
-                parser.write(configfile)
-            return super(ServerEditor, self).done(r)
+        # Creating the config file if it doesn't exist
+        with open(common.Server.conf_path(), u'w+') as configfile:
+            parser.write(configfile)
 
-        return super(ServerEditor, self).done(r)
+        return
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = ServerEditor()
-    w.exec_()
+    w = ServersSettingsWidget()
+    w.show()
+    app.exec_()

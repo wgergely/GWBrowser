@@ -161,6 +161,8 @@ class Server(object):
             for key, val in parser.items(section):
                 d[section][key] = val
         for v in d.itervalues():
+            if not v[get_platform()]:
+                continue
             arr.append({u'path': v[get_platform()],
                         u'description': v[u'description']})
         arr = sorted(arr, key=lambda x: x[u'path'])
