@@ -29,6 +29,9 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 
 
+POPDOWN_HEIGHT = 480.0
+
+
 class SelectButton(QtWidgets.QLabel):
     """A clickable text label with a view widget attached.
     Used to pick the bookmark, asset and subfolders when using the saver.
@@ -68,7 +71,7 @@ class SelectButton(QtWidgets.QLabel):
 
     def _connectSignals(self):
         self.clicked.connect(self.show_view)
-        self.widgetMoved.connect(self.adjust_view)
+        self.widgetMoved.connect(self.move_view)
         self.view().activated.connect(self.activated)
 
         if hasattr(self.view().model(), 'sourceModel'):
@@ -88,6 +91,12 @@ class SelectButton(QtWidgets.QLabel):
         self._view = widget
         widget.setParent(self)
 
+    @QtCore.Slot()
+    def move_view(self):
+        self.view().move(
+            self.window().geometry().bottomLeft().x(),
+            self.window().geometry().bottomLeft().y())
+
     def show_view(self):
         """Shows the view associated with this custom button."""
         if not self.view():
@@ -100,10 +109,11 @@ class SelectButton(QtWidgets.QLabel):
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.Window)
 
-        self.view().move(
-            self.window().geometry().bottomLeft().x(),
-            self.window().geometry().bottomLeft().y())
+        self.move_view()
         self.view().setFixedWidth(self.window().geometry().width())
+
+        if self.view().selectionModel().hasSelection():
+            self.view().scrollTo(self.view().selectionModel().currentIndex(), QtWidgets.QAbstractItemView.PositionAtCenter)
 
         self.view().show()
         self.view().raise_()
@@ -118,12 +128,6 @@ class SelectButton(QtWidgets.QLabel):
 
         self.setText(index.data(QtCore.Qt.DisplayRole))
         self.repaint()
-
-    @QtCore.Slot(QtCore.QRect)
-    def adjust_view(self, rect):
-        top_left = rect.topLeft()
-        top_left = self.mapToGlobal(top_left)
-        self.view().move(top_left)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def destinationChanged(self, index):
@@ -274,12 +278,12 @@ class SelectListView(BaseInlineIconWidget):
         self.selectionModel().currentChanged.connect(self.activated)
 
     def showEvent(self, event):
-        self.adjust_size()
+        self.adjust_height()
         if self.selectionModel().hasSelection():
             self.scrollTo(self.selectionModel().currentIndex())
 
     @QtCore.Slot()
-    def adjust_size(self, *args, **kwargs):
+    def adjust_height(self, *args, **kwargs):
         """Adjusts the size of the view to fit the contents exactly."""
         height = 0
 
@@ -291,7 +295,7 @@ class SelectListView(BaseInlineIconWidget):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(option, index).height()
-            if height > 300:
+            if height > POPDOWN_HEIGHT:
                 break
         if height == 0:
             self.hide()
@@ -313,9 +317,10 @@ class SelectListView(BaseInlineIconWidget):
 
 
 class SelectFolderModel(QtWidgets.QFileSystemModel):
+    """"""
+
     def __init__(self, parent=None):
         super(SelectFolderModel, self).__init__(parent=parent)
-        self.setFilter(QtCore.QDir.AllDirs | QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
         self.setNameFilterDisables(True)
 
     def flags(self, index):
@@ -330,37 +335,115 @@ class SelectFolderView(QtWidgets.QTreeView):
 
     def __init__(self, model, parent=None):
         super(SelectFolderView, self).__init__(parent=parent)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.setModel(model)
         model.setParent(self)
-
         self._connectSignals()
 
     def _connectSignals(self):
+        self.model().directoryLoaded.connect(self.restore_previous_selection)
         self.model().directoryLoaded.connect(self.resize_columns)
+        self.model().directoryLoaded.connect(self.adjust_height)
+
+        self.expanded.connect(self.resize_columns)
+        self.expanded.connect(self.adjust_height)
+        self.collapsed.connect(self.resize_columns)
+        self.collapsed.connect(self.adjust_height)
+
         self.activated.connect(self.hide)
         self.activated.connect(self.active_changed)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def active_changed(self, index):
+        """The slot called when an active item has changed. It will save the
+        selection to the local preferences for safe-keeping.
+
+        The slot is connected to the view's ``activated`` signal.
+
+        """
         if not index.isValid():
             return
         if index.flags() == QtCore.Qt.NoItemFlags:
             return
 
-        import sys
-        root_path = self.model().filePath(self.rootIndex())
-        addfile_folderpath = self.model().filePath(index)
-        sys.stderr.write(addfile_folderpath)
+        folder_root_path = self.model().filePath(self.rootIndex())
+        folder_filepath = self.model().filePath(index)
+        folder_basepath = folder_filepath.replace(folder_root_path, u'').strip(u'/')
 
-        # local_settings.setValue(u'activepath/addfile_folderpath', path)
+        local_settings.setValue(u'saver/folder_filepath', folder_filepath)
+        local_settings.setValue(u'saver/folder_basepath', folder_basepath)
+        local_settings.setValue(u'saver/folder_rootpath', folder_root_path)
+
+        import sys
+        sys.stderr.write('# Saved: {}\n'.format(folder_basepath))
+
+    @QtCore.Slot()
+    def restore_previous_selection(self):
+        """After each root path change we will try to reapply the previous user
+        selections.
+
+        """
+        if self._initialized:
+            return
+
+        # folder_filepath = local_settings.setValue(u'saver/folder_filepath')
+        folder_basepath = local_settings.value(u'saver/folder_basepath')
+        # folder_root_path = local_settings.setValue(u'saver/folder_rootpath')
+
+        if not folder_basepath:
+            self._initialized = True
+            return
+
+        # Check if path is part of the current selection
+        path = u'{}/{}'.format(self.model().rootPath(), folder_basepath)
+        index = self.model().index(path)
+        if not index.isValid():
+            self._initialized = True
+            return
+
+        self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+        self.activated.emit(index)
+
+        import sys
+        sys.stderr.write(u'Restored: {}\n'.format(path))
+
+        self._initalized = True
 
     @QtCore.Slot(unicode)
     def resize_columns(self):
         for n in xrange(self.model().columnCount()):
             self.resizeColumnToContents(n)
 
+    def showEvent(self, event):
+        self.adjust_height()
+        if self.selectionModel().hasSelection():
+            self.scrollTo(self.selectionModel().currentIndex())
+
+    @QtCore.Slot()
+    def adjust_height(self, *args, **kwargs):
+        """Adjusts the size of the QTreeView to fit the contents exactly."""
+        height = 0
+
+        option = QtWidgets.QStyleOptionViewItem()
+        option.initFrom(self)
+
+        index = self.rootIndex()
+        while True:
+            index = self.indexBelow(index)
+            if not index.isValid():
+                break
+            height += self.itemDelegate().sizeHint(option, index).height()
+            if height > POPDOWN_HEIGHT:
+                break
+        if height == 0:
+            self.hide()
+            return
+        self.setFixedHeight(height)
+
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
+        """Slot connected to the activeChanged signal."""
         if not index.isValid():
             return
         if index.flags() == QtCore.Qt.NoItemFlags:
@@ -374,11 +457,27 @@ class SelectFolderView(QtWidgets.QTreeView):
         index = self.model().index(self.model().rootPath())
         self.setRootIndex(index)
 
+        self._initialized = False
+
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.hide()
 
+    def mouseDoubleClickEvent(self, event):
+        """Remapping the index to be always column one. Also, will ignore event
+        for disabled items.
+
+        """
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            return
+        if index.flags() == QtCore.Qt.NoItemFlags:
+            return
+        if index.column() != 0:
+            index = index.siblingAtColumn(0)
+
+        self.activated.emit(index)
 
 
 class SelectFolderContextMenu(BaseContextMenu):
@@ -405,40 +504,6 @@ class SelectFolderContextMenu(BaseContextMenu):
                     u'action': functools.partial(common.reveal, destination)
                 }
         return menu_set
-
-
-# class SelectFolderView(QtWidgets.QTreeView):
-#     """Simple tree view for browsing the available folders."""
-#     widgetShown = QtCore.Signal()
-#
-#     def __init__(self, parent=None):
-#         super(SelectFolderView, self).__init__(parent=parent)
-#         self.setHeaderHidden(True)
-#         self.setItemDelegate(SelectFolderDelegate(parent=self))
-#         self.setIndentation(common.MARGIN / 2)
-#         self.setRootIsDecorated(False)
-#         common.set_custom_stylesheet(self)
-#
-#         self.clicked.connect(lambda i: self.collapse(
-#             i) if self.isExpanded(i) else self.expand(i), type=QtCore.Qt.QueuedConnection)
-#         self.clicked.connect(self.index_expanded,
-#                              type=QtCore.Qt.QueuedConnection)
-#         self.activated.connect(self.hide)
-
-#     def create_folder(self, location, suffix, destination_dir):
-#         """Creates a folder inside the asset to store the given suffix
-#         files."""
-#         result = QtWidgets.QMessageBox(
-#             QtWidgets.QMessageBox.Warning,
-#             u'Destination folder missing',
-#             u'The default destination folder for "{}" files is missing.\nDo you want to create it now?\n\n({})'.format(
-#                 suffix, destination_dir.absolutePath()),
-#             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-#         ).exec_()
-#         if result == QtWidgets.QMessageBox.Ok:
-#             return QtCore.QDir().mkpath(destination_dir.absolutePath())
-#         return False
-#
 
 
 class ThumbnailContextMenu(BaseContextMenu):
@@ -598,29 +663,6 @@ class ThumbnailButton(ClickableLabel):
                 common.rgb(background)))
 
 
-class DescriptionEditor(QtWidgets.QLineEdit):
-    """Editor widget to input the description of the file."""
-
-    def __init__(self, parent=None):
-        super(DescriptionEditor, self).__init__(parent=parent)
-        self.setPlaceholderText(u'Enter description...')
-        self.setStyleSheet("""QLineEdit {{
-    background-color: rgba(0,0,0,0);
-    border-bottom: 2px solid rgba(0,0,0,50);
-    padding: 0px;
-    margin: 0px;
-    color: rgba({});
-    font-family: "{}";
-    font-size: {}pt;
-}}""".format(
-            common.rgb(common.TEXT_SELECTED),
-            common.PrimaryFont.family(),
-            common.psize(common.MEDIUM_FONT_SIZE)
-        ))
-        self.setFixedHeight(36)
-
-
-
 class AddFileWidget(QtWidgets.QDialog):
     """The dialog used to save a file. It contains the header and the saver widgets
     needed to select the desired path.
@@ -635,13 +677,27 @@ class AddFileWidget(QtWidgets.QDialog):
     fileDescriptionAdded = QtCore.Signal(tuple)
     fileThumbnailAdded = QtCore.Signal(tuple)
 
-    def __init__(self, extension=u'txt', increment_version=None, parent=None):
+    def __init__(self, extension=u'txt', file=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
+        self.initialize_timer = QtCore.QTimer(parent=self)
+        self.initialize_timer.setSingleShot(True)
+        self.initialize_timer.setInterval(500)
+
+        self._file_extension = extension
+        self._file_increment = file
+
         self.thumbnail_widget = None
         self.description_editor_widget = None
         self.bookmark_widget = None
         self.asset_widget = None
         self.folder_widget = None
+        #
+        self.name_prefix_widget = None
+        self.name_asset_widget = None
+        self.name_mode_widget = None
+        self.name_version_widget = None
+        self.name_user_widget = None
+
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(
@@ -650,7 +706,13 @@ class AddFileWidget(QtWidgets.QDialog):
 
         self._createUI()
         self._connectSignals()
-        self.initialize()
+
+    @property
+    def extension(self):
+        return self._file_extension
+
+    def file(self):
+        return self._file_increment
 
     def _createUI(self):
         # Bookmarks
@@ -674,11 +736,11 @@ class AddFileWidget(QtWidgets.QDialog):
         bookmark_view.selectionModel().currentChanged.connect(asset_view.model().sourceModel().modelDataResetRequested)
         asset_view.selectionModel().currentChanged.connect(folder_view.set_active)
 
-        o = common.MARGIN / 2.0
+        o = common.MARGIN * 2
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(4)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedWidth(common.WIDTH * 1.5)
 
@@ -695,43 +757,173 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.folder_widget, 0)
 
 
-    def _connectSignals(self):
-        pass
+        row = add_row(u'Edit file name:', parent=self, height=common.ROW_HEIGHT * 0.8, padding=0)
+        self.name_prefix_widget = NamePrefixWidget(parent=self)
+        self.name_asset_widget = NameAssetWidget(parent=self)
+        self.name_mode_widget = NameModeWidget(parent=self)
+        self.name_version_widget = NameVersionWidget(parent=self)
+        self.name_user_widget = NameUserWidget(parent=self)
 
-    def initialize(self):
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.name_prefix_widget)
+        row.layout().addWidget(self.name_asset_widget)
+        row.layout().addWidget(self.name_mode_widget)
+        row.layout().addWidget(self.name_user_widget)
+        row.layout().addWidget(self.name_version_widget)
+
+        self.layout().addSpacing(common.ROW_HEIGHT)
+
+        row = add_row(u'Filename:', parent=self, height=common.ROW_HEIGHT, padding=0)
+        self.file_path_widget = FilePathWidget(parent=self)
+        row.layout().addWidget(self.file_path_widget)
+
+    def _connectSignals(self):
+        self.initialize_timer.timeout.connect(self.bookmark_widget.view().model().sourceModel().modelDataResetRequested)
+
+    def showEvent(self, event):
         pass
-        self.bookmark_widget.view().model().sourceModel().modelDataResetRequested.emit()
+        # self.initialize_timer.start()
+
+
+class NameBase(QtWidgets.QLineEdit):
+    def __init__(self, parent=None):
+        super(NameBase, self).__init__(parent=parent)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+
+    def set_transparent(self):
+        self.setStyleSheet(
+            """
+QLineEdit{{
+    background-color: rgba(0,0,0,0);
+    font-family: "{font}";
+    font-size: {fontSize}pt;
+    border-bottom: 2px solid rgba(0,0,0,50);
+    border-radius: 0px;
+    color: white;
+}}
+QLineEdit:!read-only:focus{{
+    border-bottom: 2px solid rgba({favourite});
+}}
+            """.format(
+                font=common.PrimaryFont.family(),
+                fontSize=common.psize(common.MEDIUM_FONT_SIZE),
+                favourite=common.rgb(common.FAVOURITE)
+            )
+        )
+
+class DescriptionEditor(NameBase):
+    """Editor widget to input the description of the file."""
+
+    def __init__(self, parent=None):
+        super(DescriptionEditor, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter description...')
+        self.set_transparent()
+        self.setFixedHeight(36)
+
+
+class NamePrefixWidget(NameBase):
+    def __init__(self, parent=None):
+        super(NamePrefixWidget, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter file prefix...')
+        self.set_transparent()
+
+
+class NameAssetWidget(NameBase):
+    def __init__(self, parent=None):
+        super(NameAssetWidget, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Asset')
+        self.setReadOnly(True)
+        self.set_transparent()
+
+
+class NameModeWidget(QtWidgets.QComboBox):
+    modes = (
+        u'anim',
+        u'fx',
+        u'ifds',
+        u'layout',
+        u'light',
+        u'track',
+        u'lookdev',
+        u'model',
+        u'rd',
+        u'rig',
+        u'sculpt',
+    )
+    def __init__(self, parent=None):
+        super(NameModeWidget, self).__init__(parent=parent)
+        for s in sorted(self.modes):
+            self.addItem(s.upper())
+        self.set_transparent()
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+    def set_transparent(self):
+        self.setStyleSheet(
+            """
+QComboBox{{
+    background-color: rgba(0,0,0,0);
+    font-family: "{font}";
+    font-size: {fontSize}pt;
+    border-bottom: 2px solid rgba(0,0,0,50);
+    border-radius: 0px;
+    color: white;
+}}
+QComboBox:focus{{
+    border-bottom: 2px solid rgba({favourite});
+}}
+            """.format(
+                font=common.PrimaryFont.family(),
+                fontSize=common.psize(common.MEDIUM_FONT_SIZE),
+                favourite=common.rgb(common.FAVOURITE)
+            )
+        )
+
+
+class NameVersionWidget(NameBase):
+    def __init__(self, parent=None):
+        super(NameVersionWidget, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter version number...')
+        self.setReadOnly(True)
+        self.setText(u'v0001')
+        self.set_transparent()
+
+
+class NameUserWidget(NameBase):
+    def __init__(self, parent=None):
+        super(NameUserWidget, self).__init__(parent=parent)
+        self.setPlaceholderText(u'Enter user name...')
+        self.set_transparent()
+
+
+class FilePathWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(FilePathWidget, self).__init__(parent=parent)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        font = common.PrimaryFont
+        rect = self.rect()
+        text = 'test'
+
+        text = '{folder}/{prefix}_{asset}_{mode}_{user}_{version}.{ext}'
+        align = QtCore.Qt.AlignRight
+        color = common.TEXT
+        common.draw_aliased_text(painter, font, rect, text, align, color)
+        painter.end()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = AddFileWidget()
     widget.show()
-    #
-    # # Bookmarks
-    # bookmark_model = BookmarksModel()
-    # bookmark_delegate = SelectBookmarkDelegate()
-    # bookmark_view = SelectListView(bookmark_model, bookmark_delegate)
-    # self.bookmark_widget = SelectButton(u'Select bookmark...', bookmark_view)
-    # self.bookmark_widget.show()
-    #
-    # # Assets
-    # asset_model = AssetModel()
-    # asset_delegate = SelectAssetDelegate()
-    # asset_view = SelectListView(asset_model, asset_delegate)
-    # self.asset_widget = SelectButton(u'Select asset...', asset_view)
-    # self.asset_widget.show()
-    #
-    # folder_model = SelectFolderModel()
-    # folder_view = SelectFolderView(folder_model)
-    # self.folder_widget = SelectButton(u'Select folder...', folder_view)
-    # self.folder_widget.show()
-    #
-    # # Connecting the bookmarks model and asset models
-    # bookmark_view.selectionModel().currentChanged.connect(asset_model.set_active)
-    # bookmark_view.selectionModel().currentChanged.connect(asset_view.model().sourceModel().modelDataResetRequested)
-    # asset_view.selectionModel().currentChanged.connect(folder_view.set_active)
-    #
-    # # Ready to load
-    # bookmark_view.model().sourceModel().modelDataResetRequested.emit()
-
     app.exec_()
