@@ -19,6 +19,9 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
 
+TINT_THUMBNAIL_BACKGROUND = False
+
+
 def paintmethod(func):
     """@Decorator to save the painter state."""
     @wraps(func)
@@ -120,7 +123,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.FAVOURITE
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
-            painter.setOpacity(0.5)
+            painter.setOpacity(0.6)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
 
@@ -133,6 +136,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
         painter, option, _, selected, _, _, _, _, _ = args
+        if not selected:
+            return
 
         rect = QtCore.QRect(option.rect)
         rect.setWidth(common.INDICATOR_WIDTH)
@@ -140,10 +145,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.moveCenter(center)
 
-        if selected:
-            color = common.FAVOURITE
-        else:
-            color = common.SEPARATOR
+        color = common.FAVOURITE
 
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(QtGui.QBrush(color))
@@ -161,19 +163,26 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
 
+        bg_rect = QtCore.QRect(option.rect)
+        bg_rect.setRight(rect.right())
+
         image = index.data(common.ThumbnailRole)
         if not image:
             return
-        color = index.data(common.ThumbnailBackgroundRole)
+
+        if TINT_THUMBNAIL_BACKGROUND:
+            color = index.data(common.ThumbnailBackgroundRole)
+        else:
+            color = common.THUMBNAIL_BACKGROUND
         color = color if color else common.THUMBNAIL_BACKGROUND
 
         # Background
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
-        if not hover:
-            painter.setOpacity(0.8)
-        painter.drawRect(rect)
-        painter.setOpacity(1.0)
+        # if not hover:
+        #     painter.setOpacity(0.8)
+        painter.drawRect(bg_rect)
+        # painter.setOpacity(1.0)
 
         irect = image.rect()
         irect.moveCenter(rect.center())
@@ -559,7 +568,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_thumbnail_shadow(*args)
         #
         self.paint_name(*args)
-        #
+
         self.paint_inline_icons_background(*args)
         self.paint_todo_icon(*args)
         self.paint_folder_icon(*args)
@@ -592,9 +601,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         rect.moveCenter(center)
 
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(ur'[\W\d\_]+', '', text)
-        text = u'  {}  |  {}  '.format(
-            text, index.data(common.ParentRole)[-1].upper())
+        text = text.replace(u'  -  ', u'    |    ')
+        text = text.replace(u'/', u'  /  ')
+        text = u'  {}  '.format(text)
         width = metrics.width(text)
         rect.setWidth(width)
 

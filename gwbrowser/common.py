@@ -188,7 +188,7 @@ LTHREAD_COUNT = 1
 FTIMER_INTERVAL = 1000  # 1.0 sec
 """The frequency of querrying lists to load file and thumbnail info"""
 
-ExportsFolder = u'cache'
+ExportsFolder = u'exports'
 DataFolder = u'data'
 ReferenceFolder = u'references'
 RendersFolder = u'renders'
@@ -262,7 +262,7 @@ THUMBNAIL_IMAGE_SIZE = 1024.0
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(70, 70, 70)
 BACKGROUND = QtGui.QColor(88, 88, 88)
-THUMBNAIL_BACKGROUND = QtGui.QColor(0, 0, 0, 55)
+THUMBNAIL_BACKGROUND = SECONDARY_BACKGROUND
 
 TEXT = QtGui.QColor(220, 220, 220)
 TEXT_SELECTED = QtGui.QColor(250, 250, 250)

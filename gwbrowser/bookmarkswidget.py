@@ -201,7 +201,7 @@ class BookmarksModel(BaseModel):
             data = self.model_data()
             idx = len(data)
             data[idx] = {
-                QtCore.Qt.DisplayRole: file_info.job,
+                QtCore.Qt.DisplayRole: u'{}  -  {}'.format(file_info.job, file_info.root).replace('_', ' '),
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: file_info.filePath(),

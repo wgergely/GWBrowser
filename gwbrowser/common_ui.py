@@ -7,9 +7,12 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
 
-def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT):
+def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT, cls=None):
     """macro for adding a new row"""
-    w = QtWidgets.QWidget(parent=parent)
+    if cls:
+        w = cls(parent=parent)
+    else:
+        w = QtWidgets.QWidget(parent=parent)
     QtWidgets.QHBoxLayout(w)
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH)
