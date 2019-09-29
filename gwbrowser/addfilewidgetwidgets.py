@@ -47,6 +47,8 @@ from gwbrowser.capture import ScreenGrabber
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.imagecache import ImageCacheWorker
 
+from gwbrowser.settings import AssetSettings
+
 
 POPDOWN_HEIGHT = 480.0
 SCENE_FILE_MODES = {
@@ -117,7 +119,8 @@ EXPORT_FILE_MODES = {
 
 FILE_NAME_PATTERN = u'{folder}/{prefix}_{asset}_{mode}_{user}_{version}.{ext}'
 
-user_and_version_regex = re.compile(r'(.*)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\..+$')
+user_and_version_regex = re.compile(
+    r'(.*)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\..+$')
 
 
 def get_user_and_version(path):
@@ -1065,12 +1068,12 @@ class NameCustomWidget(NameBase):
         self.setText(val)
 
 
-
 class ToggleCustomNameWidget(QtWidgets.QCheckBox):
     """Simple box to toggle the visibility of the custom name field."""
 
-    def __init__(self,parent=None):
-        super(ToggleCustomNameWidget, self).__init__(u'Use custom name', parent=parent)
+    def __init__(self, parent=None):
+        super(ToggleCustomNameWidget, self).__init__(
+            u'Use custom name', parent=parent)
         tip = u'Toggles the custom name display.\nUse it to save files that are not part of the normal pipeline.'
         self.setStatusTip(tip)
         self.setToolTip(tip)
@@ -1186,6 +1189,7 @@ class AddFileWidget(QtWidgets.QDialog):
               file_path = saver.get_file_path()
 
     """
+
     def __init__(self, extension, file=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
         self.initialize_timer = QtCore.QTimer(parent=self)
@@ -1246,7 +1250,7 @@ class AddFileWidget(QtWidgets.QDialog):
             self._file_path = u'{folder}/{customname}.{ext}'.format(
                 folder=folder,
                 customname=self.name_custom_widget.text(),
-                ext=self.extension).lower()
+                ext=self.extension)
             return self._file_path
 
         asset = self.asset_widget.view().selectionModel().currentIndex()
@@ -1267,12 +1271,12 @@ class AddFileWidget(QtWidgets.QDialog):
         self._file_path = self._file_path.format(
             folder=folder,
             prefix=self.name_prefix_widget.text().lower(),
-            asset=asset,
-            mode=mode,
-            user=user,
-            version=version,
+            asset=asset.lower(),
+            mode=mode.lower(),
+            user=user.lower(),
+            version=version.lower(),
             ext=self.extension.lower()
-        ).lower()
+        )
 
         return self._file_path
 
@@ -1280,7 +1284,8 @@ class AddFileWidget(QtWidgets.QDialog):
         # Bookmarks
         bookmark_model = BookmarksModel()
         bookmark_delegate = BookmarksWidgetDelegate()
-        bookmark_view = SelectListView(bookmark_model, bookmark_delegate, parent=self)
+        bookmark_view = SelectListView(
+            bookmark_model, bookmark_delegate, parent=self)
         self.bookmark_widget = SelectButton(
             u'Select bookmark...', bookmark_view, parent=self)
 
@@ -1356,10 +1361,11 @@ class AddFileWidget(QtWidgets.QDialog):
         row = add_row(u'', parent=mainrow, height=common.ROW_BUTTONS_HEIGHT,
                       padding=0)
         self.file_path_widget = FilePathWidget(parent=self)
-        row.layout().addWidget(PaintedLabel(u'Filepath:', size=common.MEDIUM_FONT_SIZE, color=common.SECONDARY_TEXT))
+        row.layout().addWidget(PaintedLabel(
+            u'Filepath:', size=common.MEDIUM_FONT_SIZE, color=common.SECONDARY_TEXT))
         row.layout().addWidget(self.file_path_widget)
         row = add_row(u'', parent=mainrow, height=common.ROW_BUTTONS_HEIGHT,
-        padding=0)
+                      padding=0)
         row.layout().addWidget(self.save_button)
         row.layout().addWidget(self.cancel_button)
         row.layout().addStretch(1)
@@ -1396,7 +1402,8 @@ class AddFileWidget(QtWidgets.QDialog):
             self.name_mode_widget.folder_changed)
 
         # Version label
-        self.folder_widget.view().model().directoryLoaded.connect(self.name_version_widget.check_version)
+        self.folder_widget.view().model().directoryLoaded.connect(
+            self.name_version_widget.check_version)
 
         # Buttons
         self.cancel_button.clicked.connect(self.reject)
@@ -1413,6 +1420,14 @@ class AddFileWidget(QtWidgets.QDialog):
     def showEvent(self, event):
         """Custom show event."""
         self.initialize_timer.start()
+        if self.parent():
+            if hasattr(self.parent(), u'stackedwidget'):
+                self.parent().stackedwidget.currentWidget().disabled_overlay_widget.show()
+
+    def hideEvent(self, event):
+        if self.parent():
+            if hasattr(self.parent(), u'stackedwidget'):
+                self.parent().stackedwidget.currentWidget().disabled_overlay_widget.hide()
 
     def message_box(self, informative_text, text=u'A required information is missing:', icon=QtWidgets.QMessageBox.Warning):
         """Convenience function to show a popup message."""
@@ -1426,7 +1441,33 @@ class AddFileWidget(QtWidgets.QDialog):
         mbox.exec_()
 
     def save_thumbnail_and_description(self):
-        print '!'
+        """Saves the set thumbnail and descriptions. We have verified the
+        validity of the selections so there no need to do it again.
+
+        """
+        f = self.folder_widget
+        b = self.bookmark_widget
+
+        index = b.view().selectionModel().currentIndex()
+
+        # We don't have a QModelIndex to use but we can initiate a settings
+        # instance using a tuple of bookmark and path variables
+        args = index.data(common.ParentRole)
+        args.append(self.get_file_path())
+
+        settings = AssetSettings(QtCore.QModelIndex(), args=args)
+
+        # Saving the thumbnail
+        if not self.thumbnail_widget.image.isNull():
+            self.thumbnail_widget.image.save(settings.thumbnail_path())
+
+        # Saving the description
+        description = self.description_editor_widget.text()
+        if description:
+            settings.setValue(u'config/description', description)
+
+        settings.setValue(u'config/description', description)
+
 
     @QtCore.Slot()
     def accept(self):
@@ -1493,9 +1534,12 @@ class AddFileWidget(QtWidgets.QDialog):
             mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setWindowTitle(u'Couldn\'t save file')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
-            mbox.setText(u'A file named "{}" exists already!'.format(file_info.fileName()))
-            mbox.setInformativeText(u'Do you want to increment version "{}"?'.format(version))
-            button = mbox.addButton(u'Increment and save', QtWidgets.QMessageBox.AcceptRole)
+            mbox.setText(u'A file named "{}" exists already!'.format(
+                file_info.fileName()))
+            mbox.setInformativeText(
+                u'Do you want to increment version "{}"?'.format(version))
+            button = mbox.addButton(
+                u'Increment and save', QtWidgets.QMessageBox.AcceptRole)
             mbox.addButton(u'Cancel', QtWidgets.QMessageBox.RejectRole)
             mbox.setDefaultButton(button)
 
@@ -1516,22 +1560,21 @@ class AddFileWidget(QtWidgets.QDialog):
             mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setWindowTitle(u'Version changed')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
-            mbox.setText(u'Version incremented from "{}" to "{}"'.format(version, new_version))
+            mbox.setText(u'Version incremented from "{}" to "{}"'.format(
+                version, new_version))
             mbox.exec_()
             self.accept()
 
         if file_info.exists() and self.toggle_custom_name_widget.isChecked():
-            self.message_box(u'A file named "{}" exists already!'.format(file_info.fileName()))
+            self.message_box(
+                u'A file named "{}" exists already!'.format(file_info.fileName()))
             self.name_custom_widget.setFocus()
             self.name_custom_widget.selectAll()
             return
 
-        if not self.thumbnail_widget.image.isNull() and self.description_editor_widget.text():
-            self.save_thumbnail_and_description()
+        self.save_thumbnail_and_description()
 
         super(AddFileWidget, self).accept()
-
-
 
 
 if __name__ == '__main__':
