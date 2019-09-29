@@ -602,8 +602,8 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
         text = index.data(QtCore.Qt.DisplayRole)
         text = text.replace(u'  -  ', u'    |    ')
-        text = text.replace(u'/', u'  /  ')
-        text = u'  {}  '.format(text)
+        text = text.replace(u'/', u' / ')
+        text = u'  {}  '.format(text).upper()
         width = metrics.width(text)
         rect.setWidth(width)
 
@@ -621,7 +621,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         painter.drawRoundedRect(rect, 2, 2)
         _text = text.split(u'/')
         text_ = _text.pop()
-        _text = '/'.join(_text)
+        _text = u'/'.join(_text)
 
         if _text:
             t1, t2 = _text.split(u'|')
@@ -645,7 +645,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 painter, font, rect, u'/', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
             rect.setLeft(rect.left() + width)
 
-            text_ = '{}'.format(text_)
+            text_ = u'{}'.format(text_)
 
             width = common.draw_aliased_text(
                 painter, font, rect, text_, QtCore.Qt.AlignLeft, color)
@@ -663,10 +663,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
         if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
             rect.setRight(option.rect.right() - common.MARGIN)
         else:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
             if self.parent().inline_icons_count():
+                _, icon_rect = self.get_inline_icon_rect(
+                    option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
+                print icon_rect
                 rect.setRight(icon_rect.left() - common.MARGIN)
+            else:
+                rect.setRight(option.rect.right() - (common.MARGIN * 2) - common.INLINE_ICON_SIZE)
         common.draw_aliased_text(
             painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, color)
 

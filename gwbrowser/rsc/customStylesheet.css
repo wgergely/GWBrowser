@@ -14,7 +14,7 @@ QWidget:disabled {{
 	color: rgba({SECONDARY_TEXT});
 }}
 QWidget:window {{
-	border: solid;
+	border: none;
 	border-width: 0px;
 	border-color: rgba({FAVOURITE});
 }}
@@ -29,7 +29,7 @@ QStackedWidget {{
 	background-color: rgba({SEPARATOR});
 }}
 QStackedWidget:focus {{
-	border: solid;
+	border: none;
 	border-width: 0px;
 	border-color: rgba({FAVOURITE});
 }}
@@ -52,20 +52,22 @@ QStatusBar::item {{
 
 
 QCheckBox {{
-	background-color: transparent;
+	height: 12px;
+	border-radius: 6px;
+	background-color: rgba({SECONDARY_BACKGROUND});
 	margin: 0px;
-	padding: 4px;
+	padding: 6px;
 }}
-QCheckBox::SELECTION {{
+QCheckBox::indicator {{
 	height: 12px;
 	width: 12px;
 	border: none;
 	border-radius: 6px;
 }}
-QCheckBox::SELECTION:unchecked {{
-	background-color: rgba({SECONDARY_BACKGROUND});
+QCheckBox::indicator:unchecked {{
+	background-color: rgba({SEPARATOR});
 }}
-QCheckBox::SELECTION:checked  {{
+QCheckBox::indicator:checked  {{
 	background-color: rgba({FAVOURITE});
 }}
 
@@ -80,16 +82,16 @@ QRadioButton:disabled {{
 	color: rgba({TEXT_DISABLED});
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QRadioButton::SELECTION {{
+QRadioButton::indicator {{
 	height: 12px;
 	width: 12px;
 	border: none;
 	border-radius: 2px;
 }}
-QRadioButton::SELECTION:unchecked {{
+QRadioButton::indicator:unchecked {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QRadioButton::SELECTION:checked  {{
+QRadioButton::indicator:checked  {{
 	background-color: rgba({SECONDARY_TEXT});
 }}
 
@@ -250,52 +252,65 @@ QTableView {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	selection-background-color: transparent;
 }}
-QTableView::SELECTION {{
+QTableView::indicator {{
 	background-color: rgba({FAVOURITE});
 }}
 
 
 QHeaderView {{
+	color: rgba({TEXT_SELECTED});
 	background-color: rgba({TEXT});
+	text-align: left;
+	border-bottom: 1px solid rgba({SEPARATOR});
 }}
 QHeaderView::section {{
 	background-color: rgba({BACKGROUND});
 	color: rgba({TEXT_SELECTED});
-	padding-left: 12px;
-	height:24px;
+	padding: 2px;
+	height:18px;
+	border-radius: 0px;
 	text-align: left;
 }}
 
 
+/* QTreeView */
 QTreeView {{
 	background-color: rgba({SECONDARY_BACKGROUND});
-	selection-background-color: transparent;
+	border: none;
+}}
+/* QTreeView::item - The actual rows*/
+QTreeView::item {{
+	border: none;
 }}
 QTreeView::item:hover {{
-  background: transparent;
-  border: none;
+  background: rgba(255,255,255, 20);
 }}
 QTreeView::item:focus {{
   background: transparent;
-  border: none;
 }}
 QTreeView::item:selected {{
-	background: transparent;
-  border: none;
+	background: rgba(255, 255, 255, 100);
 }}
-QTreeView::SELECTION {{
-	background-color: rgba({FAVOURITE});
+/* QTreeView::branch - The space where the chevrons reside */
+QTreeView:branch {{
+	background-color: rgba({SECONDARY_BACKGROUND});
+	border: none;
+	border-image: none;
 }}
-QTreeView::branch {{
-	background-color: rgba({BACKGROUND});;
+QTreeView::branch:focus {{
+  background: transparent;
 }}
-/* QTreeView::branch:open {{
-    image: url(./rsc/chevron-right.png);
-}} */
-/* QTreeView::branch:closed:has-children {{ */
-QTreeView::branch {{
-    image: url(:/rsc/chevron-right.png);
+QTreeView:branch:selected {{
+	background: rgba(255, 255, 255, 100);
 }}
+QTreeView:branch:!open:has-children {{
+  image: url("{BRANCH_CLOSED}");
+}}
+QTreeView:branch:open:has-children:!has-siblings,
+QTreeView:branch:open:has-children:has-siblings {{
+  image: url("{BRANCH_OPEN}");
+}}
+
 
 QLabel {{
 	background-color: transparent;

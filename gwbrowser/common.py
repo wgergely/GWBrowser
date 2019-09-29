@@ -501,27 +501,34 @@ def set_custom_stylesheet(widget):
             )
         )
     )
-
+    from gwbrowser.imagecache import ImageCache
     with open(path, 'r') as f:
         f.seek(0)
         qss = f.read()
         qss = qss.encode(encoding='UTF-8', errors='strict')
-        qss = qss.format(
-            PRIMARY_FONT=PrimaryFont.family(),
-            SECONDARY_FONT=SecondaryFont.family(),
-            SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
-            MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
-            LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
-            BACKGROUND=rgb(BACKGROUND),
-            BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
-            SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),
-            TEXT=rgb(TEXT),
-            SECONDARY_TEXT=rgb(SECONDARY_TEXT),
-            TEXT_DISABLED=rgb(TEXT_DISABLED),
-            TEXT_SELECTED=rgb(TEXT_DISABLED),
-            SEPARATOR=rgb(SEPARATOR),
-            FAVOURITE=rgb(FAVOURITE),
-        )
+
+        try:
+            qss = qss.format(
+                PRIMARY_FONT=PrimaryFont.family(),
+                SECONDARY_FONT=SecondaryFont.family(),
+                SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
+                MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
+                LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
+                BACKGROUND=rgb(BACKGROUND),
+                BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
+                SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),
+                TEXT=rgb(TEXT),
+                SECONDARY_TEXT=rgb(SECONDARY_TEXT),
+                TEXT_DISABLED=rgb(TEXT_DISABLED),
+                TEXT_SELECTED=rgb(TEXT_DISABLED),
+                SEPARATOR=rgb(SEPARATOR),
+                FAVOURITE=rgb(FAVOURITE),
+                BRANCH_CLOSED=ImageCache.get_rsc_pixmap(u'branch_closed', None, None, get_path=True),
+                BRANCH_OPEN=ImageCache.get_rsc_pixmap(u'branch_open', None, None, get_path=True)
+            )
+        except KeyError as err:
+            msg = u'Looks like there might be an error in the css file: {}'.format(err)
+            raise KeyError(msg)
         widget.setStyleSheet(qss)
 
 

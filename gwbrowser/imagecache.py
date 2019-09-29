@@ -488,7 +488,7 @@ class ImageCache(QtCore.QObject):
         ImageCacheWorker.process_index(index, source=dialog.selectedFiles()[0])
 
     @classmethod
-    def get_rsc_pixmap(cls, name, color, size, opacity=1.0):
+    def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
         """Loads a rescoure image and returns it as a re-sized and coloured QPixmap.
 
         Args:
@@ -500,6 +500,11 @@ class ImageCache(QtCore.QObject):
             QPixmap: The loaded image
 
         """
+        path = u'{}/../rsc/{}.png'.format(__file__, name)
+        file_info = QtCore.QFileInfo(path)
+
+        if get_path:
+            return file_info.filePath()
 
         k = u'rsc:{name}:{size}:{color}'.format(
             name=name, size=size, color=u'null' if not color else color.name())
@@ -507,9 +512,6 @@ class ImageCache(QtCore.QObject):
         if k in cls._data:
             return cls._data[k]
 
-        path = u'{}/../rsc/{}.png'.format(__file__, name)
-        path = os.path.normpath(os.path.abspath(path))
-        file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
             return QtGui.QPixmap(size, size)
 
