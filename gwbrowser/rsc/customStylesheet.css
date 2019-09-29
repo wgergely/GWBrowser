@@ -359,13 +359,12 @@ QMenu::SEPARATOR {{
 QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	color: rgba({TEXT});
-	font-family: "{PRIMARY_FONT}";
-	font-size: {SMALL_FONT_SIZE}pt;
-	alignment: center;
-	text-align: center;
+	font-family: "{SECONDARY_FONT}";
+	font-size: {MEDIUM_FONT_SIZE}pt;
 	outline: none;
+	margin: 3px;
 	border: none;
-	border-radius: 6px;
+	border-radius: 0px;
 	opacity: 255;
 }}
 
