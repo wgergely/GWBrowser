@@ -3,6 +3,7 @@
 the application and the asset and file items.
 """
 
+import time
 import hashlib
 import collections
 from PySide2 import QtCore
@@ -175,18 +176,45 @@ class LocalSettings(QtCore.QSettings):
 
 
 class AssetSettings(QtCore.QSettings):
-    """Wrapper class for QSettings for storing asset and file settings.
+    """This class is intended for reading and writing asset & file associated
+    settings.
 
-    The asset settings will be stored as an ``.conf`` files in the
-    ``[asset root]/.browser`` folder.
+    Asset settings are stored in the root of the current bookmark in a folder
+    called ``.browser``. There are usually two files associated with a folder or
+    a file: a **.conf** and a **.png** image file.
+
+    Each config file's name is generated based on the folder or file's path name
+    relative to the current bookmark folder.
+
+    For instance, if the file path is ``//server/job/bookmark/asset/myfile.ma``,
+    the config name will be generated using ``asset/myfile.ma``.
+
+    The resulting config files will look something like as below:
+
+    .. code-block::
+
+        //server/job/bookmark/.browser/986613d368816aa7e0ae910dfd863297.conf
+        //server/job/bookmark/.browser/986613d368816aa7e0ae910dfd863297.png
+
+    Example:
+
+        .. code-block:: python
+
+        index = list_widget.currentIndex() # QtCore.QModelIndex
+        settings = AssetSettings(index)
+
+        settings.conf_path()
+        settings.thumbnail_path()
+
+    Arguments:
+
+        index (QtCore.QModelIndex): The index the instance will be associated
+        args (tuple: server, job, root, filepath): It is not always
+        possible to provide a QModelIndex but we can get around this by
+        providing the path elements as a tuple.
 
     """
-
     def __init__(self, index, args=None, parent=None):
-        """Primarily expects a QModelIndex but when it's not possible to provide,
-        it takes a tuple bookmark tuple of server, job, root and a full filepath.
-
-        """
         if args is None:
             bookmark = u'{}/{}/{}'.format(
                 index.data(common.ParentRole)[0],
@@ -219,6 +247,7 @@ class AssetSettings(QtCore.QSettings):
             filepath.replace(bookmark, u'').strip(u'/')).strip(u'/')
         path = hashlib.md5(path.encode('utf-8')).hexdigest()
 
+        self._file_path = filepath
         self._conf_path = u'{}/.browser/{}.conf'.format(bookmark, path)
         self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
 
@@ -259,6 +288,11 @@ class AssetSettings(QtCore.QSettings):
                 return None
         return val
 
+    def setValue(self, *args, **kwargs):
+        """Adding a pointer to the original file and a timestamp as well."""
+        super(AssetSettings, self).setValue(u'file', self._file_path)
+        super(AssetSettings, self).setValue(u'lastmodified', time.time())
+        super(AssetSettings, self).setValue(*args, **kwargs)
 
 local_settings = LocalSettings()
 active_monitor = Active()
