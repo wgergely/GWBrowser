@@ -666,6 +666,37 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         painter.end()
 
     @QtCore.Slot()
+    def workspace_warning(self, *args):
+        """Will give the user a warning when their workspace does not match
+        with their current file.
+
+        """
+        workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
+        scene_file = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
+
+        if scene_file.baseName().lower() == u'untitled':
+            return
+
+        if workspace.fileName().lower() not in scene_file.fileName():
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setWindowTitle(u'Workspace mismatch detected')
+            mbox.setText(
+                u'Just a heads up, "{}" is not part of the current project:\n"{}"'.format(
+                scene_file.fileName(),
+                workspace_info.path())
+            )
+            mbox.setInformativeText(u'It is possible that your current project changed, eg. you have another instance of Maya open?')
+            mbox.setStandardButtons(
+                QtWidgets.QMessageBox.Ok
+                | QtWidgets.QMessageBox.Cancel
+            )
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            res = mbox.exec_()
+                if res == QtWidgets.QMessageBox.Cancel:
+                    raise RuntimeError(u'Save interruped')
+
+
+    @QtCore.Slot()
     def unmark_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
         f = self.browserwidget.fileswidget
@@ -715,6 +746,16 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         callback = OpenMaya.MSceneMessage.addCallback(
             OpenMaya.MSceneMessage.kBeforeNew, self.unmark_active)
         self._callbacks.append(callback)
+
+        callback = OpenMaya.MSceneMessage.addCallback(
+            OpenMaya.MSceneMessage.kBeforeSave, self.workspace_warning)
+        self._callbacks.append(callback)
+
+        callback = OpenMaya.MSceneMessage.addCallback(
+            OpenMaya.MSceneMessage.kAfterSave, self.workspace_warning)
+        self._callbacks.append(callback)
+
+
 
     def remove_context_callbacks(self):
         """This method is called by the Maya plug-in when unloading."""
