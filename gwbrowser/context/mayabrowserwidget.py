@@ -36,6 +36,7 @@ except ImportError:
     from gwalembic.alembic import Abc
 
 from gwbrowser.settings import Active
+import gwbrowser.settings as Settings
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
@@ -635,13 +636,32 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
+
         self.browserwidget.initialized.connect(self.connectSignals)
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
         self.browserwidget.initialized.connect(self.workspace_timer.start)
+        self.browserwidget.active_monitor.activeAssetChanged.connect(self.active_changed)
 
         self.browserwidget.initialize()
         self._add_shortcuts()
+
+    @QtCore.Slot()
+    def active_changed(self):
+        workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
+        
+        mbox = QtWidgets.QMessageBox()
+        mbox.setIcon(QtWidgets.QMessageBox.Information)
+        mbox.setWindowTitle(u'GWBrowser - Workspace changed')
+        mbox.setText(
+            u'The current workspace changed. The new workspace is:\n{}'.format(
+            workspace_info.path())
+        )
+        mbox.setInformativeText(u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser, perhaps in another instance of Maya.')
+        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        mbox.setWindowFlags(QtCore.Qt.Window)
+        res = mbox.exec_()
 
     def _add_shortcuts(self):
         """Global maya shortcut to do a save as"""
@@ -677,23 +697,21 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         if scene_file.baseName().lower() == u'untitled':
             return
 
-        if workspace.fileName().lower() not in scene_file.fileName():
-            mbox = QtWidgets.QMessageBox(parent=self)
-            mbox.setWindowTitle(u'Workspace mismatch detected')
+        if workspace_info.path().lower() not in scene_file.filePath():
+            mbox = QtWidgets.QMessageBox()
+            mbox.setIcon(QtWidgets.QMessageBox.Information)
+            mbox.setWindowTitle(u'GWBrowser - Workspace mismatch')
             mbox.setText(
-                u'Just a heads up, "{}" is not part of the current project:\n"{}"'.format(
+                u'Looks like you are saving "{}" outside your current project!\nYour current project is "{}"'.format(
                 scene_file.fileName(),
                 workspace_info.path())
             )
-            mbox.setInformativeText(u'It is possible that your current project changed, eg. you have another instance of Maya open?')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Ok
-                | QtWidgets.QMessageBox.Cancel
-            )
+            mbox.setInformativeText(u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser another instance of Maya.\nOtherwise, you all is good!')
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             res = mbox.exec_()
-                if res == QtWidgets.QMessageBox.Cancel:
-                    raise RuntimeError(u'Save interruped')
+            # if res == QtWidgets.QMessageBox.Cancel:
+            #     return False
 
 
     @QtCore.Slot()
@@ -747,9 +765,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             OpenMaya.MSceneMessage.kBeforeNew, self.unmark_active)
         self._callbacks.append(callback)
 
-        callback = OpenMaya.MSceneMessage.addCallback(
-            OpenMaya.MSceneMessage.kBeforeSave, self.workspace_warning)
-        self._callbacks.append(callback)
+        # callback = OpenMaya.MSceneMessage.addCallback(
+        #     OpenMaya.MSceneMessage.kBeforeSave, self.workspace_warning)
+        # self._callbacks.append(callback)
 
         callback = OpenMaya.MSceneMessage.addCallback(
             OpenMaya.MSceneMessage.kAfterSave, self.workspace_warning)

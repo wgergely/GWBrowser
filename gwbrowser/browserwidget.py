@@ -15,7 +15,7 @@ from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import local_settings, Active, active_monitor
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.todoEditor import CustomButton
 from gwbrowser.preferenceswidget import PreferencesWidget
 
@@ -69,11 +69,13 @@ class BrowserWidget(QtWidgets.QWidget):
         self.favouriteswidget = None
         self.statusbar = None
 
-        self.settingstimer = QtCore.QTimer(parent=self)
-        self.settingstimer.setInterval(1000)
-        self.settingstimer.setSingleShot(False)
-        self.settingstimer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.settingstimer.timeout.connect(active_monitor.check_state)
+        self.active_monitor = Active(parent=self)
+
+        self.check_active_state_timer = QtCore.QTimer(parent=self)
+        self.check_active_state_timer.setInterval(1000)
+        self.check_active_state_timer.setSingleShot(False)
+        # self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
+        self.check_active_state_timer.timeout.connect(self.active_monitor.check_state)
 
         self.preferences_widget = None
 
@@ -81,7 +83,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initializer.setSingleShot(True)
         self.initializer.setInterval(200)
         self.initializer.timeout.connect(self.initialize)
-        self.initializer.timeout.connect(self.settingstimer.start)
         self.initializer.timeout.connect(self.initializer.deleteLater)
 
         # Shutdown monitor - we will exit the application when all the threads
@@ -108,9 +109,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self._connectSignals()
         self._add_shortcuts()
 
-
         if common.get_platform() == u'mac':
-            active_monitor.macos_mount_timer.start()
+            self.active_monitor.macos_mount_timer.start()
 
         Active.paths()
 
@@ -167,12 +167,12 @@ class BrowserWidget(QtWidgets.QWidget):
         timer.setSingleShot(True)
         timer.setInterval(1000)
         timer.timeout.connect(b.model().sourceModel().modelDataResetRequested)
+        timer.timeout.connect(self.check_active_state_timer.start)
         timer.timeout.connect(timer.deleteLater)
         timer.start()
 
         self._initialized = True
         self.initialized.emit()
-
         # Anything here will be run the first time gwbrowser is launched
         if local_settings.value(u'firstrun') is None:
             local_settings.setValue(u'firstrun', False)
@@ -598,33 +598,33 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Active monitor
         b.activated.connect(
-            lambda x: active_monitor.save_state(u'server', x.data(common.ParentRole)[0]))
+            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentRole)[0]))
         b.activated.connect(
-            lambda x: active_monitor.save_state(u'job', x.data(common.ParentRole)[1]))
+            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentRole)[1]))
         b.activated.connect(
-            lambda x: active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
-        active_monitor.activeBookmarkChanged.connect(
+            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
+        self.active_monitor.activeBookmarkChanged.connect(
             b.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeBookmarkChanged.connect(
+        self.active_monitor.activeBookmarkChanged.connect(
             lambda: lc.listChanged.emit(1))
 
         a.activated.connect(
-            lambda x: active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
-        active_monitor.activeAssetChanged.connect(
+            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
+        self.active_monitor.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
-        active_monitor.activeAssetChanged.connect(
+        self.active_monitor.activeAssetChanged.connect(
             lambda: lc.listChanged.emit(1))
 
         f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
         lc.dataKeyChanged.connect(f.save_data_key)
 
         f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: active_monitor.save_state(u'location', x))
+            lambda x: self.active_monitor.save_state(u'location', x))
         lc.dataKeyChanged.connect(
-            lambda x: active_monitor.save_state(u'location', x))
+            lambda x: self.active_monitor.save_state(u'location', x))
 
-        active_monitor.activeLocationChanged.connect(lc.dataKeyChanged)
-        active_monitor.activeLocationChanged.connect(
+        self.active_monitor.activeLocationChanged.connect(lc.dataKeyChanged)
+        self.active_monitor.activeLocationChanged.connect(
             lambda x: lc.listChanged.emit(2) if x else lc.listChanged.emit(1))
         # I don't think we have to respond to any active file changes
 

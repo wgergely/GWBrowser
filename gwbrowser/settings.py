@@ -39,6 +39,7 @@ class Active(QtCore.QObject):
 
         self._active_paths = self.paths()
 
+
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def save_state(self, k, d):
@@ -51,12 +52,10 @@ class Active(QtCore.QObject):
         current state differs from the saved state.
 
         """
-
         active_paths = self.paths()
 
         if self._active_paths == active_paths:
             return
-
         serverChanged = self._active_paths[u'server'] != active_paths[u'server']
         jobChanged = self._active_paths[u'job'] != active_paths[u'job']
         rootChanged = self._active_paths[u'root'] != active_paths[u'root']
@@ -295,5 +294,3 @@ class AssetSettings(QtCore.QSettings):
         super(AssetSettings, self).setValue(*args, **kwargs)
 
 local_settings = LocalSettings()
-active_monitor = Active()
-"""An instance of the local configuration created when loading this module."""

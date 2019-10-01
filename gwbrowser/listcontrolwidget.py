@@ -62,12 +62,13 @@ class TodoButton(BaseControlButton):
         return False
 
     def action(self):
-        assetswidget = self._parent.widget(1)
-        index = assetswidget.model().sourceModel().active_index()
-        index = assetswidget.model().mapFromSource(index)
+        idx = self._parent.currentIndex()
+        # if idx not in (0, 1, 2):
+        #     return
+        index = self._parent.currentWidget().selectionModel().currentIndex()
         if not index.isValid():
             return
-        assetswidget.show_todos(index)
+        self._parent.currentWidget().show_todos(index)
 
     def repaint(self):
         super(TodoButton, self).repaint()
