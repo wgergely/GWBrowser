@@ -270,19 +270,18 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         """Creates the layout."""
-        QtWidgets.QVBoxLayout(self)
+        QtWidgets.QHBoxLayout(self)
         self.setWindowFlags(QtCore.Qt.Widget)
-        self.layout().setContentsMargins(
-            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH / 2,
-            common.INDICATOR_WIDTH / 2, common.INDICATOR_WIDTH)
-        self.layout().setSpacing(3)
+        o = common.INDICATOR_WIDTH / 2
+        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setSpacing(o)
 
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
         )
 
-        self.editor = QtWidgets.QLineEdit()
+        self.editor = QtWidgets.QLineEdit(parent=self)
         self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
 
@@ -307,10 +306,8 @@ color: rgba({});
                 common.rgb(common.TEXT)
             ))
 
-        self.layout().addStretch(1)
-        self.layout().addWidget(label, 1)
+        self.layout().addWidget(label)
         self.layout().addWidget(self.editor, 1)
-        self.layout().addStretch(1)
 
     def paintEvent(self, event):
         """Custom paint used to paint the background."""
@@ -612,7 +609,7 @@ class FilterEditor(QtWidgets.QWidget):
         self.adjust_size()
         if not self.keywords():
             self.kw_row.hide()
-            
+
 class ThumbnailLabel(QtWidgets.QLabel):
     """Custom QLabel to select a thumbnail."""
     clicked = QtCore.Signal(unicode)
