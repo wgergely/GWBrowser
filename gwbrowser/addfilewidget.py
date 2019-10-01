@@ -1095,25 +1095,25 @@ class NameVersionWidget(NameBase):
         if not match:
             return
         version = match.group(5)
-        prefix = match.expand(ur'\1_\2')
+        prefix = match.expand(ur'\1_\2').lower()
 
         versions = []
-        ext = self.window().extension
+        ext = self.window().extension.lower()
         for entry in gwscandir.scandir(file_info.path()):
-            path = entry.path.replace(u'\\', u'/')
+            path = entry.path.replace(u'\\', u'/').lower()
 
             # Let's skip the files with a different version
             if not path.endswith(ext):
                 continue
 
             # Skipping files that are not versioned appropiately
-            if prefix not in path:
+            if prefix.lower() not in path.lower():
                 continue
 
-            _match = common.is_valid_filename(path)
+            _match = common.is_valid_filename(path.lower())
             if not _match:
                 continue
-            _version = _match.group(5)
+            _version = _match.group(5).lower()
             versions.append(int(_version))
 
         if not versions:
