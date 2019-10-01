@@ -17,6 +17,7 @@ from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active, active_monitor
 from gwbrowser.todoEditor import CustomButton
+from gwbrowser.preferenceswidget import PreferencesWidget
 
 
 class VersionLabel(CustomButton):
@@ -73,6 +74,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.settingstimer.setSingleShot(False)
         self.settingstimer.setTimerType(QtCore.Qt.CoarseTimer)
         self.settingstimer.timeout.connect(active_monitor.check_state)
+
+        self.preferences_widget = None
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
@@ -188,6 +191,9 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred
         )
 
+        self.preferences_widget = PreferencesWidget(parent=self)
+        self.preferences_widget.hide()
+
         self.stackedwidget = StackedWidget(parent=self)
 
         self.init_progress = u'Creating bookmarks tab...'
@@ -242,6 +248,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
         self.layout().addWidget(self.statusbar)
+
+    def show_preferences(self):
+        self.preferences_widget.show()
 
     def next_tab(self):
         n = self.stackedwidget.currentIndex()

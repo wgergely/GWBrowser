@@ -372,10 +372,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
             u'icon': refresh_pixmap
         }
-        from gwbrowser.preferenceswidget import PreferencesWidget
-        widget = PreferencesWidget(parent=self.parent())
+
         menu_set[u'Preferences'] = {
-            u'action': widget.show
+            u'action': self.parent().parent().parent().show_preferences
         }
 
         return menu_set
