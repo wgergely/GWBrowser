@@ -123,6 +123,10 @@ class FilterOnOverlayWidget(ProgressWidget):
 
     def __init__(self, parent=None):
         super(FilterOnOverlayWidget, self).__init__(parent=parent)
+        try:
+            self.parent().parent().resized.connect(lambda x: self.resize(self.parent().viewport().rect().size()))
+        except:
+            pass
 
     def paintEvent(self, event):
         """Custom message painted here."""
@@ -131,14 +135,16 @@ class FilterOnOverlayWidget(ProgressWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         rect = self.rect()
+        rect.setHeight(3)
         # rect.setWidth(rect.width() - 1)
         # rect.setHeight(rect.height() - 1)
-        # painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        # painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(2.0)
-        painter.setPen(pen)
-        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setOpacity(0.8)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.REMOVE)
+        painter.drawRect(rect)
+        rect.moveBottom(self.rect().bottom())
         painter.drawRect(rect)
         painter.end()
 

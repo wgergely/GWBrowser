@@ -8,7 +8,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from gwbrowser.settings import Active
 from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.editors import ClickableLabel
+from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
@@ -110,124 +110,29 @@ class TrayMenu(BaseContextMenu):
         return menu_set
 
 
-class CloseButton(ClickableLabel):
+class MinimizeButton(ClickableIconButton):
+    """Custom QLabel with a `clicked` signal."""
+    def __init__(self, parent=None):
+        super(MinimizeButton, self).__init__(
+        u'minimize',
+        (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
+        common.INLINE_ICON_SIZE,
+        description=u'Click to minimize the window...',
+        parent=parent
+    )
+
+
+class CloseButton(ClickableIconButton):
     """Button used to close/hide a widget or window."""
 
     def __init__(self, parent=None):
-        super(CloseButton, self).__init__(parent=parent)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
-        self.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        if hover:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'close', QtGui.QColor(200, 100, 50), common.ROW_BUTTONS_HEIGHT / 2)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'close', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
-        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
-        painter.end()
-
-
-class MinimizeButton(ClickableLabel):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(MinimizeButton, self).__init__(parent=parent)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'minimize', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
-        self.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        if hover:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'minimize', QtGui.QColor(200, 100, 50), common.ROW_BUTTONS_HEIGHT / 2)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'minimize', common.SECONDARY_BACKGROUND, common.ROW_BUTTONS_HEIGHT / 2)
-        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
-        painter.end()
-
-
-class AppIcon(QtWidgets.QLabel):
-    """Custom label used to control the standalone app."""
-
-    def __init__(self, parent=None):
-        super(AppIcon, self).__init__(parent=parent)
-        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAutoFillBackground(True)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
-        self.setFixedWidth(common.INLINE_ICON_SIZE)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-
-    def contextMenuEvent(self, event):
-        """Shows the context menu associated with the tray in the header."""
-        widget = TrayMenu(parent=self.window())
-        pos = self.window().mapToGlobal(event.pos())
-        widget.move(pos)
-        common.move_widget_to_available_geo(widget)
-        widget.show()
-
-    def enterEvent(self, event):
-        self.repaint()
-
-    def leaveEvent(self, event):
-        self.repaint()
-
-    def paintEvent(self, event):
-        option = QtWidgets.QStyleOption()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        if hover:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.66)
-
-        painter.drawPixmap(self.rect(), self.pixmap(), self.pixmap().rect())
-        painter.end()
+        super(CloseButton, self).__init__(
+        u'close',
+        (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
+        common.INLINE_ICON_SIZE,
+        description=u'Click to close the window...',
+        parent=parent
+    )
 
 
 class HeaderWidget(QtWidgets.QWidget):
@@ -255,7 +160,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
-        # self.layout().addWidget(AppIcon(parent=self))
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))

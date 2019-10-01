@@ -170,7 +170,7 @@ class DataKeyViewDelegate(BaseDelegate):
         """Returns the size of the DataKeyViewDelegate items."""
         width = self.parent().width()
         height = index.data(QtCore.Qt.SizeHintRole).height()
-        return QtCore.QSize(width, height * 0.80)
+        return QtCore.QSize(width, height)
 
 
 class DataKeyView(QtWidgets.QListView):

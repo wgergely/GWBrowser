@@ -20,7 +20,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
 from gwbrowser.settings import local_settings
-from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableLabel, add_row
+from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableIconButton, add_row
 
 
 custom_string = u'Select a custom bookmark folder...'
@@ -367,10 +367,17 @@ class ListWidget(QtWidgets.QListWidget):
         self.parent().repaint()
 
 
-class AddJobButton(ClickableLabel):
+class AddJobButton(ClickableIconButton):
     """The button responsible for showing the ``AddJobWidget``."""
+    def __init__(self, parent=None):
+        super(AddJobButton, self).__init__(
+            u'add_folder',
+            (common.TEXT, common.SECONDARY_TEXT),
+            common.ROW_BUTTONS_HEIGHT * 0.66,
+            description=u'Click to add a new job to the server',
+        )
 
-    def isEnabled(self):
+    def state(self):
         """The state of the button will disabled if no server has been selected."""
         m = self.window().pick_server_widget.view().selectionModel()
         if not m.hasSelection():
@@ -380,7 +387,7 @@ class AddJobButton(ClickableLabel):
     @QtCore.Slot()
     def action(self):
         """Slot connected to the clicked signal."""
-        if not self.isEnabled():
+        if not self.state():
             return
 
         m = self.window().pick_server_widget.view().selectionModel()
@@ -478,13 +485,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         description = u'Click to select the job.\nEach job contains multiple locations to keep files and folders, referred to as a "bookmark".\n\nEg. the "data/shots" and "data/assets" folders.'
         self.pick_job_widget = ComboboxButton(u'job', description=description, parent=self)
         row.layout().addWidget(self.pick_job_widget, 1)
-        self.add_job_widget = AddJobButton(
-            u'add_folder',
-            common.TEXT,
-            common.ROW_BUTTONS_HEIGHT*0.66,
-            description=u'Click to add a new job to the server',
-            parent=self
-        )
+        self.add_job_widget = AddJobButton(parent=self)
         row.layout().addWidget(self.add_job_widget, 0)
 
         # Bookmarks folder

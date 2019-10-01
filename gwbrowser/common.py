@@ -51,7 +51,7 @@ MarkedAsActive = 0b100000000000
 COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
 SLACK_URL = ur'https://gwbcn.slack.com/'
-
+ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
 
 def get_platform():
     """Returns the name of the current platform.
@@ -105,16 +105,17 @@ class Server(object):
         """Returns the name of the server for the specified platform."""
         parser = cls.conf()
         d = {}
-
         for section in parser.sections():
             d[section] = {}
             for key, val in parser.items(section):
-                d[section][key] = val
+                d[section][key] = val.replace(u'\\', u'/').rstrip(u'/')
 
         it = d.itervalues()
-        val = [v for v in it if [f for f in v.itervalues() if f.endswith(server)]]
-
-        return val[0][platf]
+        for v in it:
+            for f in v.itervalues():
+                if f.lower().endswith(server.lower()):
+                    return v[platf]
+        return None
 
     @classmethod
     def _get(cls, section):
@@ -208,9 +209,9 @@ ASSET_FOLDERS = {
 }
 
 # Sizes
-ROW_HEIGHT = 48.0
-BOOKMARK_ROW_HEIGHT = ROW_HEIGHT
-ASSET_ROW_HEIGHT = 84.0
+ROW_HEIGHT = 38.0
+BOOKMARK_ROW_HEIGHT = 48.0
+ASSET_ROW_HEIGHT = 78.0
 CONTROL_HEIGHT = 38.0
 ROW_SEPARATOR = 1.0
 
@@ -273,6 +274,7 @@ SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
 SEPARATOR = QtGui.QColor(45, 45, 45)
 FAVOURITE = QtGui.QColor(120, 110, 200)
+REMOVE = QtGui.QColor(180, 100, 70)
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
@@ -520,7 +522,7 @@ def set_custom_stylesheet(widget):
                 TEXT=rgb(TEXT),
                 SECONDARY_TEXT=rgb(SECONDARY_TEXT),
                 TEXT_DISABLED=rgb(TEXT_DISABLED),
-                TEXT_SELECTED=rgb(TEXT_DISABLED),
+                TEXT_SELECTED=rgb(TEXT_SELECTED),
                 SEPARATOR=rgb(SEPARATOR),
                 FAVOURITE=rgb(FAVOURITE),
                 BRANCH_CLOSED=ImageCache.get_rsc_pixmap(u'branch_closed', None, None, get_path=True),
@@ -654,9 +656,8 @@ def get_ranges(arr, padding):
                 k += 1
     return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
 
-
 ValidFilenameRegex = re.compile(
-    ur'\/([^_]{1,3})_([^_]{1,12})_(.{1,25})_([0-9]{3})_([^_]{1,})\.(.*)$',
+    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
     flags=re.IGNORECASE | re.UNICODE)
 IsSequenceRegex = re.compile(
     ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
@@ -671,7 +672,7 @@ GetSequenceRegex = re.compile(
     flags=re.IGNORECASE | re.UNICODE)
 
 
-def get_valid_filename(text):
+def is_valid_filename(text):
     """This method will check if the given text conforms Browser's enforced
     filenaming convention.
 
@@ -679,19 +680,18 @@ def get_valid_filename(text):
 
     .. code-block:: python
 
-       f = u'job_house_interiour_v001_wgergely.ma'
+       f = u'000_pr_000_layout_gw_v0006.ma'
        match = common.get_valid_filename(f)
        if match:
            path = match.expand(ur'\\1\\2\\3\\4\\5.\\6')
-           # job_house_interiour_v001_wgergely.ma
 
     Args:
-        group 1(SRE_Match object):        The job's short name, between 1 and 3 characters.
-        group 2(SRE_Match object):        The current asset-name, between 1 and 12 characters.
-        group 3(SRE_Match object):        The custom description of the file, between 1 - 25 characters.
-        group 4(SRE_Match object):        The file's version. Has to be exactly 3 characters.
-        group 5(SRE_Match object):        The name of the user.
-        group 6(SRE_Match object):        The file's extension (without the '.')
+        group 1(SRE_Match object):        "000" - prefix name.
+        group 2(SRE_Match object):        "pr_000" - asset name.
+        group 3(SRE_Match object):        "layout" - mode name.
+        group 4(SRE_Match object):        "gw" - user name.
+        group 5(SRE_Match object):        "0006" - version without the 'v' prefix.
+        group 6(SRE_Match object):        "ma" - file extension without the '.'.
 
     Returns:
         SRE_Match: A ``SRE_Match`` object if the filename is valid, otherwise ``None``
@@ -945,32 +945,39 @@ def copy_path(index, mode=WindowsPath, first=True):
         path = get_sequence_endpath(path)
 
     if mode == WindowsPath:
-        path = path.replace(
-            current_parent,
-            Server.get_server_platform_name(current_parent, 'win'))
+        if current_parent.lower() in path.lower():
+            path = path.replace(
+                current_parent,
+                Server.get_server_platform_name(current_parent, u'win'))
         path = re.sub(ur'[\/\\]', ur'\\', path)
         QtGui.QClipboard().setText(path)
+        print '# Copied {}'.format(path)
         return
 
     if mode == UnixPath:
-        path = path.replace(
-            current_parent,
-            Server.get_server_platform_name(current_parent, 'mac'))
+        if current_parent.lower() in path.lower():
+            path = path.replace(
+                current_parent,
+                Server.get_server_platform_name(current_parent, u'mac'))
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
+        print '# Copied {}'.format(path)
         return path
 
     if mode == SlackPath:
         path = QtCore.QUrl().fromLocalFile(path).toString()
         QtGui.QClipboard().setText(path)
+        print '# Copied {}'.format(path)
         return path
 
     if mode == MacOSPath:
-        path = path.replace(
-            current_parent,
-            Server.get_server_platform_name(current_parent, 'mac'))
+        if current_parent.lower() in path.lower():
+            path = path.replace(
+                current_parent,
+                Server.get_server_platform_name(current_parent, u'mac'))
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
+        print '# Copied {}'.format(path)
         return path
 
 

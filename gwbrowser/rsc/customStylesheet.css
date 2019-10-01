@@ -34,6 +34,11 @@ QStackedWidget:focus {{
 	border-color: rgba({FAVOURITE});
 }}
 
+/* Preferences widget */
+SectionsStackWidget {{
+	background-color: rgba({BACKGROUND});
+}}
+
 
 QStatusBar {{
 	color: rgba({TEXT});
@@ -185,57 +190,54 @@ QLineEdit:disabled {{
 
 
 QScrollBar {{
+	background: rgba({SEPARATOR});
+	border: none;
+	border-radius: 0px;
 	width:8px;
-	height:8px;
+	height: 8px;
 }}
-QScrollBar:vertical, QScrollBar:horizontal {{
+QScrollBar:vertical,
+QScrollBar:horizontal {{
 	background: rgba({SEPARATOR});
 	border: none;
 }}
 QScrollBar::handle {{
-	background: rgba({SEPARATOR});
-	border: none;
-}}
-QScrollBar::handle:vertical, QScrollBar::handle:vertical, QScrollBar::handle:horizontal, QScrollBar::handle:horizontal {{
-	background: rgba({SECONDARY_BACKGROUND});
+	background: rgba({BACKGROUND});
 	border: none;
 	border-radius: 4px;
+	border: 1px solid rgba(0,0,0,20);
 	max-height: 250px;
 	min-height: 50px;
 }}
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+
+QScrollBar::add-page,
+QScrollBar::sub-page,
+QScrollBar::add-line,
+QScrollBar::up-arrow,
+QScrollBar::down-arrow,
+QScrollBar::sub-line {{
 	background: rgba({SEPARATOR});
 	border: none;
-	background: rgba({SEPARATOR});
+	border-radius: 0px;
 }}
 
 
 QListWidget {{
 		background: rgba({SECONDARY_BACKGROUND});
-		show-decoration-selected: 1; /* make the selection span the entire width of the view */
 }}
-QListWidget:active {{
+QListWidget::item {{
 	outline: 0;
-  border: none;
-}}
-QListWidget:focus {{
-	outline: 0;
-  border: none;
+	color: rgba({TEXT});
+  background: rgba(255,255,255,20);
 }}
 QListWidget::item:hover {{
-	outline: 0;
-  background: transparent;
-  border: none;
-}}
-QListWidget::item:focus {{
-	outline: 0;
-  background: transparent;
-  border: none;
+  background: rgba(255,255,255,50);
 }}
 QListWidget::item:selected {{
-	outline: 0;
-	background: transparent;
-  border: none;
+	background: rgba(255,255,255,100);
+}}
+QListWidget::item:selected:hover {{
+	background: rgba(255,255,255,130);
 }}
 
 
@@ -262,14 +264,14 @@ QHeaderView {{
 	background-color: rgba({TEXT});
 	text-align: left;
 	border-bottom: 1px solid rgba({SEPARATOR});
+	border-top: 1px solid rgba({SEPARATOR});
 }}
 QHeaderView::section {{
 	background-color: rgba({BACKGROUND});
 	color: rgba({TEXT_SELECTED});
-	padding: 2px;
-	height:18px;
+	border: none;
+	border-left: 1px solid rgba({SEPARATOR});
 	border-radius: 0px;
-	text-align: left;
 }}
 
 
@@ -341,14 +343,11 @@ QMenu::icon {{
 QMenu::item:disabled{{
 	color: rgba({TEXT_DISABLED});
 }}
-QMenu::item:disabled:selected{{
-	color: rgba({TEXT_DISABLED});
-}}
-QMenu::item:selected {{ /* when user selects item using mouse or keyboard */
+QMenu::item:selected, QMenu::item:hover {{ /* when user selects item using mouse or keyboard */
     color: rgba({TEXT_SELECTED});
     background-color: rgba({BACKGROUND_SELECTED});
 }}
-QMenu::SEPARATOR {{
+QMenu::indicator {{
     height: 1px;
     background: rgba({SEPARATOR});
     margin-left: 30px;

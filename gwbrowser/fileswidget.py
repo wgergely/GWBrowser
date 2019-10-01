@@ -920,6 +920,34 @@ class FilesWidget(BaseInlineIconWidget):
 
         # Making sure the SecondaryFileInfoWorker loads the model-data...
 
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(unicode)
+    def new_file_added(self, data_key, file_path):
+        """Slot to be called when a new file has been added and
+        we want to show it the list.
+
+        """
+        if not data_key:
+            return
+
+        # Selecting our key
+        self.model().sourceModel().dataKeyChanged.emit(data_key)
+        # Reloading the model
+        self.model().sourceModel().modelDataResetRequested.emit()
+
+        for n in xrange(self.model().rowCount()):
+            index = self.model().index(n, 0)
+            path = index.data(QtCore.Qt.StatusTipRole)
+            path = common.get_sequence_endpath(path)
+            if path.lower() == file_path:
+                self.scrollTo(
+                    index,
+                    QtWidgets.QAbstractItemView.PositionAtCenter)
+                self.selectionModel().setCurrentIndex(
+                    index,
+                    QtCore.QItemSelectionModel.ClearAndSelect)
+                break
+
     @QtCore.Slot()
     def initialize_visible_indexes(self):
         """The sourceModel() loads its data in multiples steps: There's a

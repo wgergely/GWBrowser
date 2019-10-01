@@ -19,7 +19,7 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
 
-TINT_THUMBNAIL_BACKGROUND = False
+TINT_THUMBNAIL_BACKGROUND = True
 
 
 def paintmethod(func):
@@ -79,8 +79,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveRight(rect.right() - common.MARGIN)
 
         for _ in xrange(idx):
+            o = common.INDICATOR_WIDTH * 0.8
             rect.moveRight(
-                rect.right() - common.INDICATOR_WIDTH - size - (common.INDICATOR_WIDTH * 2))
+                rect.right() - o - size - (o * 2))
 
         rect.setWidth(int(size))
         center = rect.center()
@@ -163,9 +164,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
 
-        bg_rect = QtCore.QRect(option.rect)
-        bg_rect.setRight(rect.right())
-
         image = index.data(common.ThumbnailRole)
         if not image:
             return
@@ -176,15 +174,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.THUMBNAIL_BACKGROUND
         color = color if color else common.THUMBNAIL_BACKGROUND
 
+
         # Background
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
-        # if not hover:
-        #     painter.setOpacity(0.8)
-        painter.drawRect(bg_rect)
-        # painter.setOpacity(1.0)
+        painter.drawRect(rect)
 
-        irect = image.rect()
+        if not hover:
+            painter.setOpacity(0.9)
+
+        irect = QtCore.QRect(image.rect())
         irect.moveCenter(rect.center())
         painter.drawImage(irect, image, image.rect())
 
@@ -273,25 +272,22 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
-        color = common.FAVOURITE if archived else sep
+        color = common.REMOVE if archived else sep
 
         cpos = QtGui.QCursor().pos()
         cpos = self.parent().mapFromGlobal(cpos)
         if bg_rect.contains(cpos):
-            color = common.FAVOURITE
+            color = common.REMOVE
 
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtGui.QBrush(color))
 
         if archived:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'archived', color, common.INLINE_ICON_SIZE)
-            painter.setBrush(sep)
-            painter.drawRoundedRect(
-                bg_rect, bg_rect.width() / 2.0, bg_rect.width() / 2.0)
+                u'add', color, common.INLINE_ICON_SIZE)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'active', color, common.INLINE_ICON_SIZE)
+                u'remove', color, common.INLINE_ICON_SIZE)
 
         painter.drawPixmap(rect, pixmap)
 
@@ -317,11 +313,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         cpos = QtGui.QCursor().pos()
         cpos = self.parent().mapFromGlobal(cpos)
         if rect.contains(cpos):
-            sep = common.FAVOURITE
+            sep = common.TEXT_SELECTED
 
         pixmap = ImageCache.get_rsc_pixmap(
-            u'folder', sep, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
+            u'reveal_folder', sep, common.INLINE_ICON_SIZE)
         painter.drawPixmap(rect, pixmap)
 
     @paintmethod
@@ -341,9 +336,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             option.rect, common.INLINE_ICON_SIZE, 3)
         sep = QtGui.QColor(common.SEPARATOR)
         sep.setAlpha(150)
+
+        cpos = QtGui.QCursor().pos()
+        cpos = self.parent().mapFromGlobal(cpos)
+        if rect.contains(cpos):
+            sep = common.TEXT_SELECTED
+
         pixmap = ImageCache.get_rsc_pixmap(
             u'todo', sep, common.INLINE_ICON_SIZE)
-        painter.setPen(QtCore.Qt.NoPen)
         painter.drawPixmap(rect, pixmap)
 
         if not index.data(common.TodoCountRole):
@@ -389,32 +389,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Icon
         if favourite:
-            # Background
-            color = QtGui.QColor(common.FAVOURITE)
-            color.setAlpha(200)
-            painter.setBrush(color)
-            painter.drawRoundedRect(
-                bg_rect, bg_rect.width() / 2, bg_rect.height() / 2)
-
-            # Star icon
-            color = QtGui.QColor(common.SECONDARY_BACKGROUND)
+            color = QtGui.QColor(common.TEXT_SELECTED)
             pixmap = ImageCache.get_rsc_pixmap(
                 u'favourite', color, common.INLINE_ICON_SIZE)
-
             painter.drawPixmap(rect, pixmap)
-
-            # Indicator rectangle on the right hand side of the row
-            rect2 = QtCore.QRect(option.rect)
-            center = rect2.center()
-            rect2.setHeight(rect2.height() - common.ROW_SEPARATOR)
-            rect2.moveCenter(center)
-            rect2.setWidth(common.INDICATOR_WIDTH)
-            rect2.moveRight(option.rect.right())
-
-            painter.setBrush(common.FAVOURITE)
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(rect2)
-
             return
 
         color = QtGui.QColor(common.SEPARATOR)
@@ -430,9 +408,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         pixmap = ImageCache.get_rsc_pixmap(
             u'favourite', color, common.INLINE_ICON_SIZE)
-
-        painter.setPen(QtCore.Qt.NoPen)
-        # Icon
         painter.drawPixmap(rect, pixmap)
 
     @paintmethod
@@ -440,7 +415,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the background for the inline icons."""
         if self.parent().buttons_hidden():
             return
-        painter, option, index, selected, _, active, archived, _, hover = args
+        painter, option, _, selected, _, active, archived, _, hover = args
         if archived:
             return
 
@@ -473,30 +448,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.FAVOURITE
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(color)
-            painter.setOpacity(0.5)
+            painter.setOpacity(0.6)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(bg_rect)
             painter.setOpacity(1)
 
         painter.setPen(QtCore.Qt.NoPen)
-        if selected:
-            painter.setBrush(common.SECONDARY_TEXT)
-        else:
-            painter.setBrush(common.SECONDARY_BACKGROUND)
 
-        for n in xrange(self.parent().inline_icons_count()):
-            rect, _bg_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, n)
-            painter.setOpacity(0.3)
-
-            cpos = QtGui.QCursor().pos()
-            cpos = self.parent().mapFromGlobal(cpos)
-            if _bg_rect.contains(cpos):
-                painter.setOpacity(0.5)
-
-            painter.drawRoundedRect(
-                _bg_rect, _bg_rect.height() / 2, _bg_rect.height() / 2)
-
+        # Hover overlay
         if hover:
             if active:
                 painter.setOpacity(0.5)
@@ -504,6 +463,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 painter.setOpacity(1)
             painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(bg_rect)
+
+
+
 
     @paintmethod
     def paint_description(self, *args):
@@ -666,7 +628,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             if self.parent().inline_icons_count():
                 _, icon_rect = self.get_inline_icon_rect(
                     option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-                print icon_rect
                 rect.setRight(icon_rect.left() - common.MARGIN)
             else:
                 rect.setRight(option.rect.right() - (common.MARGIN * 2) - common.INLINE_ICON_SIZE)
@@ -730,7 +691,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         cpos = QtGui.QCursor().pos()
         cpos = self.parent().mapFromGlobal(cpos)
         if bg_rect.contains(cpos):
-            color = QtGui.QColor(200, 60, 30)
+            color = common.REMOVE
 
         pixmap = ImageCache.get_rsc_pixmap(
             u'remove', color, common.INLINE_ICON_SIZE)
@@ -761,11 +722,11 @@ class AssetsWidgetDelegate(BaseDelegate):
         #
         self.paint_inline_icons_background(*args)
         self.paint_todo_icon(*args)
-        self.paint_archived_icon(*args)
         self.paint_favourite_icon(*args)
         self.paint_folder_icon(*args)
         #
         self.paint_archived(*args)
+        self.paint_archived_icon(*args)
         self.paint_selection_indicator(*args)
 
     @paintmethod
@@ -921,29 +882,37 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = self._draw(painter, font, rect, text, align,
                           color, option, kwargs['left'])
 
+        # Nothing else to draw if the item has not been loaded yet...
         if not index.data(common.FileInfoLoaded):
             return
 
+        # Description
         if index.data(common.DescriptionRole):
-            color = common.TEXT_SELECTED if hover else common.TEXT
+            # Drawing a small separator line
+            rect = self._draw(painter, font, rect, u'   |   ', align,
+                              common.SEPARATOR, option, kwargs['left'])
+
+            # Description
+            color = common.TEXT if hover else common.REMOVE
             color = common.TEXT_SELECTED if selected else color
-            if index.data(common.FileDetailsRole):
-                text = u'{}    \n'.format(index.data(common.DescriptionRole))
-            else:
-                text = u'{}\n'.format(index.data(common.DescriptionRole))
+            text = u'{}\n'.format(index.data(common.DescriptionRole))
             rect = self._draw(painter, font, rect, text, align,
                               color, option, kwargs['left'])
-        elif not index.data(common.DescriptionRole) and hover:
-            color = QtGui.QColor(common.SECONDARY_TEXT)
-            color.setAlpha(220)
-            color = common.SECONDARY_TEXT if hover else color
-            color = common.TEXT_SELECTED if selected else color
-            if index.data(common.FileDetailsRole):
-                text = u'Double-click to add description...   '
-            else:
-                text = u'Double-click to add description...'
-            rect = self._draw(painter, font, rect, text,
-                              align, color, option, kwargs['left'])
+            return metrics.width(text)
+
+        if not hover:
+            return metrics.width(text)
+
+        color = QtGui.QColor(common.SECONDARY_TEXT)
+        color.setAlpha(220)
+        color = common.SECONDARY_TEXT if hover else color
+        color = common.TEXT_SELECTED if selected else color
+        if index.data(common.FileDetailsRole):
+            text = u'Double-click to add description...   '
+        else:
+            text = u'Double-click to add description...'
+        rect = self._draw(painter, font, rect, text,
+                          align, color, option, kwargs['left'])
         return metrics.width(text)
 
     @paintmethod

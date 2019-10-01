@@ -81,11 +81,3 @@ def uninitializePlugin(plugin):
     except Exception as err:
         sys.stdout.write(
             '# GWBrowser: Failed to delete the workspace control.\n')
-
-    # try:
-    #     del sys.modules['gwbrowser']
-    #     for k in sys.modules.items():
-    #         if 'gwbrowser.' in k:
-    #             del sys.modules[k]
-    # except Exception as err:
-    #     sys.stdout.write('# GWBrowser: Failed unload the python modules.\n')

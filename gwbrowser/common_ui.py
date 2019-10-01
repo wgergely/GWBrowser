@@ -7,13 +7,16 @@ import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
 
-def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT, cls=None):
+def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT, cls=None, vertical=False):
     """macro for adding a new row"""
     if cls:
         w = cls(parent=parent)
     else:
         w = QtWidgets.QWidget(parent=parent)
-    QtWidgets.QHBoxLayout(w)
+    if vertical:
+        QtWidgets.QVBoxLayout(w)
+    else:
+        QtWidgets.QHBoxLayout(w)
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH)
     w.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -62,8 +65,10 @@ def add_line_edit(label, parent=None):
 class PaintedButton(QtWidgets.QPushButton):
     """Custom button class for used for the Ok and Cancel buttons."""
 
-    def __init__(self, text, parent=None):
+    def __init__(self, text, width=None, parent=None):
         super(PaintedButton, self).__init__(text, parent=parent)
+        if width:
+            self.setFixedWidth(width)
 
     def paintEvent(self, event):
         """Paint event for smooth font display."""
@@ -73,11 +78,15 @@ class PaintedButton(QtWidgets.QPushButton):
         option = QtWidgets.QStyleOption()
         option.initFrom(self)
         hover = option.state & QtWidgets.QStyle.State_MouseOver
+        pressed = option.state & QtWidgets.QStyle.State_Sunken
 
         color = common.TEXT if self.isEnabled() else common.SECONDARY_TEXT
         color = common.TEXT_SELECTED if hover else color
 
         bg_color = common.SECONDARY_TEXT if self.isEnabled() else QtGui.QColor(0, 0, 0, 20)
+        bg_color = common.TEXT if hover else bg_color
+        bg_color = common.SEPARATOR if pressed else bg_color
+
         painter.setBrush(bg_color)
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRoundedRect(self.rect(), 2, 2)
@@ -119,15 +128,22 @@ class PaintedLabel(QtWidgets.QLabel):
         painter.end()
 
 
-class ClickableLabel(QtWidgets.QLabel):
+class ClickableIconButton(QtWidgets.QLabel):
+    """A generic icon button used accross the project.
+
+    """
     clicked = QtCore.Signal()
     doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
-    def __init__(self, pixmap, color, size, description=u'', parent=None):
-        super(ClickableLabel, self).__init__(parent=parent)
-        self._pixmap = ImageCache.get_rsc_pixmap(pixmap, color, size)
+    def __init__(self, pixmap, colors, size, description=u'', parent=None):
+        super(ClickableIconButton, self).__init__(parent=parent)
+        self._pixmap = pixmap
         self._size = size
+
+        on, off = colors
+        self._on_color = on
+        self._off_color = off
 
         self.setStatusTip(description)
         self.setToolTip(description)
@@ -138,6 +154,7 @@ class ClickableLabel(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.clicked.connect(self.action)
+        self.clicked.connect(self.repaint)
 
     @QtCore.Slot()
     def action(self):
@@ -155,16 +172,19 @@ class ClickableLabel(QtWidgets.QLabel):
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip())
-        import sys
         self.repaint()
 
     def leaveEvent(self, event):
         self.repaint()
 
-    def pixmap(self, c):
-        return self._pixmap
+    def pixmap(self):
+        if not self.isEnabled():
+            return ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
+        if self.state():
+            return ImageCache.get_rsc_pixmap(self._pixmap, self._on_color, self._size)
+        return ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
 
-    def isEnabled(self):
+    def state(self):
         return False
 
     def contextMenuEvent(self, event):
@@ -178,13 +198,11 @@ class ClickableLabel(QtWidgets.QLabel):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        if not self.isEnabled():
-            painter.setOpacity(0.20)
+        if hover:
+            painter.setOpacity(1.0)
         else:
-            if hover:
-                painter.setOpacity(1.0)
-            else:
-                painter.setOpacity(0.80)
+            painter.setOpacity(0.80)
 
-        painter.drawPixmap(self.rect(), self._pixmap, self._pixmap.rect())
+        pixmap = self.pixmap()
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
         painter.end()

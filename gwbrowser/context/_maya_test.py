@@ -1,40 +1,39 @@
+# -*- coding: utf-8 -*-
+"""Maya standalone context."""
+
+import os
 import sys
-import traceback
+import maya.standalone
+from PySide2 import QtWidgets, QtCore, QtGui
 
-from functools import wraps
+# PySide2 needs an app before Maya is initialized:
+app = QtWidgets.QApplication([])
+maya.standalone.initialize(name='python')
 
+# cmds and mel modules
+from maya import cmds as cmds
+from maya.mel import eval
 
-def maya(func):
-    @wraps(func)
-    def func_wrapper(*args, **kwargs):
-        import maya.mel
-        import maya.standalone
-        from PySide2 import QtWidgets
+cmds.loadPlugin("AbcExport.mll", quiet=True)
+cmds.loadPlugin("AbcImport.mll", quiet=True)
 
-        app = QtWidgets.QApplication.instance()
-
-        if not app:
-            app = QtWidgets.QApplication([])
-
-        maya.standalone.initialize()
-
-        try:
-            res = func(*args, **kwargs)
-            app.exec_()
-        except Exception:
-            sys.stderr.write(u'{}'.format(traceback.print_exc()))
-        finally:
-            maya.standalone.uninitialize()
-
-    return func_wrapper
+# CUSTOM BLOCK -- START
 
 
-@maya
-def test():
-    import gwbrowser.context.mayabrowserwidget as mayabrowserwidget
-    mayabrowserwidget.show()
-    import maya.cmds as cmds
-    c = cmds.polyCube()
+import gwbrowser.context.mayabrowserwidget as mayabrowserwidget
+from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
+w = MayaBrowserButton()
+w.show()
+mayabrowserwidget.show()
+
+meshes = []
+for n in xrange(10):
+    s = cmds.polyCube(name=u'testCube#')
+    meshes.append(s[0])
+cmds.sets(meshes, name=u'testCube_geo_set')
 
 
-test()
+# CUSTOM BLOCK -- END
+# Shutdown
+app.exec_()
+maya.standalone.uninitialize()

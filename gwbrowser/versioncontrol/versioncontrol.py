@@ -156,6 +156,7 @@ def check():
             QtWidgets.QMessageBox.Ok)
         mbox.setText(u'GWBrowser {} is up-to-date.'.format(gwbrowser.__version__))
         mbox.exec_()
+        return
 
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'A new update is available')

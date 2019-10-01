@@ -37,15 +37,7 @@ class VersionLabel(CustomButton):
             message=message,
             parent=parent)
         self.pressed.connect(
-            lambda: QtGui.QDesktopServices.openUrl(ur'https://gergely-wootsch.com/gwbrowser-about'))
-
-        self.timer = QtCore.QTimer(parent=self)
-        self.timer.setSingleShot(False)
-        self.timer.setInterval(3600000) # Will check for a new version every 1 hour
-
-        import gwbrowser.versioncontrol.versioncontrol as vc
-        self.timer.timeout.connect(vc.check)
-
+            lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -105,13 +97,18 @@ class BrowserWidget(QtWidgets.QWidget):
         local_settings are applied after the ui is initialized.
 
         """
+        self.shortcuts = []
         if self._initialized:
             return
 
         self._createUI()
         self._connectSignals()
+        self._add_shortcuts()
 
-        active_monitor.macos_mount_timer.start()
+
+        if common.get_platform() == u'mac':
+            active_monitor.macos_mount_timer.start()
+
         Active.paths()
 
         # Switching stacked widget to saved index...
@@ -173,13 +170,11 @@ class BrowserWidget(QtWidgets.QWidget):
         self._initialized = True
         self.initialized.emit()
 
+        # Anything here will be run the first time gwbrowser is launched
         if local_settings.value(u'firstrun') is None:
             local_settings.setValue(u'firstrun', False)
-            # QtGui.QDesktopServices.openUrl(
-            #     ur'https://gergely-wootsch.com/gwbrowser-about')
 
     def _createUI(self):
-        app = QtWidgets.QApplication.instance()
         common.set_custom_stylesheet(self)
 
         # Main layout
@@ -227,7 +222,8 @@ class BrowserWidget(QtWidgets.QWidget):
         statusbar.setSizeGripEnabled(False)
 
         version_widget = VersionLabel(parent=statusbar)
-        version_widget.message.connect(lambda s: statusbar.showMessage(s, 4000))
+        version_widget.message.connect(
+            lambda s: statusbar.showMessage(s, 4000))
         statusbar.addPermanentWidget(version_widget)
         # statusbar.addPermanentWidget(grip)
         statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -246,6 +242,69 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
         self.layout().addWidget(self.statusbar)
+
+    def next_tab(self):
+        n = self.stackedwidget.currentIndex()
+        n += 1
+        if n > (self.stackedwidget.count() - 1):
+            self.listcontrolwidget.listChanged.emit(0)
+            return
+        self.listcontrolwidget.listChanged.emit(n)
+
+    def previous_tab(self):
+        n = self.stackedwidget.currentIndex()
+        n -= 1
+        if n < 0:
+            n = self.stackedwidget.count() - 1
+            self.listcontrolwidget.listChanged.emit(n)
+            return
+        self.listcontrolwidget.listChanged.emit(n)
+
+    def add_shortcut(self, keys, targets, repeat=False, context=QtCore.Qt.WidgetWithChildrenShortcut):
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(keys), self)
+        shortcut.setAutoRepeat(repeat)
+        shortcut.setContext(context)
+        for func in targets:
+            shortcut.activated.connect(func)
+        self.shortcuts.append(shortcut)
+
+    def _add_shortcuts(self):
+        lc = self.listcontrolwidget
+        self.add_shortcut(
+            u'Ctrl+1', (lc._bookmarksbutton.clicked, lc._bookmarksbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+2', (lc._assetsbutton.clicked, lc._assetsbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+3', (lc._filesbutton.clicked, lc._filesbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+4', (lc._favouritesbutton.clicked, lc._favouritesbutton.repaint))
+        #
+        self.add_shortcut(
+            u'Ctrl+N', (lc._addbutton.action, lc._addbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+M', (lc._generatethumbnailsbutton.action, lc._generatethumbnailsbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+T', (lc._todobutton.action, lc._todobutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+F', (lc._filterbutton.action, lc._filterbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+G', (lc._collapsebutton.action, lc._collapsebutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+Shift+A', (lc._archivedbutton.action, lc._archivedbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+Shift+F', (lc._favouritebutton.action, lc._favouritebutton.repaint))
+        self.add_shortcut(
+            u'Alt+S', (lc._slackbutton.action, lc._slackbutton.repaint))
+        self.add_shortcut(
+            u'Ctrl+H', (lc._togglebuttonsbutton.action, lc._togglebuttonsbutton.repaint))
+        #
+        self.add_shortcut(
+            u'Alt+Right', (self.next_tab, ), repeat=True)
+        self.add_shortcut(
+            u'Alt+Left', (self.previous_tab, ), repeat=True)
+
+
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.
@@ -611,7 +670,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 7, 7)
+        painter.drawRoundedRect(rect, 4, 4)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)

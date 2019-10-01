@@ -10,18 +10,14 @@ unzipping their contents into a specified directory.
 
 """
 
-import re
 import functools
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.common as common
-from gwbrowser.addbookmarkswidget import PaintedLabel
+from gwbrowser.addfilewidget import DescriptionEditor
+from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row
 from gwbrowser.addfilewidget import ThumbnailButton
-from gwbrowser.addfilewidget import DescriptionEditor, NameEditor
-from gwbrowser.addfilewidget import Check
-from gwbrowser.addfilewidget import SaverHeaderWidget
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-from gwbrowser.standalonewidgets import CloseButton
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.settings as Settings
 
@@ -46,7 +42,6 @@ class AddAssetWidgetContextMenu(BaseContextMenu):
 
 class AddAssetWidget(QtWidgets.QDialog):
     """Defines the widget used add an asset to the currently active bookmark."""
-    shutdown = QtCore.Signal()
 
     def __init__(self, path, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
@@ -54,7 +49,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.last_asset_added = None
         self.thumbnail_image = None
 
-        self.checkmark_widget = None
+        self.save_button = None
         self.name_widget = None
         self.thumbnail_widget = None
         self.description_widget = None
@@ -111,56 +106,32 @@ class AddAssetWidget(QtWidgets.QDialog):
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(
-            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH,
-            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        o = common.MARGIN
+        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        #
         self.setFixedWidth(common.WIDTH)
 
-        #
-        mainrow = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(mainrow)
-        self.layout().addWidget(mainrow)
-        mainrow.layout().setContentsMargins(0, 0, 0, 0)
-        mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
-        mainrow.layout().setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        mainrow = add_row(u'', parent=self)
         # top label
-        label = PaintedLabel(u'Add new asset', size=common.LARGE_FONT_SIZE)
+        label = PaintedLabel(u'Add New Asset', size=common.LARGE_FONT_SIZE)
         mainrow.layout().addSpacing(common.MARGIN / 2)
         mainrow.layout().addWidget(label, 0)
-
+        mainrow.layout().addStretch(1)
         #
-        mainrow = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(mainrow)
-        mainrow.layout().setContentsMargins(0, 0, 0, 0)
-        mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
-        mainrow.layout().setAlignment(QtCore.Qt.AlignCenter)
+        row = add_row(u'', height=common.ASSET_ROW_HEIGHT, parent=self)
         #
-        self.thumbnail_widget = ThumbnailButton(parent=self)
-        self.thumbnail_widget.setFixedSize(
-            common.ASSET_ROW_HEIGHT, common.ASSET_ROW_HEIGHT)
-        mainrow.layout().addWidget(self.thumbnail_widget)
-        self.layout().addWidget(mainrow)
-        #
-        column = QtWidgets.QWidget()
-        QtWidgets.QVBoxLayout(column)
-        column.layout().setContentsMargins(0, 0, 0, 0)
-        column.layout().setSpacing(0)
-        column.layout().setAlignment(QtCore.Qt.AlignCenter)
-        mainrow.layout().addWidget(column)
+        self.thumbnail_widget = ThumbnailButton(common.ASSET_ROW_HEIGHT, u'Click to add a thumbnail for this job', parent=self)
+        row.layout().addWidget(self.thumbnail_widget)
 
-        # Row 1
-        row = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(row)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(common.INDICATOR_WIDTH)
-        row.layout().setAlignment(QtCore.Qt.AlignCenter)
-        column.layout().addWidget(row, 1)
 
-        self.name_widget = NameEditor(parent=self)
         # Settings the completer associated with the Editor widget
+        self.name_widget = QtWidgets.QLineEdit(parent=self)
+        self.name_widget.setPlaceholderText(u'Enter asset name...')
+        self.name_widget.setFixedWidth(200)
+        regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
+        validator = QtGui.QRegExpValidator(regex)
+        self.name_widget.setValidator(validator)
         completer = QtWidgets.QCompleter(
             sorted(self.completer_keywords()), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
@@ -170,38 +141,27 @@ class AddAssetWidget(QtWidgets.QDialog):
             QtWidgets.QCompleter.InlineCompletion)
         self.name_widget.setCompleter(completer)
 
+        column = add_row(u'', vertical=True, height=common.ASSET_ROW_HEIGHT, parent=row)
         self.description_widget = DescriptionEditor(parent=self)
-        self.checkmark_widget = Check(parent=self)
+        column.layout().addWidget(self.description_widget)
+        row = add_row(u'', parent=column)
+        row.layout().addWidget(self.name_widget)
 
-        row.layout().addWidget(self.name_widget, 1)
-        row.layout().addWidget(self.description_widget, 2)
+        self.save_button = PaintedButton(u'Add asset', parent=self)
+        self.cancel_button = PaintedButton(u'Cancel', parent=self)
 
-        mainrow.layout().addWidget(self.checkmark_widget)
-        self.layout().insertWidget(0, SaverHeaderWidget(parent=self))
+
+        row.layout().addWidget(self.save_button)
+        row.layout().addWidget(self.cancel_button)
         self.layout().addSpacing(common.MARGIN)
 
     def _connectSignals(self):
-        self.checkmark_widget.clicked.connect(lambda: self.done(
-            QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
-        self.name_widget.textEdited.connect(self.validate_text)
-        self.thumbnail_widget.clicked.connect(
-            self.thumbnail_widget.pick_thumbnail)
-        self.shutdown.connect(self.close)
-        closebutton = self.findChild(CloseButton)
-        closebutton.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Rejected), type=QtCore.Qt.QueuedConnection)
+        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
 
-    @QtCore.Slot(unicode)
-    def validate_text(self, text):
-        """Strips all invalid characters from the input string."""
-        cp = self.name_widget.cursorPosition()
-        _text = re.sub(ur'[^a-z0-9\_\-]', u'_', text, flags=re.IGNORECASE)
-        _text = re.sub(ur'[_]{2,}', u'_', _text)
-        _text = re.sub(ur'[-]{2,}', u'-', _text)
-        if len(_text) > 35:
-            _text = _text[0:35]
-        self.name_widget.setText(_text)
-        self.name_widget.setCursorPosition(cp)
+        # self.thumbnail_widget.clicked.connect(
+        #     self.thumbnail_widget.pick_thumbnail)
+        #
 
     def done(self, result):
         """Slot called by the check button to create a new asset."""
@@ -275,6 +235,11 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     def save_thumbnail_and_description(self):
         """Saves the selected thumbnail and description in the config file."""
+        if not self.parent():
+            return
+        if not hasattr(self.parent(), 'widget'):
+            return
+
         bindex = self.parent().widget(0).model().sourceModel().active_index()
         if not bindex.isValid():
             return
@@ -303,5 +268,5 @@ class AddAssetWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = AddAssetWidget(ur'C:\temp\projects\job1\build')
+    w = AddAssetWidget(ur'C:\temp')
     w.exec_()

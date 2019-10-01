@@ -7,12 +7,12 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
+from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
-from gwbrowser.common_ui import ClickableLabel
 
 
 class ThumbnailViewer(QtWidgets.QLabel):
@@ -351,22 +351,6 @@ color: rgba({});
         self.hide()
 
 
-class FilterIcon(QtWidgets.QLabel):
-    """Widget responsible for displaying the keywords list"""
-
-    def __init__(self, parent=None):
-        super(FilterIcon, self).__init__(parent=parent)
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 1.3)
-        self.setFixedWidth(common.ROW_BUTTONS_HEIGHT)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'filter', common.FAVOURITE, common.INLINE_ICON_SIZE)
-        self.setPixmap(pixmap)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-
-
 class EditorContextMenu(BaseContextMenu):
     """The context menu associated with the filter text editor."""
     finished = QtCore.Signal(unicode)
@@ -382,6 +366,8 @@ class EditorContextMenu(BaseContextMenu):
         pixmap = ImageCache.get_rsc_pixmap(
             u'filter', common.TEXT, common.INLINE_ICON_SIZE)
         kws = self.parent().parent().parent().keywords()
+        if not kws:
+            return menu_set
 
         def insert_keyword(s):
             """The action to execute when a keyword is inserted."""
@@ -409,7 +395,7 @@ class Editor(QtWidgets.QLineEdit):
     def __init__(self, parent=None):
         super(Editor, self).__init__(parent=parent)
         self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setPlaceholderText(u'Filter...')
+        self.setPlaceholderText(u'Filter text...')
         self.setStyleSheet("""
 QLineEdit {{
     margin: 6px;
@@ -463,31 +449,85 @@ class FilterEditor(QtWidgets.QWidget):
         self.editor_widget = None
         self.subfolders_widget = None
         self.context_menu_open = False
+        self.kw_row = None
 
-        self.row1_height = common.ROW_BUTTONS_HEIGHT
-        self.row2_height = self.parent().geometry().height() - self.row1_height
-
-        self._createUI()
-        self._connectSignals()
-
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Maximum
+        )
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.setWindowFlags(QtCore.Qt.Window |
                             QtCore.Qt.FramelessWindowHint)
+        self._createUI()
+        self._connectSignals()
 
+        self.setFocusProxy(self.editor_widget)
         self.editor_widget.setText(u'' if text == u'/' else text)
         self.editor_widget.selectAll()
         self.editor_widget.setFocus()
 
         # Settings the completer associated with the Editor widget
+        if not self.keywords():
+            return
+
         keys = self.keywords().keys()
+        if not keys:
+            self.kw_row.hide()
+            return
+
         completer = QtWidgets.QCompleter(sorted(keys), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
         completer.setCompletionMode(
             QtWidgets.QCompleter.InlineCompletion)
         self.editor_widget.setCompleter(completer)
 
+        self.add_keywords(keys)
+
+    def _createUI(self):
+        common.set_custom_stylesheet(self)
+        QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN * 2
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(12)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        self.layout().addStretch(1)
+
+        row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
+        icon = ClickableIconButton(
+            u'filter',
+            (common.REMOVE, common.REMOVE),
+            common.ROW_HEIGHT
+        )
+        row.layout().addWidget(icon)
+        label = u'Edit the filter to help find items in the current list:'
+        row.layout().addWidget(PaintedLabel(label, parent=self))
+
+
+
+        self.f_row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
+        self.editor_widget = Editor(parent=self)
+        self.editor_widget.setAlignment(QtCore.Qt.AlignLeft)
+        self.f_row.layout().addWidget(self.editor_widget, 1)
+
+        self.kw_row = add_row(u'Keywords', padding=0, parent=self, height=common.ASSET_ROW_HEIGHT)
+        self.subfolders_widget = QtWidgets.QListWidget(parent=self)
+        self.kw_row.layout().addStretch(1)
+        self.kw_row.layout().addSpacing(o)
+        self.kw_row.layout().addWidget(self.subfolders_widget)
+        self.layout().addStretch(1)
+
+    def _connectSignals(self):
+        if self.parent():
+            self.parent().parent().resized.connect(self.adjust_size)
+        self.editor_widget.finished.connect(self.finished)
+        self.finished.connect(self.close)
+        self.subfolders_widget.itemActivated.connect(lambda i: self.finished.emit(i.text()))
+        self.subfolders_widget.itemClicked.connect(lambda i: self.finished.emit(i.text()))
+
+    def add_keywords(self, keys):
         scrollToItem = None
         for key in sorted([f.replace(u'%%', u'') for f in keys if u'%%' in f]):
             item = QtWidgets.QListWidgetItem()
@@ -495,7 +535,7 @@ class FilterEditor(QtWidgets.QWidget):
             item.setData(common.DescriptionRole, key.upper())
             item.setData(QtCore.Qt.StatusTipRole, key.upper())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                common.WIDTH, common.INLINE_ICON_SIZE * 1.2))
+                150, common.INLINE_ICON_SIZE))
 
             if self.editor_widget.text().lower() != key.lower():
                 scrollToItem = item
@@ -512,52 +552,26 @@ class FilterEditor(QtWidgets.QWidget):
         """Shortcut to access the models filter keyword values."""
         if not self.parent():
             return {}
-        return self.parent().parent().stackedwidget.currentWidget().model().sourceModel().keywords()
 
-    def _createUI(self):
-        QtWidgets.QVBoxLayout(self)
-        o = common.INDICATOR_WIDTH
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(o)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        row = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(row)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(0)
-        row.layout().setAlignment(QtCore.Qt.AlignCenter)
-        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        row.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-
-        label = FilterIcon(parent=self)
-        self.editor_widget = Editor(parent=self)
-        self.editor_widget.finished.connect(self.finished)
-
-        row.layout().addWidget(label, 0)
-        row.layout().addWidget(self.editor_widget, 1)
-        self.layout().addWidget(row, 0)
-
-        self.subfolders_widget = QtWidgets.QListWidget()
-
-        self.layout().addWidget(self.subfolders_widget, 1)
-
-    def _connectSignals(self):
-        self.finished.connect(self.close)
-        self.subfolders_widget.itemActivated.connect(lambda i: self.finished.emit(i.text()))
-        self.subfolders_widget.itemClicked.connect(lambda i: self.finished.emit(i.text()))
+        val = self.parent().currentWidget().model().sourceModel().keywords()
+        return val
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        rect = self.rect()
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+
         painter.setPen(QtCore.Qt.NoPen)
-        color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(150)
+
+        rect = self.rect()
+        center = rect.center()
+        rect.setWidth(rect.width() - common.MARGIN)
+        rect.setHeight(rect.height() - common.MARGIN)
+        rect.moveCenter(center)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRect(rect)
+        painter.drawRoundedRect(rect, 6, 6)
         painter.end()
 
     def keyPressEvent(self, event):
@@ -570,6 +584,11 @@ class FilterEditor(QtWidgets.QWidget):
         if return_ or enter:
             self.finished.emit(self.editor_widget.text())
 
+    def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.close()
+
     def focusOutEvent(self, event):
         """Closes the editor on focus loss."""
         if event.lostFocus():
@@ -577,7 +596,23 @@ class FilterEditor(QtWidgets.QWidget):
                 return
             self.close()
 
+    @QtCore.Slot()
+    def adjust_size(self):
+        if not self.parent():
+            return
 
+        rect = self.parent().rect()
+        pos = rect.topLeft()
+        pos = self.parent().mapToGlobal(pos)
+        self.move(pos)
+        self.setFocus()
+        self.resize(rect.width(), self.height())
+
+    def showEvent(self, event):
+        self.adjust_size()
+        if not self.keywords():
+            self.kw_row.hide()
+            
 class ThumbnailLabel(QtWidgets.QLabel):
     """Custom QLabel to select a thumbnail."""
     clicked = QtCore.Signal(unicode)

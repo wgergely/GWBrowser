@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """Widget reponsible controlling the displayed list and the filter-modes."""
 
+import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.datakeywidget import DataKeyView
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
-
+from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.editors import FilterEditor
-from gwbrowser.common_ui import ClickableLabel
 import gwbrowser.settings as Settings
 
 from gwbrowser.imagecache import ImageCache
@@ -21,64 +21,37 @@ from gwbrowser.bookmarkswidget import BookmarksModel
 from gwbrowser.settings import local_settings
 
 
-class ControlButton(ClickableLabel):
-    """Baseclass used for controls buttons to control list display."""
+class BaseControlButton(ClickableIconButton):
+    """Base class with a few default values."""
 
-    def __init__(self, size=common.INLINE_ICON_SIZE, parent=None):
-        super(ControlButton, self).__init__(size=size, parent=parent)
-        self._parent = None
-        self.clicked.connect(self.action, type=QtCore.Qt.QueuedConnection)
-        self.setStatusTip(u'')
+    def __init__(self, pixmap, description, parent=None):
+        super(BaseControlButton, self).__init__(
+            pixmap,
+            (common.TEXT_SELECTED, common.SECONDARY_BACKGROUND),
+            common.INLINE_ICON_SIZE,
+            description=description,
+            parent=parent
+        )
+        self._parent = parent
+
+    def set_parent(self, widget):
+        self._parent = widget
 
     def current(self):
         if not self._parent:
             return None
         return self._parent.currentWidget()
 
-    def set_parent(self, widget):
-        self._parent = widget
 
-    def state(self):
-        return False
-
-    @QtCore.Slot()
-    def action(self):
-        pass
-
-    def paintEvent(self, event):
-        """ControlButton's custom paint event."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
-        option = QtWidgets.QStyleOptionButton()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        color = common.TEXT if self.state() else common.SECONDARY_BACKGROUND
-        color = common.FAVOURITE if hover else color
-        pixmap = self.pixmap(color)
-        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
-        painter.end()
-
-
-class TodoButton(ControlButton):
+class TodoButton(BaseControlButton):
     """The button for showing the todo editor."""
 
     def __init__(self, parent=None):
-        super(TodoButton, self).__init__(parent=parent)
-        description = u'Ctrl+T  |  Show the Todo & Note editor'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+T'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'todo', c, common.INLINE_ICON_SIZE)
+        super(TodoButton, self).__init__(
+            u'todo',
+            u'Show the Todo & Note editor',
+            parent=parent
+        )
 
     def state(self):
         index = self._parent.widget(1).model().sourceModel().active_index()
@@ -104,24 +77,15 @@ class TodoButton(ControlButton):
             self.hide()
 
 
-class FilterButton(ControlButton):
+class FilterButton(BaseControlButton):
     """Button for showing the filter editor."""
 
     def __init__(self, parent=None):
-        super(FilterButton, self).__init__(parent=parent)
-        description = u'Ctrl+F  |  Edit search filter'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+F'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'filter', c, common.INLINE_ICON_SIZE)
+        super(FilterButton, self).__init__(
+            u'filter',
+            u'Edit search filter',
+            parent=parent
+        )
 
     def state(self):
         filter_text = self.current().model().filterText()
@@ -136,13 +100,8 @@ class FilterButton(ControlButton):
         filter_text = self.current().model().filterText()
         filter_text = common.clean_filter_text(filter_text)
         #
-        parent = self._parent.parent().listcontrolwidget
+        parent = self._parent.parent().stackedwidget
         editor = FilterEditor(filter_text, parent=parent)
-        pos = parent.rect().topLeft()
-        pos = parent.mapToGlobal(pos)
-
-        editor.move(pos)
-        editor.setFixedWidth(parent.rect().width())
 
         model = self.current().model()
         editor.finished.connect(lambda x: model.filterTextChanged.emit(
@@ -153,29 +112,22 @@ class FilterButton(ControlButton):
         editor.show()
 
 
-class CollapseSequenceButton(ControlButton):
+class CollapseSequenceButton(BaseControlButton):
     """The buttons responsible for collapsing/expanding the sequences of the
     current list.
 
     """
-
     def __init__(self, parent=None):
-        super(CollapseSequenceButton, self).__init__(parent=parent)
-        description = u'Ctrl+G  |  Group sequences together'
-        self.setToolTip(description)
-        self.setStatusTip(description)
+        super(CollapseSequenceButton, self).__init__(
+            u'collapse',
+            u'Group sequences together',
+            parent=parent
+        )
 
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+G'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
+    def pixmap(self):
         if self.state():
-            return ImageCache.get_rsc_pixmap(u'collapse', c, common.INLINE_ICON_SIZE)
-        return ImageCache.get_rsc_pixmap(u'expand', c, common.INLINE_ICON_SIZE)
+            return ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.INLINE_ICON_SIZE)
 
     def state(self):
         datatype = self.current().model().sourceModel().data_type()
@@ -203,26 +155,19 @@ class CollapseSequenceButton(ControlButton):
             self.hide()
 
 
-class ToggleArchivedButton(ControlButton):
+class ToggleArchivedButton(BaseControlButton):
     """Custom QLabel with a `clicked` signal."""
-
     def __init__(self, parent=None):
-        super(ToggleArchivedButton, self).__init__(parent=parent)
-        description = u'Ctrl+Shift+A  |  Show archived items'
-        self.setToolTip(description)
-        self.setStatusTip(description)
+        super(ToggleArchivedButton, self).__init__(
+            u'collapse',
+            u'Show archived items',
+            parent=parent
+        )
 
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+Shift+A'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
+    def pixmap(self):
         if self.state():
-            return ImageCache.get_rsc_pixmap(u'active', c, common.INLINE_ICON_SIZE)
-        return ImageCache.get_rsc_pixmap(u'archived', c, common.INLINE_ICON_SIZE)
+            return ImageCache.get_rsc_pixmap(u'active', self._on_color, common.INLINE_ICON_SIZE)
+        return ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.INLINE_ICON_SIZE)
 
     def state(self):
         val = self.current().model().filterFlag(common.MarkedAsArchived)
@@ -242,24 +187,15 @@ class ToggleArchivedButton(ControlButton):
             self.hide()
 
 
-class ToggleButtons(ControlButton):
+class ToggleButtons(BaseControlButton):
     """Custom QLabel with a `clicked` signal."""
 
     def __init__(self, parent=None):
-        super(ToggleButtons, self).__init__(parent=parent)
-        description = u'Ctrl+H  |  Show or hide list buttons'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+H'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'showbuttons', c, common.INLINE_ICON_SIZE)
+        super(ToggleButtons, self).__init__(
+            u'showbuttons',
+            u'Show or hide list buttons',
+            parent=parent
+        )
 
     def state(self):
         val = self.current().buttons_hidden()
@@ -279,24 +215,15 @@ class ToggleButtons(ControlButton):
             self.hide()
 
 
-class ToggleFavouriteButton(ControlButton):
-    """Custom QLabel with a `clicked` signal."""
+class ToggleFavouriteButton(BaseControlButton):
+    """Toggle the visibility of items marked as favourites."""
 
     def __init__(self, parent=None):
-        super(ToggleFavouriteButton, self).__init__(parent=parent)
-        description = u'Ctrl+Shift+F  |  Show starred only'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+Shift+F'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'favourite', c, common.INLINE_ICON_SIZE)
+        super(ToggleFavouriteButton, self).__init__(
+            u'favourite',
+            u'Show starred only',
+            parent=parent
+        )
 
     def state(self):
         val = self.current().model().filterFlag(common.MarkedAsFavourite)
@@ -316,42 +243,26 @@ class ToggleFavouriteButton(ControlButton):
             self.hide()
 
 
-class SlackButton(ControlButton):
+class SlackButton(BaseControlButton):
     """The button used to open slack."""
 
     def __init__(self, parent=None):
-        super(SlackButton, self).__init__(parent=parent)
-        description = u'Alt+S  |  Open Slack'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Alt+S'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
+        super(SlackButton, self).__init__(
+            u'slack',
+            u'Open Slack',
+            parent=parent
+        )
 
     @QtCore.Slot()
     def action(self):
         """Opens the set slack workspace."""
         QtGui.QDesktopServices.openUrl(common.SLACK_URL)
 
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'slack', c, common.INLINE_ICON_SIZE)
-
     def state(self):
         return True
 
 
-class CollapseSequenceMenu(BaseContextMenu):
-    def __init__(self, parent=None):
-        super(CollapseSequenceMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_collapse_sequence_menu()
-
-
-class AddButton(ControlButton):
+class AddButton(BaseControlButton):
     """The buttons responsible for adding new items.
 
     The functionality differs based on the currently selected tab:
@@ -362,34 +273,11 @@ class AddButton(ControlButton):
     """
 
     def __init__(self, parent=None):
-        super(AddButton, self).__init__(parent=parent)
-        description = u'Ctrl+N  |  Adds a new item'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+N'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        if self._parent.currentIndex() == 0:
-            return ImageCache.get_rsc_pixmap(u'bookmark', c, common.INLINE_ICON_SIZE)
-        if self._parent.currentIndex() == 1:
-            return ImageCache.get_rsc_pixmap(u'add', c, common.INLINE_ICON_SIZE)
-        if self._parent.currentIndex() == 2:
-            return ImageCache.get_rsc_pixmap(u'add_file', c, common.INLINE_ICON_SIZE)
-        return ImageCache.get_rsc_pixmap(u'add', c, common.INLINE_ICON_SIZE)
-
-    def enterEvent(self, event):
-        if self._parent.currentIndex() == 0:
-            self.setStatusTip(u'Click to add a new Bookmark')
-        if self._parent.currentIndex() == 2:
-            self.setStatusTip(
-                u'Click to add a new placeholder file. This can be used as a file-name template.')
-        super(AddButton, self).enterEvent(event)
+        super(AddButton, self).__init__(
+            u'add',
+            u'Click to add a new bookmark, asset, or file...',
+            parent=parent
+        )
 
     def state(self):
         if self._parent.currentIndex() == 0:
@@ -404,164 +292,74 @@ class AddButton(ControlButton):
             return False
         return False
 
+    def add_asset(self):
+        from gwbrowser.addassetwidget import AddAssetWidget
+
+        view = self._parent.widget(0)
+        model = view.model().sourceModel()
+        bookmark = model.active_index()
+        if not bookmark.isValid():
+            return
+
+        bookmark = bookmark.data(common.ParentRole)
+        bookmark = u'/'.join(bookmark)
+        widget = AddAssetWidget(
+            bookmark, parent=self._parent)
+        pos = self.window().rect().center()
+        pos = self.window().mapToGlobal(pos)
+        widget.move(
+            pos.x() - (widget.width() / 2),
+            pos.y() - (widget.height() / 2),
+        )
+
+        cwidget = self.parent().parent().stackedwidget.currentWidget()
+        cwidget.disabled_overlay_widget.show()
+        widget.exec_()
+
+        if not widget.last_asset_added:
+            cwidget.disabled_overlay_widget.hide()
+            return
+
+        model.modelDataResetRequested.emit()
+        view = self._parent.widget(1)
+        for n in xrange(view.model().rowCount()):
+            index = view.model().index(n, 0)
+            if index.data(QtCore.Qt.DisplayRole).lower() == widget.last_asset_added.lower():
+                view.selectionModel().setCurrentIndex(
+                    index, QtCore.QItemSelectionModel.ClearAndSelect)
+                view.scrollTo(index)
+                break
+
+        cwidget.disabled_overlay_widget.hide()
+        return
+
+    def create_file(self):
+        """Adds an empty reference file."""
+        from gwbrowser.addfilewidget import AddFileWidget
+        widget = AddFileWidget(u'temp')
+
+        if widget.exec_() == QtWidgets.QDialog.Accepted:
+            file_path = widget.filePath()
+            with open(file_path, 'w') as f:
+                f.write(u'A temporary reference file created by GWBrowser...')
+                common.reveal(file_path)
+
+
+
     @QtCore.Slot()
     def action(self):
-        """Action to take when the plus icon is clicked.
-
-        Note:
-            Adding assets is not yet implemented. I'll work this out for a future
-            release.
-
-        """
+        """``AddButton`` action."""
         # Bookmark
         if self._parent.currentIndex() == 0:
             self.current().show_add_bookmark_widget()
             return
-
         # Asset
         if self._parent.currentIndex() == 1:
-            from gwbrowser.addassetwidget import AddAssetWidget
-
-            view = self._parent.widget(0)
-            model = view.model().sourceModel()
-            bookmark = model.active_index()
-            if not bookmark.isValid():
-                return
-
-            bookmark = bookmark.data(common.ParentRole)
-            bookmark = u'/'.join(bookmark)
-            widget = AddAssetWidget(
-                bookmark, parent=self._parent)
-            pos = self.window().rect().center()
-            pos = self.window().mapToGlobal(pos)
-            widget.move(
-                pos.x() - (widget.width() / 2),
-                pos.y() - (widget.height() / 2),
-            )
-
-            cwidget = self.parent().parent().stackedwidget.currentWidget()
-            cwidget.disabled_overlay_widget.show()
-            widget.exec_()
-
-            if not widget.last_asset_added:
-                cwidget.disabled_overlay_widget.hide()
-                return
-
-            model.modelDataResetRequested.emit()
-            view = self._parent.widget(1)
-            for n in xrange(view.model().rowCount()):
-                index = view.model().index(n, 0)
-                if index.data(QtCore.Qt.DisplayRole).lower() == widget.last_asset_added.lower():
-                    view.selectionModel().setCurrentIndex(
-                        index, QtCore.QItemSelectionModel.ClearAndSelect)
-                    view.scrollTo(index)
-                    break
-
-            cwidget.disabled_overlay_widget.hide()
+            self.add_asset()
             return
-
         # This will open the Saver to save a new file
         if self._parent.currentIndex() == 2:
-            if not self._parent.currentWidget().model().sourceModel()._parent_item:
-                return
-            import gwbrowser.addfilewidget as saver
-
-            index = self._parent.currentWidget().selectionModel().currentIndex()
-            if index.isValid():
-                if not index.data(common.FileInfoLoaded):
-                    return
-
-            bookmark_model = BookmarksModel()
-            asset_model = AssetModel()
-
-            extension = u'ext'  # This is a generic extension that can be overriden
-            currentfile = None
-            data_key = self.current().model().sourceModel().data_key()
-            subfolder = data_key if data_key else u'/'
-
-            if index.isValid():
-                # When there is a file selected, we will check if it is a sequence
-                # increment the version number if it is.
-                iscollapsed = common.is_collapsed(
-                    index.data(QtCore.Qt.StatusTipRole))
-                if iscollapsed:
-                    # Replacing the frame-number with placeholder characters
-                    currentfile = iscollapsed.expand(ur'\1{}\3')
-                    currentfile = currentfile.format(
-                        u'#' * len(index.data(common.FramesRole)[-1]))
-                else:
-                    # Getting the last frame of the sequence
-                    currentfile = common.get_sequence_endpath(
-                        index.data(QtCore.Qt.StatusTipRole))
-                extension = currentfile.split(u'.').pop()
-
-            # If both the currentfile and the data_key are valid we'll set
-            # the default location to be the subfolder of the current file.
-            if currentfile and data_key:
-                # Removing the parentpath
-                server, job, root, asset, _, _ = index.data(common.ParentRole)
-                parentpath = u'/'.join((server, job, root, asset))
-                subfolder = index.data(QtCore.Qt.StatusTipRole)
-                subfolder = QtCore.QFileInfo(subfolder)
-                subfolder = subfolder.dir().path()
-                subfolder = subfolder.replace(parentpath, '')
-            else:
-                subfolder = u'{}/{}'.format(data_key, subfolder)
-
-            subfolder = subfolder.strip(u'/')
-
-            widget = saver.AddFileWidget(
-                bookmark_model,
-                asset_model,
-                extension,
-                currentfile=currentfile,
-                parent=self.parent().parent()
-            )
-
-            widget.finished.connect(bookmark_model.deleteLater)
-            widget.finished.connect(asset_model.deleteLater)
-            widget.finished.connect(widget.deleteLater)
-
-            @QtCore.Slot(unicode)
-            def fileSaveRequested(path):
-                f = QtCore.QFile(path)
-                if not f.exists():
-                    f.open(QtCore.QIODevice.ReadWrite)
-                    f.close()
-
-                path = QtCore.QDir.toNativeSeparators(path)
-                QtGui.QClipboard().setText(path)
-                common.reveal(path)
-
-            @QtCore.Slot(tuple)
-            def fileDescriptionAdded(args):
-                """Slot responsible for saving the description"""
-                server, job, root, filepath, description = args
-                settings = Settings.AssetSettings(
-                    QtCore.QModelIndex(), args=(server, job, root, filepath))
-                settings.setValue(u'config/description', description)
-
-            @QtCore.Slot(tuple)
-            def fileThumbnailAdded(args):
-                server, job, root, filepath, image = args
-                settings = Settings.AssetSettings(
-                    QtCore.QModelIndex(), args=(server, job, root, filepath))
-                if not image.isNull():
-                    image.save(settings.thumbnail_path())
-
-                fileswidget = self.parent().parent().findChild(FilesWidget)
-                sizehint = fileswidget.itemDelegate().sizeHint(None, None)
-                height = sizehint.height() - 2
-                ImageCache.get(settings.thumbnail_path(),
-                               height, overwrite=True)
-
-                self.parent().parent().findChild(FilesWidget).model(
-                ).sourceModel().modelDataResetRequested.emit()
-
-            widget.fileSaveRequested.connect(fileSaveRequested)
-            widget.fileDescriptionAdded.connect(fileDescriptionAdded)
-            widget.fileThumbnailAdded.connect(fileThumbnailAdded)
-            widget.exec_()
+            self.create_file()
 
     def repaint(self):
         """The button is only visible when showing bookmarks or files."""
@@ -572,24 +370,15 @@ class AddButton(ControlButton):
             self.hide()
 
 
-class GenerateThumbnailsButton(ControlButton):
+class GenerateThumbnailsButton(BaseControlButton):
     """Custom QLabel with a `clicked` signal."""
 
     def __init__(self, parent=None):
-        super(GenerateThumbnailsButton, self).__init__(parent=parent)
-        description = u'Ctrl+M  |  Toggle thumbnail generation. If experiencing performance issues, turn this off!'
-        self.setToolTip(description)
-        self.setStatusTip(description)
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+M'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
-
-    def pixmap(self, c):
-        return ImageCache.get_rsc_pixmap(u'spinner_btn', c, common.INLINE_ICON_SIZE)
+        super(GenerateThumbnailsButton, self).__init__(
+            u'spinner_btn',
+            u'Toggle thumbnail generation. If experiencing performance issues, turn this off!',
+            parent=parent
+        )
 
     def state(self):
         """The state of the auto-thumbnails"""
@@ -621,8 +410,17 @@ class GenerateThumbnailsButton(ControlButton):
             self.hide()
 
 
-class PaintedTextButton(ClickableLabel):
+class CollapseSequenceMenu(BaseContextMenu):
+    def __init__(self, parent=None):
+        super(CollapseSequenceMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+        self.add_collapse_sequence_menu()
+
+
+class PaintedTextButton(QtWidgets.QLabel):
     """Baseclass for text-based control buttons."""
+    clicked = QtCore.Signal()
+    doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
     def __init__(self, height=common.CONTROL_HEIGHT, parent=None):
@@ -631,7 +429,6 @@ class PaintedTextButton(ClickableLabel):
         self.index = 0
 
         self.font = QtGui.QFont(common.PrimaryFont)
-        self.font.setPointSize(self.font.pointSize() + 1)
 
         self.setStatusTip(u'')
         self.setFixedHeight(height)
@@ -700,6 +497,16 @@ class PaintedTextButton(ClickableLabel):
             painter.drawRect(rect)
         painter.end()
 
+    def mouseReleaseEvent(self, event):
+        """Only triggered when the left buttons is pressed."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        if event.button() == QtCore.Qt.LeftButton:
+            self.clicked.emit()
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit()
+
 
 class BookmarksTabButton(PaintedTextButton):
     """The button responsible for revealing the ``BookmarksWidget``"""
@@ -708,14 +515,7 @@ class BookmarksTabButton(PaintedTextButton):
         super(BookmarksTabButton, self).__init__(parent=parent)
         self.index = 0
         self.set_text(u'Bookmarks')
-        self.setStatusTip(u'Ctrl+1 | Click to see the list of added bookmarks')
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+1'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
+        self.setStatusTip(u'Click to see the list of added bookmarks')
 
 
 class AssetsTabButton(PaintedTextButton):
@@ -726,14 +526,7 @@ class AssetsTabButton(PaintedTextButton):
         self.index = 1
         self.set_text(u'Assets')
         self.setStatusTip(
-            u'Ctrl+2  |  Click to see the list of available assets')
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+2'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
+            u'Click to see the list of available assets')
 
 
 class FilesTabButton(PaintedTextButton):
@@ -746,15 +539,9 @@ class FilesTabButton(PaintedTextButton):
         self.index = 2
         self.set_text(u'Files')
         self.setStatusTip(
-            u'Ctrl+3  |  Click to see or change the current task folder')
-        self.clicked.connect(self.show_view, type=QtCore.Qt.QueuedConnection)
+            u'Click to see or change the current task folder')
 
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+3'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
+        self.clicked.connect(self.show_view)
 
     def paintEvent(self, event):
         """Indicating the visibility of the DataKeyView."""
@@ -837,14 +624,7 @@ class FavouritesTabButton(PaintedTextButton):
         super(FavouritesTabButton, self).__init__(parent=parent)
         self.index = 3
         self.set_text(u'Starred')
-        self.setStatusTip(u'Ctrl+4  |  Click to see your saved favourites')
-
-        shortcut = QtWidgets.QShortcut(
-            QtGui.QKeySequence(u'Ctrl+4'), self)
-        shortcut.setAutoRepeat(False)
-        shortcut.setContext(QtCore.Qt.WindowShortcut)
-        shortcut.activated.connect(self.clicked)
-        shortcut.activated.connect(self.repaint)
+        self.setStatusTip(u'Click to see your saved favourites')
 
 
 class ListControlWidget(QtWidgets.QWidget):

@@ -11,16 +11,12 @@ their contents into a specified directory.
 
 """
 
-import re
 import functools
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.common as common
-from gwbrowser.addfilewidget import NameEditor
-from gwbrowser.addfilewidget import Check
-from gwbrowser.addfilewidget import SaverHeaderWidget
+from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-from gwbrowser.standalonewidgets import CloseButton
 
 
 class AddJobWidgetContextMenu(BaseContextMenu):
@@ -49,7 +45,8 @@ class AddJobWidget(QtWidgets.QDialog):
         super(AddJobWidget, self).__init__(parent=parent)
         self._path = path
 
-        self.checkmark_widget = None
+        self.save_button = None
+        self.cancel_button = None
         self.last_asset_added = None
         self.name_widget = None
 
@@ -77,82 +74,37 @@ class AddJobWidget(QtWidgets.QDialog):
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(
-            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH,
-            common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+        o = common.MARGIN
+        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setSpacing(o)
         #
-        self.setFixedWidth(common.WIDTH)
 
         #
-        mainrow = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(mainrow)
-        self.layout().addWidget(mainrow)
-        mainrow.layout().setContentsMargins(
-            common.MARGIN, 0, common.MARGIN, 0)
-        mainrow.layout().setSpacing(common.INDICATOR_WIDTH)
-        mainrow.layout().setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-        # top label
-        from gwbrowser.addbookmarkswidget import PaintedLabel
+        row = add_row(u'', parent=self)
         label = PaintedLabel(u'Add new job', size=common.LARGE_FONT_SIZE)
-        mainrow.layout().addSpacing(0)
-        mainrow.layout().addWidget(label, 0)
+        row.layout().addWidget(label)
+        row.layout().addStretch(1)
 
         #
-        mainrow = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(mainrow)
-        mainrow.layout().setContentsMargins(
-            common.MARGIN, 0, 0, 0)
-        mainrow.layout().setSpacing(0)
-        mainrow.layout().setAlignment(QtCore.Qt.AlignCenter)
-        #
-        self.layout().addWidget(mainrow)
-        #
-        column = QtWidgets.QWidget()
-        QtWidgets.QVBoxLayout(column)
-        column.layout().setContentsMargins(0, 0, 0, 0)
-        column.layout().setSpacing(0)
-        column.layout().setAlignment(QtCore.Qt.AlignCenter)
-        mainrow.layout().addWidget(column)
+        row = add_row(u'Job name:', parent=self)
+        self.layout().addWidget(row, 1)
 
-        # Row 1
-        row = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(row)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(common.INDICATOR_WIDTH)
-        row.layout().setAlignment(QtCore.Qt.AlignCenter)
-        column.layout().addWidget(row, 1)
-
-        self.name_widget = NameEditor(parent=self)
-        self.checkmark_widget = Check(parent=self)
-
+        self.name_widget = QtWidgets.QLineEdit(parent=self)
+        self.name_widget.setFixedWidth(200)
+        regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
+        validator = QtGui.QRegExpValidator(regex)
+        self.name_widget.setValidator(validator)
         row.layout().addWidget(self.name_widget, 1)
 
-        mainrow.layout().addWidget(self.checkmark_widget)
-        self.layout().insertWidget(0, SaverHeaderWidget(parent=self))
+        self.save_button = PaintedButton(u'Add job', parent=self)
+        self.cancel_button = PaintedButton(u'Cancel', parent=self)
+        row.layout().addWidget(self.save_button)
+        row.layout().addWidget(self.cancel_button)
         self.layout().addSpacing(common.MARGIN)
 
     def _connectSignals(self):
-        self.checkmark_widget.clicked.connect(lambda: self.done(
-            QtWidgets.QDialog.Accepted), type=QtCore.Qt.QueuedConnection)
-        self.name_widget.textEdited.connect(self.validate_text)
-        self.shutdown.connect(self.close)
-        closebutton = self.findChild(CloseButton)
-        closebutton.clicked.connect(
-            lambda: self.done(QtWidgets.QDialog.Rejected), type=QtCore.Qt.QueuedConnection)
-
-    @QtCore.Slot(unicode)
-    def validate_text(self, text):
-        """Strips all invalid characters from the input string."""
-        cp = self.name_widget.cursorPosition()
-        _text = re.sub(ur'[^a-z0-9\_\-]', u'_', text, flags=re.IGNORECASE)
-        _text = re.sub(ur'[_]{2,}', u'_', _text)
-        _text = re.sub(ur'[-]{2,}', u'-', _text)
-        if len(_text) > 35:
-            _text = _text[0:35]
-        self.name_widget.setText(_text)
-        self.name_widget.setCursorPosition(cp)
+        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
 
     def done(self, result):
         """Slot called by the check button to initiate the save."""
@@ -215,7 +167,6 @@ class AddJobWidget(QtWidgets.QDialog):
             u'Do you want to add another asset?')
         if mbox.exec_() == QtWidgets.QMessageBox.Yes:
             self.name_widget.setText(u'')
-            self.description_widget.setText(u'')
             return
         else:
             self.last_asset_added = self.name_widget.text()
@@ -229,3 +180,9 @@ class AddJobWidget(QtWidgets.QDialog):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    w = AddJobWidget('C:/temp')
+    w.exec_()
+    app.exec_()
