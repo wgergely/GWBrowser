@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-"""GWBrowser - Maya plug-in."""
+"""mGWBrowser.py is the main Maya plugin of GWBrowser.
+This file should be loaded a plugin using the Maya plugin manager.
+
+"""
 
 import sys
 import re
@@ -12,6 +15,8 @@ import maya.api.OpenMaya as OpenMaya
 import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
+
+__version__ = '0.1.9'
 
 
 def maya_useNewAPI():
