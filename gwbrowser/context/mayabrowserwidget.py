@@ -649,7 +649,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @QtCore.Slot()
     def active_changed(self):
         workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
-        
+
         mbox = QtWidgets.QMessageBox()
         mbox.setIcon(QtWidgets.QMessageBox.Information)
         mbox.setWindowTitle(u'GWBrowser - Workspace changed')
@@ -688,7 +688,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @QtCore.Slot()
     def workspace_warning(self, *args):
         """Will give the user a warning when their workspace does not match
-        with their current file.
+        with their file-save destination.
 
         """
         workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
