@@ -447,6 +447,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         by the resize methods.
 
         """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if self.accept_resize_event(event):
             w = self.stackedwidget.currentWidget()
             w.viewport().setHidden(True)
@@ -465,6 +467,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         widgets geometry.
 
         It identifies the dragable edge area, sets the cursor override."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         if self.resize_initial_pos == QtCore.QPoint(-1, -1):
             self.set_resize_icon(event, clamp=True)
             return
@@ -490,6 +494,8 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         w = self.stackedwidget.currentWidget()
         w.viewport().setHidden(False)
 

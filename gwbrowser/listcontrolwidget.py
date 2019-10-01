@@ -505,6 +505,8 @@ class PaintedTextButton(QtWidgets.QLabel):
             self.clicked.emit()
 
     def mouseDoubleClickEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.doubleClicked.emit()
 
 

@@ -93,15 +93,16 @@ class ProgressWidget(QtWidgets.QWidget):
         )
         painter.end()
 
+    def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.close()
 
 class DisabledOverlayWidget(ProgressWidget):
     """Static overlay widget shown when there's a blocking window placed
     on top of the main widget.
 
     """
-
-    def __init__(self, parent=None):
-        super(DisabledOverlayWidget, self).__init__(parent=parent)
 
     def paintEvent(self, event):
         """Custom message painted here."""

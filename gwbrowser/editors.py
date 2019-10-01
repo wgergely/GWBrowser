@@ -631,6 +631,8 @@ class ThumbnailLabel(QtWidgets.QLabel):
         self.repaint()
 
     def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         self.clicked.emit(self._path)
 
     def paintEvent(self, event):

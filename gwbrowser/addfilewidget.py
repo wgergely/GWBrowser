@@ -1279,6 +1279,8 @@ class FilePathWidget(QtWidgets.QWidget):
         painter.end()
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         file_path = self.window().get_file_path()
         file_info = QtCore.QFileInfo(file_path)
 

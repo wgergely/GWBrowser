@@ -285,6 +285,8 @@ class DataKeyView(QtWidgets.QListView):
         self._context_menu_active = False
 
     def mousePressEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
         index = self.indexAt(event.pos())
         if not index.isValid():
             self.hide()
