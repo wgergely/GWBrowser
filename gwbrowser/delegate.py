@@ -879,6 +879,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         color = common.TEXT if hover else common.SECONDARY_TEXT
         color = common.TEXT if selected else color
+        painter.setOpacity(0.5)
         rect = self._draw(painter, font, rect, text, align,
                           color, option, kwargs['left'])
 
@@ -896,6 +897,12 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT if hover else common.REMOVE
             color = common.TEXT_SELECTED if selected else color
             text = u'{}\n'.format(index.data(common.DescriptionRole))
+            painter.setOpacity(1.0)
+            _rect = QtCore.QRect(rect)
+            _rect.moveLeft(_rect.left() + 1)
+            _rect.moveTop(_rect.top() + 1)
+            self._draw(painter, font, _rect, text, align,
+                              common.SEPARATOR, option, kwargs['left'])
             rect = self._draw(painter, font, rect, text, align,
                               color, option, kwargs['left'])
             return metrics.width(text)
@@ -1047,10 +1054,11 @@ class FilesWidgetDelegate(BaseDelegate):
 
             # The frame-range - this can get quite long - we're trimming it to
             # avoid long and meaningless names
-            frange = match.group(2).upper()
+            frange = match.group(2)
+            frange = re.sub(r'[\[\]]*', u'', frange)
             if len(frange) > 17:
                 frange = u'{}...{}'.format(frange[0:8], frange[-8:])
-            color = common.TEXT_SELECTED if selected else common.FAVOURITE
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
             color = common.TEXT_SELECTED if active else color
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw(painter, font, rect, frange,
@@ -1078,7 +1086,7 @@ class FilesWidgetDelegate(BaseDelegate):
             rect = self._draw(
                 painter, font, rect, text, align, color, option, kwargs['left'])
             # The frame-range
-            color = common.TEXT_SELECTED if selected else common.FAVOURITE
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
             color = common.TEXT_SELECTED if active else color
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw(
