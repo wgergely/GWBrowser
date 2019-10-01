@@ -981,7 +981,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         file_path = u'{workspace}/{exports}/abc/{set}_v0001.abc'.format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
-            set=set_name
+            set=set_name.split(u':').pop()
         )
 
         # Let's make sure destination folder exists
