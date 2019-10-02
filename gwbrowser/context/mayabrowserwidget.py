@@ -782,8 +782,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
             OpenMaya.MSceneMessage.kAfterSave, self.save_warning)
         self._callbacks.append(callback)
 
-
-
     def remove_context_callbacks(self):
         """This method is called by the Maya plug-in when unloading."""
         sys.stdout.write('\n# GWBrowser: Removing callbacks...\n\n')
