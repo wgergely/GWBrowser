@@ -16,7 +16,7 @@ import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 
 
 def maya_useNewAPI():
@@ -36,9 +36,9 @@ def initializePlugin(plugin):
         plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
 
     try:
-        from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
-        btn = MayaBrowserButton()
-        cmds.evalDeferred(btn.initialize)
+        import gwbrowser.context.mayabrowserwidget as mayabrowserwidget
+        mayabrowserwidget.maya_button = mayabrowserwidget.MayaBrowserButton()
+        cmds.evalDeferred(mayabrowserwidget.maya_button.initialize)
     except ImportError as err:
         raise ImportError(err)
     except Exception as err:
