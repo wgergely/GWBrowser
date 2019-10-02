@@ -46,7 +46,8 @@ from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.addfilewidget import AddFileWidget
 
 
-
+maya_button = None
+"""The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
 @QtCore.Slot()
 def show():
@@ -250,8 +251,12 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                 continue
             if is_template(shape):
                 continue
-            if not cmds.attributeQuery(u'worldMesh', node=shape, exists=True):
-                continue
+
+            # Camera's don't have mesh nodes but we still want to export them
+            if cmds.nodeType(shape) != u'camera':
+                if not cmds.attributeQuery(u'worldMesh', node=shape, exists=True):
+                    continue
+
             valid_shapes.append(shape)
 
     cmds.select(clear=True)
@@ -264,15 +269,19 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         return
 
     for shape in valid_shapes:
-        world_shape = cmds.createNode(u'mesh', name=u'{}:{}'.format(ns, shape))
+        if cmds.nodeType(shape) != u'camera':
+            world_shape = cmds.createNode(u'mesh', name=u'{}:{}'.format(ns, shape))
+            cmds.connectAttr(u'{}.worldMesh[0]'.format(
+                shape), u'{}.inMesh'.format(world_shape), force=True)
+            cmds.connectAttr(u'{}.uvSet'.format(shape),
+                             u'{}.uvSet'.format(world_shape), force=True)
+        else:
+            world_shape = shape
+
         world_shapes.append(world_shape)
 
-        cmds.connectAttr(u'{}.worldMesh[0]'.format(
-            shape), u'{}.inMesh'.format(world_shape), force=True)
-        cmds.connectAttr(u'{}.uvSet'.format(shape),
-                         u'{}.uvSet'.format(world_shape), force=True)
-
     world_transforms = []
+    
     for shape in valid_shapes:
         transform = cmds.listRelatives(shape, type=u'transform', p=True)
         if transform:
@@ -351,11 +360,68 @@ class BrowserButtonContextMenu(BaseContextMenu):
         super(BrowserButtonContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
 
+        self.add_maya_actions_menu()
+        #
+        self.add_separator()
+        #
+        self.add_export_alembic_menu()
+        #
+        self.add_separator()
+        #
         self.add_show_menu()
         #
         self.add_separator()
         #
         self.add_toolbar_menu()
+
+    @contextmenu
+    def add_maya_actions_menu(self, menu_set):
+        menu_set[u'save'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE),
+            u'text': u'Save version...',
+            u'action': self.parent().saveRequested.emit
+        }
+        menu_set[u'save_increment'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE),
+            u'text': u'Save quick increment...',
+            u'action': self.parent().incrementRequested.emit
+        }
+        return menu_set
+
+    @contextmenu
+    def add_export_alembic_menu(self, menu_set):
+        objectset_pixmap = ImageCache.get_rsc_pixmap(
+            u'set', None, common.INLINE_ICON_SIZE)
+
+        outliner_set_members = get_outliner_sets_members()
+
+        key = u'alembic_animation'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = u'Export timeline to alembic'
+        for k in sorted(list(outliner_set_members)):
+            v = outliner_set_members[k]
+            _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
+            menu_set[key][_k] = {
+                u'text': u'{} ({})'.format(_k.upper(), len(v)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(self.parent().alembicExportRequested.emit, k, v, False)
+            }
+
+        key = u'alembic_frame'
+        menu_set[key] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(key)] = objectset_pixmap
+        menu_set[u'{}:text'.format(key)] = u'Export current frame to alembic'
+        for k in sorted(list(outliner_set_members)):
+            v = outliner_set_members[k]
+            _k = k.replace(u':', u' - ')  # Namespace and speudo conflict
+            menu_set[key][_k] = {
+                u'text': u'{} ({})'.format(_k.upper(), len(v)),
+                u'icon': objectset_pixmap,
+                u'action': functools.partial(self.parent().alembicExportRequested.emit, k, v, True)
+            }
+
+        return menu_set
 
     @contextmenu
     def add_show_menu(self, menu_set):
@@ -405,6 +471,10 @@ class MayaBrowserButton(ClickableIconButton):
     """Small widget to embed into the context to toggle the BrowserWidget's visibility.
 
     """
+    saveRequested = QtCore.Signal()
+    incrementRequested = QtCore.Signal()
+    alembicExportRequested = QtCore.Signal(unicode, dict, bool)
+
     context_menu_cls = BrowserButtonContextMenu
 
     def __init__(self, parent=None):
@@ -415,6 +485,7 @@ class MayaBrowserButton(ClickableIconButton):
             description=u'Click to toggle GWBrowser.\nRight-click to see addittional options.',
             parent=parent
         )
+
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.clicked.connect(show)
 
@@ -502,7 +573,6 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         self.add_separator()
 
         self.add_export_alembic_menu()
-        # self.add_writeobj_menu()
 
     @contextmenu2
     def add_scene_actions_menu(self, menu_set, browserwidget=None):
@@ -616,7 +686,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint: disable=E1139
+class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
 
     def __init__(self, parent=None):
@@ -636,7 +706,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
-
         self.browserwidget.initialized.connect(self.connectSignals)
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
@@ -644,6 +713,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self.browserwidget.active_monitor.activeAssetChanged.connect(self.active_changed)
 
         self.browserwidget.initialize()
+        if maya_button is not None:
+            maya_button.saveRequested.connect(self.save_scene)
+            maya_button.incrementRequested.connect(lambda: self.save_scene(increment=True))
+            maya_button.alembicExportRequested.connect(self.export_set_to_alembic)
+
         self._add_shortcuts()
 
     @QtCore.Slot()
@@ -672,6 +746,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         """Global maya shortcut to do a save as"""
         self.browserwidget.add_shortcut(
             u'Ctrl+Alt+Shift+S', (self.save_scene, ), context=QtCore.Qt.ApplicationShortcut)
+        self.browserwidget.add_shortcut(
+            u'Ctrl+Alt+Shift+B', (show, ), context=QtCore.Qt.ApplicationShortcut)
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -1035,6 +1111,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         sys.stdout.write(
             u'# GWBrowser: Alembic referenced: {}\n'.format(file_info.filePath()))
 
+    @QtCore.Slot(unicode)
+    @QtCore.Slot(dict)
+    @QtCore.Slot(bool)
     def export_set_to_alembic(self, set_name, set_members, frame=False):
         """Main method to initiate an alembic export using Browser's
         saver to generate the filename.
