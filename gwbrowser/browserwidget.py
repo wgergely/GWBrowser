@@ -7,6 +7,7 @@ It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
+from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.threads import BaseThread
 from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
@@ -16,29 +17,25 @@ from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings, Active
-from gwbrowser.todoEditor import CustomButton
 from gwbrowser.preferenceswidget import PreferencesWidget
 
 
-class VersionLabel(CustomButton):
+class SettingsButton(ClickableIconButton):
     """Small version label responsible for displaying information
     about GWBrowser."""
 
-    def __init__(self, parent=None):
-        import gwbrowser
-        import OpenImageIO.OpenImageIO as oiio
-        message = u'Click to read the documentation | v{} | PySide2 {} | OpenImageIO {}'.format(
-            gwbrowser.__version__,
-            QtCore.__version__,
-            oiio.__version__
-        )
-        super(VersionLabel, self).__init__(
-            u'info',
-            size=common.INLINE_ICON_SIZE,
-            message=message,
-            parent=parent)
-        self.pressed.connect(
-            lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
+    def __init__(self, pixmap, colors, size, description=u'', parent=None):
+        super(SettingsButton, self).__init__(pixmap, colors, size, description=description, parent=parent)
+
+        # import gwbrowser
+        # import OpenImageIO.OpenImageIO as oiio
+        # message = u'Click to read the documentation | v{} | PySide2 {} | OpenImageIO {}'.format(
+        #     gwbrowser.__version__,
+        #     QtCore.__version__,
+        #     oiio.__version__
+        # )
+        self.clicked.connect(self.parent().preferences_widget.show)
+
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -171,8 +168,11 @@ class BrowserWidget(QtWidgets.QWidget):
         timer.timeout.connect(timer.deleteLater)
         timer.start()
 
+        self.stackedwidget.currentWidget().setFocus()
+
         self._initialized = True
         self.initialized.emit()
+
         # Anything here will be run the first time gwbrowser is launched
         if local_settings.value(u'firstrun') is None:
             local_settings.setValue(u'firstrun', False)
@@ -224,13 +224,19 @@ class BrowserWidget(QtWidgets.QWidget):
         self.init_progress = u'Finishing...'
         self.repaint()
 
-        statusbar = QtWidgets.QStatusBar()
+        statusbar = QtWidgets.QStatusBar(parent=self)
         statusbar.setSizeGripEnabled(False)
 
-        version_widget = VersionLabel(parent=statusbar)
-        version_widget.message.connect(
+        settings_button = SettingsButton(
+            u'info',
+            (common.TEXT_SELECTED, common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE,
+            description=u'Click to open the settings',
+            parent=self
+        )
+        settings_button.message.connect(
             lambda s: statusbar.showMessage(s, 4000))
-        statusbar.addPermanentWidget(version_widget)
+        statusbar.addPermanentWidget(settings_button)
         # statusbar.addPermanentWidget(grip)
         statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -312,8 +318,6 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Alt+Right', (self.next_tab, ), repeat=True)
         self.add_shortcut(
             u'Alt+Left', (self.previous_tab, ), repeat=True)
-
-
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.
@@ -734,6 +738,8 @@ class BrowserWidget(QtWidgets.QWidget):
         """
         if not self._initialized:
             self.initializer.start()
+        else:
+            self.stackedwidget.currentWidget().setFocus()
 
     def resizeEvent(self, event):
         """Custom resize event."""

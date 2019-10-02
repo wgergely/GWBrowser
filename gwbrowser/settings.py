@@ -52,6 +52,11 @@ class Active(QtCore.QObject):
         current state differs from the saved state.
 
         """
+        # When active sync is disabled we won't
+        val = local_settings.value('preferences/MayaSettings/disable_active_sync')
+        if val is True:
+            return
+
         active_paths = self.paths()
 
         if self._active_paths == active_paths:

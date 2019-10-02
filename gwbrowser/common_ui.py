@@ -31,7 +31,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
 
     if label:
         l = PaintedLabel(label, size=common.SMALL_FONT_SIZE, color=common.SECONDARY_TEXT, parent=parent)
-        l.setFixedWidth(80)
+        l.setFixedWidth(120)
         l.setDisabled(True)
         if padding:
             w.layout().addSpacing(padding)
@@ -138,6 +138,7 @@ class ClickableIconButton(QtWidgets.QLabel):
 
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
         super(ClickableIconButton, self).__init__(parent=parent)
+
         self._pixmap = pixmap
         self._size = size
 

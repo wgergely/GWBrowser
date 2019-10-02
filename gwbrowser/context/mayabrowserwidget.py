@@ -35,7 +35,7 @@ try:  # No need to use our bundled alembic module if one is already present in o
 except ImportError:
     from gwalembic.alembic import Abc
 
-from gwbrowser.settings import Active
+from gwbrowser.settings import Active, local_settings
 import gwbrowser.settings as Settings
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
@@ -469,7 +469,7 @@ class MayaBrowserButton(ClickableIconButton):
         alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
         if shift_modifier or alt_modifier or control_modifier:
-            self.customContextMenuRequested.emit()
+            self.customContextMenuRequested.emit(event.pos())
             return
 
         widget = self.context_menu_cls(parent=self)
@@ -648,6 +648,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
 
     @QtCore.Slot()
     def active_changed(self):
+        """Slot called when an active asset changes."""
+        val = local_settings.value(u'preferences/MayaSettings/disable_workspace_warnings')
+        if val is True:
+            return
+
         workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
 
         mbox = QtWidgets.QMessageBox()
@@ -686,11 +691,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         painter.end()
 
     @QtCore.Slot()
-    def workspace_warning(self, *args):
+    def save_warning(self, *args):
         """Will give the user a warning when their workspace does not match
-        with their file-save destination.
+        with their file save destination.
 
         """
+        val = local_settings.value(u'preferences/MayaSettings/disable_save_warnings')
+        if val is True:
+            return
+
         workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
         scene_file = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
 
@@ -766,11 +775,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
         self._callbacks.append(callback)
 
         # callback = OpenMaya.MSceneMessage.addCallback(
-        #     OpenMaya.MSceneMessage.kBeforeSave, self.workspace_warning)
+        #     OpenMaya.MSceneMessage.kBeforeSave, self.save_warning)
         # self._callbacks.append(callback)
 
         callback = OpenMaya.MSceneMessage.addCallback(
-            OpenMaya.MSceneMessage.kAfterSave, self.workspace_warning)
+            OpenMaya.MSceneMessage.kAfterSave, self.save_warning)
         self._callbacks.append(callback)
 
 
@@ -836,6 +845,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):  # pylint:
     @QtCore.Slot()
     def set_workspace(self):
         """Slot responsible for updating the Maya workspace."""
+        # When active sync is disabled we won't
+        val = local_settings.value('preferences/MayaSettings/disable_workspace_sync')
+        if val is True:
+            return
+
         index = self.browserwidget.assetswidget.model().sourceModel().active_index()
         if not index.isValid():
             return

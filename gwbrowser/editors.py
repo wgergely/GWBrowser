@@ -532,7 +532,7 @@ class FilterEditor(QtWidgets.QWidget):
             item.setData(common.DescriptionRole, key.upper())
             item.setData(QtCore.Qt.StatusTipRole, key.upper())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                150, common.INLINE_ICON_SIZE))
+                200, common.INLINE_ICON_SIZE))
 
             if self.editor_widget.text().lower() != key.lower():
                 scrollToItem = item
@@ -552,6 +552,18 @@ class FilterEditor(QtWidgets.QWidget):
 
         val = self.parent().currentWidget().model().sourceModel().keywords()
         return val
+
+    @QtCore.Slot()
+    def adjust_size(self):
+        if not self.parent():
+            return
+
+        rect = self.parent().rect()
+        pos = rect.topLeft()
+        pos = self.parent().mapToGlobal(pos)
+        self.move(pos)
+        self.setFocus()
+        self.resize(rect.width(), self.height())
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -593,22 +605,16 @@ class FilterEditor(QtWidgets.QWidget):
                 return
             self.close()
 
-    @QtCore.Slot()
-    def adjust_size(self):
-        if not self.parent():
-            return
-
-        rect = self.parent().rect()
-        pos = rect.topLeft()
-        pos = self.parent().mapToGlobal(pos)
-        self.move(pos)
-        self.setFocus()
-        self.resize(rect.width(), self.height())
-
     def showEvent(self, event):
         self.adjust_size()
+        if self.parent():
+            self.parent().currentWidget().disabled_overlay_widget.show()
         if not self.keywords():
             self.kw_row.hide()
+
+    def hideEvent(self, event):
+        if self.parent():
+            self.parent().currentWidget().disabled_overlay_widget.hide()
 
 class ThumbnailLabel(QtWidgets.QLabel):
     """Custom QLabel to select a thumbnail."""

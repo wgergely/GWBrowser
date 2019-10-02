@@ -7,62 +7,166 @@ import gwbrowser.common as common
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row, add_label, add_line_edit
 
 
-SECTIONS = (
-    {'name': u'Servers', 'description': u'Server preferences'},
-    {'name': u'Application', 'description': u'Common preferences'},
-    {'name': u'Folder templates', 'description': u'Various folder options'},
+get_sections = lambda: (
+    {'name': u'General', 'description': u'Common preferences', 'cls': ApplicationSettingsWidget},
+    {'name': u'Servers', 'description': u'Server preferences', 'cls': ServersSettingsWidget},
+    {'name': u'Maya', 'description': u'Maya settings', 'cls': MayaSettingsWidget},
+    # {'name': u'Folder templates', 'description': u'Various folder options', 'cls': TemplateSettingsWidget},
 )
 
 
-class ApplicationSettingsWidget(QtWidgets.QWidget):
+class BaseSettingsWidget(QtWidgets.QWidget):
+    def __init__(self, label, parent=None):
+        super(BaseSettingsWidget, self).__init__(parent=parent)
 
-    def __init__(self, parent=None):
-        super(ApplicationSettingsWidget, self).__init__(parent=parent)
-        self.setDisabled(False)
-        self._createUI()
-        self._connectSignals()
-
-    def _createUI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+        self.layout().setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
 
-        label = PaintedLabel(u'GWBrowser Settings',
-                             size=common.LARGE_FONT_SIZE, color=common.TEXT)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Maximum,
+            QtWidgets.QSizePolicy.Maximum,
+        )
+
+        label = PaintedLabel(label, size=common.LARGE_FONT_SIZE, color=common.TEXT)
         self.layout().addWidget(label)
 
+
+        self._createUI()
+        self._init_values()
+        self._connectSignals()
+
+    def _createUI(self):
+        pass
+
+    def _connectSignals(self):
+        pass
+
+    def _init_values(self):
+        pass
+
+    def name(self, name):
+        cls = self.__class__.__name__.replace(u'Widget', u'')
+        return u'preferences/{}/{}'.format(cls, name)
+
+class MayaSettingsWidget(BaseSettingsWidget):
+    def __init__(self, parent=None):
+        super(MayaSettingsWidget, self).__init__(u'Maya Settings', parent=parent)
+
+    def _createUI(self):
+        add_label(u'Bookmark & Asset Syncing', parent=self)
+
+        label = u'GWBrowser sessions are syncronised by default. Disable syncing below (default is "off"):'
+        label = QtWidgets.QLabel(label)
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+
+        row = add_row(u'Sync instances', parent=self)
+        self.sync_active_button = QtWidgets.QCheckBox(u'Disable instance syncing', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.sync_active_button)
+
+        add_label(u'Maya workspace syncing', parent=self)
+        label =u'The Maya workspace is always set to be the active GWBrowser asset by default. Click below to disable workspace syncing (default is "off"):'
+        label = QtWidgets.QLabel(label)
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+
+        row = add_row(u'Sync workspace', parent=self)
+        self.sync_maya_project_button = QtWidgets.QCheckBox(u'Disable workspace syncing', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.sync_maya_project_button)
+
+
+        label =u'Saving files outside the current workspace will shows a warning dialog. Click below to disable (default is "off"):'
+        label = QtWidgets.QLabel(label)
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Save warning', parent=self)
+        self.save_warning_button = QtWidgets.QCheckBox(u'Disable save warnings', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.save_warning_button)
+
+        label =u'When the asset is changed in a another session a warning message is show by default. Click below to disable (default is "off"):'
+        label = QtWidgets.QLabel(label)
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Workspace warning', parent=self)
+        self.workspace_warning_button = QtWidgets.QCheckBox(u'Disable workspace change warnings', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.workspace_warning_button)
+
+        self.layout().addStretch(1)
+
+    def _connectSignals(self):
+        self.sync_active_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_active_sync'), x))
+        self.sync_maya_project_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_sync'), x))
+        self.save_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
+        self.workspace_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
+
+    def _init_values(self):
+        val = local_settings.value(self.name(u'disable_active_sync'))
+        if val is not None:
+            self.sync_active_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'disable_workspace_sync'))
+        if val is not None:
+            self.sync_maya_project_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'disable_save_warnings'))
+        if val is not None:
+            self.save_warning_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'disable_workspace_warnings'))
+        if val is not None:
+            self.workspace_warning_button.setChecked(val)
+
+
+class ApplicationSettingsWidget(BaseSettingsWidget):
+
+    def __init__(self, parent=None):
+        super(ApplicationSettingsWidget, self).__init__(u'General Settings', parent=parent)
+        self.slack_url = None
+        self.reveal_asset_template = None
+        self.show_help = None
+        self.check_updates = None
+
+    def _createUI(self):
         import gwbrowser
         add_label(u'You\'re running GWBrowser v{}'.format(gwbrowser.__version__), parent=self)
 
-        row = add_row(u'Update:', parent=self)
+        row = add_row(u'Update', parent=self)
         self.check_updates = PaintedButton(u'Check for updates', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.check_updates)
 
-        row = add_row(u'Docs:', parent=self)
+        row = add_row(u'Documentation', parent=self)
         self.show_help = PaintedButton(u'Show online documentation', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.show_help)
 
 
         add_label(u'Asset & Job Folder Templates', parent=self)
-        row = add_row(u'Show files:', parent=self)
+        row = add_row(u'Reveal files', parent=self)
         self.reveal_asset_template = PaintedButton(u'Show in explorer', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.reveal_asset_template, 1)
 
         add_label(u'Slack shortcut', parent=self)
-        row = add_row(u'Current URL:', parent=self)
+        row = add_row(u'Current URL', parent=self)
         self.slack_url = add_line_edit(
             u'eg. https://mystudio.slack.com...', parent=row)
         row.layout().addWidget(self.slack_url, 1)
-        self.slack_url.setText(common.SLACK_URL)
-        self.slack_url.setReadOnly(True)
 
         self.layout().addStretch(1)
+
+    def _init_values(self):
+        slack_url = local_settings.value(self.name(u'slack_url'))
+        val = slack_url if slack_url else common.SLACK_URL
+        self.slack_url.setText(val)
 
     def _connectSignals(self):
         import gwbrowser.versioncontrol.versioncontrol as vc
@@ -71,33 +175,26 @@ class ApplicationSettingsWidget(QtWidgets.QWidget):
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
         self.reveal_asset_template.clicked.connect(self.show_asset_template)
 
+        self.slack_url.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'slack_url'), x))
+
     @QtCore.Slot()
     def show_asset_template(self):
         home = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
         path = u'{}/GWBrowser/Asset.zip'.format(home)
         common.reveal(path)
 
-class TemplateSettingsWidget(QtWidgets.QWidget):
+
+class TemplateSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
-        super(TemplateSettingsWidget, self).__init__(parent=parent)
+        super(TemplateSettingsWidget, self).__init__(u'Template Settings', parent=parent)
         self.slack_editor = None
         self.asset_identifier = None
+
         self.setDisabled(True)
-        self._createUI()
 
     def _createUI(self):
-        common.set_custom_stylesheet(self)
-        QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        label = PaintedLabel(u'Template Settings',
-                             size=common.LARGE_FONT_SIZE, color=common.TEXT)
-        self.layout().addWidget(label)
-
         # Folder descriptions
         add_label(u'Folder descriptions', parent=self)
 
@@ -123,8 +220,10 @@ class TemplateSettingsWidget(QtWidgets.QWidget):
         self.folder_reference_description = add_line_edit(
             u'Description...', parent=row)
 
+        self.layout().addStretch(1)
 
-class ServersSettingsWidget(QtWidgets.QWidget):
+
+class ServersSettingsWidget(BaseSettingsWidget):
     """Dialog to edit the server configuration.
 
     The server information is stored in the templates/servers.conf
@@ -134,37 +233,26 @@ class ServersSettingsWidget(QtWidgets.QWidget):
     """
 
     def __init__(self, parent=None):
-        super(ServersSettingsWidget, self).__init__(parent=parent)
-        self.primary_mac_editor = None
-        self.primary_win_editor = None
-        self.primary_description = None
+        """
+        Properties:
+            primary_mac_editor:
+            primary_win_editor:
+            primary_description:
 
-        self.backup_mac_editor = None
-        self.backup_win_editor = None
-        self.backup_description = None
+            backup_mac_editor:
+            backup_win_editor:
+            backup_description:
 
-        self.local_mac_editor = None
-        self.local_win_description = None
-        self.local_description = None
+            local_mac_editor:
+            local_win_description:
+            local_description:
 
-        self.setWindowTitle(u'Edit the default servers definitions')
+        """
+        super(ServersSettingsWidget, self).__init__(u'Server Settings', parent=parent)
 
-        self._createUI()
-        self._init_values()
-        self._connectSignals()
 
     def _createUI(self):
-        common.set_custom_stylesheet(self)
-        QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        label = PaintedLabel(u'Server Settings',
-                             size=common.LARGE_FONT_SIZE, color=common.TEXT)
-        self.layout().addWidget(label)
-
         # Primary server
         add_label(u'Primary server', parent=self)
         row = add_row(u'MacOS', parent=self)
@@ -302,8 +390,6 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
     def __init__(self, parent=None):
         super(SectionSwitcherWidget, self).__init__(parent=parent)
         self.setFixedWidth(150)
-
-        self._add_sections()
         self._connectSignals()
 
     def _connectSignals(self):
@@ -325,30 +411,15 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
             return
         local_settings.setValue(u'preferences/current_section', index.row())
 
-    def _add_sections(self):
-        """Adds the sections defined in the ``SECTIONS`` variable."""
-        for s in SECTIONS:
-            item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, s[u'name'].title())
-            item.setData(common.DescriptionRole, s[u'description'])
-            item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
-            item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
-            item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                150, common.INLINE_ICON_SIZE))
-            self.addItem(item)
-
 
 class SectionsStackWidget(QtWidgets.QStackedWidget):
 
     def __init__(self, parent=None):
         super(SectionsStackWidget, self).__init__(parent=parent)
-        self.server_settings = ServersSettingsWidget(parent=self)
-        self.application_settings = ApplicationSettingsWidget(parent=self)
-        self.template_settings = TemplateSettingsWidget(parent=self)
-
-        self.addWidget(self.server_settings)
-        self.addWidget(self.application_settings)
-        self.addWidget(self.template_settings)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding,
+            QtWidgets.QSizePolicy.Expanding
+        )
 
 
 class PreferencesWidget(QtWidgets.QWidget):
@@ -362,6 +433,7 @@ class PreferencesWidget(QtWidgets.QWidget):
         self.setWindowFlags(QtCore.Qt.Window)
 
         self._createUI()
+        self._add_sections()
         self._connectSignals()
 
     def _createUI(self):
@@ -372,8 +444,33 @@ class PreferencesWidget(QtWidgets.QWidget):
 
         self.sections_list_widget = SectionSwitcherWidget(parent=self)
         self.layout().addWidget(self.sections_list_widget)
+
+        scroll_area = QtWidgets.QScrollArea(parent=self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        scroll_area.setMinimumHeight(640)
+        self.layout().addWidget(scroll_area)
+
         self.sections_stack_widget = SectionsStackWidget(parent=self)
-        self.layout().addWidget(self.sections_stack_widget)
+        scroll_area.setWidget(self.sections_stack_widget)
+
+    def _add_sections(self):
+        """Adds the sections defined in the ``SECTIONS`` variable."""
+        for s in get_sections():
+            item = QtWidgets.QListWidgetItem()
+            item.setData(QtCore.Qt.DisplayRole, s[u'name'].title())
+            item.setData(common.DescriptionRole, s[u'description'])
+            item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
+            item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
+            item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
+                150, common.INLINE_ICON_SIZE))
+            self.sections_list_widget.addItem(item)
+            self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
+
+                    # self.server_settings = ServersSettingsWidget(parent=self)
+                    # self.application_settings = ApplicationSettingsWidget(parent=self)
+                    # self.template_settings = TemplateSettingsWidget(parent=self)
+
 
     def _connectSignals(self):
         self.sections_list_widget.selectionModel().currentChanged.connect(self.current_changed)
