@@ -36,9 +36,10 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import FilterProxyModel
 from gwbrowser.baselistwidget import initdata
 
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
@@ -196,7 +197,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(1) # Will wait 1 sec between each tries
+                time.sleep(1)  # Will wait 1 sec between each tries
 
                 if not self.model:
                     continue
@@ -214,7 +215,6 @@ class SecondaryFileInfoWorker(FileInfoWorker):
                     if not index.data(common.FileThumbnailLoaded):
                         FileThumbnailWorker.process_index(
                             index, update=True, make=False)
-
 
                 if all_loaded:
                     self.model.file_info_loaded = True
@@ -403,6 +403,11 @@ class FilesModel(BaseModel):
         self.threads[idx].thread_id = idx
         self.threads[idx].started.connect(set_model)
         self.threads[idx].start()
+
+
+        # self.modelAboutToBeReset.connect(
+        #     lambda: self.set_data_key(self.data_key()))
+        self.dataKeyChanged.connect(self.set_data_key)
 
     @QtCore.Slot()
     def reset_file_info_loaded(self):
@@ -726,6 +731,66 @@ class FilesModel(BaseModel):
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
 
+    def data_key(self):
+        return self._datakey
+        
+    @QtCore.Slot(unicode)
+    def set_data_key(self, val):
+        """Slot used to save data key to the model instance and the local
+        settings.
+
+        Each subfolder inside the root folder, defined by``_parent_item``,
+        corresponds to a `key`. We use these keys to save model data associated
+        with these folders.
+
+        It's important to make sure the key we're about to be set corresponds to
+        an existing folder. We will use a reasonable default if the folder does
+        not exist.
+
+        """
+        print '# set_data_key'
+
+        k = u'activepath/location'
+        stored_value = local_settings.value(k)
+
+        # Nothing to do for us when the parent is not set
+        if not self._parent_item:
+            return
+
+        # We are in sync with a valid value set already
+        if self._datakey == val == stored_value and stored_value is not None:
+            return
+
+        # Save the key to the local settings
+        if self._datakey == val and val != stored_value:
+            local_settings.setValue(k, val)
+            return
+
+        # Let's check if the key about to be set corresponds to a real
+        # folder. If not, we will try to pick a default value, 'scenes', or
+        # the first folder if the default does not exist
+        path = u'/'.join(self._parent_item)
+        entries = [f.name.lower() for f in gwscandir.scandir(path)]
+
+        # Can't set the key, the folder is empty
+        if not entries:
+            val = None
+            local_settings.setValue(k, val)
+            return
+            # self._datakey = None
+
+        # Tying to set an invalid key
+        if val not in entries and self._datakey in entries:
+            local_settings.setValue(k, self._datakey)
+            return
+        elif val not in entries and u'scenes' in entries:
+            val = u'scenes'
+        else:
+            val = entries[0]
+
+        self._datakey = val
+        local_settings.setValue(k, val)
+
     def canDropMimeData(self, data, action, row, column):
         return False
 
@@ -890,7 +955,8 @@ class FilesWidget(BaseInlineIconWidget):
         self.index_update_timer = QtCore.QTimer(parent=self)
         self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
         self.index_update_timer.setSingleShot(False)
-        self.index_update_timer.timeout.connect(self.initialize_visible_indexes)
+        self.index_update_timer.timeout.connect(
+            self.initialize_visible_indexes)
 
         # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
@@ -1047,24 +1113,18 @@ class FilesWidget(BaseInlineIconWidget):
     def action_on_enter_key(self):
         self.activate(self.selectionModel().currentIndex())
 
-    def save_data_key(self, key):
-        local_settings.setValue(u'activepath/location', key)
-
+    @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
-        """Sets the current item item as ``active`` and
-        emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
-
-        """
-        if not index.data(common.ParentRole):
+        """Sets the current file as the ``active`` file."""
+        parent_role = index.data(common.ParentRole)
+        if not parent_role:
             return
-        if len(index.data(common.ParentRole)) < 5:
+        if len(parent_role) < 5:
             return
-        local_settings.setValue(u'activepath/location',
-                                index.data(common.ParentRole)[4])
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         filepath = u'{}/{}'.format(  # location/subdir/filename.ext
-            index.data(common.ParentRole)[5],
+            parent_role[5],
             common.get_sequence_startpath(file_info.fileName()))
         local_settings.setValue(u'activepath/file', filepath)
 

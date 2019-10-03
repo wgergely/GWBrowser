@@ -56,6 +56,9 @@ class FavouritesModel(FilesModel):
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(threads=0, parent=parent)
 
+    def data_key(self):
+        return u'.'
+        
     @property
     def generate_thumbnails(self):
         return False

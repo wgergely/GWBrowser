@@ -25,7 +25,8 @@ class SettingsButton(ClickableIconButton):
     about GWBrowser."""
 
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
-        super(SettingsButton, self).__init__(pixmap, colors, size, description=description, parent=parent)
+        super(SettingsButton, self).__init__(pixmap, colors,
+                                             size, description=description, parent=parent)
 
         # import gwbrowser
         # import OpenImageIO.OpenImageIO as oiio
@@ -35,7 +36,6 @@ class SettingsButton(ClickableIconButton):
         #     oiio.__version__
         # )
         self.clicked.connect(self.parent().preferences_widget.show)
-
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -72,7 +72,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.check_active_state_timer.setInterval(1000)
         self.check_active_state_timer.setSingleShot(False)
         # self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.check_active_state_timer.timeout.connect(self.active_monitor.check_state)
+        self.check_active_state_timer.timeout.connect(
+            self.active_monitor.check_state)
 
         self.preferences_widget = None
 
@@ -618,9 +619,6 @@ class BrowserWidget(QtWidgets.QWidget):
             a.model().sourceModel().modelDataResetRequested)
         self.active_monitor.activeAssetChanged.connect(
             lambda: lc.listChanged.emit(1))
-
-        f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
-        lc.dataKeyChanged.connect(f.save_data_key)
 
         f.model().sourceModel().dataKeyChanged.connect(
             lambda x: self.active_monitor.save_state(u'location', x))
