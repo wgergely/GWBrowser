@@ -15,7 +15,6 @@ from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings, AssetSettings
@@ -196,22 +195,19 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         default values if the settings has not yet been saved.
 
         """
-        cls = self.sourceModel().__class__.__name__
+        model = self.sourceModel()
+        data_key = model.data_key()
+        cls = model.__class__.__name__
         self._filtertext = local_settings.value(
-            u'widget/{}/{}/filtertext'.format(
-                cls, self.sourceModel().data_key()))
+            u'widget/{}/{}/filtertext'.format(cls, data_key))
+
         self._filterflags = {
             common.MarkedAsActive: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)
-            ),
+                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)),
             common.MarkedAsArchived: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls,
-                                                 common.MarkedAsArchived)
-            ),
+                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsArchived)),
             common.MarkedAsFavourite: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls,
-                                                 common.MarkedAsFavourite)
-            ),
+                u'widget/{}/filterflag{}'.format(cls,common.MarkedAsFavourite)),
         }
 
         if self._filtertext is None:
@@ -231,14 +227,16 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     @QtCore.Slot(unicode)
     def set_filter_text(self, val):
         """Sets the path-segment to use as a filter."""
+        model = self.sourceModel()
+        data_key = model.data_key()
+
         if val == self._filtertext:
             return
 
         self._filtertext = val
 
-        cls = self.sourceModel().__class__.__name__
-        k = u'widget/{}/{}/filtertext'.format(cls,
-                                              self.sourceModel().data_key())
+        cls = model.__class__.__name__
+        k = u'widget/{}/{}/filtertext'.format(cls, data_key)
         local_settings.setValue(k, self._filtertext)
 
     def filterFlag(self, flag):
@@ -472,12 +470,13 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data[k][t] = __data
         self.dataSorted.emit()
 
-    @QtCore.Slot(unicode)
+    @QtCore.Slot()
     def check_data(self):
         """When setting the model data-key it is necessary to check if the data
         has been initialized. If it hasn't, we will trigger `__initdata__` here.
 
         """
+        print '!'
         if not self.model_data():
             self.beginResetModel()
             self.__initdata__()
@@ -576,13 +575,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def data_key(self):
         """Current key to the data dictionary."""
-        if not self._datakey:
-            val = None
-            cls = self.__class__.__name__
-            key = u'widget/{}/datakey'.format(cls)
-            savedval = local_settings.value(key)
-            return savedval if savedval else val
-        return self._datakey
+        raise NotImplementedError('data_key is abstract and has to be overriden in the subclass')
 
     def data_type(self):
         """Current key to the data dictionary."""
@@ -593,30 +586,6 @@ class BaseModel(QtCore.QAbstractItemModel):
             savedval = local_settings.value(key)
             return savedval if savedval else val
         return self._datatype
-
-    @QtCore.Slot(unicode)
-    def set_data_key(self, val):
-        """Sets the ``key`` used to access the stored data.
-
-        Each subfolder inside the ``_parent_item`` corresponds to a `key`, hence
-        it's important to make sure the key we're about to be set corresponds to
-        an existing folder. The `validate_key` function should take care of this!
-
-        """
-        if val == self._datakey:
-            return
-
-        cls = self.__class__.__name__
-        key = u'widget/{}/datakey'.format(cls)
-
-        if not self._parent_item:
-            val = None
-            local_settings.setValue(key, val)
-            self._datakey = val
-            return
-
-        local_settings.setValue(key, val)
-        self._datakey = val
 
     @QtCore.Slot(int)
     def set_data_type(self, val):
@@ -629,25 +598,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
         local_settings.setValue(key, val)
         self._datatype = val
-
-    def validate_key(self):
-        """We have to make sure when switching assets that the currently set
-        data_key exists in the new asset as well. If it doesn't we will use
-        the first available data_key.
-
-        """
-        if not self._parent_item:
-            self.set_data_key(None)
-            return None
-
-        path = u'/'.join(self._parent_item)
-        entries = [f.name for f in gwscandir.scandir(path)]
-
-        key = self.data_key()
-        if key not in entries:
-            self.set_data_key(None)
-            return None
-        return key
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -774,21 +724,10 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
 
-        model.dataKeyChanged.connect(model.set_data_key)
-        model.dataKeyChanged.connect(
-            lambda x: proxy.set_filter_text(
-                local_settings.value(u'widget/{}/{}/filtertext'.format(
-                    model.__class__.__name__, x))
-            ))
-        model.dataKeyChanged.connect(lambda x: model.check_data())
-
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(model.set_data_type)
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
-        model.modelAboutToBeReset.connect(model.validate_key)
-        model.modelAboutToBeReset.connect(
-            lambda: model.set_data_key(model.data_key()))
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
 
@@ -798,8 +737,6 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.filterTextChanged.connect(lambda x: proxy.invalidateFilter())
         proxy.filterFlagChanged.connect(lambda x: proxy.invalidateFilter())
 
-        model.dataKeyChanged.connect(lambda x: proxy.beginResetModel())
-        model.dataKeyChanged.connect(lambda x: proxy.endResetModel())
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
@@ -813,7 +750,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
-        model.dataKeyChanged.connect(lambda x: model.sort_data())
+
         model.dataTypeChanged.connect(lambda x: model.sort_data())
 
         model.modelReset.connect(model.sort_data)
@@ -1694,7 +1631,11 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.setObjectName(u'BrowserStackedWidget')
 
     def setCurrentIndex(self, idx):
-        idx = idx if idx else 0
+        idx = 0 if idx is None or False else idx
         idx = idx if idx >= 0 else 0
-        local_settings.setValue(u'widget/mode', idx)
+
+        k = u'widget/mode'
+        if local_settings.value(k) != idx:
+            local_settings.setValue(k, idx)
+
         super(StackedWidget, self).setCurrentIndex(idx)

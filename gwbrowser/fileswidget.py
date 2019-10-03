@@ -36,9 +36,10 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import FilterProxyModel
 from gwbrowser.baselistwidget import initdata
 
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings
+from gwbrowser.settings import local_settings, Active
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
@@ -196,7 +197,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(1) # Will wait 1 sec between each tries
+                time.sleep(1)  # Will wait 1 sec between each tries
 
                 if not self.model:
                     continue
@@ -214,7 +215,6 @@ class SecondaryFileInfoWorker(FileInfoWorker):
                     if not index.data(common.FileThumbnailLoaded):
                         FileThumbnailWorker.process_index(
                             index, update=True, make=False)
-
 
                 if all_loaded:
                     self.model.file_info_loaded = True
@@ -619,7 +619,7 @@ class FilesModel(BaseModel):
 
                     # If the sequence has not yet been added to our dictionary
                     # of seqeunces we add it here
-                    if seqpath not in seqs:  # ... and create it if it doesn't exist
+                    if seqpath.lower() not in seqs:  # ... and create it if it doesn't exist
                         seqname = seqpath.split(u'/')[-1]
                         flags = dflags()
                         try:
@@ -636,7 +636,7 @@ class FilesModel(BaseModel):
                         if key.lower() in sfavourites:
                             flags = flags | common.MarkedAsFavourite
 
-                        seqs[seqpath] = {
+                        seqs[seqpath.lower()] = {
                             QtCore.Qt.DisplayRole: seqname,
                             QtCore.Qt.EditRole: seqname,
                             QtCore.Qt.StatusTipRole: seqpath,
@@ -667,8 +667,8 @@ class FilesModel(BaseModel):
                             common.SortBySize: 0,  # Initializing with null-size
                         }
 
-                    seqs[seqpath][common.FramesRole].append(seq.group(2))
-                    seqs[seqpath][common.EntryRole].append(entry)
+                    seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
+                    seqs[seqpath.lower()][common.EntryRole].append(entry)
                 else:
                     seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -725,6 +725,89 @@ class FilesModel(BaseModel):
     @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
+
+    def data_key(self):
+        """Current key to the data dictionary."""
+        if not self._datakey:
+            val = None
+            key = u'activepath/location'
+            savedval = local_settings.value(key)
+            return savedval if savedval else val
+        return self._datakey
+
+    @QtCore.Slot(unicode)
+    def set_data_key(self, val):
+        """Slot used to save data key to the model instance and the local
+        settings.
+
+        Each subfolder inside the root folder, defined by``_parent_item``,
+        corresponds to a `key`. We use these keys to save model data associated
+        with these folders.
+
+        It's important to make sure the key we're about to be set corresponds to
+        an existing folder. We will use a reasonable default if the folder does
+        not exist.
+
+        """
+        print '\n# set_data_key: {}'.format(val)
+        k = u'activepath/location'
+        stored_value = local_settings.value(k)
+        # Nothing to do for us when the parent is not set
+        if not self._parent_item:
+            return
+
+        if self._datakey is None and stored_value:
+            self._datakey = stored_value
+
+        # We are in sync with a valid value set already
+        if self._datakey == val == stored_value and stored_value is not None:
+            return
+
+        # Update the local_settings
+        if self._datakey == val and val != stored_value:
+            local_settings.setValue(k, val)
+            return
+
+        # About to set a new value. We can accept or reject this...
+        if val == self._datakey and val is not None:
+            return
+
+        entries = self.can_accept_datakey(val)
+        if not entries:
+            self._datakey = None
+            return
+
+        if val in entries:
+            self._datakey = val
+            local_settings.setValue(k, val)
+            return
+        elif val not in entries and self._datakey in entries:
+            val = self._datakey
+            local_settings.setValue(k, self._datakey)
+            stored_value = self._datakey
+            return
+        elif val not in entries and u'scenes' in entries:
+            val = u'scenes'
+
+        val = entries[0]
+        self._datakey = val
+        local_settings.setValue(k, val)
+
+    def can_accept_datakey(self, val):
+        """Checks if the key about to be set corresponds to a real
+        folder. If not, we will try to pick a default value, u'scenes', or
+        the first folder if the default does not exist.
+
+        """
+        if not self._parent_item:
+            return False
+        path = u'/'.join(self._parent_item)
+        entries = [f.name.lower() for f in gwscandir.scandir(path)]
+        if not entries:
+            return False
+        if val not in entries:
+            return False
+        return entries
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -890,7 +973,8 @@ class FilesWidget(BaseInlineIconWidget):
         self.index_update_timer = QtCore.QTimer(parent=self)
         self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
         self.index_update_timer.setSingleShot(False)
-        self.index_update_timer.timeout.connect(self.initialize_visible_indexes)
+        self.index_update_timer.timeout.connect(
+            self.initialize_visible_indexes)
 
         # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
@@ -1047,24 +1131,18 @@ class FilesWidget(BaseInlineIconWidget):
     def action_on_enter_key(self):
         self.activate(self.selectionModel().currentIndex())
 
-    def save_data_key(self, key):
-        local_settings.setValue(u'activepath/location', key)
-
+    @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
-        """Sets the current item item as ``active`` and
-        emits the ``activeLocationChanged`` and ``activeFileChanged`` signals.
-
-        """
-        if not index.data(common.ParentRole):
+        """Sets the current file as the ``active`` file."""
+        parent_role = index.data(common.ParentRole)
+        if not parent_role:
             return
-        if len(index.data(common.ParentRole)) < 5:
+        if len(parent_role) < 5:
             return
-        local_settings.setValue(u'activepath/location',
-                                index.data(common.ParentRole)[4])
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         filepath = u'{}/{}'.format(  # location/subdir/filename.ext
-            index.data(common.ParentRole)[5],
+            parent_role[5],
             common.get_sequence_startpath(file_info.fileName()))
         local_settings.setValue(u'activepath/file', filepath)
 

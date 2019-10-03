@@ -73,7 +73,7 @@ class AssetModel(BaseModel):
             hence the model does not have any threads associated with it.
 
         """
-        self._data[self._datakey] = {
+        self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
         if not self._parent_item:
@@ -197,6 +197,13 @@ class AssetModel(BaseModel):
             # Only including this for compatibility with the methods used by the file-items
             data[idx][common.FileInfoLoaded] = True
 
+    def data_key(self):
+        """Data keys are only implemented on the FilesModel but need to return a
+        value for compatibility other functions.
+
+        """
+        return u'.'
+
 
 class AssetsWidget(BaseInlineIconWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""
@@ -247,14 +254,16 @@ class AssetsWidget(BaseInlineIconWidget):
             return 0
         return 4
 
+    @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Sets the current item item as ``active`` and
         emits the ``activeChanged`` signal.
 
         """
-        local_settings.setValue(u'activepath/asset',
-                                index.data(common.ParentRole)[-1])
-        Active.paths()  # Resetting invalid paths
+        local_settings.setValue(
+            u'activepath/asset', index.data(common.ParentRole)[-1])
+        # Resetting invalid paths
+        Active.paths()
 
     def mouseDoubleClickEvent(self, event):
         """Custom double - click event.

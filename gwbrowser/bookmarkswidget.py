@@ -325,9 +325,11 @@ class BookmarksModel(BaseModel):
         return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
 
     def data_key(self):
-        """There is no location associated with the asset widget,
-        Needed context menu functionality only."""
-        return None
+        """Data keys are only implemented on the FilesModel but need to return a
+        value for compatibility other functions.
+
+        """
+        return u'.'
 
 
 class BookmarksWidget(BaseInlineIconWidget):
@@ -378,7 +380,8 @@ class BookmarksWidget(BaseInlineIconWidget):
         if self.buttons_hidden():
             return 0
         return 5
-
+        
+    @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
         server, job, root = index.data(common.ParentRole)

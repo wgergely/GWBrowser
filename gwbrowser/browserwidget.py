@@ -25,7 +25,8 @@ class SettingsButton(ClickableIconButton):
     about GWBrowser."""
 
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
-        super(SettingsButton, self).__init__(pixmap, colors, size, description=description, parent=parent)
+        super(SettingsButton, self).__init__(pixmap, colors,
+                                             size, description=description, parent=parent)
 
         # import gwbrowser
         # import OpenImageIO.OpenImageIO as oiio
@@ -35,7 +36,6 @@ class SettingsButton(ClickableIconButton):
         #     oiio.__version__
         # )
         self.clicked.connect(self.parent().preferences_widget.show)
-
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -72,7 +72,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.check_active_state_timer.setInterval(1000)
         self.check_active_state_timer.setSingleShot(False)
         # self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.check_active_state_timer.timeout.connect(self.active_monitor.check_state)
+        self.check_active_state_timer.timeout.connect(
+            self.active_monitor.check_state)
 
         self.preferences_widget = None
 
@@ -453,17 +454,40 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.model().modelReset.connect(lb.repaint)
         ff.model().layoutChanged.connect(lb.repaint)
 
+        # Active monitor
+        # We have to save the states before we respond to the dataKeyChanged
+        # signal in the models
+        self.active_monitor.activeLocationChanged.connect(
+            lambda x: lc.listChanged.emit(2))
+        lc.dataKeyChanged.connect(
+            lambda x: self.active_monitor.save_state(u'location', x))
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: self.active_monitor.save_state(u'location', x))
+        self.active_monitor.activeLocationChanged.connect(
+            f.model().sourceModel().dataKeyChanged)
+
+        # I don't think we have to respond to any active file changes
+
         # Bookmark/Asset/FileModel/View  <-  DataKeyModel/View
         # These are the signals responsible for changing the active items & data keys.
-        lc.textChanged.connect(lb.set_text)
-        lc.listChanged.connect(s.setCurrentIndex)
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
+        f.model().sourceModel().dataKeyChanged.connect(f.model().sourceModel().set_data_key)
+        #
+        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model()._filtertext)
+        f.model().sourceModel().dataKeyChanged.connect(f.model().sourceModel().check_data)
+        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().beginResetModel())
+        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().endResetModel())
+        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().sourceModel().sort_data())
+
+        # Visible widget
+        lc.listChanged.connect(s.setCurrentIndex)
+        # Labels
         lc.dataKeyChanged.connect(lc.textChanged)
+        lc.textChanged.connect(lb.set_text)
         f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
 
         # Stacked widget navigation
         b.activated.connect(lambda: lc.listChanged.emit(1))
-        # b.activated.connect(lambda: lc.textChanged.emit(u'Assets'))
         a.activated.connect(lambda: lc.listChanged.emit(2))
 
         b.activated.connect(
@@ -618,19 +642,6 @@ class BrowserWidget(QtWidgets.QWidget):
             a.model().sourceModel().modelDataResetRequested)
         self.active_monitor.activeAssetChanged.connect(
             lambda: lc.listChanged.emit(1))
-
-        f.model().sourceModel().dataKeyChanged.connect(f.save_data_key)
-        lc.dataKeyChanged.connect(f.save_data_key)
-
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: self.active_monitor.save_state(u'location', x))
-        lc.dataKeyChanged.connect(
-            lambda x: self.active_monitor.save_state(u'location', x))
-
-        self.active_monitor.activeLocationChanged.connect(lc.dataKeyChanged)
-        self.active_monitor.activeLocationChanged.connect(
-            lambda x: lc.listChanged.emit(2) if x else lc.listChanged.emit(1))
-        # I don't think we have to respond to any active file changes
 
         # Progresslabel
         b.model().modelAboutToBeReset.connect(

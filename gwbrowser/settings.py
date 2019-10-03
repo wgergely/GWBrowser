@@ -178,6 +178,11 @@ class LocalSettings(QtCore.QSettings):
                 return None
         return val
 
+    def setValue(self, *args, **kwargs):
+        import sys
+        sys.stdout.write(u'{}\n'.format(args))
+        super(LocalSettings, self).setValue(*args, **kwargs)
+
 
 class AssetSettings(QtCore.QSettings):
     """This class is intended for reading and writing asset & file associated

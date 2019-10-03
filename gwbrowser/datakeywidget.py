@@ -10,8 +10,6 @@ in the common module.
 
 """
 
-import sys
-import traceback
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
