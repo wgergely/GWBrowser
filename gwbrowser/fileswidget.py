@@ -407,7 +407,7 @@ class FilesModel(BaseModel):
 
         # self.modelAboutToBeReset.connect(
         #     lambda: self.set_data_key(self.data_key()))
-        self.dataKeyChanged.connect(self.set_data_key)
+        # self.dataKeyChanged.connect(self.set_data_key)
 
     @QtCore.Slot()
     def reset_file_info_loaded(self):
@@ -733,7 +733,7 @@ class FilesModel(BaseModel):
 
     def data_key(self):
         return self._datakey
-        
+
     @QtCore.Slot(unicode)
     def set_data_key(self, val):
         """Slot used to save data key to the model instance and the local
@@ -748,48 +748,67 @@ class FilesModel(BaseModel):
         not exist.
 
         """
-        print '# set_data_key'
-
+        print '\n# set_data_key: {}'.format(val)
         k = u'activepath/location'
         stored_value = local_settings.value(k)
-
         # Nothing to do for us when the parent is not set
         if not self._parent_item:
             return
 
-        # We are in sync with a valid value set already
+        if self._datakey is None and stored_value:
+            self._datakey = stored_value
+
+        # We are in sync with a valid value has been set already
         if self._datakey == val == stored_value and stored_value is not None:
             return
 
-        # Save the key to the local settings
+        # Update the local_settings
         if self._datakey == val and val != stored_value:
             local_settings.setValue(k, val)
             return
 
-        # Let's check if the key about to be set corresponds to a real
-        # folder. If not, we will try to pick a default value, 'scenes', or
-        # the first folder if the default does not exist
-        path = u'/'.join(self._parent_item)
-        entries = [f.name.lower() for f in gwscandir.scandir(path)]
+        # About to set a new value. We can accept or reject this...
+        if val == self._datakey:
+            return
 
-        # Can't set the key, the folder is empty
+        entries = self.can_accept_datakey(val)
         if not entries:
-            val = None
-            local_settings.setValue(k, val)
+            self._datakey = None
             return
-            # self._datakey = None
 
-        # Tying to set an invalid key
         if val not in entries and self._datakey in entries:
+            val = self._datakey
             local_settings.setValue(k, self._datakey)
+            stored_value = self._datakey
             return
-        elif val not in entries and u'scenes' in entries:
+
+        if val not in entries and u'scenes' in entries:
             val = u'scenes'
         else:
             val = entries[0]
 
+
         self._datakey = val
         local_settings.setValue(k, val)
+
+        print 'self._datakey: {}'.format(self._datakey), 'val: {}'.format(val), 'stored_value: {}\n\n'.format(stored_value)
+        return
+
+    def can_accept_datakey(self, val):
+        """Checks if the key about to be set corresponds to a real
+        folder. If not, we will try to pick a default value, u'scenes', or
+        the first folder if the default does not exist.
+
+        """
+        if not self._parent_item:
+            return False
+        path = u'/'.join(self._parent_item)
+        entries = [f.name.lower() for f in gwscandir.scandir(path)]
+        if not entries:
+            return False
+        if val not in entries:
+            return False
+        return entries
 
     def canDropMimeData(self, data, action, row, column):
         return False
