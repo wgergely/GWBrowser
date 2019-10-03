@@ -10,6 +10,8 @@ from PySide2 import QtCore
 
 import gwbrowser.common as common
 
+SOLO = True
+
 
 class Active(QtCore.QObject):
     """Utility class to querry and monitor the changes to the active paths.
@@ -164,23 +166,34 @@ class LocalSettings(QtCore.QSettings):
             parent=parent
         )
         self.setDefaultFormat(QtCore.QSettings.NativeFormat)
+        self.internal_settings = {}
 
-    def value(self, *args, **kwargs):
-        val = super(LocalSettings, self).value(*args, **kwargs)
-        if not val:
-            return None
-        if isinstance(val, basestring):
-            if val.lower() == u'true':
-                return True
-            elif val.lower() == u'false':
-                return False
-            elif val.lower() == u'none':
-                return None
-        return val
 
-    def setValue(self, *args, **kwargs):
-        import sys
-        super(LocalSettings, self).setValue(*args, **kwargs)
+    def value(self, k):
+        def _bool(v):
+            if isinstance(v, basestring):
+                if v.lower() == u'true':
+                    return True
+                elif v.lower() == u'false':
+                    return False
+                elif v.lower() == u'none':
+                    return None
+                if not v:
+                    return None
+            return v
+
+        if SOLO:
+            if k not in self.internal_settings:
+                v = super(LocalSettings, self).value(k)
+                self.internal_settings[k] = _bool(v)
+            return self.internal_settings[k]
+        return super(LocalSettings, self).value(k)
+
+    def setValue(self, k, v):
+        if SOLO:
+            self.internal_settings[k] = v
+        else:
+            super(LocalSettings, self).setValue(k, v)
 
 
 class AssetSettings(QtCore.QSettings):

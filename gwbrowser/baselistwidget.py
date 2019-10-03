@@ -476,7 +476,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         has been initialized. If it hasn't, we will trigger `__initdata__` here.
 
         """
-        print '!'
         if not self.model_data():
             self.beginResetModel()
             self.__initdata__()

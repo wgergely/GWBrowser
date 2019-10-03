@@ -1199,7 +1199,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # We want to handle the exact name of the file
         # We'll remove the namespace, strip underscores
-        set_name = set_name.split(u':').pop().strip(u'_')
+        set_name = set_name.replace(u':', '_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
         file_path = alembic_file_template().format(
