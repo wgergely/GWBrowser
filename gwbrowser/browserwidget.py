@@ -370,6 +370,28 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Alt+Right', (self.next_tab, ), repeat=True)
         self.add_shortcut(
             u'Alt+Left', (self.previous_tab, ), repeat=True)
+        #
+        self.add_shortcut(
+            u'Ctrl++', (self.increase_row_size, ), repeat=True)
+        self.add_shortcut(
+            u'Ctrl+-', (self.decrease_row_size, ), repeat=True)
+
+
+    def decrease_row_size(self):
+        import gwbrowser.delegate as d
+        if (d.ROW_HEIGHT - 8) < common.ROW_HEIGHT:
+            return
+        d.ROW_HEIGHT -= 8
+        for n in xrange(self.stackedwidget.count()):
+            self.stackedwidget.widget(2).reset()
+
+    def increase_row_size(self):
+        import gwbrowser.delegate as d
+        if (d.ROW_HEIGHT + 8) > common.ASSET_ROW_HEIGHT:
+            return
+        d.ROW_HEIGHT += 8
+        for n in xrange(self.stackedwidget.count()):
+            self.stackedwidget.widget(n).reset()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.

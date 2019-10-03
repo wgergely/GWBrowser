@@ -20,7 +20,11 @@ from gwbrowser.imagecache import ImageCache
 
 
 TINT_THUMBNAIL_BACKGROUND = True
+ROW_HEIGHT = common.ROW_HEIGHT
+BOOKMARK_ROW_HEIGHT = common.BOOKMARK_ROW_HEIGHT
+ASSET_ROW_HEIGHT = common.ASSET_ROW_HEIGHT
 
+regex_remove_version = re.compile(ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE)
 
 def paintmethod(func):
     """@Decorator to save the painter state."""
@@ -155,14 +159,19 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     @paintmethod
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of an item."""
-        painter, option, index, _, _, _, _, _, hover = args
+        painter, option, index, selected, _, _, _, _, hover = args
         # Background rectangle
         rect = QtCore.QRect(option.rect)
-        center = rect.center()
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
+
         rect.setWidth(rect.height())
-        rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH)
+        center = rect.center()
+        rect.moveCenter(center)
+
+        size = option.rect.height() - common.ROW_SEPARATOR
+        rect.setWidth(size)
+        rect.setHeight(size)
+        rect.moveCenter(center)
 
         image = index.data(common.ThumbnailRole)
         if not image:
@@ -178,10 +187,16 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
+        if hover or selected:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.5)
         painter.drawRect(rect)
 
-        if not hover:
-            painter.setOpacity(0.9)
+        if hover or selected:
+            painter.setOpacity(1.0)
+        else:
+            painter.setOpacity(0.66)
 
         irect = QtCore.QRect(image.rect())
         irect.moveCenter(rect.center())
@@ -514,7 +529,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
         size = QtCore.QSize(
-            self.parent().viewport().width(), common.ROW_HEIGHT)
+            self.parent().viewport().width(), ROW_HEIGHT)
         return size
 
 
@@ -701,7 +716,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
         size = QtCore.QSize(
-            self.parent().viewport().width(), common.BOOKMARK_ROW_HEIGHT)
+            self.parent().viewport().width(), BOOKMARK_ROW_HEIGHT)
         return size
 
 
@@ -775,7 +790,7 @@ class AssetsWidgetDelegate(BaseDelegate):
             painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().viewport().width(), common.ASSET_ROW_HEIGHT)
+        return QtCore.QSize(self.parent().viewport().width(), ASSET_ROW_HEIGHT)
 
 
 class FilesWidgetDelegate(BaseDelegate):
@@ -792,11 +807,14 @@ class FilesWidgetDelegate(BaseDelegate):
         #
         self.paint_thumbnail(*args)
         # #
-        self.paint_thumbnail_shadow(*args)
+        # self.paint_thumbnail_shadow(*args)
         #
-        left = self.paint_mode(*args)
-        self.paint_name(*args, left=left)
-        self.paint_description(*args, left=left)
+        if self.parent().buttons_hidden():
+            self.paint_name_single(*args)
+        else:
+            left = self.paint_mode(*args)
+            self.paint_name(*args, left=left)
+            self.paint_description(*args, left=left)
         #
         self.paint_inline_icons_background(*args)
         self.paint_folder_icon(*args)
@@ -837,6 +855,15 @@ class FilesWidgetDelegate(BaseDelegate):
         common.draw_aliased_text(painter, font, rect, text, align, color)
 
         rect.moveRight(rect.right() - width)
+        return rect
+
+    def _draw2(self, painter, font, rect, text, align, color, option, left):
+        """Draws a sequence element."""
+        metrics = QtGui.QFontMetrics(font)
+        width = metrics.width(text)
+        rect.setRight(rect.left() + width)
+        common.draw_aliased_text(painter, font, rect, text, align, color)
+        rect.moveLeft(rect.right())
         return rect
 
     @paintmethod
@@ -894,15 +921,12 @@ class FilesWidgetDelegate(BaseDelegate):
                               common.SEPARATOR, option, kwargs['left'])
 
             # Description
-            color = common.TEXT if hover else common.REMOVE
+            color = common.TEXT if hover else common.TEXT
             color = common.TEXT_SELECTED if selected else color
             text = u'{}\n'.format(index.data(common.DescriptionRole))
             painter.setOpacity(1.0)
-            _rect = QtCore.QRect(rect)
-            _rect.moveLeft(_rect.left() + 1)
-            _rect.moveTop(_rect.top() + 1)
-            self._draw(painter, font, _rect, text, align,
-                              common.SEPARATOR, option, kwargs['left'])
+            font = QtGui.QFont(common.SecondaryFont)
+            font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
             rect = self._draw(painter, font, rect, text, align,
                               color, option, kwargs['left'])
             return metrics.width(text)
@@ -927,7 +951,10 @@ class FilesWidgetDelegate(BaseDelegate):
         """Paints the FilesWidget's mode and the subfolders."""
         painter, option, index, selected, _, _, _, _, hover = args
         if index.data(common.ParentRole) is None:
-            return
+            return option.rect.height() + common.INDICATOR_WIDTH + common.MARGIN
+
+        if self.parent().buttons_hidden():
+            return option.rect.height() + common.INDICATOR_WIDTH + common.MARGIN
 
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSize(common.SMALL_FONT_SIZE)
@@ -995,6 +1022,132 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.moveLeft(rect.right() + (common.INDICATOR_WIDTH * 2))
 
     @paintmethod
+    def paint_name_single(self, *args, **kwargs):
+        painter, option, index, selected, _, active, _, _, hover = args
+        if not index.data(QtCore.Qt.DisplayRole):
+            return
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
+        metrics = QtGui.QFontMetrics(font)
+
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(
+            common.INDICATOR_WIDTH +
+            rect.height() +
+            common.MARGIN
+        )
+        if index.data(common.DescriptionRole):
+            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
+        rect.setRight(rect.right() - common.MARGIN)
+
+        kwargs = {}
+        kwargs['left'] = rect.left()
+
+        # Centering the rectangle
+        center = rect.center()
+        rect.setHeight(metrics.height())
+        rect.moveCenter(center)
+
+        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
+        # Name
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = regex_remove_version.sub(ur'\1\3', text)
+        color = common.TEXT_SELECTED if hover else common.TEXT
+        # self._draw2(painter, font, rect, text, align, color)
+        # common.draw_aliased_text(painter, font, rect, text, align, color)
+
+        match = common.is_collapsed(text)
+        if match:  # sequence is collapsed
+
+            # The prefix
+            color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(painter, font, rect, match.group(
+                1).upper(), align, color, option, kwargs['left'])
+
+            # The frame-range - this can get quite long - we're trimming it to
+            # avoid long and meaningless names
+            frange = match.group(2)
+            frange = re.sub(r'[\[\]]*', u'', frange)
+            if len(frange) > 17:
+                frange = u'{}...{}'.format(frange[0:8], frange[-8:])
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if active else color
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(painter, font, rect, frange,
+                              align, color, option, kwargs['left'])
+
+
+            text = match.group(3).split(u'.')
+            text = u'{suffix}.{ext}'.format(
+                ext=text.pop().lower(),
+                suffix=u'.'.join(text).upper()
+            )
+
+            # The extension and the suffix
+            color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(painter, font, rect, text, align,
+                              color, option, kwargs['left'])
+            return
+
+        match = common.get_sequence(text)
+        if match:
+            # The prefix
+            color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(
+                painter, font, rect, match.group(1).upper(),
+                align, color, option, kwargs['left'])
+            # The frame-range
+            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+            color = common.TEXT_SELECTED if active else color
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(
+                painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
+
+
+
+            # The extension and the suffix
+            if match.group(4):
+                text = u'{}.{}'.format(
+                    match.group(3).upper(), match.group(4).lower())
+            else:
+                text = u'{}'.format(
+                    match.group(3).upper())
+
+            color = common.TEXT_SELECTED if selected else common.TEXT
+            color = common.TEXT_SELECTED if hover else color
+            rect = self._draw2(
+                painter, font, rect, text, align, color, option, kwargs['left'])
+
+
+        # Nothing else to draw if the item has not been loaded yet...
+        if not index.data(common.FileInfoLoaded):
+            return
+
+        # Description
+        if index.data(common.DescriptionRole):
+            rect = QtCore.QRect(option.rect)
+            rect.setLeft(
+                common.INDICATOR_WIDTH +
+                rect.height() +
+                common.MARGIN
+            )
+            rect.setRight(rect.right() - common.MARGIN)
+            rect.moveTop(rect.top() + (metrics.lineSpacing() / 2))
+
+            color = common.TEXT if hover else common.TEXT
+            color = common.TEXT_SELECTED if selected else color
+            text = u'{}\n'.format(index.data(common.DescriptionRole))
+            painter.setOpacity(1.0)
+            font = QtGui.QFont(common.SecondaryFont)
+            font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+            rect = self._draw2(painter, font, rect, text, align,
+                              color, option, kwargs['left'])
+
+    @paintmethod
     def paint_name(self, *args, **kwargs):
         """Paints the ``FilesWidget``'s name."""
         painter, option, index, selected, _, active, _, _, hover = args
@@ -1035,8 +1188,8 @@ class FilesWidgetDelegate(BaseDelegate):
         # Name
         text = index.data(QtCore.Qt.DisplayRole)
         # Removing the 'v' from 'v010' style version strings.
-        text = re.sub(ur'(.*)(v)([\[0-9\-\]]+.*)',
-                      ur'\1\3', text, flags=re.IGNORECASE)
+        text = regex_remove_version.sub(ur'\1\3', text)
+
 
         match = common.is_collapsed(text)
         if match:  # sequence collapsed
@@ -1114,7 +1267,7 @@ class FilesWidgetDelegate(BaseDelegate):
                    color, option, kwargs['left'])
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().viewport().width(), common.ROW_HEIGHT)
+        return QtCore.QSize(self.parent().viewport().width(), ROW_HEIGHT)
 
 
 class FavouritesWidgetDelegate(FilesWidgetDelegate):
@@ -1128,11 +1281,9 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
 
         self.paint_background(*args)
 
-
         self.paint_thumbnail(*args)
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
-        # self.paint_thumbnail_shadow(*args)
 
         left = 0
         self.paint_name(*args, left=left)
