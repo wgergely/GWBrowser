@@ -1217,6 +1217,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             start = cmds.playbackOptions(query=True, animationStartTime=True)
             end = cmds.playbackOptions(query=True, animationEndTime=True)
 
+        state = cmds.ogs(pause=True, query=True)
+        if not state:
+            cmds.ogs(pause=True)
         try:
             export_alembic(
                 file_info.filePath(),
@@ -1228,6 +1231,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         except:
             raise
         finally:
+            if not state:
+                cmds.ogs(pause=True)
             overlay.hide()
 
     def is_scene_modified(self):
