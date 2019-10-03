@@ -49,6 +49,10 @@ from gwbrowser.addfilewidget import AddFileWidget
 maya_button = None
 """The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
+alembic_file_template = lambda: u'{workspace}/{exports}/abc/version/{set}_v0001.abc'
+"""This is the destination template we're going to use to save our alembic."""
+
+
 @QtCore.Slot()
 def show():
     """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable widget.
@@ -182,6 +186,7 @@ def _is_set_created_by_user(name):
 
 
 def report_export_progress(start, current, end, start_time):
+    """A litle progress report get some export feedback."""
     elapsed = time.time() - start_time
     elapsed = time.strftime('%H:%M.%Ssecs', time.localtime(elapsed))
 
@@ -213,18 +218,29 @@ def report_export_progress(start, current, end, start_time):
 
 
 def get_outliner_sets_members():
-    """Returns the available outliner sets and the objects inside."""
+    """The main function responsible for returning the user created object sets
+    from the current Maya scene. There's an extra caveat: the set has to contain
+    the word 'geo' to be considered valid.
+
+    """
     sets_data = {}
     for s in sorted([k for k in cmds.ls(sets=True) if _is_set_created_by_user(k)]):
+        # I added this because of the plethora of sets in complex animation scenes
+        if u'geo' not in s:
+            continue
+
         dag_set_members = cmds.listConnections(u'{}.dagSetMembers'.format(s))
-        # Filters
         if not dag_set_members:
             continue
+
+        # We can ignore this group is it does not contain any shapes
         members = [
             cmds.ls(f)[-1] for f in dag_set_members if cmds.listRelatives(f, shapes=True)]
         if not members:
             continue
+
         sets_data[s] = members
+
     return sets_data
 
 
@@ -235,7 +251,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     the this set, GWBrowser will try to find the valid shape nodes to duplicate
     their geometry in the world-space.
 
-    Only the normals, geomtery and uvs will be exported.
+    Only the normals, geometry and uvs will be exported. No addittional user or
+    scene data will be picked up!
 
     """
     is_intermediate = lambda s: cmds.getAttr(u'{}.intermediateObject'.format(s))
@@ -244,98 +261,104 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     world_shapes = []
     valid_shapes = []
 
+    # First, we will collect the available shapes from the given set
     for item in outliner_set:
         shapes = cmds.listRelatives(item, shapes=True)
         for shape in shapes:
             if is_intermediate(shape):
-                continue
-            if is_template(shape):
                 continue
 
             # Camera's don't have mesh nodes but we still want to export them
             if cmds.nodeType(shape) != u'camera':
                 if not cmds.attributeQuery(u'worldMesh', node=shape, exists=True):
                     continue
-
             valid_shapes.append(shape)
 
+    if not valid_shapes:
+        raise RuntimeError(u'No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
+
     cmds.select(clear=True)
+
+    # Creating a temporary namespace to avoid name-clashes later when we duplicate
+    # the meshes. We will delete this namespace after the export...
     if cmds.namespace(exists=u'mayaExport'):
         cmds.namespace(removeNamespace=u'mayaExport',
                        deleteNamespaceContent=True)
     ns = cmds.namespace(add=u'mayaExport')
 
-    if not valid_shapes:
-        return
+    try:
+        # For the meshes, we will create an empty mesh and connect the outMesh and
+        # UV  attributes from our source mesh
+        for shape in valid_shapes:
+            if cmds.nodeType(shape) != u'camera':
+                world_shape = cmds.createNode(u'mesh', name=u'{}:{}'.format(ns, shape))
+                cmds.connectAttr(u'{}.worldMesh[0]'.format(
+                    shape), u'{}.inMesh'.format(world_shape), force=True)
+                cmds.connectAttr(u'{}.uvSet'.format(shape),
+                                 u'{}.uvSet'.format(world_shape), force=True)
+            else:
+                world_shape = shape
+            world_shapes.append(world_shape)
 
-    for shape in valid_shapes:
-        if cmds.nodeType(shape) != u'camera':
-            world_shape = cmds.createNode(u'mesh', name=u'{}:{}'.format(ns, shape))
-            cmds.connectAttr(u'{}.worldMesh[0]'.format(
-                shape), u'{}.inMesh'.format(world_shape), force=True)
-            cmds.connectAttr(u'{}.uvSet'.format(shape),
-                             u'{}.uvSet'.format(world_shape), force=True)
-        else:
-            world_shape = shape
+        world_transforms = []
 
-        world_shapes.append(world_shape)
+        for shape in valid_shapes:
+            transform = cmds.listRelatives(shape, type=u'transform', p=True)
+            if transform:
+                for t in transform:
+                    world_transforms.append(t)
 
-    world_transforms = []
-    
-    for shape in valid_shapes:
-        transform = cmds.listRelatives(shape, type=u'transform', p=True)
-        if transform:
-            for t in transform:
-                world_transforms.append(t)
+        perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
+            startframe, endframe, time.time())
 
-    perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
-        startframe, endframe, time.time())
+        kwargs = {
+            u'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ppc} {ro}'.format(
+                f=u'-file {}'.format(destination_path),
+                fr=u'-framerange {} {}'.format(startframe, endframe),
+                s=u'-step {}'.format(step),
+                uv=u'-uvwrite',
+                ws=u'-worldspace',
+                wv=u'-writevisibility',
+                wuvs=u'-writeuvsets',
+                rt=u'-root {}'.format(u' -root '.join(world_transforms)),
+                df=u'-dataformat {}'.format(u'ogawa'),
+                pfc=u'-pythonperframecallback {}'.format(perframecallback),
+                ppc=u'-pythonpostjobcallback {}'.format(
+                    '"\'# GWBrowser: Finished alembic export.\'"'),
+                ro='-renderableonly',
+                # ef=u'-eulerfilter',
+                # frs='-framerelativesample {}'.format(1.0),
+                # no='-nonormals',
+                # uvo='-uvsonly',
+                # pr='-preroll {}'.format(bool(preroll)),
+                # sl='-selection {}'.format(False),
+                # sn='-stripnamespaces',
+                # wcs='-writecolorsets',
+                # wfs='-writefacesets',
+                # wfg='-wholeframegeo',
+                # as_='-autosubd',
+                # mfc='-melperframecallback {}'.format(''),
+                # mpc='-melpostjobcallback {}'.format(''),
+                # atp='-attrprefix {}'.format(''),
+                # uatp='-userattrprefix {}'.format(''),
+                # u='-userattr {}'.format(''),
+            ),
+            # u'preRollStartFrame': float(int(startframe - preroll)),
+            # u'dontSkipUnwrittenFrames': True,
+        }
 
-    kwargs = {
-        # 'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {ef} {df} {pfc} {ppc}'.format(
-        'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {ef} {df} {pfc} {ppc} {ro}'.format(
-            f=u'-file {}'.format(destination_path),
-            fr=u'-framerange {} {}'.format(startframe, endframe),
-            # frs='-framerelativesample {}'.format(1.0),
-            # no='-nonormals',
-            # uvo='-uvsonly',
-            # pr='-preroll {}'.format(bool(preroll)),
-            ro='-renderableonly',
-            s=u'-step {}'.format(step),
-            # sl='-selection {}'.format(False),
-            # sn='-stripnamespaces',
-            uv=u'-uvwrite',
-            # wcs='-writecolorsets',
-            # wfs='-writefacesets',
-            # wfg='-wholeframegeo',
-            ws=u'-worldspace',
-            wv=u'-writevisibility',
-            wuvs=u'-writeuvsets',
-            # as_='-autosubd',
-            # mfc='-melperframecallback {}'.format(''),
-            pfc=u'-pythonperframecallback {}'.format(perframecallback),
-            # mpc='-melpostjobcallback {}'.format(''),
-            ppc=u'-pythonpostjobcallback {}'.format(
-                '"\'# GWBrowser: Finished alembic export.\'"'),
-            # atp='-attrprefix {}'.format(''),
-            # uatp='-userattrprefix {}'.format(''),
-            # u='-userattr {}'.format(''),
-            rt=u'-root {}'.format(u' -root '.join(world_transforms)),
-            ef=u'-eulerfilter',
-            df=u'-dataformat {}'.format(u'ogawa'),
-        ),
-        # u'preRollStartFrame': float(int(startframe - preroll)),
-        # u'dontSkipUnwrittenFrames': True,
-    }
+        cmds.AbcExport(**kwargs)
 
-    cmds.AbcExport(**kwargs)
-
-    # Teardown
-    def teardown():
-        cmds.namespace(removeNamespace=u'mayaExport',
-                       deleteNamespaceContent=True)
-
-    cmds.evalDeferred(teardown)
+   except:
+       raise
+   finally:
+        # Finally, we will delete the previously created namespace and the object
+        # contained inseide. I wrapped it into an evalDeferred call to let maya
+        # recover after the export.
+        def teardown():
+            cmds.namespace(removeNamespace=u'mayaExport',
+                           deleteNamespaceContent=True)
+        cmds.evalDeferred(teardown)
 
 
 def contextmenu2(func):
@@ -1128,10 +1151,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.loadPlugin("AbcImport.mll", quiet=True)
 
         ext = u'abc'
-        file_path = u'{workspace}/{exports}/abc/{set}_v0001.abc'.format(
+
+        # We want to handle the exact name of the file
+        file_path = alembic_file_template().format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
-            set=set_name.split(u':').pop()
+            set=set_name.split(u':').strip('_').pop()
         )
 
         # Let's make sure destination folder exists
