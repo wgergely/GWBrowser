@@ -325,8 +325,6 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                 rt=u'-root {}'.format(u' -root '.join(world_transforms)),
                 df=u'-dataformat {}'.format(u'ogawa'),
                 pfc=u'-pythonperframecallback {}'.format(perframecallback),
-                ppc=u'-pythonpostjobcallback {}'.format(
-                    '"\'# GWBrowser: Finished alembic export.\'"'),
                 ro='-renderableonly',
                 # ef=u'-eulerfilter',
                 # frs='-framerelativesample {}'.format(1.0),
@@ -348,6 +346,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             # u'preRollStartFrame': float(int(startframe - preroll)),
             # u'dontSkipUnwrittenFrames': True,
         }
+        print 'Job arg: {}'.format(kwargs[u'jobArg'])
         cmds.AbcExport(**kwargs)
     except:
         raise
@@ -1237,17 +1236,18 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             start = cmds.playbackOptions(query=True, animationStartTime=True)
             end = cmds.playbackOptions(query=True, animationEndTime=True)
 
-        # Time to start the export...
-        export_alembic(
-            file_info.filePath(),
-            set_members,
-            start,
-            end
-        )
-
-        # Let's try to select the newly added alembic file
-        fileswidget.new_file_added(widget.data_key(), file_path)
-        overlay.hide()
+        try:
+            export_alembic(
+                file_info.filePath(),
+                set_members,
+                start,
+                end
+            )
+            fileswidget.new_file_added(widget.data_key(), file_path)
+        except:
+            raise
+        finally:
+            overlay.hide()
 
     def is_scene_modified(self):
         """If the current scene was modified since the last save, the user will be
