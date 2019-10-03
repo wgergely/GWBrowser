@@ -508,8 +508,8 @@ class BrowserWidget(QtWidgets.QWidget):
         # Active monitor
         # We have to save the states before we respond to the dataKeyChanged
         # signal in the models
-        self.active_monitor.activeLocationChanged.connect(
-            lambda x: lc.listChanged.emit(2))
+        # self.active_monitor.activeLocationChanged.connect(
+        #     lambda x: lc.listChanged.emit(2))
         lc.dataKeyChanged.connect(
             lambda x: self.active_monitor.save_state(u'location', x))
         f.model().sourceModel().dataKeyChanged.connect(
@@ -684,15 +684,15 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
         self.active_monitor.activeBookmarkChanged.connect(
             b.model().sourceModel().modelDataResetRequested)
-        self.active_monitor.activeBookmarkChanged.connect(
-            lambda: lc.listChanged.emit(1))
+        # self.active_monitor.activeBookmarkChanged.connect(
+        #     lambda: lc.listChanged.emit(1))
 
         a.activated.connect(
             lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
         self.active_monitor.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
-        self.active_monitor.activeAssetChanged.connect(
-            lambda: lc.listChanged.emit(1))
+        # self.active_monitor.activeAssetChanged.connect(
+        #     lambda: lc.listChanged.emit(1))
 
         # Progresslabel
         b.model().modelAboutToBeReset.connect(

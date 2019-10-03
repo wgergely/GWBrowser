@@ -313,41 +313,21 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
             startframe, endframe, time.time())
 
-        kwargs = {
-            u'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ro}'.format(
-                f=u'-file {}'.format(destination_path),
-                fr=u'-framerange {} {}'.format(startframe, endframe),
-                s=u'-step {}'.format(step),
-                uv=u'-uvwrite',
-                ws=u'-worldspace',
-                wv=u'-writevisibility',
-                wuvs=u'-writeuvsets',
-                rt=u'-root {}'.format(u' -root '.join(world_transforms)),
-                df=u'-dataformat {}'.format(u'ogawa'),
-                pfc=u'-pythonperframecallback {}'.format(perframecallback),
-                ro='-renderableonly',
-                # ef=u'-eulerfilter',
-                # frs='-framerelativesample {}'.format(1.0),
-                # no='-nonormals',
-                # uvo='-uvsonly',
-                # pr='-preroll {}'.format(bool(preroll)),
-                # sl='-selection {}'.format(False),
-                # sn='-stripnamespaces',
-                # wcs='-writecolorsets',
-                # wfs='-writefacesets',
-                # wfg='-wholeframegeo',
-                # as_='-autosubd',
-                # mfc='-melperframecallback {}'.format(''),
-                # mpc='-melpostjobcallback {}'.format(''),
-                # atp='-attrprefix {}'.format(''),
-                # uatp='-userattrprefix {}'.format(''),
-                # u='-userattr {}'.format(''),
-            ),
-            # u'preRollStartFrame': float(int(startframe - preroll)),
-            # u'dontSkipUnwrittenFrames': True,
-        }
-        print 'Job arg: {}'.format(kwargs[u'jobArg'])
-        cmds.AbcExport(**kwargs)
+        jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ro}'.format(
+            f=u'-file "{}"'.format(destination_path),
+            fr=u'-framerange {} {}'.format(startframe, endframe),
+            s=u'-step {}'.format(step),
+            uv=u'-uvwrite',
+            ws=u'-worldspace',
+            wv=u'-writevisibility',
+            wuvs=u'-writeuvsets',
+            rt=u'-root {}'.format(u' -root '.join(world_transforms)),
+            df=u'-dataformat {}'.format(u'ogawa'),
+            pfc=u'-pythonperframecallback {}'.format(perframecallback),
+            ro='-renderableonly'
+        )
+        print '# jobArg: `{}`'.format(jobArg)
+        cmds.AbcExport(jobArg=jobArg)
     except:
         raise
     finally:
