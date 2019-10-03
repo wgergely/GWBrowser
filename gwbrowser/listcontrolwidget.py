@@ -690,9 +690,9 @@ class ListControlWidget(QtWidgets.QWidget):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def signal_dispatcher(self, index):
-        self.listChanged.emit(2)
         self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))
         self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
+        self.listChanged.emit(2)
 
     def _connectSignals(self):
         pass

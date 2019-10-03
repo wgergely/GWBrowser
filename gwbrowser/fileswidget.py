@@ -404,11 +404,6 @@ class FilesModel(BaseModel):
         self.threads[idx].started.connect(set_model)
         self.threads[idx].start()
 
-
-        # self.modelAboutToBeReset.connect(
-        #     lambda: self.set_data_key(self.data_key()))
-        # self.dataKeyChanged.connect(self.set_data_key)
-
     @QtCore.Slot()
     def reset_file_info_loaded(self):
         """Set the file-info-loaded state to ``False``. This property is used
@@ -624,7 +619,7 @@ class FilesModel(BaseModel):
 
                     # If the sequence has not yet been added to our dictionary
                     # of seqeunces we add it here
-                    if seqpath not in seqs:  # ... and create it if it doesn't exist
+                    if seqpath.lower() not in seqs:  # ... and create it if it doesn't exist
                         seqname = seqpath.split(u'/')[-1]
                         flags = dflags()
                         try:
@@ -641,7 +636,7 @@ class FilesModel(BaseModel):
                         if key.lower() in sfavourites:
                             flags = flags | common.MarkedAsFavourite
 
-                        seqs[seqpath] = {
+                        seqs[seqpath.lower()] = {
                             QtCore.Qt.DisplayRole: seqname,
                             QtCore.Qt.EditRole: seqname,
                             QtCore.Qt.StatusTipRole: seqpath,
@@ -672,8 +667,8 @@ class FilesModel(BaseModel):
                             common.SortBySize: 0,  # Initializing with null-size
                         }
 
-                    seqs[seqpath][common.FramesRole].append(seq.group(2))
-                    seqs[seqpath][common.EntryRole].append(entry)
+                    seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
+                    seqs[seqpath.lower()][common.EntryRole].append(entry)
                 else:
                     seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -732,6 +727,12 @@ class FilesModel(BaseModel):
         del self.threads[thread.thread_id]
 
     def data_key(self):
+        """Current key to the data dictionary."""
+        if not self._datakey:
+            val = None
+            key = u'activepath/location'
+            savedval = local_settings.value(key)
+            return savedval if savedval else val
         return self._datakey
 
     @QtCore.Slot(unicode)
@@ -758,7 +759,7 @@ class FilesModel(BaseModel):
         if self._datakey is None and stored_value:
             self._datakey = stored_value
 
-        # We are in sync with a valid value has been set already
+        # We are in sync with a valid value set already
         if self._datakey == val == stored_value and stored_value is not None:
             return
 
@@ -768,7 +769,7 @@ class FilesModel(BaseModel):
             return
 
         # About to set a new value. We can accept or reject this...
-        if val == self._datakey:
+        if val == self._datakey and val is not None:
             return
 
         entries = self.can_accept_datakey(val)
@@ -776,23 +777,21 @@ class FilesModel(BaseModel):
             self._datakey = None
             return
 
-        if val not in entries and self._datakey in entries:
+        if val in entries:
+            self._datakey = val
+            local_settings.setValue(k, val)
+            return
+        elif val not in entries and self._datakey in entries:
             val = self._datakey
             local_settings.setValue(k, self._datakey)
             stored_value = self._datakey
             return
-
-        if val not in entries and u'scenes' in entries:
+        elif val not in entries and u'scenes' in entries:
             val = u'scenes'
-        else:
-            val = entries[0]
 
-
+        val = entries[0]
         self._datakey = val
         local_settings.setValue(k, val)
-
-        print 'self._datakey: {}'.format(self._datakey), 'val: {}'.format(val), 'stored_value: {}\n\n'.format(stored_value)
-        return
 
     def can_accept_datakey(self, val):
         """Checks if the key about to be set corresponds to a real
