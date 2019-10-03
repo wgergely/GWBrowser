@@ -1012,11 +1012,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def import_referenced_scene(self, path):
         """Imports the given scene as a reference."""
-        def get_alphabet():
+        def get_alphabet(basename):
             """Checks the scene against the already used suffixes and returs a modified alphabet"""
             alphabet = unicode(string.ascii_uppercase)
             transforms = cmds.ls(transforms=True)
             for s in transforms:
+                if basename not in s:
+                    continue
                 if not cmds.attributeQuery('instance_suffix', node=s, exists=True):
                     continue
                 suffix = cmds.getAttr('{}.instance_suffix'.format(s))
@@ -1039,7 +1041,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     cmds.setAttr('{}.instance_suffix'.format(_node), id)
                     print _node, id
 
-        alphabet = get_alphabet()
+
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path).rstrip(u'_v'))
+        if not file_info.exists():
+            return
+        alphabet = get_alphabet(file_info.baseName())
         if not alphabet:
             return
 
@@ -1050,14 +1056,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         w.setCancelButtonText(u'Cancel')
         w.setOkButtonText(u'Import reference')
         res = w.exec_()
-
         if not res:
             return
-
         suffix = w.textValue()
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
-        if not file_info.exists():
-            return
 
         match = common.get_sequence(file_info.fileName())
 
