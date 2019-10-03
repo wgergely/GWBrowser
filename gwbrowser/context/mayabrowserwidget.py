@@ -314,7 +314,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             startframe, endframe, time.time())
 
         kwargs = {
-            u'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ppc} {ro}'.format(
+            u'jobArg': u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ro}'.format(
                 f=u'-file {}'.format(destination_path),
                 fr=u'-framerange {} {}'.format(startframe, endframe),
                 s=u'-step {}'.format(step),
