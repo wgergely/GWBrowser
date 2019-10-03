@@ -749,7 +749,6 @@ class FilesModel(BaseModel):
         not exist.
 
         """
-        print '\n# set_data_key: {}'.format(val)
         k = u'activepath/location'
         stored_value = local_settings.value(k)
         # Nothing to do for us when the parent is not set

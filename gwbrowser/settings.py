@@ -180,7 +180,6 @@ class LocalSettings(QtCore.QSettings):
 
     def setValue(self, *args, **kwargs):
         import sys
-        sys.stdout.write(u'{}\n'.format(args))
         super(LocalSettings, self).setValue(*args, **kwargs)
 
 

@@ -13,6 +13,8 @@ command:
 
 """
 import re
+import string
+import uuid
 import time
 import sys
 import functools
@@ -346,12 +348,10 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             # u'preRollStartFrame': float(int(startframe - preroll)),
             # u'dontSkipUnwrittenFrames': True,
         }
-
         cmds.AbcExport(**kwargs)
-
-   except:
-       raise
-   finally:
+    except:
+        raise
+    finally:
         # Finally, we will delete the previously created namespace and the object
         # contained inseide. I wrapped it into an evalDeferred call to let maya
         # recover after the export.
@@ -1033,23 +1033,68 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def import_referenced_scene(self, path):
         """Imports the given scene as a reference."""
+        def get_alphabet():
+            """Checks the scene against the already used suffixes and returs a modified alphabet"""
+            alphabet = unicode(string.ascii_uppercase)
+            transforms = cmds.ls(transforms=True)
+            for s in transforms:
+                if not cmds.attributeQuery('instance_suffix', node=s, exists=True):
+                    continue
+                suffix = cmds.getAttr('{}.instance_suffix'.format(s))
+                alphabet = alphabet.replace(string.ascii_uppercase[suffix], '')
+            return alphabet
+
+        def add_attribute(rfn, suffix):
+            id = string.ascii_uppercase.index(suffix)
+            nodes = cmds.referenceQuery(rfn, nodes=True)
+            for node in nodes:
+
+                # Conflict of duplicate name would prefent import... this is a hackish, yikes, workaround!
+                _node = cmds.ls(node, long=True)[0]
+                if cmds.nodeType(_node ) != 'transform':
+                    continue
+                if cmds.listRelatives(_node, parent=True) is None:
+                    if cmds.attributeQuery('instance_suffix', node=node, exists=True):
+                        continue
+                    cmds.addAttr(_node, ln='instance_suffix', at='enum', en=u':'.join(string.ascii_uppercase))
+                    cmds.setAttr('{}.instance_suffix'.format(_node), id)
+                    print _node, id
+
+        alphabet = get_alphabet()
+        if not alphabet:
+            return
+
+        w = QtWidgets.QInputDialog()
+        w.setWindowTitle(u'Assign suffix')
+        w.setLabelText(u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
+        w.setComboBoxItems(alphabet)
+        w.setCancelButtonText(u'Cancel')
+        w.setOkButtonText(u'Import reference')
+        res = w.exec_()
+
+        if not res:
+            return
+
+        suffix = w.textValue()
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
 
-        result = self.is_scene_modified()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
-
         match = common.get_sequence(file_info.fileName())
+
+        id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
+        # This should always be a unique name in the maya scene
+        ns = u'{}_{}'.format(match.group(1) if match else file_info.baseName(), suffix)
+        rfn = u'{}_RN_{}'.format(ns, id)
+
         cmds.file(
             file_info.filePath(),
             reference=True,
-            ns=u'{}#'.format(match.group(
-                1) if match else file_info.baseName()),
-            rfn=u'{}RN#'.format(match.group(
-                1) if match else file_info.baseName()),
+            ns=ns,
+            rfn=rfn,
         )
+
+        add_attribute(rfn, suffix)
         sys.stdout.write(
             u'# GWBrowser: Scene imported as reference: {}\n'.format(file_info.filePath()))
 
@@ -1153,10 +1198,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         ext = u'abc'
 
         # We want to handle the exact name of the file
+        # We'll remove the namespace, strip underscores
+        set_name = set_name.split(u':').pop().strip(u'_')
+        set_name = re.sub(ur'[0-9]*$', u'', set_name)
+
         file_path = alembic_file_template().format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
-            set=set_name.split(u':').strip('_').pop()
+            set=set_name
         )
 
         # Let's make sure destination folder exists
