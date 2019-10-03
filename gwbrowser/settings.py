@@ -10,7 +10,7 @@ from PySide2 import QtCore
 
 import gwbrowser.common as common
 
-SOLO = True
+SOLO = False
 
 
 class Active(QtCore.QObject):
@@ -187,7 +187,7 @@ class LocalSettings(QtCore.QSettings):
                 v = super(LocalSettings, self).value(k)
                 self.internal_settings[k] = _bool(v)
             return self.internal_settings[k]
-        return super(LocalSettings, self).value(k)
+        return _bool(super(LocalSettings, self).value(k))
 
     def setValue(self, k, v):
         if SOLO:

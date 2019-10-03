@@ -7,7 +7,7 @@ It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
-from gwbrowser.common_ui import ClickableIconButton
+from gwbrowser.common_ui import ClickableIconButton, add_row
 from gwbrowser.threads import BaseThread
 from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
@@ -16,6 +16,7 @@ from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.imagecache import ImageCache
+import gwbrowser.settings as Settings
 from gwbrowser.settings import local_settings, Active
 from gwbrowser.preferenceswidget import PreferencesWidget
 
@@ -36,6 +37,47 @@ class SettingsButton(ClickableIconButton):
         #     oiio.__version__
         # )
         self.clicked.connect(self.parent().preferences_widget.show)
+
+class SoloButton(ClickableIconButton):
+    """Small version label responsible for displaying information
+    about GWBrowser."""
+
+    def __init__(self, parent=None):
+        super(SoloButton, self).__init__(
+            'settings',
+            (common.TEXT, common.TEXT),
+            common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2),
+            description='Click to toggle the solo mode.\nWhen on, your bookmark and asset selections won\'t be\nsaved and will revert the next time you start GWBrowser.',
+            parent=parent
+        )
+
+        self.clicked.connect(self.toggle_solo)
+        self.clicked.connect(self.repaint)
+
+    def state(self):
+        return Settings.SOLO
+
+    def toggle_solo(self):
+        Settings.SOLO = not Settings.SOLO
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+
+        rect = self.rect()
+        center = rect.center()
+        rect.setWidth(12)
+        rect.setHeight(12)
+        rect.moveCenter(center)
+
+        color = common.TEXT if self.state() else common.SECONDARY_BACKGROUND
+        painter.setBrush(color)
+        if self.state():
+            painter.drawRect(rect)
+        else:
+            painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
+        painter.end()
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -237,16 +279,15 @@ class BrowserWidget(QtWidgets.QWidget):
         )
         settings_button.message.connect(
             lambda s: statusbar.showMessage(s, 4000))
-        statusbar.addPermanentWidget(settings_button)
-        # statusbar.addPermanentWidget(grip)
+
         statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         statusbar.setSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Minimum
         )
-        statusbar.setFixedHeight(
-            common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        statusbar.setFixedHeight(height)
         statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
 
         # statusbar.layout().setContentsMargins(20, 20, 20, 20)
@@ -254,7 +295,17 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
-        self.layout().addWidget(self.statusbar)
+
+        row = add_row('', height=height, parent=self)
+        row.layout().setSpacing(0)
+        row.layout().addWidget(self.statusbar)
+        row.layout().addWidget(settings_button)
+
+        solo_button = SoloButton(parent=self)
+        row.layout().addWidget(solo_button)
+
+        # row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+
 
     def show_preferences(self):
         self.preferences_widget.show()
