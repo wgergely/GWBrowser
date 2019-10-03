@@ -476,6 +476,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         has been initialized. If it hasn't, we will trigger `__initdata__` here.
 
         """
+        print '!'
         if not self.model_data():
             self.beginResetModel()
             self.__initdata__()
@@ -723,9 +724,6 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
 
-        model.dataKeyChanged.connect(lambda x: proxy._filtertext)
-        model.dataKeyChanged.connect(model.check_data)
-
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(model.set_data_type)
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
@@ -739,8 +737,6 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.filterTextChanged.connect(lambda x: proxy.invalidateFilter())
         proxy.filterFlagChanged.connect(lambda x: proxy.invalidateFilter())
 
-        model.dataKeyChanged.connect(lambda x: proxy.beginResetModel())
-        model.dataKeyChanged.connect(lambda x: proxy.endResetModel())
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
@@ -754,7 +750,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
-        model.dataKeyChanged.connect(lambda x: model.sort_data())
+
         model.dataTypeChanged.connect(lambda x: model.sort_data())
 
         model.modelReset.connect(model.sort_data)
