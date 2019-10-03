@@ -51,8 +51,6 @@ from gwbrowser.addfilewidget import AddFileWidget
 maya_button = None
 """The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
-alembic_file_template = lambda: u'{workspace}/{exports}/abc/version/{set}_v0001.abc'
-"""This is the destination template we're going to use to save our alembic."""
 
 
 @QtCore.Slot()
@@ -1182,7 +1180,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         set_name = set_name.replace(u':', '_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
-        file_path = alembic_file_template().format(
+        file_path = unicode(common.ALEMBIC_EXPORT_PATH).format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
             set=set_name

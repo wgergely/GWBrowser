@@ -102,19 +102,30 @@ class Server(object):
 
     @classmethod
     def get_server_platform_name(cls, server, platf):
-        """Returns the name of the server for the specified platform."""
+        """Returns the name of the server for a specified platform.
+
+        Used mostly by the copy function to get a platform accurate path.
+
+        """
         parser = cls.conf()
         d = {}
         for section in parser.sections():
             d[section] = {}
             for key, val in parser.items(section):
-                d[section][key] = val.replace(u'\\', u'/').rstrip(u'/')
+                if key not in ('mac', 'win'):
+                    continue
+                val = val.replace(u'\\', u'/').rstrip(u'/').lower()
+                if not val:
+                    continue
+                d[section][key] = u'{}/'.format(val)
 
         it = d.itervalues()
         for v in it:
+            if not v:
+                continue
             for f in v.itervalues():
-                if f.lower().endswith(server.lower()):
-                    return v[platf]
+                if server in f.lower():
+                    return v[platf.lower()]
         return None
 
     @classmethod
@@ -188,6 +199,10 @@ LTHREAD_COUNT = 1
 
 FTIMER_INTERVAL = 1000  # 1.0 sec
 """The frequency of querrying lists to load file and thumbnail info"""
+
+
+ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
+
 
 ExportsFolder = u'exports'
 DataFolder = u'data'

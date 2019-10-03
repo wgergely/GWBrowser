@@ -1,5 +1,6 @@
 """Preferences"""
 
+import re
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from gwbrowser.settings import local_settings
@@ -52,6 +53,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         cls = self.__class__.__name__.replace(u'Widget', u'')
         return u'preferences/{}/{}'.format(cls, name)
 
+
 class MayaSettingsWidget(BaseSettingsWidget):
     def __init__(self, parent=None):
         super(MayaSettingsWidget, self).__init__(u'Maya Settings', parent=parent)
@@ -99,6 +101,15 @@ class MayaSettingsWidget(BaseSettingsWidget):
         row.layout().addStretch(1)
         row.layout().addWidget(self.workspace_warning_button)
 
+        label =u'The template used to export the alembic caches:'
+        label = QtWidgets.QLabel(label)
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Alembic template', parent=self)
+        self.alembic_export_path = add_line_edit(
+            u'eg. {workspace}/{exports}/abc/{set}/{set}_v001.abc', parent=row)
+        row.layout().addWidget(self.alembic_export_path, 1)
+
         self.layout().addStretch(1)
 
     def _connectSignals(self):
@@ -106,6 +117,7 @@ class MayaSettingsWidget(BaseSettingsWidget):
         self.sync_maya_project_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_sync'), x))
         self.save_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
         self.workspace_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
+        self.alembic_export_path.textChanged.connect(lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
 
     def _init_values(self):
         val = local_settings.value(self.name(u'disable_active_sync'))
@@ -123,6 +135,12 @@ class MayaSettingsWidget(BaseSettingsWidget):
         val = local_settings.value(self.name(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'alembic_export_path'))
+        if val:
+            self.alembic_export_path.setText(val)
+        else:
+            self.alembic_export_path.setText(common.ALEMBIC_EXPORT_PATH)
 
 
 class ApplicationSettingsWidget(BaseSettingsWidget):
@@ -288,7 +306,7 @@ class ServersSettingsWidget(BaseSettingsWidget):
             u'Enter a description...', parent=row)
 
         self.layout().addStretch(1)
-        regex = QtCore.QRegExp(u'[a-zA-Z0-9/_-]+')
+        regex = QtCore.QRegExp(u'[a-zA-Z0-9/_-]*')
         validator = QtGui.QRegExpValidator(regex)
         self.primary_mac_editor.setValidator(validator)
         self.primary_win_editor.setValidator(validator)
@@ -301,15 +319,16 @@ class ServersSettingsWidget(BaseSettingsWidget):
         self.local_description.setValidator(validator)
 
     def _connectSignals(self):
-        self.primary_mac_editor.textChanged.connect(self.save_settings)
-        self.primary_win_editor.textChanged.connect(self.save_settings)
-        self.primary_description.textChanged.connect(self.save_settings)
-        self.backup_mac_editor.textChanged.connect(self.save_settings)
-        self.backup_win_editor.textChanged.connect(self.save_settings)
-        self.backup_description.textChanged.connect(self.save_settings)
-        self.local_mac_editor.textChanged.connect(self.save_settings)
-        self.local_win_editor.textChanged.connect(self.save_settings)
-        self.local_description.textChanged.connect(self.save_settings)
+        pass
+        # self.primary_mac_editor.textChanged.connect(self.save_settings)
+        # self.primary_win_editor.textChanged.connect(self.save_settings)
+        # self.primary_description.textChanged.connect(self.save_settings)
+        # self.backup_mac_editor.textChanged.connect(self.save_settings)
+        # self.backup_win_editor.textChanged.connect(self.save_settings)
+        # self.backup_description.textChanged.connect(self.save_settings)
+        # self.local_mac_editor.textChanged.connect(self.save_settings)
+        # self.local_win_editor.textChanged.connect(self.save_settings)
+        # self.local_description.textChanged.connect(self.save_settings)
 
     def _init_values(self):
         """Populates the edit fields with the saved values."""
@@ -343,14 +362,14 @@ class ServersSettingsWidget(BaseSettingsWidget):
     def save_settings(self):
         """"""
         values = {
-            u'primary:mac': self.primary_mac_editor.text(),
-            u'primary:win': self.primary_win_editor.text(),
+            u'primary:mac': self.primary_mac_editor.text().rstrip(u'/'),
+            u'primary:win': self.primary_win_editor.text().rstrip(u'/'),
             u'primary:description': self.primary_description.text(),
-            u'backup:mac': self.backup_mac_editor.text(),
-            u'backup:win': self.backup_win_editor.text(),
+            u'backup:mac': self.backup_mac_editor.text().rstrip(u'/'),
+            u'backup:win': self.backup_win_editor.text().rstrip(u'/'),
             u'backup:description': self.backup_description.text(),
-            u'local:mac': self.local_mac_editor.text(),
-            u'local:win': self.local_win_editor.text(),
+            u'local:mac': self.local_mac_editor.text().rstrip(u'/'),
+            u'local:win': self.local_win_editor.text().rstrip(u'/'),
             u'local:description': self.local_description.text(),
         }
 
@@ -362,7 +381,7 @@ class ServersSettingsWidget(BaseSettingsWidget):
             mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             mbox.setText(u'Primary server has to be set.')
             mbox.setInformativeText(
-                u'It usually is a network path of the server where jobs are stored, eg. //myserver/jobs')
+                u'It usually is a network path of the server where the jobs are stored, eg. //myserver/jobs')
             return mbox.exec_()
 
         parser = common.Server.conf()
