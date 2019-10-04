@@ -448,12 +448,12 @@ class BrowserWidget(QtWidgets.QWidget):
         lb = lc.control_button()
 
         # Progress
-        f.model().sourceModel().modelAboutToBeReset.connect(b._progress_widget.show)
-        f.model().sourceModel().modelReset.connect(b._progress_widget.hide)
-        f.model().sourceModel().modelAboutToBeReset.connect(a._progress_widget.show)
-        f.model().sourceModel().modelReset.connect(a._progress_widget.hide)
-        f.model().sourceModel().modelAboutToBeReset.connect(ff._progress_widget.show)
-        f.model().sourceModel().modelReset.connect(ff._progress_widget.hide)
+        f.model().sourceModel().modelAboutToBeReset.connect(b.progress_widget.show)
+        f.model().sourceModel().modelReset.connect(b.progress_widget.hide)
+        f.model().sourceModel().modelAboutToBeReset.connect(a.progress_widget.show)
+        f.model().sourceModel().modelReset.connect(a.progress_widget.hide)
+        f.model().sourceModel().modelAboutToBeReset.connect(ff.progress_widget.show)
+        f.model().sourceModel().modelReset.connect(ff.progress_widget.hide)
 
         s = self.stackedwidget
 

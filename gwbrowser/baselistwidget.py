@@ -427,7 +427,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
 
     def proxy_idxs(self):
-        """This is no implemented or used at the moment."""
+        """Returns the id of the proxy."""
         k = self.data_key()
         t = self.data_type()
         if k not in self._proxy_idxs:
@@ -447,6 +447,8 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         """
         data = self.model_data()
+        if not data:
+            return
 
         sortrole = self.sortRole()
         if sortrole not in (common.SortByName, common.SortBySize, common.SortByLastModified):
@@ -468,6 +470,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         k = self.data_key()
         t = self.data_type()
         self._data[k][t] = __data
+
         self.dataSorted.emit()
 
     @QtCore.Slot()
@@ -609,8 +612,8 @@ class BaseListWidget(QtWidgets.QListView):
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
-        self._progress_widget = ProgressWidget(parent=self)
-        self._progress_widget.setHidden(True)
+        self.progress_widget = ProgressWidget(parent=self)
+        self.progress_widget.setHidden(True)
         self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
         self.disabled_overlay_widget.setHidden(True)
         self._favourite_set_widget = FilterOnOverlayWidget(parent=self)
@@ -704,9 +707,9 @@ class BaseListWidget(QtWidgets.QListView):
         model.indexUpdated.connect(self.update_index)
 
         # Progress
-        model.modelAboutToBeReset.connect(self._progress_widget.show)
-        model.modelAboutToBeReset.connect(self._progress_widget.repaint)
-        model.modelReset.connect(self._progress_widget.hide)
+        model.modelAboutToBeReset.connect(self.progress_widget.show)
+        model.modelAboutToBeReset.connect(self.progress_widget.repaint)
+        model.modelReset.connect(self.progress_widget.hide)
 
         model.modelDataResetRequested.connect(
             model.beginResetModel)
@@ -1002,7 +1005,7 @@ class BaseListWidget(QtWidgets.QListView):
                     n = 0
                     c = len(data[common.FramesRole])
 
-                    self._progress_widget.show()
+                    self.progress_widget.show()
                     for _item in m._data[m.data_key()][common.FileItem].itervalues():
                         _seq = _item[common.SequenceRole]
                         if not _seq:
@@ -1028,7 +1031,7 @@ class BaseListWidget(QtWidgets.QListView):
                         )
                         QtWidgets.QApplication.instance().processEvents(
                             QtCore.QEventLoop.ExcludeUserInputEvents)
-                    self._progress_widget.hide()
+                    self.progress_widget.hide()
                 return
 
         if state is None or state is True:
@@ -1060,7 +1063,7 @@ class BaseListWidget(QtWidgets.QListView):
                 n = 0
                 c = len(data[common.FramesRole])
 
-                self._progress_widget.show()
+                self.progress_widget.show()
                 for _item in m._data[m.data_key()][common.FileItem].itervalues():
                     _seq = _item[common.SequenceRole]
                     if not _seq:
@@ -1086,7 +1089,7 @@ class BaseListWidget(QtWidgets.QListView):
                     )
                     QtWidgets.QApplication.instance().processEvents(
                         QtCore.QEventLoop.ExcludeUserInputEvents)
-                self._progress_widget.hide()
+                self.progress_widget.hide()
 
         # Let's save the favourites list
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))

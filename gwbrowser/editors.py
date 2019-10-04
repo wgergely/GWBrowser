@@ -272,7 +272,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         """Creates the layout."""
         QtWidgets.QHBoxLayout(self)
         self.setWindowFlags(QtCore.Qt.Widget)
-        o = common.INDICATOR_WIDTH / 2
+        o = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(o,o,o,o)
         self.layout().setSpacing(o)
 
@@ -284,7 +284,6 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self.editor = QtWidgets.QLineEdit(parent=self)
         self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
-
         self.editor.setStyleSheet("""
 background-color: rgb(50,50,50);
 font-family: "{}"; font-size: {}pt;

@@ -414,3 +414,35 @@ TodoItemEditor:disabled {{
 TodoItemEditor:focus {{
 	border: 1px solid rgba(0,0,0,30) ;
 }}
+
+TodoItemWidget QScrollBar {{
+	background: rgba({TEXT});
+	border: none;
+	border-radius: 0px;
+	width:8px;
+	height: 8px;
+}}
+TodoItemWidget QScrollBar:vertical,
+TodoItemWidget QScrollBar:horizontal {{
+	background: rgba({TEXT});
+	border: none;
+}}
+TodoItemWidget QScrollBar::handle {{
+	background: rgba({SECONDARY_TEXT});
+	border: none;
+	border-radius: 4px;
+	border: 1px solid rgba(0,0,0,20);
+	max-height: 250px;
+	min-height: 50px;
+}}
+
+TodoItemWidget QScrollBar::add-page,
+TodoItemWidget QScrollBar::sub-page,
+TodoItemWidget QScrollBar::add-line,
+TodoItemWidget QScrollBar::up-arrow,
+TodoItemWidget QScrollBar::down-arrow,
+TodoItemWidget QScrollBar::sub-line {{
+	background: rgba({TEXT});
+	border: none;
+	border-radius: 0px;
+}}
