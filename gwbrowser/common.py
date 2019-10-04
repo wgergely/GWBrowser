@@ -451,7 +451,7 @@ FilterTextRegex = re.compile(ur'[^0-9\.\#\-\_\/a-zA-Z]+')
 
 SORT_WITH_BASENAME = False
 
-def namekey(s, _nsre=re.compile('([0-9]+)')):
+def namekey(s):
     """Key function used to sort alphanumeric filenames."""#
     if SORT_WITH_BASENAME:
         return [int(f) if f.isdigit() else f for f in s.split('/').pop().lower()]

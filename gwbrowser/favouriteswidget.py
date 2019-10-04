@@ -54,11 +54,11 @@ class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
 
     def __init__(self, parent=None):
-        super(FavouritesModel, self).__init__(threads=0, parent=parent)
+        super(FavouritesModel, self).__init__(threads=common.FTHREAD_COUNT, parent=parent)
 
     def data_key(self):
         return u'.'
-        
+
     @property
     def generate_thumbnails(self):
         return False

@@ -1001,8 +1001,6 @@ class FilesWidget(BaseInlineIconWidget):
         self.verticalScrollBar().sliderReleased.connect(
             self.index_update_timer.start)
 
-        # Making sure the SecondaryFileInfoWorker loads the model-data...
-
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def new_file_added(self, data_key, file_path):
@@ -1041,6 +1039,9 @@ class FilesWidget(BaseInlineIconWidget):
         uninitialized indexes for the thread-workers to consume.
 
         """
+        if not self.isVisible():
+            return
+
         needs_info = []
         needs_thumbnail = []
         visible = []

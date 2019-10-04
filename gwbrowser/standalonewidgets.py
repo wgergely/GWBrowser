@@ -8,7 +8,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from gwbrowser.settings import Active
 from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.common_ui import ClickableIconButton
+from gwbrowser.common_ui import ClickableIconButton, PaintedLabel
 from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
@@ -135,6 +135,7 @@ class CloseButton(ClickableIconButton):
     )
 
 
+
 class HeaderWidget(QtWidgets.QWidget):
     """Horizontal widget for controlling the position of the widget active window."""
     widgetMoved = QtCore.Signal(QtCore.QPoint)
@@ -160,6 +161,12 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addWidget(
+            PaintedLabel('{} - Desktop'.format(self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()),
+            color=common.BACKGROUND,
+            parent=self)
+        )
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))

@@ -202,11 +202,31 @@ class ToggleButtons(BaseControlButton):
         val = self.current().buttons_hidden()
         return val
 
+    def showEvent(self, event):
+        cls = self.current().__class__.__name__
+        k = 'widget/{}/sort_with_basename'.format(cls)
+        val = local_settings.value(k)
+        if val is None:
+            local_settings.setValue(k, self.state())
+        common.SORT_WITH_BASENAME = val
+
+    def hideEvent(self, event):
+        common.SORT_WITH_BASENAME = False
+
+
     @QtCore.Slot()
     def action(self):
-        val = self.current().buttons_hidden()
+        val = self.state()
+        common.SORT_WITH_BASENAME = not val
         self.current().set_buttons_hidden(not val)
-        self.current().repaint()
+        self.current().model().sourceModel().sort_data()
+        self.current().reset()
+
+        cls = self.current().__class__.__name__
+        k = 'widget/{}/sort_with_basename'.format(cls)
+        local_settings.setValue(k, not val)
+
+        # self.current().repaint()
 
     def repaint(self):
         super(ToggleButtons, self).repaint()

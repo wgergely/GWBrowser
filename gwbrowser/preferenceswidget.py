@@ -179,12 +179,26 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             u'eg. https://mystudio.slack.com...', parent=row)
         row.layout().addWidget(self.slack_url, 1)
 
+        add_label(u'Company name', parent=self)
+        row = add_row(u'', parent=self)
+        label = 'Add the name of your company below.'
+        label = QtWidgets.QLabel(label, parent=self)
+        label.setWordWrap(True)
+        row.layout().addWidget(label, 1)
+        row = add_row(u'Company', parent=self)
+        self.company_name = add_line_edit(
+            u'eg. My Studio', parent=row)
+
         self.layout().addStretch(1)
 
     def _init_values(self):
         slack_url = local_settings.value(self.name(u'slack_url'))
         val = slack_url if slack_url else common.SLACK_URL
         self.slack_url.setText(val)
+
+        company_name = local_settings.value(self.name(u'company'))
+        val = company_name if company_name else common.COMPANY
+        self.company_name .setText(val)
 
     def _connectSignals(self):
         import gwbrowser.versioncontrol.versioncontrol as vc
@@ -195,6 +209,9 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
         self.slack_url.textChanged.connect(
             lambda x: local_settings.setValue(self.name(u'slack_url'), x))
+
+        self.company_name.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'company'), x))
 
     @QtCore.Slot()
     def show_asset_template(self):
