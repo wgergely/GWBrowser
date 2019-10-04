@@ -51,7 +51,10 @@ from gwbrowser.addfilewidget import AddFileWidget
 maya_button = None
 """The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
+__instance__ = None
 
+def instance():
+    return __instance__
 
 @QtCore.Slot()
 def show():
@@ -544,6 +547,7 @@ class MayaBrowserButton(ClickableIconButton):
             return
 
         widget = self.context_menu_cls(parent=self)
+        common.set_custom_stylesheet(widget)
         widget.move(self.mapToGlobal(self.rect().bottomLeft()))
         widget.setFixedWidth(300)
         common.move_widget_to_available_geo(widget)
@@ -606,20 +610,20 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         maya_reference_pixmap = ImageCache.get_rsc_pixmap(
             u'maya_reference', None, common.INLINE_ICON_SIZE)
 
-        menu_set[u'open'] = {
+        menu_set[u'open_scene'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
             u'icon': maya_pixmap,
             u'action': lambda: browserwidget.open_scene(file_info.filePath())
         }
-        menu_set[u'importlocal'] = {
+        menu_set[u'import_local_scene'] = {
             u'text': u'Import  "{}"'.format(file_info.fileName()),
             u'icon': maya_pixmap,
             u'action': lambda: browserwidget.import_scene(file_info.filePath())
         }
-        menu_set[u'import'] = {
+        menu_set[u'import_scene'] = {
             u'text': u'Reference  "{}"'.format(file_info.fileName()),
             u'icon': maya_reference_pixmap,
-            u'action': functools.partial(browserwidget.import_referenced_scene, file_info.filePath())
+            u'action': lambda: browserwidget.import_referenced_scene(file_info.filePath())
         }
         return menu_set
 
@@ -633,20 +637,20 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         alembic_pixmap = ImageCache.get_rsc_pixmap(
             u'abc', None, common.INLINE_ICON_SIZE)
 
-        menu_set[u'open'] = {
+        menu_set[u'open_alembic'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
             u'icon': alembic_pixmap,
             u'action': lambda: browserwidget.open_alembic(file_info.filePath())
         }
-        menu_set[u'importlocal'] = {
-            u'text': u'Import "{}"'.format(file_info.fileName()),
+        menu_set[u'import_local_alembic'] = {
+            u'text': u'Import alembic "{}"'.format(file_info.fileName()),
             u'icon': alembic_pixmap,
-            u'action': lambda: browserwidget.import_scene(file_info.filePath())
+            u'action': lambda: browserwidget.import_alembic(file_info.filePath())
         }
-        menu_set[u'import'] = {
+        menu_set[u'import_ref_alembic'] = {
             u'text': u'Import alembic as reference...',
             u'icon': alembic_pixmap,
-            u'action': lambda: browserwidget.import_referenced_scene(file_info.filePath())
+            u'action': lambda: browserwidget.import_referenced_alembic(file_info.filePath())
         }
         return menu_set
 
@@ -690,6 +694,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
 
     def __init__(self, parent=None):
+        global __instance__
+        __instance__ = self
         super(MayaBrowserWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
@@ -1094,68 +1100,95 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         sys.stdout.write(
             u'# GWBrowser: Alembic opened: {}\n'.format(file_info.filePath()))
 
-    def import_alembic(path):
+    def import_alembic(self, file_path):
         """Imports the given scene locally."""
         if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
             cmds.loadPlugin("AbcExport.mll", quiet=True)
             cmds.loadPlugin("AbcImport.mll", quiet=True)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
         if not file_info.exists():
             return
 
-        match = common.get_sequence(file_info.fileName())
-        ns = u'{}#'.format(match.group(1) if match else file_info.baseName())
-        ns = cmds.namespace(addNamespace=ns)
+        seq = common.get_sequence(file_info.fileName())
+        if seq:
+            prefix, _, _, ext = seq.groups()
+            prefix = re.sub(r'_v$', '', prefix).rstrip('_')
+        else:
+            prefix = file_info.baseName().rstrip('_')
 
-        parent_grp = u'{}_loc'.format(match.group(
-            1) if match else file_info.baseName())
-        parent_grp = cmds.createNode(
-            u'transform', name=u'{}:{}'.format(ns, parent_grp))
+        # Create namespace
+        n = 1
+        ns = 'abc_{}{}'.format(prefix, n)
+        while True:
+            if cmds.namespace(exists=ns):
+                n += 1
+                ns = 'abc_{}{}'.format(prefix, n)
+                continue
+            break
+        cmds.namespace(add=ns)
+        root_node = '{}:{}'.format(ns, prefix)
+        cmds.createNode('transform', name=root_node)
 
         cmds.AbcImport(
-            (file_info.filePath(),),
-            reparent=parent_grp,
-            mode=u'import',
+            file_path,
+            mode='import',
+            reparent=root_node,
             filterObjects=u'.*Shape.*'
         )
 
-        for s in cmds.listRelatives(parent_grp, children=True):
+        for s in cmds.listRelatives(root_node, children=True):
             cmds.rename(s, u'{}:{}'.format(ns, s))
 
         sys.stdout.write(
-            u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
+        u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
 
-    def import_referenced_alembic(path):
+    def import_referenced_alembic(self, file_path):
         """Imports the given scene as a reference."""
         if not cmds.pluginInfo('AbcImport.mll', loaded=True, q=True):
             cmds.loadPlugin("AbcExport.mll", quiet=True)
             cmds.loadPlugin("AbcImport.mll", quiet=True)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
         if not file_info.exists():
             return
 
-        match = common.get_sequence(file_info.fileName())
-        ns = u'{}#'.format(match.group(1) if match else file_info.baseName())
+        seq = common.get_sequence(file_info.fileName())
+        if seq:
+            prefix, _, _, ext = seq.groups()
+            prefix = re.sub(r'_v$', '', prefix).rstrip('_')
+        else:
+            prefix = file_info.baseName().rstrip('_')
 
-        rfn = u'{}RN#'.format(match.group(
-            1) if match else file_info.baseName())
-        parent_grp = u'{}_loc#'.format(match.group(
-            1) if match else file_info.baseName())
+        # Create namespace
+        n = 1
+        ns = 'abc_{}{}'.format(prefix, n)
+        while True:
+            if cmds.namespace(exists=ns):
+                n += 1
+                ns = 'abc_{}{}'.format(prefix, n)
+                continue
+            break
+
+        # The namespace will be created by the cmds.file() command
+        rfn = '{}_RN'.format(ns)
 
         cmds.file(
             file_info.filePath(),
-            type=u'Alembic',
             reference=True,
-            groupReference=True,
-            groupName=parent_grp,
             ns=ns,
             rfn=rfn,
         )
+        members = cmds.namespaceInfo(ns, listNamespace=True, fullName=True)
+        root_node = '{}:{}'.format(ns, prefix)
+        cmds.createNode('transform', name=root_node)
+        for member in members:
+            if cmds.objectType(member) != 'transform':
+                continue
+            cmds.parent(member, root_node)
 
         sys.stdout.write(
-            u'# GWBrowser: Alembic referenced: {}\n'.format(file_info.filePath()))
+        u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)
