@@ -163,7 +163,7 @@ class Server(object):
         return cls._get('local')
 
     @classmethod
-    def servers(cls):
+    def servers(cls, get_all=False):
         """Returns all available servers."""
         arr = []
         parser = cls.conf()
@@ -173,10 +173,21 @@ class Server(object):
             for key, val in parser.items(section):
                 d[section][key] = val
         for v in d.itervalues():
-            if not v[get_platform()]:
-                continue
-            arr.append({u'path': v[get_platform()],
-                        u'description': v[u'description']})
+            if get_all:
+                if not any((v['win'], v['mac'])):
+                    continue
+                arr.append({u'path': v['win'], u'platform': u'win',
+                            u'description': v[u'description']})
+                arr.append({u'path': v['mac'],  u'platform': u'mac',
+                            u'description': v[u'description']})
+            else:
+                platform = get_platform()
+                if not v[platform]:
+                    continue
+                if not v[platform]:
+                    continue
+                arr.append({u'path': v[platform], u'platform': platform,
+                            u'description': v[u'description']})
         arr = sorted(arr, key=lambda x: x[u'path'])
         return arr
 
@@ -188,10 +199,10 @@ a **workspace.mel** file in our case. The file resides in the root of the asset
 directory."""
 
 
-FTHREAD_COUNT = 2
+FTHREAD_COUNT = 1
 """The number of threads used by the ``FilesWidget`` to get file - information."""
 
-ITHREAD_COUNT = 4
+ITHREAD_COUNT = 2
 """The number of threads used by the ``ImageCache`` to generate thumbnails."""
 
 LTHREAD_COUNT = 1
@@ -438,11 +449,13 @@ UpperCase = 1
 FilterTextRegex = re.compile(ur'[^0-9\.\#\-\_\/a-zA-Z]+')
 """This is the valid string accepted by the filter editor."""
 
+SORT_WITH_BASENAME = False
 
 def namekey(s, _nsre=re.compile('([0-9]+)')):
-    """Key function used to sort alphanumeric filenames."""
-    return [int(text) if text.isdigit() else text.lower()
-            for text in _nsre.split(s)]
+    """Key function used to sort alphanumeric filenames."""#
+    if SORT_WITH_BASENAME:
+        return [int(f) if f.isdigit() else f for f in s.split('/').pop().lower()]
+    return [int(f) if f.isdigit() else f for f in s.strip('/').lower()]
 
 
 def move_widget_to_available_geo(widget):
@@ -952,28 +965,55 @@ MacOSPath = 3
 def copy_path(index, mode=WindowsPath, first=True):
     """Copies the given path to the clipboard. We have to do some magic here
     for the copied paths to be fully qualified."""
-    current_parent = index.data(ParentRole)[0]
+    server = index.data(ParentRole)[0]
     path = index.data(QtCore.Qt.StatusTipRole)
     if first:
         path = get_sequence_startpath(path)
     else:
         path = get_sequence_endpath(path)
 
+    win_server = Server.get_server_platform_name(server, u'win')
+    mac_server = Server.get_server_platform_name(server, u'mac')
+
+    if not win_server:
+        file_path = index.data(QtCore.Qt.StatusTipRole)
+        for server in Server.servers(get_all=True):
+            print server['path'].strip().rstrip('/').lower() in file_path.strip().lower(),
+            print server[u'platform']
+            if server[u'platform'] != 'win':
+                continue
+            if file_path.startswith(server['path']):
+                win_server = Server.get_server_platform_name(server[u'path'], u'win')
+                server = server[u'path']
+                break
+
+    if not mac_server:
+        file_path = index.data(QtCore.Qt.StatusTipRole)
+        for server in Server.servers(get_all=True):
+            if server[u'platform'] != 'win':
+                continue
+            if file_path.startswith(server['path']):
+                mac_server = Server.get_server_platform_name(server[u'path'], u'mac')
+                server = server[u'path']
+                break
+
+    if not any((win_server, mac_server)):
+        QtGui.QClipboard().setText(path)
+        print '# Copied {}'.format(path)
+        return path
+
+    win_server = win_server.rstrip('/')
+    mac_server = mac_server.rstrip('/')
+
     if mode == WindowsPath:
-        if current_parent.lower() in path.lower():
-            path = path.replace(
-                current_parent,
-                Server.get_server_platform_name(current_parent, u'win'))
+        if server.lower() in path.lower():
+            path = path.replace(server, win_server)
         path = re.sub(ur'[\/\\]', ur'\\', path)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return
 
     if mode == UnixPath:
-        if current_parent.lower() in path.lower():
-            path = path.replace(
-                current_parent,
-                Server.get_server_platform_name(current_parent, u'mac'))
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
@@ -986,10 +1026,8 @@ def copy_path(index, mode=WindowsPath, first=True):
         return path
 
     if mode == MacOSPath:
-        if current_parent.lower() in path.lower():
-            path = path.replace(
-                current_parent,
-                Server.get_server_platform_name(current_parent, u'mac'))
+        if server.lower() in path.lower():
+            path = path.replace(server, mac_server)
         path = re.sub(ur'[\/\\]', ur'/', path)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
