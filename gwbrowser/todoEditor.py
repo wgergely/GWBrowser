@@ -748,7 +748,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.todoeditors_widget = None
         self._index = index
         self.read_only = False
-        self.lockstamp = u'{}'.format(time.time())
+
+        self.lockstamp = int(round(time.time() * 1000))
+        self.save_timer = QtCore.QTimer(parent=self)
+        self.save_timer.setInterval(2000)
+        self.save_timer.setSingleShot(False)
+        self.save_timer.timeout.connect(self.save_settings)
 
         self.setWindowTitle(u'Notes and Comments')
         self.setMouseTracking(True)
@@ -758,11 +763,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.refresh()
         self.installEventFilter(self)
 
-        self.save_timer = QtCore.QTimer(parent=self)
-        self.save_timer.setInterval(8000)
-        self.save_timer.setSingleShot(False)
-        self.save_timer.timeout.connect(self.save_settings)
-        # self.save_timer.start()
+        self.create_lockfile()
+
+
 
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
@@ -795,15 +798,15 @@ class TodoEditorWidget(QtWidgets.QWidget):
         # Name label
         if self.index.isValid():
             p = self.index.data(common.ParentRole)
-            text = u'{} - {}'.format(p[-1], p[-2]).upper()
+            text = u' {} - {} '.format(p[-1], p[-2]).upper()
         else:
-            text = u'Notes and Tasks'
-        if len(text) > 24:
-            text = u'{}...{}'.format(text[0:8], text[-8:])
+            text = u'Notes and Tasksd'
+        if len(text) >= 48:
+            text = u'{}...{}'.format(text[0:22], text[-22:])
         label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND, size=common.LARGE_FONT_SIZE, parent=self)
 
         row.layout().addWidget(thumbnail, 0)
-        row.layout().addWidget(label, 0)
+        row.layout().addWidget(label, 1)
         row.layout().addStretch(1)
 
         # Add button
@@ -1022,10 +1025,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
-
         data = self._collect_data()
         settings = AssetSettings(self.index)
         settings.setValue(u'config/todos', data)
+        model = self.index.model()
+        model.setData(self.index, len(data), role=common.TodoCountRole)
+
 
     @QtCore.Slot()
     def add_new_item(self, html=u'', idx=0):
@@ -1047,66 +1052,50 @@ class TodoEditorWidget(QtWidgets.QWidget):
             }
         return data
 
-    def showEvent(self, event):
-        """Custom show event."""
+    def create_lockfile(self):
+        """Creates a lock on the current file so it can't be edited by other users.
+        It will also start the auto-save timer.
+        """
         if not self.parent():
             return
-        self.setFocus(QtCore.Qt.OtherFocusReason)
-        if self.index.isValid():
-            settings = AssetSettings(self.index)
-            lockfile = u'{}.lock'.format(settings.conf_path())
-            lockfile = QtCore.QFileInfo(lockfile)
 
-            if lockfile.exists():
-                self.add_button.hide()
-                self.todoeditors_widget.setDisabled(True)
-                return
+        if not self.index.isValid():
+            return
 
-            path = os.path.abspath(lockfile.filePath())
-            path = os.path.normpath(path)
-            try:
-                with open(path, 'w') as f:
-                    f.write(self.lockstamp)
+        settings = AssetSettings(self.index)
 
-                self.todoeditors_widget.setDisabled(False)
-                print 'Lock created: {}'.format(path)
-                self.refresh_button.hide()
-                # self.save_timer.start()
+        if settings.value(u'config/todo_open'):
+            self.add_button.hide()
+            self.todoeditors_widget.setDisabled(True)
+            return
 
-            except Exception as err:
-                _file = QtCore.QFile(lockfile.filePath())
-                _file.remove()
-                raise RuntimeError('Could not create a lockfile:\n{}'.format(err))
+        settings.setValue(u'config/todo_open', True)
+        settings.setValue(u'config/todo_lockstamp', int(self.lockstamp))
+        self.refresh_button.hide()
+        self.save_timer.start()
 
+        print u'# Lock created.'
 
-    def hideEvent(self, event):
+    def remove_lockfile(self):
         """Saving the contents on close/hide."""
         if self.index.isValid():
             settings = AssetSettings(self.index)
-            lockfile = u'{}.lock'.format(settings.conf_path())
-            lockfile = QtCore.QFileInfo(lockfile)
-
-            if not lockfile.exists():
+            if not settings.value(u'config/todo_open'):
                 return
+            val = settings.value(u'config/todo_lockstamp')
+            if val is None:
+                return
+            if int(val) != self.lockstamp:
+                return
+            settings.setValue(u'config/todo_lockstamp', None)
+            settings.setValue(u'config/todo_open', False)
+            print '# Lock removed'
 
-            path = os.path.abspath(lockfile.filePath())
-            path = os.path.normpath(path)
+    def showEvent(self, event):
+        self.setFocus(QtCore.Qt.OtherFocusReason)
 
-            # We should only remove the lockfile we have created ourselves.
-            with open(path, 'r') as f:
-                data = f.read()
-                if data != self.lockstamp:
-                    return
-
-            self.save_settings()
-
-            print '# Settings saved'
-            model = self.index.model()
-            model.setData(self.index, len(data), role=common.TodoCountRole)
-            _file = QtCore.QFile(lockfile.filePath())
-            if not _file.remove():
-                print ('# Could not remove lockfile.')
-
+    def hideEvent(self, event):
+        self.remove_lockfile()
 
     def sizeHint(self):
         """Custom size."""
