@@ -13,40 +13,17 @@ Methods:
 """
 
 import uuid
+import os
+import time
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.imagecache import ImageCacheWorker
-from gwbrowser import common
+import gwbrowser.common as common
+from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
 
-
-class PaintedLabel(QtWidgets.QLabel):
-    """Custom label used to paint the elements of the ``AddBookmarksWidget``."""
-
-    def __init__(self, text, size=common.MEDIUM_FONT_SIZE, parent=None):
-        super(PaintedLabel, self).__init__(text, parent=parent)
-        self._font = QtGui.QFont(common.PrimaryFont)
-        self._font.setPointSize(size)
-        metrics = QtGui.QFontMetrics(self._font)
-        self.setFixedHeight(metrics.height())
-        self.setFixedWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Minimum,
-            QtWidgets.QSizePolicy.Minimum
-        )
-
-    def paintEvent(self, event):
-        """Custom paint event to use the aliased paint method."""
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        color = common.SECONDARY_BACKGROUND
-        common.draw_aliased_text(
-            painter, self._font, self.rect(), self.text(), QtCore.Qt.AlignCenter, color)
-        painter.end()
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -90,7 +67,8 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             end = len(match)
 
             char_format = QtGui.QTextCharFormat()
-            char_format.setFont(self.document().defaultFont())
+            font = self.document().defaultFont()
+            char_format.setFont(font)
 
             if flags == common.NoHighlightFlag:
                 self.setFormat(start, end, char_format)
@@ -99,31 +77,31 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             if flags & common.HeadingHighlight:
                 char_format.setFontWeight(QtGui.QFont.Bold)
                 char_format.setFontPointSize(
-                    self.document().defaultFont().pointSize() + 0 + (6 - len(match)))
+                    font.pointSize() + 0 + (6 - len(match)))
                 char_format.setFontCapitalization(QtGui.QFont.AllUppercase)
                 if len(match) > 1:
                     char_format.setUnderlineStyle(
                         QtGui.QTextCharFormat.SingleUnderline)
                     char_format.setFontPointSize(
-                        self.document().defaultFont().pointSize() + 1)
+                        font.pointSize() + 1)
                 self.setFormat(0, len(text), char_format)
                 break
-            elif flags & common.QuoteHighlight:
-                char_format.setForeground(QtGui.QColor(100, 100, 100))
-                char_format.setBackground(QtGui.QColor(230, 230, 230))
-                self.setFormat(0, len(text), char_format)
-                break
-
-            if flags & common.CodeHighlight:
-                char_format.setFontWeight(QtGui.QFont.Bold)
-                char_format.setForeground(common.FAVOURITE)
-                self.setFormat(start, end, char_format)
-            if flags & common.BoldHighlight:
-                char_format.setFontWeight(QtGui.QFont.Bold)
-                self.setFormat(start, end, char_format)
-            if flags & common.ItalicHighlight:
-                char_format.setFontItalic(True)
-                self.setFormat(start, end, char_format)
+            # elif flags & common.QuoteHighlight:
+            #     char_format.setForeground(QtGui.QColor(100, 100, 100))
+            #     char_format.setBackground(QtGui.QColor(230, 230, 230))
+            #     self.setFormat(0, len(text), char_format)
+            #     break
+            #
+            # if flags & common.CodeHighlight:
+            #     char_format.setFontWeight(QtGui.QFont.Bold)
+            #     char_format.setForeground(common.FAVOURITE)
+            #     self.setFormat(start, end, char_format)
+            # if flags & common.BoldHighlight:
+            #     char_format.setFontWeight(QtGui.QFont.Bold)
+            #     self.setFormat(start, end, char_format)
+            # if flags & common.ItalicHighlight:
+            #     char_format.setFontItalic(True)
+            #     self.setFormat(start, end, char_format)
         return
 
 
@@ -140,28 +118,17 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def __init__(self, text=None, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setDocumentMargin(common.MARGIN)
-        # option
-        option = QtGui.QTextOption()
-        option.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        option.setWrapMode(QtGui.QTextOption.WrapAtWordBoundaryOrAnywhere)
-        option.setUseDesignMetrics(True)
-        self.document().setDefaultTextOption(option)
-        # font
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        self.document().setDefaultFont(font)
+        self.document().setDocumentMargin(8)
 
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
-        self.setOpenLinks(False)
+        self.setOpenLinks(True)
         self.setReadOnly(False)
         self.setTextInteractionFlags(
             QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        metrics.width(u'  ')
+        metrics.width(u'   ')
         self.setTabStopWidth(common.MARGIN)
 
         self.setUndoRedoEnabled(True)
@@ -178,55 +145,39 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         self.anchorClicked.connect(self.open_url)
 
-    def setDisabled(self, b):
-        super(TodoItemEditor, self).setDisabled(b)
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        if b:
-            font.setStrikeOut(True)
-        self.document().setDefaultFont(font)
-
     @QtCore.Slot()
     def contentChanged(self):
         """Sets the height of the editor."""
         self.setFixedHeight(
-            self.heightForWidth(self.width())
+            self.heightForWidth()
         )
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        margins = self.contentsMargins()
-        metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = (metrics.height() + metrics.leading()) * 1  # Lines tall
-        return line_height + margins.top() + margins.bottom()
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(11.0)
+        metrics = QtGui.QFontMetrics(font)
+        line_height = (metrics.lineSpacing()) * 1  # Lines tall
+        return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        margins = self.contentsMargins()
-        metrics = QtGui.QFontMetrics(self.document().defaultFont())
-        line_height = (metrics.height() + metrics.leading()) * 35  # Lines tall
-        return line_height + margins.top() + margins.bottom()
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(11.0)
+        metrics = QtGui.QFontMetrics(font)
+        line_height = (metrics.lineSpacing()) * 35  # Lines tall
+        return line_height
 
-    def heightForWidth(self, width):
+    def heightForWidth(self):
         """https://raw.githubusercontent.com/cameel/auto-resizing-text-edit/master/auto_resizing_text_edit/auto_resizing_text_edit.py"""
-        margins = self.contentsMargins()
-
-        if width >= margins.left() + margins.right():
-            document_width = width - margins.left() - margins.right()
-        else:
-            # If specified width can't even fit the margin, there's no space left for the document
-            document_width = 0
-
         document = self.document().clone()
-        document.setTextWidth(document_width)
-        height = margins.top() + document.size().height() + margins.bottom()
+        height = document.size().height()
 
         if height < self.get_minHeight():
             return self.get_minHeight()
         if height > self.get_maxHeight():
             return self.get_maxHeight()
-        return height
+        return height + 4
 
     def keyPressEvent(self, event):
         """I'm defining custom key events here, the default behaviour is pretty poor.
@@ -251,9 +202,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             return
         super(TodoItemEditor, self).keyPressEvent(event)
 
-    def sizeHint(self):
-        return QtCore.QSize(200, self.heightForWidth(200))
-
     def dragEnterEvent(self, event):
         """Checking we can consume the content of the drag data..."""
         if not self.canInsertFromMimeData(event.mimeData()):
@@ -272,6 +220,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
         mimedata = event.mimeData()
         self.insertFromMimeData(mimedata)
+
+    def showEvent(self, event):
+        self.setFixedHeight(self.heightForWidth())
 
     def canInsertFromMimeData(self, mimedata):
         """Checks if we can insert from the given mime-type."""
@@ -429,14 +380,12 @@ class RemoveNoteButton(CustomButton):
 
         self.setUpdatesEnabled(True)
 
-        editor = self.parent().parent().parent().parent().parent()
-        editor.save_settings()
 
 class RemoveButton(CustomButton):
     """Custom icon button to remove an item or close the editor."""
 
-    def __init__(self, parent=None):
-        super(RemoveButton, self).__init__(u'remove', parent=parent)
+    def __init__(self, size=32.0, parent=None):
+        super(RemoveButton, self).__init__(u'remove', size=size, parent=parent)
         self.setAcceptDrops(True)
 
     def dragEnterEvent(self, event):
@@ -545,7 +494,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         remove_button = parent_widget.parent().parent(
         ).parent().parent().findChild(RemoveButton)
         pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', QtGui.QColor(255, 0, 0), 32)
+            u'remove', common.REMOVE, 32)
         remove_button.setPixmap(pixmap)
         parent_widget.parent().separator.setHidden(False)
         overlay_widget.show()
@@ -609,7 +558,7 @@ class CheckBoxButton(QtWidgets.QLabel):
 class Separator(QtWidgets.QLabel):
     def __init__(self, parent=None):
         super(Separator, self).__init__(parent=parent)
-        pixmap = QtGui.QPixmap(QtCore.QSize(4096, 2))
+        pixmap = QtGui.QPixmap(QtCore.QSize(4096, 1))
         pixmap.fill(common.FAVOURITE)
         self.setPixmap(pixmap)
 
@@ -655,8 +604,9 @@ class TodoEditors(QtWidgets.QWidget):
         super(TodoEditors, self).__init__(parent=parent)
         QtWidgets.QVBoxLayout(self)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
-        self.layout().setContentsMargins(8, 8, 8, 8)
-        self.layout().setSpacing(8)
+        o = 0
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(o)
 
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
@@ -786,7 +736,7 @@ class TodoItemWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().setContentsMargins(12, 12, 12, 12)
         self.layout().setSpacing(6)
 
 
@@ -797,8 +747,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         super(TodoEditorWidget, self).__init__(parent=parent)
         self.todoeditors_widget = None
         self._index = index
+        self.read_only = False
+        self.lockstamp = u'{}'.format(time.time())
 
-        self.setWindowTitle(u'Notes and Task')
+        self.setWindowTitle(u'Notes and Comments')
         self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
@@ -806,18 +758,11 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.refresh()
         self.installEventFilter(self)
 
-        # Resize
-        if self.parent():
-            self.parent().parent().parent().resized.connect(self._updateGeometry)
-
-        # I will have to implement a lock and make sure we're not overwriting
-        # comments if more than one user is editing items in the same time.
-        if self.index.isValid():
-            self.save_timer = QtCore.QTimer(parent=self)
-            self.save_timer.setInterval(4000)
-            self.save_timer.setSingleShot(False)
-            self.save_timer.timeout.connect(self.check_settings)
-            self.save_timer.start()
+        self.save_timer = QtCore.QTimer(parent=self)
+        self.save_timer.setInterval(8000)
+        self.save_timer.setSingleShot(False)
+        self.save_timer.timeout.connect(self.save_settings)
+        # self.save_timer.start()
 
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
@@ -826,60 +771,55 @@ class TodoEditorWidget(QtWidgets.QWidget):
     def _createUI(self):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN
         self.layout().setSpacing(0)
-        o = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(o, o, o, o)
 
         # Top row
-        row = QtWidgets.QWidget()
-        QtWidgets.QHBoxLayout(row)
-        # row.setStyleSheet("""background: rgba({});""".format(common.rgb(common.SECONDARY_TEXT)))
-        row.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        row.setAttribute(QtCore.Qt.WA_NoBackground)
-        row.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        height = common.ROW_BUTTONS_HEIGHT * 0.8
+        row = add_row('', height=height, parent=self)
+        row.layout().setSpacing(8)
 
-        # We'll grab the current index's thumbnail...
-        if self.parent():
-            header_index = self.parent().model().mapFromSource(self.index)
-            header_rect = self.parent().visualRect(header_index)
-
-            thumbnail = QtWidgets.QLabel()
+        # Thumbnail
+        thumbnail = QtWidgets.QLabel(parent=self)
+        thumbnail.setScaledContents(True)
+        thumbnail.setFixedHeight(height)
+        thumbnail.setFixedWidth(height)
+        if self.parent() and self.index.isValid():
             pixmap = QtGui.QPixmap()
             pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
-            thumbnail.setPixmap(pixmap)
-            thumbnail.setScaledContents(True)
-            thumbnail.setFixedHeight(pixmap.height())
-            thumbnail.setFixedWidth(pixmap.width())
-            row.layout().addWidget(thumbnail, 0)
+        else:
+            pixmap = ImageCache.get_rsc_pixmap(u'todo', common.SECONDARY_BACKGROUND, height, opacity=0.5)
+        thumbnail.setPixmap(pixmap)
 
         # Name label
         if self.index.isValid():
             p = self.index.data(common.ParentRole)
             text = u'{} - {}'.format(p[-1], p[-2]).upper()
         else:
-            text = u''
-        label = PaintedLabel(text, size=common.LARGE_FONT_SIZE)
-        row.layout().addWidget(label, 0)
+            text = u'Notes and Tasks'
+        if len(text) > 24:
+            text = u'{}...{}'.format(text[0:8], text[-8:])
+        label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND, size=common.LARGE_FONT_SIZE, parent=self)
 
+        row.layout().addWidget(thumbnail, 0)
+        row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
 
         # Add button
-        self.add_button = CustomButton(u'todo')
+        self.add_button = CustomButton(u'add', size=height, parent=self)
         self.add_button.pressed.connect(self.add_new_item)
         row.layout().addWidget(self.add_button, 0)
 
-        self.refresh_button = CustomButton(u'refresh')
+        self.refresh_button = CustomButton(u'refresh', size=height, parent=self)
         self.refresh_button.pressed.connect(self.refresh)
         row.layout().addWidget(self.refresh_button, 0)
 
-        self.remove_button = RemoveButton()
+        self.remove_button = RemoveButton(size=height, parent=self)
         self.remove_button.pressed.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
-        self.todoeditors_widget = TodoEditors()
+        self.todoeditors_widget = TodoEditors(parent=self)
         self.setMinimumWidth(self.todoeditors_widget.minimumWidth() + 6)
         self.setMinimumHeight(100)
 
@@ -925,7 +865,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         return self._index
 
     def eventFilter(self, widget, event):
-        """Using the custom event filter to paint the background."""
+        """Using  the custom event filter to paint the background."""
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
@@ -1041,24 +981,25 @@ class TodoEditorWidget(QtWidgets.QWidget):
         and the EditorsWidget.items property.
 
         """
-        checkbox = CheckBoxButton(checked=not checked)
-        checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
-        editor = TodoItemEditor(text, checked=not checked)
-        editor.setFocusPolicy(QtCore.Qt.StrongFocus)
-        drag = DragIndicatorButton(checked=False)
-        drag.setFocusPolicy(QtCore.Qt.NoFocus)
-        remove = RemoveNoteButton()
-        remove.setFocusPolicy(QtCore.Qt.NoFocus)
-
         def toggle_disabled(b, widget=None):
             widget.setDisabled(not b)
+
+        item = TodoItemWidget(parent=self)
+
+        checkbox = CheckBoxButton(checked=not checked, parent=item)
+        checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
+        editor = TodoItemEditor(text, checked=not checked, parent=item)
+        editor.setFocusPolicy(QtCore.Qt.StrongFocus)
+        drag = DragIndicatorButton(checked=False, parent=item)
+        drag.setFocusPolicy(QtCore.Qt.NoFocus)
+        remove = RemoveNoteButton(parent=item)
+        remove.setFocusPolicy(QtCore.Qt.NoFocus)
 
         checkbox.clicked.connect(
             functools.partial(toggle_disabled, widget=editor))
         checkbox.clicked.connect(
             functools.partial(toggle_disabled, widget=drag))
 
-        item = TodoItemWidget()
         item.layout().addWidget(checkbox)
         item.layout().addWidget(drag)
         item.layout().addWidget(editor, 1)
@@ -1072,31 +1013,9 @@ class TodoEditorWidget(QtWidgets.QWidget):
             self.todoeditors_widget.items.insert(idx, item)
 
         checkbox.clicked.emit(checkbox._checked)
-
         editor.setFocus()
-
         item.editor = editor
         return item
-
-    @QtCore.Slot()
-    def check_settings(self):
-        """Saves the current list of todo items to the assets configuration file."""
-        return
-
-        # I'll have to implement  this propertly when time permits...
-        if not self.index.isValid():
-            return
-
-        # Ours
-        ours = self._collect_data()
-
-        # Theirs
-        settings = AssetSettings(self.index)
-        theirs = settings.value(u'config/todos')
-
-        # Let's check the number of items
-        if cmp(ours, theirs) == 0: # Everything seems to be up-to-date
-            return
 
     @QtCore.Slot()
     def save_settings(self):
@@ -1107,9 +1026,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         data = self._collect_data()
         settings = AssetSettings(self.index)
         settings.setValue(u'config/todos', data)
-
-        model = self.index.model()
-        model.setData(self.index, len(data), role=common.TodoCountRole)
 
     @QtCore.Slot()
     def add_new_item(self, html=u'', idx=0):
@@ -1131,9 +1047,66 @@ class TodoEditorWidget(QtWidgets.QWidget):
             }
         return data
 
+    def showEvent(self, event):
+        """Custom show event."""
+        if not self.parent():
+            return
+        self.setFocus(QtCore.Qt.OtherFocusReason)
+        if self.index.isValid():
+            settings = AssetSettings(self.index)
+            lockfile = u'{}.lock'.format(settings.conf_path())
+            lockfile = QtCore.QFileInfo(lockfile)
+
+            if lockfile.exists():
+                self.add_button.hide()
+                self.todoeditors_widget.setDisabled(True)
+                return
+
+            path = os.path.abspath(lockfile.filePath())
+            path = os.path.normpath(path)
+            try:
+                with open(path, 'w') as f:
+                    f.write(self.lockstamp)
+
+                self.todoeditors_widget.setDisabled(False)
+                print 'Lock created: {}'.format(path)
+                self.refresh_button.hide()
+                # self.save_timer.start()
+
+            except Exception as err:
+                _file = QtCore.QFile(lockfile.filePath())
+                _file.remove()
+                raise RuntimeError('Could not create a lockfile:\n{}'.format(err))
+
+
     def hideEvent(self, event):
         """Saving the contents on close/hide."""
-        self.save_settings()
+        if self.index.isValid():
+            settings = AssetSettings(self.index)
+            lockfile = u'{}.lock'.format(settings.conf_path())
+            lockfile = QtCore.QFileInfo(lockfile)
+
+            if not lockfile.exists():
+                return
+
+            path = os.path.abspath(lockfile.filePath())
+            path = os.path.normpath(path)
+
+            # We should only remove the lockfile we have created ourselves.
+            with open(path, 'r') as f:
+                data = f.read()
+                if data != self.lockstamp:
+                    return
+
+            self.save_settings()
+
+            print '# Settings saved'
+            model = self.index.model()
+            model.setData(self.index, len(data), role=common.TodoCountRole)
+            _file = QtCore.QFile(lockfile.filePath())
+            if not _file.remove():
+                print ('# Could not remove lockfile.')
+
 
     def sizeHint(self):
         """Custom size."""
@@ -1141,11 +1114,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
             return QtCore.QSize(800, 600)
         return self.parent().viewport().rect().size()
 
-    def showEvent(self, event):
-        """Custom show event."""
-        if not self.parent():
-            return
-        self.setFocus(QtCore.Qt.OtherFocusReason)
 
 
 if __name__ == '__main__':

@@ -368,56 +368,6 @@ QToolTip {{
 }}
 
 
-TodoEditorWidget {{
-	background-color: rgba(230,230,230,255);
-	color: rgba({SECONDARY_TEXT});
-	border-width: 0px;
-	border: none;
-	margin: 0px;
-	padding: 0px;
-	outline: 0;
-	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
-}}
-
-TodoEditorWidget QScrollBar:vertical, TodoEditorWidget QScrollBar:horizontal {{
-	background: rgba(230,230,230,255);
-	border: none;
-	border-radius: 6px;
-}}
-TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:vertical, TodoEditorWidget QScrollBar::handle:horizontal, TodoEditorWidget QScrollBar::handle:horizontal {{
-	background: rgba(200,200,200,255);
-	border: none;
-	max-height: 250px;
-	min-height: 24px;
-}}
-TodoEditorWidget QScrollBar::add-page:vertical, TodoEditorWidget QScrollBar::sub-page:vertical, TodoEditorWidget QScrollBar::add-page:horizontal, TodoEditorWidget QScrollBar::sub-page:horizontal {{
-	background: rgba(230,230,230,255);
-}}
-
-TodoItemEditor {{
-	background-color: rgba(230,230,230,255);
-	border-width: 0px;
-	border: solid;
-	border-radius: 6px;
-	border-color: rgba(230,230,230,255);
-	margin: 0px 0px 0px 0px;
-	padding: 0px 0px 0px 0px;
-	outline: 0;
-	color: rgba(0,0,0,255);
-	font-family: "{SECONDARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
-}}
-
-TodoItemEditor:focus {{
-	color: rgba(30,30,30,255);
-	background-color: rgba(240,240,240,255);
-}}
-TodoItemEditor:disabled {{
-	color: rgba({FAVOURITE});
-	background-color: rgba(230,230,230,255);
-}}
-
 CheckBoxButton, DragIndicatorButton{{
 	background-color: rgba(230,230,230,255);
 	margin: 0px 0px 0px 0px;
@@ -444,5 +394,23 @@ AddBookmarksWidget {{
 
 
 ThumbnailButton {{
-	background-color: rgba(BACKGROUND);
+	background-color: rgba({BACKGROUND});
+}}
+
+TodoEditors,
+TodoItemWidget,
+TodoItemEditor {{
+	alignment: center;
+	text-align: center;
+	font-size: 11pt;
+	color: rgba({SECONDARY_BACKGROUND});
+	background-color: rgba({TEXT});
+}}
+TodoEditors:disabled,
+TodoItemWidget:disabled,
+TodoItemEditor:disabled {{
+	color: rgba({TEXT_DISABLED});
+}}
+TodoItemEditor:focus {{
+	border: 1px solid rgba(0,0,0,30) ;
 }}

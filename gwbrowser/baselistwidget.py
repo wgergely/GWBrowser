@@ -1614,6 +1614,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
         source_index = self.model().mapToSource(index)
         widget = TodoEditorWidget(source_index, parent=self)
+        self.parent().parent().resized.connect(widget._updateGeometry)
         widget.show()
 
 

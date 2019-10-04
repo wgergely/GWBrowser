@@ -183,7 +183,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             color = common.THUMBNAIL_BACKGROUND
         color = color if color else common.THUMBNAIL_BACKGROUND
 
-
         # Background
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
@@ -194,9 +193,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(rect)
 
         if hover or selected:
-            painter.setOpacity(1.0)
+            painter.setOpacity(6.0)
         else:
-            painter.setOpacity(0.66)
+            painter.setOpacity(0.5)
 
         irect = QtCore.QRect(image.rect())
         irect.moveCenter(rect.center())
@@ -984,6 +983,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
         max_depth = 4
         for n, text in enumerate(modes):
+            if len(text) > 24:
+                text = u'{}...{}'.format(text[0:8], text[-8:])
+
             if n > max_depth:  # Not painting folders deeper than this...
                 return rect.right() - common.MARGIN
 
@@ -997,11 +999,10 @@ class FilesWidgetDelegate(BaseDelegate):
             else:
                 bg_color = QtGui.QColor(70, 70, 70)
 
-            pen = QtGui.QPen(bg_color)
-            pen.setWidth(common.INDICATOR_WIDTH)
+            pen = QtGui.QPen(common.SEPARATOR)
+            pen.setWidth(1)
             painter.setPen(pen)
             painter.setBrush(QtGui.QBrush(bg_color))
-
             rect.setWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
             painter.drawRoundedRect(rect, 3.0, 3.0)
 
