@@ -1091,48 +1091,47 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw2(painter, font, rect, text, align,
                               color, option, kwargs['left'])
-            return
-
-        match = common.get_sequence(text)
-        if match:
-            # The prefix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(
-                painter, font, rect, match.group(1).upper(),
-                align, color, option, kwargs['left'])
-            # The frame-range
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-            color = common.TEXT_SELECTED if active else color
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(
-                painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
-
-            # The extension and the suffix
-            if match.group(4):
-                text = u'{}.{}'.format(
-                    match.group(3).upper(), match.group(4).lower())
-            else:
-                text = u'{}'.format(
-                    match.group(3).upper())
-
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(
-                painter, font, rect, text, align, color, option, kwargs['left'])
         else:
-            rect = QtCore.QRect(option.rect)
-            rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
-            rect.setRight(rect.right())
-            text = index.data(QtCore.Qt.DisplayRole)
-            ext = text.split(u'.')
-            if len(ext) > 1:
-                ext = u'.{}'.format(ext.pop())
-                text = text.replace(ext, u'')
+            match = common.get_sequence(text)
+            if match:
+                # The prefix
+                color = common.TEXT_SELECTED if selected else common.TEXT
+                color = common.TEXT_SELECTED if hover else color
+                rect = self._draw2(
+                    painter, font, rect, match.group(1).upper(),
+                    align, color, option, kwargs['left'])
+                # The frame-range
+                color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
+                color = common.TEXT_SELECTED if active else color
+                color = common.TEXT_SELECTED if hover else color
+                rect = self._draw2(
+                    painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
+
+                # The extension and the suffix
+                if match.group(4):
+                    text = u'{}.{}'.format(
+                        match.group(3).upper(), match.group(4).lower())
+                else:
+                    text = u'{}'.format(
+                        match.group(3).upper())
+
+                color = common.TEXT_SELECTED if selected else common.TEXT
+                color = common.TEXT_SELECTED if hover else color
+                rect = self._draw2(
+                    painter, font, rect, text, align, color, option, kwargs['left'])
             else:
-                ext = u''
-            rect = self._draw2(painter, font, rect, text.upper(), align, color, option, rect.right())
-            rect = self._draw2(painter, font, rect, ext, align, color, option, rect.right())
+                rect = QtCore.QRect(option.rect)
+                rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
+                rect.setRight(rect.right())
+                text = index.data(QtCore.Qt.DisplayRole)
+                ext = text.split(u'.')
+                if len(ext) > 1:
+                    ext = u'.{}'.format(ext.pop())
+                    text = text.replace(ext, u'')
+                else:
+                    ext = u''
+                rect = self._draw2(painter, font, rect, text.upper(), align, color, option, rect.right())
+                rect = self._draw2(painter, font, rect, ext, align, color, option, rect.right())
 
         # Nothing else to draw if the item has not been loaded yet...
         if not index.data(common.FileInfoLoaded):
