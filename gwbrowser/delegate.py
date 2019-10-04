@@ -809,7 +809,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # self.paint_thumbnail_shadow(*args)
         #
         if self.parent().buttons_hidden():
-            self.paint_name_single(*args)
+            self.paint_name_simple(*args)
         else:
             left = self.paint_mode(*args)
             self.paint_name(*args, left=left)
@@ -983,8 +983,8 @@ class FilesWidgetDelegate(BaseDelegate):
 
         max_depth = 4
         for n, text in enumerate(modes):
-            if len(text) > 24:
-                text = u'{}...{}'.format(text[0:8], text[-8:])
+            if len(text) > 40:
+                text = u'{}...{}'.format(text[0:18], text[-18:])
 
             if n > max_depth:  # Not painting folders deeper than this...
                 return rect.right() - common.MARGIN
@@ -1023,7 +1023,8 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.moveLeft(rect.right() + (common.INDICATOR_WIDTH * 2))
 
     @paintmethod
-    def paint_name_single(self, *args, **kwargs):
+    def paint_name_simple(self, *args, **kwargs):
+        """Used for the files widget when the simple mode is selected."""
         painter, option, index, selected, _, active, _, _, hover = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
@@ -1060,7 +1061,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
         match = common.is_collapsed(text)
         if match:  # sequence is collapsed
-
             # The prefix
             color = common.TEXT_SELECTED if selected else common.TEXT
             color = common.TEXT_SELECTED if hover else color
@@ -1070,7 +1070,7 @@ class FilesWidgetDelegate(BaseDelegate):
             # The frame-range - this can get quite long - we're trimming it to
             # avoid long and meaningless names
             frange = match.group(2)
-            frange = re.sub(r'[\[\]]*', u'', frange)
+            frange = re.sub(ur'[\[\]]*', u'', frange)
             if len(frange) > 17:
                 frange = u'{}...{}'.format(frange[0:8], frange[-8:])
             color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
@@ -1108,8 +1108,6 @@ class FilesWidgetDelegate(BaseDelegate):
             rect = self._draw2(
                 painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
 
-
-
             # The extension and the suffix
             if match.group(4):
                 text = u'{}.{}'.format(
@@ -1122,7 +1120,19 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw2(
                 painter, font, rect, text, align, color, option, kwargs['left'])
-
+        else:
+            rect = QtCore.QRect(option.rect)
+            rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
+            rect.setRight(rect.right())
+            text = index.data(QtCore.Qt.DisplayRole)
+            ext = text.split(u'.')
+            if len(ext) > 1:
+                ext = u'.{}'.format(ext.pop())
+                text = text.replace(ext, u'')
+            else:
+                ext = u''
+            rect = self._draw2(painter, font, rect, text.upper(), align, color, option, rect.right())
+            rect = self._draw2(painter, font, rect, ext, align, color, option, rect.right())
 
         # Nothing else to draw if the item has not been loaded yet...
         if not index.data(common.FileInfoLoaded):
