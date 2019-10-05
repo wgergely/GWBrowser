@@ -26,27 +26,25 @@ def rsc_path(f, n):
 
 class FavouritesWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
-        super(BaseContextMenu, self).__init__(parent=parent)
+        super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
         self.index = index
 
-        self.add_remove_favourite_menu()
-
         if index.isValid():
+            self.add_remove_favourite_menu()
             self.add_thumbnail_menu()
-
-        self.add_separator()
-
-        if index.isValid():
+            #
+            self.add_separator()
+            #
             self.add_reveal_item_menu()
             self.add_copy_menu()
-
+        #
         self.add_separator()
-
+        #
         self.add_sort_menu()
         self.add_collapse_sequence_menu()
-
+        #
         self.add_separator()
-
+        #
         self.add_refresh_menu()
 
 

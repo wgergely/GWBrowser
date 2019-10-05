@@ -29,8 +29,7 @@ def initdata(func):
     def func_wrapper(self, *args, **kwargs):
         try:
             res = func(self, *args, **kwargs)
-        except Exception as err:
-            tb = traceback.format_exc()
+        except:
             res = None
         finally:
             self.endResetModel()
@@ -704,11 +703,11 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy)
 
         # Index repaints
-        model.indexUpdated.connect(self.update_index)
+        model.indexUpdated.connect(self.update_index, type=QtCore.Qt.BlockingQueuedConnection)
 
         # Progress
         model.modelAboutToBeReset.connect(self.progress_widget.show)
-        model.modelAboutToBeReset.connect(self.progress_widget.repaint)
+        model.modelAboutToBeReset.connect(self.progress_widget.update)
         model.modelReset.connect(self.progress_widget.hide)
 
         model.modelDataResetRequested.connect(
@@ -766,11 +765,10 @@ class BaseListWidget(QtWidgets.QListView):
             return
         if self.isHidden():
             return
-
         index = self.model().mapFromSource(index)
         rect = self.visualRect(index)
         if self.rect().contains(rect):
-            self.repaint(rect)
+            self.repaint(self.visualRect(index))
 
     def activate(self, index):
         """Sets the given index as ``active``.
@@ -1420,7 +1418,7 @@ class BaseListWidget(QtWidgets.QListView):
                     acttext = u''
                     hidtext = u''
 
-                    if filter_text is not None and len(filter_text) > 0:
+                    if filter_text:
                         filtext = u'{}'.format(
                             common.clean_filter_text(filter_text).upper())
                     if favourite_mode:
@@ -1555,6 +1553,9 @@ class BaseInlineIconWidget(BaseListWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
+        if event.buttons() == QtCore.Qt.NoButton:
+            return
+
         if not self.verticalScrollBar().isSliderDown():
             index = self.indexAt(event.pos())
             self.repaint(self.visualRect(index))
@@ -1634,11 +1635,25 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.setObjectName(u'BrowserStackedWidget')
 
     def setCurrentIndex(self, idx):
+        """Sets the current index of the ``StackedWidget``.
+
+        Args:
+            idx (int): The index of the widget to set.
+
+        """
+        # Converting idx to int
         idx = 0 if idx is None or False else idx
         idx = idx if idx >= 0 else 0
 
-        k = u'widget/mode'
-        if local_settings.value(k) != idx:
-            local_settings.setValue(k, idx)
+        # No active bookmark
+        active_index = lambda x: self.widget(x).model().sourceModel().active_index()
+        if not active_index(0).isValid() and idx in (1, 2):
+            idx = 0
 
-        super(StackedWidget, self).setCurrentIndex(idx)
+        # No active asset
+        if active_index(0).isValid() and not active_index(1).isValid() and idx == 2:
+            idx = 1
+
+        k = u'widget/mode'
+        local_settings.setValue(k, idx)
+        return super(StackedWidget, self).setCurrentIndex(idx)

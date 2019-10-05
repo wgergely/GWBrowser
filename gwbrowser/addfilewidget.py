@@ -44,8 +44,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
 from gwbrowser.capture import ScreenGrabber
-from gwbrowser.imagecache import ImageCache
-from gwbrowser.imagecache import ImageCacheWorker
+from gwbrowser.imagecache import ImageCache, oiio_make_thumbnail
 
 from gwbrowser.settings import AssetSettings
 
@@ -174,18 +173,18 @@ class SelectButton(QtWidgets.QLabel):
         """
         if not self.view().selectionModel().hasSelection():
             self.setText(self._label)
-            self.repaint()
+            self.update()
             return
         index = self.view().selectionModel().currentIndex()
         if not index.isValid():
             self.setText(self._label)
-            self.repaint()
+            self.update()
             return
         if index.column() != 0:
             index = index.sibling(index.row(), 0)
         text = index.data(QtCore.Qt.DisplayRole)
         self.setText(text)
-        self.repaint()
+        self.update()
 
     @QtCore.Slot()
     def select_active(self):
@@ -200,7 +199,7 @@ class SelectButton(QtWidgets.QLabel):
             proxy_index, QtCore.QItemSelectionModel.ClearAndSelect)
 
         self.view().clicked.emit(proxy_index)
-        self.repaint()
+        self.update()
 
     def has_selection(self):
         return self.view().selectionModel().hasSelection()
@@ -254,7 +253,7 @@ class SelectButton(QtWidgets.QLabel):
         metrics = QtGui.QFontMetrics(common.PrimaryFont)
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN)
-        self.repaint()
+        self.update()
 
     def paintEvent(self, event):
         """``SelectButton``'s custom paint event to show the current view
@@ -302,10 +301,10 @@ class SelectButton(QtWidgets.QLabel):
         widget.exec_()
 
     def enterEvent(self, event):
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -828,7 +827,7 @@ class ThumbnailButton(ClickableIconButton):
                 return
 
             self.image = image
-            self.repaint()
+            self.update()
 
         rect = QtWidgets.QApplication.instance().desktop().screenGeometry(self)
         widget = editors.ThumbnailsWidget(parent=self.parent())
@@ -861,7 +860,7 @@ class ThumbnailButton(ClickableIconButton):
         temp_path = u'{}/browser_temp_thumbnail_{}.png'.format(
             QtCore.QDir.tempPath(), uuid.uuid1())
 
-        ImageCacheWorker.process_index(
+        oiio_make_thumbnail(
             QtCore.QModelIndex(),
             source=next(f for f in dialog.selectedFiles()),
             dest=temp_path
@@ -873,7 +872,7 @@ class ThumbnailButton(ClickableIconButton):
             return
 
         self.image = image
-        self.repaint()
+        self.update()
 
     @QtCore.Slot()
     def capture_thumbnail(self):
@@ -888,7 +887,7 @@ class ThumbnailButton(ClickableIconButton):
         image = ImageCache.resize_image(
             pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
         self.image = image
-        self.repaint()
+        self.update()
 
 
 class NameBase(QtWidgets.QLineEdit):
@@ -1223,7 +1222,7 @@ class FilePathWidget(QtWidgets.QWidget):
         self.display_timer = QtCore.QTimer(parent=self)
         self.display_timer.setSingleShot(False)
         self.display_timer.setInterval(300)
-        self.display_timer.timeout.connect(self.repaint)
+        self.display_timer.timeout.connect(self.update)
 
         tip = u'Click to reveal the destination folder in the file explorer'
         self.setToolTip(tip)
@@ -1236,10 +1235,10 @@ class FilePathWidget(QtWidgets.QWidget):
         self.display_timer.stop()
 
     def enterEvent(self, event):
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def paintEvent(self, event):
         option = QtWidgets.QStyleOption()

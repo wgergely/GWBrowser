@@ -8,34 +8,25 @@ Thumbnails
     the *FilesModel* (we only generate thumbnails from file OpenImageIO
     understands - bookmarks and assets are folders).
 
-    The actual thumbnail processing is done by the ``ImageCacheWorker``'s *process_index()*
-    method controlled by ``ImageCacheThread`` controllers.
+    The actual thumbnail processing is done ``oiio_make_thumbnail()``.
 
 All generated thumbnails and ui resources are cached in ``ImageCache``.
 
 """
 
-import sys
 import os
+import sys
 import traceback
-from functools import wraps
 from xml.etree import ElementTree
-
 from PySide2 import QtWidgets, QtGui, QtCore
-
 import OpenImageIO.OpenImageIO as OpenImageIO
-
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
-from gwbrowser.threads import BaseThread
-from gwbrowser.threads import BaseWorker
-from gwbrowser.threads import Unique
 
 
 def oiio(func):
     """Decorator to wrap the oiio process"""
-    @wraps(func)
-    def func_wrapper(self, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
+    def func_wrapper(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
         """This wrapper will make sure the passed parameters are ok to pass onto
         OpenImageIO. We will also update the index value here."""
 
@@ -61,188 +52,177 @@ def oiio(func):
             error_pixmap = ImageCache.get(
                 common.rsc_path(__file__, u'failed'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-
         try:
-            func(self, index, source=source,
+            func(index, source=source,
                  dest=dest, dest_size=dest_size)
         except Exception as err:
+            sys.stderr.write(traceback.format_exc())
             if index.isValid():
                 data[common.ThumbnailRole] = error_pixmap
                 data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
                 data[common.FileThumbnailLoaded] = True
                 model.indexUpdated.emit(index)
-
     return func_wrapper
 
 
-class ImageCacheWorker(BaseWorker):
-    """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
-    queue = Unique(999999)
-    indexes_in_progress = []
+@QtCore.Slot(QtCore.QModelIndex)
+@QtCore.Slot(unicode)
+@oiio
+def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, nthreads=3):
+    """This is a the main method generating thumbnail for items in GWBrowser.
+    We're using the python binds of OpenImageIO to process the images.
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    @QtCore.Slot(unicode)
-    @classmethod
-    @oiio
-    def process_index(cls, index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, nthreads=0):
-        """This is a the main method generating thumbnail for items in GWBrowser.
-        We're using the python binds of OpenImageIO to process the images.
+    """
+    def set_error_thumbnail():
+        if not index.isValid():
+            return
+        model = index.model()
+        data = model.model_data()[index.row()]
+        error_pixmap = ImageCache.get(
+            common.rsc_path(__file__, u'failed'),
+            data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+        data[common.ThumbnailRole] = error_pixmap
+        data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+        data[common.FileThumbnailLoaded] = True
 
-        """
-        def set_error_thumbnail():
-            if not index.isValid():
-                return
-            model = index.model()
-            data = model.model_data()[index.row()]
-            error_pixmap = ImageCache.get(
-                common.rsc_path(__file__, u'failed'),
-                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-            data[common.ThumbnailRole] = error_pixmap
-            data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
-            data[common.FileThumbnailLoaded] = True
+    # If it's a sequence, we will find the largest file in the sequence and
+    # generate the thumbnail for that item
+    source = source if source else index.data(QtCore.Qt.StatusTipRole)
+    if common.is_collapsed(source):
+        source = common.find_largest_file(index)
+    dest = dest if dest else index.data(common.ThumbnailPathRole)
 
-        # If it's a sequence, we will find the largest file in the sequence and
-        # generate the thumbnail for that item
-        source = source if source else index.data(QtCore.Qt.StatusTipRole)
-        if common.is_collapsed(source):
-            source = common.find_largest_file(index)
-        dest = dest if dest else index.data(common.ThumbnailPathRole)
+    # It is best to make sure we're not trying to generate a thumbnail for
+    # an enournmous file - eg 512MB should be the biggest file we take
+    if QtCore.QFileInfo(source).size() >= 836870912:
+        set_error_thumbnail()
+        return False
 
-        # It is best to make sure we're not trying to generate a thumbnail for
-        # an enournmous file - eg 512MB should be the biggest file we take
-        if QtCore.QFileInfo(source).size() >= 536870912:
-            set_error_thumbnail()
-            return False
+    # First let's check if the file is readable by OpenImageIO
+    i = OpenImageIO.ImageInput.open(source)
+    if not i:  # the file is not understood by OpenImageIO
+        set_error_thumbnail()
+        return False
+    i.close()
+    img = OpenImageIO.ImageBuf(source)
 
-        # First let's check if the file is readable by OpenImageIO
-        i = OpenImageIO.ImageInput.open(source)
-        if not i:  # the file is not understood by OpenImageIO
-            set_error_thumbnail()
-            return False
-        i.close()
-        img = OpenImageIO.ImageBuf(source)
+    # Let's check if the loaded item is a movie and let's pick the middle
+    # of the timeline as the thumbnail image
+    if img.spec().get_int_attribute('oiio:Movie') == 1:
+        # http://lists.openimageio.org/pipermail/oiio-dev-openimageio.org/2017-December/001104.html
+        frame = int(img.nsubimages / 2)
+        img.reset(source, subimage=frame)
 
-        # Let's check if the loaded item is a movie and let's pick the middle
-        # of the timeline as the thumbnail image
-        if img.spec().get_int_attribute('oiio:Movie') == 1:
-            # http://lists.openimageio.org/pipermail/oiio-dev-openimageio.org/2017-December/001104.html
-            frame = int(img.nsubimages / 2)
-            img.reset(source, subimage=frame)
+    if img.has_error:
+        set_error_thumbnail()
+        return False
 
-        if img.has_error:
-            set_error_thumbnail()
-            return False
+    # Deep
+    if img.spec().deep:
+        img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
 
-        # Deep
-        if img.spec().deep:
-            img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
+    size = int(dest_size)
+    spec = OpenImageIO.ImageSpec(size, size, 4, 'uint8')
+    spec.channelnames = ('R', 'G', 'B', 'A')
+    spec.alpha_channel = 3
+    spec.attribute('oiio:ColorSpace', 'Linear')
+    spec.attribute('oiio:Gamma', '0.454545')
 
-        size = int(dest_size)
-        spec = OpenImageIO.ImageSpec(size, size, 4, 'uint8')
-        spec.channelnames = ('R', 'G', 'B', 'A')
-        spec.alpha_channel = 3
+    b = OpenImageIO.ImageBuf(spec)
+    b.set_write_format('uint8')
+
+    spec = img.spec()
+    roi = OpenImageIO.get_roi(spec)
+    OpenImageIO.set_roi_full(spec, roi)
+    OpenImageIO.ImageBufAlgo.fit(b, img, nthreads=nthreads)
+
+    spec = b.spec()
+    if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+        roi = OpenImageIO.get_roi(b.spec())
+        roi.chbegin = 0
+        roi.chend = 3
+        OpenImageIO.ImageBufAlgo.pow(
+            b, b, 1.0 / 2.2, roi, nthreads=nthreads)
+
+    # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
+    if spec.get_string_attribute('oiio:ColorSpace') == 'GammaCorrectedinf':
         spec.attribute('oiio:ColorSpace', 'Linear')
         spec.attribute('oiio:Gamma', '0.454545')
 
-        b = OpenImageIO.ImageBuf(spec)
-        b.set_write_format('uint8')
-
-        spec = img.spec()
-        roi = OpenImageIO.get_roi(spec)
-        OpenImageIO.set_roi_full(spec, roi)
-        OpenImageIO.ImageBufAlgo.fit(b, img, nthreads=nthreads)
-
-        spec = b.spec()
-        if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
-            roi = OpenImageIO.get_roi(b.spec())
-            roi.chbegin = 0
-            roi.chend = 3
-            OpenImageIO.ImageBufAlgo.pow(
-                b, b, 1.0 / 2.2, roi, nthreads=nthreads)
-
-        # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
-        if spec.get_string_attribute('oiio:ColorSpace') == 'GammaCorrectedinf':
-            spec.attribute('oiio:ColorSpace', 'Linear')
-            spec.attribute('oiio:Gamma', '0.454545')
-
-        if int(spec.nchannels) < 3:
+    if int(spec.nchannels) < 3:
+        b = OpenImageIO.ImageBufAlgo.channels(
+            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+    elif int(spec.nchannels) > 4:
+        if spec.channelindex('A') > -1:
             b = OpenImageIO.ImageBufAlgo.channels(
-                b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
-        elif int(spec.nchannels) > 4:
-            if spec.channelindex('A') > -1:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
-            else:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, ('R', 'G', 'B'), ('R', 'G', 'B'))
-
-        # There seems to be a problem with the ICC profile exported from Adobe
-        # applications and the PNG library. The sRGB profile seems to be out of date
-        # and pnglib crashes when encounters an invalid profile.
-        # Removing the ICC profile seems to fix the issue. Annoying!
-
-        # First, rebuilding the attributes as a modified xml tree
-        modified = False
-
-        # On a few dpx images, I encoutered odd character-data that the xml
-        # parser wouldn't take
-        xml = b.spec().to_xml()
-        xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
-        root = ElementTree.fromstring(
-            xml, ElementTree.XMLParser(encoding='utf-8'))
-        for attrib in root.findall('attrib'):
-            if attrib.attrib['name'] == 'ICCProfile':
-                root.remove(attrib)
-                modified = True
-                break
-
-        if modified:
-            xml = ElementTree.tostring(root)
-            # Initiating a new spec with the modified xml
-            spec = OpenImageIO.ImageSpec()
-            spec.from_xml(xml)
-
-            # Lastly, copying the pixels over from the old to the new buffer.
-            _b = OpenImageIO.ImageBuf(spec)
-            pixels = b.get_pixels()
-            _b.set_write_format('uint8')
-            _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
+                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
         else:
-            _b = b
+            b = OpenImageIO.ImageBufAlgo.channels(
+                b, ('R', 'G', 'B'), ('R', 'G', 'B'))
 
-        # Saving the processed thumbnail
-        success = _b.write(dest, dtype='uint8')
-        if not success:
-            QtCore.QFile(dest).remove()
-            set_error_thumbnail()
-            return False
+    # There seems to be a problem with the ICC profile exported from Adobe
+    # applications and the PNG library. The sRGB profile seems to be out of date
+    # and pnglib crashes when encounters an invalid profile.
+    # Removing the ICC profile seems to fix the issue. Annoying!
 
-        # We will update the index with saved and ask the model/view to update
-        if not index.isValid():
-            return False
+    # First, rebuilding the attributes as a modified xml tree
+    modified = False
 
-        model = index.model()
-        data = model.model_data()[index.row()]
+    # On a few dpx images, I encoutered odd character-data that the xml
+    # parser wouldn't take
+    xml = b.spec().to_xml()
+    xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
+    root = ElementTree.fromstring(
+        xml, ElementTree.XMLParser(encoding='utf-8'))
+    for attrib in root.findall('attrib'):
+        if attrib.attrib['name'] == 'ICCProfile':
+            root.remove(attrib)
+            modified = True
+            break
 
-        # We will load the image and the background color
-        image = ImageCache.get(
-            data[common.ThumbnailPathRole],
-            data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
-            overwrite=True)
-        color = ImageCache.get(
-            data[common.ThumbnailPathRole],
-            'BackgroundColor',
-            overwrite=False)
+    if modified:
+        xml = ElementTree.tostring(root)
+        # Initiating a new spec with the modified xml
+        spec = OpenImageIO.ImageSpec()
+        spec.from_xml(xml)
 
-        data[common.ThumbnailRole] = image
-        data[common.ThumbnailBackgroundRole] = color
-        data[common.FileThumbnailLoaded] = True
-        model.indexUpdated.emit(index)
-        return True
+        # Lastly, copying the pixels over from the old to the new buffer.
+        _b = OpenImageIO.ImageBuf(spec)
+        pixels = b.get_pixels()
+        _b.set_write_format('uint8')
+        _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
+    else:
+        _b = b
 
+    # Saving the processed thumbnail
+    success = _b.write(dest, dtype='uint8')
+    if not success:
+        QtCore.QFile(dest).remove()
+        set_error_thumbnail()
+        return False
 
-class ImageCacheThread(BaseThread):
-    Worker = ImageCacheWorker
+    # We will update the index with saved and ask the model/view to update
+    if not index.isValid():
+        return False
+
+    model = index.model()
+    data = model.model_data()[index.row()]
+
+    # We will load the image and the background color
+    image = ImageCache.get(
+        data[common.ThumbnailPathRole],
+        data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
+        overwrite=True)
+    color = ImageCache.get(
+        data[common.ThumbnailPathRole],
+        'BackgroundColor',
+        overwrite=False)
+
+    data[common.ThumbnailRole] = image
+    data[common.ThumbnailBackgroundRole] = color
+    data[common.FileThumbnailLoaded] = True
+    model.indexUpdated.emit(index)
+    return True
 
 
 class ImageCache(QtCore.QObject):
@@ -289,11 +269,6 @@ class ImageCache(QtCore.QObject):
             os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
         ImageCache.get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
-        self.threads = {}
-        for n in xrange(common.ITHREAD_COUNT):
-            self.threads[n] = ImageCacheThread(self)
-            self.threads[n].thread_id = n
-            self.threads[n].start()
 
     @staticmethod
     def get(path, height, overwrite=False):
@@ -485,7 +460,7 @@ class ImageCache(QtCore.QObject):
         # Saving the thumbnail
         data = index.model().model_data()[index.row()]
         data[common.FileThumbnailLoaded] = False
-        ImageCacheWorker.process_index(index, source=dialog.selectedFiles()[0])
+        oiio_make_thumbnail(index, source=dialog.selectedFiles()[0])
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):

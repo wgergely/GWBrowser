@@ -222,7 +222,7 @@ class DataKeyView(QtWidgets.QListView):
         """DataKeyView hide event."""
         self.parent().verticalScrollBar().setHidden(False)
         self.parent().removeEventFilter(self)
-        self.altparent._filesbutton.repaint()
+        self.altparent.files_button.update()
 
     def showEvent(self, event):
         """DataKeyView show event."""

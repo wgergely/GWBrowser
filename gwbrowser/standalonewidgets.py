@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
-import sys
+import os
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -13,6 +13,10 @@ from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
+
+
+# High DPI scaling
+# os.environ['QT_DEVICE_PIXEL_RATIO'] = '{}'.format(2)
 
 
 class TrayMenu(BaseContextMenu):
@@ -157,15 +161,18 @@ class HeaderWidget(QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(self)
         o = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()
+        text = text if text else 'GWBrowser'
         self.layout().addWidget(
-            PaintedLabel('{} - Desktop'.format(self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()),
-            color=common.BACKGROUND,
-            parent=self)
+            PaintedLabel(
+                text,
+                color=common.BACKGROUND,
+                parent=self
+            )
         )
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
@@ -531,6 +538,8 @@ class StandaloneApp(QtWidgets.QApplication):
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
+
+        self.setAttribute(QtCore.Qt.AA_DisableHighDpiScaling)
 
     def set_model_id(self):
         """Setting this is needed to add custom window icons on windows.

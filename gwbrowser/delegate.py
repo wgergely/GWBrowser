@@ -189,13 +189,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if hover or selected:
             painter.setOpacity(1.0)
         else:
-            painter.setOpacity(0.5)
+            painter.setOpacity(0.8)
         painter.drawRect(rect)
 
         if hover or selected:
-            painter.setOpacity(6.0)
+            painter.setOpacity(1.0)
         else:
-            painter.setOpacity(0.5)
+            painter.setOpacity(0.8)
 
         irect = QtCore.QRect(image.rect())
         irect.moveCenter(rect.center())
@@ -479,8 +479,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(bg_rect)
 
 
-
-
     @paintmethod
     def paint_description(self, *args):
         """Paints the item description inside the ``AssetsWidget``."""
@@ -627,26 +625,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
                 painter, font, rect, text_, QtCore.Qt.AlignLeft, color)
 
         rect.moveLeft(rect.right() + common.MARGIN)
-
-        # Paint description
-        text = index.data(common.DescriptionRole)
-        if not text:
-            return
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            rect.setRight(option.rect.right() - common.MARGIN)
-        else:
-            if self.parent().inline_icons_count():
-                _, icon_rect = self.get_inline_icon_rect(
-                    option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-                rect.setRight(icon_rect.left() - common.MARGIN)
-            else:
-                rect.setRight(option.rect.right() - (common.MARGIN * 2) - common.INLINE_ICON_SIZE)
-        common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter, color)
 
     @paintmethod
     def paint_count_icon(self, *args):
@@ -1295,79 +1273,8 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
 
-        left = 0
-        self.paint_name(*args, left=left)
-        if index.data(common.FileInfoLoaded):
-            self.paint_description(*args, left=left)
+        self.paint_name_simple(*args)
+        # if index.data(common.FileInfoLoaded):
+        #     self.paint_description(*args, left=0)
 
         self.paint_selection_indicator(*args)
-
-    @paintmethod
-    def paint_name(self, *args, **kwargs):
-        """Paints the ``FilesWidget``'s name."""
-        painter, option, index, selected, _, active, _, _, hover = args
-        if not index.data(QtCore.Qt.DisplayRole):
-            return
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Centering the rectangle
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
-        if index.data(common.DescriptionRole):
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-
-        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
-
-        # Name
-        text = index.data(QtCore.Qt.DisplayRole)
-        name, ext = os.path.splitext(text)
-        if ext:
-            text = u'{}{}'.format(name.upper(), ext.lower())
-        else:
-            text = name.upper()
-
-        color = common.TEXT_SELECTED if selected else common.TEXT
-        color = common.TEXT_SELECTED if hover else color
-        common.draw_aliased_text(painter, font, rect, text, align, color)
-
-    @paintmethod
-    def paint_description(self, *args, **kwargs):
-        """Paints the item description inside the ``FilesWidget``."""
-        painter, option, index, selected, _, _, _, _, hover = args
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Resizing the height and centering
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
-        rect.moveTop(rect.top() + (metrics.lineSpacing() / 2.0))
-
-        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
-        text = index.data(common.DescriptionRole)
-
-        color = common.TEXT if hover else common.SECONDARY_TEXT
-        color = common.TEXT if selected else color
-        common.draw_aliased_text(painter, font, rect, text, align, color)

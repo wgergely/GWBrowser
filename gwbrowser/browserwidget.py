@@ -52,7 +52,7 @@ class SoloButton(ClickableIconButton):
         )
 
         self.clicked.connect(self.toggle_solo)
-        self.clicked.connect(self.repaint)
+        self.clicked.connect(self.update)
 
     def state(self):
         return Settings.SOLO
@@ -132,7 +132,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shutdown_timer.setSingleShot(False)
 
         self.init_progress = u'Loading...'
-        self.repaint()
+        self.update()
 
     @QtCore.Slot()
     def initialize(self):
@@ -153,15 +153,6 @@ class BrowserWidget(QtWidgets.QWidget):
             self.active_monitor.macos_mount_timer.start()
 
         Active.paths()
-
-        # Switching stacked widget to saved index...
-        idx = local_settings.value(u'widget/mode')
-        idx = 0 if idx is None else idx
-        self.listcontrolwidget.listChanged.emit(idx)
-        if idx == 2:
-            text = self.fileswidget.model().sourceModel().data_key()
-            text = text.title() if text else None
-            self.listcontrolwidget.textChanged.emit(text)
 
         # Proxy model
         b = self.bookmarkswidget
@@ -202,16 +193,23 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.model().filterFlagChanged.emit(common.MarkedAsFavourite,
                                           ff.model().filterFlag(common.MarkedAsFavourite))
 
+        self.stackedwidget.setFocus()
+
         # Source model data
+        @QtCore.Slot()
+        def restore_stacked_widget():
+            """The state of the stacked widget is dependent on the model data."""
+            idx = local_settings.value(u'widget/mode')
+            self.listcontrolwidget.listChanged.emit(idx)
+
         timer = QtCore.QTimer(parent=self)
         timer.setSingleShot(True)
         timer.setInterval(1000)
         timer.timeout.connect(b.model().sourceModel().modelDataResetRequested)
         timer.timeout.connect(self.check_active_state_timer.start)
+        timer.timeout.connect(restore_stacked_widget)
         timer.timeout.connect(timer.deleteLater)
         timer.start()
-
-        self.stackedwidget.currentWidget().setFocus()
 
         self._initialized = True
         self.initialized.emit()
@@ -234,38 +232,38 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred
         )
 
-        self.preferences_widget = PreferencesWidget(parent=self)
-        self.preferences_widget.hide()
-
         self.stackedwidget = StackedWidget(parent=self)
 
         self.init_progress = u'Creating bookmarks tab...'
-        self.repaint()
+        self.update()
 
         self.bookmarkswidget = BookmarksWidget(parent=self)
 
         self.init_progress = u'Creating assets tab...'
-        self.repaint()
+        self.update()
 
         self.assetswidget = AssetsWidget(parent=self)
 
         self.init_progress = u'Creating files tab...'
-        self.repaint()
+        self.update()
 
         self.fileswidget = FilesWidget(parent=self)
         self.favouriteswidget = FavouritesWidget(parent=self)
+        self.preferences_widget = PreferencesWidget(parent=self)
+        self.preferences_widget.hide()
+
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
 
         self.init_progress = u'Adding top bar...'
-        self.repaint()
+        self.update()
 
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.init_progress = u'Finishing...'
-        self.repaint()
+        self.update()
 
         statusbar = QtWidgets.QStatusBar(parent=self)
         statusbar.setSizeGripEnabled(False)
@@ -339,32 +337,30 @@ class BrowserWidget(QtWidgets.QWidget):
     def _add_shortcuts(self):
         lc = self.listcontrolwidget
         self.add_shortcut(
-            u'Ctrl+1', (lc._bookmarksbutton.clicked, lc._bookmarksbutton.repaint))
+            u'Ctrl+1', (lc.bookmarks_button.clicked, lc.bookmarks_button.update))
         self.add_shortcut(
-            u'Ctrl+2', (lc._assetsbutton.clicked, lc._assetsbutton.repaint))
+            u'Ctrl+2', (lc.assets_button.clicked, lc.assets_button.update))
         self.add_shortcut(
-            u'Ctrl+3', (lc._filesbutton.clicked, lc._filesbutton.repaint))
+            u'Ctrl+3', (lc.files_button.clicked, lc.files_button.update))
         self.add_shortcut(
-            u'Ctrl+4', (lc._favouritesbutton.clicked, lc._favouritesbutton.repaint))
+            u'Ctrl+4', (lc.favourites_button.clicked, lc.favourites_button.update))
         #
         self.add_shortcut(
-            u'Ctrl+N', (lc._addbutton.action, lc._addbutton.repaint))
+            u'Ctrl+N', (lc.add_button.action, lc.add_button.update))
         self.add_shortcut(
-            u'Ctrl+M', (lc._generatethumbnailsbutton.action, lc._generatethumbnailsbutton.repaint))
+            u'Ctrl+M', (lc.generate_thumbnails_button.action, lc.generate_thumbnails_button.update))
         self.add_shortcut(
-            u'Ctrl+T', (lc._todobutton.action, lc._todobutton.repaint))
+            u'Ctrl+F', (lc.filter_button.action, lc.filter_button.update))
         self.add_shortcut(
-            u'Ctrl+F', (lc._filterbutton.action, lc._filterbutton.repaint))
+            u'Ctrl+G', (lc.collapse_button.action, lc.collapse_button.update))
         self.add_shortcut(
-            u'Ctrl+G', (lc._collapsebutton.action, lc._collapsebutton.repaint))
+            u'Ctrl+Shift+A', (lc.archived_button.action, lc.archived_button.update))
         self.add_shortcut(
-            u'Ctrl+Shift+A', (lc._archivedbutton.action, lc._archivedbutton.repaint))
+            u'Ctrl+Shift+F', (lc.favourite_button.action, lc.favourite_button.update))
         self.add_shortcut(
-            u'Ctrl+Shift+F', (lc._favouritebutton.action, lc._favouritebutton.repaint))
+            u'Alt+S', (lc.slack_button.action, lc.slack_button.update))
         self.add_shortcut(
-            u'Alt+S', (lc._slackbutton.action, lc._slackbutton.repaint))
-        self.add_shortcut(
-            u'Ctrl+H', (lc._togglebuttonsbutton.action, lc._togglebuttonsbutton.repaint))
+            u'Ctrl+H', (lc.simple_mode_button.action, lc.simple_mode_button.update))
         #
         self.add_shortcut(
             u'Alt+Right', (self.next_tab, ), repeat=True)
@@ -405,6 +401,11 @@ class BrowserWidget(QtWidgets.QWidget):
         """
         self.__qn += 1
         self.statusbar.showMessage(u'Quitting...')
+
+        self.stackedwidget.bookmarks_button.timer.stop()
+        self.stackedwidget.assets_button.timer.stop()
+        self.stackedwidget.files_button.timer.stop()
+        self.stackedwidget.favourite_button.timer.stop()
 
         threadpool = self.get_all_threads()
         for thread in threadpool:
@@ -518,14 +519,14 @@ class BrowserWidget(QtWidgets.QWidget):
         a.activated.connect(
             lambda x: l.model().modelDataResetRequested.emit())
 
-        b.model().modelReset.connect(lb.repaint)
-        b.model().layoutChanged.connect(lb.repaint)
-        a.model().modelReset.connect(lb.repaint)
-        a.model().layoutChanged.connect(lb.repaint)
-        f.model().modelReset.connect(lb.repaint)
-        f.model().layoutChanged.connect(lb.repaint)
-        ff.model().modelReset.connect(lb.repaint)
-        ff.model().layoutChanged.connect(lb.repaint)
+        b.model().modelReset.connect(lb.update)
+        b.model().layoutChanged.connect(lb.update)
+        a.model().modelReset.connect(lb.update)
+        a.model().layoutChanged.connect(lb.update)
+        f.model().modelReset.connect(lb.update)
+        f.model().layoutChanged.connect(lb.update)
+        ff.model().modelReset.connect(lb.update)
+        ff.model().layoutChanged.connect(lb.update)
 
         # Active monitor
         # We have to save the states before we respond to the dataKeyChanged
@@ -556,7 +557,6 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(s.setCurrentIndex)
         # Labels
         lc.dataKeyChanged.connect(lc.textChanged)
-        lc.textChanged.connect(lb.set_text)
         f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
 
         # Stacked widget navigation
@@ -579,34 +579,19 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.entered.connect(self.entered)
         l.entered.connect(self.entered)
 
-        lc._bookmarksbutton.message.connect(self.entered2)
-        lc._assetsbutton.message.connect(self.entered2)
-        lc._filesbutton.message.connect(self.entered2)
-        lc._favouritesbutton.message.connect(self.entered2)
+        lc.bookmarks_button.message.connect(self.entered2)
+        lc.assets_button.message.connect(self.entered2)
+        lc.files_button.message.connect(self.entered2)
+        lc.favourites_button.message.connect(self.entered2)
 
-        lc._addbutton.message.connect(self.entered2)
-        lc._generatethumbnailsbutton.message.connect(self.entered2)
-        lc._todobutton.message.connect(self.entered2)
-        lc._filterbutton.message.connect(self.entered2)
-        lc._collapsebutton.message.connect(self.entered2)
-        lc._archivedbutton.message.connect(self.entered2)
-        lc._togglebuttonsbutton.message.connect(self.entered2)
-        lc._favouritebutton.message.connect(self.entered2)
-        lc._slackbutton.message.connect(self.entered2)
-
-        lc._bookmarksbutton.set_parent(self.stackedwidget)
-        lc._assetsbutton.set_parent(self.stackedwidget)
-        lc._filesbutton.set_parent(self.stackedwidget)
-        lc._favouritesbutton.set_parent(self.stackedwidget)
-        lc._addbutton.set_parent(self.stackedwidget)
-        lc._generatethumbnailsbutton.set_parent(self.stackedwidget)
-
-        lc._todobutton.set_parent(self.stackedwidget)
-        lc._filterbutton.set_parent(self.stackedwidget)
-        lc._collapsebutton.set_parent(self.stackedwidget)
-        lc._archivedbutton.set_parent(self.stackedwidget)
-        lc._favouritebutton.set_parent(self.stackedwidget)
-        lc._togglebuttonsbutton.set_parent(self.stackedwidget)
+        lc.add_button.message.connect(self.entered2)
+        lc.generate_thumbnails_button.message.connect(self.entered2)
+        lc.filter_button.message.connect(self.entered2)
+        lc.collapse_button.message.connect(self.entered2)
+        lc.archived_button.message.connect(self.entered2)
+        lc.simple_mode_button.message.connect(self.entered2)
+        lc.favourite_button.message.connect(self.entered2)
+        lc.slack_button.message.connect(self.entered2)
 
         # Controlbutton text should be invisible when there's no active asset set
         b.model().sourceModel().activeChanged.connect(
@@ -614,88 +599,84 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().activeChanged.connect(
             lambda x: self.fileswidget.model().sourceModel().data_key())
 
-        lc._bookmarksbutton.clicked.connect(
+        lc.bookmarks_button.clicked.connect(
             lambda: lc.listChanged.emit(0), type=QtCore.Qt.QueuedConnection)
-        lc._assetsbutton.clicked.connect(
+        lc.assets_button.clicked.connect(
             lambda: lc.listChanged.emit(1), type=QtCore.Qt.QueuedConnection)
-        lc._filesbutton.clicked.connect(
+        lc.files_button.clicked.connect(
             lambda: lc.listChanged.emit(2), type=QtCore.Qt.QueuedConnection)
-        lc._favouritesbutton.clicked.connect(
+        lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
 
         # Updates the list-control buttons when changing lists
-        lc.listChanged.connect(lb.repaint)
-        lc.listChanged.connect(lc._bookmarksbutton.repaint)
-        lc.listChanged.connect(lc._assetsbutton.repaint)
-        lc.listChanged.connect(lc._filesbutton.repaint)
-        lc.listChanged.connect(lc._favouritesbutton.repaint)
-        lc.listChanged.connect(lc._addbutton.repaint)
+        lc.listChanged.connect(lb.update)
+        lc.listChanged.connect(lc.update)
+        lc.listChanged.connect(lc.add_button.update)
         lc.listChanged.connect(
-            lc._generatethumbnailsbutton.repaint)
-        lc.listChanged.connect(lc._todobutton.repaint)
-        lc.listChanged.connect(lc._filterbutton.repaint)
-        lc.listChanged.connect(lc._collapsebutton.repaint)
-        lc.listChanged.connect(lc._archivedbutton.repaint)
-        lc.listChanged.connect(lc._favouritebutton.repaint)
-        lc.listChanged.connect(lc._togglebuttonsbutton.repaint)
+            lc.generate_thumbnails_button.update)
+        lc.listChanged.connect(lc.filter_button.update)
+        lc.listChanged.connect(lc.collapse_button.update)
+        lc.listChanged.connect(lc.archived_button.update)
+        lc.listChanged.connect(lc.favourite_button.update)
+        lc.listChanged.connect(lc.simple_mode_button.update)
 
-        s.currentChanged.connect(lc._bookmarksbutton.repaint)
-        s.currentChanged.connect(lc._assetsbutton.repaint)
-        s.currentChanged.connect(lc._filesbutton.repaint)
-        s.currentChanged.connect(lc._favouritesbutton.repaint)
-        s.currentChanged.connect(lc._togglebuttonsbutton.repaint)
+        s.currentChanged.connect(lc.bookmarks_button.update)
+        s.currentChanged.connect(lc.assets_button.update)
+        s.currentChanged.connect(lc.files_button.update)
+        s.currentChanged.connect(lc.favourites_button.update)
+        s.currentChanged.connect(lc.simple_mode_button.update)
 
-        f.model().sourceModel().dataTypeChanged.connect(lc._collapsebutton.repaint)
-        ff.model().sourceModel().dataTypeChanged.connect(lc._collapsebutton.repaint)
+        f.model().sourceModel().dataTypeChanged.connect(lc.collapse_button.update)
+        ff.model().sourceModel().dataTypeChanged.connect(lc.collapse_button.update)
 
-        b.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
-        a.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
-        f.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
-        ff.model().filterFlagChanged.connect(lc._archivedbutton.repaint)
-        b.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
-        a.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
-        f.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
-        ff.model().filterFlagChanged.connect(lc._favouritebutton.repaint)
-        b.model().filterFlagChanged.connect(lc._filterbutton.repaint)
-        a.model().filterFlagChanged.connect(lc._filterbutton.repaint)
-        f.model().filterFlagChanged.connect(lc._filterbutton.repaint)
-        ff.model().filterFlagChanged.connect(lc._filterbutton.repaint)
+        b.model().filterFlagChanged.connect(lc.archived_button.update)
+        a.model().filterFlagChanged.connect(lc.archived_button.update)
+        f.model().filterFlagChanged.connect(lc.archived_button.update)
+        ff.model().filterFlagChanged.connect(lc.archived_button.update)
+        b.model().filterFlagChanged.connect(lc.favourite_button.update)
+        a.model().filterFlagChanged.connect(lc.favourite_button.update)
+        f.model().filterFlagChanged.connect(lc.favourite_button.update)
+        ff.model().filterFlagChanged.connect(lc.favourite_button.update)
+        b.model().filterFlagChanged.connect(lc.filter_button.update)
+        a.model().filterFlagChanged.connect(lc.filter_button.update)
+        f.model().filterFlagChanged.connect(lc.filter_button.update)
+        ff.model().filterFlagChanged.connect(lc.filter_button.update)
 
-        b.model().filterTextChanged.connect(lc._filterbutton.repaint)
-        a.model().filterTextChanged.connect(lc._filterbutton.repaint)
-        f.model().filterTextChanged.connect(lc._filterbutton.repaint)
-        ff.model().filterTextChanged.connect(lc._filterbutton.repaint)
+        b.model().filterTextChanged.connect(lc.filter_button.update)
+        a.model().filterTextChanged.connect(lc.filter_button.update)
+        f.model().filterTextChanged.connect(lc.filter_button.update)
+        ff.model().filterTextChanged.connect(lc.filter_button.update)
 
-        b.model().modelReset.connect(lc._archivedbutton.repaint)
-        a.model().modelReset.connect(lc._archivedbutton.repaint)
-        f.model().modelReset.connect(lc._archivedbutton.repaint)
-        ff.model().modelReset.connect(lc._archivedbutton.repaint)
-        b.model().modelReset.connect(lc._favouritebutton.repaint)
-        a.model().modelReset.connect(lc._favouritebutton.repaint)
-        f.model().modelReset.connect(lc._favouritebutton.repaint)
-        ff.model().modelReset.connect(lc._favouritebutton.repaint)
-        b.model().modelReset.connect(lc._filterbutton.repaint)
-        a.model().modelReset.connect(lc._filterbutton.repaint)
-        f.model().modelReset.connect(lc._filterbutton.repaint)
-        ff.model().modelReset.connect(lc._filterbutton.repaint)
+        b.model().modelReset.connect(lc.archived_button.update)
+        a.model().modelReset.connect(lc.archived_button.update)
+        f.model().modelReset.connect(lc.archived_button.update)
+        ff.model().modelReset.connect(lc.archived_button.update)
+        b.model().modelReset.connect(lc.favourite_button.update)
+        a.model().modelReset.connect(lc.favourite_button.update)
+        f.model().modelReset.connect(lc.favourite_button.update)
+        ff.model().modelReset.connect(lc.favourite_button.update)
+        b.model().modelReset.connect(lc.filter_button.update)
+        a.model().modelReset.connect(lc.filter_button.update)
+        f.model().modelReset.connect(lc.filter_button.update)
+        ff.model().modelReset.connect(lc.filter_button.update)
 
-        b.model().layoutChanged.connect(lc._archivedbutton.repaint)
-        a.model().layoutChanged.connect(lc._archivedbutton.repaint)
-        f.model().layoutChanged.connect(lc._archivedbutton.repaint)
-        ff.model().layoutChanged.connect(lc._archivedbutton.repaint)
-        b.model().layoutChanged.connect(lc._favouritebutton.repaint)
-        a.model().layoutChanged.connect(lc._favouritebutton.repaint)
-        f.model().layoutChanged.connect(lc._favouritebutton.repaint)
-        ff.model().layoutChanged.connect(lc._favouritebutton.repaint)
-        b.model().layoutChanged.connect(lc._filterbutton.repaint)
-        a.model().layoutChanged.connect(lc._filterbutton.repaint)
-        f.model().layoutChanged.connect(lc._filterbutton.repaint)
-        ff.model().layoutChanged.connect(lc._filterbutton.repaint)
+        b.model().layoutChanged.connect(lc.archived_button.update)
+        a.model().layoutChanged.connect(lc.archived_button.update)
+        f.model().layoutChanged.connect(lc.archived_button.update)
+        ff.model().layoutChanged.connect(lc.archived_button.update)
+        b.model().layoutChanged.connect(lc.favourite_button.update)
+        a.model().layoutChanged.connect(lc.favourite_button.update)
+        f.model().layoutChanged.connect(lc.favourite_button.update)
+        ff.model().layoutChanged.connect(lc.favourite_button.update)
+        b.model().layoutChanged.connect(lc.filter_button.update)
+        a.model().layoutChanged.connect(lc.filter_button.update)
+        f.model().layoutChanged.connect(lc.filter_button.update)
+        ff.model().layoutChanged.connect(lc.filter_button.update)
 
-        b.model().layoutChanged.connect(b.repaint)
-        a.model().layoutChanged.connect(a.repaint)
-        f.model().layoutChanged.connect(f.repaint)
-        ff.model().layoutChanged.connect(f.repaint)
+        b.model().layoutChanged.connect(b.update)
+        a.model().layoutChanged.connect(a.update)
+        f.model().layoutChanged.connect(f.update)
+        ff.model().layoutChanged.connect(f.update)
 
         # Active monitor
         b.activated.connect(

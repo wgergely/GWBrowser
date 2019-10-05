@@ -202,13 +202,10 @@ directory."""
 FTHREAD_COUNT = 1
 """The number of threads used by the ``FilesWidget`` to get file - information."""
 
-ITHREAD_COUNT = 2
-"""The number of threads used by the ``ImageCache`` to generate thumbnails."""
-
 LTHREAD_COUNT = 1
 """The number of threads used by the ``DataKeyModel`` to count files."""
 
-FTIMER_INTERVAL = 1000  # 1.0 sec
+FTIMER_INTERVAL = 1333  # 1.0 sec
 """The frequency of querrying lists to load file and thumbnail info"""
 
 

@@ -630,10 +630,10 @@ class ThumbnailLabel(QtWidgets.QLabel):
             QtWidgets.QSizePolicy.Maximum)
 
     def enterEvent(self, event):
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):

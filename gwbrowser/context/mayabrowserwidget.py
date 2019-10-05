@@ -505,7 +505,7 @@ class MayaBrowserButton(ClickableIconButton):
             self.setFixedWidth(widget.width())
             self.setFixedHeight(widget.width())
             self.adjustSize()
-            self.repaint()
+            self.update()
         else:
             sys.stderr.write(
                 '# GWBrowser: Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.\n')
@@ -531,10 +531,10 @@ class MayaBrowserButton(ClickableIconButton):
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip)
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def contextMenuEvent(self, event):
         """Context menu event."""

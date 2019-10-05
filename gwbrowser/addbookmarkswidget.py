@@ -100,10 +100,10 @@ class ComboboxButton(QtWidgets.QPushButton):
         widget.exec_()
 
     def enterEvent(self, event):
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def paintEvent(self, event):
         """The ``ComboboxButton``'s paint event."""
@@ -361,10 +361,10 @@ class ListWidget(QtWidgets.QListWidget):
             height += sizehint.height()
         self.setFixedHeight(height)
 
-        self.parent().repaint()
+        self.parent().update()
 
     def hideEvent(self, event):
-        self.parent().repaint()
+        self.parent().update()
 
 
 class AddJobButton(ClickableIconButton):
@@ -512,9 +512,9 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_server_widget.view().itemActivated.connect(
             self.add_jobs_from_server_folder)
         self.pick_server_widget.view().itemClicked.connect(
-            self.pick_server_widget.repaint)
+            self.pick_server_widget.update)
         self.pick_server_widget.view().itemActivated.connect(
-            self.pick_server_widget.repaint)
+            self.pick_server_widget.update)
 
         self.pick_server_widget.view().itemClicked.connect(
             self.add_jobs_from_server_folder)
@@ -605,26 +605,26 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         if not self.pick_server_widget.view().selectionModel().hasSelection():
             self.ok_button.setText(u'Add bookmark')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         if not self.pick_job_widget.view().selectionModel().hasSelection():
             self.ok_button.setText(u'Add bookmark')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         if not self.pick_root_widget.view().selectionModel().hasSelection():
             self.ok_button.setText(u'Add bookmark')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         index = self.pick_root_widget.view().selectionModel().currentIndex()
         if not index.data(QtCore.Qt.StatusTipRole):
             self.ok_button.setText(u'Add bookmark')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         # Let's check if the path is valid
@@ -640,22 +640,22 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         if not file_info.exists():
             self.ok_button.setText(u'Bookmark folder not set')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
         if not file_info.isReadable():
             self.ok_button.setText(u'Cannot read folder')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
         if not file_info.isWritable():
             self.ok_button.setText(u'Cannot write to folder')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
         if file_info.isHidden():
             self.ok_button.setText(u'Folder is hidden')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         bookmarks = local_settings.value(u'bookmarks')
@@ -664,12 +664,12 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         if key in bookmarks:
             self.ok_button.setText(u'Bookmark added already')
             self.ok_button.setDisabled(True)
-            self.ok_button.repaint()
+            self.ok_button.update()
             return
 
         self.ok_button.setText(u'Add bookmark')
         self.ok_button.setDisabled(False)
-        self.ok_button.repaint()
+        self.ok_button.update()
 
     @QtCore.Slot()
     def add_bookmark(self):
@@ -719,7 +719,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         # Resetting the folder selection
         self.add_root_folders(
             self.pick_job_widget.view().selectionModel().currentIndex())
-        self.pick_root_widget.repaint()
+        self.pick_root_widget.update()
         self.validate()
         self.validate()
 

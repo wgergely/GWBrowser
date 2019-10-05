@@ -18,7 +18,7 @@ import time
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.imagecache import ImageCacheWorker
+from gwbrowser.imagecache import oiio_make_thumbnail
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
 from gwbrowser.settings import AssetSettings
@@ -265,7 +265,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
                         uuid.uuid4(),
                         thumbnail_info.suffix()
                     )
-                    ImageCacheWorker.process_index(
+                    oiio_make_thumbnail(
                         QtCore.QModelIndex(),
                         source=url.toLocalFile(),
                         dest=dest
@@ -340,14 +340,14 @@ class CustomButton(QtWidgets.QLabel):
 
     def enterEvent(self, event):
         self.setPixmap(self._pixmap(type=event.type()))
-        self.repaint()
+        self.update()
 
         if self._message:
             self.message.emit(self._message)
 
     def leaveEvent(self, event):
         self.setPixmap(self._pixmap(type=event.type()))
-        self.repaint()
+        self.update()
 
     def _pixmap(self, type=QtCore.QEvent.Leave):
         if self.button is None:

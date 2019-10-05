@@ -43,7 +43,7 @@ from gwbrowser.settings import local_settings, Active
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.imagecache import ImageCacheWorker
+from gwbrowser.imagecache import oiio_make_thumbnail
 
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
@@ -205,21 +205,22 @@ class SecondaryFileInfoWorker(FileInfoWorker):
                     continue
 
                 all_loaded = True
+                data = self.model.model_data()
                 for n in xrange(self.model.rowCount()):
                     index = self.model.index(n, 0)
 
-                    if not index.data(common.FileInfoLoaded):
+                    if not data[n][common.FileInfoLoaded]:
                         FileInfoWorker.process_index(index, update=True)
                         all_loaded = False
 
-                    if not index.data(common.FileThumbnailLoaded):
+                    if not data[n][common.FileThumbnailLoaded]:
                         FileThumbnailWorker.process_index(
                             index, update=True, make=False)
 
                 if all_loaded:
                     self.model.file_info_loaded = True
 
-        except Exception:
+        except:
             sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:
             if self.shutdown_requested:
@@ -301,8 +302,8 @@ class FileThumbnailWorker(BaseWorker):
             if update:
                 model.indexUpdated.emit(index)
 
-                # Emits an indexUpdated signal if successfully generated the thumbnail
-            ImageCacheWorker.process_index(index)
+            # Emits an indexUpdated signal if successfully generated the thumbnail
+            oiio_make_thumbnail(index)
 
 
 class FileInfoThread(BaseThread):
@@ -399,6 +400,7 @@ class FilesModel(BaseModel):
 
         def set_model():
             self.threads[idx].worker.model = self
+            self.threads[idx].setPriority(QtCore.QThread.LowPriority)
         self.threads[idx] = SecondaryFileInfoThread()
         self.threads[idx].thread_id = idx
         self.threads[idx].started.connect(set_model)
@@ -718,7 +720,6 @@ class FilesModel(BaseModel):
         FileInfoWorker.reset_queue()
         FileThumbnailWorker.reset_queue()
         SecondaryFileInfoWorker.reset_queue()
-        ImageCacheWorker.reset_queue()
 
         self.reset_file_info_loaded()
 
@@ -1045,41 +1046,47 @@ class FilesWidget(BaseInlineIconWidget):
         needs_info = []
         needs_thumbnail = []
         visible = []
-        generate_thumbnails = self.model().sourceModel().generate_thumbnails
+        proxy_model = self.model()
+        source_model = proxy_model.sourceModel()
+        data = source_model.model_data()
+        generate_thumbnails = source_model.generate_thumbnails
 
         if self.verticalScrollBar().isSliderDown():
             return
 
-        if not self.model().rowCount():
+        if not proxy_model.rowCount():
             return
 
         index = self.indexAt(self.rect().topLeft())
+        idx = proxy_model.mapToSource(index).row()
         if not index.isValid():
             return
 
         # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
         while self.rect().contains(rect):
-            if not index.data(common.FileInfoLoaded):
+            if not data[idx][common.FileInfoLoaded]:
                 needs_info.append(index)
-            if not index.data(common.FileThumbnailLoaded):
+            if generate_thumbnails and not data[idx][common.FileThumbnailLoaded]:
                 needs_thumbnail.append(index)
             visible.append(index)
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
+            idx = proxy_model.mapToSource(index).row()
             if not index.isValid():
                 break
 
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
+        idx = proxy_model.mapToSource(index).row()
         if index.isValid():
             visible.append(index)
-            if not index.data(common.FileInfoLoaded):
+            if not data[idx][common.FileInfoLoaded]:
                 if index not in needs_info:
                     needs_info.append(index)
 
             if generate_thumbnails:
-                if not index.data(common.FileThumbnailLoaded):
+                if not data[idx][common.FileThumbnailLoaded]:
                     if index not in needs_thumbnail:
                         needs_thumbnail.append(index)
 
@@ -1283,6 +1290,11 @@ class FilesWidget(BaseInlineIconWidget):
         # Cleanup
         self.drag_source_index = QtCore.QModelIndex()
 
+    def focusOutEvent(self, event):
+        self.index_update_timer.stop()
+
+    def focusInEvent(self, event):
+        self.index_update_timer.start()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

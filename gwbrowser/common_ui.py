@@ -155,7 +155,7 @@ class ClickableIconButton(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.clicked.connect(self.action)
-        self.clicked.connect(self.repaint)
+        self.clicked.connect(self.update)
 
     @QtCore.Slot()
     def action(self):
@@ -175,10 +175,10 @@ class ClickableIconButton(QtWidgets.QLabel):
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip())
-        self.repaint()
+        self.update()
 
     def leaveEvent(self, event):
-        self.repaint()
+        self.update()
 
     def pixmap(self):
         if not self.isEnabled():

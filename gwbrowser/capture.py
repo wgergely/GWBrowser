@@ -152,7 +152,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         """
         Mouse move event
         """
-        self.repaint()
+        self.update()
 
         if not isinstance(event, QtGui.QMouseEvent):
             return
@@ -176,7 +176,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         if no_modifier:
             self.__click_pos = None
             self._offset_pos = None
-            self.repaint()
+            self.update()
             return
 
         # Allowing the shifting of the rectagle with the modifier keys
@@ -198,7 +198,7 @@ class ScreenGrabber(QtWidgets.QDialog):
             rect.setHeight(rect.width())
             self._mouse_pos = rect.bottomRight()
 
-        self.repaint()
+        self.update()
 
     @classmethod
     def screen_capture(cls):
@@ -250,7 +250,7 @@ class ScreenGrabber(QtWidgets.QDialog):
         Animation callback for opacity
         """
         self._opacity = value
-        self.repaint()
+        self.update()
 
     def _get_opacity(self):
         """

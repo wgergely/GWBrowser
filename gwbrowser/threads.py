@@ -64,22 +64,15 @@ class BaseWorker(QtCore.QObject):
     @QtCore.Slot(tuple)
     @classmethod
     def add_to_queue(cls, indexes):
-        """Converts the list of indexes to ``QPersistentModelIndex`` model indexes
-        and adds it to the worker's queue.
-
-        """
-        # The queue might change size during iteration hence it is better copy it
-        current_queue = set(cls.queue.queue)
+        """Adds the given list of indexes to the worker's queue."""
+        current_queue = cls.queue.queue
+        indexes = [f for f in indexes if f not in current_queue]
         for index in indexes:
             if not index.isValid():
                 continue
             if not index.data(QtCore.Qt.StatusTipRole):
                 continue
             if not index.data(common.ParentRole):
-                continue
-            if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in current_queue]:
-                continue
-            if index.data(QtCore.Qt.StatusTipRole) in [f.data(QtCore.Qt.StatusTipRole) for f in cls.indexes_in_progress]:
                 continue
             cls.queue.put(index)
 

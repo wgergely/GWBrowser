@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """The base-context menu associated with the BaseListWidget subclasses."""
 
-import os
 import functools
 from functools import wraps
 import collections
@@ -9,8 +8,7 @@ import collections
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
-from gwbrowser.imagecache import ImageCacheWorker
+from gwbrowser.imagecache import ImageCache, oiio_make_thumbnail
 from gwbrowser.settings import AssetSettings
 
 
@@ -426,7 +424,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             current item."""
             data = source_index.model().model_data()[source_index.row()]
             data[common.FileThumbnailLoaded] = False
-            ImageCacheWorker.process_index(source_index, source=path)
+            oiio_make_thumbnail(source_index, source=path)
 
         def show_thumbnail_picker():
             """Creates and shows the thumbnail picker widget."""
@@ -454,7 +452,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             def make():
                 source_index.model().model_data()[
                     source_index.row()][common.FileThumbnailLoaded] = False
-                ImageCacheWorker.process_index(source_index)
+                (source_index)
 
             menu_set[key][u'generatethis'] = {
                 u'text': u'Make',
