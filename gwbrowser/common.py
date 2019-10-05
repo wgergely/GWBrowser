@@ -199,7 +199,7 @@ a **workspace.mel** file in our case. The file resides in the root of the asset
 directory."""
 
 
-FTHREAD_COUNT = 1
+FTHREAD_COUNT = 2
 """The number of threads used by the ``FilesWidget`` to get file - information."""
 
 LTHREAD_COUNT = 1

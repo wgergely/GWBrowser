@@ -163,7 +163,7 @@ class FavouritesModel(FilesModel):
                 common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentRole: (server, job, root, fileroot),
-                common.DescriptionRole: filepath if ext else '',
+                common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
                 common.SequenceRole: seq,

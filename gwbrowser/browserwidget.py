@@ -402,10 +402,10 @@ class BrowserWidget(QtWidgets.QWidget):
         self.__qn += 1
         self.statusbar.showMessage(u'Quitting...')
 
-        self.stackedwidget.bookmarks_button.timer.stop()
-        self.stackedwidget.assets_button.timer.stop()
-        self.stackedwidget.files_button.timer.stop()
-        self.stackedwidget.favourite_button.timer.stop()
+        self.listcontrolwidget.bookmarks_button.timer.stop()
+        self.listcontrolwidget.assets_button.timer.stop()
+        self.listcontrolwidget.files_button.timer.stop()
+        self.listcontrolwidget.favourites_button.timer.stop()
 
         threadpool = self.get_all_threads()
         for thread in threadpool:
