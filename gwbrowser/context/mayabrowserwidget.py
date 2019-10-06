@@ -38,7 +38,6 @@ except ImportError:
     from gwalembic.alembic import Abc
 
 from gwbrowser.settings import Active, local_settings
-import gwbrowser.settings as Settings
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
@@ -52,6 +51,7 @@ maya_button = None
 """The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
 __instance__ = None
+
 
 def instance():
     return __instance__
@@ -101,9 +101,23 @@ def show():
             state = cmds.workspaceControl(
                 workspace_control, q=True, collapse=True)
             if state is None:
+                cmds.workspaceControl(workspace_control, e=True, tabToControl=(u'AttributeEditor', -1))
                 cmds.workspaceControl(workspace_control, e=True, visible=True)
-            cmds.workspaceControl(
-                workspace_control, e=True, collapse=not state)
+                cmds.workspaceControl(workspace_control, e=True, collapse=False)
+                return
+            if not widget.parent().isVisible():
+                cmds.workspaceControl(workspace_control, e=True, visible=True)
+                cmds.workspaceControl(workspace_control, e=True, collapse=False)
+                return
+            if state is False:
+                cmds.workspaceControl('AttributeEditor', e=True, visible=True)
+                cmds.workspaceControl('AttributeEditor', e=True, collapse=False)
+                # cmds.workspaceControl(
+                #     workspace_control, e=True, collapse=True)
+                return
+            if state is True:
+                cmds.workspaceControl(
+                    workspace_control, e=True, collapse=True)
             return
         else:
             state = widget.parent().isVisible()
@@ -258,8 +272,10 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     scene data will be picked up!
 
     """
-    is_intermediate = lambda s: cmds.getAttr(u'{}.intermediateObject'.format(s))
-    is_template = lambda s: cmds.getAttr(u'{}.template'.format(s))
+    def is_intermediate(s): return cmds.getAttr(
+        u'{}.intermediateObject'.format(s))
+
+    def is_template(s): return cmds.getAttr(u'{}.template'.format(s))
 
     world_shapes = []
     valid_shapes = []
@@ -278,7 +294,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             valid_shapes.append(shape)
 
     if not valid_shapes:
-        raise RuntimeError(u'No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
+        raise RuntimeError(
+            u'No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
 
     cmds.select(clear=True)
 
@@ -294,7 +311,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         # UV  attributes from our source mesh
         for shape in valid_shapes:
             if cmds.nodeType(shape) != u'camera':
-                world_shape = cmds.createNode(u'mesh', name=u'{}:{}'.format(ns, shape))
+                world_shape = cmds.createNode(
+                    u'mesh', name=u'{}:{}'.format(ns, shape))
                 cmds.connectAttr(u'{}.worldMesh[0]'.format(
                     shape), u'{}.inMesh'.format(world_shape), force=True)
                 cmds.connectAttr(u'{}.uvSet'.format(shape),
@@ -431,7 +449,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Toggle GWBrowser',
             u'action': self.parent().clicked.emit
         }
@@ -482,14 +500,26 @@ class MayaBrowserButton(ClickableIconButton):
 
     def __init__(self, parent=None):
         super(MayaBrowserButton, self).__init__(
-            u'custom_bw',
-            (common.TEXT, common.TEXT),
+            u'custom_maya',
+            (None, None),
             common.ASSET_ROW_HEIGHT,
             description=u'Click to toggle GWBrowser.\nRight-click to see addittional options.',
             parent=parent
         )
-
+        self.setAttribute(QtCore.Qt.WA_NoBackground, False)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(u'Ctrl+Alt+Shift+S'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        shortcut.activated.connect(self.saveRequested)
+        #
+        shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(u'Ctrl+Alt+Shift+B'), self)
+        shortcut.setAutoRepeat(False)
+        shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        shortcut.activated.connect(show)
+
         self.clicked.connect(show)
 
     def initialize(self):
@@ -520,14 +550,12 @@ class MayaBrowserButton(ClickableIconButton):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.drawRoundRect(self.rect(), 4, 4)
-
-        pixmap = ImageCache.get_rsc_pixmap('custom_bw', common.TEXT, self.width())
-        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+        painter.drawRoundRect(self.rect(), 6, 6)
         painter.end()
+
+        super(MayaBrowserButton, self).paintEvent(event)
 
     def enterEvent(self, event):
         self.message.emit(self.statusTip)
@@ -636,6 +664,8 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         alembic_pixmap = ImageCache.get_rsc_pixmap(
             u'abc', None, common.INLINE_ICON_SIZE)
+        maya_reference_pixmap = ImageCache.get_rsc_pixmap(
+            u'maya_reference', None, common.INLINE_ICON_SIZE)
 
         menu_set[u'open_alembic'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
@@ -649,7 +679,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         }
         menu_set[u'import_ref_alembic'] = {
             u'text': u'Import alembic as reference...',
-            u'icon': alembic_pixmap,
+            u'icon': maya_reference_pixmap,
             u'action': lambda: browserwidget.import_referenced_alembic(file_info.filePath())
         }
         return menu_set
@@ -716,33 +746,38 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
         self.browserwidget.initialized.connect(self.workspace_timer.start)
-        self.browserwidget.active_monitor.activeAssetChanged.connect(self.active_changed)
+        self.browserwidget.active_monitor.activeAssetChanged.connect(
+            self.active_changed)
 
         self.browserwidget.initialize()
+
         if maya_button is not None:
             maya_button.saveRequested.connect(self.save_scene)
-            maya_button.incrementRequested.connect(lambda: self.save_scene(increment=True))
-            maya_button.alembicExportRequested.connect(self.export_set_to_alembic)
-
-        self._add_shortcuts()
+            maya_button.incrementRequested.connect(
+                lambda: self.save_scene(increment=True))
+            maya_button.alembicExportRequested.connect(
+                self.export_set_to_alembic)
 
     @QtCore.Slot()
     def active_changed(self):
         """Slot called when an active asset changes."""
-        val = local_settings.value(u'preferences/MayaSettings/disable_workspace_warnings')
+        val = local_settings.value(
+            u'preferences/MayaSettings/disable_workspace_warnings')
         if val is True:
             return
 
-        workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
+        workspace_info = QtCore.QFileInfo(
+            cmds.workspace(q=True, expandName=True))
 
         mbox = QtWidgets.QMessageBox()
         mbox.setIcon(QtWidgets.QMessageBox.Information)
         mbox.setWindowTitle(u'GWBrowser - Workspace changed')
         mbox.setText(
             u'The current workspace changed. The new workspace is:\n{}'.format(
-            workspace_info.path())
+                workspace_info.path())
         )
-        mbox.setInformativeText(u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser, perhaps in another instance of Maya.')
+        mbox.setInformativeText(
+            u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser, perhaps in another instance of Maya.')
         mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
         mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
         mbox.setWindowFlags(QtCore.Qt.Window)
@@ -750,10 +785,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def _add_shortcuts(self):
         """Global maya shortcut to do a save as"""
-        self.browserwidget.add_shortcut(
-            u'Ctrl+Alt+Shift+S', (self.save_scene, ), context=QtCore.Qt.ApplicationShortcut)
-        self.browserwidget.add_shortcut(
-            u'Ctrl+Alt+Shift+B', (show, ), context=QtCore.Qt.ApplicationShortcut)
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -778,32 +809,34 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         with their file save destination.
 
         """
-        val = local_settings.value(u'preferences/MayaSettings/disable_save_warnings')
+        val = local_settings.value(
+            u'preferences/MayaSettings/disable_save_warnings')
         if val is True:
             return
 
-        workspace_info = QtCore.QFileInfo(cmds.workspace(q=True, expandName=True))
+        workspace_info = QtCore.QFileInfo(
+            cmds.workspace(q=True, expandName=True))
         scene_file = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
 
         if scene_file.baseName().lower() == u'untitled':
             return
 
-        if workspace_info.path().lower() not in scene_file.filePath():
+        if workspace_info.path().lower() not in scene_file.filePath().lower():
             mbox = QtWidgets.QMessageBox()
             mbox.setIcon(QtWidgets.QMessageBox.Information)
             mbox.setWindowTitle(u'GWBrowser - Workspace mismatch')
             mbox.setText(
                 u'Looks like you are saving "{}" outside your current project!\nYour current project is "{}"'.format(
-                scene_file.fileName(),
-                workspace_info.path())
+                    scene_file.fileName(),
+                    workspace_info.path())
             )
-            mbox.setInformativeText(u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser another instance of Maya.\nOtherwise, you all is good!')
+            mbox.setInformativeText(
+                u'If you didn\'t expect this message, it is possible your current project was changed by GWBrowser another instance of Maya.\nOtherwise, you all is good!')
             mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             res = mbox.exec_()
             # if res == QtWidgets.QMessageBox.Cancel:
             #     return False
-
 
     @QtCore.Slot()
     def unmark_active(self, *args):
@@ -892,10 +925,17 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         favouriteswidget.customContextMenuRequested.connect(
             self.customFilesContextMenuEvent)
 
-        fileswidget.activated.connect(lambda x: self.open_scene(
-            common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
-        favouriteswidget.activated.connect(lambda x: self.open_scene(
-            common.get_sequence_endpath(x.data(QtCore.Qt.StatusTipRole))))
+        @QtCore.Slot()
+        def execute(index):
+            file_path =  common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
+            file_info = QtCore.QFileInfo(file_path)
+            if file_info.suffix().lower() in (u'ma', u'mb', u'abc'):
+                self.open_scene(file_info.filePath())
+                return
+            common.execute(index)
+
+        fileswidget.activated.connect(execute)
+        favouriteswidget.activated.connect(execute)
         fileswidget.model().sourceModel().modelReset.connect(self.unmark_active)
         fileswidget.model().sourceModel().modelReset.connect(self.update_active_item)
 
@@ -926,7 +966,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def set_workspace(self):
         """Slot responsible for updating the Maya workspace."""
         # When active sync is disabled we won't
-        val = local_settings.value('preferences/MayaSettings/disable_workspace_sync')
+        val = local_settings.value(
+            'preferences/MayaSettings/disable_workspace_sync')
         if val is True:
             return
 
@@ -960,36 +1001,32 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         fileswidget = self.browserwidget.stackedwidget.widget(2)
 
         widget = AddFileWidget(ext, file=file)
-        overlay = self.browserwidget.stackedwidget.currentWidget().disabled_overlay_widget
-        overlay.show()
-
         if widget.exec_() == QtWidgets.QDialog.Rejected:
-            overlay.hide()
             return
 
         file_path = widget.filePath()
         file_info = QtCore.QFileInfo(file_path)
-
         # Last-minute double-check to make sure we're not overwriting anything...
         if file_info.exists():
             raise RuntimeError('# Unable to save file: File already exists.')
 
         cmds.file(rename=file_path)
         cmds.file(force=True, save=True, type=u'mayaAscii')
-        sys.stdout.write(u'# GWBrowser: Scene saved as {}\n'.format(file_path))
-
         fileswidget.new_file_added(widget.data_key(), file_path)
-        overlay.hide()
+        sys.stdout.write(u'# GWBrowser: Scene saved as {}\n'.format(file_path))
 
     def open_scene(self, path):
         """Maya Command: Opens the given path in Maya using ``cmds.file``.
 
         """
+
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        if file_info.suffix().lower() not in (u'ma', u'mb', u'abc'):
+            print '# File is not a maya file'
+
         result = self.is_scene_modified()
         if result == QtWidgets.QMessageBox.Cancel:
             return
-
         cmds.file(file_info.filePath(), open=True, force=True)
         sys.stdout.write(
             u'# GWBrowser: Scene opened {}\n'.format(file_info.filePath()))
@@ -1036,26 +1073,32 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
                 # Conflict of duplicate name would prefent import... this is a hackish, yikes, workaround!
                 _node = cmds.ls(node, long=True)[0]
-                if cmds.nodeType(_node ) != 'transform':
+                if cmds.nodeType(_node) != 'transform':
                     continue
                 if cmds.listRelatives(_node, parent=True) is None:
                     if cmds.attributeQuery('instance_suffix', node=node, exists=True):
                         continue
-                    cmds.addAttr(_node, ln='instance_suffix', at='enum', en=u':'.join(string.ascii_uppercase))
+                    cmds.addAttr(_node, ln='instance_suffix', at='enum',
+                                 en=u':'.join(string.ascii_uppercase))
                     cmds.setAttr('{}.instance_suffix'.format(_node), id)
                     print _node, id
 
-
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path).rstrip(u'_v'))
+        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
             return
-        alphabet = get_alphabet(file_info.baseName())
+
+        match = common.get_sequence(file_info.fileName())
+        basename = match.group(1) if match else file_info.baseName()
+        basename = re.sub(ur'_v$', u'', basename, flags=re.IGNORECASE)
+
+        alphabet = get_alphabet(basename)
         if not alphabet:
             return
 
         w = QtWidgets.QInputDialog()
         w.setWindowTitle(u'Assign suffix')
-        w.setLabelText(u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
+        w.setLabelText(
+            u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
         w.setComboBoxItems(alphabet)
         w.setCancelButtonText(u'Cancel')
         w.setOkButtonText(u'Import reference')
@@ -1064,11 +1107,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             return
         suffix = w.textValue()
 
-        match = common.get_sequence(file_info.fileName())
-
         id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
         # This should always be a unique name in the maya scene
-        ns = u'{}_{}'.format(match.group(1) if match else file_info.baseName(), suffix)
+        ns = u'{}_{}'.format(basename, suffix)
         rfn = u'{}_RN_{}'.format(ns, id)
 
         cmds.file(
@@ -1077,8 +1118,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             ns=ns,
             rfn=rfn,
         )
-
         add_attribute(rfn, suffix)
+
+        cmds.lockNode(rfn, lock=False)
+        rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
+        cmds.lockNode(rfn, lock=True)
+
         sys.stdout.write(
             u'# GWBrowser: Scene imported as reference: {}\n'.format(file_info.filePath()))
 
@@ -1141,7 +1186,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.rename(s, u'{}:{}'.format(ns, s))
 
         sys.stdout.write(
-        u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
+            u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
 
     def import_referenced_alembic(self, file_path):
         """Imports the given scene as a reference."""
@@ -1188,7 +1233,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.parent(member, root_node)
 
         sys.stdout.write(
-        u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
+            u'# GWBrowser: Alembic imported: {}\n'.format(file_info.filePath()))
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)

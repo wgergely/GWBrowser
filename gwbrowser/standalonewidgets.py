@@ -119,9 +119,9 @@ class AppIconButton(ClickableIconButton):
     def __init__(self, parent=None):
         super(AppIconButton, self).__init__(
         u'custom',
-        (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
-        common.INLINE_ICON_SIZE,
-        description='',
+        (common.FAVOURITE, common.FAVOURITE),
+        common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+        description=u'',
         parent=parent
     )
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
@@ -177,7 +177,7 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.INLINE_ICON_SIZE + common.INDICATOR_WIDTH)
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
 
         self.layout().addWidget(AppIconButton(parent=self))
         text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()

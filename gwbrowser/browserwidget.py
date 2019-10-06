@@ -388,6 +388,8 @@ class BrowserWidget(QtWidgets.QWidget):
             return
         d.ROW_HEIGHT += 8
         for n in xrange(self.stackedwidget.count()):
+            if n >= 3:
+                continue
             self.stackedwidget.widget(n).reset()
 
     def get_all_threads(self):

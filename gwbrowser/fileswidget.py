@@ -1125,6 +1125,7 @@ class FilesWidget(BaseInlineIconWidget):
         return False
 
     def showEvent(self, event):
+        self.model().sourceModel().modelDataResetRequested.emit()
         self.index_update_timer.start()
 
     def hideEvent(self, event):
@@ -1266,17 +1267,20 @@ class FilesWidget(BaseInlineIconWidget):
         path = path.replace(bookmark, u'')
         path = path.strip(u'/')
         if no_modifier:
-            pixmap = ImageCache.get_rsc_pixmap('files', None, height)
+            pixmap = index.data(common.ThumbnailRole)
+            pixmap = QtGui.QPixmap.fromImage(pixmap)
+            if not pixmap:
+                pixmap = ImageCache.get_rsc_pixmap('files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_endpath(path)
         elif alt_modifier and shift_modifier:
-            pixmap = ImageCache.get_rsc_pixmap('folder', None, height)
+            pixmap = ImageCache.get_rsc_pixmap('folder', common.SECONDARY_TEXT, height)
             path = QtCore.QFileInfo(path).dir().path()
         elif alt_modifier:
-            pixmap = ImageCache.get_rsc_pixmap('files', None, height)
+            pixmap = ImageCache.get_rsc_pixmap('files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_startpath(path)
         elif shift_modifier:
             path = u'{}, ++'.format(common.get_sequence_startpath(path))
-            pixmap = ImageCache.get_rsc_pixmap('multiples_files', None, height)
+            pixmap = ImageCache.get_rsc_pixmap('multiples_files', common.SECONDARY_TEXT, height)
         else:
             return
 

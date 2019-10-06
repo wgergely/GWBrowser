@@ -1160,8 +1160,8 @@ def clean_filter_text(filter_text):
     if not filter_text:
         filter_text = u''
     else:
-        filter_text = re.sub(u'\[\\\S\\\s\]\*', u' ', filter_text)
-        filter_text = re.sub(ur'[\\]+', '', filter_text)
+        filter_text = re.sub(u'\[\\\S\\\s\]\*', u' ', filter_text, flags=re.IGNORECASE)
+        filter_text = re.sub(ur'[\\]+', '', filter_text, flags=re.IGNORECASE)
         filter_text = FilterTextRegex.sub(u' ', filter_text)
         filter_text = re.sub(ur'\s', u' ', filter_text)
     return filter_text

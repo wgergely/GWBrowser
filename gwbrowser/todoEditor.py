@@ -1074,8 +1074,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.refresh_button.hide()
         self.save_timer.start()
 
-        print u'# Lock created.'
-
     def remove_lockfile(self):
         """Saving the contents on close/hide."""
         if self.index.isValid():
@@ -1089,7 +1087,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 return
             settings.setValue(u'config/todo_lockstamp', None)
             settings.setValue(u'config/todo_open', False)
-            print '# Lock removed'
 
     def showEvent(self, event):
         self.setFocus(QtCore.Qt.OtherFocusReason)
