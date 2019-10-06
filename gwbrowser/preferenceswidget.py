@@ -425,8 +425,9 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
 
     def __init__(self, parent=None):
         super(SectionSwitcherWidget, self).__init__(parent=parent)
-        self.setFixedWidth(150)
         self._connectSignals()
+        self.setMaximumWidth(130)
+        self.setMinimumWidth(50)
 
     def _connectSignals(self):
         self.selectionModel().currentChanged.connect(self.save_settings)
@@ -458,7 +459,7 @@ class SectionsStackWidget(QtWidgets.QStackedWidget):
         )
 
 
-class PreferencesWidget(QtWidgets.QWidget):
+class PreferencesWidget(QtWidgets.QSplitter):
     """The main preferences widget."""
 
     def __init__(self, parent=None):
@@ -474,18 +475,18 @@ class PreferencesWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
-        QtWidgets.QHBoxLayout(self)
-        o = common.MARGIN
-        self.layout().setContentsMargins(o, o, o, o)
+        # QtWidgets.QHBoxLayout(self)
+        # o = 0
+        # self.layout().setContentsMargins(o, o, o, o)
 
         self.sections_list_widget = SectionSwitcherWidget(parent=self)
-        self.layout().addWidget(self.sections_list_widget)
+        self.addWidget(self.sections_list_widget)
 
         scroll_area = QtWidgets.QScrollArea(parent=self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         scroll_area.setMinimumHeight(640)
-        self.layout().addWidget(scroll_area)
+        self.addWidget(scroll_area)
 
         self.sections_stack_widget = SectionsStackWidget(parent=self)
         scroll_area.setWidget(self.sections_stack_widget)
@@ -499,14 +500,9 @@ class PreferencesWidget(QtWidgets.QWidget):
             item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
             item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                150, common.INLINE_ICON_SIZE))
+                1, common.INLINE_ICON_SIZE))
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
-
-                    # self.server_settings = ServersSettingsWidget(parent=self)
-                    # self.application_settings = ApplicationSettingsWidget(parent=self)
-                    # self.template_settings = TemplateSettingsWidget(parent=self)
-
 
     def _connectSignals(self):
         self.sections_list_widget.selectionModel().currentChanged.connect(self.current_changed)

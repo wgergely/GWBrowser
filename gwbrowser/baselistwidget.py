@@ -703,7 +703,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy)
 
         # Index repaints
-        model.indexUpdated.connect(self.update_index, type=QtCore.Qt.BlockingQueuedConnection)
+        model.indexUpdated.connect(self.update_index, type=QtCore.Qt.QueuedConnection)
 
         # Progress
         model.modelAboutToBeReset.connect(self.progress_widget.show)
@@ -1645,6 +1645,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
         idx = 0 if idx is None or False else idx
         idx = idx if idx >= 0 else 0
 
+
         # No active bookmark
         active_index = lambda x: self.widget(x).model().sourceModel().active_index()
         if not active_index(0).isValid() and idx in (1, 2):
@@ -1654,6 +1655,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
         if active_index(0).isValid() and not active_index(1).isValid() and idx == 2:
             idx = 1
 
-        k = u'widget/mode'
-        local_settings.setValue(k, idx)
+        if idx <= 3:
+            k = u'widget/mode'
+            local_settings.setValue(k, idx)
         return super(StackedWidget, self).setCurrentIndex(idx)

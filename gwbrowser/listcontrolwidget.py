@@ -40,6 +40,8 @@ class BaseControlButton(ClickableIconButton):
     def current_widget(self):
         if not self.stacked_widget():
             return None
+        if self.stacked_widget().currentIndex() > 3:
+            return None
         return self.stacked_widget().currentWidget()
 
     def current_index(self):
@@ -470,6 +472,8 @@ class PaintedTextButton(QtWidgets.QLabel):
     def current_widget(self):
         if not self.stacked_widget():
             return None
+        if self.stacked_widget().currentIndex() > 3:
+            return None
         return self.stacked_widget().currentWidget()
 
     def current_index(self):
@@ -521,6 +525,8 @@ class PaintedTextButton(QtWidgets.QLabel):
             color
         )
 
+        if not hover and self.current_index() != self.index:
+            return
         metrics = QtGui.QFontMetrics(self.font)
         center = rect.center()
         rect.setHeight(2)
@@ -778,10 +784,10 @@ class ListControlWidget(QtWidgets.QWidget):
         # sep.setFixedHeight(common.CONTROL_HEIGHT)
         # self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.assets_button)
-        # sep = PaintedLabel(u': ', color=common.SECONDARY_BACKGROUND, size=common.MEDIUM_FONT_SIZE, parent=self)
-        # sep.setFixedHeight(common.CONTROL_HEIGHT)
-        # self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.files_button)
+        sep = PaintedLabel(u'| ', color=common.SECONDARY_BACKGROUND, size=common.MEDIUM_FONT_SIZE, parent=self)
+        sep.setFixedHeight(common.CONTROL_HEIGHT)
+        self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.favourites_button)
         #
         self.layout().addStretch()

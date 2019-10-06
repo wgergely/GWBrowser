@@ -36,7 +36,7 @@ class SettingsButton(ClickableIconButton):
         #     QtCore.__version__,
         #     oiio.__version__
         # )
-        self.clicked.connect(self.parent().preferences_widget.show)
+        self.clicked.connect(self.parent().show_preferences)
 
 class SoloButton(ClickableIconButton):
     """Small version label responsible for displaying information
@@ -256,6 +256,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
+        self.stackedwidget.addWidget(self.preferences_widget)
 
         self.init_progress = u'Adding top bar...'
         self.update()
@@ -306,7 +307,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
 
     def show_preferences(self):
-        self.preferences_widget.show()
+        self.stackedwidget.setCurrentIndex(4)
 
     def next_tab(self):
         n = self.stackedwidget.currentIndex()

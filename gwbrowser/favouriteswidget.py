@@ -411,6 +411,12 @@ class FavouritesWidget(FilesWidget):
 
         return super(FavouritesWidget, self).eventFilter(widget, event)
 
+    def showEvent(self, event):
+        self.index_update_timer.start()
+
+    def hideEvent(self, event):
+        self.index_update_timer.stop()
+
 
 if __name__ == '__main__':
     a = QtWidgets.QApplication([])

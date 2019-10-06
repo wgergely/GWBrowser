@@ -16,7 +16,7 @@ from gwbrowser.imagecache import ImageCache
 
 
 # High DPI scaling
-# os.environ['QT_DEVICE_PIXEL_RATIO'] = '{}'.format(2)
+# os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1;2'
 
 
 class TrayMenu(BaseContextMenu):
@@ -75,7 +75,7 @@ class TrayMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom', None, common.INLINE_ICON_SIZE),
+            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -113,6 +113,20 @@ class TrayMenu(BaseContextMenu):
 
         return menu_set
 
+
+class AppIconButton(ClickableIconButton):
+    """Custom QLabel with a `clicked` signal."""
+    def __init__(self, parent=None):
+        super(AppIconButton, self).__init__(
+        u'custom',
+        (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+        common.INLINE_ICON_SIZE,
+        description='',
+        parent=parent
+    )
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
 
 class MinimizeButton(ClickableIconButton):
     """Custom QLabel with a `clicked` signal."""
@@ -163,8 +177,9 @@ class HeaderWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setFixedHeight(common.INLINE_ICON_SIZE + common.INDICATOR_WIDTH)
 
+        self.layout().addWidget(AppIconButton(parent=self))
         text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()
         text = text if text else 'GWBrowser'
         self.layout().addWidget(
@@ -262,7 +277,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
+        pixmap = ImageCache.get_rsc_pixmap(u'custom_bw', None, 256)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -465,7 +480,8 @@ class StandaloneBrowserWidget(BrowserWidget):
             return
         if self.accept_resize_event(event):
             w = self.stackedwidget.currentWidget()
-            w.viewport().setHidden(True)
+            if hasattr(w, u'viewport'):
+                w.viewport().setHidden(True)
 
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
@@ -511,7 +527,9 @@ class StandaloneBrowserWidget(BrowserWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return
         w = self.stackedwidget.currentWidget()
-        w.viewport().setHidden(False)
+
+        if hasattr(w, u'viewport'):
+            w.viewport().setHidden(False)
 
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
             self.save_widget_settings()

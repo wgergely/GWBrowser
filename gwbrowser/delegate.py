@@ -111,15 +111,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         else:
             color = QtGui.QColor(common.BACKGROUND)
 
-
         rect = QtCore.QRect(option.rect)
-        center = rect.center()
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
-        rect.setWidth(rect.height())
-        rect.moveCenter(center)
-        rect.moveLeft(common.INDICATOR_WIDTH)
+        rect.setLeft(common.INDICATOR_WIDTH)
 
-        rect.setRight(option.rect.right())
+        painter.setOpacity(0.666)
+        painter.setBrush(common.BACKGROUND)
+        painter.drawRect(rect)
+        painter.setOpacity(1)
+
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
 
         painter.setBrush(color)
         painter.drawRect(rect)
@@ -211,7 +211,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(option.rect)
         center = rect.center()
         rect.setHeight(rect.height() - common.ROW_SEPARATOR)
-        rect.setWidth(rect.height() * 2)
+        rect.setWidth((rect.height() + common.ROW_SEPARATOR) * 2)
         rect.moveCenter(center)
         rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
 
