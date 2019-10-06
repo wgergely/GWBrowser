@@ -96,6 +96,7 @@ class ProgressWidget(QtWidgets.QWidget):
             return
         self.close()
 
+
 class DisabledOverlayWidget(ProgressWidget):
     """Static overlay widget shown when there's a blocking window placed
     on top of the main widget.
@@ -123,7 +124,8 @@ class FilterOnOverlayWidget(ProgressWidget):
     def __init__(self, parent=None):
         super(FilterOnOverlayWidget, self).__init__(parent=parent)
         try:
-            self.parent().parent().resized.connect(lambda x: self.resize(self.parent().viewport().rect().size()))
+            self.parent().parent().resized.connect(
+                lambda x: self.resize(self.parent().viewport().rect().size()))
         except:
             pass
 
@@ -206,7 +208,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             common.MarkedAsArchived: local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsArchived)),
             common.MarkedAsFavourite: local_settings.value(
-                u'widget/{}/filterflag{}'.format(cls,common.MarkedAsFavourite)),
+                u'widget/{}/filterflag{}'.format(cls, common.MarkedAsFavourite)),
         }
 
         if self._filtertext is None:
@@ -576,7 +578,8 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def data_key(self):
         """Current key to the data dictionary."""
-        raise NotImplementedError('data_key is abstract and has to be overriden in the subclass')
+        raise NotImplementedError(
+            'data_key is abstract and has to be overriden in the subclass')
 
     def data_type(self):
         """Current key to the data dictionary."""
@@ -703,7 +706,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.setModel(proxy)
 
         # Index repaints
-        model.indexUpdated.connect(self.update_index, type=QtCore.Qt.QueuedConnection)
+        model.indexUpdated.connect(
+            self.update_index, type=QtCore.Qt.QueuedConnection)
 
         # Progress
         model.modelAboutToBeReset.connect(self.progress_widget.show)
@@ -1554,6 +1558,8 @@ class BaseInlineIconWidget(BaseListWidget):
             return None
 
         if event.buttons() == QtCore.Qt.NoButton:
+            index = self.indexAt(event.pos())
+            self.repaint(self.visualRect(index))
             return
 
         if not self.verticalScrollBar().isSliderDown():
@@ -1611,7 +1617,8 @@ class BaseInlineIconWidget(BaseListWidget):
         from gwbrowser.todoEditor import TodoEditorWidget
 
         # Let's check if other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(f, TodoEditorWidget)]
+        editors = [f for f in self.children() if isinstance(f,
+                                                            TodoEditorWidget)]
         if editors:
             for editor in editors:
                 editor.close()
@@ -1625,6 +1632,7 @@ class BaseInlineIconWidget(BaseListWidget):
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the
     bookmarks, assets, files and favourites."""
+    animationFinished = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)
@@ -1633,6 +1641,15 @@ class StackedWidget(QtWidgets.QStackedWidget):
             QtWidgets.QSizePolicy.MinimumExpanding
         )
         self.setObjectName(u'BrowserStackedWidget')
+
+        self.speed = 500
+        self.animationType = QtCore.QEasingCurve.InOutQuint
+        self.current_idx = 0
+        self.next_idx = 1
+        self.wrap = False
+        self.activeState = False
+        self.blockedPageList = []
+        self.vertical = False
 
     def setCurrentIndex(self, idx):
         """Sets the current index of the ``StackedWidget``.
@@ -1645,9 +1662,9 @@ class StackedWidget(QtWidgets.QStackedWidget):
         idx = 0 if idx is None or False else idx
         idx = idx if idx >= 0 else 0
 
-
         # No active bookmark
-        active_index = lambda x: self.widget(x).model().sourceModel().active_index()
+        def active_index(x): return self.widget(
+            x).model().sourceModel().active_index()
         if not active_index(0).isValid() and idx in (1, 2):
             idx = 0
 
@@ -1658,4 +1675,70 @@ class StackedWidget(QtWidgets.QStackedWidget):
         if idx <= 3:
             k = u'widget/mode'
             local_settings.setValue(k, idx)
-        return super(StackedWidget, self).setCurrentIndex(idx)
+
+        self.slide_index(idx)
+        # return super(StackedWidget, self).setCurrentIndex(idx)
+
+    def slide_index(self, next_idx):
+        current_idx = self.currentIndex()
+        if self.activeState or next_idx == current_idx:
+            return
+        self.activeState = True
+
+        width = self.frameRect().width()
+        height = self.frameRect().height()
+
+        next_idx %= self.count()
+        if next_idx > current_idx:
+            if self.vertical:
+                offsetx, offsety = 0, height
+            else:
+                offsetx, offsety = width, 0
+        elif next_idx < current_idx:
+            if self.vertical:
+                offsetx, offsety = 0, -height
+            else:
+                offsetx, offsety = -width, 0
+        self.widget(next_idx).setGeometry(0,  0, width, height)
+        pcurrent_idx, pnext_idx = self.widget(
+            current_idx).pos(), self.widget(next_idx).pos()
+        self.pointcurrent_idx = pcurrent_idx
+
+        self.widget(next_idx).move(pnext_idx.x() +
+                                   offsetx, pnext_idx.y() + offsety)
+        self.widget(next_idx).show()
+        self.widget(next_idx).raise_()
+
+        animcurrent_idx = QtCore.QPropertyAnimation(
+            self.widget(current_idx), 'pos')
+        animcurrent_idx.setDuration(self.speed)
+        animcurrent_idx.setStartValue(pcurrent_idx)
+        animcurrent_idx.setEndValue(QtCore.QPoint(
+            pcurrent_idx.x() - offsetx, pcurrent_idx.y() - offsety))
+        animcurrent_idx.setEasingCurve(self.animationType)
+
+        animnext_idx = QtCore.QPropertyAnimation(self.widget(next_idx), 'pos')
+        animnext_idx.setDuration(self.speed)
+        animnext_idx.setStartValue(QtCore.QPoint(
+            offsetx + pnext_idx.x(), offsety + pnext_idx.y()))
+        animnext_idx.setEndValue(pnext_idx)
+        animnext_idx.setEasingCurve(self.animationType)
+
+        self.animGroup = QtCore.QParallelAnimationGroup()
+        self.animGroup.addAnimation(animcurrent_idx)
+        self.animGroup.addAnimation(animnext_idx)
+        self.animGroup.finished.connect(self.animation_finished)
+        self.animGroup.start()
+
+        self.next_idx = next_idx
+        self.current_idx = current_idx
+
+    @QtCore.Slot()
+    def animation_finished(self):
+        # self.setCurrentIndex(self.next_idx)
+        super(StackedWidget, self).setCurrentIndex(self.next_idx)
+        self.widget(self.current_idx).hide()
+        self.widget(self.current_idx).move(self.pointcurrent_idx)
+        self.widget(self.current_idx).update()
+        self.activeState = False
+        self.animationFinished.emit()

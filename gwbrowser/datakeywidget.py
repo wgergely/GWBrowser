@@ -191,10 +191,9 @@ class DataKeyView(QtWidgets.QListView):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-        self.clicked.connect(self.activated, type=QtCore.Qt.QueuedConnection)
-        self.clicked.connect(self.hide, type=QtCore.Qt.QueuedConnection)
-        self.clicked.connect(self.altparent.signal_dispatcher,
-                             type=QtCore.Qt.QueuedConnection)
+        self.clicked.connect(self.activated)
+        self.clicked.connect(self.hide)
+        self.clicked.connect(self.altparent.signal_dispatcher)
 
         browser_widget = self.parent().parent().parent()
 
@@ -249,6 +248,8 @@ class DataKeyView(QtWidgets.QListView):
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Escape:
+            self.hide()
+        elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
             self.hide()
             return
         super(DataKeyView, self).keyPressEvent(event)

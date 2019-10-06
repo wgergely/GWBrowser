@@ -18,6 +18,7 @@ from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
+
 def rsc_path(f, n):
     path = u'{}/../rsc/{}.png'.format(f, n)
     path = os.path.normpath(os.path.abspath(path))
@@ -52,7 +53,8 @@ class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
 
     def __init__(self, parent=None):
-        super(FavouritesModel, self).__init__(threads=common.FTHREAD_COUNT, parent=parent)
+        super(FavouritesModel, self).__init__(
+            threads=common.FTHREAD_COUNT, parent=parent)
 
     def data_key(self):
         return u'.'
@@ -127,7 +129,8 @@ class FavouritesModel(FilesModel):
         sfavourites = set(favourites)
 
         # server, job, root = self._parent_item
-        server = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.TempLocation)
+        server = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.TempLocation)
         job = 'gwbrowser'
         root = 'favourites'
 
@@ -320,25 +323,6 @@ class FavouritesWidget(FilesWidget):
         self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
         self.set_model(FavouritesModel(parent=self))
 
-        # Timer
-        self.index_update_timer = QtCore.QTimer(parent=self)
-        self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
-        self.index_update_timer.setSingleShot(False)
-        self.index_update_timer.timeout.connect(self.initialize_visible_indexes)
-
-
-        # We're stopping the index timer when the model is loading.
-        self.model().modelAboutToBeReset.connect(self.index_update_timer.stop)
-        self.model().modelReset.connect(self.index_update_timer.start)
-        self.model().layoutAboutToBeChanged.connect(self.index_update_timer.stop)
-        self.model().layoutChanged.connect(self.index_update_timer.start)
-
-        # For performance's sake...
-        self.verticalScrollBar().sliderPressed.connect(
-            self.index_update_timer.stop)
-        self.verticalScrollBar().sliderReleased.connect(
-            self.index_update_timer.start)
-
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()
 
@@ -412,6 +396,7 @@ class FavouritesWidget(FilesWidget):
         return super(FavouritesWidget, self).eventFilter(widget, event)
 
     def showEvent(self, event):
+        self.model().sourceModel().modelDataResetRequested.emit()
         self.index_update_timer.start()
 
     def hideEvent(self, event):

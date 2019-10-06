@@ -116,28 +116,31 @@ class TrayMenu(BaseContextMenu):
 
 class AppIconButton(ClickableIconButton):
     """Custom QLabel with a `clicked` signal."""
+
     def __init__(self, parent=None):
         super(AppIconButton, self).__init__(
-        u'custom',
-        (common.FAVOURITE, common.FAVOURITE),
-        common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
-        description=u'',
-        parent=parent
-    )
+            u'custom',
+            (common.TEXT_SELECTED, common.TEXT_SELECTED),
+            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            description=u'',
+            parent=parent
+        )
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
+
 class MinimizeButton(ClickableIconButton):
     """Custom QLabel with a `clicked` signal."""
+
     def __init__(self, parent=None):
         super(MinimizeButton, self).__init__(
-        u'minimize',
-        (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
-        common.INLINE_ICON_SIZE,
-        description=u'Click to minimize the window...',
-        parent=parent
-    )
+            u'minimize',
+            (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE,
+            description=u'Click to minimize the window...',
+            parent=parent
+        )
 
 
 class CloseButton(ClickableIconButton):
@@ -145,13 +148,12 @@ class CloseButton(ClickableIconButton):
 
     def __init__(self, parent=None):
         super(CloseButton, self).__init__(
-        u'close',
-        (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
-        common.INLINE_ICON_SIZE,
-        description=u'Click to close the window...',
-        parent=parent
-    )
-
+            u'close',
+            (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE,
+            description=u'Click to close the window...',
+            parent=parent
+        )
 
 
 class HeaderWidget(QtWidgets.QWidget):
@@ -180,15 +182,16 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
         self.layout().addWidget(AppIconButton(parent=self))
-        text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()
-        text = text if text else 'GWBrowser'
-        self.layout().addWidget(
-            PaintedLabel(
-                text,
-                color=common.BACKGROUND,
-                parent=self
-            )
-        )
+        # text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()
+        # text = text if text else u'GWBrowser'
+        # self.layout().addSpacing(common.INDICATOR_WIDTH)
+        # self.layout().addWidget(
+        #     PaintedLabel(
+        #         text,
+        #         color=common.BACKGROUND,
+        #         parent=self
+        #     )
+        # )
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
@@ -391,7 +394,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.headerwidget = HeaderWidget(parent=self)
         self.headerwidget.widgetMoved.connect(self.save_widget_settings)
 
-        o = common.INDICATOR_WIDTH # offset around the widget
+        o = common.INDICATOR_WIDTH  # offset around the widget
 
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().insertSpacing(0, common.INDICATOR_WIDTH)

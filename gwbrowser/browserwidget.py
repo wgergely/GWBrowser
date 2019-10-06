@@ -28,15 +28,8 @@ class SettingsButton(ClickableIconButton):
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
         super(SettingsButton, self).__init__(pixmap, colors,
                                              size, description=description, parent=parent)
-
-        # import gwbrowser
-        # import OpenImageIO.OpenImageIO as oiio
-        # message = u'Click to read the documentation | v{} | PySide2 {} | OpenImageIO {}'.format(
-        #     gwbrowser.__version__,
-        #     QtCore.__version__,
-        #     oiio.__version__
-        # )
         self.clicked.connect(self.parent().show_preferences)
+
 
 class SoloButton(ClickableIconButton):
     """Small version label responsible for displaying information
@@ -305,7 +298,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
-
     def show_preferences(self):
         self.stackedwidget.setCurrentIndex(4)
 
@@ -372,7 +364,6 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Ctrl++', (self.increase_row_size, ), repeat=True)
         self.add_shortcut(
             u'Ctrl+-', (self.decrease_row_size, ), repeat=True)
-
 
     def decrease_row_size(self):
         import gwbrowser.delegate as d
@@ -548,13 +539,18 @@ class BrowserWidget(QtWidgets.QWidget):
         # Bookmark/Asset/FileModel/View  <-  DataKeyModel/View
         # These are the signals responsible for changing the active items & data keys.
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
-        f.model().sourceModel().dataKeyChanged.connect(f.model().sourceModel().set_data_key)
+        f.model().sourceModel().dataKeyChanged.connect(
+            f.model().sourceModel().set_data_key)
         #
         f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model()._filtertext)
-        f.model().sourceModel().dataKeyChanged.connect(f.model().sourceModel().check_data)
-        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().beginResetModel())
-        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().endResetModel())
-        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model().sourceModel().sort_data())
+        f.model().sourceModel().dataKeyChanged.connect(
+            f.model().sourceModel().check_data)
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: f.model().beginResetModel())
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: f.model().endResetModel())
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: f.model().sourceModel().sort_data())
 
         # Visible widget
         lc.listChanged.connect(s.setCurrentIndex)
@@ -622,6 +618,17 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(lc.archived_button.update)
         lc.listChanged.connect(lc.favourite_button.update)
         lc.listChanged.connect(lc.simple_mode_button.update)
+
+        self.stackedwidget.animationFinished.connect(lc.add_button.update)
+        self.stackedwidget.animationFinished.connect(
+            lc.generate_thumbnails_button.update)
+        self.stackedwidget.animationFinished.connect(lc.filter_button.update)
+        self.stackedwidget.animationFinished.connect(lc.collapse_button.update)
+        self.stackedwidget.animationFinished.connect(lc.archived_button.update)
+        self.stackedwidget.animationFinished.connect(
+            lc.favourite_button.update)
+        self.stackedwidget.animationFinished.connect(
+            lc.simple_mode_button.update)
 
         s.currentChanged.connect(lc.bookmarks_button.update)
         s.currentChanged.connect(lc.assets_button.update)

@@ -380,7 +380,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         if self.buttons_hidden():
             return 0
         return 5
-        
+
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""

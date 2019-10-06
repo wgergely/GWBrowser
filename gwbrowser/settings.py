@@ -41,7 +41,6 @@ class Active(QtCore.QObject):
 
         self._active_paths = self.paths()
 
-
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def save_state(self, k, d):
@@ -55,7 +54,8 @@ class Active(QtCore.QObject):
 
         """
         # When active sync is disabled we won't
-        val = local_settings.value('preferences/MayaSettings/disable_active_sync')
+        val = local_settings.value(
+            'preferences/MayaSettings/disable_active_sync')
         if val is True:
             return
 
@@ -168,7 +168,6 @@ class LocalSettings(QtCore.QSettings):
         self.setDefaultFormat(QtCore.QSettings.NativeFormat)
         self.internal_settings = {}
 
-
     def value(self, k):
         def _bool(v):
             if isinstance(v, basestring):
@@ -235,6 +234,7 @@ class AssetSettings(QtCore.QSettings):
         providing the path elements as a tuple.
 
     """
+
     def __init__(self, index, args=None, parent=None):
         if args is None:
             bookmark = u'{}/{}/{}'.format(
@@ -314,5 +314,6 @@ class AssetSettings(QtCore.QSettings):
         super(AssetSettings, self).setValue(u'file', self._file_path)
         super(AssetSettings, self).setValue(u'lastmodified', time.time())
         super(AssetSettings, self).setValue(*args, **kwargs)
+
 
 local_settings = LocalSettings()

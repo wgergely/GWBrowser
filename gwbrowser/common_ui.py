@@ -30,7 +30,8 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
     if label:
-        l = PaintedLabel(label, size=common.SMALL_FONT_SIZE, color=common.SECONDARY_TEXT, parent=parent)
+        l = PaintedLabel(label, size=common.SMALL_FONT_SIZE,
+                         color=common.SECONDARY_TEXT, parent=parent)
         l.setFixedWidth(120)
         l.setDisabled(True)
         if padding:

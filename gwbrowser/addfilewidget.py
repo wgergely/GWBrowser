@@ -1398,7 +1398,6 @@ class AddFileWidget(QtWidgets.QDialog):
         self._file_to_increment = _file_info
         return
 
-
     def filePath(self):
         """The currently set file-path."""
         return self._file_path

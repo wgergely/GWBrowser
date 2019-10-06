@@ -24,7 +24,9 @@ ROW_HEIGHT = common.ROW_HEIGHT
 BOOKMARK_ROW_HEIGHT = common.BOOKMARK_ROW_HEIGHT
 ASSET_ROW_HEIGHT = common.ASSET_ROW_HEIGHT
 
-regex_remove_version = re.compile(ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE)
+regex_remove_version = re.compile(
+    ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE)
+
 
 def paintmethod(func):
     """@Decorator to save the painter state."""
@@ -135,7 +137,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if hover:
             painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(rect)
-
 
     @paintmethod
     def paint_selection_indicator(self, *args):
@@ -478,7 +479,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(bg_rect)
 
-
     @paintmethod
     def paint_description(self, *args):
         """Paints the item description inside the ``AssetsWidget``."""
@@ -505,7 +505,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             QtCore.QPoint(center.x(), center.y() + metrics.lineSpacing())
         )
 
-        color = QtGui.QColor(common.TEXT) if hover else QtGui.QColor(common.SECONDARY_TEXT)
+        color = QtGui.QColor(common.TEXT) if hover else QtGui.QColor(
+            common.SECONDARY_TEXT)
 
         if not index.data(common.DescriptionRole):
             text = u'Double-click to add description...'
@@ -1055,8 +1056,7 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if active else color
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw2(painter, font, rect, frange,
-                              align, color, option, kwargs['left'])
-
+                               align, color, option, kwargs['left'])
 
             text = match.group(3).split(u'.')
             text = u'{suffix}.{ext}'.format(
@@ -1068,7 +1068,7 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if selected else common.TEXT
             color = common.TEXT_SELECTED if hover else color
             rect = self._draw2(painter, font, rect, text, align,
-                              color, option, kwargs['left'])
+                               color, option, kwargs['left'])
         else:
             match = common.get_sequence(text)
             if match:
@@ -1099,7 +1099,8 @@ class FilesWidgetDelegate(BaseDelegate):
                     painter, font, rect, text, align, color, option, kwargs['left'])
             else:
                 rect = QtCore.QRect(option.rect)
-                rect.setLeft(common.INDICATOR_WIDTH + rect.height() + common.MARGIN)
+                rect.setLeft(common.INDICATOR_WIDTH +
+                             rect.height() + common.MARGIN)
                 rect.setRight(rect.right())
                 text = index.data(QtCore.Qt.DisplayRole)
                 ext = text.split(u'.')
@@ -1108,8 +1109,10 @@ class FilesWidgetDelegate(BaseDelegate):
                     text = text.replace(ext, u'')
                 else:
                     ext = u''
-                rect = self._draw2(painter, font, rect, text.upper(), align, color, option, rect.right())
-                rect = self._draw2(painter, font, rect, ext, align, color, option, rect.right())
+                rect = self._draw2(painter, font, rect, text.upper(
+                ), align, color, option, rect.right())
+                rect = self._draw2(painter, font, rect, ext,
+                                   align, color, option, rect.right())
 
         # Nothing else to draw if the item has not been loaded yet...
         if not index.data(common.FileInfoLoaded):
@@ -1133,7 +1136,7 @@ class FilesWidgetDelegate(BaseDelegate):
             font = QtGui.QFont(common.SecondaryFont)
             font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
             rect = self._draw2(painter, font, rect, text, align,
-                              color, option, kwargs['left'])
+                               color, option, kwargs['left'])
 
     @paintmethod
     def paint_name(self, *args, **kwargs):
@@ -1177,7 +1180,6 @@ class FilesWidgetDelegate(BaseDelegate):
         text = index.data(QtCore.Qt.DisplayRole)
         # Removing the 'v' from 'v010' style version strings.
         text = regex_remove_version.sub(ur'\1\3', text)
-
 
         match = common.is_collapsed(text)
         if match:  # sequence collapsed

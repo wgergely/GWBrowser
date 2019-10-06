@@ -107,7 +107,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         #
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
-        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedWidth(common.WIDTH)
@@ -121,9 +121,9 @@ class AddAssetWidget(QtWidgets.QDialog):
         #
         row = add_row(u'', height=common.ASSET_ROW_HEIGHT, parent=self)
         #
-        self.thumbnail_widget = ThumbnailButton(common.ASSET_ROW_HEIGHT, u'Click to add a thumbnail for this job', parent=self)
+        self.thumbnail_widget = ThumbnailButton(
+            common.ASSET_ROW_HEIGHT, u'Click to add a thumbnail for this job', parent=self)
         row.layout().addWidget(self.thumbnail_widget)
-
 
         # Settings the completer associated with the Editor widget
         self.name_widget = QtWidgets.QLineEdit(parent=self)
@@ -141,7 +141,8 @@ class AddAssetWidget(QtWidgets.QDialog):
             QtWidgets.QCompleter.InlineCompletion)
         self.name_widget.setCompleter(completer)
 
-        column = add_row(u'', vertical=True, height=common.ASSET_ROW_HEIGHT, parent=row)
+        column = add_row(u'', vertical=True,
+                         height=common.ASSET_ROW_HEIGHT, parent=row)
         self.description_widget = DescriptionEditor(parent=self)
         column.layout().addWidget(self.description_widget)
         row = add_row(u'', parent=column)
@@ -149,7 +150,6 @@ class AddAssetWidget(QtWidgets.QDialog):
 
         self.save_button = PaintedButton(u'Add asset', parent=self)
         self.cancel_button = PaintedButton(u'Cancel', parent=self)
-
 
         row.layout().addWidget(self.save_button)
         row.layout().addWidget(self.cancel_button)

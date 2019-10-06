@@ -56,6 +56,7 @@ __instance__ = None
 def instance():
     return __instance__
 
+
 @QtCore.Slot()
 def show():
     """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable widget.
@@ -101,17 +102,21 @@ def show():
             state = cmds.workspaceControl(
                 workspace_control, q=True, collapse=True)
             if state is None:
-                cmds.workspaceControl(workspace_control, e=True, tabToControl=(u'AttributeEditor', -1))
+                cmds.workspaceControl(
+                    workspace_control, e=True, tabToControl=(u'AttributeEditor', -1))
                 cmds.workspaceControl(workspace_control, e=True, visible=True)
-                cmds.workspaceControl(workspace_control, e=True, collapse=False)
+                cmds.workspaceControl(
+                    workspace_control, e=True, collapse=False)
                 return
             if not widget.parent().isVisible():
                 cmds.workspaceControl(workspace_control, e=True, visible=True)
-                cmds.workspaceControl(workspace_control, e=True, collapse=False)
+                cmds.workspaceControl(
+                    workspace_control, e=True, collapse=False)
                 return
             if state is False:
                 cmds.workspaceControl('AttributeEditor', e=True, visible=True)
-                cmds.workspaceControl('AttributeEditor', e=True, collapse=False)
+                cmds.workspaceControl(
+                    'AttributeEditor', e=True, collapse=False)
                 # cmds.workspaceControl(
                 #     workspace_control, e=True, collapse=True)
                 return
@@ -510,12 +515,14 @@ class MayaBrowserButton(ClickableIconButton):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(u'Ctrl+Alt+Shift+S'), self)
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Alt+Shift+S'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         shortcut.activated.connect(self.saveRequested)
         #
-        shortcut = QtWidgets.QShortcut(QtGui.QKeySequence(u'Ctrl+Alt+Shift+B'), self)
+        shortcut = QtWidgets.QShortcut(
+            QtGui.QKeySequence(u'Ctrl+Alt+Shift+B'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         shortcut.activated.connect(show)
@@ -927,7 +934,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         @QtCore.Slot()
         def execute(index):
-            file_path =  common.get_sequence_endpath(index.data(QtCore.Qt.StatusTipRole))
+            file_path = common.get_sequence_endpath(
+                index.data(QtCore.Qt.StatusTipRole))
             file_info = QtCore.QFileInfo(file_path)
             if file_info.suffix().lower() in (u'ma', u'mb', u'abc'):
                 self.open_scene(file_info.filePath())

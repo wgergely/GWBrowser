@@ -8,7 +8,7 @@ import sys
 import re
 
 from shiboken2 import wrapInstance
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 
 from maya.app.general.mayaMixin import mixinWorkspaceControls
 import maya.api.OpenMaya as OpenMaya
@@ -74,7 +74,8 @@ def uninitializePlugin(plugin):
             match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
             if match:
                 widget.remove_context_callbacks()
-                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.terminate)
+                widget.browserwidget.shutdown_timer.timeout.connect(
+                    lambda: self.terminate(quit_app=False), type=QtCore.Qt.QueuedConnection)
                 widget.browserwidget.shutdown_timer.start()
     except Exception as err:
         raise Exception(err)

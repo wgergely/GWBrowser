@@ -8,9 +8,11 @@ import gwbrowser.common as common
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row, add_label, add_line_edit
 
 
-get_sections = lambda: (
-    {'name': u'General', 'description': u'Common preferences', 'cls': ApplicationSettingsWidget},
-    {'name': u'Servers', 'description': u'Server preferences', 'cls': ServersSettingsWidget},
+def get_sections(): return (
+    {'name': u'General', 'description': u'Common preferences',
+        'cls': ApplicationSettingsWidget},
+    {'name': u'Servers', 'description': u'Server preferences',
+        'cls': ServersSettingsWidget},
     {'name': u'Maya', 'description': u'Maya settings', 'cls': MayaSettingsWidget},
     # {'name': u'Folder templates', 'description': u'Various folder options', 'cls': TemplateSettingsWidget},
 )
@@ -32,9 +34,9 @@ class BaseSettingsWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Maximum,
         )
 
-        label = PaintedLabel(label, size=common.LARGE_FONT_SIZE, color=common.TEXT)
+        label = PaintedLabel(
+            label, size=common.LARGE_FONT_SIZE, color=common.TEXT)
         self.layout().addWidget(label)
-
 
         self._createUI()
         self._init_values()
@@ -56,52 +58,63 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 
 class MayaSettingsWidget(BaseSettingsWidget):
     def __init__(self, parent=None):
-        super(MayaSettingsWidget, self).__init__(u'Maya Settings', parent=parent)
+        super(MayaSettingsWidget, self).__init__(
+            u'Maya Settings', parent=parent)
 
     def _createUI(self):
         add_label(u'Bookmark & Asset Syncing', parent=self)
-
         label = u'GWBrowser sessions are syncronised by default. Disable syncing below (default is "off"):'
         label = QtWidgets.QLabel(label)
         label.setWordWrap(True)
         self.layout().addWidget(label)
-
+        #
         row = add_row(u'Sync instances', parent=self)
-        self.sync_active_button = QtWidgets.QCheckBox(u'Disable instance syncing', parent=self)
+        self.sync_active_button = QtWidgets.QCheckBox(
+            u'Disable instance syncing', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.sync_active_button)
 
+        self.layout().addSpacing(common.MARGIN)
+
         add_label(u'Maya workspace syncing', parent=self)
-        label =u'The Maya workspace is always set to be the active GWBrowser asset by default. Click below to disable workspace syncing (default is "off"):'
+        label = u'The Maya workspace is always set to be the active GWBrowser asset by default. Click below to disable workspace syncing (default is "off"):'
         label = QtWidgets.QLabel(label)
         label.setWordWrap(True)
         self.layout().addWidget(label)
-
+        #
         row = add_row(u'Sync workspace', parent=self)
-        self.sync_maya_project_button = QtWidgets.QCheckBox(u'Disable workspace syncing', parent=self)
+        self.sync_maya_project_button = QtWidgets.QCheckBox(
+            u'Disable workspace syncing', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.sync_maya_project_button)
 
+        self.layout().addSpacing(common.MARGIN)
 
-        label =u'Saving files outside the current workspace will shows a warning dialog. Click below to disable (default is "off"):'
+        label = u'Saving files outside the current workspace will shows a warning dialog. Click below to disable (default is "off"):'
         label = QtWidgets.QLabel(label)
         label.setWordWrap(True)
         self.layout().addWidget(label)
         row = add_row(u'Save warning', parent=self)
-        self.save_warning_button = QtWidgets.QCheckBox(u'Disable save warnings', parent=self)
+        self.save_warning_button = QtWidgets.QCheckBox(
+            u'Disable save warnings', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.save_warning_button)
 
-        label =u'When the asset is changed in a another session a warning message is show by default. Click below to disable (default is "off"):'
+        self.layout().addSpacing(common.MARGIN)
+
+        label = u'When the asset is changed in a another session a warning message is show by default. Click below to disable (default is "off"):'
         label = QtWidgets.QLabel(label)
         label.setWordWrap(True)
         self.layout().addWidget(label)
         row = add_row(u'Workspace warning', parent=self)
-        self.workspace_warning_button = QtWidgets.QCheckBox(u'Disable workspace change warnings', parent=self)
+        self.workspace_warning_button = QtWidgets.QCheckBox(
+            u'Disable workspace change warnings', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.workspace_warning_button)
 
-        label =u'The template used to export the alembic caches:'
+        self.layout().addSpacing(common.MARGIN)
+
+        label = u'Alembic path template for exportin caches:'
         label = QtWidgets.QLabel(label)
         label.setWordWrap(True)
         self.layout().addWidget(label)
@@ -113,11 +126,16 @@ class MayaSettingsWidget(BaseSettingsWidget):
         self.layout().addStretch(1)
 
     def _connectSignals(self):
-        self.sync_active_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_active_sync'), x))
-        self.sync_maya_project_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_sync'), x))
-        self.save_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
-        self.workspace_warning_button.toggled.connect(lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
-        self.alembic_export_path.textChanged.connect(lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
+        self.sync_active_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'disable_active_sync'), x))
+        self.sync_maya_project_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'disable_workspace_sync'), x))
+        self.save_warning_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
+        self.workspace_warning_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
+        self.alembic_export_path.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
 
     def _init_values(self):
         val = local_settings.value(self.name(u'disable_active_sync'))
@@ -146,7 +164,8 @@ class MayaSettingsWidget(BaseSettingsWidget):
 class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
-        super(ApplicationSettingsWidget, self).__init__(u'General Settings', parent=parent)
+        super(ApplicationSettingsWidget, self).__init__(
+            u'General Settings', parent=parent)
         self.slack_url = None
         self.reveal_asset_template = None
         self.show_help = None
@@ -154,22 +173,25 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def _createUI(self):
         import gwbrowser
-        add_label(u'You\'re running GWBrowser v{}'.format(gwbrowser.__version__), parent=self)
+        add_label(u'You\'re running GWBrowser v{}'.format(
+            gwbrowser.__version__), parent=self)
 
         row = add_row(u'Update', parent=self)
-        self.check_updates = PaintedButton(u'Check for updates', width=200, parent=row)
+        self.check_updates = PaintedButton(
+            u'Check for updates', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.check_updates)
 
         row = add_row(u'Documentation', parent=self)
-        self.show_help = PaintedButton(u'Show online documentation', width=200, parent=row)
+        self.show_help = PaintedButton(
+            u'Show online documentation', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.show_help)
 
-
         add_label(u'Asset & Job Folder Templates', parent=self)
         row = add_row(u'Reveal files', parent=self)
-        self.reveal_asset_template = PaintedButton(u'Show in explorer', width=200, parent=row)
+        self.reveal_asset_template = PaintedButton(
+            u'Show in explorer', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.reveal_asset_template, 1)
 
@@ -215,7 +237,8 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
     @QtCore.Slot()
     def show_asset_template(self):
-        home = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
+        home = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.DocumentsLocation)
         path = u'{}/GWBrowser/Asset.zip'.format(home)
         common.reveal(path)
 
@@ -223,7 +246,8 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 class TemplateSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
-        super(TemplateSettingsWidget, self).__init__(u'Template Settings', parent=parent)
+        super(TemplateSettingsWidget, self).__init__(
+            u'Template Settings', parent=parent)
         self.slack_editor = None
         self.asset_identifier = None
 
@@ -283,8 +307,8 @@ class ServersSettingsWidget(BaseSettingsWidget):
             local_description:
 
         """
-        super(ServersSettingsWidget, self).__init__(u'Server Settings', parent=parent)
-
+        super(ServersSettingsWidget, self).__init__(
+            u'Server Settings', parent=parent)
 
     def _createUI(self):
         o = common.MARGIN
@@ -505,13 +529,15 @@ class PreferencesWidget(QtWidgets.QSplitter):
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 
     def _connectSignals(self):
-        self.sections_list_widget.selectionModel().currentChanged.connect(self.current_changed)
+        self.sections_list_widget.selectionModel(
+        ).currentChanged.connect(self.current_changed)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def current_changed(self, index):
         if not index.isValid():
             return
         self.sections_stack_widget.setCurrentIndex(index.row())
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

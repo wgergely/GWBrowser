@@ -369,6 +369,7 @@ class ListWidget(QtWidgets.QListWidget):
 
 class AddJobButton(ClickableIconButton):
     """The button responsible for showing the ``AddJobWidget``."""
+
     def __init__(self, parent=None):
         super(AddJobButton, self).__init__(
             u'add_folder',
@@ -475,15 +476,17 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         # Server
         row = add_row(u'Select server', parent=self)
-        description=u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
+        description = u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
             common.Server.primary())
-        self.pick_server_widget = ComboboxButton(u'server', description=description, parent=self)
+        self.pick_server_widget = ComboboxButton(
+            u'server', description=description, parent=self)
         row.layout().addWidget(self.pick_server_widget, 1)
 
         # Job
         row = add_row(u'Select job', parent=self)
         description = u'Click to select the job.\nEach job contains multiple locations to keep files and folders, referred to as a "bookmark".\n\nEg. the "data/shots" and "data/assets" folders.'
-        self.pick_job_widget = ComboboxButton(u'job', description=description, parent=self)
+        self.pick_job_widget = ComboboxButton(
+            u'job', description=description, parent=self)
         row.layout().addWidget(self.pick_job_widget, 1)
         self.add_job_widget = AddJobButton(parent=self)
         row.layout().addWidget(self.add_job_widget, 0)
@@ -789,7 +792,8 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setWindowTitle(u'An error occuered')
             mbox.setText(u'The selected server could not be found.')
-            mbox.setInformativeText(u'Check the server settings and make sure the set servers are p[ointing to valid network share.')
+            mbox.setInformativeText(
+                u'Check the server settings and make sure the set servers are p[ointing to valid network share.')
             return mbox.exec_()
 
         for entry in sorted([f for f in gwscandir.scandir(path)], key=lambda x: x.name):
@@ -841,7 +845,8 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             # Disabling the item if it has already been added to the widget
             if entry.replace(u'\\', u'/') in bookmarks:
                 item.setFlags(QtCore.Qt.NoItemFlags)
-                item.setData(QtCore.Qt.DisplayRole, u'{} (bookmark already added)'.format(name))
+                item.setData(QtCore.Qt.DisplayRole,
+                             u'{} (bookmark already added)'.format(name))
 
             self.pick_root_widget.view().addItem(item)
 

@@ -75,7 +75,7 @@ class AddJobWidget(QtWidgets.QDialog):
         #
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
-        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
         #
 
@@ -180,6 +180,7 @@ class AddJobWidget(QtWidgets.QDialog):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

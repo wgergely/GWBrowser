@@ -94,6 +94,7 @@ class CollapseSequenceButton(BaseControlButton):
     current list.
 
     """
+
     def __init__(self, parent=None):
         super(CollapseSequenceButton, self).__init__(
             u'collapse',
@@ -123,7 +124,8 @@ class CollapseSequenceButton(BaseControlButton):
             return
         datatype = self.current_widget().model().sourceModel().data_type()
         if datatype == common.FileItem:
-            self.current_widget().model().sourceModel().dataTypeChanged.emit(common.SequenceItem)
+            self.current_widget().model().sourceModel(
+            ).dataTypeChanged.emit(common.SequenceItem)
         else:
             self.current_widget().model().sourceModel().dataTypeChanged.emit(common.FileItem)
 
@@ -137,6 +139,7 @@ class CollapseSequenceButton(BaseControlButton):
 
 class ToggleArchivedButton(BaseControlButton):
     """Custom QLabel with a `clicked` signal."""
+
     def __init__(self, parent=None):
         super(ToggleArchivedButton, self).__init__(
             u'collapse',
@@ -199,7 +202,6 @@ class SimpleModeButton(BaseControlButton):
 
     def hideEvent(self, event):
         common.SORT_WITH_BASENAME = False
-
 
     @QtCore.Slot()
     def action(self):
@@ -357,8 +359,6 @@ class AddButton(BaseControlButton):
             with open(file_path, 'w') as f:
                 f.write(u'A temporary reference file created by GWBrowser...')
                 common.reveal(file_path)
-
-
 
     @QtCore.Slot()
     def action(self):
@@ -590,6 +590,7 @@ class BookmarksTabButton(PaintedTextButton):
             u'Click to see the list of added bookmarks',
             parent=parent
         )
+
     def text(self):
         if not self.stacked_widget():
             return self.default_label
@@ -619,7 +620,6 @@ class AssetsTabButton(PaintedTextButton):
         index = self.stacked_widget().widget(0).model().sourceModel().active_index()
         self.setHidden(not index.isValid())
         super(AssetsTabButton, self).adjust_size()
-
 
 
 class FilesTabButton(PaintedTextButton):
@@ -767,7 +767,6 @@ class ListControlWidget(QtWidgets.QWidget):
             parent=self.parent().fileswidget, altparent=self)
         self.data_key_view.setHidden(True)
 
-
         self.add_button = AddButton(parent=self)
         self.generate_thumbnails_button = GenerateThumbnailsButton(parent=self)
         self.filter_button = FilterButton(parent=self)
@@ -785,7 +784,8 @@ class ListControlWidget(QtWidgets.QWidget):
         # self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.assets_button)
         self.layout().addWidget(self.files_button)
-        sep = PaintedLabel(u'| ', color=common.SECONDARY_BACKGROUND, size=common.MEDIUM_FONT_SIZE, parent=self)
+        sep = PaintedLabel(u'| ', color=common.SECONDARY_BACKGROUND,
+                           size=common.MEDIUM_FONT_SIZE, parent=self)
         sep.setFixedHeight(common.CONTROL_HEIGHT)
         self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.favourites_button)

@@ -25,7 +25,6 @@ from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 
 
-
 class Highlighter(QtGui.QSyntaxHighlighter):
     """Class responsible for highlighting urls"""
 
@@ -765,8 +764,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         self.create_lockfile()
 
-
-
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
         self.resize(geo.width(), geo.height())
@@ -792,7 +789,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             pixmap = QtGui.QPixmap()
             pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
         else:
-            pixmap = ImageCache.get_rsc_pixmap(u'todo', common.SECONDARY_BACKGROUND, height, opacity=0.5)
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'todo', common.SECONDARY_BACKGROUND, height, opacity=0.5)
         thumbnail.setPixmap(pixmap)
 
         # Name label
@@ -803,7 +801,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
             text = u'Notes and Tasksd'
         if len(text) >= 48:
             text = u'{}...{}'.format(text[0:22], text[-22:])
-        label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND, size=common.LARGE_FONT_SIZE, parent=self)
+        label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND,
+                             size=common.LARGE_FONT_SIZE, parent=self)
 
         row.layout().addWidget(thumbnail, 0)
         row.layout().addWidget(label, 1)
@@ -814,7 +813,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.add_button.pressed.connect(self.add_new_item)
         row.layout().addWidget(self.add_button, 0)
 
-        self.refresh_button = CustomButton(u'refresh', size=height, parent=self)
+        self.refresh_button = CustomButton(
+            u'refresh', size=height, parent=self)
         self.refresh_button.pressed.connect(self.refresh)
         row.layout().addWidget(self.refresh_button, 0)
 
@@ -1031,7 +1031,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         model = self.index.model()
         model.setData(self.index, len(data), role=common.TodoCountRole)
 
-
     @QtCore.Slot()
     def add_new_item(self, html=u'', idx=0):
         """Adds a new item with some default styling."""
@@ -1099,7 +1098,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if not self.parent():
             return QtCore.QSize(800, 600)
         return self.parent().viewport().rect().size()
-
 
 
 if __name__ == '__main__':
