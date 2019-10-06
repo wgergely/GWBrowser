@@ -8,7 +8,7 @@ import sys
 import re
 
 from shiboken2 import wrapInstance
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets
 
 from maya.app.general.mayaMixin import mixinWorkspaceControls
 import maya.api.OpenMaya as OpenMaya
@@ -16,7 +16,7 @@ import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
 
-__version__ = '0.1.12'
+__version__ = '0.1.2'
 
 
 def maya_useNewAPI():
@@ -31,7 +31,6 @@ def maya_useNewAPI():
 def initializePlugin(plugin):
     """Method is called by Maya when initializing the plug-in."""
     import gwbrowser
-
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
 
@@ -74,9 +73,10 @@ def uninitializePlugin(plugin):
             match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
             if match:
                 widget.remove_context_callbacks()
-                widget.browserwidget.shutdown_timer.timeout.connect(
-                    lambda: self.terminate(quit_app=False), type=QtCore.Qt.QueuedConnection)
+                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.terminate)
+                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.deleteLater)
                 widget.browserwidget.shutdown_timer.start()
+
     except Exception as err:
         raise Exception(err)
 
