@@ -8,7 +8,7 @@ import sys
 import re
 
 from shiboken2 import wrapInstance
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 
 from maya.app.general.mayaMixin import mixinWorkspaceControls
 import maya.api.OpenMaya as OpenMaya
@@ -44,46 +44,101 @@ def initializePlugin(plugin):
         raise Exception(err)
 
 
-def uninitializePlugin(plugin):
-    """Method is called by Maya when unloading the plug-in."""
-    import gwbrowser
+@QtCore.Slot()
+def delete_module_import_cache():
+    name = 'gwbrowser'
+    name_ext = '{}.'.format(name)
 
-    pluginFn = OpenMaya.MFnPlugin(
-        plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
+    def compare(loaded):
+        return (loaded == name) or loaded.startswith(name_ext)
 
-    # First we will delete the embedded button
-    try:
-        from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
-        ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
-        widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-        widget = widget.findChild(MayaBrowserButton)
-        widget.deleteLater()
-    except Exception as err:
-        raise Exception(err)
+    # prevent changing iterable while iterating over it
+    all_mods = tuple(sys.modules)
+    sub_mods = filter(compare, all_mods)
+    for pkg in sub_mods:
+        # remove sub modules and packages from import cache
+        del sys.modules[pkg]
 
-    # Then we try and delete the main widget itself
+    sys.stdout.write(
+        u'# GWBrowser: Import cache deleted.\n')
+
+
+def find_widget():
+    """Returns the first ``MayaBrowserWidget`` widget instance found."""
     app = QtWidgets.QApplication.instance()
-    try:
-        for widget in app.allWidgets():
-            match = re.match(
-                ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
-            if match:
-                widget.deleteLater()
-                continue
-            match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
-            if match:
-                widget.remove_context_callbacks()
-                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.terminate)
-                widget.browserwidget.shutdown_timer.timeout.connect(widget.browserwidget.deleteLater)
-                widget.browserwidget.shutdown_timer.start()
+    for widget in app.allWidgets():
+        # Skipping workspaceControls objects, just in case there's a name conflict
+        # between what the parent().objectName() and this method yields
+        if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+            continue
+        match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
+        if not match:
+            continue
+        return widget
+    return None
 
-    except Exception as err:
-        raise Exception(err)
+
+@QtCore.Slot()
+def remove_widgets():
+    """Removes the workspaceControl, and workspaceControlState objects."""
+    from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
+    ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
+    widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+    widget = widget.findChild(MayaBrowserButton)
+    if widget:
+        widget.deleteLater()
+
+    widget = find_widget()
+    if not widget:
+        return
+
+    if not widget.parent():
+        widget.close()
+        widget.deleteLater()
+        return
+
+    workspace_control = widget.parent().objectName()
+    if cmds.workspaceControl(workspace_control, q=True, exists=True):
+        cmds.deleteUI(workspace_control)
+        if cmds.workspaceControlState(workspace_control, ex=True):
+            cmds.workspaceControlState(workspace_control, remove=True)
 
     try:
         for k in mixinWorkspaceControls.items():
             if u'MayaBrowserWidget' in k:
+                mixinWorkspaceControls[k]
                 del mixinWorkspaceControls[k]
-    except Exception as err:
-        sys.stdout.write(
-            '# GWBrowser: Failed to delete the workspace control.\n')
+    except:
+        pass
+
+    sys.stdout.write(
+        u'# GWBrowser: UI deleted.\n')
+
+    mbox = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon,
+                                 'Plugin unloaded', u'GWBrowser unloaded successfully.').exec_()
+
+
+def uninitializePlugin(plugin):
+    """Method is called by Maya when unloading the plug-in."""
+    import gwbrowser
+    pluginFn = OpenMaya.MFnPlugin(
+        plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
+
+    widget = find_widget()
+    if not widget:
+        sys.stderr.write(
+            u'# GWBrowser: MayaBrowserWidget not found.\n')
+        return
+    if not hasattr(widget, 'browserwidget'):
+        sys.stderr.write(
+            u'# GWBrowser: MayaBrowserWidget not found.\n')
+        return
+
+    widget.browserwidget.shutdown_timer.timeout.connect(
+        widget.browserwidget.terminate)
+    widget.browserwidget.terminated.connect(remove_widgets)
+    widget.browserwidget.terminated.connect(delete_module_import_cache)
+
+    widget.workspace_timer.stop()
+    widget.remove_context_callbacks()
+    widget.browserwidget.shutdown_timer.start()

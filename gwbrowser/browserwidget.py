@@ -3,7 +3,7 @@
 It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
 
 """
-
+import sys
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
@@ -77,6 +77,7 @@ class BrowserWidget(QtWidgets.QWidget):
     """GWBrowser's main widget."""
 
     initialized = QtCore.Signal()
+    terminated = QtCore.Signal()
     shutdown = QtCore.Signal()
     resized = QtCore.Signal(QtCore.QRect)
 
@@ -390,16 +391,24 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def terminate(self, quit_app=False):
-        """Terminates the browserwidget gracefully by stopping the associated threads.
+        """Terminates the browserwidget gracefully by stopping the associated
+        threads.
 
         """
         self.__qn += 1
-        self.statusbar.showMessage(u'Quitting...')
+        self.statusbar.showMessage(u'Closing down...')
 
         self.listcontrolwidget.bookmarks_button.timer.stop()
         self.listcontrolwidget.assets_button.timer.stop()
         self.listcontrolwidget.files_button.timer.stop()
         self.listcontrolwidget.favourites_button.timer.stop()
+
+        self.bookmarkswidget.timer.stop()
+        self.assetswidget.timer.stop()
+        self.fileswidget.timer.stop()
+        self.fileswidget.index_update_timer.stop()
+        self.favouriteswidget.timer.stop()
+        self.check_active_state_timer.stop()
 
         threadpool = self.get_all_threads()
         for thread in threadpool:
@@ -409,10 +418,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         if all([not f.isRunning() for f in threadpool]):
             if quit_app:
-                self.deleteLater()
                 QtWidgets.QApplication.instance().exit(0)
-            else:
-                self.deleteLater()
 
         # Forcing the application to close after n tries
         # circa 5 seconds to wrap things up, will exit by force after
@@ -423,10 +429,12 @@ class BrowserWidget(QtWidgets.QWidget):
         for thread in threadpool:
             thread.terminate()
 
-        self.deleteLater()
         if quit_app:
             QtWidgets.QApplication.instance().closeAllWindows()
             QtWidgets.QApplication.instance().exit(0)
+
+        sys.stdout.write(u'# GWBrowser terminated.\n')
+        self.terminated.emit()
 
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget

@@ -31,11 +31,11 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-
-try:  # No need to use our bundled alembic module if one is already present in our environment
-    from alembic import Abc
-except ImportError:
-    from gwalembic.alembic import Abc
+#
+# try:  # No need to use our bundled alembic module if one is already present in our environment
+#     from alembic import Abc
+# except ImportError:
+#     from gwalembic.alembic import Abc
 
 from gwbrowser.settings import Active, local_settings
 import gwbrowser.common as common
@@ -51,6 +51,7 @@ maya_button = None
 """The gwbrowser shortcut icon button. Set by the ``mGWBrowser.py`` when the plugin is initializing."""
 
 __instance__ = None
+"""The gwbrowser widget instance."""
 
 
 def instance():
@@ -59,11 +60,12 @@ def instance():
 
 @QtCore.Slot()
 def show():
-    """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable widget.
+    """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable
+    widget.
 
-    The function will create ``MayaBrowserWidget`` if it doesn't yet exist and dock it
-    to the _AttributeEditor_. If it exists it will get the existing instance and show
-    it if not currently visible, hide it if visible.
+    The function will create ``MayaBrowserWidget`` if it doesn't yet exist and
+    dock it to the _AttributeEditor_. If it exists it will get the existing
+    instance and show it if not currently visible, hide it if visible.
 
     Usage
 
@@ -79,8 +81,10 @@ def show():
 
     # We will check if there's already a _MayaBrowserWidget_ instance
     for widget in app.allWidgets():
+        # Skipping workspaceControls objects, just in case there's a name conflict
+        # between what the parent().objectName() and this method yields
         if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
-            continue  # Skipping workspaceControls objects, just in case
+            continue
 
         match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
         if not match:
@@ -135,7 +139,7 @@ def show():
         widget.show()
 
         sys.stdout.write(
-            u'# GWBrowser: Initialized.\n{}\n'.format(traceback.print_exc()))
+            u'# GWBrowser: Initialized successfully\n')
 
         # We will defer the execution, otherwise the widget does not dock properly
         for widget in app.allWidgets():
@@ -744,7 +748,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self._createUI()
         self.setFocusProxy(self.browserwidget)
 
-        self.workspace_timer = QtCore.QTimer()
+        self.workspace_timer = QtCore.QTimer(parent=self)
         self.workspace_timer.setSingleShot(False)
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
@@ -906,7 +910,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def remove_context_callbacks(self):
         """This method is called by the Maya plug-in when unloading."""
-        sys.stdout.write('\n# GWBrowser: Removing callbacks...\n\n')
+        sys.stdout.write('# GWBrowser: Removing callbacks...\n')
         for callback in self._callbacks:
             res = OpenMaya.MMessage.removeCallback(callback)
             sys.stdout.write(u'# Callback status {}\n'.format(res))
