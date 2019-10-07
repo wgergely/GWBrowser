@@ -378,9 +378,19 @@ class FilesModel(BaseModel):
 
     def __init__(self, threads=common.FTHREAD_COUNT, parent=None):
         super(FilesModel, self).__init__(parent=parent)
+        self.thread_count = threads
         self.threads = {}
         self.file_info_loaded = False
 
+        cls = self.__class__.__name__
+        _generate_thumbnails = local_settings.value(
+            u'widget/{}/generate_thumbnails'.format(cls))
+        self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
+        self.__init_threads__()
+
+    def __init_threads__(self):
+        """Starts the threads associated with this model."""
+        threads = self.thread_count
         for n in xrange(threads):
             self.threads[n] = FileInfoThread(self)
             self.threads[n].thread_id = n
@@ -390,14 +400,8 @@ class FilesModel(BaseModel):
             self.threads[n * 2].thread_id = n * 2
             self.threads[n * 2].start()
 
-        cls = self.__class__.__name__
-        _generate_thumbnails = local_settings.value(
-            u'widget/{}/generate_thumbnails'.format(cls))
-        self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
-
         # The thread responsible for getting file information for all items
         idx = len(self.threads)
-
         def set_model():
             self.threads[idx].worker.model = self
             self.threads[idx].setPriority(QtCore.QThread.LowPriority)
@@ -721,8 +725,6 @@ class FilesModel(BaseModel):
         FileThumbnailWorker.reset_queue()
         SecondaryFileInfoWorker.reset_queue()
 
-        self.reset_file_info_loaded()
-
     @QtCore.Slot()
     def delete_thread(self, thread):
         del self.threads[thread.thread_id]
@@ -976,6 +978,12 @@ class FilesWidget(BaseInlineIconWidget):
         self.index_update_timer.timeout.connect(
             self.initialize_visible_indexes)
 
+        # SecondaryFileInfoThread
+        self.model().sourceModel().modelReset.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+        self.model().sourceModel().dataKeyChanged.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+
         # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.model().sourceModel().reset_thread_worker_queues)
@@ -1208,18 +1216,6 @@ class FilesWidget(BaseInlineIconWidget):
             return
         self.activate(self.selectionModel().currentIndex())
 
-    def mousePressEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.index_update_timer.stop()
-        super(FilesWidget, self).mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.index_update_timer.start()
-        super(FilesWidget, self).mouseReleaseEvent(event)
-
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
         index = self.selectionModel().currentIndex()
@@ -1270,20 +1266,20 @@ class FilesWidget(BaseInlineIconWidget):
             pixmap = QtGui.QPixmap.fromImage(pixmap)
             if not pixmap:
                 pixmap = ImageCache.get_rsc_pixmap(
-                    'files', common.SECONDARY_TEXT, height)
+                    u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_endpath(path)
         elif alt_modifier and shift_modifier:
             pixmap = ImageCache.get_rsc_pixmap(
-                'folder', common.SECONDARY_TEXT, height)
+                u'folder', common.SECONDARY_TEXT, height)
             path = QtCore.QFileInfo(path).dir().path()
         elif alt_modifier:
             pixmap = ImageCache.get_rsc_pixmap(
-                'files', common.SECONDARY_TEXT, height)
+                u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_startpath(path)
         elif shift_modifier:
             path = u'{}, ++'.format(common.get_sequence_startpath(path))
             pixmap = ImageCache.get_rsc_pixmap(
-                'multiples_files', common.SECONDARY_TEXT, height)
+                u'multiples_files', common.SECONDARY_TEXT, height)
         else:
             return
 

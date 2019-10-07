@@ -200,6 +200,7 @@ class BrowserWidget(QtWidgets.QWidget):
         timer.setSingleShot(True)
         timer.setInterval(1000)
         timer.timeout.connect(b.model().sourceModel().modelDataResetRequested)
+        timer.timeout.connect(ff.model().sourceModel().modelDataResetRequested)
         timer.timeout.connect(self.check_active_state_timer.start)
         timer.timeout.connect(restore_stacked_widget)
         timer.timeout.connect(timer.deleteLater)
@@ -407,6 +408,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget.timer.stop()
         self.fileswidget.timer.stop()
         self.fileswidget.index_update_timer.stop()
+        self.favouriteswidget.index_update_timer.stop()
         self.favouriteswidget.timer.stop()
         self.check_active_state_timer.stop()
 
@@ -466,7 +468,6 @@ class BrowserWidget(QtWidgets.QWidget):
         b.model().sourceModel().activeChanged.connect(b.save_activated)
         a.model().sourceModel().activeChanged.connect(a.save_activated)
         f.model().sourceModel().activeChanged.connect(f.save_activated)
-        ff.model().sourceModel().activeChanged.connect(ff.save_activated)
 
         # Making sure the Favourites widget is updated when the favourite-list changes
         b.favouritesChanged.connect(
@@ -487,15 +488,6 @@ class BrowserWidget(QtWidgets.QWidget):
             a.model().sourceModel().set_active)
         b.model().sourceModel().activeChanged.connect(
             lambda x: a.model().sourceModel().modelDataResetRequested.emit())
-        #
-        b.model().sourceModel().modelReset.connect(
-            lambda: ff.model().sourceModel().set_active(b.model().sourceModel().active_index()))
-        b.model().sourceModel().modelReset.connect(
-            ff.model().sourceModel().modelDataResetRequested)
-        b.model().sourceModel().activeChanged.connect(
-            ff.model().sourceModel().set_active)
-        b.model().sourceModel().activeChanged.connect(
-            lambda x: ff.model().sourceModel().modelDataResetRequested.emit())
 
         a.model().sourceModel().modelReset.connect(
             lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
@@ -508,7 +500,6 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: f.model().sourceModel().modelDataResetRequested.emit())
 
         a.model().sourceModel().modelReset.connect(f.model().invalidateFilter)
-        b.model().sourceModel().modelReset.connect(ff.model().invalidateFilter)
 
         # Bookmark/Asset/FileModel/View  ->  DataKeyModel/View
         # These connections are responsible for keeping the DataKeyModel updated

@@ -1018,17 +1018,17 @@ class FilesWidgetDelegate(BaseDelegate):
             rect.height() +
             common.MARGIN
         )
+        center = rect.center()
+        rect.setHeight(metrics.height())
+        rect.moveCenter(center)
+        rect.setRight(rect.right() - common.MARGIN)
         if index.data(common.DescriptionRole):
             rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-        rect.setRight(rect.right() - common.MARGIN)
 
         kwargs = {}
         kwargs['left'] = rect.left()
 
         # Centering the rectangle
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
 
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         # Name
@@ -1099,9 +1099,18 @@ class FilesWidgetDelegate(BaseDelegate):
                     painter, font, rect, text, align, color, option, kwargs['left'])
             else:
                 rect = QtCore.QRect(option.rect)
-                rect.setLeft(common.INDICATOR_WIDTH +
-                             rect.height() + common.MARGIN)
-                rect.setRight(rect.right())
+                rect.setLeft(
+                    common.INDICATOR_WIDTH +
+                    rect.height() +
+                    common.MARGIN
+                )
+                center = rect.center()
+                rect.setHeight(metrics.height())
+                rect.moveCenter(center)
+                rect.setRight(rect.right() - common.MARGIN)
+                if index.data(common.DescriptionRole):
+                    rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
+
                 text = index.data(QtCore.Qt.DisplayRole)
                 ext = text.split(u'.')
                 if len(ext) > 1:
