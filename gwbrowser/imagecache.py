@@ -476,6 +476,8 @@ class ImageCache(QtCore.QObject):
 
         """
         path = u'{}/../rsc/{}.png'.format(__file__, name)
+        path = os.path.normpath(path)
+        path = os.path.abspath(path)
         file_info = QtCore.QFileInfo(path)
 
         if get_path:
@@ -491,7 +493,7 @@ class ImageCache(QtCore.QObject):
             return QtGui.QPixmap(size, size)
 
         image = QtGui.QImage()
-        image.load(file_info.absoluteFilePath())
+        image.load(file_info.filePath())
 
         if image.isNull():
             return QtGui.QPixmap(size, size)
