@@ -337,7 +337,6 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
-        self.add_bookmarks_widget = None
         self.context_menu_cls = BookmarksWidgetContextMenu
 
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
@@ -432,22 +431,6 @@ class BookmarksWidget(BaseInlineIconWidget):
             return
         else:
             self.model().sourceModel().__initdata__()
-
-    def show_add_bookmark_widget(self):
-        """Opens a dialog to add a new project to the list of saved locations."""
-        if not self.add_bookmarks_widget:
-            self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
-            self.parent().parent().resized.connect(
-                self.add_bookmarks_widget._updateGeometry)
-
-            # In DCC contexes we might not have a header widget
-            if hasattr(self.parent().parent(), u'headerwidget'):
-                self.parent().parent().headerwidget.widgetMoved.connect(
-                    self.add_bookmarks_widget._updateGeometry)
-
-        self.add_bookmarks_widget.show()
-        self.add_bookmarks_widget.activateWindow()
-        self.add_bookmarks_widget.raise_()
 
     def mouseDoubleClickEvent(self, event):
         """When the bookmark item is double-clicked the the item will be actiaved."""

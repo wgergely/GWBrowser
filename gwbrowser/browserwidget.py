@@ -10,6 +10,7 @@ import gwbrowser.common as common
 from gwbrowser.common_ui import ClickableIconButton, add_row
 from gwbrowser.threads import BaseThread
 from gwbrowser.baselistwidget import StackedWidget
+from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.fileswidget import FilesWidget
@@ -112,6 +113,7 @@ class BrowserWidget(QtWidgets.QWidget):
             self.active_monitor.check_state)
 
         self.preferences_widget = None
+        self.add_bookmarks_widget = None
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
@@ -246,12 +248,15 @@ class BrowserWidget(QtWidgets.QWidget):
         self.favouriteswidget = FavouritesWidget(parent=self)
         self.preferences_widget = PreferencesWidget(parent=self)
         self.preferences_widget.hide()
+        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+        self.add_bookmarks_widget.hide()
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
         self.stackedwidget.addWidget(self.preferences_widget)
+        self.stackedwidget.addWidget(self.add_bookmarks_widget)
 
         self.init_progress = u'Adding top bar...'
         self.update()

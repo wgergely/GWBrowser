@@ -367,7 +367,7 @@ class AddButton(BaseControlButton):
             return
         # Bookmark
         if self.current_index() == 0:
-            self.current_widget().show_add_bookmark_widget()
+            self.parent().listChanged.emit(5)
             return
         # Asset
         if self.current_index() == 1:

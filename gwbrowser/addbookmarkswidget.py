@@ -14,7 +14,6 @@ each users.
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
-from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
@@ -58,8 +57,8 @@ class ComboboxButton(QtWidgets.QPushButton):
         """Shows the list view."""
         if not self._view.model().rowCount():
             return
-        x = self.window().rect().topLeft()
-        x = self.window().mapToGlobal(x)
+        x = self.parent().rect().topLeft()
+        x = self.parent().mapToGlobal(x)
 
         pos = self.rect().bottomLeft()
         pos = self.mapToGlobal(pos)
@@ -113,11 +112,11 @@ class ComboboxButton(QtWidgets.QPushButton):
         # Disabled
         disabled = False
         if self.type == u'job':
-            m = self.window().pick_server_widget.view().selectionModel()
+            m = self.parent().parent().pick_server_widget.view().selectionModel()
             if not m.hasSelection():
                 disabled = True
         if self.type == u'bookmark':
-            m = self.window().pick_job_widget.view().selectionModel()
+            m = self.parent().parent().pick_job_widget.view().selectionModel()
             if not m.hasSelection():
                 disabled = True
 
@@ -183,8 +182,7 @@ class ComboboxButton(QtWidgets.QPushButton):
         if not index.row() == 0:
             return
 
-        parent = self.window()
-
+        parent = self.parent().parent()
         index = parent.pick_server_widget.view().selectionModel().currentIndex()
         server = index.data(QtCore.Qt.StatusTipRole)
 
@@ -380,7 +378,7 @@ class AddJobButton(ClickableIconButton):
 
     def state(self):
         """The state of the button will disabled if no server has been selected."""
-        m = self.window().pick_server_widget.view().selectionModel()
+        m = self.parent().parent().pick_server_widget.view().selectionModel()
         if not m.hasSelection():
             return False
         return True
@@ -391,7 +389,7 @@ class AddJobButton(ClickableIconButton):
         if not self.state():
             return
 
-        m = self.window().pick_server_widget.view().selectionModel()
+        m = self.parent().parent().pick_server_widget.view().selectionModel()
         index = m.currentIndex()
         if not index.isValid():
             return
@@ -404,7 +402,7 @@ class AddJobButton(ClickableIconButton):
         if not widget.last_asset_added:
             return
 
-        w = self.parent().window()
+        w = self.parent().parent()
         sindex = w.pick_server_widget.view().selectionModel().currentIndex()
 
         # Adding the newly created item
@@ -571,13 +569,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
 
         self.pick_server_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
+            lambda x: local_settings.setValue(
+                u'widgets/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_job_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
+            lambda x: local_settings.setValue(
+                u'widgets/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_root_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
+            lambda x: local_settings.setValue(
+                u'widgets/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
         )
 
         self.ok_button.pressed.connect(self.add_bookmark)
@@ -741,10 +742,19 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             local_settings.setValue(u'bookmarks', bookmarks)
 
         # We will set the newly added Bookmark as the active item
-        if self.parent():
-            self.new_key = key
-            self.parent().model().sourceModel().beginResetModel()
-            self.parent().model().sourceModel().__initdata__()
+        self.new_key = key
+        bookmarkswidget = self.parent().widget(0)
+        bookmarkswidget.model().sourceModel().beginResetModel()
+        bookmarkswidget.model().sourceModel().__initdata__()
+        for idx in xrange(bookmarkswidget.model().rowCount()):
+            index = bookmarkswidget.model().index(idx, 0)
+            parent = index.data(common.ParentRole)
+            if parent[0].lower() == server.lower() and parent[1].lower() == job.lower() and parent[2].lower() == root.lower():
+                bookmarkswidget.selectionModel().setCurrentIndex(
+                    index, QtCore.QItemSelectionModel.ClearAndSelect)
+                bookmarkswidget.scrollTo(
+                    index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                break
 
         # Resetting the folder selection
         self.add_root_folders(
@@ -757,10 +767,11 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         mbox.setIcon(QtWidgets.QMessageBox.NoIcon)
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        mbox.setText(u'Bookmark added. Would you like to add another bookmark?')
+        mbox.setText(
+            u'Bookmark added. Would you like to add another bookmark?')
         res = mbox.exec_()
         if res == QtWidgets.QMessageBox.No:
-            self.hide()
+            self.parent().parent().listcontrolwidget.listChanged.emit(0)
 
     def activate_bookmark(self):
         """Selects and activates the newly added bookmark in the `BookmarksWidget`."""
@@ -774,7 +785,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
                 )
-                self.parent().scrollTo(index)
+                self.parent().scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 self.parent().activate(index)
                 self.new_key = None
                 return
