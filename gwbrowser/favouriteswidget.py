@@ -18,6 +18,25 @@ from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
+from gwbrowser.threads import BaseThread
+from gwbrowser.threads import BaseWorker
+from gwbrowser.threads import Unique
+
+from gwbrowser.fileswidget import FileInfoWorker
+from gwbrowser.fileswidget import SecondaryFileInfoWorker
+
+
+class FavouriteInfoWorker(FileInfoWorker):
+    """Class with it's own queue."""
+    queue = Unique(999999)
+    indexes_in_progress = []
+
+
+class FavouriteInfoThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = FavouriteInfoWorker
+
+
 
 def rsc_path(f, n):
     path = u'{}/../rsc/{}.png'.format(f, n)
@@ -53,8 +72,7 @@ class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
 
     def __init__(self, parent=None):
-        super(FavouritesModel, self).__init__(
-            threads=common.FTHREAD_COUNT, parent=parent)
+        super(FavouritesModel, self).__init__(parent=parent)
 
     def data_key(self):
         return u'.'
@@ -80,11 +98,6 @@ class FavouritesModel(FilesModel):
             QtCore.Qt.ItemIsSelectable |
             common.MarkedAsFavourite
         )
-
-        if not self._parent_item:
-            return
-        if not all(self._parent_item):
-            return
 
         dkey = self.data_key()
         rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
@@ -128,11 +141,11 @@ class FavouritesModel(FilesModel):
             favourites = [f for f in favourites if f not in superfluous]
         sfavourites = set(favourites)
 
-        # server, job, root = self._parent_item
+        # A suitable substitue for `self._parent_item`
         server = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
-        job = 'gwbrowser'
-        root = 'favourites'
+        job = u'gwbrowser'
+        root = u'favourites'
 
         for filepath in sfavourites:
             fileroot = filepath
@@ -141,7 +154,7 @@ class FavouritesModel(FilesModel):
             filename = filepath.split(u'/')[-1]
 
             _, ext = os.path.splitext(filename)
-            ext = ext.strip('.')
+            ext = ext.strip(u'.')
 
             if not ext:
                 placeholder_image = folder_thumbnail_image
@@ -277,6 +290,23 @@ class FavouritesModel(FilesModel):
                 v[common.TypeRole] = common.FileItem
             self._data[dkey][common.SequenceItem][idx] = v
 
+    def __init_threads__(self):
+        """Starts the threads associated with this model."""
+        threads = 2
+        for n in xrange(threads):
+            self.threads[n] = FavouriteInfoThread(self)
+            self.threads[n].thread_id = n
+            self.threads[n].start()
+
+
+    @QtCore.Slot()
+    def reset_thread_worker_queues(self):
+        """This slot removes all queued items from the respective worker queues.
+        Called by the ``modelAboutToBeReset`` signal.
+
+        """
+        FavouriteInfoWorker.reset_queue()
+
 
 class DropIndicatorWidget(QtWidgets.QWidget):
     """Widgets responsible for drawing an overlay."""
@@ -395,12 +425,62 @@ class FavouritesWidget(FilesWidget):
 
         return super(FavouritesWidget, self).eventFilter(widget, event)
 
-    def showEvent(self, event):
-        self.model().sourceModel().modelDataResetRequested.emit()
-        self.index_update_timer.start()
-
     def hideEvent(self, event):
-        self.index_update_timer.stop()
+        pass
+        # self.index_update_timer.stop()
+
+
+    @QtCore.Slot()
+    def initialize_visible_indexes(self):
+        """The sourceModel() loads its data in multiples steps: There's a
+        single-threaded walk of all sub-directories, and a threaded querry for
+        image and file information.
+
+        This slot is called by the ``index_update_timer`` and queues the
+        uninitialized indexes for the thread-workers to consume.
+
+        """
+        needs_info = []
+        visible = []
+        proxy_model = self.model()
+        source_model = proxy_model.sourceModel()
+        data = source_model.model_data()
+
+        if self.verticalScrollBar().isSliderDown():
+            return
+
+        if not proxy_model.rowCount():
+            return
+
+        index = self.indexAt(self.rect().topLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if not index.isValid():
+            return
+
+        # Starting from the to we add all the visible, and unititalized indexes
+        rect = self.visualRect(index)
+        while self.rect().contains(rect):
+            if not data[idx][common.FileInfoLoaded]:
+                needs_info.append(index)
+            visible.append(index)
+            rect.moveTop(rect.top() + rect.height())
+            index = self.indexAt(rect.topLeft())
+            idx = proxy_model.mapToSource(index).row()
+            if not index.isValid():
+                break
+
+        # Here we add the last index of the window
+        index = self.indexAt(self.rect().bottomLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if index.isValid():
+            visible.append(index)
+            if not data[idx][common.FileInfoLoaded]:
+                if index not in needs_info:
+                    needs_info.append(index)
+
+        if needs_info:
+            FavouriteInfoWorker.add_to_queue(needs_info)
+
 
 
 if __name__ == '__main__':

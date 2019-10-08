@@ -114,17 +114,21 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     """
 
-    def __init__(self, text=None, checked=False, parent=None):
+    def __init__(self, text, read_only=False, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
         self.document().setDocumentMargin(8)
 
         self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
-        self.setOpenLinks(True)
+        self.setOpenLinks(False)
         self.setReadOnly(False)
-        self.setTextInteractionFlags(
-            QtCore.Qt.TextBrowserInteraction | QtCore.Qt.TextEditorInteraction)
+        if read_only:
+            self.setTextInteractionFlags(
+                QtCore.Qt.TextSelectableByMouse | QtCore.Qt.LinksAccessibleByMouse)
+        else:
+            self.setTextInteractionFlags(
+                QtCore.Qt.TextEditorInteraction | QtCore.Qt.LinksAccessibleByMouse)
 
         metrics = QtGui.QFontMetrics(self.document().defaultFont())
         metrics.width(u'   ')
@@ -244,20 +248,23 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         if not index.isValid():
             return
 
-        def img(url): return '<p><img src="{url}" width="{width}" alt="{url}"><br><a href="{url}">{url}</a></p>'.format(
+        def img(source_url, url): return u'<a href="{source}"><img src="{url}" width="{width}" alt="{name}"></a><br><a href="{source}">{name}</a>'.format(
             url=url.toLocalFile(),
+            name=QtCore.QFileInfo(source_url.toLocalFile()).fileName(),
+            source=source_url.toLocalFile(),
             width=560)
 
-        def href(url): return '<p><a href="{url}">{url}</a></p>'.format(
-            style='align:left;',
-            url=url.toLocalFile())
+        def href(url): return u'<a href="{url}">{name}</a>'.format(
+            style=u'align:left;',
+            url=url.toLocalFile(),
+            name=QtCore.QFileInfo(url.toLocalFile()).fileName())
 
         # We save our image into the cache for safe-keeping
         if mimedata.hasUrls():
             thumbnail_info = QtCore.QFileInfo(
                 index.data(common.ThumbnailPathRole))
             for url in mimedata.urls():
-                file_info = QtCore.QFileInfo(url.path())
+                file_info = QtCore.QFileInfo(url.toLocalFile())
                 if file_info.suffix() in common.get_oiio_extensions():
                     dest = u'{}/{}.{}'.format(
                         thumbnail_info.dir().path(),
@@ -266,23 +273,23 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
                     )
                     oiio_make_thumbnail(
                         QtCore.QModelIndex(),
-                        source=url.toLocalFile(),
+                        source=file_info.filePath(),
                         dest=dest
                     )
-                    url = QtCore.QUrl.fromLocalFile(dest)
-                    self.insertHtml(img(url))
+                    dest_url = QtCore.QUrl.fromLocalFile(dest)
+                    self.insertHtml(u'{}<br>'.format(img(url, dest_url)))
                 else:
-                    self.insertHtml(href(url))
+                    self.insertHtml(u'{}<br>'.format(href(url)))
 
-        if mimedata.hasHtml():
+        elif mimedata.hasHtml():
             html = mimedata.html()
-            self.insertHtml(u'<br>{}<br>'.format(html))
+            self.insertHtml(u'{}<br>'.format(html))
         elif mimedata.hasText():
             text = mimedata.text()
-            self.insertHtml(u'<br>{}<br>'.format(text))
+            self.insertHtml(u'{}<br>'.format(text))
 
         # If the mime has any image data we will save it as a temp image file
-        if mimedata.hasImage():
+        elif mimedata.hasImage():
             image = mimedata.imageData()
             if not image.isNull():
                 thumbnail_info = QtCore.QFileInfo(
@@ -759,10 +766,11 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self._createUI()
-        self.refresh()
         self.installEventFilter(self)
 
         self.create_lockfile()
+        self.refresh()
+
 
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
@@ -991,22 +999,28 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         checkbox = CheckBoxButton(checked=not checked, parent=item)
         checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
-        editor = TodoItemEditor(text, checked=not checked, parent=item)
-        editor.setFocusPolicy(QtCore.Qt.StrongFocus)
         drag = DragIndicatorButton(checked=False, parent=item)
         drag.setFocusPolicy(QtCore.Qt.NoFocus)
-        remove = RemoveNoteButton(parent=item)
-        remove.setFocusPolicy(QtCore.Qt.NoFocus)
+        editor = TodoItemEditor(text, read_only=self.read_only, checked=not checked, parent=item)
+        editor.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         checkbox.clicked.connect(
             functools.partial(toggle_disabled, widget=editor))
         checkbox.clicked.connect(
             functools.partial(toggle_disabled, widget=drag))
 
-        item.layout().addWidget(checkbox)
-        item.layout().addWidget(drag)
+        if not self.read_only:
+            item.layout().addWidget(checkbox)
+            item.layout().addWidget(drag)
+        else:
+            checkbox.hide()
+            drag.hide()
         item.layout().addWidget(editor, 1)
-        item.layout().addWidget(remove)
+
+        if not self.read_only:
+            remove = RemoveNoteButton(parent=item)
+            remove.setFocusPolicy(QtCore.Qt.NoFocus)
+            item.layout().addWidget(remove)
 
         if idx is None:
             self.todoeditors_widget.layout().addWidget(item, 0)
@@ -1028,6 +1042,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         data = self._collect_data()
         settings = AssetSettings(self.index)
         settings.setValue(u'config/todos', data)
+        
+        data = [k for k in data if not data[k]['checked']]
         model = self.index.model()
         model.setData(self.index, len(data), role=common.TodoCountRole)
 
@@ -1064,8 +1080,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         settings = AssetSettings(self.index)
 
         if settings.value(u'config/todo_open'):
+            self.read_only = True
             self.add_button.hide()
-            self.todoeditors_widget.setDisabled(True)
             return
 
         settings.setValue(u'config/todo_open', True)
