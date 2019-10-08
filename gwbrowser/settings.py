@@ -189,7 +189,9 @@ class LocalSettings(QtCore.QSettings):
         return _bool(super(LocalSettings, self).value(k))
 
     def setValue(self, k, v):
-        if SOLO:
+        """This is a global override for our preferences to disable the setting
+        of the active path settings."""
+        if SOLO and u'activepath'.lower() in k.lower():
             self.internal_settings[k] = v
         else:
             super(LocalSettings, self).setValue(k, v)
