@@ -454,8 +454,28 @@ class AddBookmarksWidget(QtWidgets.QDialog):
     def initialize(self):
         """Populates the comboboxes and selects the currently active items (if there's any)."""
         self.add_servers_from_config()
+
+        # Restoring previous setting
+        val = local_settings.value(u'widgets/AddBookmarksWidget/server')
+        if val:
+            for idx in xrange(self.pick_server_widget.view().count()):
+                item = self.pick_server_widget.view().item(idx)
+                if item.data(QtCore.Qt.DisplayRole).lower() == val.lower():
+                    self.pick_server_widget.view().setCurrentItem(item)
+                    break
+
         self.add_jobs_from_server_folder(
             self.pick_server_widget.view().selectionModel().currentIndex())
+
+        # Restoring previous setting
+        val = local_settings.value(u'widgets/AddBookmarksWidget/job')
+        if val:
+            for idx in xrange(self.pick_job_widget.view().count()):
+                item = self.pick_job_widget.view().item(idx)
+                if item.data(QtCore.Qt.DisplayRole).lower() == val.lower():
+                    self.pick_job_widget.view().setCurrentItem(item)
+                    break
+
         self.add_root_folders(
             self.pick_job_widget.view().selectionModel().currentIndex())
 
@@ -550,6 +570,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_root_widget.view().itemActivated.connect(
             lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
 
+        self.pick_server_widget.view().selectionModel().currentChanged.connect(
+            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
+        )
+        self.pick_job_widget.view().selectionModel().currentChanged.connect(
+            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
+        )
+        self.pick_root_widget.view().selectionModel().currentChanged.connect(
+            lambda x: local_settings.setValue(u'widgets/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
+        )
+
         self.ok_button.pressed.connect(self.add_bookmark)
         self.close_button.pressed.connect(self.reject)
 
@@ -557,9 +587,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
         self.move(pos)
         self.resize(self.parent().rect().size())
-
-    def sizeHint(self):
-        return self.parent().rect().size()
 
     def get_root_folder_items(self, path, depth=4, count=0, arr=None):
         """Scans the given path recursively and returns all root-folder candidates.
@@ -870,20 +897,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
     def showEvent(self, event):
         """Custom show event responsible for placing the widget inthe right place."""
-        if self.parent():
-            self.parent().disabled_overlay_widget.show()
-
-        # This will automatically update the widget when it is shows
         self.initialize()
-
-        if self.parent():
-            pos = self.parent().mapToGlobal(self.parent().rect().topLeft())
-            self.move(pos)
-            self.resize(self.parent().width(), self.parent().height())
-
-    def hideEvent(self, event):
-        if self.parent():
-            self.parent().disabled_overlay_widget.hide()
 
 
 if __name__ == '__main__':
