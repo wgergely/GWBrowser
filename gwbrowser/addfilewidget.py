@@ -1651,7 +1651,7 @@ class AddFileWidget(QtWidgets.QDialog):
 
     def message_box(self, informative_text, text=u'A required information is missing:', icon=QtWidgets.QMessageBox.Warning):
         """Convenience function to show a popup message."""
-        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'File could not be saved')
         mbox.setIcon(icon)
         mbox.setStandardButtons(
@@ -1757,7 +1757,7 @@ class AddFileWidget(QtWidgets.QDialog):
             version = u'{}'.format(version).zfill(4)
             version = u'v{}'.format(version)
 
-            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Couldn\'t save file')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
             mbox.setText(u'A file named "{}" exists already!'.format(
@@ -1785,7 +1785,7 @@ class AddFileWidget(QtWidgets.QDialog):
                 return
             new_version = match.expand(ur'v\5')
 
-            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Version changed')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
             mbox.setText(u'Version incremented from "{}" to "{}"'.format(

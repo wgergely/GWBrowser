@@ -111,7 +111,7 @@ class AddJobWidget(QtWidgets.QDialog):
         if result == QtWidgets.QDialog.Rejected:
             return super(AddJobWidget, self).done(result)
 
-        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'Error adding asset')
         mbox.setIcon(QtWidgets.QMessageBox.Warning)
         mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)

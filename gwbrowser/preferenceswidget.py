@@ -1,6 +1,5 @@
 """Preferences"""
 
-import re
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from gwbrowser.settings import local_settings
@@ -37,7 +36,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         label = PaintedLabel(
             label, size=common.LARGE_FONT_SIZE, color=common.TEXT)
         self.layout().addWidget(label)
-
+        self.layout().addSpacing(common.MARGIN)
         self._createUI()
         self._init_values()
         self._connectSignals()
@@ -63,47 +62,23 @@ class MayaSettingsWidget(BaseSettingsWidget):
 
     def _createUI(self):
         add_label(u'Bookmark & Asset Syncing', parent=self)
-        label = u'GWBrowser sessions are syncronised by default. Disable syncing below (default is "off"):'
+        label = u'The running instances of GWBrowser are syncronised by default. Eg. when an asset is activated in one instance, all the other instances will activate the same asset. You can disable this behaviour below (default is "off").'
         label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         self.layout().addWidget(label)
-        #
         row = add_row(u'Sync instances', parent=self)
         self.sync_active_button = QtWidgets.QCheckBox(
             u'Disable instance syncing', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.sync_active_button)
-
         self.layout().addSpacing(common.MARGIN)
 
-        add_label(u'Maya workspace syncing', parent=self)
-        label = u'The Maya workspace is always set to be the active GWBrowser asset by default. Click below to disable workspace syncing (default is "off"):'
+        add_label(u'Warning Messages', parent=self)
+
+        label = u'When the current Maya workspace is changed by another instance of GWBrowser a pop-up warning is shown by default. You can disable it below (default is "off").'
         label = QtWidgets.QLabel(label)
-        label.setWordWrap(True)
-        self.layout().addWidget(label)
-        #
-        row = add_row(u'Sync workspace', parent=self)
-        self.sync_maya_project_button = QtWidgets.QCheckBox(
-            u'Disable workspace syncing', parent=self)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.sync_maya_project_button)
-
-        self.layout().addSpacing(common.MARGIN)
-
-        label = u'Saving files outside the current workspace will shows a warning dialog. Click below to disable (default is "off"):'
-        label = QtWidgets.QLabel(label)
-        label.setWordWrap(True)
-        self.layout().addWidget(label)
-        row = add_row(u'Save warning', parent=self)
-        self.save_warning_button = QtWidgets.QCheckBox(
-            u'Disable save warnings', parent=self)
-        row.layout().addStretch(1)
-        row.layout().addWidget(self.save_warning_button)
-
-        self.layout().addSpacing(common.MARGIN)
-
-        label = u'When the asset is changed in a another session a warning message is show by default. Click below to disable (default is "off"):'
-        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         self.layout().addWidget(label)
         row = add_row(u'Workspace warning', parent=self)
@@ -112,10 +87,36 @@ class MayaSettingsWidget(BaseSettingsWidget):
         row.layout().addStretch(1)
         row.layout().addWidget(self.workspace_warning_button)
 
+        label = u'Saving files outside the current workspace will show a warning dialog. Click below to disable (default is "off"):'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Save warning', parent=self)
+        self.save_warning_button = QtWidgets.QCheckBox(
+            u'Disable save warnings', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.save_warning_button)
         self.layout().addSpacing(common.MARGIN)
 
-        label = u'Alembic path template for exportin caches:'
+        add_label(u'Maya Workspace Syncing', parent=self)
+
+        label = u'GWBrowser overrides workspaces set manually by `Set Project` and instead uses the active asset as the current workspace (Note: you won\'t be able to use `Set Project` whilst the Maya Workspace Syncing is on). Select below if you want to disable Maya Workspace Syncing (default is "off"):'
         label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Sync workspace', parent=self)
+        self.sync_maya_project_button = QtWidgets.QCheckBox(
+            u'Disable workspace syncing', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.sync_maya_project_button)
+        self.layout().addSpacing(common.MARGIN)
+
+        add_label(u'Export/Import', parent=self)
+        label = u'Change the path of Alembic caches below. The following tokens have to be included:\n\n{workspace}: The path to the current workspace.\n{exports}: The name of the exports folder ("exports" by default).\n{set}: The name of the geometry group (eg. "character_rig_geo")\n\nThere must be a version number present as well (this will be automatically incremented). Eg. v01, v001 or v0001, etc.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         self.layout().addWidget(label)
         row = add_row(u'Alembic template', parent=self)
@@ -347,7 +348,7 @@ class ServersSettingsWidget(BaseSettingsWidget):
             u'Enter a description...', parent=row)
 
         self.layout().addStretch(1)
-        regex = QtCore.QRegExp(u'[a-zA-Z0-9/_-]*')
+        regex = QtCore.QRegExp(u'[a-zA-Z0-9:\s/_-]*')
         validator = QtGui.QRegExpValidator(regex)
         self.primary_mac_editor.setValidator(validator)
         self.primary_win_editor.setValidator(validator)
@@ -415,7 +416,7 @@ class ServersSettingsWidget(BaseSettingsWidget):
         }
 
         if not all((values[u'primary:win'], values[u'primary:mac'])):
-            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Primary not set')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
             mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
@@ -524,7 +525,7 @@ class PreferencesWidget(QtWidgets.QSplitter):
             item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
             item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                1, common.INLINE_ICON_SIZE))
+                1, common.CONTROL_HEIGHT))
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 

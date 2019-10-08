@@ -569,6 +569,8 @@ class BrowserWidget(QtWidgets.QWidget):
         # Stacked widget navigation
         b.activated.connect(lambda: lc.listChanged.emit(1))
         a.activated.connect(lambda: lc.listChanged.emit(2))
+        b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
+        a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
 
         b.activated.connect(
             lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')

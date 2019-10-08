@@ -106,7 +106,6 @@ def remove_widgets():
     try:
         for k in mixinWorkspaceControls.items():
             if u'MayaBrowserWidget' in k:
-                mixinWorkspaceControls[k]
                 del mixinWorkspaceControls[k]
     except:
         pass

@@ -724,7 +724,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.pick_job_widget.view().selectionModel().currentIndex())
         self.pick_root_widget.update()
         self.validate()
-        self.validate()
+
+        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox.setWindowTitle(u'Bookmark added')
+        mbox.setIcon(QtWidgets.QMessageBox.NoIcon)
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        mbox.setText(u'Bookmark added. Would you like to add another bookmark?')
+        res = mbox.exec_()
+        if res == QtWidgets.QMessageBox.No:
+            self.hide()
 
     def activate_bookmark(self):
         """Selects and activates the newly added bookmark in the `BookmarksWidget`."""
@@ -789,7 +798,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         path = index.data(QtCore.Qt.StatusTipRole)
         if not QtCore.QFileInfo(path).exists():
-            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'An error occuered')
             mbox.setText(u'The selected server could not be found.')
             mbox.setInformativeText(
