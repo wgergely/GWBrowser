@@ -889,7 +889,6 @@ class ThumbnailButton(ClickableIconButton):
                 left.append(rect.left())
                 width.append(rect.width())
                 height.append(rect.height())
-                print rect
             top = max(top)
             left = max(left)
             width = max(width)
