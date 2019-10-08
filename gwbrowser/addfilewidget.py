@@ -877,17 +877,43 @@ class ThumbnailButton(ClickableIconButton):
     @QtCore.Slot()
     def capture_thumbnail(self):
         """Captures a thumbnail."""
-        pixmap = ScreenGrabber.capture()
+        def move_widget_offscreen():
+            app = QtWidgets.QApplication.instance()
+            top = []
+            left = []
+            width = []
+            height = []
+            for n in xrange(app.desktop().screenCount()):
+                rect = app.desktop().screenGeometry(n)
+                top.append(rect.top())
+                left.append(rect.left())
+                width.append(rect.width())
+                height.append(rect.height())
+                print rect
+            top = max(top)
+            left = max(left)
+            width = max(width)
+            height = max(height)
+            self.window().move(left + width, top + height)
 
-        if not pixmap:
-            return
-        if pixmap.isNull():
-            return
+        opos = self.window().geometry().topLeft()
+        move_widget_offscreen()
+        try:
+            pixmap = ScreenGrabber.capture()
 
-        image = ImageCache.resize_image(
-            pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
-        self.image = image
-        self.update()
+            if not pixmap:
+                return
+            if pixmap.isNull():
+                return
+
+            image = ImageCache.resize_image(
+                pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+            self.image = image
+            self.update()
+        except:
+            raise
+        finally:
+            self.window().move(opos)
 
 
 class NameBase(QtWidgets.QLineEdit):
