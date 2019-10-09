@@ -169,6 +169,12 @@ class LocalSettings(QtCore.QSettings):
         self.internal_settings = {}
 
     def value(self, k):
+        """An override for the default value method.
+
+        We will convert string values to False/True and None respectively, where
+        appropiate. We also disable saving `activepath` values to the local
+        settings when the solo mode is activate and redirect querries instead to
+        a temporary proxy dictionary."""
         def _bool(v):
             if isinstance(v, basestring):
                 if v.lower() == u'true':
@@ -181,7 +187,7 @@ class LocalSettings(QtCore.QSettings):
                     return None
             return v
 
-        if SOLO:
+        if SOLO and k.lower().startswith(u'activepath'):
             if k not in self.internal_settings:
                 v = super(LocalSettings, self).value(k)
                 self.internal_settings[k] = _bool(v)
@@ -191,10 +197,10 @@ class LocalSettings(QtCore.QSettings):
     def setValue(self, k, v):
         """This is a global override for our preferences to disable the setting
         of the active path settings."""
-        if SOLO and u'activepath'.lower() in k.lower():
+        if SOLO and k.lower().startswith(u'activepath'):
             self.internal_settings[k] = v
-        else:
-            super(LocalSettings, self).setValue(k, v)
+            return
+        super(LocalSettings, self).setValue(k, v)
 
 
 class AssetSettings(QtCore.QSettings):

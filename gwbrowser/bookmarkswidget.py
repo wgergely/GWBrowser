@@ -127,9 +127,8 @@ class BookmarksModel(BaseModel):
 
     """
 
-    def __init__(self, parent=None):
-        super(BookmarksModel, self).__init__(parent=parent)
-        self._parent_item = None
+    def __init__(self, thread_count=0, parent=None):
+        super(BookmarksModel, self).__init__(thread_count=thread_count, parent=parent)
 
     @initdata
     def __initdata__(self):
@@ -334,21 +333,17 @@ class BookmarksModel(BaseModel):
 
 class BookmarksWidget(BaseInlineIconWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
+    SourceModel = BookmarksModel
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.context_menu_cls = BookmarksWidgetContextMenu
-
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
         self.setDragDropOverwriteMode(False)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setWindowTitle(u'Bookmarks')
         self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
-
-        self.set_model(BookmarksModel(parent=self))
-        # I'm not sure why but the proxy is not updated properly after refresh
-        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""

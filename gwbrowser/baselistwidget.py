@@ -10,7 +10,6 @@ the widget used to switch between the lists.
 """
 
 import re
-import traceback
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -18,6 +17,30 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings, AssetSettings
+
+
+
+def validate_index(func):
+    """Decorator to validate an index"""
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        """This wrapper will make sure the passed parameters are ok to pass onto
+        OpenImageIO. We will also update the index value here."""
+        if not args[0].isValid():
+            return None
+        if not args[0].data(QtCore.Qt.StatusTipRole):
+            return None
+        if not args[0].data(common.ParentRole):
+            return None
+        if isinstance(args[0].model(), FilterProxyModel):
+            args = [f for f in args]
+            index = args.pop(0)
+            args.insert(0, index.model().mapToSource(index))
+            args = tuple(args)
+        return func(*args, **kwargs)
+    return func_wrapper
+
+
 
 
 def initdata(func):
@@ -351,10 +374,20 @@ class BaseModel(QtCore.QAbstractItemModel):
     messageChanged = QtCore.Signal(unicode)
     indexUpdated = QtCore.Signal(QtCore.QModelIndex)
 
-    def __init__(self, parent=None):
+    # Threads
+    InfoThread = None
+    SecondaryInfoThread = None
+    ThumbnailThread = None
+
+
+    def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
         super(BaseModel, self).__init__(parent=parent)
         self.view = parent
         self.active = QtCore.QModelIndex()
+
+        self.thread_count = thread_count
+        self.threads = {}
+        self.file_info_loaded = False
 
         self._proxy_idxs = {}
         self._data = {}
@@ -370,7 +403,16 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._last_refreshed = {}
         self._last_changed = {}  # a dict of path/timestamp values
 
+        # Generate thumbnails
+        cls = self.__class__.__name__
+        _generate_thumbnails = local_settings.value(
+            u'widget/{}/generate_thumbnails'.format(cls))
+        self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
+
+
         self.initialize_default_sort_values()
+
+        self.__init_threads__()
 
     def keywords(self):
         """We're using the ``keywords`` property to help filter our lists."""
@@ -506,6 +548,53 @@ class BaseModel(QtCore.QAbstractItemModel):
         raise NotImplementedError(
             u'__initdata__ is abstract and has to be defined in the subclass.')
 
+    def __init_threads__(self):
+        """Starts the threads associated with this model."""
+        if not self.thread_count:
+            return
+        for n in xrange(self.thread_count):
+            self.threads[n] = self.InfoThread(self)
+            self.threads[n].thread_id = n
+            self.threads[n].start()
+
+            self.threads[n * 2] = self.ThumbnailThread(self)
+            self.threads[n * 2].thread_id = n * 2
+            self.threads[n * 2].start()
+
+        # The thread responsible for getting file information for all items
+        idx = len(self.threads)
+
+        def set_model():
+            self.threads[idx].worker.model = self
+            self.threads[idx].setPriority(QtCore.QThread.LowPriority)
+        self.threads[idx] = self.SecondaryInfoThread()
+        self.threads[idx].thread_id = idx
+        self.threads[idx].started.connect(set_model)
+        self.threads[idx].start()
+
+    @QtCore.Slot()
+    def reset_file_info_loaded(self):
+        """Set the file-info-loaded state to ``False``. This property is used
+        by the ``SecondaryFileInfoWorker`` to indicate all information has
+        been loaded an no more work is necessary.
+
+        """
+        self.file_info_loaded = False
+
+    @QtCore.Slot()
+    def reset_thread_worker_queues(self):
+        """This slot removes all queued items from the respective worker queues.
+        Called by the ``modelAboutToBeReset`` signal.
+
+        """
+        self.InfoThread.Worker.reset_queue()
+        self.SecondaryInfoThread.Worker.reset_queue()
+        self.ThumbnailThread.Worker.reset_queue()
+
+    @QtCore.Slot()
+    def delete_thread(self, thread):
+        del self.threads[thread.thread_id]
+
     def model_data(self):
         """A pointer to the model's currently set internal data."""
         k = self.data_key()
@@ -610,6 +699,8 @@ class BaseListWidget(QtWidgets.QListView):
     sizeChanged = QtCore.Signal(QtCore.QSize)
     favouritesChanged = QtCore.Signal()
 
+    SourceModel = None
+
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
         self.progress_widget = ProgressWidget(parent=self)
@@ -617,6 +708,9 @@ class BaseListWidget(QtWidgets.QListView):
         self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
         self.disabled_overlay_widget.setHidden(True)
         self._favourite_set_widget = FilterOnOverlayWidget(parent=self)
+
+        self.sizeChanged.connect(
+            lambda x: self.progress_widget.setGeometry(self.viewport().geometry()))
         self.sizeChanged.connect(
             lambda x: self.disabled_overlay_widget.setGeometry(self.viewport().geometry()))
         self.sizeChanged.connect(
@@ -673,6 +767,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.verticalScrollBar().sliderReleased.connect(
             lambda: self.viewport().setMouseTracking(True))
 
+        self.set_model(self.SourceModel(parent=self))
+
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return self._buttons_hidden
@@ -709,11 +805,6 @@ class BaseListWidget(QtWidgets.QListView):
         # Index repaints
         model.indexUpdated.connect(
             self.update_index, type=QtCore.Qt.QueuedConnection)
-
-        # Progress
-        model.modelAboutToBeReset.connect(self.progress_widget.show)
-        model.modelAboutToBeReset.connect(self.progress_widget.update)
-        model.modelReset.connect(self.progress_widget.hide)
 
         model.modelDataResetRequested.connect(
             model.beginResetModel)
@@ -760,6 +851,7 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataTypeChanged.connect(lambda x: model.sort_data())
 
         model.modelReset.connect(model.sort_data)
+        model.dataSorted.connect(proxy.invalidate)
         model.dataSorted.connect(proxy.invalidateFilter)
         model.dataSorted.connect(self.reselect_previous)
 
@@ -1628,6 +1720,137 @@ class BaseInlineIconWidget(BaseListWidget):
         widget = TodoEditorWidget(source_index, parent=self)
         self.parent().parent().resized.connect(widget._updateGeometry)
         widget.show()
+
+
+class ThreadedBaseWidget(BaseInlineIconWidget):
+    """Adds the methods needed to push the indexes to the thread-workers."""
+
+    def __init__(self, parent=None):
+        super(ThreadedBaseWidget, self).__init__(parent=parent)
+
+        self.index_update_timer = QtCore.QTimer(parent=self)
+        self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
+        self.index_update_timer.setSingleShot(False)
+        self.index_update_timer.timeout.connect(
+            self.initialize_visible_indexes)
+
+        # SecondaryFileInfoThread
+        self.model().sourceModel().modelReset.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+        self.model().sourceModel().dataKeyChanged.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+
+        # Clearing the queues
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().layoutAboutToBeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataTypeChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().dataKeyChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+
+        # We're stopping the index timer when the model is loading.
+        self.model().modelAboutToBeReset.connect(self.index_update_timer.stop)
+        self.model().modelReset.connect(self.index_update_timer.start)
+        self.model().layoutAboutToBeChanged.connect(self.index_update_timer.stop)
+        self.model().layoutChanged.connect(self.index_update_timer.start)
+
+        # For performance's sake...
+        self.verticalScrollBar().valueChanged.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+
+    @QtCore.Slot()
+    def initialize_visible_indexes(self):
+        """The sourceModel() loads its data in multiples steps: There's a
+        single-threaded walk of all sub-directories, and a threaded querry for
+        image and file information.
+
+        This slot is called by the ``index_update_timer`` and queues the
+        uninitialized indexes for the thread-workers to consume.
+
+        """
+        if not self.isVisible():
+            return
+
+        app = QtWidgets.QApplication.instance()
+        if app.mouseButtons() != QtCore.Qt.NoButton:
+            return
+
+        proxy_model = self.model()
+        if not proxy_model.rowCount():
+            return
+
+        index = self.indexAt(self.rect().topLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if not index.isValid():
+            return
+
+        needs_info = []
+        needs_thumbnail = []
+        visible = []
+        source_model = proxy_model.sourceModel()
+        data = source_model.model_data()
+        generate_thumbnails = source_model.generate_thumbnails
+
+        # Starting from the to we add all the visible, and unititalized indexes
+        rect = self.visualRect(index)
+        while self.rect().contains(rect):
+            if not data[idx][common.FileInfoLoaded]:
+                needs_info.append(index)
+            if generate_thumbnails and not data[idx][common.FileThumbnailLoaded]:
+                needs_thumbnail.append(index)
+            visible.append(index)
+            rect.moveTop(rect.top() + rect.height())
+            index = self.indexAt(rect.topLeft())
+            idx = proxy_model.mapToSource(index).row()
+            if not index.isValid():
+                break
+
+        # Here we add the last index of the window
+        index = self.indexAt(self.rect().bottomLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if index.isValid():
+            visible.append(index)
+            if not data[idx][common.FileInfoLoaded]:
+                if index not in needs_info:
+                    needs_info.append(index)
+
+            if generate_thumbnails:
+                if not data[idx][common.FileThumbnailLoaded]:
+                    if index not in needs_thumbnail:
+                        needs_thumbnail.append(index)
+
+        # We want to make sure we keep archived items hidden. If we detect any
+        # archived items, we will invalidate the proxy model.
+        if not self.model().filterFlag(common.MarkedAsArchived):
+            if any([f.flags() & common.MarkedAsArchived for f in visible]):
+                self.model().invalidateFilter()
+                return
+
+        if needs_info:
+            source_model.InfoThread.Worker.add_to_queue(needs_info)
+
+        if generate_thumbnails:
+            source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
+
+    def focusOutEvent(self, event):
+        self.index_update_timer.stop()
+        return super(ThreadedBaseWidget, self).focusOutEvent(event)
+
+    def focusInEvent(self, event):
+        self.index_update_timer.start()
+        return super(ThreadedBaseWidget, self).focusInEvent(event)
+
+    def showEvent(self, event):
+        self.index_update_timer.start()
+        return super(ThreadedBaseWidget, self).showEvent(event)
+
+    def hideEvent(self, event):
+        self.index_update_timer.stop()
+        return super(ThreadedBaseWidget, self).hideEvent(event)
 
 
 class StackedWidget(QtWidgets.QStackedWidget):

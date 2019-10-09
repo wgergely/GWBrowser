@@ -199,7 +199,7 @@ a **workspace.mel** file in our case. The file resides in the root of the asset
 directory."""
 
 
-FTHREAD_COUNT = 2
+FTHREAD_COUNT = 1
 """The number of threads used by the ``FilesWidget`` to get file - information."""
 
 LTHREAD_COUNT = 1
@@ -303,6 +303,9 @@ PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
 SecondaryFont.setPointSize(SMALL_FONT_SIZE)
+
+
+def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 def get_oiio_extensions():

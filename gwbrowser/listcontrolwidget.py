@@ -803,6 +803,21 @@ class ListControlWidget(QtWidgets.QWidget):
         #
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
+    @QtCore.Slot()
+    def update_buttons(self):
+        self.bookmarks_button.update()
+        self.assets_button.update()
+        self.files_button.update()
+        self.favourites_button.update()
+        self.add_button.update()
+        self.generate_thumbnails_button.update()
+        self.filter_button.update()
+        self.collapse_button.update()
+        self.archived_button.update()
+        self.favourite_button.update()
+        self.slack_button.update()
+        self.simple_mode_button.update()
+
     @QtCore.Slot(QtCore.QModelIndex)
     def signal_dispatcher(self, index):
         self.dataKeyChanged.emit(index.data(QtCore.Qt.DisplayRole))

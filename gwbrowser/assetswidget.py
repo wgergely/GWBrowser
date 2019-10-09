@@ -1,19 +1,85 @@
 # -*- coding: utf-8 -*-
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
-from PySide2 import QtCore, QtGui
+import time
+import traceback
+import sys
+from PySide2 import QtCore, QtGui, QtWidgets
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
+from gwbrowser.imagecache import oiio_make_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
+from gwbrowser.baselistwidget import ThreadedBaseWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
+from gwbrowser.baselistwidget import validate_index
 from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings, Active
+
+from gwbrowser.fileswidget import FileInfoWorker
+from gwbrowser.fileswidget import SecondaryFileInfoWorker
+from gwbrowser.fileswidget import FileThumbnailWorker
+from gwbrowser.threads import BaseThread
+from gwbrowser.threads import BaseWorker
+from gwbrowser.threads import Unique
+
+
+class AssetInfoWorker(FileInfoWorker):
+    queue = Unique(999999)
+    indexes_in_progress = []
+
+    @staticmethod
+    @validate_index
+    @QtCore.Slot(QtCore.QModelIndex)
+    def process_index(index, update=True, exists=False):
+        """The main processing function called by the worker.
+        Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
+
+        """
+        return FileInfoWorker.process_index(index, update=update, exists=exists)
+
+
+class SecondaryAssetInfoWorker(AssetInfoWorker):
+    """The worker associated with the ``SecondaryAssetInfoWorker``.
+
+    The worker performs  the same function as ``FileInfoWorker`` but
+    it has it own queue and is concerned with iterating over all file-items.
+
+    """
+    queue = Unique(999999)
+    indexes_in_progress = []
+
+
+class AssetThumbnailWorker(FileThumbnailWorker):
+    """The worker associated with the ``AssetThumbnailThread``.
+
+    The worker is responsible for loading the existing thumbnail images from
+    the cache folder, and if needed and possible, generating new thumbnails from
+    the source file.
+
+    """
+    queue = Unique(999)
+    indexes_in_progress = []
+
+
+class AssetInfoThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = AssetInfoWorker
+
+
+class SecondaryAssetInfoThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = SecondaryAssetInfoWorker
+
+
+class AssetThumbnailThread(BaseThread):
+    """Thread controller associated with the ``FilesModel``."""
+    Worker = AssetThumbnailWorker
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -59,9 +125,12 @@ class AssetModel(BaseModel):
            model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
 
     """
+    InfoThread = AssetInfoThread
+    SecondaryInfoThread = SecondaryAssetInfoThread
+    ThumbnailThread = AssetThumbnailThread
 
-    def __init__(self, parent=None):
-        super(AssetModel, self).__init__(parent=parent)
+    def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
+        super(AssetModel, self).__init__(thread_count=thread_count, parent=parent)
 
     @initdata
     def __initdata__(self):
@@ -73,28 +142,38 @@ class AssetModel(BaseModel):
             hence the model does not have any threads associated with it.
 
         """
-        self._data[self.data_key()] = {
-            common.FileItem: {}, common.SequenceItem: {}}
+        def dflags():
+            """The default flags to apply to the item."""
+            return (
+                QtCore.Qt.ItemNeverHasChildren |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsSelectable)
+
+        self.reset_thread_worker_queues()
 
         if not self._parent_item:
             return
         if not all(self._parent_item):
             return
 
+        dkey = self.data_key()
+        dtype = self.data_type()
         rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
-        active_paths = Active.paths()
-
-        favourites = local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-        sfavourites = set(favourites)
-
-        server, job, root = self._parent_item
-        bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
+
+        self._data[self.data_key()] = {
+            common.FileItem: {}, common.SequenceItem: {}}
+
+        favourites = local_settings.value(u'favourites')
+        favourites = [f.lower() for f in favourites] if favourites else []
+        sfavourites = set(favourites)
+        activeasset = local_settings.value(u'activepath/asset')
+        server, job, root = self._parent_item
+        bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
         nth = 1
         c = 0
@@ -104,36 +183,52 @@ class AssetModel(BaseModel):
             if not entry.is_dir():
                 continue
 
-            ipath = u'{}/{}'.format(
-                entry.path.replace(u'\\', u'/'), common.ASSET_IDENTIFIER)
-            if not QtCore.QFileInfo().exists(ipath):
+            filepath = entry.path.replace(u'\\', u'/')
+
+            identifier_file = u'{}/{}'.format(filepath, common.ASSET_IDENTIFIER)
+            if not QtCore.QFileInfo(identifier_file).exists():
                 continue
 
             # Progress bar
             c += 1
             if not c % nth:
                 self.messageChanged.emit(u'Found {} assets...'.format(c))
+                QtWidgets.QApplication.instance().processEvents(
+                    QtCore.QEventLoop.ExcludeUserInputEvents)
 
-            tooltip = u'{}\n'.format(entry.name.upper())
-            tooltip += u'{}\n'.format(server.upper())
-            tooltip += u'{}\n'.format(job.upper())
-            tooltip += u'{}'.format(entry.path.replace(u'\\', u'/'))
+            filename = entry.name
 
-            data = self.model_data()
-            idx = len(data)
-            data[idx] = {
-                QtCore.Qt.DisplayRole: entry.name,
-                QtCore.Qt.EditRole: entry.name,
-                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
-                QtCore.Qt.ToolTipRole: tooltip,
+            flags = dflags()
+
+            if filepath.lower() in sfavourites:
+                flags = flags | common.MarkedAsFavourite
+
+            if activeasset:
+                if activeasset in filepath:
+                    flags = flags | common.MarkedAsActive
+
+
+            idx = len(self._data[dkey][dtype])
+            self._data[dkey][dtype][idx] = {
+                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.EditRole: filename,
+                QtCore.Qt.StatusTipRole: filepath,
+                QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
-                common.FlagsRole: QtCore.Qt.NoItemFlags,
-                common.ParentRole: (server, job, root, entry.name),
+                common.EntryRole: [entry, ],
+                common.FlagsRole: flags,
+                common.ParentRole: (server, job, root, filename),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
-                common.FileDetailsRole: None,
+                common.FileDetailsRole: u'',
+                common.SequenceRole: None,
+                common.FramesRole: [],
+                common.FileInfoLoaded: False,
+                common.StartpathRole: None,
+                common.EndpathRole: None,
                 #
+                common.FileThumbnailLoaded: False,
                 common.DefaultThumbnailRole: default_thumbnail_image,
                 common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
@@ -141,61 +236,60 @@ class AssetModel(BaseModel):
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.AssetItem,
-                common.FramesRole: [],
                 #
-                common.SortByName: entry.path.replace(u'\\', u'/'),
-                common.SortByLastModified: entry.path.replace(u'\\', u'/'),
-                common.SortBySize: entry.path.replace(u'\\', u'/'),
+                common.SortByName: filepath,
+                common.SortByLastModified: 0,
+                common.SortBySize: 0,
             }
-
-            index = self.index(idx, 0)
-            settings = AssetSettings(index)
-            data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
-
-            image = ImageCache.get(
-                data[idx][common.ThumbnailPathRole],
-                rowsize.height() - common.ROW_SEPARATOR,
-                overwrite=True)
-
-            if image:
-                if not image.isNull():
-                    color = ImageCache.get(
-                        data[idx][common.ThumbnailPathRole],
-                        'BackgroundColor')
-
-                    data[idx][common.ThumbnailRole] = image
-                    data[idx][common.ThumbnailBackgroundRole] = color
-
-            flags = (
-                QtCore.Qt.ItemIsSelectable
-                | QtCore.Qt.ItemIsEnabled
-                | QtCore.Qt.ItemIsEditable
-            )
-
-            if entry.name == active_paths[u'asset']:
-                flags = flags | common.MarkedAsActive
-            if settings.value(u'config/archived'):
-                flags = flags | common.MarkedAsArchived
-            if entry.path.replace(u'\\', u'/').lower() in sfavourites:
-                flags = flags | common.MarkedAsFavourite
-            data[idx][common.FlagsRole] = flags
-
-            # Todos
-            todos = settings.value(u'config/todos')
-            todocount = 0
-            if todos:
-                todocount = len([k for k in todos if not todos[k]
-                                 [u'checked'] and todos[k][u'text']])
-            else:
-                todocount = 0
-            data[idx][common.TodoCountRole] = todocount
-
-            description = settings.value(u'config/description')
-            data[idx][common.DescriptionRole] = description
-            data[idx][common.SortBySize] = todocount
-
-            # Only including this for compatibility with the methods used by the file-items
-            data[idx][common.FileInfoLoaded] = True
+            #
+            # index = self.index(idx, 0)
+            # settings = AssetSettings(index)
+            # data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
+            #
+            # image = ImageCache.get(
+            #     data[idx][common.ThumbnailPathRole],
+            #     rowsize.height() - common.ROW_SEPARATOR,
+            #     overwrite=True)
+            #
+            # if image:
+            #     if not image.isNull():
+            #         color = ImageCache.get(
+            #             data[idx][common.ThumbnailPathRole],
+            #             'BackgroundColor')
+            #
+            #         data[idx][common.ThumbnailRole] = image
+            #         data[idx][common.ThumbnailBackgroundRole] = color
+            #
+            # flags = (
+            #     QtCore.Qt.ItemIsSelectable
+            #     | QtCore.Qt.ItemIsEnabled
+            #     | QtCore.Qt.ItemIsEditable
+            # )
+            #
+            # if entry.name == active_paths[u'asset']:
+            #     flags = flags | common.MarkedAsActive
+            # if settings.value(u'config/archived'):
+            #     flags = flags | common.MarkedAsArchived
+            # if filepath.lower() in sfavourites:
+            #     flags = flags | common.MarkedAsFavourite
+            # data[idx][common.FlagsRole] = flags
+            #
+            # # Todos
+            # todos = settings.value(u'config/todos')
+            # todocount = 0
+            # if todos:
+            #     todocount = len([k for k in todos if not todos[k]
+            #                      [u'checked'] and todos[k][u'text']])
+            # else:
+            #     todocount = 0
+            # data[idx][common.TodoCountRole] = todocount
+            #
+            # description = settings.value(u'config/description')
+            # data[idx][common.DescriptionRole] = description
+            # data[idx][common.SortBySize] = todocount
+            #
+            # # Only including this for compatibility with the methods used by the file-items
+            # data[idx][common.FileInfoLoaded] = True
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -205,8 +299,9 @@ class AssetModel(BaseModel):
         return u'.'
 
 
-class AssetsWidget(BaseInlineIconWidget):
+class AssetsWidget(ThreadedBaseWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""
+    SourceModel = AssetModel
 
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
@@ -214,11 +309,6 @@ class AssetsWidget(BaseInlineIconWidget):
         self.setItemDelegate(AssetsWidgetDelegate(parent=self))
 
         self.context_menu_cls = AssetsWidgetContextMenu
-
-        self.set_model(AssetModel(parent=self))
-
-        # I'm not sure why but the proxy is not updated properly after refresh
-        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons. There's no need to

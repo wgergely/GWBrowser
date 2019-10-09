@@ -411,6 +411,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.bookmarkswidget.timer.stop()
         self.assetswidget.timer.stop()
+        self.assetswidget.index_update_timer.stop()
         self.fileswidget.timer.stop()
         self.fileswidget.index_update_timer.stop()
         self.favouriteswidget.index_update_timer.stop()
@@ -443,6 +444,30 @@ class BrowserWidget(QtWidgets.QWidget):
         sys.stdout.write(u'# GWBrowser terminated.\n')
         self.terminated.emit()
 
+    @QtCore.Slot(unicode)
+    def show_progress_message(self, message):
+        b = self.bookmarkswidget.progress_widget
+        a = self.assetswidget.progress_widget
+        f = self.fileswidget.progress_widget
+        ff = self.favouriteswidget.progress_widget
+        progress_widgets = (b, a, f, ff)
+        for widget in progress_widgets:
+            widget.show()
+            widget.set_message(message)
+            # widget.update()
+            widget.repaint()
+
+    @QtCore.Slot()
+    def hide_progress_message(self):
+        b = self.bookmarkswidget.progress_widget
+        a = self.assetswidget.progress_widget
+        f = self.fileswidget.progress_widget
+        ff = self.favouriteswidget.progress_widget
+        progress_widgets = (b, a, f, ff)
+        for widget in progress_widgets:
+            widget.hide()
+            widget.set_message(u'Loading...')
+
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
         signals and slots are connected.
@@ -458,12 +483,21 @@ class BrowserWidget(QtWidgets.QWidget):
         lb = lc.control_button()
 
         # Progress
-        f.model().sourceModel().modelAboutToBeReset.connect(b.progress_widget.show)
-        f.model().sourceModel().modelReset.connect(b.progress_widget.hide)
-        f.model().sourceModel().modelAboutToBeReset.connect(a.progress_widget.show)
-        f.model().sourceModel().modelReset.connect(a.progress_widget.hide)
-        f.model().sourceModel().modelAboutToBeReset.connect(ff.progress_widget.show)
-        f.model().sourceModel().modelReset.connect(ff.progress_widget.hide)
+        # b.model().sourceModel().modelAboutToBeReset.connect(
+        #     lambda: self.show_progress_message(u'Loading bookmarks...'))
+        # b.model().sourceModel().modelReset.connect(self.hide_progress_message)
+        #
+        # a.model().sourceModel().modelAboutToBeReset.connect(
+        #     lambda: self.show_progress_message(u'Loading assets...'))
+        # a.model().sourceModel().modelReset.connect(self.hide_progress_message)
+        #
+        # f.model().sourceModel().modelAboutToBeReset.connect(
+        #     lambda: self.show_progress_message(u'Loading files...'))
+        # f.model().sourceModel().modelReset.connect(self.hide_progress_message)
+        # No need to show this...
+        # ff.model().sourceModel().modelAboutToBeReset.connect(
+        #     lambda: self.show_progress_message(u'Loading favourites..'))
+        # ff.model().sourceModel().modelReset.connect(self.hide_progress_message)
 
         s = self.stackedwidget
 
@@ -613,89 +647,38 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: self.fileswidget.model().sourceModel().data_key())
 
         lc.bookmarks_button.clicked.connect(
-            lambda: lc.listChanged.emit(0), type=QtCore.Qt.QueuedConnection)
+            lambda: lc.listChanged.emit(0))
         lc.assets_button.clicked.connect(
-            lambda: lc.listChanged.emit(1), type=QtCore.Qt.QueuedConnection)
+            lambda: lc.listChanged.emit(1))
         lc.files_button.clicked.connect(
-            lambda: lc.listChanged.emit(2), type=QtCore.Qt.QueuedConnection)
+            lambda: lc.listChanged.emit(2))
         lc.favourites_button.clicked.connect(
-            lambda: lc.listChanged.emit(3), type=QtCore.Qt.QueuedConnection)
+            lambda: lc.listChanged.emit(3))
 
         # Updates the list-control buttons when changing lists
         lc.listChanged.connect(lb.update)
-        lc.listChanged.connect(lc.update)
-        lc.listChanged.connect(lc.add_button.update)
-        lc.listChanged.connect(
-            lc.generate_thumbnails_button.update)
-        lc.listChanged.connect(lc.filter_button.update)
-        lc.listChanged.connect(lc.collapse_button.update)
-        lc.listChanged.connect(lc.archived_button.update)
-        lc.listChanged.connect(lc.favourite_button.update)
-        lc.listChanged.connect(lc.simple_mode_button.update)
+        lc.listChanged.connect(lc.update_buttons)
 
-        self.stackedwidget.animationFinished.connect(lc.add_button.update)
-        self.stackedwidget.animationFinished.connect(
-            lc.generate_thumbnails_button.update)
-        self.stackedwidget.animationFinished.connect(lc.filter_button.update)
-        self.stackedwidget.animationFinished.connect(lc.collapse_button.update)
-        self.stackedwidget.animationFinished.connect(lc.archived_button.update)
-        self.stackedwidget.animationFinished.connect(
-            lc.favourite_button.update)
-        self.stackedwidget.animationFinished.connect(
-            lc.simple_mode_button.update)
-
+        self.stackedwidget.animationFinished.connect(lc.update_buttons)
         s.currentChanged.connect(lc.bookmarks_button.update)
-        s.currentChanged.connect(lc.assets_button.update)
-        s.currentChanged.connect(lc.files_button.update)
-        s.currentChanged.connect(lc.favourites_button.update)
-        s.currentChanged.connect(lc.simple_mode_button.update)
-
-        f.model().sourceModel().dataTypeChanged.connect(lc.collapse_button.update)
-        ff.model().sourceModel().dataTypeChanged.connect(lc.collapse_button.update)
-
-        b.model().filterFlagChanged.connect(lc.archived_button.update)
-        a.model().filterFlagChanged.connect(lc.archived_button.update)
-        f.model().filterFlagChanged.connect(lc.archived_button.update)
-        ff.model().filterFlagChanged.connect(lc.archived_button.update)
-        b.model().filterFlagChanged.connect(lc.favourite_button.update)
-        a.model().filterFlagChanged.connect(lc.favourite_button.update)
-        f.model().filterFlagChanged.connect(lc.favourite_button.update)
-        ff.model().filterFlagChanged.connect(lc.favourite_button.update)
-        b.model().filterFlagChanged.connect(lc.filter_button.update)
-        a.model().filterFlagChanged.connect(lc.filter_button.update)
-        f.model().filterFlagChanged.connect(lc.filter_button.update)
-        ff.model().filterFlagChanged.connect(lc.filter_button.update)
-
-        b.model().filterTextChanged.connect(lc.filter_button.update)
-        a.model().filterTextChanged.connect(lc.filter_button.update)
-        f.model().filterTextChanged.connect(lc.filter_button.update)
-        ff.model().filterTextChanged.connect(lc.filter_button.update)
-
-        b.model().modelReset.connect(lc.archived_button.update)
-        a.model().modelReset.connect(lc.archived_button.update)
-        f.model().modelReset.connect(lc.archived_button.update)
-        ff.model().modelReset.connect(lc.archived_button.update)
-        b.model().modelReset.connect(lc.favourite_button.update)
-        a.model().modelReset.connect(lc.favourite_button.update)
-        f.model().modelReset.connect(lc.favourite_button.update)
-        ff.model().modelReset.connect(lc.favourite_button.update)
-        b.model().modelReset.connect(lc.filter_button.update)
-        a.model().modelReset.connect(lc.filter_button.update)
-        f.model().modelReset.connect(lc.filter_button.update)
-        ff.model().modelReset.connect(lc.filter_button.update)
-
-        b.model().layoutChanged.connect(lc.archived_button.update)
-        a.model().layoutChanged.connect(lc.archived_button.update)
-        f.model().layoutChanged.connect(lc.archived_button.update)
-        ff.model().layoutChanged.connect(lc.archived_button.update)
-        b.model().layoutChanged.connect(lc.favourite_button.update)
-        a.model().layoutChanged.connect(lc.favourite_button.update)
-        f.model().layoutChanged.connect(lc.favourite_button.update)
-        ff.model().layoutChanged.connect(lc.favourite_button.update)
-        b.model().layoutChanged.connect(lc.filter_button.update)
-        a.model().layoutChanged.connect(lc.filter_button.update)
-        f.model().layoutChanged.connect(lc.filter_button.update)
-        ff.model().layoutChanged.connect(lc.filter_button.update)
+        f.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
+        ff.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
+        b.model().filterFlagChanged.connect(lc.update_buttons)
+        a.model().filterFlagChanged.connect(lc.update_buttons)
+        f.model().filterFlagChanged.connect(lc.update_buttons)
+        ff.model().filterFlagChanged.connect(lc.update_buttons)
+        b.model().filterTextChanged.connect(lc.update_buttons)
+        a.model().filterTextChanged.connect(lc.update_buttons)
+        f.model().filterTextChanged.connect(lc.update_buttons)
+        ff.model().filterTextChanged.connect(lc.update_buttons)
+        b.model().modelReset.connect(lc.update_buttons)
+        a.model().modelReset.connect(lc.update_buttons)
+        f.model().modelReset.connect(lc.update_buttons)
+        ff.model().modelReset.connect(lc.update_buttons)
+        b.model().layoutChanged.connect(lc.update_buttons)
+        a.model().layoutChanged.connect(lc.update_buttons)
+        f.model().layoutChanged.connect(lc.update_buttons)
+        ff.model().layoutChanged.connect(lc.update_buttons)
 
         b.model().layoutChanged.connect(b.update)
         a.model().layoutChanged.connect(a.update)
@@ -757,7 +740,13 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().layoutChanged.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
 
+        b.model().sourceModel().messageChanged.connect(
+            lambda m: self.statusbar.showMessage(m, 99999))
+        a.model().sourceModel().messageChanged.connect(
+            lambda m: self.statusbar.showMessage(m, 99999))
         f.model().sourceModel().messageChanged.connect(
+            lambda m: self.statusbar.showMessage(m, 99999))
+        ff.model().sourceModel().messageChanged.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
 
     def paintEvent(self, event):

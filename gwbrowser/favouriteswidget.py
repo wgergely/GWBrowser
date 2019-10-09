@@ -4,10 +4,7 @@ user.
 
 """
 
-import sys
 import os
-import time
-import traceback
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -19,6 +16,7 @@ from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.baselistwidget import validate_index
 
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import Unique
@@ -345,7 +343,7 @@ class DropIndicatorWidget(QtWidgets.QWidget):
 
 class FavouritesWidget(FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
-
+    SourceModel = FavouritesModel
     def __init__(self, parent=None):
         super(FavouritesWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Favourites')
@@ -356,7 +354,6 @@ class FavouritesWidget(FilesWidget):
         # Context menu, delegate, model...
         self.context_menu_cls = FavouritesWidgetContextMenu
         self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
-        self.set_model(FavouritesModel(parent=self))
 
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()

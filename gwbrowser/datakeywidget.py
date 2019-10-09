@@ -300,13 +300,15 @@ class DataKeyModel(BaseModel):
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
 
-    def __init__(self, parent=None):
-        super(DataKeyModel, self).__init__(parent=parent)
+    def __init__(self, thread_count=common.LTHREAD_COUNT, parent=None):
+        self._parent = parent
+        super(DataKeyModel, self).__init__(thread_count=thread_count, parent=parent)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
+    def __init_threads__(self):
         self.threads = {}
         for n in xrange(common.LTHREAD_COUNT):
-            self.threads[n] = DataKeyThread(parent)
+            self.threads[n] = DataKeyThread(self._parent)
             self.threads[n].start()
 
     @property
