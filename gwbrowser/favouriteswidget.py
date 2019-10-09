@@ -4,8 +4,10 @@ user.
 
 """
 
+import sys
 import os
-import functools
+import time
+import traceback
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -19,23 +21,51 @@ from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 
 from gwbrowser.threads import BaseThread
-from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
 
+from gwbrowser.fileswidget import validate_index
 from gwbrowser.fileswidget import FileInfoWorker
 from gwbrowser.fileswidget import SecondaryFileInfoWorker
+from gwbrowser.fileswidget import FileThumbnailWorker
 
 
 class FavouriteInfoWorker(FileInfoWorker):
-    """Class with it's own queue."""
+    """We will check if the favou."""
+    queue = Unique(999999)
+    indexes_in_progress = []
+
+    @staticmethod
+    @validate_index
+    @QtCore.Slot(QtCore.QModelIndex)
+    def process_index(index, update=True, exists=True):
+        FileInfoWorker.process_index(index, update=update, exists=exists)
+
+
+class SecondaryFavouriteInfoWorker(SecondaryFileInfoWorker):
+    """Worker associated with the ``FavouritesModel``."""
+    queue = Unique(999999)
+    indexes_in_progress = []
+
+
+class FavouriteThumbnailWorker(FileThumbnailWorker):
+    """Worker associated with the ``FavouritesModel``."""
     queue = Unique(999999)
     indexes_in_progress = []
 
 
 class FavouriteInfoThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
+    """Thread controller associated with the ``FavouritesModel``."""
     Worker = FavouriteInfoWorker
 
+
+class SecondaryFavouriteInfoThread(BaseThread):
+    """Thread controller associated with the ``FavouritesModel``."""
+    Worker = SecondaryFavouriteInfoWorker
+
+
+class FavouriteThumbnailThread(BaseThread):
+    """Thread controller associated with the ``FavouritesModel``."""
+    Worker = FavouriteThumbnailWorker
 
 
 def rsc_path(f, n):
@@ -70,20 +100,12 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
 
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
-
-    def __init__(self, parent=None):
-        super(FavouritesModel, self).__init__(parent=parent)
+    InfoThread = FavouriteInfoThread
+    SecondaryInfoThread = SecondaryFavouriteInfoThread
+    ThumbnailThread = FavouriteThumbnailThread
 
     def data_key(self):
         return u'.'
-
-    @property
-    def generate_thumbnails(self):
-        return False
-
-    @generate_thumbnails.setter
-    def generate_thumbnails(self, val):
-        pass
 
     @initdata
     def __initdata__(self):
@@ -290,23 +312,6 @@ class FavouritesModel(FilesModel):
                 v[common.TypeRole] = common.FileItem
             self._data[dkey][common.SequenceItem][idx] = v
 
-    def __init_threads__(self):
-        """Starts the threads associated with this model."""
-        threads = 2
-        for n in xrange(threads):
-            self.threads[n] = FavouriteInfoThread(self)
-            self.threads[n].thread_id = n
-            self.threads[n].start()
-
-
-    @QtCore.Slot()
-    def reset_thread_worker_queues(self):
-        """This slot removes all queued items from the respective worker queues.
-        Called by the ``modelAboutToBeReset`` signal.
-
-        """
-        FavouriteInfoWorker.reset_queue()
-
 
 class DropIndicatorWidget(QtWidgets.QWidget):
     """Widgets responsible for drawing an overlay."""
@@ -424,63 +429,6 @@ class FavouritesWidget(FilesWidget):
             return True
 
         return super(FavouritesWidget, self).eventFilter(widget, event)
-
-    def hideEvent(self, event):
-        pass
-        # self.index_update_timer.stop()
-
-
-    @QtCore.Slot()
-    def initialize_visible_indexes(self):
-        """The sourceModel() loads its data in multiples steps: There's a
-        single-threaded walk of all sub-directories, and a threaded querry for
-        image and file information.
-
-        This slot is called by the ``index_update_timer`` and queues the
-        uninitialized indexes for the thread-workers to consume.
-
-        """
-        needs_info = []
-        visible = []
-        proxy_model = self.model()
-        source_model = proxy_model.sourceModel()
-        data = source_model.model_data()
-
-        if self.verticalScrollBar().isSliderDown():
-            return
-
-        if not proxy_model.rowCount():
-            return
-
-        index = self.indexAt(self.rect().topLeft())
-        idx = proxy_model.mapToSource(index).row()
-        if not index.isValid():
-            return
-
-        # Starting from the to we add all the visible, and unititalized indexes
-        rect = self.visualRect(index)
-        while self.rect().contains(rect):
-            if not data[idx][common.FileInfoLoaded]:
-                needs_info.append(index)
-            visible.append(index)
-            rect.moveTop(rect.top() + rect.height())
-            index = self.indexAt(rect.topLeft())
-            idx = proxy_model.mapToSource(index).row()
-            if not index.isValid():
-                break
-
-        # Here we add the last index of the window
-        index = self.indexAt(self.rect().bottomLeft())
-        idx = proxy_model.mapToSource(index).row()
-        if index.isValid():
-            visible.append(index)
-            if not data[idx][common.FileInfoLoaded]:
-                if index not in needs_info:
-                    needs_info.append(index)
-
-        if needs_info:
-            FavouriteInfoWorker.add_to_queue(needs_info)
-
 
 
 if __name__ == '__main__':

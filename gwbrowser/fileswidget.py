@@ -39,7 +39,7 @@ from gwbrowser.baselistwidget import initdata
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings, Active
+from gwbrowser.settings import local_settings
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
@@ -65,6 +65,11 @@ def validate_index(func):
             return None
         if not args[0].data(common.ParentRole):
             return None
+        if isinstance(args[0].model(), FilterProxyModel):
+            args = [f for f in args]
+            index = args.pop(0)
+            args.insert(0, index.model().mapToSource(index))
+            args = tuple(args)
         return func(*args, **kwargs)
     return func_wrapper
 
@@ -87,15 +92,14 @@ class FileInfoWorker(BaseWorker):
     @staticmethod
     @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, update=True):
+    def process_index(index, update=True, exists=False):
         """The main processing function called by the worker.
         Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
 
         """
         if index.data(common.FileInfoLoaded):
             return
-        if isinstance(index.model(), FilterProxyModel):
-            index = index.model().mapToSource(index)
+
         data = index.model().model_data()[index.row()]
         settings = AssetSettings(index)
 
@@ -172,6 +176,14 @@ class FileInfoWorker(BaseWorker):
             flags = flags | common.MarkedAsArchived
         data[common.FlagsRole] = flags
 
+        # We can ask the worker specifically to check if the file exists
+        # We're using this for the favourites to remove stale items from our list
+        if exists:
+            file_info = QtCore.QFileInfo(data[QtCore.Qt.StatusTipRole])
+            if not file_info.exists():
+                flags = QtCore.Qt.ItemIsEditable | common.MarkedAsArchived
+                data[common.FlagsRole] = flags
+
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
@@ -188,6 +200,8 @@ class SecondaryFileInfoWorker(FileInfoWorker):
     it has it own queue and is concerned with iterating over all file-items.
 
     """
+    queue = Unique(999999)
+    indexes_in_progress = []
 
     @QtCore.Slot()
     def begin_processing(self):
@@ -210,16 +224,15 @@ class SecondaryFileInfoWorker(FileInfoWorker):
                     index = self.model.index(n, 0)
 
                     if not data[n][common.FileInfoLoaded]:
-                        FileInfoWorker.process_index(index, update=True)
+                        self.model.InfoThread.Worker.process_index(index, update=True)
                         all_loaded = False
 
                     if not data[n][common.FileThumbnailLoaded]:
-                        FileThumbnailWorker.process_index(
+                        self.model.ThumbnailThread.Worker.process_index(
                             index, update=True, make=False)
 
                 if all_loaded:
                     self.model.file_info_loaded = True
-
         except:
             sys.stderr.write('{}\n'.format(traceback.format_exc()))
         finally:
@@ -259,9 +272,6 @@ class FileThumbnailWorker(BaseWorker):
             return
         if index.flags() & common.MarkedAsArchived:
             return
-        if isinstance(index.model(), FilterProxyModel):
-            index = index.model().mapToSource(index)
-
         try:
             data = index.model().model_data()[index.row()]
         except KeyError:
@@ -375,11 +385,14 @@ class FilesModel(BaseModel):
         current data-key.
 
     """
+    InfoThread = FileInfoThread
+    SecondaryInfoThread = SecondaryFileInfoThread
+    ThumbnailThread = FileThumbnailThread
 
     def __init__(self, threads=common.FTHREAD_COUNT, parent=None):
         super(FilesModel, self).__init__(parent=parent)
-        self.thread_count = threads
         self.threads = {}
+        self.thread_count = threads
         self.file_info_loaded = False
 
         cls = self.__class__.__name__
@@ -392,20 +405,21 @@ class FilesModel(BaseModel):
         """Starts the threads associated with this model."""
         threads = self.thread_count
         for n in xrange(threads):
-            self.threads[n] = FileInfoThread(self)
+            self.threads[n] = self.InfoThread(self)
             self.threads[n].thread_id = n
             self.threads[n].start()
 
-            self.threads[n * 2] = FileThumbnailThread(self)
+            self.threads[n * 2] = self.ThumbnailThread(self)
             self.threads[n * 2].thread_id = n * 2
             self.threads[n * 2].start()
 
         # The thread responsible for getting file information for all items
         idx = len(self.threads)
+
         def set_model():
             self.threads[idx].worker.model = self
             self.threads[idx].setPriority(QtCore.QThread.LowPriority)
-        self.threads[idx] = SecondaryFileInfoThread()
+        self.threads[idx] = self.SecondaryInfoThread()
         self.threads[idx].thread_id = idx
         self.threads[idx].started.connect(set_model)
         self.threads[idx].start()
@@ -414,7 +428,7 @@ class FilesModel(BaseModel):
     def reset_file_info_loaded(self):
         """Set the file-info-loaded state to ``False``. This property is used
         by the ``SecondaryFileInfoWorker`` to indicate all information has
-        been loaded.
+        been loaded an no more work is necessary.
 
         """
         self.file_info_loaded = False
@@ -721,9 +735,9 @@ class FilesModel(BaseModel):
         Called by the ``modelAboutToBeReset`` signal.
 
         """
-        FileInfoWorker.reset_queue()
-        FileThumbnailWorker.reset_queue()
-        SecondaryFileInfoWorker.reset_queue()
+        self.InfoThread.Worker.reset_queue()
+        self.SecondaryInfoThread.Worker.reset_queue()
+        self.ThumbnailThread.Worker.reset_queue()
 
     @QtCore.Slot()
     def delete_thread(self, thread):
@@ -945,13 +959,18 @@ class DragPixmap(QtWidgets.QWidget):
 
 
 class FilesWidget(BaseInlineIconWidget):
-    """The view used to display the contents of a ``FilesModel`` instance."""
+    """The view used to display the contents of a ``FilesModel`` instance.
+
+    It is responsible for pushing the visible model indexes to the
+    secondary threads using `index_update_timer`.
+
+    """
 
     def __init__(self, parent=None):
         """Initializes the files widget.
 
         Attributes:
-            _index_timer(QTimer):   The timer responsible for pushing
+            index_update_timer(QTimer):   The timer responsible for pushing
         the visible model indexes to the thread queues to get information.
 
         """
@@ -1005,10 +1024,6 @@ class FilesWidget(BaseInlineIconWidget):
         # For performance's sake...
         self.verticalScrollBar().valueChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
-        self.verticalScrollBar().sliderPressed.connect(
-            self.index_update_timer.stop)
-        self.verticalScrollBar().sliderReleased.connect(
-            self.index_update_timer.start)
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
@@ -1051,17 +1066,11 @@ class FilesWidget(BaseInlineIconWidget):
         if not self.isVisible():
             return
 
-        needs_info = []
-        needs_thumbnail = []
-        visible = []
-        proxy_model = self.model()
-        source_model = proxy_model.sourceModel()
-        data = source_model.model_data()
-        generate_thumbnails = source_model.generate_thumbnails
-
-        if self.verticalScrollBar().isSliderDown():
+        app = QtWidgets.QApplication.instance()
+        if app.mouseButtons() != QtCore.Qt.NoButton:
             return
 
+        proxy_model = self.model()
         if not proxy_model.rowCount():
             return
 
@@ -1069,6 +1078,13 @@ class FilesWidget(BaseInlineIconWidget):
         idx = proxy_model.mapToSource(index).row()
         if not index.isValid():
             return
+
+        needs_info = []
+        needs_thumbnail = []
+        visible = []
+        source_model = proxy_model.sourceModel()
+        data = source_model.model_data()
+        generate_thumbnails = source_model.generate_thumbnails
 
         # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
@@ -1106,10 +1122,10 @@ class FilesWidget(BaseInlineIconWidget):
                 return
 
         if needs_info:
-            FileInfoWorker.add_to_queue(needs_info)
+            source_model.InfoThread.Worker.add_to_queue(needs_info)
 
         if generate_thumbnails:
-            FileThumbnailWorker.add_to_queue(needs_thumbnail)
+            source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
 
     def eventFilter(self, widget, event):
         """Custom event filter to drawm the background pixmap."""
