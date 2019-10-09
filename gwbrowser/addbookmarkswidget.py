@@ -451,7 +451,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.add_servers_from_config()
 
         # Restoring previous setting
-        val = local_settings.value(u'widgets/AddBookmarksWidget/server')
+        val = local_settings.value(u'widget/AddBookmarksWidget/server')
         if val:
             for idx in xrange(self.pick_server_widget.view().count()):
                 item = self.pick_server_widget.view().item(idx)
@@ -463,7 +463,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             self.pick_server_widget.view().selectionModel().currentIndex())
 
         # Restoring previous setting
-        val = local_settings.value(u'widgets/AddBookmarksWidget/job')
+        val = local_settings.value(u'widget/AddBookmarksWidget/job')
         if val:
             for idx in xrange(self.pick_job_widget.view().count()):
                 item = self.pick_job_widget.view().item(idx)
@@ -567,15 +567,15 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         self.pick_server_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widgets/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
+                u'widget/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_job_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widgets/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
+                u'widget/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_root_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widgets/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
+                u'widget/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
         )
 
         self.ok_button.pressed.connect(self.add_bookmark)
