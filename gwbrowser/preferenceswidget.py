@@ -28,11 +28,6 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
 
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Maximum,
-            QtWidgets.QSizePolicy.Maximum,
-        )
-
         label = PaintedLabel(
             label, size=common.LARGE_FONT_SIZE, color=common.TEXT)
         self.layout().addWidget(label)
@@ -361,16 +356,15 @@ class ServersSettingsWidget(BaseSettingsWidget):
         self.local_description.setValidator(validator)
 
     def _connectSignals(self):
-        pass
-        # self.primary_mac_editor.textChanged.connect(self.save_settings)
-        # self.primary_win_editor.textChanged.connect(self.save_settings)
-        # self.primary_description.textChanged.connect(self.save_settings)
-        # self.backup_mac_editor.textChanged.connect(self.save_settings)
-        # self.backup_win_editor.textChanged.connect(self.save_settings)
-        # self.backup_description.textChanged.connect(self.save_settings)
-        # self.local_mac_editor.textChanged.connect(self.save_settings)
-        # self.local_win_editor.textChanged.connect(self.save_settings)
-        # self.local_description.textChanged.connect(self.save_settings)
+        self.primary_mac_editor.textChanged.connect(self.save_settings)
+        self.primary_win_editor.textChanged.connect(self.save_settings)
+        self.primary_description.textChanged.connect(self.save_settings)
+        self.backup_mac_editor.textChanged.connect(self.save_settings)
+        self.backup_win_editor.textChanged.connect(self.save_settings)
+        self.backup_description.textChanged.connect(self.save_settings)
+        self.local_mac_editor.textChanged.connect(self.save_settings)
+        self.local_win_editor.textChanged.connect(self.save_settings)
+        self.local_description.textChanged.connect(self.save_settings)
 
     def _init_values(self):
         """Populates the edit fields with the saved values."""
@@ -393,9 +387,6 @@ class ServersSettingsWidget(BaseSettingsWidget):
         self.local_mac_editor.setText(_get(u'local', u'mac'))
         self.local_win_editor.setText(_get(u'local', u'win'))
         self.local_description.setText(_get(u'local', u'description'))
-
-    def sizeHint(self):
-        return QtCore.QSize(500, 500)
 
     def hideEvent(self, event):
         self.save_settings()
@@ -478,10 +469,6 @@ class SectionsStackWidget(QtWidgets.QStackedWidget):
 
     def __init__(self, parent=None):
         super(SectionsStackWidget, self).__init__(parent=parent)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
 
 
 class PreferencesWidget(QtWidgets.QSplitter):
@@ -510,7 +497,6 @@ class PreferencesWidget(QtWidgets.QSplitter):
         scroll_area = QtWidgets.QScrollArea(parent=self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        scroll_area.setMinimumHeight(640)
         self.addWidget(scroll_area)
 
         self.sections_stack_widget = SectionsStackWidget(parent=self)

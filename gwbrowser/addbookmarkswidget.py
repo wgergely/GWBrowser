@@ -46,9 +46,6 @@ class ComboboxButton(QtWidgets.QPushButton):
         self.setStatusTip(description)
         self.setToolTip(description)
         self.setFixedHeight(common.ROW_BUTTONS_HEIGHT * 0.8)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding)
 
         self.pressed.connect(self.show_view)
 
@@ -483,7 +480,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         """Creates the AddBookmarksWidget's ui and layout."""
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN * 2
+        o = common.MARGIN
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
 
@@ -514,7 +511,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         description = u'Select the bookmark folder.'
         self.pick_root_widget = ComboboxButton(
             u'bookmark', description=description, parent=self)
-        row.layout().addWidget(self.pick_root_widget)
+        row.layout().addWidget(self.pick_root_widget, 1)
 
         self.layout().addSpacing(common.MARGIN)
         self.layout().addStretch(1)
