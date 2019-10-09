@@ -63,7 +63,7 @@ class FilterButton(BaseControlButton):
     def state(self):
         if not self.current_widget():
             return False
-        filter_text = self.current_widget().model().filterText()
+        filter_text = self.current_widget().model().filter_text()
         if not filter_text:
             return False
         if filter_text == u'/':
@@ -74,7 +74,7 @@ class FilterButton(BaseControlButton):
         """The action to perform when finished editing the filter text."""
         if not self.current_widget():
             return
-        filter_text = self.current_widget().model().filterText()
+        filter_text = self.current_widget().model().filter_text()
         filter_text = common.clean_filter_text(filter_text)
         #
         parent = self.stacked_widget().parent().stackedwidget

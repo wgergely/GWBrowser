@@ -180,7 +180,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         self.parentwidget = parent
 
-        self._filtertext = None
+        self._filter_text = None
         self._filterflags = {
             common.MarkedAsActive: None,
             common.MarkedAsArchived: None,
@@ -199,7 +199,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         model = self.sourceModel()
         data_key = model.data_key()
         cls = model.__class__.__name__
-        self._filtertext = local_settings.value(
+        self._filter_text = local_settings.value(
             u'widget/{}/{}/filtertext'.format(cls, data_key))
 
         self._filterflags = {
@@ -211,9 +211,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsFavourite)),
         }
 
-        if self._filtertext is None:
-            self._filtertext = None
-
         if self._filterflags[common.MarkedAsActive] is None:
             self._filterflags[common.MarkedAsActive] = False
         if self._filterflags[common.MarkedAsArchived] is None:
@@ -221,24 +218,25 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self._filterflags[common.MarkedAsFavourite] is None:
             self._filterflags[common.MarkedAsFavourite] = False
 
-    def filterText(self):
+    def filter_text(self):
         """Filters the list of items containing this path segment."""
-        return self._filtertext
+        return self._filter_text
 
     @QtCore.Slot(unicode)
     def set_filter_text(self, val):
         """Sets the path-segment to use as a filter."""
         model = self.sourceModel()
         data_key = model.data_key()
-
-        if val == self._filtertext:
-            return
-
-        self._filtertext = val
-
         cls = model.__class__.__name__
         k = u'widget/{}/{}/filtertext'.format(cls, data_key)
-        local_settings.setValue(k, self._filtertext)
+
+        # We're in sync and there's nothing to do
+        local_val = local_settings.value(k)
+        if val == self._filter_text == local_val:
+            return
+
+        self._filter_text = val
+        local_settings.setValue(k, val)
 
     def filterFlag(self, flag):
         """Returns the current flag-filter."""
@@ -278,7 +276,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         # Let's construct the searchable filter text here
         # It is a multiline string of the filepath, desciption and file details
-        filtertext = self.filterText()
+        filtertext = self.filter_text()
         if filtertext:
             searchable = u'{}\n{}\n{}'.format(
                 data[source_row][QtCore.Qt.StatusTipRole],
@@ -288,7 +286,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
             # Any string prefixed by -- will be excluded automatically
             match_it = re.finditer(
-                r'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+                ur'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
             for m in match_it:
                 match = re.search(m.group(2), searchable,
                                   flags=re.IGNORECASE | re.MULTILINE)
@@ -703,7 +701,10 @@ class BaseListWidget(QtWidgets.QListView):
         proxy.setSourceModel(model)
         proxy.initialize_filter_values()
 
+
         self.setModel(proxy)
+
+        model.modelAboutToBeReset.connect(proxy.initialize_filter_values)
 
         # Index repaints
         model.indexUpdated.connect(
@@ -1357,7 +1358,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             model = self.model()
             source_model = model.sourceModel()
-            filter_text = model.filterText()
+            filter_text = model.filter_text()
 
             sizehint = self.itemDelegate().sizeHint(
                 self.viewOptions(), QtCore.QModelIndex())

@@ -156,10 +156,10 @@ class BrowserWidget(QtWidgets.QWidget):
         f = self.fileswidget
         ff = self.favouriteswidget
 
-        b.model().filterTextChanged.emit(b.model().filterText())
-        a.model().filterTextChanged.emit(a.model().filterText())
-        f.model().filterTextChanged.emit(f.model().filterText())
-        ff.model().filterTextChanged.emit(ff.model().filterText())
+        b.model().filterTextChanged.emit(b.model().filter_text())
+        a.model().filterTextChanged.emit(a.model().filter_text())
+        f.model().filterTextChanged.emit(f.model().filter_text())
+        ff.model().filterTextChanged.emit(ff.model().filter_text())
 
         b.model().filterFlagChanged.emit(common.MarkedAsActive,
                                          b.model().filterFlag(common.MarkedAsActive))
@@ -545,8 +545,16 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
         f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().set_data_key)
-        #
-        f.model().sourceModel().dataKeyChanged.connect(lambda x: f.model()._filtertext)
+
+        @QtCore.Slot(unicode)
+        def set_filter_text(data_key):
+            model = f.model().sourceModel()
+            cls = model.__class__.__name__
+            k = u'widget/{}/{}/filtertext'.format(cls, data_key)
+            f.model().set_filter_text(local_settings.value(k))
+
+        f.model().sourceModel().dataKeyChanged.connect(set_filter_text)
+
         f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().check_data)
         f.model().sourceModel().dataKeyChanged.connect(
@@ -558,7 +566,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Visible widget
         lc.listChanged.connect(s.setCurrentIndex)
-        # Labels
+
         lc.dataKeyChanged.connect(lc.textChanged)
         f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
 

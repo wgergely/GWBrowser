@@ -518,10 +518,10 @@ class FilterEditor(QtWidgets.QWidget):
     def _connectSignals(self):
         if self.parent():
             self.parent().parent().resized.connect(self.adjust_size)
-        self.editor_widget.finished.connect(self.finished)
-        self.finished.connect(self.close)
         self.subfolders_widget.itemActivated.connect(lambda i: self.finished.emit(i.text()))
         self.subfolders_widget.itemClicked.connect(lambda i: self.finished.emit(i.text()))
+        self.editor_widget.finished.connect(self.finished)
+        self.finished.connect(self.close)
 
     def add_keywords(self, keys):
         scrollToItem = None
