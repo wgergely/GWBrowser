@@ -3,7 +3,7 @@
 }
 
 #nprogress .bar {
-  background: #3eaf7c;
+  background: #4e3eaf;
   height: 2px;
   left: 0;
   position: fixed;
@@ -13,9 +13,9 @@
 }
 
 #nprogress .peg {
-  -webkit-box-shadow: 0 0 10px #3eaf7c, 0 0 5px #3eaf7c;
+  -webkit-box-shadow: 0 0 10px #4e3eaf, 0 0 5px #4e3eaf;
   -webkit-transform: rotate(3deg) translateY(-4px);
-  box-shadow: 0 0 10px #3eaf7c, 0 0 5px #3eaf7c;
+  box-shadow: 0 0 10px #4e3eaf, 0 0 5px #4e3eaf;
   display: block;
   height: 100%;
   opacity: 1;
@@ -37,7 +37,7 @@
   -webkit-animation: nprogress-spinner .4s linear infinite;
   -webkit-box-sizing: border-box;
   animation: nprogress-spinner .4s linear infinite;
-  border-color: #3eaf7c transparent transparent #3eaf7c;
+  border-color: #4e3eaf transparent transparent #4e3eaf;
   border-radius: 50%;
   border-style: solid;
   border-width: 2px;
@@ -478,7 +478,7 @@ a {
 }
 
 a, p a code {
-  color: #3eaf7c
+  color: #4e3eaf
 }
 
 p a code {
@@ -910,7 +910,7 @@ blockquote {
 }
 
 .nav-links a.router-link-active, .nav-links a:hover {
-  color: #3eaf7c
+  color: #4e3eaf
 }
 
 .nav-links .nav-item {
@@ -1055,12 +1055,12 @@ blockquote {
 }
 
 .sidebar .toctree-l1 a.current, .sidebar .toctree-l2 a.current {
-  color: #3eaf7c;
+  color: #4e3eaf;
   font-weight: 600
 }
 
 .sidebar .toctree-l1 a:hover, .sidebar .toctree-l2 a:hover {
-  color: #3eaf7c
+  color: #4e3eaf
 }
 
 .sidebar .toctree-l1.current a {
@@ -1072,7 +1072,7 @@ blockquote {
 }
 
 .sidebar .toctree-l1 a.current {
-  border-left-color: #3eaf7c
+  border-left-color: #4e3eaf
 }
 
 .sidebar .toctree-l2 a {

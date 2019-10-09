@@ -23,14 +23,10 @@
 
 ***
 
-<center><h3>Simple asset browser to help small teams to organize animation and
-film productions.</h3></center>
+<center><h3>A simple PySide2-based asset browser to help navigate folders and
+files used in film and animation projects.</h3></center>
 
 ***
-
-
-Aimed at small and medium sized teams, GWBrowser can help you find files and
-folders by filtering, adding descriptions, thumbnails and notes to assets and files.
 
 
 <p align="center">
@@ -41,15 +37,14 @@ folders by filtering, adding descriptions, thumbnails and notes to assets and fi
 ### Key features
 
 * **MacOS** & **Windows** standalone versions
-* **Maya** plugin
-* Creates job and asset folder templates
+* **Maya** plugin & project control
+* **Maya** scene and alembic exports and imports
 * To-do lists and descriptions
-* Automatic thumbnails by **OpenImageIO** from most image and video formats
-* MacOS-style thumbnail previews
-* Screen-captures as thumbnails
+* Job and asset folder templates
+* Thumbnails **OpenImageIO** from most image and video formats
 * Drag and drop
-* Favourites and archive flags
-* Quick access to the file-system, no more clicking though a thousand folders!
+* Sort, filter files and folder using names, archived, and favourite tags
+* Quick access to the file-system
 * Alembic-cache content previews
 * and more...
 
@@ -58,13 +53,13 @@ folders by filtering, adding descriptions, thumbnails and notes to assets and fi
 Dedicated maya plug-in
 
 <p align="center">
- <img src="./gwbrowser/rsc/maya.png" alt="Maya"/>
+ <img src="./gwbrowser/rsc/maya_preview.png" alt="Maya"/>
 </p>
 
 ***
 ### [Download the latest binary release](https://github.com/wgergely/GWBrowser/releases)
 
-### [Documentation](https://wgergely.github.io/GWBrowser)
+### [Documentation](https://wgergely.github.io/GWBrowser) (Docs are work in progress!)
 ***
 
 <p align="center">
