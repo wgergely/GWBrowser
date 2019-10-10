@@ -773,7 +773,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.save_timer.setSingleShot(False)
         self.save_timer.timeout.connect(self.save_settings)
 
-        self.setWindowTitle(u'Notes and Comments')
+        self.setWindowTitle(u'Notes and Tasks')
         self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
@@ -815,8 +815,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         # Name label
         if self.index.isValid():
-            p = self.index.data(common.ParentRole)
-            text = u' {} - {} '.format(p[-1], p[-2]).upper()
+            name = self.index.data(QtCore.Qt.DisplayRole)
+            text = u'  Notes and Tasks: {} '.format(name).upper()
         else:
             text = u'  Notes and Tasks...  '
         if len(text) >= 48:
@@ -846,7 +846,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.setMinimumWidth(self.todoeditors_widget.minimumWidth() + 6)
         self.setMinimumHeight(100)
 
-        self.scrollarea = QtWidgets.QScrollArea()
+        self.scrollarea = QtWidgets.QScrollArea(parent=self)
         self.scrollarea.setWidgetResizable(True)
         self.scrollarea.setWidget(self.todoeditors_widget)
         # self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)

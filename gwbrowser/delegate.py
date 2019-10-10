@@ -381,6 +381,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
 
         text = u'{}'.format(index.data(common.TodoCountRole))
+        center = count_rect.center()
+        count_rect.setWidth(36)
+        count_rect.moveCenter(center)
         common.draw_aliased_text(
             painter, font, count_rect, text, QtCore.Qt.AlignCenter, common.TEXT)
 

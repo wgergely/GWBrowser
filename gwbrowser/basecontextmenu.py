@@ -233,6 +233,22 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
+    def add_rv_menu(self, menu_set):
+        """Creates a menu containing"""
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'shotgun', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+
+        path = common.get_sequence_startpath(
+            self.index.data(QtCore.Qt.StatusTipRole))
+        menu_set['Push to RV'] = {
+            u'icon': pixmap,
+            u'action': lambda: common.push_to_rv(path)
+        }
+        return menu_set
+
+
+
+    @contextmenu
     def add_copy_menu(self, menu_set):
         """Menu containing the subfolders of the selected item."""
         copy_icon = ImageCache.get_rsc_pixmap(

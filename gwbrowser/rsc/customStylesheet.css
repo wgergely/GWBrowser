@@ -415,7 +415,7 @@ TodoItemEditor:focus {{
 	border: 1px solid rgba(0,0,0,30) ;
 }}
 
-TodoItemWidget QScrollBar {{
+/* TodoItemWidget QScrollBar {{
 	background: rgba({TEXT});
 	border: none;
 	border-radius: 0px;
@@ -445,4 +445,48 @@ TodoItemWidget QScrollBar::sub-line {{
 	background: rgba({TEXT});
 	border: none;
 	border-radius: 0px;
+}} */
+
+TodoEditorWidget QScrollBar {{
+	background: rgba({TEXT});
+	border: none;
+	border-radius: 0px;
+	width:8px;
+	height: 8px;
+}}
+TodoEditorWidget QScrollBar:vertical,
+TodoEditorWidget QScrollBar:horizontal {{
+	background: rgba({TEXT});
+	border: none;
+}}
+TodoEditorWidget QScrollBar::handle {{
+	background: rgba({SECONDARY_TEXT});
+	border: none;
+	border-radius: 4px;
+	border: 1px solid rgba(0,0,0,20);
+	max-height: 250px;
+	min-height: 50px;
+}}
+
+TodoEditorWidget QScrollBar::add-page,
+TodoEditorWidget QScrollBar::sub-page,
+TodoEditorWidget QScrollBar::add-line,
+TodoEditorWidget QScrollBar::up-arrow,
+TodoEditorWidget QScrollBar::down-arrow,
+TodoEditorWidget QScrollBar::sub-line {{
+	background: rgba({TEXT});
+	border: none;
+	border-radius: 0px;
+}}
+
+PreferencesWidget {{
+		margin: 8px;
+}}
+PreferencesWidget::handle:horizontal  {{
+		border-right: 1px solid rgba(0,0,0,150);
+
+}}
+
+SectionSwitcherWidget  {{
+	border: 1px solid rgba(0,0,0,100);
 }}
