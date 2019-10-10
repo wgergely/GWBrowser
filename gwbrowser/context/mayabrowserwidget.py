@@ -447,6 +447,18 @@ def capture_viewport():
         "backgroundTop": (0.6, 0.6, 0.6),
         "backgroundBottom": (0.4, 0.4, 0.4),
     }
+    CameraOptions = {
+        "displayGateMask": False,
+        "displayResolution": False,
+        "displayFilmGate": False,
+        "displayFieldChart": False,
+        "displaySafeAction": False,
+        "displaySafeTitle": False,
+        "displayFilmPivot": False,
+        "displayFilmOrigin": False,
+        "overscan": 1.0,
+        "depthOfField": False,
+    }
 
     capture_folder = get_preference(u'capture_path')
     capture_folder = capture_folder if capture_folder else common.CAPTURE_PATH
@@ -461,7 +473,7 @@ def capture_viewport():
 
     _dir = QtCore.QFileInfo(complete_filename).dir()
     if not _dir.exists():
-        _dir.mkpath('.')
+        _dir.mkpath(u'.')
 
     panel = cmds.getPanel(withFocus=True)
     camera = cmds.modelPanel(panel, query=True, camera=True)
@@ -469,7 +481,7 @@ def capture_viewport():
     mCapture.capture(
         camera=camera,
         display_options=DisplayOptions,
-        camera_options=options['camera_options'],
+        camera_options=CameraOptions,
         viewport2_options=options['viewport2_options'],
         viewport_options=options['viewport_options'],
         format=u'image',
