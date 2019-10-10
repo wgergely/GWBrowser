@@ -158,7 +158,7 @@ class AssetModel(BaseModel):
 
         dkey = self.data_key()
         dtype = self.data_type()
-        rowsize = QtCore.QSize(common.WIDTH, common.ASSET_ROW_HEIGHT)
+        rowsize = QtCore.QSize(0, common.ASSET_ROW_HEIGHT)
 
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
@@ -241,55 +241,7 @@ class AssetModel(BaseModel):
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
             }
-            #
-            # index = self.index(idx, 0)
-            # settings = AssetSettings(index)
-            # data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
-            #
-            # image = ImageCache.get(
-            #     data[idx][common.ThumbnailPathRole],
-            #     rowsize.height() - common.ROW_SEPARATOR,
-            #     overwrite=True)
-            #
-            # if image:
-            #     if not image.isNull():
-            #         color = ImageCache.get(
-            #             data[idx][common.ThumbnailPathRole],
-            #             'BackgroundColor')
-            #
-            #         data[idx][common.ThumbnailRole] = image
-            #         data[idx][common.ThumbnailBackgroundRole] = color
-            #
-            # flags = (
-            #     QtCore.Qt.ItemIsSelectable
-            #     | QtCore.Qt.ItemIsEnabled
-            #     | QtCore.Qt.ItemIsEditable
-            # )
-            #
-            # if entry.name == active_paths[u'asset']:
-            #     flags = flags | common.MarkedAsActive
-            # if settings.value(u'config/archived'):
-            #     flags = flags | common.MarkedAsArchived
-            # if filepath.lower() in sfavourites:
-            #     flags = flags | common.MarkedAsFavourite
-            # data[idx][common.FlagsRole] = flags
-            #
-            # # Todos
-            # todos = settings.value(u'config/todos')
-            # todocount = 0
-            # if todos:
-            #     todocount = len([k for k in todos if not todos[k]
-            #                      [u'checked'] and todos[k][u'text']])
-            # else:
-            #     todocount = 0
-            # data[idx][common.TodoCountRole] = todocount
-            #
-            # description = settings.value(u'config/description')
-            # data[idx][common.DescriptionRole] = description
-            # data[idx][common.SortBySize] = todocount
-            #
-            # # Only including this for compatibility with the methods used by the file-items
-            # data[idx][common.FileInfoLoaded] = True
+
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -308,7 +260,7 @@ class AssetsWidget(ThreadedBaseWidget):
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
-        
+
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
@@ -412,3 +364,13 @@ class AssetsWidget(ThreadedBaseWidget):
             ImageCache.instance().pick(source_index)
             return
         self.activate(self.selectionModel().currentIndex())
+
+    def showEvent(self, event):
+        source_index = self.model().sourceModel().active_index()
+        if not source_index.isValid():
+            return super(AssetsWidget, self).showEvent(event)
+
+        index = self.model().mapFromSource(source_index)
+        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+        self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+        return super(AssetsWidget, self).showEvent(event)
