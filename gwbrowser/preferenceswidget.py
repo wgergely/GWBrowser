@@ -487,10 +487,6 @@ class PreferencesWidget(QtWidgets.QSplitter):
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
-        # QtWidgets.QHBoxLayout(self)
-        # o = 0
-        # self.layout().setContentsMargins(o, o, o, o)
-
         self.sections_list_widget = SectionSwitcherWidget(parent=self)
         self.addWidget(self.sections_list_widget)
 
