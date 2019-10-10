@@ -505,7 +505,7 @@ class MayaBrowserButton(ClickableIconButton):
     incrementRequested = QtCore.Signal()
     alembicExportRequested = QtCore.Signal(unicode, dict, bool)
 
-    context_menu_cls = BrowserButtonContextMenu
+    ContextMenu = BrowserButtonContextMenu
 
     def __init__(self, parent=None):
         super(MayaBrowserButton, self).__init__(
@@ -585,7 +585,7 @@ class MayaBrowserButton(ClickableIconButton):
             self.customContextMenuRequested.emit(event.pos())
             return
 
-        widget = self.context_menu_cls(parent=self)
+        widget = self.ContextMenu(parent=self)
         common.set_custom_stylesheet(widget)
         widget.move(self.mapToGlobal(self.rect().bottomLeft()))
         widget.setFixedWidth(300)

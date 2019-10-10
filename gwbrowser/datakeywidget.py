@@ -173,12 +173,12 @@ class DataKeyViewDelegate(BaseDelegate):
 
 class DataKeyView(QtWidgets.QListView):
     """The view responsonsible for displaying the available data-keys."""
+    ContextMenu = DataKeyContextMenu
 
     def __init__(self, parent=None, altparent=None):
         super(DataKeyView, self).__init__(parent=parent)
         self.altparent = altparent
         self._context_menu_active = False
-        self.context_menu_cls = DataKeyContextMenu
 
         common.set_custom_stylesheet(self)
         self.setSizePolicy(
@@ -268,7 +268,7 @@ class DataKeyView(QtWidgets.QListView):
             return
         width = self.viewport().geometry().width()
 
-        widget = self.context_menu_cls(index, parent=self)
+        widget = self.ContextMenu(index, parent=self)
         rect = self.visualRect(index)
         offset = self.visualRect(index).height() - common.INDICATOR_WIDTH
         widget.move(

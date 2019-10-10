@@ -520,9 +520,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
         self.ok_button = PaintedButton(u'Add bookmark')
         row.layout().addWidget(self.ok_button, 1)
-        self.close_button = PaintedButton(u'Close')
-        row.layout().addWidget(self.close_button, 1)
-        self.layout().addWidget(row)
 
     def _connectSignals(self):
         self.pick_server_widget.view().itemClicked.connect(
@@ -579,7 +576,6 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         )
 
         self.ok_button.pressed.connect(self.add_bookmark)
-        self.close_button.pressed.connect(self.reject)
 
     def _updateGeometry(self, *args, **kwargs):
         pos = self.parent().mapToGlobal(self.parent().rect().topLeft())

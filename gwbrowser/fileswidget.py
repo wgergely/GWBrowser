@@ -157,7 +157,8 @@ class FileInfoWorker(BaseWorker):
         # We can ask the worker specifically to check if the file exists
         # We're using this for the favourites to remove stale items from our list
         if exists:
-            file_info = QtCore.QFileInfo(data[QtCore.Qt.StatusTipRole])
+            _path = common.get_sequence_endpath(data[QtCore.Qt.StatusTipRole])
+            file_info = QtCore.QFileInfo(_path)
             if not file_info.exists():
                 flags = QtCore.Qt.ItemIsEditable | common.MarkedAsArchived
                 data[common.FlagsRole] = flags
@@ -896,6 +897,8 @@ class FilesWidget(ThreadedBaseWidget):
 
     """
     SourceModel = FilesModel
+    Delegate = FilesWidgetDelegate
+    ContextMenu = FilesWidgetContextMenu
 
     def __init__(self, parent=None):
         """Initializes the files widget.
@@ -906,18 +909,14 @@ class FilesWidget(ThreadedBaseWidget):
 
         """
         super(FilesWidget, self).__init__(parent=parent)
+        self.drag_source_index = QtCore.QModelIndex()
+
         self.setWindowTitle(u'Files')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
         self.setDragEnabled(True)
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
         self.setAutoScroll(True)
-
-        # Context menu, delegate, model...
-        self.context_menu_cls = FilesWidgetContextMenu
-        self.setItemDelegate(FilesWidgetDelegate(parent=self))
-        # Drag start
-        self.drag_source_index = QtCore.QModelIndex()
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)

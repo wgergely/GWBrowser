@@ -700,6 +700,8 @@ class BaseListWidget(QtWidgets.QListView):
     favouritesChanged = QtCore.Signal()
 
     SourceModel = None
+    Delegate = None
+    ContextMenu = None
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
@@ -720,7 +722,6 @@ class BaseListWidget(QtWidgets.QListView):
         self._current_selection = None
         self._location = None
         self.collector_count = 0
-        self.context_menu_cls = None
         self.description_editor_widget = editors.DescriptionEditorWidget(
             parent=self)
         self.description_editor_widget.hide()
@@ -768,6 +769,7 @@ class BaseListWidget(QtWidgets.QListView):
             lambda: self.viewport().setMouseTracking(True))
 
         self.set_model(self.SourceModel(parent=self))
+        self.setItemDelegate(self.Delegate(parent=self))
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -1395,12 +1397,15 @@ class BaseListWidget(QtWidgets.QListView):
         shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
         alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
+
         if shift_modifier or alt_modifier or control_modifier:
             self.customContextMenuRequested.emit(index, self)
             return
 
-        widget = self.context_menu_cls(  # pylint: disable=E1102
-            index, parent=self)
+        if not self.ContextMenu:
+            return
+
+        widget = self.ContextMenu(index, parent=self)
 
         if index.isValid():
             rect = self.visualRect(index)

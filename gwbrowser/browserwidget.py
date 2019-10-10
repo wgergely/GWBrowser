@@ -491,9 +491,9 @@ class BrowserWidget(QtWidgets.QWidget):
         #     lambda: self.show_progress_message(u'Loading assets...'))
         # a.model().sourceModel().modelReset.connect(self.hide_progress_message)
         #
-        # f.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.show_progress_message(u'Loading files...'))
-        # f.model().sourceModel().modelReset.connect(self.hide_progress_message)
+        f.model().sourceModel().modelAboutToBeReset.connect(
+            lambda: self.show_progress_message(u'Loading files...'))
+        f.model().sourceModel().modelReset.connect(self.hide_progress_message)
         # No need to show this...
         # ff.model().sourceModel().modelAboutToBeReset.connect(
         #     lambda: self.show_progress_message(u'Loading favourites..'))

@@ -127,7 +127,7 @@ class SelectButton(QtWidgets.QLabel):
     clicked = QtCore.Signal()
     widgetMoved = QtCore.Signal(QtCore.QRect)
 
-    Context_menu_cls = None
+    ContextMenu = None
 
     def __init__(self, label, view, parent=None):
         super(SelectButton, self).__init__(parent=parent)
@@ -180,9 +180,19 @@ class SelectButton(QtWidgets.QLabel):
             self.setText(self._label)
             self.update()
             return
-        if index.column() != 0:
-            index = index.sibling(index.row(), 0)
-        text = index.data(QtCore.Qt.DisplayRole)
+        if isinstance(index.model(), SelectFolderModel):
+            if index.column() != 0:
+                index = index.sibling(index.row(), 0)
+            file_path = self.view().model().filePath(index)
+            root_path = self.view().model().rootPath()
+            if root_path not in file_path:
+                self.view().selectionModel().setCurrentIndex(QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
+                self.setText(self._label)
+                self.update()
+                return
+            text = file_path.lower().replace(root_path.lower(), u'').strip('/')
+        else:
+            text = index.data(QtCore.Qt.DisplayRole)
         self.setText(text)
         self.update()
 
@@ -288,10 +298,10 @@ class SelectButton(QtWidgets.QLabel):
         painter.end()
 
     def contextMenuEvent(self, event):
-        if not self.Context_menu_cls:
+        if not self.ContextMenu:
             return
 
-        w = self.Context_menu_cls(parent=self)
+        w = self.ContextMenu(parent=self)
         pos = self.rect().bottomLeft()
         pos = self.mapToGlobal(pos)
         w.move(pos)
@@ -330,7 +340,7 @@ class SelectButton(QtWidgets.QLabel):
         self.widgetMoved.emit(self.rect())
 
 
-class SelectListView(BaseInlineIconWidget):
+class BaseListView(BaseInlineIconWidget):
     """The base class used to view the ``BookmarksModel`` and ``AssetModel``
     models. The class is an control icon-less version of the
     ``BaseInlineIconWidget`` widget.
@@ -339,13 +349,12 @@ class SelectListView(BaseInlineIconWidget):
     is **not** connected in this class.
 
     """
+    SourceModel = None
+    Delegate = None
+    ContextMenu = None
 
-    def __init__(self, model, delegate, parent=None):
-        super(SelectListView, self).__init__(parent=parent)
-        self.set_model(model)
-        delegate.setParent(self)
-        self.setItemDelegate(delegate)
-
+    def __init__(self, parent=None):
+        super(BaseListView, self).__init__(parent=parent)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
@@ -389,6 +398,50 @@ class SelectListView(BaseInlineIconWidget):
 
     def inline_icons_count(self):
         return 0
+
+class BookmarksWidgetDelegate2(BookmarksWidgetDelegate):
+
+    def paint(self, painter, option, index):
+        """Defines how the ``AssetsWidget``'s' items should be painted."""
+        args = self._get_paint_args(painter, option, index)
+        self.paint_background(*args)
+        self.paint_name(*args)
+        self.paint_count_icon(*args)
+        self.paint_archived(*args)
+        self.paint_selection_indicator(*args)
+
+    def sizeHint(self, index, parent):
+        return QtCore.QSize(0, common.CONTROL_HEIGHT)
+
+
+class BookmarksListView(BaseListView):
+    SourceModel = BookmarksModel
+    Delegate = BookmarksWidgetDelegate2
+    ContextMenu = None
+
+
+class ThreadlessAssetModel(AssetModel):
+    def __init__(self, parent=None):
+        super(ThreadlessAssetModel, self).__init__(thread_count=0, parent=parent)
+
+
+class AssetsWidgetDelegate2(AssetsWidgetDelegate):
+
+    def paint(self, painter, option, index):
+        """Defines how the ``AssetsWidget``'s' items should be painted."""
+        args = self._get_paint_args(painter, option, index)
+        self.paint_background(*args)
+        self.paint_name(*args)
+        self.paint_archived(*args)
+        self.paint_selection_indicator(*args)
+
+    def sizeHint(self, index, parent):
+        return QtCore.QSize(0, common.CONTROL_HEIGHT)
+
+class AssetsListView(BaseListView):
+    SourceModel = ThreadlessAssetModel
+    Delegate = AssetsWidgetDelegate2
+    ContextMenu = None
 
 
 class SelectFolderViewContextMenu(BaseContextMenu):
@@ -528,9 +581,10 @@ class SelectFolderView(QtWidgets.QTreeView):
     when the widget is shown.
 
     """
-    context_menu_cls = SelectFolderViewContextMenu
+    SourceModel = SelectFolderModel
+    ContextMenu = SelectFolderViewContextMenu
 
-    def __init__(self, model, parent=None):
+    def __init__(self, parent=None):
         super(SelectFolderView, self).__init__(parent=parent)
         self._initialized = False
         self._context_menu_open = False
@@ -539,8 +593,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.setUniformRowHeights(True)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setModel(model)
-        model.setParent(self)
+        self.setModel(self.SourceModel(parent=self))
 
         for n in xrange(4):
             self.hideColumn(n + 1)
@@ -702,7 +755,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         width = (width * 0.5) if width > 400 else width
         width = width - common.INDICATOR_WIDTH
 
-        widget = self.context_menu_cls(  # pylint: disable=E1102
+        widget = self.ContextMenu(  # pylint: disable=E1102
             index, parent=self)
         if index.isValid():
             rect = self.visualRect(index)
@@ -1124,8 +1177,12 @@ class NameVersionWidget(NameBase):
         versions = []
         ext = self.window().extension.lower()
         for entry in gwscandir.scandir(file_info.path()):
-            path = entry.path.replace(u'\\', u'/').lower()
 
+            path = entry.path.replace(u'\\', u'/').lower()
+            basename = path.split(u'/').pop(-1)
+
+            if not basename.lower().startswith(self.window().name_prefix_widget.text()):
+                continue
             # Let's skip the files with a different version
             if not path.endswith(ext):
                 continue
@@ -1137,6 +1194,9 @@ class NameVersionWidget(NameBase):
             _match = common.is_valid_filename(path.lower())
             if not _match:
                 continue
+                # _math = common.get_sequence(_match)
+                # if not _match:
+                # _version = _match.group(2).lower()
             _version = _match.group(5).lower()
             versions.append(int(_version))
 
@@ -1511,23 +1571,16 @@ class AddFileWidget(QtWidgets.QDialog):
             100, description=u'Add thumbnail...', parent=self)
 
         # Bookmarks
-        bookmark_model = BookmarksModel()
-        bookmark_delegate = BookmarksWidgetDelegate()
-        bookmark_view = SelectListView(
-            bookmark_model, bookmark_delegate, parent=self)
+        bookmark_view = BookmarksListView(parent=self)
         self.bookmark_widget = SelectButton(
             u'Select bookmark...', bookmark_view, parent=self)
 
-        # Assets
-        asset_model = AssetModel()
-        asset_delegate = AssetsWidgetDelegate()
-        asset_view = SelectListView(asset_model, asset_delegate, parent=self)
+        asset_view = AssetsListView(parent=self)
         self.asset_widget = SelectButton(
             u'Select asset...', asset_view, parent=self)
 
         # Folder
-        folder_model = SelectFolderModel()
-        folder_view = SelectFolderView(folder_model, parent=self)
+        folder_view = SelectFolderView(parent=self)
         self.folder_widget = SelectButton(
             u'Select folder...', folder_view, parent=self)
 
@@ -1618,8 +1671,9 @@ class AddFileWidget(QtWidgets.QDialog):
         self.bookmark_widget.view().clicked.connect(
             self.bookmark_widget.view().activated)
         self.asset_widget.view().clicked.connect(self.asset_widget.view().activated)
+
         self.folder_widget.view().doubleClicked.connect(
-            self.folder_widget.view().itemActivated)
+            self.folder_widget.view().activated)
 
         self.initialize_timer.timeout.connect(
             self.bookmark_widget.view().model().sourceModel().modelDataResetRequested)
@@ -1645,8 +1699,14 @@ class AddFileWidget(QtWidgets.QDialog):
             self.name_mode_widget.folder_changed)
 
         # Version label
+        self.folder_widget.view().clicked.connect(
+            lambda x: self.name_version_widget.check_version())
         self.folder_widget.view().model().directoryLoaded.connect(
             self.name_version_widget.check_version)
+
+        self.name_mode_widget.activated.connect(lambda x: self.name_version_widget.check_version())
+        self.name_prefix_widget.textChanged.connect(lambda x: self.name_version_widget.check_version())
+        self.name_user_widget.textChanged.connect(lambda x: self.name_version_widget.check_version())
 
         # Buttons
         self.cancel_button.clicked.connect(self.reject)

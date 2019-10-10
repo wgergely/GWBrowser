@@ -157,8 +157,8 @@ class FavouritesModel(FilesModel):
             for f in favourites:
                 seq = common.get_sequence(f)
                 if seq:
-                    superfluous.add(seq.expand(ur'\1\3.\4'))
-            favourites = [f for f in favourites if f not in superfluous]
+                    superfluous.add(seq.expand(ur'\1\3.\4').lower())
+            favourites = [f for f in favourites if f.lower() not in superfluous]
         sfavourites = set(favourites)
 
         # A suitable substitue for `self._parent_item`
@@ -344,19 +344,18 @@ class DropIndicatorWidget(QtWidgets.QWidget):
 class FavouritesWidget(FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
     SourceModel = FavouritesModel
+    Delegate = FavouritesWidgetDelegate
+    ContextMenu = FavouritesWidgetContextMenu
+
     def __init__(self, parent=None):
         super(FavouritesWidget, self).__init__(parent=parent)
+        self.indicatorwidget = DropIndicatorWidget(parent=self)
+        self.indicatorwidget.hide()
+
         self.setWindowTitle(u'Favourites')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
-
-        # Context menu, delegate, model...
-        self.context_menu_cls = FavouritesWidgetContextMenu
-        self.setItemDelegate(FavouritesWidgetDelegate(parent=self))
-
-        self.indicatorwidget = DropIndicatorWidget(parent=self)
-        self.indicatorwidget.hide()
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""

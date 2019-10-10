@@ -480,7 +480,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark',
             u'icon': pixmap,
-            u'action': self.parent().show_add_bookmark_widget
+            u'action': lambda: self.parent().parent().parent().listcontrolwidget.listChanged.emit(5)
         }
         return menu_set
 

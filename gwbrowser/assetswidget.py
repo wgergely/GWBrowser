@@ -175,7 +175,7 @@ class AssetModel(BaseModel):
         server, job, root = self._parent_item
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
-        nth = 1
+        nth = 3
         c = 0
         for entry in gwscandir.scandir(bookmark_path):
             if entry.name.startswith(u'.'):
@@ -302,13 +302,12 @@ class AssetModel(BaseModel):
 class AssetsWidget(ThreadedBaseWidget):
     """The view used to display the contents of a ``AssetModel`` instance."""
     SourceModel = AssetModel
-
+    Delegate = AssetsWidgetDelegate
+    ContextMenu = AssetsWidgetContextMenu
+    
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
-        self.setItemDelegate(AssetsWidgetDelegate(parent=self))
-
-        self.context_menu_cls = AssetsWidgetContextMenu
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons. There's no need to

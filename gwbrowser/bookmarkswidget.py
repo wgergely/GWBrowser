@@ -334,16 +334,16 @@ class BookmarksModel(BaseModel):
 class BookmarksWidget(BaseInlineIconWidget):
     """The view used to display the contents of a ``BookmarksModel`` instance."""
     SourceModel = BookmarksModel
+    Delegate = BookmarksWidgetDelegate
+    ContextMenu = BookmarksWidgetContextMenu
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
-        self.context_menu_cls = BookmarksWidgetContextMenu
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
         self.setDragDropOverwriteMode(False)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setWindowTitle(u'Bookmarks')
-        self.setItemDelegate(BookmarksWidgetDelegate(parent=self))
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
