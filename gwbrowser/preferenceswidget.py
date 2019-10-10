@@ -108,8 +108,8 @@ class MayaSettingsWidget(BaseSettingsWidget):
         row.layout().addWidget(self.sync_maya_project_button)
         self.layout().addSpacing(common.MARGIN)
 
-        add_label(u'Export/Import', parent=self)
-        label = u'Change the path of Alembic caches below. The following tokens have to be included:\n\n{workspace}: The path to the current workspace.\n{exports}: The name of the exports folder ("exports" by default).\n{set}: The name of the geometry group (eg. "character_rig_geo")\n\nThere must be a version number present as well (this will be automatically incremented). Eg. v01, v001 or v0001, etc.'
+        add_label(u'Export & Import', parent=self)
+        label = u'Edit the Alembic cache export path below. The following tokens have to be included:\n\n{workspace}: The path to the current workspace.\n{exports}: The name of the exports folder ("exports" by default).\n{set}: The name of the geometry group (eg. "character_rig_geo")\n\nThere must be a version number present as well (this will be automatically incremented when exporting). Eg. v01, v001 or v0001, etc.'
         label = QtWidgets.QLabel(label)
         label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
@@ -118,6 +118,47 @@ class MayaSettingsWidget(BaseSettingsWidget):
         self.alembic_export_path = add_line_edit(
             u'eg. {workspace}/{exports}/abc/{set}/{set}_v001.abc', parent=row)
         row.layout().addWidget(self.alembic_export_path, 1)
+
+        label = u'Edit the viewport capture path below. The path is relative to the current workspace.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Capture folder', parent=self)
+        self.capture_path = add_line_edit(
+            u'eg. viewport_captures/animation', parent=row)
+        row.layout().addWidget(self.capture_path, 1)
+
+        label = u'Enter the path to FFMPEG. When set, FFMPEG will be used to convert viewport captures to h264 videos.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'ffmpeg path', parent=self)
+        self.ffmpeg_path = add_line_edit(
+            u'//myserver/path/to/ffmpeg.exe', parent=row)
+        row.layout().addWidget(self.ffmpeg_path, 1)
+
+        label = u'Enter the path to FFMPEG. When set, FFMPEG will be used to convert viewport captures to h264 videos.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'ffmpeg path', parent=self)
+        self.ffmpeg_path = add_line_edit(
+            u'eg. //myserver/path/to/ffmpeg.exe', parent=row)
+        row.layout().addWidget(self.ffmpeg_path, 1)
+
+        label = u'Edit the FFMPEG convert command below. This is the argument passed to ffmpeg to create, by default, a h264 video. The following tokens have to be included:\n\n{framerate}: The scene\' framerate\n{start}: The first frame of the sequence, eg. 1001\n{source} Path to the capture\n{dest}: Output path'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'ffmpeg command', parent=self)
+        self.ffmpeg_command = add_line_edit(
+            u'eg. -loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p "{dest}"', parent=row)
+        row.layout().addWidget(self.ffmpeg_command, 1)
+
 
         self.layout().addStretch(1)
 
@@ -132,6 +173,10 @@ class MayaSettingsWidget(BaseSettingsWidget):
             lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
         self.alembic_export_path.textChanged.connect(
             lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
+        self.capture_path.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'capture_path'), x))
+        self.ffmpeg_path.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'ffmpeg_path'), x))
 
     def _init_values(self):
         val = local_settings.value(self.name(u'disable_active_sync'))
@@ -155,6 +200,18 @@ class MayaSettingsWidget(BaseSettingsWidget):
             self.alembic_export_path.setText(val)
         else:
             self.alembic_export_path.setText(common.ALEMBIC_EXPORT_PATH)
+
+        val = local_settings.value(self.name(u'capture_path'))
+        if val:
+            self.capture_path.setText(val)
+        else:
+            self.capture_path.setText(common.CAPTURE_PATH)
+
+        val = local_settings.value(self.name(u'ffmpeg_path'))
+        if val:
+            self.ffmpeg_path.setText(val)
+        else:
+            self.ffmpeg_path.setText(u'')
 
 
 class ApplicationSettingsWidget(BaseSettingsWidget):

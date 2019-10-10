@@ -14,6 +14,7 @@ command:
 """
 import re
 import string
+import subprocess
 import uuid
 import time
 import sys
@@ -31,6 +32,7 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
+
 #
 # try:  # No need to use our bundled alembic module if one is already present in our environment
 #     from alembic import Abc
@@ -43,7 +45,6 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.common_ui import ClickableIconButton
-
 from gwbrowser.addfilewidget import AddFileWidget
 
 
@@ -53,6 +54,58 @@ maya_button = None
 __instance__ = None
 """The gwbrowser widget instance."""
 
+
+MAYA_FPS = {
+  u'hour': 2.777777777777778e-4,
+  u'min': 0.0166667,
+  u'sec': 1.0,
+  u'millisec': 1000.0,
+  u'game': 15.0,
+  u'film': 24.0,
+  u'pal': 25.0,
+  u'ntsc': 30.0,
+  u'show': 48.0,
+  u'palf': 50.0,
+  u'ntscf': 60.0,
+  u'2fps': 2.0,
+  u'3fps': 3.0,
+  u'4fps': 4.0,
+  u'5fps': 5.0,
+  u'6fps': 6.0,
+  u'8fps': 8.0,
+  u'10fps': 10.0,
+  u'12fps': 12.0,
+  u'16fps': 16.0,
+  u'20fps': 20.0,
+  u'40fps': 40.0,
+  u'75fps': 75.0,
+  u'100fps': 100.0,
+  u'120fps': 120.0,
+  u'200fps': 200.0,
+  u'240fps': 240.0,
+  u'250fps': 250.0,
+  u'300fps': 300.0,
+  u'400fps': 400.0,
+  u'500fps': 500.0,
+  u'600fps': 600.0,
+  u'750fps': 750.0,
+  u'1200fps': 1200.0,
+  u'1500fps': 1500.0,
+  u'2000fps': 2000.0,
+  u'3000fps': 3000.0,
+  u'3000fps': 3000.0,
+  u'6000fps': 6000.0,
+  u'23.976fps': 23.976,
+  u'29.97fps': 29.97,
+  u'29.97df': 29.97,
+  u'47.952fps': 47.952,
+  u'59.94fps': 59.94,
+  u'44100fps': 44100.0,
+  u'48000fps': 48000.0,
+}
+
+get_framerate = lambda: MAYA_FPS[cmds.currentUnit(query=True, time=True)]
+get_preference = lambda k: local_settings.value(u'preferences/MayaSettings/{}'.format(k))
 
 def instance():
     return __instance__
@@ -368,6 +421,135 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         cmds.evalDeferred(teardown)
 
 
+@QtCore.Slot()
+def capture_viewport():
+    """
+    Capture Viewport - Gergely Wootsch, Glassworks (c) 2019
+
+    A capture script script to save a versioned capture to ``capture_folder``.
+    The script will output to the an image sequence that is converted to a h264 using FFMpeg.
+    It will also create a ``latest`` folder with a copy of the last exported image sequence.
+
+    Usage:
+
+        .. code-block:: python
+
+        MayaBrowserWidget.capture_viewport()
+
+
+    """
+    import gwbrowser.context._mCapture as mCapture
+    file_format = u'png'
+
+    DisplayOptions = {
+        "displayGradient": True,
+        "background": (0.5, 0.5, 0.5),
+        "backgroundTop": (0.6, 0.6, 0.6),
+        "backgroundBottom": (0.4, 0.4, 0.4),
+    }
+
+    capture_folder = get_preference(u'capture_path')
+    capture_folder = capture_folder if capture_folder else common.CAPTURE_PATH
+
+    workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
+    file_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
+    complete_filename = u'{workspace}/{capture_folder}/{scene}/{scene}'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        scene=file_info.baseName()
+    )
+
+    _dir = QtCore.QFileInfo(complete_filename).dir()
+    if not _dir.exists():
+        _dir.mkpath('.')
+
+    panel = cmds.getPanel(withFocus=True)
+    camera = cmds.modelPanel(panel, query=True, camera=True)
+    options = mCapture.parse_view(panel)
+    mCapture.capture(
+        camera=camera,
+        display_options=DisplayOptions,
+        camera_options=options['camera_options'],
+        viewport2_options=options['viewport2_options'],
+        viewport_options=options['viewport_options'],
+        format=u'image',
+        compression=file_format,
+        filename=complete_filename,
+        overwrite=True,
+        viewer=False
+    )
+
+    asset = workspace.split(u'/').pop()
+    start = cmds.playbackOptions(q=True, animationStartTime=True)
+    end = cmds.playbackOptions(q=True, animationEndTime=True)
+    duration = (end - start) + 1
+
+    # Publish master
+    master_dir_path = u'{workspace}/{capture_folder}/latest'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        asset=asset,
+    )
+    _dir = QtCore.QDir(master_dir_path)
+    if not _dir.exists():
+        _dir.mkpath('.')
+
+    for n in xrange(int(duration)):
+        versioned_path = u'{workspace}/{capture_folder}/{scene}/{scene}.{n}.{ext}'.format(
+            workspace=workspace,
+            capture_folder=capture_folder,
+            scene=file_info.baseName(),
+            n=str(n + int(start)).zfill(4),
+            ext=file_format
+        )
+        master_path = u'{workspace}/{capture_folder}/latest/{asset}_capture_{n}.{ext}'.format(
+            workspace=workspace,
+            capture_folder=capture_folder,
+            asset=asset,
+            n=str(n + int(start)).zfill(4),
+            ext=file_format
+        )
+        master_file = QtCore.QFile(master_path)
+        if master_file.exists():
+            master_file.remove()
+            QtCore.QFile.copy(versioned_path, master_path)
+
+
+    # FFMPEG
+    ffmpeg_bin_path = get_preference(u'ffmpeg_path')
+    ffmpeg_bin_path = ffmpeg_bin_path if ffmpeg_bin_path else None
+    if not ffmpeg_bin_path:
+        return
+    ffmpeg_info = QtCore.QFileInfo(ffmpeg_bin_path)
+    if not ffmpeg_info.exists():
+        print u'# Could not find FFMPEG.'
+        return
+
+    ffmpeg_in_path = u'{workspace}/{capture_folder}/{scene}/{scene}.%4d.{ext}'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        scene=file_info.baseName(),
+        ext=file_format
+    )
+    ffmpeg_out_path = u'{workspace}/{capture_folder}/{scene}.mov'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        scene=file_info.baseName(),
+        ext=file_format
+    )
+    ffmpeg_command = get_preference(u'ffmpeg_command')
+    ffmpeg_command = ffmpeg_command if ffmpeg_command else common.FFMPEG_COMMAND
+    args = ffmpeg_command.format(
+        source=ffmpeg_in_path,
+        framerate=24,
+        start=int(cmds.playbackOptions(q=True, animationStartTime=True)),
+        dest=ffmpeg_out_path
+    )
+
+    cmd = u'{} {}'.format(ffmpeg_bin_path, args)
+    subprocess.Popen(cmd)
+
+
 def contextmenu2(func):
     """Decorator to create a menu set."""
     @wraps(func)
@@ -398,6 +580,10 @@ class BrowserButtonContextMenu(BaseContextMenu):
         #
         self.add_separator()
         #
+        self.add_capture_menu()
+        #
+        self.add_separator()
+        #
         self.add_show_menu()
         #
         self.add_separator()
@@ -412,7 +598,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
             u'action': self.parent().saveRequested.emit
         }
         menu_set[u'save_increment'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE),
+            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE),
             u'text': u'Save quick increment...',
             u'action': self.parent().incrementRequested.emit
         }
@@ -494,6 +680,16 @@ class BrowserButtonContextMenu(BaseContextMenu):
                         u'action': functools.partial(common.reveal, '/'.join(location))
                     }
 
+        return menu_set
+
+
+    @contextmenu
+    def add_capture_menu(self, menu_set):
+        menu_set[u'capture'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport...',
+            u'action': capture_viewport
+        }
         return menu_set
 
 
@@ -617,6 +813,10 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         self.add_export_alembic_menu()
 
+        self.add_separator()
+
+        self.add_capture_menu()
+
     @contextmenu2
     def add_scene_actions_menu(self, menu_set, browserwidget=None):
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
@@ -731,11 +931,21 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
+    @contextmenu2
+    def add_capture_menu(self, menu_set, browserwidget=None):
+        menu_set[u'capture'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport...',
+            u'action': capture_viewport
+        }
+        return menu_set
+
+
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
 
     def __init__(self, parent=None):
-        global __instance__
+        global __instance__ # sorry
         __instance__ = self
         super(MayaBrowserWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
@@ -772,9 +982,15 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot()
     def active_changed(self):
         """Slot called when an active asset changes."""
-        val = local_settings.value(
-            u'preferences/MayaSettings/disable_workspace_warnings')
+        val = get_preference(u'disable_workspace_warnings')
         if val is True:
+            return
+
+        # We will get a warning when we change to a new bookmark and GWBrowser
+        # unsets the current workspace. Whilst technically correct it is
+        # counterintuitive to be warned of a direct action just performed
+        assets_model = self.browserwidget.assetswidget.model().sourceModel()
+        if not assets_model.active_index().isValid():
             return
 
         workspace_info = QtCore.QFileInfo(
@@ -820,8 +1036,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         with their file save destination.
 
         """
-        val = local_settings.value(
-            u'preferences/MayaSettings/disable_save_warnings')
+        val = get_preference(u'disable_save_warnings')
         if val is True:
             return
 
@@ -978,8 +1193,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def set_workspace(self):
         """Slot responsible for updating the Maya workspace."""
         # When active sync is disabled we won't
-        val = local_settings.value(
-            'preferences/MayaSettings/disable_workspace_sync')
+        val = get_preference(u'disable_workspace_sync')
         if val is True:
             return
 
@@ -1160,8 +1374,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def import_alembic(self, file_path):
         """Imports the given scene locally."""
         if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
-            cmds.loadPlugin("AbcExport.mll", quiet=True)
-            cmds.loadPlugin("AbcImport.mll", quiet=True)
+            cmds.loadPlugin('AbcExport.mll', quiet=True)
+            cmds.loadPlugin('AbcImport.mll', quiet=True)
 
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
         if not file_info.exists():
@@ -1170,22 +1384,22 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         seq = common.get_sequence(file_info.fileName())
         if seq:
             prefix, _, _, ext = seq.groups()
-            prefix = re.sub(r'_v$', '', prefix).rstrip('_')
+            prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
         else:
-            prefix = file_info.baseName().rstrip('_')
+            prefix = file_info.baseName().rstrip(u'_')
 
         # Create namespace
         n = 1
-        ns = 'abc_{}{}'.format(prefix, n)
+        ns = u'abc_{}{}'.format(prefix, n)
         while True:
             if cmds.namespace(exists=ns):
                 n += 1
-                ns = 'abc_{}{}'.format(prefix, n)
+                ns = u'abc_{}{}'.format(prefix, n)
                 continue
             break
         cmds.namespace(add=ns)
-        root_node = '{}:{}'.format(ns, prefix)
-        cmds.createNode('transform', name=root_node)
+        root_node = u'{}:{}'.format(ns, prefix)
+        cmds.createNode(u'transform', name=root_node)
 
         cmds.AbcImport(
             file_path,
@@ -1202,9 +1416,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def import_referenced_alembic(self, file_path):
         """Imports the given scene as a reference."""
-        if not cmds.pluginInfo('AbcImport.mll', loaded=True, q=True):
-            cmds.loadPlugin("AbcExport.mll", quiet=True)
-            cmds.loadPlugin("AbcImport.mll", quiet=True)
+        if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
+            cmds.loadPlugin('AbcExport.mll', quiet=True)
+            cmds.loadPlugin('AbcImport.mll', quiet=True)
 
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
         if not file_info.exists():
@@ -1213,22 +1427,22 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         seq = common.get_sequence(file_info.fileName())
         if seq:
             prefix, _, _, ext = seq.groups()
-            prefix = re.sub(r'_v$', '', prefix).rstrip('_')
+            prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
         else:
-            prefix = file_info.baseName().rstrip('_')
+            prefix = file_info.baseName().rstrip(u'_')
 
         # Create namespace
         n = 1
-        ns = 'abc_{}{}'.format(prefix, n)
+        ns = u'abc_{}{}'.format(prefix, n)
         while True:
             if cmds.namespace(exists=ns):
                 n += 1
-                ns = 'abc_{}{}'.format(prefix, n)
+                ns = u'abc_{}{}'.format(prefix, n)
                 continue
             break
 
         # The namespace will be created by the cmds.file() command
-        rfn = '{}_RN'.format(ns)
+        rfn = u'{}_RN'.format(ns)
 
         cmds.file(
             file_info.filePath(),
@@ -1237,10 +1451,10 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             rfn=rfn,
         )
         members = cmds.namespaceInfo(ns, listNamespace=True, fullName=True)
-        root_node = '{}:{}'.format(ns, prefix)
-        cmds.createNode('transform', name=root_node)
+        root_node = u'{}:{}'.format(ns, prefix)
+        cmds.createNode(u'transform', name=root_node)
         for member in members:
-            if cmds.objectType(member) != 'transform':
+            if cmds.objectType(member) != u'transform':
                 continue
             cmds.parent(member, root_node)
 
@@ -1267,10 +1481,13 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # We want to handle the exact name of the file
         # We'll remove the namespace, strip underscores
-        set_name = set_name.replace(u':', '_').strip(u'_')
+        set_name = set_name.replace(u':', u'_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
-        file_path = unicode(common.ALEMBIC_EXPORT_PATH).format(
+        p = self.browserwidget.preferences_widget
+        template = p.sections_stack_widget.widget(2).alembic_export_path.text()
+        template = template if template else common.ALEMBIC_EXPORT_PATH
+        file_path = unicode(template).format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
             set=set_name
@@ -1296,7 +1513,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # Last-minute double-check to make sure we're not overwriting anything...
         if file_info.exists():
-            raise RuntimeError('# Unable to save file: File already exists.')
+            raise RuntimeError(u'# Unable to save file: File already exists.')
 
         if frame:
             start = cmds.currentTime(query=True)
