@@ -553,7 +553,7 @@ def capture_viewport():
     ffmpeg_command = ffmpeg_command if ffmpeg_command else common.FFMPEG_COMMAND
     args = ffmpeg_command.format(
         source=ffmpeg_in_path,
-        framerate=24,
+        framerate=get_framerate(),
         start=int(cmds.playbackOptions(q=True, animationStartTime=True)),
         dest=ffmpeg_out_path
     )
@@ -968,7 +968,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.setWindowTitle(u'GWBrowser')
 
         self._createUI()
-        self.setFocusProxy(self.browserwidget)
+        self.setFocusProxy(self.browserwidget.stackedwidget)
 
         self.workspace_timer = QtCore.QTimer(parent=self)
         self.workspace_timer.setSingleShot(False)

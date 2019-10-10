@@ -136,16 +136,6 @@ class MayaSettingsWidget(BaseSettingsWidget):
         self.layout().addWidget(label)
         row = add_row(u'ffmpeg path', parent=self)
         self.ffmpeg_path = add_line_edit(
-            u'//myserver/path/to/ffmpeg.exe', parent=row)
-        row.layout().addWidget(self.ffmpeg_path, 1)
-
-        label = u'Enter the path to FFMPEG. When set, FFMPEG will be used to convert viewport captures to h264 videos.'
-        label = QtWidgets.QLabel(label)
-        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
-        label.setWordWrap(True)
-        self.layout().addWidget(label)
-        row = add_row(u'ffmpeg path', parent=self)
-        self.ffmpeg_path = add_line_edit(
             u'eg. //myserver/path/to/ffmpeg.exe', parent=row)
         row.layout().addWidget(self.ffmpeg_path, 1)
 
@@ -177,6 +167,8 @@ class MayaSettingsWidget(BaseSettingsWidget):
             lambda x: local_settings.setValue(self.name(u'capture_path'), x))
         self.ffmpeg_path.textChanged.connect(
             lambda x: local_settings.setValue(self.name(u'ffmpeg_path'), x))
+        self.ffmpeg_command.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'ffmpeg_command'), x))
 
     def _init_values(self):
         val = local_settings.value(self.name(u'disable_active_sync'))
@@ -212,6 +204,12 @@ class MayaSettingsWidget(BaseSettingsWidget):
             self.ffmpeg_path.setText(val)
         else:
             self.ffmpeg_path.setText(u'')
+
+        val = local_settings.value(self.name(u'ffmpeg_command'))
+        if val:
+            self.ffmpeg_command.setText(val)
+        else:
+            self.ffmpeg_command.setText(common.FFMPEG_COMMAND)
 
 
 class ApplicationSettingsWidget(BaseSettingsWidget):
