@@ -203,7 +203,7 @@ class ComboboxButton(QtWidgets.QPushButton):
         dialog.setViewMode(QtWidgets.QFileDialog.Detail)
         res = dialog.getExistingDirectory(
             self,
-            u'Pick the location of the assets folder',
+            u'Pick a folder to bookmark',
             file_info.filePath(),
             QtWidgets.QFileDialog.ShowDirsOnly |
             QtWidgets.QFileDialog.DontResolveSymlinks |
@@ -373,55 +373,25 @@ class AddJobButton(ClickableIconButton):
             description=u'Click to add a new job to the server',
         )
 
+class RefreshButton(ClickableIconButton):
+    """The button responsible for showing the ``AddJobWidget``."""
+
+    def __init__(self, parent=None):
+        super(RefreshButton, self).__init__(
+            u'refresh',
+            (common.TEXT, common.SECONDARY_TEXT),
+            common.ROW_BUTTONS_HEIGHT * 0.66,
+            description=u'Click to refresh',
+        )
+
     def state(self):
         """The state of the button will disabled if no server has been selected."""
-        m = self.parent().parent().pick_server_widget.view().selectionModel()
-        if not m.hasSelection():
-            return False
         return True
 
     @QtCore.Slot()
     def action(self):
         """Slot connected to the clicked signal."""
-        if not self.state():
-            return
-
-        m = self.parent().parent().pick_server_widget.view().selectionModel()
-        index = m.currentIndex()
-        if not index.isValid():
-            return
-
-        from gwbrowser.addjobwidget import AddJobWidget
-        widget = AddJobWidget(index.data(
-            QtCore.Qt.StatusTipRole), parent=self.parent())
-        widget.exec_()
-
-        if not widget.last_asset_added:
-            return
-
-        w = self.parent().parent()
-        sindex = w.pick_server_widget.view().selectionModel().currentIndex()
-
-        # Adding the newly created item
-        w.add_jobs_from_server_folder(sindex)
-        w.validate()
-
-        # Selecting the newly added job
-        last_asset_added = u'{}/{}'.format(
-            sindex.data(QtCore.Qt.StatusTipRole), widget.last_asset_added)
-
-        for n in xrange(w.pick_job_widget.view().model().rowCount()):
-            index = w.pick_job_widget.view().model().index(n, 0)
-
-            if index.data(QtCore.Qt.StatusTipRole).lower() == last_asset_added.lower():
-                w.pick_job_widget.view().selectionModel().setCurrentIndex(
-                    index, QtCore.QItemSelectionModel.ClearAndSelect)
-
-                # Adding the root folders
-                rindex = w.pick_job_widget.view().selectionModel().currentIndex()
-                w.add_root_folders(rindex)
-                w.validate()
-                return
+        self.parent().parent().initialize()
 
 
 class AddBookmarksWidget(QtWidgets.QDialog):
@@ -448,6 +418,17 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 
     def initialize(self):
         """Populates the comboboxes and selects the currently active items (if there's any)."""
+        self.pick_server_widget.view().selectionModel().blockSignals(True)
+        self.pick_job_widget.view().selectionModel().blockSignals(True)
+        self.pick_root_widget.view().selectionModel().blockSignals(True)
+
+        self.pick_server_widget.view().selectionModel().setCurrentIndex(
+            QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
+        self.pick_job_widget.view().selectionModel().setCurrentIndex(
+            QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
+        self.pick_root_widget.view().selectionModel().setCurrentIndex(
+            QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
+
         self.add_servers_from_config()
 
         # Restoring previous setting
@@ -474,6 +455,10 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.add_root_folders(
             self.pick_job_widget.view().selectionModel().currentIndex())
 
+        self.pick_server_widget.view().selectionModel().blockSignals(False)
+        self.pick_job_widget.view().selectionModel().blockSignals(False)
+        self.pick_root_widget.view().selectionModel().blockSignals(False)
+
         self.validate()
 
     def _createUI(self):
@@ -496,6 +481,8 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_server_widget = ComboboxButton(
             u'server', description=description, parent=self)
         row.layout().addWidget(self.pick_server_widget, 1)
+        self.refresh_button = RefreshButton(parent=self)
+        row.layout().addWidget(self.refresh_button, 0)
 
         # Job
         row = add_row(u'Select job', parent=self)
