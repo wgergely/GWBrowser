@@ -610,17 +610,6 @@ def _independent_panel(width, height, off_screen=False):
         ...   cmds.capture()
 
     """
-    current_state = {}
-    for panel in cmds.getPanel(type=u'modelPanel'):
-        ptr = OpenMayaUI.MQtUtil.findControl(panel)
-        if not ptr:
-            continue
-        panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-        if not panel_widget:
-            continue
-        current_state[panel] = panel_widget.isVisible()
-        panel_widget.hide()
-
     _width, _height = get_width_height(800, width, height)
     window = cmds.window(width=_width,
                          height=_height,
@@ -651,14 +640,6 @@ def _independent_panel(width, height, off_screen=False):
     try:
         yield panel
     finally:
-        for panel in current_state:
-            ptr = OpenMayaUI.MQtUtil.findControl(panel)
-            if not ptr:
-                continue
-            panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-            if not panel_widget:
-                continue
-            panel_widget.setVisible(current_state[panel])
         # Delete the panel to fix memory leak (about 5 mb per capture)
         cmds.deleteUI(panel, panel=True)
         cmds.deleteUI(window)
