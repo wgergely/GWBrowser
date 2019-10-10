@@ -120,7 +120,7 @@ class FavouritesModel(FilesModel):
         )
 
         dkey = self.data_key()
-        rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        rowsize = QtCore.QSize(0, common.ROW_HEIGHT)
 
         # It is quicker to cache these here...
         default_thumbnail_image = ImageCache.get(

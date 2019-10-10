@@ -32,13 +32,6 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-
-#
-# try:  # No need to use our bundled alembic module if one is already present in our environment
-#     from alembic import Abc
-# except ImportError:
-#     from gwalembic.alembic import Abc
-
 from gwbrowser.settings import Active, local_settings
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
@@ -422,6 +415,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
 
 @QtCore.Slot()
+
+@QtCore.Slot()
 def capture_viewport(size=1.0):
     """
     Capture Viewport - Gergely Wootsch, Glassworks (c) 2019
@@ -439,7 +434,7 @@ def capture_viewport(size=1.0):
 
     """
     import gwbrowser.context._mCapture as mCapture
-    file_format = u'png'
+    ext = u'png'
 
     DisplayOptions = {
         "displayGradient": True,
@@ -464,11 +459,11 @@ def capture_viewport(size=1.0):
     capture_folder = capture_folder if capture_folder else common.CAPTURE_PATH
 
     workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
-    file_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
+    scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
     complete_filename = u'{workspace}/{capture_folder}/{scene}/{scene}'.format(
         workspace=workspace,
         capture_folder=capture_folder,
-        scene=file_info.baseName()
+        scene=scene_info.baseName()
     )
 
     _dir = QtCore.QFileInfo(complete_filename).dir()
@@ -476,27 +471,25 @@ def capture_viewport(size=1.0):
         _dir.mkpath(u'.')
 
     panel = cmds.getPanel(withFocus=True)
+    # Not all panels are modelEditors
+    if panel is None or cmds.objectTypeUI(panel) != u'modelEditor':
+        mbox = QtWidgets.QMessageBox()
+        mbox.setWindowTitle(u'Viewport Capture')
+        mbox.setIcon(QtWidgets.QMessageBox.Warning)
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Ok)
+        mbox.setText(u'Could not start the capture because the active panel is not a viewport.\nActivate a viewport before starting the capture and try again!')
+        mbox.setInformativeText(u'')
+        mbox.exec_()
+        return
+
     camera = cmds.modelPanel(panel, query=True, camera=True)
     options = mCapture.parse_view(panel)
-
     options['viewport_options'].update({
-        # renderer
-        # "rendererName": "vp2Renderer",
-        # "fogging": False,
-        # "fogMode": "linear",
-        # "fogDensity": 1,
-        # "fogStart": 1,
-        # "fogEnd": 1,
-        # "fogColor": (0, 0, 0, 0),
-        # "shadows": False,
-        # "displayTextures": True,
-        # "displayLights": "default",
-        # "useDefaultMaterial": False,
         "wireframeOnShaded": False,
         "displayAppearance": 'smoothShaded',
         "selectionHiliteDisplay": False,
         "headsUpDisplay": False,
-        # object display
         "imagePlane": False,
         "nurbsCurves": False,
         "nurbsSurfaces": False,
@@ -524,34 +517,77 @@ def capture_viewport(size=1.0):
         "dimensions": False,
         "handles": False,
         "pivots": False,
-        # "textures": False,
         "strokes": False,
         "motionTrails": False
     })
 
-    cmds.ogs(reset=True)
+    # Hide existing panels
+    current_state = {}
+    for panel in cmds.getPanel(type=u'modelPanel'):
+        if not cmds.modelPanel(panel, exists=True):
+            continue
+
+        try:
+            ptr = OpenMayaUI.MQtUtil.findControl(panel)
+            if not ptr:
+                continue
+            panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+            current_state[panel] = panel_widget.isVisible()
+            if panel_widget:
+                panel_widget.hide()
+        except:
+            print '# An error occured hiding {}'.format(panel)
+
+
+    width = int(cmds.getAttr('defaultResolution.width') * size)
+    height = int(cmds.getAttr('defaultResolution.height') * size)
+
     mCapture.capture(
         camera=camera,
-        width=int(cmds.getAttr('defaultResolution.width') * size),
-        height=int(cmds.getAttr('defaultResolution.height') * size),
+        width=width,
+        height=height,
         display_options=DisplayOptions,
         camera_options=CameraOptions,
         viewport2_options=options['viewport2_options'],
         viewport_options=options['viewport_options'],
         format=u'image',
-        compression=file_format,
+        compression=ext,
         filename=complete_filename,
         overwrite=True,
         viewer=False
     )
     cmds.ogs(reset=True)
 
+    # Show hidden panels
+    for panel in cmds.getPanel(type=u'modelPanel'):
+        if not cmds.modelPanel(panel, exists=True):
+            continue
+        try:
+            ptr = OpenMayaUI.MQtUtil.findControl(panel)
+            if not ptr:
+                continue
+            panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+            if panel_widget:
+                if panel in current_state:
+                    panel_widget.setVisible(current_state[panel])
+                else:
+                    panel_widget.setVisible(True)
+        except:
+            print '# Could not restore {} after capture'.format(panel)
+
+
+    print '# Capture saved to:\n{}'.format(complete_filename)
+
+
+    publish_capture(workspace, capture_folder, scene_info, ext)
+    convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext)
+
+def publish_capture(workspace, capture_folder, scene_info, ext):
     asset = workspace.split(u'/').pop()
-    start = cmds.playbackOptions(q=True, animationStartTime=True)
-    end = cmds.playbackOptions(q=True, animationEndTime=True)
+    start = cmds.playbackOptions(q=True, minTime=True)
+    end = cmds.playbackOptions(q=True, maxTime=True)
     duration = (end - start) + 1
 
-    # Publish master
     master_dir_path = u'{workspace}/{capture_folder}/latest'.format(
         workspace=workspace,
         capture_folder=capture_folder,
@@ -560,29 +596,36 @@ def capture_viewport(size=1.0):
     _dir = QtCore.QDir(master_dir_path)
     if not _dir.exists():
         _dir.mkpath('.')
+    if not QtCore.QFileInfo(master_dir_path).isWritable():
+        print '# Could not publish the current capture to the "latest" folder: the output folder is not writable.'
 
+    idx = 0
     for n in xrange(int(duration)):
         versioned_path = u'{workspace}/{capture_folder}/{scene}/{scene}.{n}.{ext}'.format(
             workspace=workspace,
             capture_folder=capture_folder,
-            scene=file_info.baseName(),
+            scene=scene_info.baseName(),
             n=str(n + int(start)).zfill(4),
-            ext=file_format
+            ext=ext
         )
         master_path = u'{workspace}/{capture_folder}/latest/{asset}_capture_{n}.{ext}'.format(
             workspace=workspace,
             capture_folder=capture_folder,
             asset=asset,
             n=str(n + int(start)).zfill(4),
-            ext=file_format
+            ext=ext
         )
         master_file = QtCore.QFile(master_path)
-        if master_file.exists():
-            master_file.remove()
-            QtCore.QFile.copy(versioned_path, master_path)
+        if idx == 0 and not QtCore.QFileInfo(versioned_path).exists():
+            print '# Could not find {}'.format(versioned_path)
+            return
 
+        master_file.remove()
+        QtCore.QFile.copy(versioned_path, master_path)
+        idx += 1
+    common.reveal(versioned_path)
 
-    # FFMPEG
+def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
     ffmpeg_bin_path = get_preference(u'ffmpeg_path')
     ffmpeg_bin_path = ffmpeg_bin_path if ffmpeg_bin_path else None
     if not ffmpeg_bin_path:
@@ -595,26 +638,34 @@ def capture_viewport(size=1.0):
     ffmpeg_in_path = u'{workspace}/{capture_folder}/{scene}/{scene}.%4d.{ext}'.format(
         workspace=workspace,
         capture_folder=capture_folder,
-        scene=file_info.baseName(),
-        ext=file_format
+        scene=scene_info.baseName(),
+        ext=ext
     )
     ffmpeg_out_path = u'{workspace}/{capture_folder}/{scene}.mov'.format(
         workspace=workspace,
         capture_folder=capture_folder,
-        scene=file_info.baseName(),
-        ext=file_format
+        scene=scene_info.baseName(),
+        ext=ext
     )
     ffmpeg_command = get_preference(u'ffmpeg_command')
     ffmpeg_command = ffmpeg_command if ffmpeg_command else common.FFMPEG_COMMAND
+
     args = ffmpeg_command.format(
         source=ffmpeg_in_path,
         framerate=get_framerate(),
-        start=int(cmds.playbackOptions(q=True, animationStartTime=True)),
+        start=int(cmds.playbackOptions(q=True, minTime=True)),
         dest=ffmpeg_out_path
     )
 
     cmd = u'{} {}'.format(ffmpeg_bin_path, args)
-    subprocess.Popen(cmd)
+    # Prevent cmd.exe window popup on Windows
+    if common.get_platform() == u'win':
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = subprocess.SW_HIDE
+        subprocess.Popen(cmd, startupinfo=startupinfo)
+    else:
+        subprocess.Popen(cmd)
 
 
 def contextmenu2(func):

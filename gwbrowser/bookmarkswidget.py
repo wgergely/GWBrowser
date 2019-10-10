@@ -147,7 +147,7 @@ class BookmarksModel(BaseModel):
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        rowsize = QtCore.QSize(common.WIDTH, common.BOOKMARK_ROW_HEIGHT)
+        rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
         active_paths = Active.paths()
 
         items = local_settings.value(

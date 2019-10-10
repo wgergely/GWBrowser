@@ -336,8 +336,7 @@ class DataKeyModel(BaseModel):
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        rowsize = QtCore.QSize(
-            common.WIDTH, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
+        rowsize = QtCore.QSize(0, int(common.BOOKMARK_ROW_HEIGHT / 1.5))
 
         flags = (
             QtCore.Qt.ItemIsSelectable |

@@ -86,6 +86,16 @@ class FileInfoWorker(BaseWorker):
         if description:
             data[common.DescriptionRole] = description
 
+        # Todos
+        todos = settings.value(u'config/todos')
+        todocount = 0
+        if todos:
+            todocount = [k for k in todos if todos[k][u'text'] and not todos[k][u'checked']]
+            todocount = len(todocount)
+        else:
+            todocount = 0
+        data[common.TodoCountRole] = todocount
+
         # For sequence items we will work out the name of the sequence
         # based on the frames contained in the sequence
         # This is a moderately costly operation hence, we're doing this here
@@ -427,7 +437,7 @@ class FilesModel(BaseModel):
             return
 
         dkey = self.data_key()
-        rowsize = QtCore.QSize(common.WIDTH, common.ROW_HEIGHT)
+        rowsize = QtCore.QSize(0, common.ROW_HEIGHT)
 
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
