@@ -918,6 +918,9 @@ class FilesWidget(ThreadedBaseWidget):
         self.setDropIndicatorShown(False)
         self.setAutoScroll(True)
 
+        # I'm not sure why but the proxy is not updated properly after refresh
+        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
+
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def new_file_added(self, data_key, file_path):

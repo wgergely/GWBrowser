@@ -345,6 +345,9 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.setDropIndicatorShown(True)
         self.setWindowTitle(u'Bookmarks')
 
+        # I'm not sure why but the proxy is not updated properly after refresh
+        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
+
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return False
