@@ -1241,3 +1241,37 @@ def create_asset_from_template(name, basepath, template):
             raise RuntimeError(u'An error occured creating the asset folders.')
     with zipfile.ZipFile(template_info.absoluteFilePath(), 'r', zipfile.ZIP_DEFLATED) as f:
         f.extractall(dest_info.absolutePath(), members=None, pwd=None)
+
+def push_to_rv(path):
+    """Pushes the given given path to RV."""
+    import subprocess
+    from gwbrowser.settings import local_settings
+    get_preference = lambda k: local_settings.value(u'preferences/ApplicationSettings/{}'.format(k))
+
+    def alert():
+        mbox = QtWidgets.QMessageBox()
+        mbox.setWindowTitle(u'RV not set')
+        mbox.setText(u'Could not push to RV:\nRV was not found.')
+        mbox.setIcon(QtWidgets.QMessageBox.Warning)
+        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        mbox.exec_()
+
+    rv_path = get_preference(u'rv_path')
+    if not rv_path:
+        alert()
+        return
+
+    rv_info = QtCore.QFileInfo(rv_path)
+    if not rv_info.exists():
+        alert()
+        return
+
+    if get_platform() == u'win':
+        rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
+        if QtCore.QFileInfo(rv_push_path).exists():
+            cmd = u'"{}" -tag GWBrowser set "{}"'.format(rv_push_path, path)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+            subprocess.Popen(cmd, startupinfo=startupinfo)
