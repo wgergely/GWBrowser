@@ -211,7 +211,7 @@ FTIMER_INTERVAL = 800  # 1.0 sec
 
 ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
 CAPTURE_PATH = u'viewport_captures/animation'
-FFMPEG_COMMAND = u'-loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p "{dest}"'
+FFMPEG_COMMAND = u'-loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "{dest}"'
 
 ExportsFolder = u'exports'
 DataFolder = u'data'
