@@ -149,6 +149,29 @@ class MayaSettingsWidget(BaseSettingsWidget):
             u'eg. -loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p "{dest}"', parent=row)
         row.layout().addWidget(self.ffmpeg_command, 1)
 
+        label = u'Reveal output folder in the file explorer after the capture finishes.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Reveal capture', parent=self)
+        self.reveal_capture_button = QtWidgets.QCheckBox(
+            u'Reveal capture in the file explorer', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.reveal_capture_button)
+        self.layout().addSpacing(common.MARGIN)
+
+        label = u'Set if the viewport capture should be automatically pushed to RV when a capture finishes.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        row = add_row(u'Reveal capture', parent=self)
+        self.push_to_rv_button = QtWidgets.QCheckBox(
+            u'Push capture to RV', parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.push_to_rv_button)
+        self.layout().addSpacing(common.MARGIN)
 
         self.layout().addStretch(1)
 
@@ -161,6 +184,10 @@ class MayaSettingsWidget(BaseSettingsWidget):
             lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
         self.workspace_warning_button.toggled.connect(
             lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
+        self.reveal_capture_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'reveal_capture'), x))
+        self.push_to_rv_button.toggled.connect(
+            lambda x: local_settings.setValue(self.name(u'push_to_rv'), x))
         self.alembic_export_path.textChanged.connect(
             lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
         self.capture_path.textChanged.connect(
@@ -186,6 +213,14 @@ class MayaSettingsWidget(BaseSettingsWidget):
         val = local_settings.value(self.name(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'reveal_capture'))
+        val = val if val is not None else False
+        self.reveal_capture_button.setChecked(val)
+
+        val = local_settings.value(self.name(u'push_to_rv'))
+        val = val if val is not None else True
+        self.push_to_rv_button.setChecked(val)
 
         val = local_settings.value(self.name(u'alembic_export_path'))
         if val:
@@ -252,15 +287,17 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             u'eg. https://mystudio.slack.com...', parent=row)
         row.layout().addWidget(self.slack_url, 1)
 
-        add_label(u'Company name', parent=self)
-        row = add_row(u'', parent=self)
-        label = 'Add the name of your company below.'
-        label = QtWidgets.QLabel(label, parent=self)
-        label.setWordWrap(True)
-        row.layout().addWidget(label, 1)
+        add_label(u'Company Name', parent=self)
         row = add_row(u'Company', parent=self)
         self.company_name = add_line_edit(
             u'eg. My Studio', parent=row)
+
+        add_label(u'Shotgun RV Path', parent=self)
+        row = add_row(u'RV path', parent=self)
+        self.rv_path = add_line_edit(
+            u'eg. C:/rv/bin/rv.exe', parent=row)
+        row.layout().addWidget(self.rv_path, 1)
+
 
         self.layout().addStretch(1)
 
@@ -272,6 +309,11 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         company_name = local_settings.value(self.name(u'company'))
         val = company_name if company_name else common.COMPANY
         self.company_name .setText(val)
+
+        rv_path = local_settings.value(self.name(u'rv_path'))
+        val = rv_path if rv_path else None
+
+        self.rv_path.setText(val)
 
     def _connectSignals(self):
         import gwbrowser.versioncontrol.versioncontrol as vc
@@ -285,6 +327,9 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
         self.company_name.textChanged.connect(
             lambda x: local_settings.setValue(self.name(u'company'), x))
+
+        self.rv_path.textChanged.connect(
+            lambda x: local_settings.setValue(self.name(u'rv_path'), x))
 
     @QtCore.Slot()
     def show_asset_template(self):
@@ -461,17 +506,6 @@ class ServersSettingsWidget(BaseSettingsWidget):
             u'local:description': self.local_description.text(),
         }
 
-        if not all((values[u'primary:win'], values[u'primary:mac'])):
-            mbox = QtWidgets.QMessageBox()
-            mbox.setWindowTitle(u'Primary not set')
-            mbox.setIcon(QtWidgets.QMessageBox.Warning)
-            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            mbox.setText(u'Primary server has to be set.')
-            mbox.setInformativeText(
-                u'It usually is a network path of the server where the jobs are stored, eg. //myserver/jobs')
-            return mbox.exec_()
-
         parser = common.Server.conf()
         for k in values:
             section, key = k.split(u':')
@@ -488,7 +522,6 @@ class ServersSettingsWidget(BaseSettingsWidget):
         with open(common.Server.conf_path(), u'w+') as configfile:
             parser.write(configfile)
 
-        return
 
 
 class SectionSwitcherWidget(QtWidgets.QListWidget):
@@ -534,7 +567,6 @@ class PreferencesWidget(QtWidgets.QSplitter):
         self.sections_list_widget = None
         self.sections_stack_widget = None
         self.setWindowTitle(u'GWBrowser Preferences')
-        self.setWindowFlags(QtCore.Qt.Window)
 
         self._createUI()
         self._add_sections()
@@ -557,12 +589,12 @@ class PreferencesWidget(QtWidgets.QSplitter):
         """Adds the sections defined in the ``SECTIONS`` variable."""
         for s in get_sections():
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, s[u'name'].title())
+            item.setData(QtCore.Qt.DisplayRole, u'  {}'.format(s[u'name'].title()))
             item.setData(common.DescriptionRole, s[u'description'])
             item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
             item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                1, common.CONTROL_HEIGHT))
+                0, common.CONTROL_HEIGHT * 0.66))
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 

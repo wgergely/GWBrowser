@@ -49,56 +49,61 @@ __instance__ = None
 
 
 MAYA_FPS = {
-  u'hour': 2.777777777777778e-4,
-  u'min': 0.0166667,
-  u'sec': 1.0,
-  u'millisec': 1000.0,
-  u'game': 15.0,
-  u'film': 24.0,
-  u'pal': 25.0,
-  u'ntsc': 30.0,
-  u'show': 48.0,
-  u'palf': 50.0,
-  u'ntscf': 60.0,
-  u'2fps': 2.0,
-  u'3fps': 3.0,
-  u'4fps': 4.0,
-  u'5fps': 5.0,
-  u'6fps': 6.0,
-  u'8fps': 8.0,
-  u'10fps': 10.0,
-  u'12fps': 12.0,
-  u'16fps': 16.0,
-  u'20fps': 20.0,
-  u'40fps': 40.0,
-  u'75fps': 75.0,
-  u'100fps': 100.0,
-  u'120fps': 120.0,
-  u'200fps': 200.0,
-  u'240fps': 240.0,
-  u'250fps': 250.0,
-  u'300fps': 300.0,
-  u'400fps': 400.0,
-  u'500fps': 500.0,
-  u'600fps': 600.0,
-  u'750fps': 750.0,
-  u'1200fps': 1200.0,
-  u'1500fps': 1500.0,
-  u'2000fps': 2000.0,
-  u'3000fps': 3000.0,
-  u'3000fps': 3000.0,
-  u'6000fps': 6000.0,
-  u'23.976fps': 23.976,
-  u'29.97fps': 29.97,
-  u'29.97df': 29.97,
-  u'47.952fps': 47.952,
-  u'59.94fps': 59.94,
-  u'44100fps': 44100.0,
-  u'48000fps': 48000.0,
+    u'hour': 2.777777777777778e-4,
+    u'min': 0.0166667,
+    u'sec': 1.0,
+    u'millisec': 1000.0,
+    u'game': 15.0,
+    u'film': 24.0,
+    u'pal': 25.0,
+    u'ntsc': 30.0,
+    u'show': 48.0,
+    u'palf': 50.0,
+    u'ntscf': 60.0,
+    u'2fps': 2.0,
+    u'3fps': 3.0,
+    u'4fps': 4.0,
+    u'5fps': 5.0,
+    u'6fps': 6.0,
+    u'8fps': 8.0,
+    u'10fps': 10.0,
+    u'12fps': 12.0,
+    u'16fps': 16.0,
+    u'20fps': 20.0,
+    u'40fps': 40.0,
+    u'75fps': 75.0,
+    u'100fps': 100.0,
+    u'120fps': 120.0,
+    u'200fps': 200.0,
+    u'240fps': 240.0,
+    u'250fps': 250.0,
+    u'300fps': 300.0,
+    u'400fps': 400.0,
+    u'500fps': 500.0,
+    u'600fps': 600.0,
+    u'750fps': 750.0,
+    u'1200fps': 1200.0,
+    u'1500fps': 1500.0,
+    u'2000fps': 2000.0,
+    u'3000fps': 3000.0,
+    u'3000fps': 3000.0,
+    u'6000fps': 6000.0,
+    u'23.976fps': 23.976,
+    u'29.97fps': 29.97,
+    u'29.97df': 29.97,
+    u'47.952fps': 47.952,
+    u'59.94fps': 59.94,
+    u'44100fps': 44100.0,
+    u'48000fps': 48000.0,
 }
 
-get_framerate = lambda: MAYA_FPS[cmds.currentUnit(query=True, time=True)]
-get_preference = lambda k: local_settings.value(u'preferences/MayaSettings/{}'.format(k))
+
+def get_framerate(): return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
+
+
+def get_preference(k): return local_settings.value(
+    u'preferences/MayaSettings/{}'.format(k))
+
 
 def instance():
     return __instance__
@@ -415,15 +420,11 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
 
 @QtCore.Slot()
-
-@QtCore.Slot()
 def capture_viewport(size=1.0):
-    """
-    Capture Viewport - Gergely Wootsch, Glassworks (c) 2019
+    """Saves a versioned capture to the ``capture_folder`` defined in the preferences.
 
-    A capture script script to save a versioned capture to ``capture_folder``.
-    The script will output to the an image sequence that is converted to a h264 using FFMpeg.
-    It will also create a ``latest`` folder with a copy of the last exported image sequence.
+    The script will output to the an image sequence and if FFMpeg is present converts it to a h264 movie file.
+    It will also try to create a ``latest`` folder with a copy of the last exported image sequence.
 
     Usage:
 
@@ -478,7 +479,8 @@ def capture_viewport(size=1.0):
         mbox.setIcon(QtWidgets.QMessageBox.Warning)
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Ok)
-        mbox.setText(u'Could not start the capture because the active panel is not a viewport.\nActivate a viewport before starting the capture and try again!')
+        mbox.setText(
+            u'Could not start the capture because the active panel is not a viewport.\nActivate a viewport before starting the capture and try again!')
         mbox.setInformativeText(u'')
         mbox.exec_()
         return
@@ -538,7 +540,6 @@ def capture_viewport(size=1.0):
         except:
             print '# An error occured hiding {}'.format(panel)
 
-
     width = int(cmds.getAttr('defaultResolution.width') * size)
     height = int(cmds.getAttr('defaultResolution.height') * size)
 
@@ -575,17 +576,34 @@ def capture_viewport(size=1.0):
         except:
             print '# Could not restore {} after capture'.format(panel)
 
+    print u'# Capture saved to:\n{}'.format(complete_filename)
 
-    print '# Capture saved to:\n{}'.format(complete_filename)
+    rv_seq_path = u'{workspace}/{capture_folder}/{scene}/{scene}.{frame}.{ext}'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        scene=scene_info.baseName(),
+        frame=u'{}'.format(int(cmds.playbackOptions(q=True, minTime=True))).zfill(4),
+        ext=ext
+    )
 
+    val = get_preference(u'push_to_rv')
+    val = val if val is not None else True
+    if val:
+        common.push_to_rv(rv_seq_path)
+
+    val = get_preference(u'reveal_capture')
+    val = val if val is not None else False
+    if val:
+        common.reveal(rv_seq_path)
 
     publish_capture(workspace, capture_folder, scene_info, ext)
     convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext)
 
+
 def publish_capture(workspace, capture_folder, scene_info, ext):
     asset = workspace.split(u'/').pop()
-    start = cmds.playbackOptions(q=True, minTime=True)
-    end = cmds.playbackOptions(q=True, maxTime=True)
+    start = int(cmds.playbackOptions(q=True, minTime=True))
+    end = int(cmds.playbackOptions(q=True, maxTime=True))
     duration = (end - start) + 1
 
     master_dir_path = u'{workspace}/{capture_folder}/latest'.format(
@@ -623,7 +641,6 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         master_file.remove()
         QtCore.QFile.copy(versioned_path, master_path)
         idx += 1
-    common.reveal(versioned_path)
 
 def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
     ffmpeg_bin_path = get_preference(u'ffmpeg_path')
@@ -800,24 +817,23 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
         return menu_set
 
-
     @contextmenu
     def add_capture_menu(self, menu_set):
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
         menu_set[u'capture_full'] = {
             u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
+            u'text': u'Capture viewport (Full: {} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
             u'action': lambda: capture_viewport(size=1.0)
         }
         menu_set[u'capture_half'] = {
             u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
+            u'text': u'Capture viewport (Half: {} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
             u'action': lambda: capture_viewport(size=0.5)
         }
         menu_set[u'capture_quarter'] = {
             u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
+            u'text': u'Capture viewport (Quarter: {} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
             u'action': lambda: capture_viewport(size=0.25)
         }
         return menu_set
@@ -1060,7 +1076,6 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         return menu_set
 
-
     @contextmenu2
     def add_capture_menu(self, menu_set, browserwidget=None):
         width = cmds.getAttr("defaultResolution.width")
@@ -1087,7 +1102,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
 
     def __init__(self, parent=None):
-        global __instance__ # sorry
+        global __instance__  # sorry
         __instance__ = self
         super(MayaBrowserWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
