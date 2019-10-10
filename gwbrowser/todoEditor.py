@@ -376,7 +376,17 @@ class RemoveNoteButton(CustomButton):
         self.pressed.connect(self.remove_note)
 
     def remove_note(self):
-        self.setUpdatesEnabled(False)
+        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox.setWindowTitle(u'Notes and Tasks')
+        mbox.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window)
+        mbox.setIcon(QtWidgets.QMessageBox.NoIcon)
+        mbox.setStandardButtons(
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        mbox.setText(
+            u'Are you sure you want to delete this note?')
+        res = mbox.exec_()
+        if res == QtWidgets.QMessageBox.No:
+            return
 
         editors_widget = self.parent().parent()
         idx = editors_widget.items.index(self.parent())
@@ -384,14 +394,16 @@ class RemoveNoteButton(CustomButton):
         editors_widget.layout().removeWidget(row)
         row.deleteLater()
 
-        self.setUpdatesEnabled(True)
+    def _pixmap(self, type=QtCore.QEvent.Leave):
+        return ImageCache.get_rsc_pixmap(
+            u'remove', common.REMOVE, self._size, opacity=1.0)
 
 
 class RemoveButton(CustomButton):
     """Custom icon button to remove an item or close the editor."""
 
     def __init__(self, size=32.0, parent=None):
-        super(RemoveButton, self).__init__(u'remove', size=size, parent=parent)
+        super(RemoveButton, self).__init__(u'check', size=size, parent=parent)
         self.setAcceptDrops(True)
 
     def dragEnterEvent(self, event):
@@ -806,7 +818,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             p = self.index.data(common.ParentRole)
             text = u' {} - {} '.format(p[-1], p[-2]).upper()
         else:
-            text = u'Notes and Tasksd'
+            text = u'  Notes and Tasks...  '
         if len(text) >= 48:
             text = u'{}...{}'.format(text[0:22], text[-22:])
         label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND,
@@ -895,10 +907,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
             rect.setHeight(rect.height() - common.MARGIN)
             rect.moveCenter(center)
 
-            text = u'You can add a new note by clicking the pencil icon on the top.'
+            text = u'You can add a new note by clicking the add icon on the top.'
             text = text if not len(self.todoeditors_widget.items) else u''
             common.draw_aliased_text(
-                painter, font, rect, text, QtCore.Qt.AlignCenter, common.FAVOURITE)
+                painter, font, rect, text, QtCore.Qt.AlignCenter, common.SECONDARY_BACKGROUND)
             painter.end()
         return False
 
@@ -1042,7 +1054,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         data = self._collect_data()
         settings = AssetSettings(self.index)
         settings.setValue(u'config/todos', data)
-        
+
         data = [k for k in data if not data[k]['checked']]
         model = self.index.model()
         model.setData(self.index, len(data), role=common.TodoCountRole)
