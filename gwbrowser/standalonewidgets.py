@@ -292,7 +292,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.installEventFilter(self)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setMouseTracking(True)
 
         self.initialized.connect(self.tweak_ui)
         self.initialized.connect(self.showNormal)

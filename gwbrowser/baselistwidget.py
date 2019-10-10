@@ -731,7 +731,7 @@ class BaseListWidget(QtWidgets.QListView):
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
-        # self.setMouseTracking(False)
+        # self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
@@ -853,7 +853,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataTypeChanged.connect(lambda x: model.sort_data())
 
         model.modelReset.connect(model.sort_data)
-        model.dataSorted.connect(proxy.invalidate)
         model.dataSorted.connect(proxy.invalidateFilter)
         model.dataSorted.connect(self.reselect_previous)
 
@@ -1655,14 +1654,13 @@ class BaseInlineIconWidget(BaseListWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
-        if event.buttons() == QtCore.Qt.NoButton:
-            index = self.indexAt(event.pos())
-            self.repaint(self.visualRect(index))
-            return
+        pos = event.pos()
+        index = self.indexAt(pos)
+        # if event.buttons() == QtCore.Qt.NoButton:
+        #     if index.isValid():
+        self.update(index)
+            # return
 
-        if not self.verticalScrollBar().isSliderDown():
-            index = self.indexAt(event.pos())
-            self.repaint(self.visualRect(index))
 
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
@@ -1670,7 +1668,6 @@ class BaseInlineIconWidget(BaseListWidget):
         if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
-        pos = event.pos()
         pos.setX(0)
         index = self.indexAt(pos)
 
