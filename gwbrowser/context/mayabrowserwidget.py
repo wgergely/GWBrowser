@@ -422,7 +422,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
 
 @QtCore.Slot()
-def capture_viewport():
+def capture_viewport(size=1.0):
     """
     Capture Viewport - Gergely Wootsch, Glassworks (c) 2019
 
@@ -478,8 +478,62 @@ def capture_viewport():
     panel = cmds.getPanel(withFocus=True)
     camera = cmds.modelPanel(panel, query=True, camera=True)
     options = mCapture.parse_view(panel)
+
+    options['viewport_options'].update({
+        # renderer
+        # "rendererName": "vp2Renderer",
+        # "fogging": False,
+        # "fogMode": "linear",
+        # "fogDensity": 1,
+        # "fogStart": 1,
+        # "fogEnd": 1,
+        # "fogColor": (0, 0, 0, 0),
+        # "shadows": False,
+        # "displayTextures": True,
+        # "displayLights": "default",
+        # "useDefaultMaterial": False,
+        "wireframeOnShaded": False,
+        "displayAppearance": 'smoothShaded',
+        "selectionHiliteDisplay": False,
+        "headsUpDisplay": False,
+        # object display
+        "imagePlane": False,
+        "nurbsCurves": False,
+        "nurbsSurfaces": False,
+        "polymeshes": True,
+        "subdivSurfaces": True,
+        "planes": True,
+        "cameras": False,
+        "controlVertices": False,
+        "lights": False,
+        "grid": False,
+        "hulls": False,
+        "joints": False,
+        "ikHandles": False,
+        "deformers": False,
+        "dynamics": False,
+        "fluids": False,
+        "hairSystems": False,
+        "follicles": False,
+        "nCloths": False,
+        "nParticles": False,
+        "nRigids": False,
+        "dynamicConstraints": False,
+        "locators": False,
+        "manipulators": False,
+        "dimensions": False,
+        "handles": False,
+        "pivots": False,
+        # "textures": False,
+        "strokes": False,
+        "motionTrails": False
+    })
+
+    cmds.ogs(reset=True)
     mCapture.capture(
         camera=camera,
+        width=int(cmds.getAttr('defaultResolution.width') * size),
+        height=int(cmds.getAttr('defaultResolution.height') * size),
         display_options=DisplayOptions,
         camera_options=CameraOptions,
         viewport2_options=options['viewport2_options'],
@@ -490,6 +544,7 @@ def capture_viewport():
         overwrite=True,
         viewer=False
     )
+    cmds.ogs(reset=True)
 
     asset = workspace.split(u'/').pop()
     start = cmds.playbackOptions(q=True, animationStartTime=True)
@@ -672,7 +727,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
         if all(bookmark):
             menu_set[u'bookmark'] = {
-                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'icon': ImageCache.get_rsc_pixmap(u'bookmark', common.TEXT, common.INLINE_ICON_SIZE),
                 u'disabled': not all(bookmark),
                 u'text': u'Show active bookmark in the file manager...',
                 u'action': functools.partial(common.reveal, u'/'.join(bookmark))
@@ -682,14 +737,14 @@ class BrowserButtonContextMenu(BaseContextMenu):
                     u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
                     u'disabled': not all(asset),
                     u'text': u'Show active asset in the file manager...',
-                    u'action': functools.partial(common.reveal, '/'.join(asset))
+                    u'action': functools.partial(common.reveal, u'/'.join(asset))
                 }
                 if all(location):
                     menu_set[u'location'] = {
                         u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
                         u'disabled': not all(location),
                         u'text': u'Show current task folder in the file manager...',
-                        u'action': functools.partial(common.reveal, '/'.join(location))
+                        u'action': functools.partial(common.reveal, u'/'.join(location))
                     }
 
         return menu_set
@@ -697,10 +752,22 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_capture_menu(self, menu_set):
-        menu_set[u'capture'] = {
+        width = cmds.getAttr("defaultResolution.width")
+        height = cmds.getAttr("defaultResolution.height")
+        menu_set[u'capture_full'] = {
             u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport...',
-            u'action': capture_viewport
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
+            u'action': lambda: capture_viewport(size=1.0)
+        }
+        menu_set[u'capture_half'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
+            u'action': lambda: capture_viewport(size=0.5)
+        }
+        menu_set[u'capture_quarter'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
+            u'action': lambda: capture_viewport(size=0.25)
         }
         return menu_set
 
@@ -945,10 +1012,22 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
     @contextmenu2
     def add_capture_menu(self, menu_set, browserwidget=None):
-        menu_set[u'capture'] = {
+        width = cmds.getAttr("defaultResolution.width")
+        height = cmds.getAttr("defaultResolution.height")
+        menu_set[u'capture_full'] = {
             u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport...',
-            u'action': capture_viewport
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
+            u'action': lambda: capture_viewport(size=1.0)
+        }
+        menu_set[u'capture_half'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
+            u'action': lambda: capture_viewport(size=0.5)
+        }
+        menu_set[u'capture_quarter'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
+            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
+            u'action': lambda: capture_viewport(size=0.25)
         }
         return menu_set
 
