@@ -343,8 +343,10 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
     # First, we will collect the available shapes from the given set
     for item in outliner_set:
+
         try:
-            shapes = cmds.listRelatives(item, shapes=True)
+            # listRelatives will raise a ValueError if the object's name is not unique
+            shapes = cmds.listRelatives(item)
         except ValueError as err:
             mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Export failed')
@@ -352,7 +354,21 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             mbox.setText(u'An error occured exporting the Alembic cache\n{}:'.format(err))
             mbox.exec_()
             return
+
         for shape in shapes:
+            # AbcExport will fail if the node's name is not unique
+            try:
+                longname = cmds.ls(shape, long=True)[0]
+                basename = longname.split('|').pop()
+                cmds.listRelatives(basename)
+            except ValueError as err:
+                mbox = QtWidgets.QMessageBox()
+                mbox.setWindowTitle(u'Export failed')
+                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setText(u'An error occured exporting the Alembic cache\n{}:'.format(err))
+                mbox.exec_()
+                return
+
             if is_intermediate(shape):
                 continue
             # Camera's don't have mesh nodes but we still want to export them!
@@ -431,7 +447,6 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             cmds.namespace(removeNamespace=u'mayaExport',
                            deleteNamespaceContent=True)
         cmds.evalDeferred(teardown)
-
 
 @QtCore.Slot()
 def capture_viewport(size=1.0):
