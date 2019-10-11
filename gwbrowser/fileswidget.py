@@ -79,7 +79,12 @@ class FileInfoWorker(BaseWorker):
             return
         if not index.data(common.ParentRole):
             return
-        data = index.model().model_data()[index.row()]
+
+        try:
+            data = index.model().model_data()[index.row()]
+        except:
+            return
+            
         settings = AssetSettings(index)
 
         # Item description
