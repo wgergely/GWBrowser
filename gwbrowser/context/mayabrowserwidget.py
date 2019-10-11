@@ -312,7 +312,7 @@ def get_outliner_sets_members():
 
         # We can ignore this group is it does not contain any shapes
         members = [
-            cmds.ls(f)[-1] for f in dag_set_members if cmds.listRelatives(f, shapes=True)]
+            cmds.ls(f, long=True)[-1] for f in dag_set_members if cmds.listRelatives(f, shapes=True, fullPath=True)]
         if not members:
             continue
 
@@ -332,78 +332,107 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     scene data will be picked up!
 
     """
+    destination_path = QtCore.QFileInfo(destination_path).filePath()
+
     def is_intermediate(s): return cmds.getAttr(
         u'{}.intermediateObject'.format(s))
-
-    def is_template(s): return cmds.getAttr(u'{}.template'.format(s))
 
     world_shapes = []
     valid_shapes = []
 
     # First, we will collect the available shapes from the given set
     for item in outliner_set:
-        shapes = cmds.listRelatives(item, shapes=True)
+        shapes = cmds.listRelatives(item, fullPath=True)
         for shape in shapes:
             if is_intermediate(shape):
                 continue
-
-            # Camera's don't have mesh nodes but we still want to export them
+            try:
+                # AbcExport will fail if a shape node's name is not unique
+                # We will try and see if this passes...
+                basename = shape.split('|').pop()
+                cmds.listRelatives(basename)
+            except ValueError as err:
+                # Nope :(
+                mbox = QtWidgets.QMessageBox()
+                mbox.setWindowTitle(u'Alembic export error :(')
+                mbox.setIcon(QtWidgets.QMessageBox.Warning)
+                mbox.setText(u'"{shape}" does not have a unique name.  This is not allowed for alembic exports.  Sorry!  Please, make sure all the shape nodes have unique names and try again.\n\nError:\n{err}:'.format(shape=shape, err=err))
+                mbox.exec_()
+                return
+            # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
-                if not cmds.attributeQuery(u'worldMesh', node=shape, exists=True):
+                if not cmds.attributeQuery(u'outMesh', node=shape, exists=True):
                     continue
             valid_shapes.append(shape)
 
     if not valid_shapes:
         raise RuntimeError(
-            u'No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
+            u'# No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
 
     cmds.select(clear=True)
-
     # Creating a temporary namespace to avoid name-clashes later when we duplicate
     # the meshes. We will delete this namespace after the export...
     if cmds.namespace(exists=u'mayaExport'):
         cmds.namespace(removeNamespace=u'mayaExport',
                        deleteNamespaceContent=True)
     ns = cmds.namespace(add=u'mayaExport')
-
+    world_transforms = []
     try:
-        # For the meshes, we will create an empty mesh and connect the outMesh and
-        # UV  attributes from our source mesh
+        # For meshes, we will create an empty mesh and connect the outMesh and
+        # UV  attributes from our source.
+        # We will also apply the source mesh's transform matrix to the newly created mesh
         for shape in valid_shapes:
+            basename = shape.split('|').pop()
             if cmds.nodeType(shape) != u'camera':
+                # Create new empty shape node
                 world_shape = cmds.createNode(
-                    u'mesh', name=u'{}:{}'.format(ns, shape))
-                cmds.connectAttr(u'{}.worldMesh[0]'.format(
+                    u'mesh', name=u'{}:{}'.format(ns, basename))
+
+                # outMesh -> inMesh
+                cmds.connectAttr(u'{}.outMesh'.format(
                     shape), u'{}.inMesh'.format(world_shape), force=True)
+                # uvSet -> uvSet
                 cmds.connectAttr(u'{}.uvSet'.format(shape),
                                  u'{}.uvSet'.format(world_shape), force=True)
+
+                # worldMatrix -> transform
+                decompose_matrix = cmds.createNode(
+                    u'decomposeMatrix', name=u'{}:decomposeMatrix#'.format(ns))
+                cmds.connectAttr(
+                    u'{}.worldMatrix[0]'.format(shape), u'{}.inputMatrix'.format(decompose_matrix), force=True)
+                #
+                transform = cmds.listRelatives(world_shape, fullPath=True, type='transform', parent=True)[0]
+                world_transforms.append(transform)
+                #
+                cmds.connectAttr(
+                    u'{}.outputTranslate'.format(decompose_matrix), u'{}.translate'.format(transform), force=True)
+                cmds.connectAttr(
+                    u'{}.outputRotate'.format(decompose_matrix), u'{}.rotate'.format(transform), force=True)
+                cmds.connectAttr(
+                    u'{}.outputScale'.format(decompose_matrix), u'{}.scale'.format(transform), force=True)
             else:
                 world_shape = shape
+                world_transforms.append(cmds.listRelatives(world_shape, fullPath=True, type='transform', parent=True)[0])
             world_shapes.append(world_shape)
 
-        world_transforms = []
-
-        for shape in valid_shapes:
-            transform = cmds.listRelatives(shape, type=u'transform', p=True)
-            if transform:
-                for t in transform:
-                    world_transforms.append(t)
 
         perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
             startframe, endframe, time.time())
 
-        jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ro}'.format(
+        jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
             f=u'-file "{}"'.format(destination_path),
             fr=u'-framerange {} {}'.format(startframe, endframe),
             s=u'-step {}'.format(step),
-            uv=u'-uvwrite',
-            ws=u'-worldspace',
-            wv=u'-writevisibility',
+            uv=u'-uvWrite',
+            ws=u'-worldSpace',
+            wv=u'-writeVisibility',
+            # eu='-eulerFilter',
             wuvs=u'-writeuvsets',
+            sn=u'-stripNamespaces',
             rt=u'-root {}'.format(u' -root '.join(world_transforms)),
-            df=u'-dataformat {}'.format(u'ogawa'),
+            df=u'-dataFormat {}'.format(u'ogawa'),
             pfc=u'-pythonperframecallback {}'.format(perframecallback),
-            ro='-renderableonly'
+            ro='-renderableOnly'
         )
         print '# jobArg: `{}`'.format(jobArg)
         cmds.AbcExport(jobArg=jobArg)
@@ -416,14 +445,14 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         raise
     finally:
         # Finally, we will delete the previously created namespace and the object
-        # contained inseide. I wrapped it into an evalDeferred call to let maya
-        # recover after the export.
+        # contained inside. I wrapped it into an evalDeferred call to let maya
+        # recover after the export and delete the objects safely
         def teardown():
             cmds.namespace(removeNamespace=u'mayaExport',
                            deleteNamespaceContent=True)
         cmds.evalDeferred(teardown)
 
-
+        
 @QtCore.Slot()
 def capture_viewport(size=1.0):
     """Saves a versioned capture to the ``capture_folder`` defined in the preferences.
@@ -1646,8 +1675,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         set_name = set_name.replace(u':', u'_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
-        p = self.browserwidget.preferences_widget
-        template = p.sections_stack_widget.widget(2).alembic_export_path.text()
+        template = get_preference(u'alembic_export_path')
         template = template if template else common.ALEMBIC_EXPORT_PATH
         file_path = unicode(template).format(
             workspace=cmds.workspace(q=True, sn=True),
@@ -1663,11 +1691,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         widget = AddFileWidget(ext, file=file_path)
         fileswidget = self.browserwidget.stackedwidget.widget(2)
-        overlay = self.browserwidget.stackedwidget.currentWidget().disabled_overlay_widget
-        overlay.show()
 
         if widget.exec_() == QtWidgets.QDialog.Rejected:
-            overlay.hide()
             return
 
         file_path = widget.filePath()
@@ -1675,7 +1700,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # Last-minute double-check to make sure we're not overwriting anything...
         if file_info.exists():
-            raise RuntimeError(u'# Unable to save file: File already exists.')
+            raise RuntimeError(u'# Unable to save alembic: File already exists!')
 
         if frame:
             start = cmds.currentTime(query=True)
@@ -1700,7 +1725,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         finally:
             if not state:
                 cmds.ogs(pause=True)
-            overlay.hide()
 
     def is_scene_modified(self):
         """If the current scene was modified since the last save, the user will be
