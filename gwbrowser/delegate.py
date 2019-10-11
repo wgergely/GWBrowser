@@ -105,7 +105,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_background(self, *args):
         """Paints the background."""
         painter, option, _, selected, _, active, _, _, hover = args
-
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
 
         if selected:
@@ -161,7 +160,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnail of an item."""
         painter, option, index, selected, _, _, _, _, hover = args
-        # Background rectangle
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
         rect = QtCore.QRect(option.rect)
 
         rect.setWidth(rect.height())

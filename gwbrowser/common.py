@@ -862,8 +862,8 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     """
     painter.save()
 
-    painter.setRenderHint(QtGui.QPainter.Antialiasing)
-    painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+    painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+    painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
     x, y = (rect.left(), rect.top())
     elide = None
