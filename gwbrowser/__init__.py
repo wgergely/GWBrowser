@@ -35,7 +35,7 @@ __dependencies__ = (
     u'numpy',
     u'PySide2.QtCore'
 )
-__version__ = u'0.2.2'
+__version__ = u'0.2.3'
 
 
 
