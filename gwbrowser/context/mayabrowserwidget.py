@@ -407,7 +407,12 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         )
         print '# jobArg: `{}`'.format(jobArg)
         cmds.AbcExport(jobArg=jobArg)
-    except:
+    except Exception as err:
+        mbox = QtWidgets.QMessageBox()
+        mbox.setWindowTitle(u'Export failed')
+        mbox.setIcon(QtWidgets.QMessageBox.Warning)
+        mbox.setText(u'An error occured exporting the Alembic cache\n{}:'.format(err))
+        mbox.exec_()
         raise
     finally:
         # Finally, we will delete the previously created namespace and the object

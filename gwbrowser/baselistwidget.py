@@ -1345,32 +1345,36 @@ class BaseListWidget(QtWidgets.QListView):
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
             if event.key() == QtCore.Qt.Key_C:
-                # Depending on the platform the copied path will be different
                 if index.data(common.FileInfoLoaded):
                     if common.get_platform() == u'mac':
                         mode = common.MacOSPath
                     elif common.get_platform() == u'win':
                         mode = common.WindowsPath
                     else:
-                        return
-
+                        mode = common.UnixPath
                     if event.modifiers() & QtCore.Qt.ShiftModifier:
-                        return common.copy_path(index, mode=mode, first=True)
+                        return common.copy_path(index, mode=common.UnixPath, first=True)
                     return common.copy_path(index, mode=mode, first=False)
 
             if event.key() == QtCore.Qt.Key_R:
                 self.model().sourceModel().modelDataResetRequested.emit()
                 return
 
-            if event.key() == QtCore.Qt.Key_S or event.key() == QtCore.Qt.Key_O:
+            if event.key() == QtCore.Qt.Key_T:
+                self.show_todos(index)
+                return
+
+            if event.key() == QtCore.Qt.Key_O:
                 if index.data(QtCore.Qt.StatusTipRole):
                     common.reveal(index.data(QtCore.Qt.StatusTipRole))
                 return
-            if event.key() == QtCore.Qt.Key_B:
+
+            if event.key() == QtCore.Qt.Key_S:
                 self.toggle_favourite(index)
                 self.model().invalidateFilter()
                 self.favouritesChanged.emit()
                 return
+
             if event.key() == QtCore.Qt.Key_A:
                 self.toggle_archived(index)
                 self.model().invalidateFilter()

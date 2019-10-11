@@ -45,7 +45,7 @@ class BaseSettingsWidget(QtWidgets.QWidget):
     def _init_values(self):
         pass
 
-    def name(self, name):
+    def get_preference(self, name):
         cls = self.__class__.__name__.replace(u'Widget', u'')
         return u'preferences/{}/{}'.format(cls, name)
 
@@ -177,70 +177,70 @@ class MayaSettingsWidget(BaseSettingsWidget):
 
     def _connectSignals(self):
         self.sync_active_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'disable_active_sync'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'disable_active_sync'), x))
         self.sync_maya_project_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'disable_workspace_sync'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'disable_workspace_sync'), x))
         self.save_warning_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'disable_save_warnings'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'disable_save_warnings'), x))
         self.workspace_warning_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'disable_workspace_warnings'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'disable_workspace_warnings'), x))
         self.reveal_capture_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'reveal_capture'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'reveal_capture'), x))
         self.push_to_rv_button.toggled.connect(
-            lambda x: local_settings.setValue(self.name(u'push_to_rv'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'push_to_rv'), x))
         self.alembic_export_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'alembic_export_path'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'alembic_export_path'), x))
         self.capture_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'capture_path'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'capture_path'), x))
         self.ffmpeg_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'ffmpeg_path'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_path'), x))
         self.ffmpeg_command.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'ffmpeg_command'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_command'), x))
 
     def _init_values(self):
-        val = local_settings.value(self.name(u'disable_active_sync'))
+        val = local_settings.value(self.get_preference(u'disable_active_sync'))
         if val is not None:
             self.sync_active_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'disable_workspace_sync'))
+        val = local_settings.value(self.get_preference(u'disable_workspace_sync'))
         if val is not None:
             self.sync_maya_project_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'disable_save_warnings'))
+        val = local_settings.value(self.get_preference(u'disable_save_warnings'))
         if val is not None:
             self.save_warning_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'disable_workspace_warnings'))
+        val = local_settings.value(self.get_preference(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'reveal_capture'))
+        val = local_settings.value(self.get_preference(u'reveal_capture'))
         val = val if val is not None else False
         self.reveal_capture_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'push_to_rv'))
+        val = local_settings.value(self.get_preference(u'push_to_rv'))
         val = val if val is not None else True
         self.push_to_rv_button.setChecked(val)
 
-        val = local_settings.value(self.name(u'alembic_export_path'))
+        val = local_settings.value(self.get_preference(u'alembic_export_path'))
         if val:
             self.alembic_export_path.setText(val)
         else:
             self.alembic_export_path.setText(common.ALEMBIC_EXPORT_PATH)
 
-        val = local_settings.value(self.name(u'capture_path'))
+        val = local_settings.value(self.get_preference(u'capture_path'))
         if val:
             self.capture_path.setText(val)
         else:
             self.capture_path.setText(common.CAPTURE_PATH)
 
-        val = local_settings.value(self.name(u'ffmpeg_path'))
+        val = local_settings.value(self.get_preference(u'ffmpeg_path'))
         if val:
             self.ffmpeg_path.setText(val)
         else:
             self.ffmpeg_path.setText(u'')
 
-        val = local_settings.value(self.name(u'ffmpeg_command'))
+        val = local_settings.value(self.get_preference(u'ffmpeg_command'))
         if val:
             self.ffmpeg_command.setText(val)
         else:
@@ -297,20 +297,57 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.rv_path = add_line_edit(
             u'eg. C:/rv/bin/rv.exe', parent=row)
         row.layout().addWidget(self.rv_path, 1)
+        self.layout().addSpacing(common.MARGIN)
 
+        add_label(u'Shortcuts', parent=self)
+        label = QtWidgets.QLabel(parent=self)
+        label.setText(
+"""
+'Ctrl+C': Copy local path
+'Ctrl+Shift+C': Copy Unix path
+'Ctrl+R': Reload
+'Ctrl+F': Search/Filter
+'Ctrl+O': Show in File Explorer
+'Ctrl+S': Set/unset favourite
+'Ctrl+A': Archive/unarchive select
+'Ctrl+T': Show Notes & Comments
+'Ctrl+H': Show simple(r) file-list
+'Ctrl+M': Stop/Start generating thumbnails
 
+'Ctrl+Shift+A': Show/Hide archived items
+'Ctrl+Shift+F': Show/Hide non-favourites
+
+'Shift+Tab': Edit next description
+'Shift+Backtab': Edit previous description
+'Enter': Activate item
+
+'Alt+Left': Show previous panel
+'Alt+Right': Show next PaintedLabel
+
+'Space': Preview thumbnail
+
+'Ctrl+1': Show Bookmarks tab
+'Ctrl+2': Show Assets tab
+'Ctrl+3': Show Files tab
+'Ctrl+4': Show Favourites tab
+"""
+        )
+        label.setWordWrap(True)
+        label.setStyleSheet(u'color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
+        self.layout().addWidget(label)
         self.layout().addStretch(1)
 
+
     def _init_values(self):
-        slack_url = local_settings.value(self.name(u'slack_url'))
+        slack_url = local_settings.value(self.get_preference(u'slack_url'))
         val = slack_url if slack_url else common.SLACK_URL
         self.slack_url.setText(val)
 
-        company_name = local_settings.value(self.name(u'company'))
+        company_name = local_settings.value(self.get_preference(u'company'))
         val = company_name if company_name else common.COMPANY
         self.company_name .setText(val)
 
-        rv_path = local_settings.value(self.name(u'rv_path'))
+        rv_path = local_settings.value(self.get_preference(u'rv_path'))
         val = rv_path if rv_path else None
 
         self.rv_path.setText(val)
@@ -323,13 +360,13 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.reveal_asset_template.clicked.connect(self.show_asset_template)
 
         self.slack_url.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'slack_url'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'slack_url'), x))
 
         self.company_name.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'company'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'company'), x))
 
         self.rv_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.name(u'rv_path'), x))
+            lambda x: local_settings.setValue(self.get_preference(u'rv_path'), x))
 
     @QtCore.Slot()
     def show_asset_template(self):
@@ -521,7 +558,6 @@ class ServersSettingsWidget(BaseSettingsWidget):
         # Creating the config file if it doesn't exist
         with open(common.Server.conf_path(), u'w+') as configfile:
             parser.write(configfile)
-
 
 
 class SectionSwitcherWidget(QtWidgets.QListWidget):
