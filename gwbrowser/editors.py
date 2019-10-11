@@ -18,9 +18,9 @@ from gwbrowser.basecontextmenu import contextmenu
 class ThumbnailViewer(QtWidgets.QLabel):
     """Widget used to view a thumbnail."""
 
-    def __init__(self, index, parent=None):
+    def __init__(self, parent=None):
         super(ThumbnailViewer, self).__init__(parent=parent)
-        self._secondarywidget = None
+        self.alembic_preview_widget = None
 
         self.setWindowFlags(
             QtCore.Qt.Dialog |
@@ -30,7 +30,6 @@ class ThumbnailViewer(QtWidgets.QLabel):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-
         self.setAlignment(QtCore.Qt.AlignCenter)
 
         self.show()
@@ -43,11 +42,12 @@ class ThumbnailViewer(QtWidgets.QLabel):
         path = index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
 
-        if self._secondarywidget:
-            self._secondarywidget.deleteLater()
-            self._secondarywidget = None
+        if self.alembic_preview_widget:
+            self.alembic_preview_widget.deleteLater()
+            self.alembic_preview_widget = None
 
-        if path.split('.').pop() == u'abc':
+        # We're showing the contents of the alembic file
+        if path.lower().endswith('.abc'):
             self.clear()
 
             file_info = QtCore.QFileInfo(path)
@@ -56,22 +56,17 @@ class ThumbnailViewer(QtWidgets.QLabel):
                 self.setText(u'Alembic not found.')
                 return
 
-            path = str(file_info.filePath())
-
             alembicwidget = get_alembic_thumbnail(path)
             alembicwidget.setParent(self)
             alembicwidget.show()
-            # alembicwidget.setFocusProxy(self)
             alembicwidget.setFocusPolicy(QtCore.Qt.NoFocus)
-
             alembicwidget.move(
                 self.rect().center().x() - (alembicwidget.width() / 2),
                 self.rect().center().y() - (alembicwidget.height() / 2)
             )
 
-            self._secondarywidget = alembicwidget
+            self.alembic_preview_widget = alembicwidget
             alembicwidget.show()
-
             return
 
         settings = AssetSettings(index)
@@ -145,18 +140,17 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.close()
 
     def _fit_screen_geometry(self):
-        # Compute the union of all screen geometries, and resize to fit.
-        app = QtCore.QCoreApplication.instance()
+        app = QtWidgets.QApplication.instance()
         rect = app.desktop().availableGeometry(self.parent())
         self.setGeometry(rect)
 
     def showEvent(self, event):
         self.setFocus()
-        self.parent()._thumbnailvieweropen = self
+        self.parent().thumbnail_viewer_widget = self
         self._fit_screen_geometry()
 
     def hideEvent(self, event):
-        self.parent()._thumbnailvieweropen = None
+        self.parent().thumbnail_viewer_widget = None
 
     def mousePressEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):

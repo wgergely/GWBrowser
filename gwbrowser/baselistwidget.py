@@ -718,7 +718,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.sizeChanged.connect(
             lambda x: self._favourite_set_widget.setGeometry(self.viewport().geometry()))
 
-        self._thumbnailvieweropen = None
+        self.thumbnail_viewer_widget = None
         self._current_selection = None
         self._location = None
         self.collector_count = 0
@@ -1279,13 +1279,13 @@ class BaseListWidget(QtWidgets.QListView):
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
                 if index.isValid():
-                    if not self._thumbnailvieweropen:
-                        editors.ThumbnailViewer(index, parent=self)
+                    if not self.thumbnail_viewer_widget:
+                        editors.ThumbnailViewer(parent=self)
                     else:
-                        self._thumbnailvieweropen.close()
+                        self.thumbnail_viewer_widget.close()
             if event.key() == QtCore.Qt.Key_Escape:
-                self.selectionModel().setCurrentIndex(QtCore.QModelIndex(),
-                                                      QtCore.QItemSelectionModel.ClearAndSelect)
+                self.selectionModel().setCurrentIndex(
+                    QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
             elif event.key() == QtCore.Qt.Key_Up:
@@ -1852,6 +1852,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def showEvent(self, event):
         self.index_update_timer.start()
+        self.initialize_visible_indexes()
         return super(ThreadedBaseWidget, self).showEvent(event)
 
     def hideEvent(self, event):

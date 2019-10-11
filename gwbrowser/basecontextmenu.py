@@ -423,7 +423,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
-                    source_index,
                     parent=self.parent()
                 )
             }

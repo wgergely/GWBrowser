@@ -23,6 +23,18 @@ import OpenImageIO.OpenImageIO as OpenImageIO
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
 
+def get_width_height(bound, width, height):
+    aspect = float(max((width, height))) / float(min((width, height)))
+    is_horizontal = width > height
+
+    if is_horizontal:
+        _width = bound
+        _height = bound / aspect
+    else:
+        _width = bound / aspect
+        _height = bound
+    return int(_width), int(_height)
+
 
 def oiio(func):
     """Decorator to wrap the oiio process"""
@@ -97,7 +109,6 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     if QtCore.QFileInfo(source).size() >= 836870912:
         set_error_thumbnail()
         return False
-
     # First let's check if the file is readable by OpenImageIO
     i = OpenImageIO.ImageInput.open(source)
     if not i:  # the file is not understood by OpenImageIO
@@ -117,24 +128,21 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         set_error_thumbnail()
         return False
 
+    _width, _height = get_width_height(common.THUMBNAIL_IMAGE_SIZE, img.spec().width, img.spec().height)
+
     # Deep
     if img.spec().deep:
         img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
 
     size = int(dest_size)
-    spec = OpenImageIO.ImageSpec(size, size, 4, 'uint8')
+    spec = OpenImageIO.ImageSpec(_width, _height, 4, 'uint8')
     spec.channelnames = ('R', 'G', 'B', 'A')
     spec.alpha_channel = 3
     spec.attribute('oiio:ColorSpace', 'Linear')
     spec.attribute('oiio:Gamma', '0.454545')
 
-    b = OpenImageIO.ImageBuf(spec)
+    b = OpenImageIO.ImageBufAlgo.resample(img, roi=spec.roi, interpolate=False, nthreads=nthreads)
     b.set_write_format('uint8')
-
-    spec = img.spec()
-    roi = OpenImageIO.get_roi(spec)
-    OpenImageIO.set_roi_full(spec, roi)
-    OpenImageIO.ImageBufAlgo.fit(b, img, nthreads=nthreads)
 
     spec = b.spec()
     if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
@@ -206,7 +214,10 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         return False
 
     model = index.model()
-    data = model.model_data()[index.row()]
+    try:
+        data = model.model_data()[index.row()]
+    except KeyError:
+        return
 
     # We will load the image and the background color
     image = ImageCache.get(
