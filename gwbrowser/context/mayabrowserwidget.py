@@ -320,7 +320,6 @@ def get_outliner_sets_members():
 
     return sets_data
 
-
 def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.0):
     """Main Alembic export function.
 
@@ -332,6 +331,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     scene data will be picked up!
 
     """
+    destination_path = QtCore.QFileInfo(destination_path).filePath()
+
     def is_intermediate(s): return cmds.getAttr(
         u'{}.intermediateObject'.format(s))
 
@@ -342,12 +343,19 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
     # First, we will collect the available shapes from the given set
     for item in outliner_set:
-        shapes = cmds.listRelatives(item, shapes=True)
+        try:
+            shapes = cmds.listRelatives(item, shapes=True)
+        except ValueError as err:
+            mbox = QtWidgets.QMessageBox()
+            mbox.setWindowTitle(u'Export failed')
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setText(u'An error occured exporting the Alembic cache\n{}:'.format(err))
+            mbox.exec_()
+            return
         for shape in shapes:
             if is_intermediate(shape):
                 continue
-
-            # Camera's don't have mesh nodes but we still want to export them
+            # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
                 if not cmds.attributeQuery(u'worldMesh', node=shape, exists=True):
                     continue
@@ -355,7 +363,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
     if not valid_shapes:
         raise RuntimeError(
-            u'No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
+            u'# No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
 
     cmds.select(clear=True)
 
@@ -383,7 +391,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
         world_transforms = []
 
-        for shape in valid_shapes:
+        for shape in world_shapes:
             transform = cmds.listRelatives(shape, type=u'transform', p=True)
             if transform:
                 for t in transform:
@@ -392,7 +400,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
             startframe, endframe, time.time())
 
-        jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {rt} {df} {pfc} {ro}'.format(
+        jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
             f=u'-file "{}"'.format(destination_path),
             fr=u'-framerange {} {}'.format(startframe, endframe),
             s=u'-step {}'.format(step),
@@ -400,6 +408,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             ws=u'-worldspace',
             wv=u'-writevisibility',
             wuvs=u'-writeuvsets',
+            sn=u'-stripnamespaces',
             rt=u'-root {}'.format(u' -root '.join(world_transforms)),
             df=u'-dataformat {}'.format(u'ogawa'),
             pfc=u'-pythonperframecallback {}'.format(perframecallback),
@@ -416,8 +425,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         raise
     finally:
         # Finally, we will delete the previously created namespace and the object
-        # contained inseide. I wrapped it into an evalDeferred call to let maya
-        # recover after the export.
+        # contained inside. I wrapped it into an evalDeferred call to let maya
+        # recover after the export and delete the objects safely
         def teardown():
             cmds.namespace(removeNamespace=u'mayaExport',
                            deleteNamespaceContent=True)
@@ -1646,8 +1655,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         set_name = set_name.replace(u':', u'_').strip(u'_')
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
-        p = self.browserwidget.preferences_widget
-        template = p.sections_stack_widget.widget(2).alembic_export_path.text()
+        template = get_preference(u'alembic_export_path')
         template = template if template else common.ALEMBIC_EXPORT_PATH
         file_path = unicode(template).format(
             workspace=cmds.workspace(q=True, sn=True),
@@ -1663,11 +1671,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         widget = AddFileWidget(ext, file=file_path)
         fileswidget = self.browserwidget.stackedwidget.widget(2)
-        overlay = self.browserwidget.stackedwidget.currentWidget().disabled_overlay_widget
-        overlay.show()
 
         if widget.exec_() == QtWidgets.QDialog.Rejected:
-            overlay.hide()
             return
 
         file_path = widget.filePath()
@@ -1675,7 +1680,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # Last-minute double-check to make sure we're not overwriting anything...
         if file_info.exists():
-            raise RuntimeError(u'# Unable to save file: File already exists.')
+            raise RuntimeError(u'# Unable to save alembic: File already exists!')
 
         if frame:
             start = cmds.currentTime(query=True)
@@ -1700,7 +1705,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         finally:
             if not state:
                 cmds.ogs(pause=True)
-            overlay.hide()
 
     def is_scene_modified(self):
         """If the current scene was modified since the last save, the user will be
