@@ -77,12 +77,9 @@ class DataKeyThread(BaseThread):
 class DataKeyViewDelegate(BaseDelegate):
     """The delegate used to paint the available subfolders inside the asset folder."""
 
-    def __init__(self, parent=None):
-        super(DataKeyViewDelegate, self).__init__(parent=parent)
-
     def paint(self, painter, option, index):
         """The main paint method."""
-        args = self._get_paint_args(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
         self.paint_name(*args)
         self.paint_selection_indicator(*args)
@@ -90,13 +87,13 @@ class DataKeyViewDelegate(BaseDelegate):
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
-        painter, option, _, selected, _, _, _, _, hover = args
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
         painter.setBrush(common.SEPARATOR)
         painter.drawRect(option.rect)
         rect = QtCore.QRect(option.rect)
         center = rect.center()
-        rect.setHeight(rect.height() - 1)
+        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
         rect.moveCenter(center)
         background = QtGui.QColor(common.BACKGROUND)
         background.setAlpha(150)
@@ -107,7 +104,7 @@ class DataKeyViewDelegate(BaseDelegate):
     @paintmethod
     def paint_name(self, *args):
         """Paints the name and the number of files available for the given data-key."""
-        painter, option, index, selected, _, _, _, _, hover = args
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         if not index.data(QtCore.Qt.DisplayRole):
             return
 
@@ -166,9 +163,8 @@ class DataKeyViewDelegate(BaseDelegate):
 
     def sizeHint(self, option, index):
         """Returns the size of the DataKeyViewDelegate items."""
-        width = self.parent().width()
         height = index.data(QtCore.Qt.SizeHintRole).height()
-        return QtCore.QSize(width, height)
+        return QtCore.QSize(1, height)
 
 
 class DataKeyView(QtWidgets.QListView):
@@ -216,6 +212,9 @@ class DataKeyView(QtWidgets.QListView):
     def sizeHint(self):
         """The default size of the widget."""
         return QtCore.QSize(self.parent().width(), self.parent().height())
+
+    def inline_icons_count(self):
+        return 0
 
     def hideEvent(self, event):
         """DataKeyView hide event."""

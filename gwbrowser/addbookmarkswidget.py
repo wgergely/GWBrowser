@@ -238,21 +238,16 @@ class ComboboxButton(QtWidgets.QPushButton):
 class ListWidgetDelegate(BaseDelegate):
     """Delegate render the items of ``ListWidget`` instances."""
 
-    def __init__(self, parent=None):
-        super(ListWidgetDelegate, self).__init__(parent=parent)
-
     def paint(self, painter, option, index):
         """The main paint method."""
-        args = self._get_paint_args(painter, option, index)
         if index.data(QtCore.Qt.DisplayRole) != custom_string:
-            self.paint_background(*args)
-        self.paint_name(*args)
+            self.paint_background(index, painter, option)
+        self.paint_name(index, painter, option)
 
     @paintmethod
-    def paint_background(self, *args):
-        painter, option, index, selected, _, _, _, _, _ = args
-
+    def paint_background(self, index, painter, option):
         rect = QtCore.QRect(option.rect)
+        selected = option.state & QtWidgets.QStyle.State_Selected
 
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SECONDARY_BACKGROUND)
@@ -269,9 +264,9 @@ class ListWidgetDelegate(BaseDelegate):
         painter.drawRect(rect)
 
     @paintmethod
-    def paint_name(self, *args):
+    def paint_name(self, index, painter, option):
         """Paints the DisplayRole of the items."""
-        painter, option, index, _, _, _, _, _, hover = args
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
         disabled = index.flags() == QtCore.Qt.NoItemFlags
 
         rect = QtCore.QRect(option.rect)

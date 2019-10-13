@@ -84,7 +84,7 @@ class FileInfoWorker(BaseWorker):
             data = index.model().model_data()[index.row()]
         except:
             return
-            
+
         settings = AssetSettings(index)
 
         # Item description
@@ -136,7 +136,7 @@ class FileInfoWorker(BaseWorker):
                 data[common.SortByLastModified] = mtime
                 mtime = common.qlast_modified(mtime)
 
-                info_string = u'{count} files    |    {day}/{month}/{year}  {hour}:{minute}   {size}'.format(
+                info_string = u'{count} files;{day}/{month}/{year} {hour}:{minute};{size}'.format(
                     count=len(intframes),
                     day=mtime.toString(u'dd'),
                     month=mtime.toString(u'MM'),
@@ -153,7 +153,7 @@ class FileInfoWorker(BaseWorker):
                 data[common.SortByLastModified] = mtime
                 mtime = common.qlast_modified(mtime)
                 data[common.SortBySize] = stat.st_size
-                info_string = u'{day}/{month}/{year}  {hour}:{minute}    {size}'.format(
+                info_string = u'{day}/{month}/{year} {hour}:{minute};{size}'.format(
                     day=mtime.toString(u'dd'),
                     month=mtime.toString(u'MM'),
                     year=mtime.toString(u'yyyy'),

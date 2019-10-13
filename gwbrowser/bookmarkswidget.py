@@ -177,14 +177,10 @@ class BookmarksModel(BaseModel):
                 _confpath = QtCore.QFileInfo(_confpath)
                 QtCore.QDir().mkpath(_confpath.filePath())
 
-            flags = (
-                QtCore.Qt.ItemIsSelectable |
-                QtCore.Qt.ItemIsEnabled |
-                QtCore.Qt.ItemIsEditable
-            )
+            flags = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable
 
             if not file_info.exists():
-                flags = QtCore.Qt.ItemIsSelectable | common.MarkedAsArchived
+                flags = flags | common.MarkedAsArchived
 
             # Active
             if (
@@ -199,8 +195,13 @@ class BookmarksModel(BaseModel):
 
             data = self.model_data()
             idx = len(data)
+
+            text = u'{}   |   {}'.format(file_info.job, file_info.root)
+            text = text.replace('_', ' ')
+            text = text.replace(u'/', u' / ')
+
             data[idx] = {
-                QtCore.Qt.DisplayRole: u'{}  -  {}'.format(file_info.job, file_info.root).replace('_', ' '),
+                QtCore.Qt.DisplayRole: text,
                 QtCore.Qt.EditRole: file_info.job,
                 QtCore.Qt.StatusTipRole: file_info.filePath(),
                 QtCore.Qt.ToolTipRole: file_info.filePath(),
@@ -213,11 +214,11 @@ class BookmarksModel(BaseModel):
                 common.FileDetailsRole: file_info.size(),
                 common.AssetCountRole: file_info.size(),
                 #
-                common.DefaultThumbnailRole: default_thumbnail_image,
-                common.DefaultThumbnailBackgroundRole: default_background_color,
+                common.DefaultThumbnailRole: QtGui.QImage(),
+                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 common.ThumbnailPathRole: None,
-                common.ThumbnailRole: default_thumbnail_image,
-                common.ThumbnailBackgroundRole: default_background_color,
+                common.ThumbnailRole: QtGui.QImage(),
+                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.TypeRole: common.BookmarkItem,
                 common.FileInfoLoaded: True,

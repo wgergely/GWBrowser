@@ -389,6 +389,34 @@ class ImageCache(QtCore.QObject):
             )
         return average_color
 
+    @staticmethod
+    def get_bottom_row_color(image):
+        """Returns the average color of an image."""
+        if image.isNull():
+            return common.THUMBNAIL_BACKGROUND
+
+        r = []
+        g = []
+        b = []
+
+        y = image.height() - 1
+        for x in xrange(image.width()):
+            if image.pixelColor(x, y).alpha() < 0.01:
+                continue
+            r.append(image.pixelColor(x, y).red())
+            g.append(image.pixelColor(x, y).green())
+            b.append(image.pixelColor(x, y).blue())
+
+        if not all([float(len(r)), float(len(g)), float(len(b))]):
+            return common.THUMBNAIL_BACKGROUND
+        else:
+            average_color = QtGui.QColor(
+                sum(r) / float(len(r)),
+                sum(g) / float(len(g)),
+                sum(b) / float(len(b))
+            )
+        return average_color
+
     def capture(self, index):
         """Uses ``ScreenGrabber`` to save a custom screen-grab."""
         if not index.isValid():
@@ -487,12 +515,10 @@ class ImageCache(QtCore.QObject):
 
         """
         path = u'{}/../rsc/{}.png'.format(__file__, name)
-        path = os.path.normpath(path)
-        path = os.path.abspath(path)
         file_info = QtCore.QFileInfo(path)
 
         if get_path:
-            return file_info.filePath()
+            return file_info.absoluteFilePath()
 
         k = u'rsc:{name}:{size}:{color}'.format(
             name=name, size=size, color=u'null' if not color else color.name())
@@ -504,7 +530,7 @@ class ImageCache(QtCore.QObject):
             return QtGui.QPixmap(size, size)
 
         image = QtGui.QImage()
-        image.load(file_info.filePath())
+        image.load(file_info.absoluteFilePath())
 
         if image.isNull():
             return QtGui.QPixmap(size, size)
@@ -519,23 +545,24 @@ class ImageCache(QtCore.QObject):
             painter.end()
 
         image = cls.resize_image(image, size)
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
 
         # Setting transparency
         if opacity < 1.0:
             image = QtGui.QImage(
-                pixmap.size(), QtGui.QImage.Format_ARGB32)
+                image.size(), QtGui.QImage.Format_ARGB32)
             image.fill(QtCore.Qt.transparent)
 
             painter = QtGui.QPainter()
             painter.begin(image)
             painter.setOpacity(opacity)
-            painter.drawPixmap(0, 0, pixmap)
+            painter.drawImage(0, 0, image)
             painter.end()
 
             pixmap = QtGui.QPixmap()
             pixmap.convertFromImage(image)
+
+        pixmap = QtGui.QPixmap()
+        pixmap.convertFromImage(image)
 
         cls._data[k] = pixmap
         return cls._data[k]

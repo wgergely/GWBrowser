@@ -403,10 +403,9 @@ class BookmarksWidgetDelegate2(BookmarksWidgetDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``AssetsWidget``'s' items should be painted."""
-        args = self._get_paint_args(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
         self.paint_name(*args)
-        self.paint_count_icon(*args)
         self.paint_archived(*args)
         self.paint_selection_indicator(*args)
 
@@ -429,11 +428,72 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``AssetsWidget``'s' items should be painted."""
-        args = self._get_paint_args(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
         self.paint_name(*args)
         self.paint_archived(*args)
         self.paint_selection_indicator(*args)
+
+    def paint_name(self, *args):
+        """Paints the item names inside the ``AssetsWidget``."""
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rect.left() + common.MARGIN)
+        rect.setRight(rect.right() - common.MARGIN)
+
+        # Name
+        color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.TEXT_SELECTED if selected else color
+        painter.setBrush(color)
+
+        name_rect = QtCore.QRect(rect)
+        center = name_rect.center()
+        name_rect.setHeight(metrics.height())
+        name_rect.moveCenter(center)
+
+        if index.data(common.DescriptionRole):
+            name_rect.moveCenter(
+                QtCore.QPoint(name_rect.center().x(),
+                name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+            )
+
+        text = index.data(QtCore.Qt.DisplayRole)
+        text = metrics.elidedText(
+            text.upper(),
+            QtCore.Qt.ElideRight,
+            name_rect.width()
+        )
+
+        x = name_rect.left()
+        y = name_rect.center().y() + (metrics.ascent() / 2.0)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, font, text)
+        painter.drawPath(path)
+
+        description_rect = QtCore.QRect(name_rect)
+        description_rect.moveCenter(
+            QtCore.QPoint(name_rect.center().x(),
+            name_rect.center().y() + metrics.lineSpacing())
+        )
+        self._description_rect = description_rect
+
+        color = common.TEXT if hover else common.SECONDARY_TEXT
+        painter.setBrush(color)
+
+        text = index.data(common.DescriptionRole)
+        text = text if text else u''
+        font.setPointSize(common.MEDIUM_FONT_SIZE)
+        _metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+        text = _metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            description_rect.width()
+        )
+        x = description_rect.left()
+        y = description_rect.center().y() + (metrics.ascent() / 2.0)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, common.SecondaryFont, text)
+        painter.drawPath(path)
 
     def sizeHint(self, index, parent):
         return QtCore.QSize(0, common.CONTROL_HEIGHT)

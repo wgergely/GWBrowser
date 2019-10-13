@@ -2,6 +2,7 @@
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
 import time
+import re
 import traceback
 import sys
 from PySide2 import QtCore, QtGui, QtWidgets
@@ -207,10 +208,10 @@ class AssetModel(BaseModel):
                 if activeasset in filepath:
                     flags = flags | common.MarkedAsActive
 
-
             idx = len(self._data[dkey][dtype])
+            name = re.sub(ur'[_]{1,}', ' ', filename).strip(u'_')
             self._data[dkey][dtype][idx] = {
-                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,

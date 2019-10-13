@@ -27,14 +27,26 @@ ASSET_ROW_HEIGHT = common.ASSET_ROW_HEIGHT
 regex_remove_version = re.compile(
     ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE)
 
+BackgroundRect = 0
+IndicatorRect = 1
+ThumbnailRect = 2
+AssetNameRect = 3
+AssetDescriptionRect = 4
+BookmarkCountRect = 5
+TodoRect = 6
+RevealRect = 7
+ArchiveRect = 8
+FavouriteRect = 9
+DataRect = 10
+
 
 def paintmethod(func):
     """@Decorator to save the painter state."""
     @wraps(func)
     def func_wrapper(self, *args, **kwargs):
-        args[0].save()
+        args[1].save()
         res = func(self, *args, **kwargs)
-        args[0].restore()
+        args[1].restore()
         return res
     return func_wrapper
 
@@ -45,1250 +57,1120 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def __init__(self, parent=None):
         super(BaseDelegate, self).__init__(parent=parent)
 
-    def _get_paint_args(self, painter, option, index):
-        """Returns a list of boolean arguments used to paint items."""
-        selected = option.state & QtWidgets.QStyle.State_Selected
-        focused = option.state & QtWidgets.QStyle.State_HasFocus
+    def paint(self, painter, option, index):
+        raise NotImplementedError('`paint()` is abstract and has to be overriden in the subclass!')
 
-        favourite = index.flags() & common.MarkedAsFavourite
-        archived = index.flags() & common.MarkedAsArchived
-        active = index.flags() & common.MarkedAsActive
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        args = (painter, option, index, selected,
-                focused, active, archived, favourite, hover)
-        return args
-
-    @staticmethod
-    def get_inline_icon_rect(rect, size, idx):
-        """Returns the rectangle needed to draw an in-line item icon.
-
-        Args:
-            rect (QRect): The original item rectangle.
-            size (int): The size of the rectangle.
-            idx (int): The id number of the rectangle.
-
-        Returns:
-            Tuple: The pixmap and the icon's background rectangle.
+    def get_paint_arguments(self, painter, option, index, antialiasing=True):
+        """A utility class for gathering all the arguments needed to paint
+        the individual listelements.
 
         """
-        rect = QtCore.QRect(rect)
+        if antialiasing:
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtCore.Qt.NoBrush)
 
-        # Vertical
-        center = rect.center()
-        rect.setHeight(int(size))
-        rect.moveCenter(center)
-        # Horizontal
-        rect.setLeft(rect.right() - size)
-        rect.moveRight(rect.right() - common.MARGIN)
+        selected = option.state & QtWidgets.QStyle.State_Selected
+        focused = option.state & QtWidgets.QStyle.State_HasFocus
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
 
-        for _ in xrange(idx):
-            o = common.INDICATOR_WIDTH * 0.8
-            rect.moveRight(
-                rect.right() - o - size - (o * 2))
+        flags = index.flags()
+        favourite = flags & common.MarkedAsFavourite
+        archived = flags & common.MarkedAsArchived
+        active = flags & common.MarkedAsActive
 
-        rect.setWidth(int(size))
-        center = rect.center()
+        rectangles = self.get_rectangles(option)
+        font = common.PrimaryFont
+        painter.setFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetricsF(font)
+
+        cursor_position = self.parent().mapFromGlobal(QtGui.QCursor().pos())
+
+        args = (
+            rectangles,
+            painter,
+            option,
+            index,
+            selected,
+            focused,
+            active,
+            archived,
+            favourite,
+            hover,
+            font,
+            metrics,
+            cursor_position
+        )
+        return args
+
+    def get_rectangles(self, option):
+        """Returns all the main rectangles of the row to paint and handle
+        mouse-click events.
+
+        """
+        def rect():
+            """Returns a rectangle with a separator."""
+            r = QtCore.QRect(option.rect)
+            return r.adjusted(0, 0, 0, -1)
+
+        background_rect = rect()
+        background_rect.setLeft(common.INDICATOR_WIDTH)
+        background_rect.setRight(rect().right())
+
+        indicator_rect = rect()
+        indicator_rect.setWidth(common.INDICATOR_WIDTH)
+
+        thumbnail_rect = rect()
+        thumbnail_rect.setWidth(rect().height())
+        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
+
+        # Inline icons rect
+        inline_icon_rects = []
+        inline_icon_rect = rect()
+        num_icons = self.parent().inline_icons_count()
+        spacing = common.INDICATOR_WIDTH * 2
+        center = inline_icon_rect.center()
+        size = QtCore.QSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
+        inline_icon_rect.setSize(size)
+        inline_icon_rect.moveCenter(center)
+        inline_icon_rect.moveRight(option.rect.right() - spacing)
+
+        offset = 0
+        y = inline_icon_rect.y()
+        for n in xrange(self.parent().inline_icons_count()):
+            r = inline_icon_rect.translated(offset, 0)
+            inline_icon_rects.append(r)
+            offset -= inline_icon_rect.width() + spacing
+        offset -= spacing
+
+        data_rect = rect()
+        data_rect.setLeft(thumbnail_rect.right() + spacing)
+        data_rect.setRight(option.rect.right() + offset)
+
+        null_rect = QtCore.QRect()
+
+        return {
+            BackgroundRect: background_rect,
+            #
+            IndicatorRect: indicator_rect,
+            ThumbnailRect: thumbnail_rect,
+            #
+            FavouriteRect: inline_icon_rects[0] if num_icons > 0 else null_rect,
+            ArchiveRect: inline_icon_rects[1] if num_icons > 1 else null_rect,
+            RevealRect: inline_icon_rects[2] if num_icons > 2 else null_rect,
+            TodoRect: inline_icon_rects[3] if num_icons > 3 else null_rect,
+            BookmarkCountRect: inline_icon_rects[4] if num_icons > 4 else null_rect,
+            #
+            DataRect: data_rect
+        }
+
+    def paint_name(self, *args):
+        raise NotImplementedError('`paint_name()` is abstract and needs to be overriden in the subclass!')
+
+    def get_text_segments(self, index):
+        raise NotImplementedError('`get_text_segments()` is abstract and needs to be overriden in the subclass!')
+
+    @paintmethod
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnails of asset and file-items.``"""
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+
+        image = index.data(common.ThumbnailRole)
+        if image is None:
+            return
+
+        rect = QtCore.QRect(rectangles[ThumbnailRect])
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
         # Background
-        size = max(rect.width(), rect.height())
-        bg_rect = QtCore.QRect(rect)
-        # center = rect.center()
-        bg_rect.setWidth(size + int(common.INDICATOR_WIDTH * 1.5))
-        bg_rect.setHeight(size + int(common.INDICATOR_WIDTH * 1.5))
-        bg_rect.moveCenter(center)
-        return rect, bg_rect
+        color = index.data(common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
+        painter.setBrush(color)
+        painter.setOpacity(0.9)
+        painter.drawRect(rect)
+
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+
+        # Image
+        irect = QtCore.QRect(image.rect())
+        if irect.width() > rect.width():
+            irect.setWidth(rect.width())
+        if irect.height() > rect.height():
+            irect.setHeight(rect.height())
+        irect.moveCenter(rect.center())
+
+        # Image
+        irect = QtCore.QRect(image.rect())
+        if irect.width() > rect.width():
+            irect.setWidth(rect.width())
+        if irect.height() > rect.height():
+            irect.setHeight(rect.height())
+        irect.moveCenter(rect.center())
+        painter.drawImage(irect, image, image.rect())
+
+        color = ImageCache.get_bottom_row_color(image)
+        painter.setBrush(color)
+
+        bottom_row_rect = QtCore.QRect(irect)
+        bottom_row_rect.setHeight(1)
+        bottom_row_rect.moveTop(irect.bottom() + common.ROW_SEPARATOR)
+        painter.setOpacity(0.5)
+        painter.drawRect(bottom_row_rect)
 
     @paintmethod
     def paint_background(self, *args):
-        """Paints the background."""
-        painter, option, _, selected, _, active, _, _, hover = args
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
+        """Paints the background for all list items."""
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = rectangles[BackgroundRect]
 
-        if selected:
-            color = QtGui.QColor(common.BACKGROUND_SELECTED)
-        else:
-            color = QtGui.QColor(common.BACKGROUND)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.INDICATOR_WIDTH)
+        # Setting the opacity of the separator
+        if index.row() != (self.parent().model().rowCount() - 1):
+            painter.setOpacity(0.6667)
+            color = common.SEPARATOR if archived else common.BACKGROUND
+            painter.setBrush(color)
+            r = QtCore.QRect(option.rect)
+            r.setLeft(common.INDICATOR_WIDTH)
+            painter.drawRect(r)
 
-        painter.setOpacity(0.666)
-        painter.setBrush(common.BACKGROUND)
-        painter.drawRect(rect)
         painter.setOpacity(1)
-
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
-
+        color = common.BACKGROUND_SELECTED if selected else common.BACKGROUND
         painter.setBrush(color)
         painter.drawRect(rect)
 
+        # Active indicator
         if active:
-            color = common.FAVOURITE
-            painter.setPen(QtCore.Qt.NoPen)
+            painter.setOpacity(0.8)
             painter.setBrush(color)
-            painter.setOpacity(0.6)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
 
+        # Hover indicator
         if hover:
             painter.setBrush(QtGui.QColor(255, 255, 255, 20))
             painter.drawRect(rect)
+
+    @paintmethod
+    def paint_inline_icons(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+        rect = rectangles[FavouriteRect]
+        if rect and not archived:
+            if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
+            color = common.TEXT_SELECTED if favourite else common.SEPARATOR
+            color = common.TEXT if rect.contains(cursor_position) else color
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'favourite', color, common.INLINE_ICON_SIZE)
+            painter.drawPixmap(rect, pixmap)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+        rect = rectangles[ArchiveRect]
+        if rect:
+            if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
+            color = common.REMOVE if rect.contains(cursor_position) else common.SEPARATOR
+            color = common.REMOVE if archived else color
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'remove', color, common.INLINE_ICON_SIZE)
+            painter.drawPixmap(rect, pixmap)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+        rect = rectangles[RevealRect]
+        if rect and not archived:
+            if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
+            color = common.TEXT_SELECTED if rect.contains(cursor_position) else common.SEPARATOR
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'reveal_folder', color, common.INLINE_ICON_SIZE)
+            painter.drawPixmap(rect, pixmap)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+        rect = rectangles[TodoRect]
+        if rect and not archived:
+            if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
+
+            color = common.TEXT_SELECTED if rect.contains(cursor_position) else common.SEPARATOR
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'todo', color, common.INLINE_ICON_SIZE)
+            painter.drawPixmap(rect, pixmap)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+            # Circular background
+            size = 16
+            count_rect = QtCore.QRect(0,0,size,size)
+            count_rect.moveCenter(rect.bottomRight())
+
+            if index.data(common.TodoCountRole):
+                if rect.contains(cursor_position):
+                    color = common.TEXT_SELECTED
+                    pixmap = ImageCache.get_rsc_pixmap(
+                        u'add', color, size)
+                    painter.drawPixmap(count_rect, pixmap)
+                else:
+                    color = common.FAVOURITE
+                    painter.setBrush(color)
+                    painter.drawRoundedRect(
+                        count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
+
+                    text = u'{}'.format(index.data(common.TodoCountRole))
+                    _font = QtGui.QFont(common.PrimaryFont)
+                    _font.setPointSize(common.SMALL_FONT_SIZE)
+                    _metrics = QtGui.QFontMetricsF(_font)
+                    x = count_rect.center().x() - (_metrics.width(text) / 2.0) + 1
+                    y = count_rect.center().y() + (_metrics.ascent() / 2.0)
+
+                    painter.setBrush(common.TEXT)
+                    path = QtGui.QPainterPath()
+                    path.addText(x, y, _font, text)
+                    painter.drawPath(path)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+
+        rect = rectangles[BookmarkCountRect]
+        asset_count = index.data(common.AssetCountRole)
+        if rect and not archived:
+            if rect.contains(cursor_position):
+                pixmap = ImageCache.get_rsc_pixmap(u'add', common.TEXT_SELECTED, rect.height())
+                painter.drawPixmap(rect, pixmap)
+            else:
+                if asset_count:
+                    color = common.TEXT_SELECTED if selected else common.FAVOURITE
+                    color = color if asset_count else common.SEPARATOR
+
+                    pen = QtGui.QPen(color)
+                    pen.setWidthF(2.0)
+                    painter.setPen(pen)
+                    painter.setBrush(QtCore.Qt.NoBrush)
+
+                    c = rect.height() / 2.0
+                    painter.drawRoundedRect(rect, c, c)
+
+                    color = common.TEXT if asset_count else common.SECONDARY_TEXT
+                    color = common.TEXT_SELECTED if selected else color
+
+                    text = u'{}'.format(asset_count)
+                    _font = QtGui.QFont(common.PrimaryFont)
+                    _font.setPointSize(common.SMALL_FONT_SIZE)
+                    _metrics = QtGui.QFontMetricsF(_font)
+                    x = rect.center().x() - (_metrics.width(text) / 2.0) + 0.666
+                    y = rect.center().y() + (_metrics.ascent() / 2.0)
+
+                    painter.setBrush(color)
+                    painter.setPen(QtCore.Qt.NoPen)
+
+                    path = QtGui.QPainterPath()
+                    path.addText(x, y, _font, text)
+                    painter.drawPath(path)
+                else:
+                    pixmap = ImageCache.get_rsc_pixmap(u'add', common.SEPARATOR, rect.height())
+                    painter.drawPixmap(rect, pixmap)
+            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
 
     @paintmethod
     def paint_selection_indicator(self, *args):
         """Paints the leading rectangle indicating the selection."""
-        painter, option, _, selected, _, _, _, _, _ = args
-        if not selected:
-            return
-
-        rect = QtCore.QRect(option.rect)
-        rect.setWidth(common.INDICATOR_WIDTH)
-        center = rect.center()
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
-        rect.moveCenter(center)
-
-        color = common.FAVOURITE
-
-        painter.setPen(QtGui.QPen(QtCore.Qt.NoPen))
-        painter.setBrush(QtGui.QBrush(color))
-        painter.drawRect(rect)
-
-    @paintmethod
-    def paint_thumbnail(self, *args):
-        """Paints the thumbnail of an item."""
-        painter, option, index, selected, _, _, _, _, hover = args
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
-        rect = QtCore.QRect(option.rect)
-
-        rect.setWidth(rect.height())
-        rect.moveLeft(common.INDICATOR_WIDTH)
-        center = rect.center()
-        rect.moveCenter(center)
-
-        size = option.rect.height() - common.ROW_SEPARATOR
-        rect.setWidth(size)
-        rect.setHeight(size)
-        rect.moveCenter(center)
-
-        image = index.data(common.ThumbnailRole)
-        if not image:
-            return
-
-        if TINT_THUMBNAIL_BACKGROUND:
-            color = index.data(common.ThumbnailBackgroundRole)
-        else:
-            color = common.THUMBNAIL_BACKGROUND
-        color = color if color else common.THUMBNAIL_BACKGROUND
-
-        # Background
-        painter.setPen(QtCore.Qt.NoPen)
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = rectangles[IndicatorRect]
+        color = common.FAVOURITE if selected else QtGui.QColor(0,0,0,0)
         painter.setBrush(color)
-        if hover or selected:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.8)
         painter.drawRect(rect)
-
-        if hover or selected:
-            painter.setOpacity(1.0)
-        else:
-            painter.setOpacity(0.8)
-
-        irect = QtCore.QRect(image.rect())
-        irect.moveCenter(rect.center())
-        painter.drawImage(irect, image, image.rect())
 
     @paintmethod
     def paint_thumbnail_shadow(self, *args):
         """Paints a drop-shadow"""
-        painter, option, _, _, _, _, archived, _, _ = args
-        if archived:
-            return
-
-        rect = QtCore.QRect(option.rect)
-        center = rect.center()
-        rect.setHeight(rect.height() - common.ROW_SEPARATOR)
-        rect.setWidth((rect.height() + common.ROW_SEPARATOR) * 2)
-        rect.moveCenter(center)
-        rect.moveLeft(common.INDICATOR_WIDTH + rect.height())
-
-        # name, color, size, opacity=1.0
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = rectangles[ThumbnailRect]
+        rect.moveLeft(rect.left() + rect.width())
+        rect.setWidth(rect.width() * 2)
         pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
-    def paint_data(self, *args):
-        """Generic paint method to draw the name of an item."""
-        painter, option, index, selected, _, _, _, _, _ = args
-
-        if selected:
-            color = QtGui.QColor(common.TEXT_SELECTED)
-        elif not selected:
-            color = QtGui.QColor(common.TEXT)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
-
-        text = metrics.elidedText(
-            index.data(QtCore.Qt.DisplayRole),
-            QtCore.Qt.ElideMiddle,
-            rect.width()
-        )
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(color)
-        path = QtGui.QPainterPath()
-        path.addText(rect.left(), rect.center().y() +
-                     (metrics.ascent() / 2.0), font, text)
-        painter.drawPath(path)
-
-    @paintmethod
     def paint_archived(self, *args):
-        """Paints a `disabled` overlay on top of items flagged as `archived`."""
-        painter, option, _, _, _, _, archived, _, _ = args
-        if not archived:
-            return
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 150)))
-        painter.drawRect(option.rect)
-
-        brush = QtGui.QBrush(QtGui.QColor(0, 0, 0, 40))
-        brush.setStyle(QtCore.Qt.BDiagPattern)
-        painter.setBrush(brush)
-        painter.drawRect(option.rect)
-
-    @paintmethod
-    def paint_archived_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, archived, _, _ = args
-        if self.parent().buttons_hidden():
-            return
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, bg_rect = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 1)
-
-        sep = QtGui.QColor(common.SEPARATOR)
-        sep.setAlpha(150)
-        color = common.REMOVE if archived else sep
-
-        cpos = QtGui.QCursor().pos()
-        cpos = self.parent().mapFromGlobal(cpos)
-        if bg_rect.contains(cpos):
-            color = common.REMOVE
-
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QBrush(color))
-
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         if archived:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'add', color, common.INLINE_ICON_SIZE)
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'remove', color, common.INLINE_ICON_SIZE)
-
-        painter.drawPixmap(rect, pixmap)
-
-    @paintmethod
-    def paint_folder_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        if self.parent().buttons_hidden():
-            return
-
-        painter, option, _, _, _, _, _, _, _ = args
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 2)
-
-        sep = QtGui.QColor(common.SEPARATOR)
-        sep.setAlpha(150)
-
-        cpos = QtGui.QCursor().pos()
-        cpos = self.parent().mapFromGlobal(cpos)
-        if rect.contains(cpos):
-            sep = common.TEXT_SELECTED
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'reveal_folder', sep, common.INLINE_ICON_SIZE)
-        painter.drawPixmap(rect, pixmap)
-
-    @paintmethod
-    def paint_todo_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        if self.parent().buttons_hidden():
-            return
-
-        painter, option, index, _, _, _, _, _, _ = args
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 3)
-        sep = QtGui.QColor(common.SEPARATOR)
-        sep.setAlpha(150)
-
-        cpos = QtGui.QCursor().pos()
-        cpos = self.parent().mapFromGlobal(cpos)
-        if rect.contains(cpos):
-            sep = common.TEXT_SELECTED
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'todo', sep, common.INLINE_ICON_SIZE)
-        painter.drawPixmap(rect, pixmap)
-
-        if not index.data(common.TodoCountRole):
-            return
-
-        count_rect = QtCore.QRect(rect)
-        count_rect.setWidth(8)
-        count_rect.setHeight(8)
-
-        count_rect.moveCenter(rect.bottomRight())
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(common.SMALL_FONT_SIZE)
-        painter.setFont(font)
-
-        pen = QtGui.QPen(common.FAVOURITE)
-        pen.setWidth(8.0)
-        painter.setPen(pen)
-        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-        painter.drawRoundedRect(
-            count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
-
-        text = u'{}'.format(index.data(common.TodoCountRole))
-        center = count_rect.center()
-        count_rect.setWidth(36)
-        count_rect.moveCenter(center)
-        common.draw_aliased_text(
-            painter, font, count_rect, text, QtCore.Qt.AlignCenter, common.TEXT)
-
-    @paintmethod
-    def paint_favourite_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        if self.parent().buttons_hidden():
-            return
-
-        painter, option, _, _, _, _, _, favourite, _ = args
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, bg_rect = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 0)
-
-        painter.setPen(QtCore.Qt.NoPen)
-
-        # Icon
-        if favourite:
-            color = QtGui.QColor(common.TEXT_SELECTED)
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'favourite', color, common.INLINE_ICON_SIZE)
-            painter.drawPixmap(rect, pixmap)
-            return
-
-        color = QtGui.QColor(common.SEPARATOR)
-        color.setAlpha(150)
-
-        cpos = QtGui.QCursor().pos()
-        cpos = self.parent().mapFromGlobal(cpos)
-        if bg_rect.contains(cpos):
-            color = common.FAVOURITE
-
-        pos = QtGui.QCursor().pos()
-        pos = self.parent().mapFromGlobal(pos)
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'favourite', color, common.INLINE_ICON_SIZE)
-        painter.drawPixmap(rect, pixmap)
-
-    @paintmethod
-    def paint_inline_icons_background(self, *args):
-        """Paints the background for the inline icons."""
-        if self.parent().buttons_hidden():
-            return
-        painter, option, _, selected, _, active, archived, _, hover = args
-        if archived:
-            return
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, _ = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-
-        # Background rectangle
-        bg_rect = QtCore.QRect(option.rect)
-        bg_rect.setLeft(rect.left() - common.MARGIN)
-        center = bg_rect.center()
-        bg_rect.setHeight(bg_rect.height() - common.ROW_SEPARATOR)
-        bg_rect.moveCenter(center)
-
-        painter.setPen(QtCore.Qt.NoPen)
-
-        if selected:
-            color = QtGui.QColor(common.BACKGROUND_SELECTED)
-        else:
-            color = QtGui.QColor(common.BACKGROUND)
-        painter.setBrush(color)
-        painter.drawRect(bg_rect)
-
-        if active:
-            color = common.FAVOURITE
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(color)
-            painter.setOpacity(0.6)
-            painter.setBrush(common.FAVOURITE)
-            painter.drawRect(bg_rect)
-            painter.setOpacity(1)
-
-        painter.setPen(QtCore.Qt.NoPen)
-
-        # Hover overlay
-        if hover:
-            if active:
-                painter.setOpacity(0.5)
-            else:
-                painter.setOpacity(1)
-            painter.setBrush(QtGui.QColor(255, 255, 255, 20))
-            painter.drawRect(bg_rect)
-
-    @paintmethod
-    def paint_description(self, *args):
-        """Paints the item description inside the ``AssetsWidget``."""
-        painter, option, index, _, _, _, _, _, hover = args
-        if not index.data(common.DescriptionRole) and not hover:
-            return
-
-        # Resizing the height and moving below the name
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(
-            QtCore.QPoint(center.x(), center.y() + metrics.lineSpacing())
-        )
-
-        color = QtGui.QColor(common.TEXT) if hover else QtGui.QColor(
-            common.SECONDARY_TEXT)
-
-        if not index.data(common.DescriptionRole):
-            text = u'Double-click to add description...'
-            color.setAlpha(100)
-        elif index.data(common.DescriptionRole):
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-            text = index.data(common.DescriptionRole)
-
-        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            if self.parent().inline_icons_count():
-                rect.setRight(icon_rect.left() - common.MARGIN)
-        common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
-        return metrics.width(text)
+            rect = QtCore.QRect(rectangles[IndicatorRect])
+            rect.setRight(option.rect.right())
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(50, 50, 50, 200)))
+            painter.drawRect(rect)
 
     def sizeHint(self, option, index):
-        """Custom size-hint. Sets the size of the files and asset widget items."""
-        size = QtCore.QSize(
-            self.parent().viewport().width(), ROW_HEIGHT)
-        return size
+        raise NotImplementedError('`sizeHint` has to be overriden in the subclass.')
 
 
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
 
+    def __init__(self, parent=None):
+        super(BaseDelegate, self).__init__(parent=parent)
+
     def paint(self, painter, option, index):
         """Defines how the ``BookmarksWidgetItems`` should be painted."""
-        args = self._get_paint_args(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
-        #
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
-        #
         self.paint_name(*args)
-
-        self.paint_inline_icons_background(*args)
-        self.paint_todo_icon(*args)
-        self.paint_folder_icon(*args)
-        self.paint_archived_icon(*args)
-        self.paint_favourite_icon(*args)
-        self.paint_count_icon(*args)
-        #
         self.paint_archived(*args)
+        self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
+
+    def get_text_segments(self, index):
+        """I'm using QPainterPaths to paint the text of each item. The functions
+        returns a tuple of text and colour information to be used to mimick
+        rich-text like colouring of individual text elements.
+
+        """
+        text = index.data(QtCore.Qt.DisplayRole)
+        segments = {}
+        job = text.split(u'|')[0]
+
+        segments[len(segments)] = (job.upper(), common.TEXT)
+        segments[len(segments)] = (u'|', common.SECONDARY_BACKGROUND)
+
+        root_dirs = text.split(u'|')[-1].split(u'/')
+        for idx, root_dir in enumerate(root_dirs):
+            segments[len(segments)] = (root_dir.upper(), common.TEXT)
+            if idx == (len(root_dirs) - 1):
+                continue
+            segments[len(segments)] = (u'/', common.SECONDARY_BACKGROUND)
+        return segments
+
+    @paintmethod
+    def paint_thumbnail(self, *args):
+        """Paints the thumbnails of the ``BookmarksWidget`` items."""
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+
+        image = index.data(common.ThumbnailRole)
+        if image is None:
+            return
+
+        rect = rectangles[ThumbnailRect]
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
+
+        # Background
+        color = QtGui.QColor(0,0,0,0) if active else common.THUMBNAIL_BACKGROUND
+        painter.setBrush(color)
+        painter.setOpacity(0.9)
+        painter.drawRect(rect)
+
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+
+        # Image
+        irect = QtCore.QRect(image.rect())
+        if irect.width() > rect.width():
+            irect.setWidth(rect.width())
+        if irect.height() > rect.height():
+            irect.setHeight(rect.height())
+        irect.moveCenter(rect.center())
+
+        if image.isNull():
+            pixmap = ImageCache.get_rsc_pixmap(u'bookmark2', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            pixmap_rect = pixmap.rect()
+            pixmap_rect.setSize(QtCore.QSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE))
+            pixmap_rect.moveCenter(rect.center())
+            # pixmap_rect.moveCenter(pixmap_rect.center() + QtCore.QPoint(1, 0))
+            # painter.drawPixmap(pixmap_rect, pixmap, pixmap.rect())
+
+            pixmap = ImageCache.get_rsc_pixmap(u'bookmark2', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            painter.drawPixmap(pixmap_rect, pixmap, pixmap.rect())
+            return
+        # Image
+        irect = QtCore.QRect(image.rect())
+        if irect.width() > rect.width():
+            irect.setWidth(rect.width())
+        if irect.height() > rect.height():
+            irect.setHeight(rect.height())
+        irect.moveCenter(rect.center())
+        painter.drawImage(irect, image, image.rect())
 
     @paintmethod
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, selected, _, _, _, _, _ = args
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        painter.setOpacity(0.9)
+        if hover:
+            painter.setOpacity(1.0)
 
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
+        text_segments = self.get_text_segments(index)
+        text = u''.join([text_segments[f][0] for f in text_segments])
 
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN - 2
-        )
-        rect.setRight(rect.right() - common.MARGIN)
+        rect = rectangles[DataRect]
+        rect.setLeft(rect.left() + common.MARGIN)
 
-        # Centering rect
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
+        o = common.INDICATOR_WIDTH
 
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = text.replace(u'  -  ', u'    |    ')
-        text = text.replace(u'/', u' / ')
-        text = u'  {}  '.format(text).upper()
-        width = metrics.width(text)
-        rect.setWidth(width)
+        text_width = metrics.width(text)
+        r = QtCore.QRect(rect)
+        r.setWidth(text_width)
+        center = r.center()
+        r.setHeight(metrics.ascent())
+        r.moveCenter(center)
 
-        offset = common.INDICATOR_WIDTH
-        center = rect.center()
-        rect.setHeight(common.INLINE_ICON_SIZE)
-        rect.moveCenter(center)
+        r = r.marginsAdded(QtCore.QMargins(o + 4, o, o + 4, o))
+        if (r.right() + o) > rect.right():
+            r.setRight(rect.right() - o)
+        painter.setBrush(common.FAVOURITE)
 
-        # Name background
-        pen = QtGui.QPen(common.FAVOURITE)
-        painter.setBrush(QtGui.QBrush(common.FAVOURITE))
-
-        pen.setWidth(offset)
+        pcolor = QtGui.QColor(255,255,255,255) if active else QtGui.QColor(0,0,0,100)
+        pen = QtGui.QPen(pcolor)
+        pen.setWidthF(1.0)
         painter.setPen(pen)
-        painter.drawRoundedRect(rect, 2, 2)
-        _text = text.split(u'/')
-        text_ = _text.pop()
-        _text = u'/'.join(_text)
+        painter.drawRoundedRect(r, 3, 3)
 
-        if _text:
-            t1, t2 = _text.split(u'|')
-        else:
-            t1, t2 = text_.split(u'|')
+        offset = 0
+        painter.setPen(QtCore.Qt.NoPen)
+        for segment in text_segments.itervalues():
+            text, color = segment
+            width = metrics.width(text)
+            r = QtCore.QRect(rect)
+            r.setWidth(width)
+            center = r.center()
+            r.setHeight(metrics.ascent())
+            r.moveCenter(center)
+            r.moveLeft(r.left() + offset)
 
-        color = common.TEXT_SELECTED if selected else common.TEXT
-        width = common.draw_aliased_text(
-            painter, font, rect, t1, QtCore.Qt.AlignLeft, color)
-        rect.setLeft(rect.left() + width)
+            if r.left() >= rect.right():
+                break
 
-        width = common.draw_aliased_text(
-            painter, font, rect, u'|', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
-        rect.setLeft(rect.left() + width)
-        width = common.draw_aliased_text(
-            painter, font, rect, t2, QtCore.Qt.AlignLeft, color)
-        rect.setLeft(rect.left() + width)
+            if (r.right() + o) > rect.right():
+                r.setRight(rect.right() - o)
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideRight,
+                    r.width()
+                )
 
-        if _text:
-            width = common.draw_aliased_text(
-                painter, font, rect, u'/', QtCore.Qt.AlignLeft, common.SECONDARY_BACKGROUND)
-            rect.setLeft(rect.left() + width)
+            painter.setBrush(color)
+            path = QtGui.QPainterPath()
+            x = r.x()
+            y = r.bottom()
+            path.addText(x, y, font, text)
+            painter.drawPath(path)
 
-            text_ = u'{}'.format(text_)
-
-            width = common.draw_aliased_text(
-                painter, font, rect, text_, QtCore.Qt.AlignLeft, color)
-
-        rect.moveLeft(rect.right() + common.MARGIN)
-
-    @paintmethod
-    def paint_count_icon(self, *args):
-        """Paints name of the ``BookmarkWidget``'s items."""
-        painter, option, index, selected, _, _, _, _, _ = args
-        # Count
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-
-        count = index.data(common.AssetCountRole)
-
-        rect, bg_rect = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-
-        w = float(bg_rect.width() - 4)
-        bg_rect.setHeight(w)
-        bg_rect.setWidth(w)
-        bg_rect.moveCenter(rect.center())
-
-        color = QtGui.QColor(
-            common.TEXT_SELECTED) if selected else QtGui.QColor(common.FAVOURITE)
-        color.setAlpha(175)
-
-        if count:
-            pen = QtGui.QPen(color)
-            pen.setWidth(2)
-            painter.setPen(pen)
-            painter.setBrush(QtCore.Qt.NoBrush)
-            painter.drawRoundedRect(
-                bg_rect, float(bg_rect.height() / 2.0), float(bg_rect.height() / 2.0))
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(common.SMALL_FONT_SIZE)
-
-        text = u'{}'.format(count)
-        common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignCenter, common.TEXT if count else common.TEXT_DISABLED)
-
-    @paintmethod
-    def paint_archived_icon(self, *args):
-        """Paints the icon for indicating the item is a favourite."""
-        painter, option, _, _, _, _, archived, _, _ = args
-
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return
-        if not self.parent().inline_icons_count():
-            return
-
-        rect, bg_rect = self.get_inline_icon_rect(
-            option.rect, common.INLINE_ICON_SIZE, 1)
-
-        sep = QtGui.QColor(common.SEPARATOR)
-        sep.setAlpha(150)
-        color = common.FAVOURITE if archived else sep
-
-        cpos = QtGui.QCursor().pos()
-        cpos = self.parent().mapFromGlobal(cpos)
-        if bg_rect.contains(cpos):
-            color = common.REMOVE
-
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', color, common.INLINE_ICON_SIZE)
-
-        painter.drawPixmap(rect, pixmap)
+            offset += width
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
-        size = QtCore.QSize(
-            self.parent().viewport().width(), BOOKMARK_ROW_HEIGHT)
+        size = QtCore.QSize(1, BOOKMARK_ROW_HEIGHT)
         return size
 
 
 class AssetsWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
+    def __init__(self, parent):
+        super(AssetsWidgetDelegate, self).__init__(parent=parent)
+        self._description_rect = QtCore.QRect()
+
+    @property
+    def description_rectangle(self):
+        """The rectangle associated with the description field."""
+        if not self._description_rect:
+            self.parent().repaint(self.parent().selectionModel().currentIndex())
+        return self._description_rect
 
     def paint(self, painter, option, index):
         """Defines how the ``AssetsWidget``'s' items should be painted."""
-        args = self._get_paint_args(painter, option, index)
-
+        # The index might still be populated...
+        if index.data(QtCore.Qt.DisplayRole) is None:
+            return
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
-        #
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
-        #
         self.paint_name(*args)
-        self.paint_description(*args)
-        #
-        self.paint_inline_icons_background(*args)
-        self.paint_todo_icon(*args)
-        self.paint_favourite_icon(*args)
-        self.paint_folder_icon(*args)
-        #
         self.paint_archived(*args)
-        self.paint_archived_icon(*args)
+        self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
-        painter, option, index, _, _, _, archived, _, hover = args
-        if not index.data(QtCore.Qt.DisplayRole):
-            return
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = QtCore.QRect(rectangles[DataRect])
+        rect.setLeft(rect.left() + common.MARGIN)
 
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
+        # Name
+        color = common.TEXT_SELECTED if hover else common.TEXT
+        color = common.TEXT_SELECTED if selected else color
+        painter.setBrush(color)
 
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
+        name_rect = QtCore.QRect(rect)
+        center = name_rect.center()
+        name_rect.setHeight(metrics.height())
+        name_rect.moveCenter(center)
 
-        # Resizing the height and centering
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
+        if index.data(common.DescriptionRole):
+            name_rect.moveCenter(
+                QtCore.QPoint(name_rect.center().x(),
+                name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+            )
 
-        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect, common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            if self.parent().inline_icons_count():
-                rect.setRight(icon_rect.left())
-
-        # Asset name
         text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(ur'[^0-9a-zA-Z]+', ' ', text)
-        text = re.sub(ur'[_]{1,}', '_', text).strip(u'_')
         text = metrics.elidedText(
             text.upper(),
             QtCore.Qt.ElideRight,
-            rect.width()
+            name_rect.width()
         )
-        color = common.SECONDARY_TEXT if archived else common.TEXT
-        color = common.TEXT_SELECTED if hover else color
-        if index.data(common.DescriptionRole):
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-        common.draw_aliased_text(
-            painter, font, rect, text, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft, color)
+
+        x = name_rect.left()
+        y = name_rect.center().y() + (metrics.ascent() / 2.0)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, font, text)
+        painter.drawPath(path)
+
+        description_rect = QtCore.QRect(name_rect)
+        description_rect.moveCenter(
+            QtCore.QPoint(name_rect.center().x(),
+            name_rect.center().y() + metrics.lineSpacing())
+        )
+        self._description_rect = description_rect
+
+        color = common.TEXT if hover else common.SECONDARY_TEXT
+        painter.setBrush(color)
+
+        text = index.data(common.DescriptionRole)
+        text = text if text else u''
+        font.setPointSize(common.MEDIUM_FONT_SIZE)
+        _metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+        text = _metrics.elidedText(
+            text,
+            QtCore.Qt.ElideRight,
+            description_rect.width()
+        )
+
+        if description_rect.contains(cursor_position):
+            underline_rect = QtCore.QRect(description_rect)
+            underline_rect.setTop(underline_rect.bottom())
+            underline_rect.moveTop(underline_rect.top() + 1)
+            painter.setOpacity(0.3)
+            painter.setBrush(common.SEPARATOR)
+            painter.drawRect(underline_rect)
+            painter.setOpacity(0.6)
+            painter.setBrush(common.SECONDARY_TEXT)
+            painter.setOpacity(1.0)
+
+            text = u'Double-click to edit...' if not text else text
+
+        x = description_rect.left()
+        y = description_rect.center().y() + (metrics.ascent() / 2.0)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, common.SecondaryFont, text)
+        painter.drawPath(path)
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().viewport().width(), ASSET_ROW_HEIGHT)
+        return QtCore.QSize(1, ASSET_ROW_HEIGHT)
 
 
 class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
+    maximum_subdirs = 4
+
+    def __init__(self, parent=None):
+        super(FilesWidgetDelegate, self).__init__(parent=parent)
+        self._subdir_rectangles = []
+        self._description_rect = QtCore.QRect()
+
+    @property
+    def subdir_rectangles(self):
+        return self._subdir_rectangles
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
+        # The index might still be populated...
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
-
-        args = self._get_paint_args(painter, option, index)
-        #
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
-        #
         self.paint_thumbnail(*args)
-        # #
-        # self.paint_thumbnail_shadow(*args)
-        #
-        if self.parent().buttons_hidden():
-            self.paint_name_simple(*args)
-        else:
-            left = self.paint_mode(*args)
-            self.paint_name(*args, left=left)
-            self.paint_description(*args, left=left)
-        #
-        self.paint_inline_icons_background(*args)
-        self.paint_folder_icon(*args)
-        self.paint_favourite_icon(*args)
-        if index.data(common.FileInfoLoaded):
-            self.paint_archived(*args)
-        self.paint_archived_icon(*args)
-        #
+        self.paint_thumbnail_shadow(*args)
+
+        if index.data(common.ParentRole) and not self.parent().buttons_hidden():
+            self.paint_name(*args)
+        elif index.data(common.ParentRole) and self.parent().buttons_hidden():
+            self.paint_simple_name(*args)
+
+        self.paint_archived(*args)
+        self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
+        if index.data(common.FileInfoLoaded):
+            self.paint_archived(*args)
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
 
     @paintmethod
+    def paint_name(self, *args):
+        """Paints the subfolders and the filename of the current file."""
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = QtCore.QRect(rectangles[DataRect])
+        rect.setRight(rect.right() - (common.INDICATOR_WIDTH))
+
+        # File-name
+        name_rect = QtCore.QRect(rect)
+        name_rect.setHeight(metrics.height())
+        name_rect.moveCenter(rect.center())
+        name_rect.moveCenter(
+            QtCore.QPoint(name_rect.center().x(),
+            name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+        )
+
+        text_segments = self.get_text_segments(index)
+        painter.setPen(common.TEXT)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE + 0.5)
+        metrics = QtGui.QFontMetricsF(font)
+
+        offset = 0
+
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+        painter.setPen(QtCore.Qt.NoPen)
+
+        for k in sorted(text_segments, reverse=False):
+            text, color = text_segments[k]
+            color = common.TEXT_SELECTED if selected else color
+            color = common.TEXT if hover else color
+            r = QtCore.QRect(name_rect)
+            width = metrics.width(text)
+            r.setWidth(width)
+            r.moveRight(rect.right() + offset)
+            offset -= width
+
+            if r.right() < rect.left():
+                break
+            if r.left() < rect.left():
+                r.setLeft(rect.left() + (common.INDICATOR_WIDTH))
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideLeft,
+                    r.width() - 6
+                )
+
+            x = r.center().x() - (metrics.width(text) / 2.0) + 1
+            y = r.center().y() + (metrics.ascent() / 2.0)
+
+            painter.setBrush(color)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, font, text)
+            painter.drawPath(path)
+
+        text_edge = r.left()
+
+
+        # Subfolders
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE)
+        metrics = QtGui.QFontMetrics(font)
+
+        subdir_rectangles = self.get_subdir_rectangles(index, rectangles, metrics)
+        if not subdir_rectangles:
+            return
+
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+
+        for n, val in enumerate(subdir_rectangles):
+            r, text = val
+
+            if r.left() > text_edge:
+                break
+            if r.right() > text_edge:
+                r.setRight(text_edge - (common.INDICATOR_WIDTH * 2))
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideRight,
+                    r.width() - 6
+                )
+                if not text:
+                    continue
+
+            # Background
+            pen = QtGui.QPen(common.SEPARATOR)
+            pen.setWidth(1)
+            painter.setPen(pen)
+            color = common.FAVOURITE if n==0 else QtGui.QColor(70, 70, 70)
+            color = common.REMOVE if r.contains(cursor_position) else color
+
+            painter.setBrush(color)
+            painter.setPen(pen)
+            painter.drawRoundedRect(r, 3.0, 3.0)
+
+            # Text
+            color = common.TEXT_SELECTED if n == 0 else common.SECONDARY_TEXT
+            color = common.TEXT if r.contains(cursor_position) else color
+            x = r.center().x() - (metrics.width(text) / 2.0) + 1
+            y = r.center().y() + (metrics.ascent() / 2.0)
+
+            painter.setBrush(color)
+            painter.setPen(QtCore.Qt.NoPen)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, font, text)
+            painter.drawPath(path)
+
+        text_edge = r.right()
+
+        # File information
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+
+        description_rect = QtCore.QRect(name_rect)
+        description_rect = QtCore.QRect(rect)
+        description_rect.setHeight(metrics.height())
+        description_rect.moveCenter(rect.center())
+        description_rect.moveCenter(
+            QtCore.QPoint(description_rect.center().x(),
+            name_rect.center().y() + metrics.lineSpacing())
+        )
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
+        metrics = QtGui.QFontMetricsF(font)
+
+        text_segments = self.get_filedetail_text_segments(index)
+        offset = 0
+        for k in sorted(text_segments, reverse=False):
+            text, color = text_segments[k]
+            color = common.TEXT if selected else color
+            r = QtCore.QRect(description_rect)
+            width = metrics.width(text)
+            r.setWidth(width)
+            r.moveRight(rect.right() + offset)
+            offset -= width
+
+            if r.right() < rect.left():
+                break
+            if r.left() < rect.left():
+                r.setLeft(rect.left() + (common.INDICATOR_WIDTH))
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideLeft,
+                    r.width() - 6
+                )
+
+            x = r.center().x() - (metrics.width(text) / 2.0) + 1
+            y = r.center().y() + (metrics.ascent() / 2.0)
+
+            painter.setBrush(color)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, font, text)
+            painter.drawPath(path)
+
+        # Description
+
+        font = QtGui.QFont(common.SecondaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+        metrics = QtGui.QFontMetricsF(font)
+
+        color = common.TEXT_SELECTED if selected else common.TEXT
+        color = common.SECONDARY_TEXT if not index.data(common.DescriptionRole) else color
+
+        text = index.data(common.DescriptionRole)
+
+        width = metrics.width(text)
+        text_right_edge = r.left()
+        r = QtCore.QRect(description_rect)
+        r.setRight(text_right_edge)
+        r.setLeft(text_edge + common.INDICATOR_WIDTH)
+        text = metrics.elidedText(
+            text,
+            QtCore.Qt.ElideLeft,
+            r.width()
+        )
+        self._description_rect = r
+        if r.contains(cursor_position):
+            underline_rect = QtCore.QRect(r)
+            underline_rect.setTop(underline_rect.bottom())
+            underline_rect.moveTop(underline_rect.top() + 1)
+            painter.setOpacity(0.3)
+            painter.setBrush(common.SEPARATOR)
+            painter.drawRect(underline_rect)
+            painter.setOpacity(0.6)
+            painter.setOpacity(1.0)
+            color = common.SECONDARY_TEXT
+            text = text if text else u'Double-click to edit...'
+
+        x = r.right() - metrics.width(text)
+        y = r.center().y() + (metrics.ascent() / 2.0)
+
+        painter.setBrush(color)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, font, text)
+        painter.drawPath(path)
+
+    @paintmethod
+    def paint_simple_name(self, *args):
+        """Paints an the current file-names in a simpler form, with only the
+        filename and the description visible.
+
+        """
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rect = QtCore.QRect(rectangles[DataRect])
+        rect.setLeft(rect.left() + (common.INDICATOR_WIDTH * 2))
+
+        # File-name
+        name_rect = QtCore.QRect(rect)
+        name_rect.setHeight(metrics.height())
+        name_rect.moveCenter(rect.center())
+        if index.data(common.DescriptionRole):
+            name_rect.moveCenter(
+                QtCore.QPoint(name_rect.center().x(),
+                name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+            )
+
+        text_segments = self.get_text_segments(index)
+        painter.setPen(common.TEXT)
+        painter.setBrush(QtCore.Qt.NoBrush)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE + 0.5)
+        metrics = QtGui.QFontMetricsF(font)
+
+        offset = 0
+
+        o = 0.9 if selected else 0.8
+        o = 1.0 if hover else o
+        painter.setOpacity(o)
+        painter.setPen(QtCore.Qt.NoPen)
+
+        for k in sorted(text_segments, reverse=True):
+            text, color = text_segments[k]
+            r = QtCore.QRect(name_rect)
+            width = metrics.width(text)
+            r.setWidth(width)
+            r.moveLeft(rect.left() + offset)
+            offset += width
+
+            if r.left() > rect.right():
+                break
+            if r.right() > rect.right():
+                r.setRight(rect.right() - (common.INDICATOR_WIDTH))
+                text = metrics.elidedText(
+                    text,
+                    QtCore.Qt.ElideRight,
+                    r.width() - 6
+                )
+
+            x = r.center().x() - (metrics.width(text) / 2.0) + 1
+            y = r.center().y() + (metrics.ascent() / 2.0)
+
+            painter.setBrush(color)
+            path = QtGui.QPainterPath()
+            path.addText(x, y, font, text)
+            painter.drawPath(path)
+
+
+        # Description
+        if not index.data(common.DescriptionRole):
+            return
+
+        description_rect = QtCore.QRect(name_rect)
+        description_rect = QtCore.QRect(rect)
+        description_rect.setHeight(metrics.height())
+        description_rect.moveCenter(rect.center())
+        description_rect.moveCenter(
+            QtCore.QPoint(description_rect.center().x(),
+            name_rect.center().y() + metrics.lineSpacing())
+        )
+
+        painter.setOpacity(1.0)
+        font = QtGui.QFont(common.SecondaryFont)
+        font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+        metrics = QtGui.QFontMetricsF(font)
+        color = common.TEXT if hover else common.SECONDARY_TEXT
+        color = common.TEXT_SELECTED if selected else color
+
+        text = index.data(common.DescriptionRole)
+        width = metrics.width(text)
+
+        r = QtCore.QRect(description_rect)
+        r.setWidth(width)
+
+        if r.left() > rect.right():
+            return
+        if r.right() > (rect.right()):
+            r.setRight(rect.right())
+            text = metrics.elidedText(
+                text,
+                QtCore.Qt.ElideRight,
+                r.width() - 6
+            )
+
+        x = r.center().x() - (metrics.width(text) / 2.0) + 1
+        y = r.center().y() + (metrics.ascent() / 2.0)
+
+        painter.setBrush(color)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, font, text)
+        painter.drawPath(path)
+
+    def get_text_segments(self, index):
+        segments = {}
+        text = index.data(QtCore.Qt.DisplayRole)
+
+        # Removing the 'v' from 'v010' style version strings.
+        text = regex_remove_version.sub(ur'\1\3', text)
+
+        # Item is a collapsed sequence
+        match = common.is_collapsed(text)
+        if match:
+            # Suffix + extension
+            text = match.group(3).split(u'.')
+            text = u'{suffix}.{ext}'.format(
+                ext=text.pop().lower(),
+                suffix=u'.'.join(text).upper()
+            )
+            segments[len(segments)] = (text, common.TEXT_SELECTED)
+
+            # Frame-range without the "[]" characters
+            text = match.group(2)
+            text = re.sub(ur'[\[\]]*', u'', text)
+            if len(text) > 17:
+                text = u'{}...{}'.format(text[0:8], text[-8:])
+            segments[len(segments)] = (text, common.SECONDARY_TEXT)
+
+            # Prefix
+            segments[len(segments)] = (match.group(1).upper(), common.TEXT_SELECTED)
+            return segments
+
+        # Item is a non-collapsed sequence
+        match = common.get_sequence(text)
+        if match:
+            # The extension and the suffix
+            if match.group(4):
+                text = u'{}.{}'.format(match.group(3).upper(), match.group(4).lower())
+            else:
+                text = u'{}'.format(match.group(3).upper())
+            segments[len(segments)] = (text, common.TEXT_SELECTED)
+
+            # Sequence
+            segments[len(segments)] = (match.group(2).upper(), common.SECONDARY_TEXT)
+
+            # Prefix
+            segments[len(segments)] = (match.group(1).upper(), common.TEXT_SELECTED)
+            return segments
+
+        # Items is not collapsed and it isn't a sequence either
+        text = text.split(u'.')
+        if len(text) > 1:
+            text = u'{suffix}.{ext}'.format(
+                ext=text.pop().lower(), suffix=u'.'.join(text).upper())
+        else:
+            text = text[0].upper()
+        segments[len(segments)] = (text, common.TEXT_SELECTED)
+        return segments
+
+    def get_filedetail_text_segments(self, index):
+        segments = {}
+
+        if not index.data(common.FileInfoLoaded):
+            segments[len(segments)] = (u'Loading...', common.SECONDARY_TEXT)
+            return segments
+
+        text = index.data(common.FileDetailsRole)
+        texts = text.split(u';')
+        for n, text in enumerate(reversed(texts)):
+            segments[len(segments)] = (text, common.SECONDARY_TEXT)
+            if n == (len(texts) - 1) and not index.data(common.DescriptionRole):
+                break
+            segments[len(segments)] = (u'  |  ', common.SECONDARY_BACKGROUND)
+        return segments
+
+    def get_subdir_rectangles(self, index, rectangles, metrics):
+        """Returns the available mode rectangles for the current index."""
+        rect = QtCore.QRect(rectangles[DataRect])
+        rect.setLeft(rect.left() + (common.INDICATOR_WIDTH * 2))
+
+        self._subdir_rectangles = []
+
+        modes_rectangle = QtCore.QRect(rect)
+        modes_rectangle.setHeight(metrics.height())
+        modes_rectangle.moveCenter(rect.center())
+
+        subdirs = index.data(common.ParentRole).pop().upper().split(u'/')
+
+        o = 2
+        spacing = o * 2
+
+        offset = 0
+        for n, text in enumerate(subdirs):
+            if n >= self.maximum_subdirs:
+                break
+            if len(text) > 36:
+                text = u'{}...{}'.format(text[0:16], text[-17:])
+
+            r = QtCore.QRect(modes_rectangle)
+            width = metrics.width(text)
+            r.setWidth(width)
+            r.moveLeft(r.left() + offset)
+            r = r.marginsAdded(QtCore.QMargins(o + 1, o, o + 1, o))
+            offset += width + ((o + 2) * 2) + spacing
+
+            if r.left() > rect.right():
+                break
+            if r.right() > rect.right():
+                r.setRight(rect.right())
+
+            text = metrics.elidedText(
+                text,
+                QtCore.Qt.ElideRight,
+                r.width()
+            )
+
+            self._subdir_rectangles.append((r, text))
+        return self._subdir_rectangles
+
+    @paintmethod
     def paint_drag_source(self, *args, **kwargs):
         """Overlay do indicate the source of a drag operation."""
-        painter, option, index, _, _, _, _, _, _ = args
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
 
         if index != self.parent().drag_source_index:
             return
 
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
-        painter.setOpacity(0.8)
-        painter.drawRect(option.rect)
-        painter.setOpacity(1.0)
-
-    def _draw(self, painter, font, rect, text, align, color, option, left):
-        """Draws a sequence element."""
-        metrics = QtGui.QFontMetrics(font)
-        width = metrics.width(text)
-        rect.setLeft(rect.right() - width)
-
-        if rect.left() < (left + common.MARGIN):
-            rect.setLeft(left + common.MARGIN)
-            if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-                rect.setLeft(rect.left() - common.MARGIN)
-        common.draw_aliased_text(painter, font, rect, text, align, color)
-
-        rect.moveRight(rect.right() - width)
-        return rect
-
-    def _draw2(self, painter, font, rect, text, align, color, option, left):
-        """Draws a sequence element."""
-        metrics = QtGui.QFontMetrics(font)
-        width = metrics.width(text)
-        rect.setRight(rect.left() + width)
-        common.draw_aliased_text(painter, font, rect, text, align, color)
-        rect.moveLeft(rect.right())
-        return rect
-
-    @paintmethod
-    def paint_description(self, *args, **kwargs):
-        """Paints the item description inside the ``FilesWidget``."""
-        painter, option, index, selected, _, _, _, _, hover = args
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            (common.MARGIN / 2.0)
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Resizing the height and centering
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
-        rect.moveTop(rect.top() + (metrics.lineSpacing() / 2.0))
-
-        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect,
-                common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            if self.parent().inline_icons_count():
-                rect.setRight(icon_rect.left() - common.MARGIN)
-            rect.setRight(rect.right())
-
-        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-
-        if not index.data(common.FileInfoLoaded):
-            text = u'-'
-        else:
-            text = index.data(common.FileDetailsRole)
-
-        color = common.TEXT if hover else common.SECONDARY_TEXT
-        color = common.TEXT if selected else color
-        painter.setOpacity(0.5)
-        rect = self._draw(painter, font, rect, text, align,
-                          color, option, kwargs['left'])
-
-        # Nothing else to draw if the item has not been loaded yet...
-        if not index.data(common.FileInfoLoaded):
-            return
-
-        # Description
-        if index.data(common.DescriptionRole):
-            # Drawing a small separator line
-            rect = self._draw(painter, font, rect, u'   |   ', align,
-                              common.SEPARATOR, option, kwargs['left'])
-
-            # Description
-            color = common.TEXT if hover else common.TEXT
-            color = common.TEXT_SELECTED if selected else color
-            text = u'{}\n'.format(index.data(common.DescriptionRole))
-            painter.setOpacity(1.0)
-            font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
-            rect = self._draw(painter, font, rect, text, align,
-                              color, option, kwargs['left'])
-            return metrics.width(text)
-
-        if not hover:
-            return metrics.width(text)
-
-        color = QtGui.QColor(common.SECONDARY_TEXT)
-        color.setAlpha(220)
-        color = common.SECONDARY_TEXT if hover else color
-        color = common.TEXT_SELECTED if selected else color
-        if index.data(common.FileDetailsRole):
-            text = u'Double-click to add description...   '
-        else:
-            text = u'Double-click to add description...'
-        rect = self._draw(painter, font, rect, text,
-                          align, color, option, kwargs['left'])
-        return metrics.width(text)
-
-    @paintmethod
-    def paint_mode(self, *args):
-        """Paints the FilesWidget's mode and the subfolders."""
-        painter, option, index, selected, _, _, _, _, hover = args
-        if index.data(common.ParentRole) is None:
-            return option.rect.height() + common.INDICATOR_WIDTH + common.MARGIN
-
-        if self.parent().buttons_hidden():
-            return option.rect.height() + common.INDICATOR_WIDTH + common.MARGIN
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSize(common.SMALL_FONT_SIZE)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            (common.MARGIN / 2.0)
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Resizing the height and Centering
-        center = rect.center()
-        rect.setHeight(metrics.height() + common.INDICATOR_WIDTH)
-        rect.moveCenter(center)
-
-        modes = index.data(common.ParentRole)[-1]
-        modes = modes.split(u'/')
-        rect.setWidth(0)
-
-        if not modes[0]:
-            return rect.right()
-        if option.rect.width() < common.INLINE_ICONS_MIN_WIDTH:
-            return rect.right()
-
-        max_depth = 4
-        for n, text in enumerate(modes):
-            if len(text) > 40:
-                text = u'{}...{}'.format(text[0:18], text[-18:])
-
-            if n > max_depth:  # Not painting folders deeper than this...
-                return rect.right() - common.MARGIN
-
-            if n == max_depth:
-                text = u'...'
-            else:
-                text = u'{}'.format(text.upper())
-
-            if n == 0:
-                bg_color = common.FAVOURITE
-            else:
-                bg_color = QtGui.QColor(70, 70, 70)
-
-            pen = QtGui.QPen(common.SEPARATOR)
-            pen.setWidth(1)
-            painter.setPen(pen)
-            painter.setBrush(QtGui.QBrush(bg_color))
-            rect.setWidth(metrics.width(text) + (common.INDICATOR_WIDTH * 2))
-            painter.drawRoundedRect(rect, 3.0, 3.0)
-
-            if n == 0:
-                color = QtGui.QColor(common.TEXT)
-                color = common.TEXT_SELECTED if selected else color
-            elif n == max_depth:
-                color = QtGui.QColor(common.TEXT_DISABLED)
-            else:
-                color = QtGui.QColor(common.SECONDARY_TEXT)
-                color = common.TEXT if selected else color
-
-            common.draw_aliased_text(
-                painter, font, rect, text, QtCore.Qt.AlignCenter, color)
-
-            if len(modes) - 1 == n:
-                return rect.right()
-            rect.moveLeft(rect.right() + (common.INDICATOR_WIDTH * 2))
-
-    @paintmethod
-    def paint_name_simple(self, *args, **kwargs):
-        """Used for the files widget when the simple mode is selected."""
-        painter, option, index, selected, _, active, _, _, hover = args
-        if not index.data(QtCore.Qt.DisplayRole):
-            return
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
-        rect.setRight(rect.right() - common.MARGIN)
-        if index.data(common.DescriptionRole):
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-
-        kwargs = {}
-        kwargs['left'] = rect.left()
-
-        # Centering the rectangle
-
-        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
-        # Name
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = regex_remove_version.sub(ur'\1\3', text)
-        color = common.TEXT_SELECTED if hover else common.TEXT
-        # self._draw2(painter, font, rect, text, align, color)
-        # common.draw_aliased_text(painter, font, rect, text, align, color)
-
-        match = common.is_collapsed(text)
-        if match:  # sequence is collapsed
-            # The prefix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(painter, font, rect, match.group(
-                1).upper(), align, color, option, kwargs['left'])
-
-            # The frame-range - this can get quite long - we're trimming it to
-            # avoid long and meaningless names
-            frange = match.group(2)
-            frange = re.sub(ur'[\[\]]*', u'', frange)
-            if len(frange) > 17:
-                frange = u'{}...{}'.format(frange[0:8], frange[-8:])
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-            color = common.TEXT_SELECTED if active else color
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(painter, font, rect, frange,
-                               align, color, option, kwargs['left'])
-
-            text = match.group(3).split(u'.')
-            text = u'{suffix}.{ext}'.format(
-                ext=text.pop().lower(),
-                suffix=u'.'.join(text).upper()
-            )
-
-            # The extension and the suffix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw2(painter, font, rect, text, align,
-                               color, option, kwargs['left'])
-        else:
-            match = common.get_sequence(text)
-            if match:
-                # The prefix
-                color = common.TEXT_SELECTED if selected else common.TEXT
-                color = common.TEXT_SELECTED if hover else color
-                rect = self._draw2(
-                    painter, font, rect, match.group(1).upper(),
-                    align, color, option, kwargs['left'])
-                # The frame-range
-                color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-                color = common.TEXT_SELECTED if active else color
-                color = common.TEXT_SELECTED if hover else color
-                rect = self._draw2(
-                    painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
-
-                # The extension and the suffix
-                if match.group(4):
-                    text = u'{}.{}'.format(
-                        match.group(3).upper(), match.group(4).lower())
-                else:
-                    text = u'{}'.format(
-                        match.group(3).upper())
-
-                color = common.TEXT_SELECTED if selected else common.TEXT
-                color = common.TEXT_SELECTED if hover else color
-                rect = self._draw2(
-                    painter, font, rect, text, align, color, option, kwargs['left'])
-            else:
-                rect = QtCore.QRect(option.rect)
-                rect.setLeft(
-                    common.INDICATOR_WIDTH +
-                    rect.height() +
-                    common.MARGIN
-                )
-                center = rect.center()
-                rect.setHeight(metrics.height())
-                rect.moveCenter(center)
-                rect.setRight(rect.right() - common.MARGIN)
-                if index.data(common.DescriptionRole):
-                    rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-
-                text = index.data(QtCore.Qt.DisplayRole)
-                ext = text.split(u'.')
-                if len(ext) > 1:
-                    ext = u'.{}'.format(ext.pop())
-                    text = text.replace(ext, u'')
-                else:
-                    ext = u''
-                rect = self._draw2(painter, font, rect, text.upper(
-                ), align, color, option, rect.right())
-                rect = self._draw2(painter, font, rect, ext,
-                                   align, color, option, rect.right())
-
-        # Nothing else to draw if the item has not been loaded yet...
-        if not index.data(common.FileInfoLoaded):
-            return
-
-        # Description
-        if index.data(common.DescriptionRole):
-            rect = QtCore.QRect(option.rect)
-            rect.setLeft(
-                common.INDICATOR_WIDTH +
-                rect.height() +
-                common.MARGIN
-            )
-            rect.setRight(rect.right() - common.MARGIN)
-            rect.moveTop(rect.top() + (metrics.lineSpacing() / 2))
-
-            color = common.TEXT if hover else common.TEXT
-            color = common.TEXT_SELECTED if selected else color
-            text = u'{}\n'.format(index.data(common.DescriptionRole))
-            painter.setOpacity(1.0)
-            font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
-            rect = self._draw2(painter, font, rect, text, align,
-                               color, option, kwargs['left'])
-
-    @paintmethod
-    def paint_name(self, *args, **kwargs):
-        """Paints the ``FilesWidget``'s name."""
-        painter, option, index, selected, _, active, _, _, hover = args
-        if not index.data(QtCore.Qt.DisplayRole):
-            return
-
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect = QtCore.QRect(option.rect)
-        rect.setLeft(
-            common.INDICATOR_WIDTH +
-            rect.height() +
-            common.MARGIN
-        )
-        rect.setRight(rect.right() - common.MARGIN)
-
-        # Centering the rectangle
-        center = rect.center()
-        rect.setHeight(metrics.height())
-        rect.moveCenter(center)
-        if hover:
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-        elif not hover and not index.data(common.FileDetailsRole) and not index.data(common.DescriptionRole):
-            rect.moveTop(rect.top())
-        else:
-            rect.moveTop(rect.top() - (metrics.lineSpacing() / 2))
-
-        # Taking the control-icons into consideration
-        if option.rect.width() >= common.INLINE_ICONS_MIN_WIDTH:
-            _, icon_rect = self.get_inline_icon_rect(
-                option.rect,
-                common.INLINE_ICON_SIZE, self.parent().inline_icons_count() - 1)
-            if self.parent().inline_icons_count():
-                rect.setRight(icon_rect.left() - common.MARGIN)
-        align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight
-        # Name
-        text = index.data(QtCore.Qt.DisplayRole)
-        # Removing the 'v' from 'v010' style version strings.
-        text = regex_remove_version.sub(ur'\1\3', text)
-
-        match = common.is_collapsed(text)
-        if match:  # sequence collapsed
-            text = match.group(3).split(u'.')
-            text = u'{suffix}.{ext}'.format(
-                ext=text.pop().lower(),
-                suffix=u'.'.join(text).upper()
-            )
-
-            # The extension and the suffix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(painter, font, rect, text, align,
-                              color, option, kwargs['left'])
-
-            # The frame-range - this can get quite long - we're trimming it to
-            # avoid long and meaningless names
-            frange = match.group(2)
-            frange = re.sub(r'[\[\]]*', u'', frange)
-            if len(frange) > 17:
-                frange = u'{}...{}'.format(frange[0:8], frange[-8:])
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-            color = common.TEXT_SELECTED if active else color
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(painter, font, rect, frange,
-                              align, color, option, kwargs['left'])
-
-            # The prefix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(painter, font, rect, match.group(
-                1).upper(), align, color, option, kwargs['left'])
-            return
-
-        match = common.get_sequence(text)
-        if match:
-            # The extension and the suffix
-            if match.group(4):
-                text = u'{}.{}'.format(
-                    match.group(3).upper(), match.group(4).lower())
-            else:
-                text = u'{}'.format(
-                    match.group(3).upper())
-
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(
-                painter, font, rect, text, align, color, option, kwargs['left'])
-            # The frame-range
-            color = common.TEXT_SELECTED if selected else common.SECONDARY_TEXT
-            color = common.TEXT_SELECTED if active else color
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(
-                painter, font, rect, match.group(2).upper(), align, color, option, kwargs['left'])
-
-            # The prefix
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.TEXT_SELECTED if hover else color
-            rect = self._draw(
-                painter, font, rect, match.group(1).upper(),
-                align, color, option, kwargs['left'])
-            return
-
-        text = text.split(u'.')
-        if len(text) > 1:
-            text = u'{suffix}.{ext}'.format(
-                ext=text.pop().lower(),
-                suffix=u'.'.join(text).upper())
-        else:
-            text = text[0].upper()
-
-        color = common.TEXT_SELECTED if selected else common.TEXT
-        color = common.TEXT_SELECTED if hover else color
-        self._draw(painter, font, rect, text, align,
-                   color, option, kwargs['left'])
+        painter.setBrush(QtGui.QColor(0,0,0,130))
+        painter.drawRect(QtCore.QRect(option.rect).adjusted(0,0,0,-1))
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(self.parent().viewport().width(), ROW_HEIGHT)
+        return QtCore.QSize(1, ROW_HEIGHT)
 
 
 class FavouritesWidgetDelegate(FilesWidgetDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
+        # The index might still be populated...
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
-
-        args = self._get_paint_args(painter, option, index)
-
+        args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
-
         self.paint_thumbnail(*args)
+        self.paint_thumbnail_shadow(*args)
+
+        if index.data(common.ParentRole):
+            self.paint_simple_name(*args)
+
+        self.paint_archived(*args)
+        self.paint_inline_icons(*args)
+        self.paint_selection_indicator(*args)
+
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
-
-        self.paint_name_simple(*args)
-        # if index.data(common.FileInfoLoaded):
-        #     self.paint_description(*args, left=0)
-
-        self.paint_selection_indicator(*args)
+        if self.parent().drag_source_index.isValid():
+            self.paint_drag_source(*args)
