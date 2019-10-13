@@ -17,6 +17,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings, AssetSettings
+import gwbrowser.delegate as delegate
 
 
 
@@ -858,22 +859,34 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update_index(self, index):
-        """Takes a ``sourceModel()`` index to indicate the item needs to be repainted."""
+        """Repaints the given index."""
         if not index.isValid():
             return
+
         if self.isHidden():
             return
-        index = self.model().mapFromSource(index)
+
+        if not hasattr(index.model(), u'sourceModel'):
+            index = self.model().mapFromSource(index)
+
         rect = self.visualRect(index)
         if self.rect().contains(rect):
             self.repaint(self.visualRect(index))
 
+    def initialize_visible_indexes(self):
+        pass
+
     def activate(self, index):
-        """Sets the given index as ``active``.
+        """Marks the given index by adding the ``MarkedAsActive`` flag.
+
+        If the item has already been activated it will emit the activated signal.
+        This is used to switch tabs. If the item is not active yet, it will
+        apply the active flag and emit the ``activeChanged`` signal.
 
         Note:
-            The method doesn't alter the config files or emits signals,
-            merely sets the item flags. Make sure to implement that in the subclass.
+            The method emits the ``activeChanged`` signal but itself does not
+            save the change to the local_settings. That is handled by connections
+            to the signal.
 
         """
         if not index.isValid():
@@ -899,7 +912,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
 
         source_index.model().activeChanged.emit(source_index)
-        self.repaint(self.visualRect(index))
+        self.update_index(index)
 
     def deactivate(self, index):
         """Unsets the active flag."""
@@ -915,7 +928,7 @@ class BaseListWidget(QtWidgets.QListView):
         idx = source_index.row()
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] & ~common.MarkedAsActive
 
-        self.repaint(self.visualRect(index))
+        self.update_index(index)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -1053,7 +1066,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         # Let's save the favourites list
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
-        self.favouritesChanged.emit()
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1372,7 +1384,6 @@ class BaseListWidget(QtWidgets.QListView):
             if event.key() == QtCore.Qt.Key_S:
                 self.toggle_favourite(index)
                 self.model().invalidateFilter()
-                self.favouritesChanged.emit()
                 return
 
             if event.key() == QtCore.Qt.Key_A:
@@ -1567,109 +1578,116 @@ class BaseInlineIconWidget(BaseListWidget):
         self.multi_toggle_items = {}
 
     def mousePressEvent(self, event):
-        """The custom mousePressEvent initiates the multi-toggle operation.
-        Only the `favourite` and `archived` buttons are multi-toggle capable.
+        """The `BaseInlineIconWidget`'s mousePressEvent initiates multi-row
+        flag toggling.
+
+        This event is responsible for setting ``multi_toggle_pos``, the start
+        position of the toggle, ``multi_toggle_state`` & ``multi_toggle_idx``
+        the modes of the toggle, based on the state of the state and location of
+        the clicked item.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):
-            return
-        index = self.indexAt(event.pos())
-        source_index = self.model().mapToSource(index)
-        rect = self.visualRect(index)
-
-        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
-            return super(BaseInlineIconWidget, self).mousePressEvent(event)
-
-        self.reset_multitoggle()
-
-        for n in xrange(self.inline_icons_count()):
-            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
-                rect, common.INLINE_ICON_SIZE, n)
-            if not bg_rect.contains(event.pos()):
-                continue
-            self.multi_toggle_pos = event.pos()
-
-            if n == 0:  # Favourite button
-                self.multi_toggle_state = not source_index.flags() & common.MarkedAsFavourite
-            elif n == 1:  # Archive button
-                self.multi_toggle_state = not source_index.flags() & common.MarkedAsArchived
-            elif n == 2:  # Reveal button
-                continue
-            elif n == 3:  # Todo button
-                continue
-
-            self.multi_toggle_idx = n
-            return True
-
-        return super(BaseInlineIconWidget, self).mousePressEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        """Inline-button methods are triggered here."""
-        if not isinstance(event, QtGui.QMouseEvent):
             self.reset_multitoggle()
-            return None
+            return
 
         index = self.indexAt(event.pos())
         if not index.isValid():
-            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+            self.reset_multitoggle()
+            return
 
         rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
-        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
-            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+        self.reset_multitoggle()
+        self.multi_toggle_pos = cursor_position
+        if rectangles[delegate.FavouriteRect].contains(cursor_position):
+            self.multi_toggle_state = not index.flags() & common.MarkedAsFavourite
+            self.multi_toggle_idx = delegate.FavouriteRect
 
-        # Cheking the button
+        if rectangles[delegate.ArchiveRect].contains(cursor_position):
+            self.multi_toggle_state = not index.flags() & common.MarkedAsArchived
+            self.multi_toggle_idx = delegate.ArchiveRect
+        return super(BaseInlineIconWidget, self).mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Finishes `BaseInlineIconWidget`'s multi-item toggle operation, and
+        resets the associated variables.
+
+        The inlince icon buttons are also triggered here. We're using the
+        delegate's ``get_rectangles`` function to determine which icon was
+        clicked.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            self.reset_multitoggle()
+            return
+
+        index = self.indexAt(event.pos())
+
+        # Ending multi-toggle
         if self.multi_toggle_items:
             for n in self.multi_toggle_items:
                 index = self.model().index(n, 0)
+
             self.reset_multitoggle()
             self.model().invalidateFilter()
-            self.favouritesChanged.emit()
-            return super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
-        for n in xrange(self.inline_icons_count()):
-            _, bg_rect = self.itemDelegate().get_inline_icon_rect(
-                rect, common.INLINE_ICON_SIZE, n)
+            super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+            return
 
-            if not bg_rect.contains(event.pos()):
-                continue
+        if not index.isValid():
+            self.reset_multitoggle()
+            super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
+            return
 
-            if n == 0:
-                self.toggle_favourite(index)
-                self.model().invalidateFilter()
-                self.favouritesChanged.emit()
-                break
-            elif n == 1:
-                self.toggle_archived(index)
-                self.model().invalidateFilter()
-                break
-            elif n == 2:
-                common.reveal(index.data(QtCore.Qt.StatusTipRole))
-                break
-            elif n == 3:
-                self.show_todos(index)
-                break
+        # Responding the click-events based on the position:
+        rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
         self.reset_multitoggle()
+
+        if rectangles[delegate.FavouriteRect].contains(cursor_position):
+            self.toggle_favourite(index)
+            self.update_index(index)
+            self.model().invalidateFilter()
+
+        if rectangles[delegate.ArchiveRect].contains(cursor_position):
+            self.toggle_archived(index)
+            self.update_index(index)
+            self.model().invalidateFilter()
+
+        if rectangles[delegate.RevealRect].contains(cursor_position):
+            common.reveal(index.data(QtCore.Qt.StatusTipRole))
+
+        if rectangles[delegate.TodoRect].contains(cursor_position):
+            self.show_todos(index)
+
+        if rectangles[delegate.ThumbnailRect].contains(cursor_position):
+            if not self.thumbnail_viewer_widget:
+                editors.ThumbnailViewer(parent=self)
+            else:
+                self.thumbnail_viewer_widget.close()
+
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
-        """Multi-toggle is handled here."""
+        """``BaseInlineIconWidget``'s mouse move event is responsible for
+        handling the multi-toggle operations and repainting the current index
+        under the mouse.
+
+        """
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
         pos = event.pos()
         index = self.indexAt(pos)
-        # if event.buttons() == QtCore.Qt.NoButton:
-        #     if index.isValid():
-        self.update(index)
-            # return
-
+        if not self.verticalScrollBar().isSliderDown():
+            self.update(index)
 
         if self.multi_toggle_pos is None:
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
-
-        if self.viewport().width() < common.INLINE_ICONS_MIN_WIDTH:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos.setX(0)
@@ -1678,7 +1696,7 @@ class BaseInlineIconWidget(BaseListWidget):
         initial_index = self.indexAt(self.multi_toggle_pos)
         idx = index.row()
 
-        # Filter the current item
+        # Exclude the current item
         if index == self.multi_toggle_item:
             return
         self.multi_toggle_item = index
@@ -1686,30 +1704,25 @@ class BaseInlineIconWidget(BaseListWidget):
         favourite = index.flags() & common.MarkedAsFavourite
         archived = index.flags() & common.MarkedAsArchived
 
-        # Before toggling the item, we're saving it's state
-
         if idx not in self.multi_toggle_items:
-            if self.multi_toggle_idx == 0:  # Favourite button
-                # A state
+            if self.multi_toggle_idx == delegate.FavouriteRect:
                 self.multi_toggle_items[idx] = favourite
-                # Apply first state
                 self.toggle_favourite(index, state=self.multi_toggle_state)
 
-            if self.multi_toggle_idx == 1:  # Archived button
-                # A state
+            if self.multi_toggle_idx == delegate.ArchiveRect:
                 self.multi_toggle_items[idx] = archived
-                # Apply first state
                 self.toggle_archived(index, state=self.multi_toggle_state)
-        else:  # Reset state
-            if index == initial_index:
-                return
+            return
 
-            if self.multi_toggle_idx == 0:  # Favourite button
-                self.toggle_favourite(
-                    index, state=self.multi_toggle_items.pop(idx))
-            elif self.multi_toggle_idx == 1:  # Favourite button
-                self.toggle_archived(
-                    index=index, state=self.multi_toggle_items.pop(idx))
+        if index == initial_index:
+            return
+
+        if self.multi_toggle_idx == delegate.FavouriteRect:
+            self.toggle_favourite(
+                index, state=self.multi_toggle_items.pop(idx))
+        elif self.multi_toggle_idx == delegate.FavouriteRect:
+            self.toggle_archived(
+                index=index, state=self.multi_toggle_items.pop(idx))
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
@@ -1937,8 +1950,6 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
         self.widget(next_idx).move(pnext_idx.x() +
                                    offsetx, pnext_idx.y() + offsety)
-        self.widget(next_idx).show()
-        self.widget(next_idx).raise_()
 
         animcurrent_idx = QtCore.QPropertyAnimation(
             self.widget(current_idx), 'pos')
@@ -1959,6 +1970,10 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.animGroup.addAnimation(animcurrent_idx)
         self.animGroup.addAnimation(animnext_idx)
         self.animGroup.finished.connect(self.animation_finished)
+        self.animGroup.finished.connect(lambda: self.widget(next_idx).setDisabled(False))
+        self.animGroup.finished.connect(self.widget(next_idx).initialize_visible_indexes)
+        self.widget(next_idx).show()
+        self.widget(next_idx).setDisabled(True)
         self.animGroup.start()
 
         self.next_idx = next_idx

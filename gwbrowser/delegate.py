@@ -80,7 +80,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         archived = flags & common.MarkedAsArchived
         active = flags & common.MarkedAsActive
 
-        rectangles = self.get_rectangles(option)
+        rectangles = self.get_rectangles(option.rect)
         font = common.PrimaryFont
         painter.setFont(common.PrimaryFont)
         metrics = QtGui.QFontMetricsF(font)
@@ -104,14 +104,14 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         )
         return args
 
-    def get_rectangles(self, option):
+    def get_rectangles(self, rectangle):
         """Returns all the main rectangles of the row to paint and handle
         mouse-click events.
 
         """
         def rect():
             """Returns a rectangle with a separator."""
-            r = QtCore.QRect(option.rect)
+            r = QtCore.QRect(rectangle)
             return r.adjusted(0, 0, 0, -1)
 
         background_rect = rect()
@@ -134,7 +134,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         size = QtCore.QSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
         inline_icon_rect.setSize(size)
         inline_icon_rect.moveCenter(center)
-        inline_icon_rect.moveRight(option.rect.right() - spacing)
+        inline_icon_rect.moveRight(rectangle.right() - spacing)
 
         offset = 0
         y = inline_icon_rect.y()
@@ -146,7 +146,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         data_rect = rect()
         data_rect.setLeft(thumbnail_rect.right() + spacing)
-        data_rect.setRight(option.rect.right() + offset)
+        data_rect.setRight(rectangle.right() + offset)
 
         null_rect = QtCore.QRect()
 
@@ -265,8 +265,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if rect and not archived:
             if rect.contains(cursor_position):
                 painter.setOpacity(1.0)
-            color = common.TEXT_SELECTED if favourite else common.SEPARATOR
-            color = common.TEXT if rect.contains(cursor_position) else color
+            color = common.TEXT if favourite else common.SEPARATOR
+            color = common.SECONDARY_BACKGROUND if rect.contains(cursor_position) and not favourite else color
+            color = common.TEXT_SELECTED if rect.contains(cursor_position) and favourite else color
             pixmap = ImageCache.get_rsc_pixmap(
                 u'favourite', color, common.INLINE_ICON_SIZE)
             painter.drawPixmap(rect, pixmap)
@@ -702,12 +703,11 @@ class FilesWidgetDelegate(BaseDelegate):
         elif index.data(common.ParentRole) and self.parent().buttons_hidden():
             self.paint_simple_name(*args)
 
-        self.paint_archived(*args)
+        if index.data(common.FileInfoLoaded):
+            self.paint_archived(*args)
         self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
-        if index.data(common.FileInfoLoaded):
-            self.paint_archived(*args)
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
 
