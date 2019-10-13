@@ -908,23 +908,12 @@ class DragPixmap(QtWidgets.QWidget):
 
 class FilesWidget(ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
-
-    It is responsible for pushing the visible model indexes to the
-    secondary threads using `index_update_timer`.
-
     """
     SourceModel = FilesModel
     Delegate = FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
 
     def __init__(self, parent=None):
-        """Initializes the files widget.
-
-        Attributes:
-            index_update_timer(QTimer):   The timer responsible for pushing
-        the visible model indexes to the thread queues to get information.
-
-        """
         super(FilesWidget, self).__init__(parent=parent)
         self.drag_source_index = QtCore.QModelIndex()
 

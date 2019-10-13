@@ -1747,11 +1747,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     def __init__(self, parent=None):
         super(ThreadedBaseWidget, self).__init__(parent=parent)
 
-        self.index_update_timer = QtCore.QTimer(parent=self)
-        self.index_update_timer.setInterval(common.FTIMER_INTERVAL)
-        self.index_update_timer.setSingleShot(False)
-        self.index_update_timer.timeout.connect(
-            self.initialize_visible_indexes)
+        self.scrollbar_changed_timer = QtCore.QTimer(parent=self)
+        self.scrollbar_changed_timer.setSingleShot(True)
+        self.scrollbar_changed_timer.setInterval(500)
+        self.scrollbar_changed_timer.timeout.connect(self.model().sourceModel().reset_thread_worker_queues)
+        self.scrollbar_changed_timer.timeout.connect(self.initialize_visible_indexes)
 
         # SecondaryFileInfoThread
         self.model().sourceModel().modelReset.connect(
@@ -1771,24 +1771,25 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.model().sourceModel().dataKeyChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
 
-        # We're stopping the index timer when the model is loading.
-        self.model().modelAboutToBeReset.connect(self.index_update_timer.stop)
-        self.model().modelReset.connect(self.index_update_timer.start)
-        self.model().layoutAboutToBeChanged.connect(self.index_update_timer.stop)
-        self.model().layoutChanged.connect(self.index_update_timer.start)
+        # Initializing the indexes
+        self.model().sourceModel().modelReset.connect(self.initialize_visible_indexes)
+        self.model().sourceModel().dataTypeChanged.connect(self.initialize_visible_indexes)
+        self.model().sourceModel().sortingChanged.connect(self.initialize_visible_indexes)
+        self.model().sourceModel().dataSorted.connect(self.initialize_visible_indexes)
+        self.verticalScrollBar().valueChanged.connect(self.scrollbar_value_changed)
 
-        # For performance's sake...
-        self.verticalScrollBar().valueChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
+    @QtCore.Slot()
+    def scrollbar_value_changed(self):
+        if not self.scrollbar_changed_timer.isActive():
+            self.scrollbar_changed_timer.start()
+
+
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
         """The sourceModel() loads its data in multiples steps: There's a
         single-threaded walk of all sub-directories, and a threaded querry for
         image and file information.
-
-        This slot is called by the ``index_update_timer`` and queues the
-        uninitialized indexes for the thread-workers to consume.
 
         """
         if not self.isVisible():
@@ -1854,23 +1855,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         if generate_thumbnails:
             source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
-
-    def focusOutEvent(self, event):
-        self.index_update_timer.stop()
-        return super(ThreadedBaseWidget, self).focusOutEvent(event)
-
-    def focusInEvent(self, event):
-        self.index_update_timer.start()
-        return super(ThreadedBaseWidget, self).focusInEvent(event)
-
-    def showEvent(self, event):
-        self.index_update_timer.start()
-        self.initialize_visible_indexes()
-        return super(ThreadedBaseWidget, self).showEvent(event)
-
-    def hideEvent(self, event):
-        self.index_update_timer.stop()
-        return super(ThreadedBaseWidget, self).hideEvent(event)
 
 
 class StackedWidget(QtWidgets.QStackedWidget):
@@ -1972,6 +1956,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.animGroup.finished.connect(self.animation_finished)
         self.animGroup.finished.connect(lambda: self.widget(next_idx).setDisabled(False))
         self.animGroup.finished.connect(self.widget(next_idx).initialize_visible_indexes)
+        self.animGroup.finished.connect(self.widget(next_idx).setFocus)
         self.widget(next_idx).show()
         self.widget(next_idx).setDisabled(True)
         self.animGroup.start()

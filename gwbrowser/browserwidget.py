@@ -413,10 +413,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.bookmarkswidget.timer.stop()
         self.assetswidget.timer.stop()
-        self.assetswidget.index_update_timer.stop()
         self.fileswidget.timer.stop()
-        self.fileswidget.index_update_timer.stop()
-        self.favouriteswidget.index_update_timer.stop()
         self.favouriteswidget.timer.stop()
         self.check_active_state_timer.stop()
 
