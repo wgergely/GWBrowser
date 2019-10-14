@@ -293,6 +293,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         filtertext = self.filter_text()
         if filtertext:
+            filtertext = filtertext.lower()
             searchable = u'{} {} {}'.format(
                 data[source_row][QtCore.Qt.StatusTipRole],
                 data[source_row][common.DescriptionRole],

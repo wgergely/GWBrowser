@@ -1145,15 +1145,20 @@ class FilesWidget(ThreadedBaseWidget):
         #     self.description_editor_widget.show()
         #     return super(FilesWidget, self).mouseReleaseEvent(event)
 
-        for item in clickable_rectangles:
+        for idx, item in enumerate(clickable_rectangles):
+            # First rectanble is always the description editor
+            if idx == 0:
+                continue
             rect, text = item
+            text = text.lower()
+
             if rect.contains(cursor_position):
                 filter_text = self.model().filter_text()
-                filter_text = filter_text if filter_text else u''
+                filter_text = filter_text.lower() if filter_text else u''
 
                 if shift_modifier:
                     folder_filter = u'"/{}/"'.format(text)
-                    if folder_filter == filter_text:
+                    if folder_filter.lower() == filter_text.lower():
                         folder_filter = u''
                     self.model().filterTextChanged.emit(folder_filter)
                     self.repaint(self.rect())
@@ -1162,9 +1167,9 @@ class FilesWidget(ThreadedBaseWidget):
                 if alt_modifier or control_modifier:
                     folder_filter = u'--"/{}/"'.format(text)
                     if filter_text:
-                        if folder_filter not in filter_text:
+                        if folder_filter.lower() not in filter_text.lower():
                             folder_filter = u'{} {}'.format(filter_text, folder_filter)
-                    self.model().filterTextChanged.emit(folder_filter)
+                    self.model().filterTextChanged.emit(folder_filter.lower())
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
 

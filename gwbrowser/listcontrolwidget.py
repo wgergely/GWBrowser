@@ -75,13 +75,14 @@ class FilterButton(BaseControlButton):
         if not self.current_widget():
             return
         filter_text = self.current_widget().model().filter_text()
+        filter_text = filter_text.lower() if filter_text else u''
         #
         parent = self.stacked_widget().parent().stackedwidget
         editor = FilterEditor(filter_text, parent=parent)
 
         model = self.current_widget().model()
         editor.finished.connect(model.filterTextChanged)
-        editor.finished.connect(self.update)
+        editor.finished.connect(lambda: self.repaint(self.rect()))
         editor.finished.connect(editor.deleteLater)
         #
         editor.show()

@@ -306,7 +306,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
 
     def action(self):
         """Main actions to run when the return key is pressed."""
-        if self.index().data(common.DescriptionRole) == self.editor.text():
+        if self.index().data(common.DescriptionRole).lower() == self.editor.text().lower():
             self.hide()
             return
 
