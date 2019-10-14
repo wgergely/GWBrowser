@@ -42,6 +42,7 @@ import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
+import gwbrowser.delegate as delegate
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
@@ -837,6 +838,7 @@ class FilesModel(BaseModel):
         return mime
 
 
+
 class DragPixmap(QtWidgets.QWidget):
     """The widget used to drag the dragged items pixmap and name."""
 
@@ -1016,43 +1018,27 @@ class FilesWidget(ThreadedBaseWidget):
             return
 
         rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        if not clickable_rectangles:
+            return
 
-        thumbnail_rect = QtCore.QRect(rect)
-        thumbnail_rect.setWidth(rect.height())
-        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
-
-        name_rect = QtCore.QRect(rect)
-        name_rect.setLeft(
-            common.INDICATOR_WIDTH
-            + name_rect.height()
-            + common.MARGIN
-        )
-        name_rect.setRight(name_rect.right() - common.MARGIN)
-
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
-
-        description_rect = QtCore.QRect(name_rect)
-
-        name_rect.moveTop(name_rect.top() + (name_rect.height() / 2.0))
-        name_rect.setHeight(metrics.height())
-        name_rect.moveTop(name_rect.top() - (name_rect.height() / 2.0))
-
-        # Moving the rectangle down one line
-        description_rect.moveTop(
-            description_rect.top() + (description_rect.height() / 2.0))
-        description_rect.setHeight(metrics.height())
-        description_rect.moveTop(description_rect.top(
-        ) - (description_rect.height() / 2.0) + metrics.lineSpacing())
-
-        source_index = self.model().mapToSource(index)
-        if description_rect.contains(event.pos()):
+        if clickable_rectangles[0][0].contains(cursor_position):
             self.description_editor_widget.show()
             return
-        elif thumbnail_rect.contains(event.pos()):
-            ImageCache.instance().pick(source_index)
-            return
-        self.activate(self.selectionModel().currentIndex())
+        root_dir = []
+        for item in clickable_rectangles:
+            rect, text = item
+            root_dir.append(text)
+            if rect.contains(cursor_position):
+                path = u'/'.join(index.data(common.ParentRole)[0:5]).rstrip('/')
+                root_path = u'/'.join(root_dir).strip(u'/')
+                path = u'{}/{}'.format(path, root_path)
+                common.reveal(path)
+
+
+        # self.activate(self.selectionModel().currentIndex())
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -1130,6 +1116,60 @@ class FilesWidget(ThreadedBaseWidget):
 
         # Cleanup
         self.drag_source_index = QtCore.QModelIndex()
+
+    def mouseReleaseEvent(self, event):
+        """The files widget has a few addittional clickable inline icons
+        that control filtering.
+
+        """
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
+
+        if not index.isValid():
+            return super(FilesWidget, self).mouseReleaseEvent(event)
+
+        rect = self.visualRect(index)
+
+        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+
+        # I can't get the text directly from the delegate as it might be elided
+        # but we have the data in the index anyway.
+            # if rect.contains(cursor_position):
+            #     _subpath = u'/'.join(subpath)
+            #     path = u'{}/{}'.format(root_path, _subpath)
+            #     file_info = QtCore.QFileInfo(path)
+            #
+            #     if no_modifier:
+            #         common.reveal(file_info.filePath())
+            #
+            #     if shift_modifier:
+            #         if len(text.split()) == 1:
+            #             filter_text = u'/{}/'.format(text.split()[0])
+            #         else:
+            #             filter_text = u'/{}'.format(text.split()[0])
+            #         self.model().filterTextChanged.emit(filter_text)
+            #         self.update()
+            #         return
+            #
+            #     if alt_modifier:
+            #         if len(text.split()) == 1:
+            #             filter_text = u'--/{}/'.format(text.split()[0])
+            #         else:
+            #             filter_text = u'--/{}'.format(text.split()[0])
+            #         if self.model().filter_text():
+            #             filter_text = u'{} {}'.format(self.model().filter_text(), filter_text)
+            #         self.model().filterTextChanged.emit(filter_text)
+            #         self.update()
+            #         return
+            #
+            #     break
+
+
+        super(FilesWidget, self).mouseReleaseEvent(event)
+
 
 
 if __name__ == '__main__':

@@ -267,7 +267,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         QtWidgets.QHBoxLayout(self)
         self.setWindowFlags(QtCore.Qt.Widget)
         o = common.INDICATOR_WIDTH
-        self.layout().setContentsMargins(o,o,o,o)
+        self.layout().setContentsMargins(o * 2,o,o*2,o)
         self.layout().setSpacing(o)
 
         self.setSizePolicy(
@@ -278,26 +278,9 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         self.editor = QtWidgets.QLineEdit(parent=self)
         self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
         self.editor.setTextMargins(0, 0, 0, 0)
-        self.editor.setStyleSheet("""
-background-color: rgb(50,50,50);
-font-family: "{}"; font-size: {}pt;
-color: rgba({});
-            """.format(
-            common.SecondaryFont.family(),
-            common.psize(common.SMALL_FONT_SIZE),
-            common.rgb(common.TEXT_SELECTED),
-        ))
 
-        label = QtWidgets.QLabel(u'Edit description')
+        label = QtWidgets.QLabel(u'Description:')
         label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        label.setStyleSheet(
-            'font-family: "{}";\
-            font-size: {}pt;\
-            color: rgba({});'.format(
-                common.PrimaryFont.family(),
-                common.psize(common.SMALL_FONT_SIZE),
-                common.rgb(common.TEXT)
-            ))
 
         self.layout().addWidget(label)
         self.layout().addWidget(self.editor, 1)
@@ -494,8 +477,6 @@ class FilterEditor(QtWidgets.QWidget):
         row.layout().addWidget(icon)
         label = u'Edit the filter to help find items in the current list:'
         row.layout().addWidget(PaintedLabel(label, parent=self))
-
-
 
         self.f_row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         self.editor_widget = Editor(parent=self)
