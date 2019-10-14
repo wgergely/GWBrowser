@@ -363,8 +363,11 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         for shape in shapes:
             if is_intermediate(shape):
                 continue
-            if not is_visible(shape):
-                continue
+            # We will keep invisible renderable, but invisible meshes
+            # in the alembic. Sadly there's no way of telling easiliy
+            # if the mesh was intended to be rendered\used...
+            # if not is_visible(shape):
+            #     continue
             try:
                 # AbcExport will fail if a shape node's name is not unique
                 # We will try and see if this passes...
