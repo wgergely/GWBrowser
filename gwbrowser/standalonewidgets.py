@@ -176,9 +176,16 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        # o = common.INDICATOR_WIDTH
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
+
+        menu_bar = QtWidgets.QMenuBar(parent=self)
+        self.layout().addWidget(menu_bar)
+        menu_bar.hide()
+        menu = menu_bar.addMenu(u'GWBrowser')
+        action = menu.addAction(u'Quit')
+        action.triggered.connect(self.window.shutdown)
+
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
