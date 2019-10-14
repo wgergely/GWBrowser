@@ -317,7 +317,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
     def filter_includes_row(self, filtertext, searchable):
         _filtertext = unicode(filtertext)
         it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'(--".+")', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'(--".*?")', filtertext, flags=re.IGNORECASE | re.MULTILINE)
 
         for match in it:
             _filtertext = re.sub(match.group(1), u'', _filtertext)
@@ -332,7 +332,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filter_excludes_row(self, filtertext, searchable):
         it = re.finditer(ur'--([^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'--"(.+)"', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'--"(.*?)"', filtertext, flags=re.IGNORECASE | re.MULTILINE)
 
         for match in it:
             if match.group(1).lower() in searchable:

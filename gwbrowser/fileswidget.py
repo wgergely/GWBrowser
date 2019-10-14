@@ -1162,7 +1162,8 @@ class FilesWidget(ThreadedBaseWidget):
                 if alt_modifier or control_modifier:
                     folder_filter = u'--"/{}/"'.format(text)
                     if filter_text:
-                        filter_text = u'{} {}'.format(filter_text, folder_filter)
+                        if folder_filter not in filter_text:
+                            folder_filter = u'{} {}'.format(filter_text, folder_filter)
                     self.model().filterTextChanged.emit(folder_filter)
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
