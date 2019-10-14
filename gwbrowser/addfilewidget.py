@@ -1599,7 +1599,7 @@ class AddFileWidget(QtWidgets.QDialog):
             return self._file_path
 
         asset = self.asset_widget.view().selectionModel().currentIndex()
-        asset = asset.data(QtCore.Qt.DisplayRole) if asset.isValid() else u''
+        asset = asset.data(common.ParentRole)[-1] if asset.isValid() else u''
         mode = self.name_mode_widget.currentIndex()
         mode = self.name_mode_widget.currentData(
             QtCore.Qt.DisplayRole).lower() if mode != -1 else u''
