@@ -760,7 +760,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, 10, 10)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)

@@ -121,10 +121,11 @@ class AppIconButton(ClickableIconButton):
         super(AppIconButton, self).__init__(
             u'custom',
             (common.TEXT_SELECTED, common.TEXT_SELECTED),
-            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            12,
             description=u'',
             parent=parent
         )
+        self.setAlignment(QtCore.Qt.AlignCenter)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -175,23 +176,15 @@ class HeaderWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        o = common.INDICATOR_WIDTH
+        # o = common.INDICATOR_WIDTH
+        o = 0
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         self.setFixedHeight(common.INLINE_ICON_SIZE)
 
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(AppIconButton(parent=self))
-        # text = self.window().preferences_widget.sections_stack_widget.widget(0).company_name.text()
-        # text = text if text else u'GWBrowser'
-        # self.layout().addSpacing(common.INDICATOR_WIDTH)
-        # self.layout().addWidget(
-        #     PaintedLabel(
-        #         text,
-        #         color=common.BACKGROUND,
-        #         parent=self
-        #     )
-        # )
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addWidget(CloseButton(parent=self))
