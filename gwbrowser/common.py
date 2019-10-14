@@ -979,8 +979,6 @@ def copy_path(index, mode=WindowsPath, first=True):
     if not win_server:
         file_path = index.data(QtCore.Qt.StatusTipRole)
         for server in Server.servers(get_all=True):
-            print server['path'].strip().rstrip('/').lower() in file_path.strip().lower(),
-            print server[u'platform']
             if server[u'platform'] != 'win':
                 continue
             if file_path.startswith(server['path']):

@@ -1536,7 +1536,6 @@ class AddFileWidget(QtWidgets.QDialog):
                 ext=self._file_to_increment.suffix()
             )
             _file_info = QtCore.QFileInfo(path)
-            print path
             if not _file_info.exists():
                 break
             idx += 1

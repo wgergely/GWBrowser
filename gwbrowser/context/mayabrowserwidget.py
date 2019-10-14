@@ -353,7 +353,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         except:
             pass
         return cmds.getAttr(u'{}.visibility'.format(s))
-        
+
     world_shapes = []
     valid_shapes = []
 
@@ -1517,7 +1517,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     cmds.addAttr(_node, ln='instance_suffix', at='enum',
                                  en=u':'.join(string.ascii_uppercase))
                     cmds.setAttr('{}.instance_suffix'.format(_node), id)
-                    print _node, id
 
         file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if not file_info.exists():
