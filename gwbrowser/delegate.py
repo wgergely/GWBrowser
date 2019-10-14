@@ -1221,7 +1221,8 @@ class FilesWidgetDelegate(BaseDelegate):
         modes_rectangle.setHeight(metrics.height())
         modes_rectangle.moveCenter(rect.center())
 
-        subdirs = index.data(common.ParentRole).pop().upper().split(u'/')
+        subdirs = index.data(common.ParentRole)
+        subdirs = subdirs[-1].upper().split(u'/')
 
         o = 2
         spacing = o * 2

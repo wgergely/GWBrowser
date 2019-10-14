@@ -79,6 +79,8 @@ class BaseWorker(QtCore.QObject):
     @classmethod
     def reset_queue(cls):
         """Empties the queue"""
+        if cls.queue.empty():
+            return
         while not cls.queue.empty():
             cls.queue.get(False)
 

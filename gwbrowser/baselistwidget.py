@@ -293,14 +293,15 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         filtertext = self.filter_text()
         if filtertext:
-            searchable = u'{}\n{}\n{}'.format(
+            searchable = u'{} {} {}'.format(
                 data[source_row][QtCore.Qt.StatusTipRole],
                 data[source_row][common.DescriptionRole],
                 data[source_row][common.FileDetailsRole]
             ).lower()
-            if self.filter_excludes_row(filtertext, searchable):
-                return False
+
             if not self.filter_includes_row(filtertext, searchable):
+                return False
+            if self.filter_excludes_row(filtertext, searchable):
                 return False
 
         if self.filterFlag(common.MarkedAsActive) and active:
@@ -319,17 +320,17 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         it_quoted = re.finditer(ur'(--".+")', filtertext, flags=re.IGNORECASE | re.MULTILINE)
 
         for match in it:
-            _filtertext =re.sub(match.group(1), u'', _filtertext)
+            _filtertext = re.sub(match.group(1), u'', _filtertext)
         for match in it_quoted:
-            _filtertext =re.sub(match.group(1), u'', _filtertext)
-        for text in filtertext.split():
+            _filtertext = re.sub(match.group(1), u'', _filtertext)
+
+        for text in _filtertext.split():
+            text = text.strip(u'"')
             if text not in searchable:
-             return False
+                return False
         return True
 
     def filter_excludes_row(self, filtertext, searchable):
-        # We expand the existing filter-text into individual filter elements
-        # we check agains the searchable string...
         it = re.finditer(ur'--([^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
         it_quoted = re.finditer(ur'--"(.+)"', filtertext, flags=re.IGNORECASE | re.MULTILINE)
 
@@ -337,8 +338,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             if match.group(1).lower() in searchable:
                 return True
         for match in it_quoted:
+            match.group(1)
             if match.group(1).lower() in searchable:
                 return True
+        return False
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -812,17 +815,12 @@ class BaseListWidget(QtWidgets.QListView):
             model.__resetdata__)
 
         # Selection
-        model.layoutAboutToBeChanged.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()))
-        model.modelAboutToBeReset.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()))
-        proxy.layoutAboutToBeChanged.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()))
         proxy.modelAboutToBeReset.connect(
             lambda: self.save_selection(self.selectionModel().currentIndex()))
 
         model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
         model.dataTypeChanged.connect(model.set_data_type)
+        model.dataTypeChanged.connect(lambda x: model.sort_data())
         model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
         model.modelAboutToBeReset.connect(
@@ -833,9 +831,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         proxy.filterTextChanged.connect(lambda x: proxy.invalidateFilter())
         proxy.filterFlagChanged.connect(lambda x: proxy.invalidateFilter())
-
-        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
-        model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
 
         # Multitoggle
         proxy.modelAboutToBeReset.connect(self.reset_multitoggle)
@@ -848,7 +843,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
 
-        model.dataTypeChanged.connect(lambda x: model.sort_data())
 
         model.modelReset.connect(model.sort_data)
         model.dataSorted.connect(proxy.invalidateFilter)
@@ -1605,12 +1599,13 @@ class BaseInlineIconWidget(BaseListWidget):
         rectangles = self.itemDelegate().get_rectangles(rect)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
-        self.multi_toggle_pos = cursor_position
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
+            self.multi_toggle_pos = cursor_position
             self.multi_toggle_state = not index.flags() & common.MarkedAsFavourite
             self.multi_toggle_idx = delegate.FavouriteRect
 
         if rectangles[delegate.ArchiveRect].contains(cursor_position):
+            self.multi_toggle_pos = cursor_position
             self.multi_toggle_state = not index.flags() & common.MarkedAsArchived
             self.multi_toggle_idx = delegate.ArchiveRect
 
@@ -1693,8 +1688,7 @@ class BaseInlineIconWidget(BaseListWidget):
             self.update_index(index)
 
         if self.multi_toggle_pos is None:
-            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
-            return
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         pos.setX(0)
         index = self.indexAt(pos)
@@ -1704,8 +1698,8 @@ class BaseInlineIconWidget(BaseListWidget):
 
         # Exclude the current item
         if index == self.multi_toggle_item:
-            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         self.multi_toggle_item = index
 
@@ -1721,12 +1715,13 @@ class BaseInlineIconWidget(BaseListWidget):
                 self.multi_toggle_items[idx] = archived
                 self.toggle_archived(index, state=self.multi_toggle_state)
 
-            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         if index == initial_index:
-            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
+            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+            # return
 
         if self.multi_toggle_idx == delegate.FavouriteRect:
             self.toggle_favourite(
@@ -1735,7 +1730,7 @@ class BaseInlineIconWidget(BaseListWidget):
             self.toggle_archived(
                 index=index, state=self.multi_toggle_items.pop(idx))
 
-        super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+        # super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
@@ -1763,8 +1758,22 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.scrollbar_changed_timer = QtCore.QTimer(parent=self)
         self.scrollbar_changed_timer.setSingleShot(True)
         self.scrollbar_changed_timer.setInterval(500)
-        self.scrollbar_changed_timer.timeout.connect(self.model().sourceModel().reset_thread_worker_queues)
+        # self.scrollbar_changed_timer.timeout.connect(self.model().sourceModel().reset_thread_worker_queues)
         self.scrollbar_changed_timer.timeout.connect(self.initialize_visible_indexes)
+        self.verticalScrollBar().valueChanged.connect(self.scrollbar_value_changed)
+
+        self.hide_archived_items_timer = QtCore.QTimer(parent=self)
+        self.hide_archived_items_timer.setSingleShot(False)
+        self.hide_archived_items_timer.setInterval(1000)
+        self.hide_archived_items_timer.timeout.connect(self.hide_archived_items)
+        # Stopping the timer
+        self.model().sourceModel().modelAboutToBeReset.connect(self.hide_archived_items_timer.stop)
+        self.model().modelAboutToBeReset.connect(self.hide_archived_items_timer.stop)
+        self.model().layoutAboutToBeChanged.connect(self.hide_archived_items_timer.stop)
+        # Starting the timer
+        self.model().sourceModel().modelReset.connect(self.hide_archived_items_timer.start)
+        self.model().modelReset.connect(self.hide_archived_items_timer.start)
+        self.model().layoutChanged.connect(self.hide_archived_items_timer.start)
 
         # SecondaryFileInfoThread
         self.model().sourceModel().modelReset.connect(
@@ -1775,10 +1784,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         # Clearing the queues
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.model().sourceModel().reset_thread_worker_queues)
-        self.model().modelAboutToBeReset.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
-        self.model().layoutAboutToBeChanged.connect(
-            self.model().sourceModel().reset_thread_worker_queues)
         self.model().sourceModel().dataTypeChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().sourceModel().dataKeyChanged.connect(
@@ -1787,16 +1792,49 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         # Initializing the indexes
         self.model().sourceModel().modelReset.connect(self.initialize_visible_indexes)
         self.model().sourceModel().dataTypeChanged.connect(self.initialize_visible_indexes)
-        self.model().sourceModel().sortingChanged.connect(self.initialize_visible_indexes)
-        self.model().sourceModel().dataSorted.connect(self.initialize_visible_indexes)
-        self.verticalScrollBar().valueChanged.connect(self.scrollbar_value_changed)
+
+        # self.model().sourceModel().dataSorted.connect(self.scrollbar_value_changed)
 
     @QtCore.Slot()
     def scrollbar_value_changed(self):
         if not self.scrollbar_changed_timer.isActive():
             self.scrollbar_changed_timer.start()
 
+    @QtCore.Slot()
+    def hide_archived_items(self):
+        if not self.isVisible():
+            return
+        app = QtWidgets.QApplication.instance()
+        if app.mouseButtons() != QtCore.Qt.NoButton:
+            return
+        proxy_model = self.model()
+        if not proxy_model.rowCount():
+            return
+        index = self.indexAt(self.rect().topLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if not index.isValid():
+            return
+        index = self.indexAt(self.rect().topLeft())
+        idx = proxy_model.mapToSource(index).row()
+        if not index.isValid():
+            return
 
+        show_archived = self.model().filterFlag(common.MarkedAsArchived)
+        rect = self.visualRect(index)
+        while self.rect().contains(rect):
+            if not show_archived and index.flags() & common.MarkedAsArchived:
+                self.model().invalidateFilter()
+                return
+            rect.moveTop(rect.top() + rect.height())
+            index = self.indexAt(rect.topLeft())
+
+
+        # Here we add the last index of the window
+        index = self.indexAt(self.rect().bottomLeft())
+        if index.isValid():
+            if not show_archived and index.flags() & common.MarkedAsArchived:
+                self.model().invalidateFilter()
+                return
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
@@ -1856,18 +1894,19 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                     if index not in needs_thumbnail:
                         needs_thumbnail.append(index)
 
-        # We want to make sure we keep archived items hidden. If we detect any
-        # archived items, we will invalidate the proxy model.
-        if not self.model().filterFlag(common.MarkedAsArchived):
-            if any([f.flags() & common.MarkedAsArchived for f in visible]):
-                self.model().invalidateFilter()
-                return
-
         if needs_info:
             source_model.InfoThread.Worker.add_to_queue(needs_info)
 
         if generate_thumbnails:
             source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
+
+    def showEvent(self, event):
+        self.hide_archived_items_timer.start()
+        super(ThreadedBaseWidget, self).showEvent(event)
+
+    def hideEvent(self, event):
+        self.hide_archived_items_timer.stop()
+        super(ThreadedBaseWidget, self).hideEvent(event)
 
 
 class StackedWidget(QtWidgets.QStackedWidget):
@@ -1985,10 +2024,9 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
     @QtCore.Slot()
     def animation_finished(self):
-        # self.setCurrentIndex(self.next_idx)
         super(StackedWidget, self).setCurrentIndex(self.next_idx)
         self.widget(self.current_idx).hide()
         self.widget(self.current_idx).move(self.pointcurrent_idx)
-        self.widget(self.current_idx).update()
+        self.widget(self.current_idx).repaint(self.widget(self.current_idx).rect())
         self.activeState = False
         self.animationFinished.emit()

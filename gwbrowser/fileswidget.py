@@ -86,6 +86,8 @@ class FileInfoWorker(BaseWorker):
         except:
             return
 
+        if not index.data(common.ParentRole):
+            return
         settings = AssetSettings(index)
 
         # Item description
@@ -1036,9 +1038,9 @@ class FilesWidget(ThreadedBaseWidget):
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = u'{}/{}'.format(path, root_path)
                 common.reveal(path)
+                return
 
-
-        # self.activate(self.selectionModel().currentIndex())
+        self.activate(self.selectionModel().currentIndex())
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -1128,48 +1130,46 @@ class FilesWidget(ThreadedBaseWidget):
         if not index.isValid():
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
-        rect = self.visualRect(index)
-
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
         no_modifier = modifiers == QtCore.Qt.NoModifier
         alt_modifier = modifiers & QtCore.Qt.AltModifier
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
 
-        # I can't get the text directly from the delegate as it might be elided
-        # but we have the data in the index anyway.
-            # if rect.contains(cursor_position):
-            #     _subpath = u'/'.join(subpath)
-            #     path = u'{}/{}'.format(root_path, _subpath)
-            #     file_info = QtCore.QFileInfo(path)
-            #
-            #     if no_modifier:
-            #         common.reveal(file_info.filePath())
-            #
-            #     if shift_modifier:
-            #         if len(text.split()) == 1:
-            #             filter_text = u'/{}/'.format(text.split()[0])
-            #         else:
-            #             filter_text = u'/{}'.format(text.split()[0])
-            #         self.model().filterTextChanged.emit(filter_text)
-            #         self.update()
-            #         return
-            #
-            #     if alt_modifier:
-            #         if len(text.split()) == 1:
-            #             filter_text = u'--/{}/'.format(text.split()[0])
-            #         else:
-            #             filter_text = u'--/{}'.format(text.split()[0])
-            #         if self.model().filter_text():
-            #             filter_text = u'{} {}'.format(self.model().filter_text(), filter_text)
-            #         self.model().filterTextChanged.emit(filter_text)
-            #         self.update()
-            #         return
-            #
-            #     break
+        rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        if not clickable_rectangles:
+            return super(FilesWidget, self).mouseReleaseEvent(event)
 
+        if clickable_rectangles[0][0].contains(cursor_position):
+            self.description_editor_widget.show()
+            return super(FilesWidget, self).mouseReleaseEvent(event)
+
+        for item in clickable_rectangles:
+            rect, text = item
+            if rect.contains(cursor_position):
+                filter_text = self.model().filter_text()
+                filter_text = filter_text if filter_text else u''
+
+                if shift_modifier:
+                    folder_filter = u'"/{}/"'.format(text)
+                    if folder_filter == filter_text:
+                        folder_filter = u''
+                    self.model().filterTextChanged.emit(folder_filter)
+                    self.repaint(self.rect())
+                    return super(FilesWidget, self).mouseReleaseEvent(event)
+
+                if alt_modifier or control_modifier:
+                    folder_filter = u'--"/{}/"'.format(text)
+                    if filter_text:
+                        filter_text = u'{} {}'.format(filter_text, folder_filter)
+                    self.model().filterTextChanged.emit(folder_filter)
+                    self.repaint(self.rect())
+                    return super(FilesWidget, self).mouseReleaseEvent(event)
 
         super(FilesWidget, self).mouseReleaseEvent(event)
-
 
 
 if __name__ == '__main__':
