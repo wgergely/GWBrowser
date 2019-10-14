@@ -184,7 +184,7 @@ class HeaderWidget(QtWidgets.QWidget):
         menu_bar.hide()
         menu = menu_bar.addMenu(u'GWBrowser')
         action = menu.addAction(u'Quit')
-        action.triggered.connect(self.window.shutdown)
+        action.triggered.connect(self.window().shutdown)
 
         self.layout().setSpacing(common.INDICATOR_WIDTH)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
