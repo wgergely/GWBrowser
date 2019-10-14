@@ -116,9 +116,10 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.end()
 
     def mousePressEvent(self, event):
+        """``ProgressWidget`` closes on mouse press events."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        self.close()
+        self.hide()
 
 
 class DisabledOverlayWidget(ProgressWidget):
@@ -147,11 +148,6 @@ class FilterOnOverlayWidget(ProgressWidget):
 
     def __init__(self, parent=None):
         super(FilterOnOverlayWidget, self).__init__(parent=parent)
-        try:
-            self.parent().parent().resized.connect(
-                lambda x: self.resize(self.parent().viewport().rect().size()))
-        except:
-            pass
 
     def paintEvent(self, event):
         """Custom message painted here."""
@@ -173,6 +169,8 @@ class FilterOnOverlayWidget(ProgressWidget):
         painter.drawRect(rect)
         painter.end()
 
+    def showEvent(self, event):
+        self.repaint()
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for **filtering** data for the view.
@@ -293,45 +291,54 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         favourite = flags & common.MarkedAsFavourite
         active = flags & common.MarkedAsActive
 
-        if self.filterFlag(common.MarkedAsActive) and active:
-            return True
-        if self.filterFlag(common.MarkedAsActive) and not active:
-            return False
-
-        # Let's construct the searchable filter text here
-        # It is a multiline string of the filepath, desciption and file details
         filtertext = self.filter_text()
         if filtertext:
             searchable = u'{}\n{}\n{}'.format(
                 data[source_row][QtCore.Qt.StatusTipRole],
                 data[source_row][common.DescriptionRole],
                 data[source_row][common.FileDetailsRole]
-            )
+            ).lower()
+            if self.filter_excludes_row(filtertext, searchable):
+                return False
+            if not self.filter_includes_row(filtertext, searchable):
+                return False
 
-            # Any string prefixed by -- will be excluded automatically
-            match_it = re.finditer(
-                ur'(--([^\[\]\*\s]+))', filtertext, flags=re.IGNORECASE | re.MULTILINE)
-            for m in match_it:
-                match = re.search(m.group(2), searchable,
-                                  flags=re.IGNORECASE | re.MULTILINE)
-                if match:
-                    return False
-                else:
-                    filtertext = filtertext.replace(m.group(1), u'')
-            try:
-                match = re.search(filtertext, searchable,
-                                  flags=re.IGNORECASE | re.MULTILINE)
-                if not match:
-                    return False
-            except:
-                if filtertext.lower() not in searchable.lower():
-                    return False
-
+        if self.filterFlag(common.MarkedAsActive) and active:
+            return True
+        if self.filterFlag(common.MarkedAsActive) and not active:
+            return False
         if archived and not self.filterFlag(common.MarkedAsArchived):
             return False
         if not favourite and self.filterFlag(common.MarkedAsFavourite):
             return False
         return True
+
+    def filter_includes_row(self, filtertext, searchable):
+        _filtertext = unicode(filtertext)
+        it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'(--".+")', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+
+        for match in it:
+            _filtertext =re.sub(match.group(1), u'', _filtertext)
+        for match in it_quoted:
+            _filtertext =re.sub(match.group(1), u'', _filtertext)
+        for text in filtertext.split():
+            if text not in searchable:
+             return False
+        return True
+
+    def filter_excludes_row(self, filtertext, searchable):
+        # We expand the existing filter-text into individual filter elements
+        # we check agains the searchable string...
+        it = re.finditer(ur'--([^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'--"(.+)"', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+
+        for match in it:
+            if match.group(1).lower() in searchable:
+                return True
+        for match in it_quoted:
+            if match.group(1).lower() in searchable:
+                return True
 
 
 class BaseModel(QtCore.QAbstractItemModel):
@@ -409,7 +416,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         _generate_thumbnails = local_settings.value(
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
-
 
         self.initialize_default_sort_values()
 
@@ -710,14 +716,14 @@ class BaseListWidget(QtWidgets.QListView):
         self.progress_widget.setHidden(True)
         self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
         self.disabled_overlay_widget.setHidden(True)
-        self._favourite_set_widget = FilterOnOverlayWidget(parent=self)
+        self.filter_active_widget = FilterOnOverlayWidget(parent=self)
 
         self.sizeChanged.connect(
             lambda x: self.progress_widget.setGeometry(self.viewport().geometry()))
         self.sizeChanged.connect(
             lambda x: self.disabled_overlay_widget.setGeometry(self.viewport().geometry()))
         self.sizeChanged.connect(
-            lambda x: self._favourite_set_widget.setGeometry(self.viewport().geometry()))
+            lambda x: self.filter_active_widget.setGeometry(self.viewport().geometry()))
 
         self.thumbnail_viewer_widget = None
         self._current_selection = None
@@ -759,18 +765,9 @@ class BaseListWidget(QtWidgets.QListView):
         self.timer.setSingleShot(True)
         self.timed_search_string = u''
 
-        # self.verticalScrollBar().sliderPressed.connect(
-        #     lambda: self.setMouseTracking(False))
-        self.verticalScrollBar().sliderPressed.connect(
-            lambda: self.viewport().setMouseTracking(False))
-
-        # self.verticalScrollBar().sliderReleased.connect(
-        #     lambda: self.setMouseTracking(True))
-        self.verticalScrollBar().sliderReleased.connect(
-            lambda: self.viewport().setMouseTracking(True))
-
         self.set_model(self.SourceModel(parent=self))
         self.setItemDelegate(self.Delegate(parent=self))
+
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -862,7 +859,6 @@ class BaseListWidget(QtWidgets.QListView):
         """Repaints the given index."""
         if not index.isValid():
             return
-
         if self.isHidden():
             return
 
@@ -871,7 +867,14 @@ class BaseListWidget(QtWidgets.QListView):
 
         rect = self.visualRect(index)
         if self.rect().contains(rect):
-            self.repaint(self.visualRect(index))
+            self.update(index)
+            return
+
+        # Here we add the last index of the window
+        index = self.indexAt(self.rect().bottomLeft())
+        idx = index.row()
+        if index.isValid():
+            self.update(index)
 
     def initialize_visible_indexes(self):
         pass
@@ -1448,7 +1451,7 @@ class BaseListWidget(QtWidgets.QListView):
         """Deselecting item when the index is invalid."""
         if not isinstance(event, QtGui.QMouseEvent):
             self.reset_multitoggle()
-            return None
+            return
 
         index = self.indexAt(event.pos())
         if not index.isValid():
@@ -1535,8 +1538,7 @@ class BaseListWidget(QtWidgets.QListView):
                     hidtext = u''
 
                     if filter_text:
-                        filtext = u'{}'.format(
-                            common.clean_filter_text(filter_text).upper())
+                        filtext = filter_text.upper()
                     if favourite_mode:
                         favtext = u'Showing favourites only'
                     if active_mode:
@@ -1593,14 +1595,16 @@ class BaseInlineIconWidget(BaseListWidget):
 
         index = self.indexAt(event.pos())
         if not index.isValid():
+            super(BaseInlineIconWidget, self).mousePressEvent(event)
             self.reset_multitoggle()
             return
+
+        self.reset_multitoggle()
 
         rect = self.visualRect(index)
         rectangles = self.itemDelegate().get_rectangles(rect)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
-        self.reset_multitoggle()
         self.multi_toggle_pos = cursor_position
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.multi_toggle_state = not index.flags() & common.MarkedAsFavourite
@@ -1609,7 +1613,8 @@ class BaseInlineIconWidget(BaseListWidget):
         if rectangles[delegate.ArchiveRect].contains(cursor_position):
             self.multi_toggle_state = not index.flags() & common.MarkedAsArchived
             self.multi_toggle_idx = delegate.ArchiveRect
-        return super(BaseInlineIconWidget, self).mousePressEvent(event)
+
+        super(BaseInlineIconWidget, self).mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
         """Finishes `BaseInlineIconWidget`'s multi-item toggle operation, and
@@ -1685,10 +1690,11 @@ class BaseInlineIconWidget(BaseListWidget):
         pos = event.pos()
         index = self.indexAt(pos)
         if not self.verticalScrollBar().isSliderDown():
-            self.update(index)
+            self.update_index(index)
 
         if self.multi_toggle_pos is None:
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
+            return
 
         pos.setX(0)
         index = self.indexAt(pos)
@@ -1698,7 +1704,9 @@ class BaseInlineIconWidget(BaseListWidget):
 
         # Exclude the current item
         if index == self.multi_toggle_item:
+            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
+
         self.multi_toggle_item = index
 
         favourite = index.flags() & common.MarkedAsFavourite
@@ -1712,9 +1720,12 @@ class BaseInlineIconWidget(BaseListWidget):
             if self.multi_toggle_idx == delegate.ArchiveRect:
                 self.multi_toggle_items[idx] = archived
                 self.toggle_archived(index, state=self.multi_toggle_state)
+
+            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
 
         if index == initial_index:
+            super(BaseInlineIconWidget, self).mouseMoveEvent(event)
             return
 
         if self.multi_toggle_idx == delegate.FavouriteRect:
@@ -1723,6 +1734,8 @@ class BaseInlineIconWidget(BaseListWidget):
         elif self.multi_toggle_idx == delegate.FavouriteRect:
             self.toggle_archived(
                 index=index, state=self.multi_toggle_items.pop(idx))
+
+        super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
@@ -1955,7 +1968,13 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.animGroup.addAnimation(animnext_idx)
         self.animGroup.finished.connect(self.animation_finished)
         self.animGroup.finished.connect(lambda: self.widget(next_idx).setDisabled(False))
-        self.animGroup.finished.connect(self.widget(next_idx).initialize_visible_indexes)
+
+        @QtCore.Slot()
+        def initialize_visible_indexes():
+            if next_idx in (1, 2, 3):
+                self.widget(next_idx).initialize_visible_indexes()
+
+        self.animGroup.finished.connect(initialize_visible_indexes)
         self.animGroup.finished.connect(self.widget(next_idx).setFocus)
         self.widget(next_idx).show()
         self.widget(next_idx).setDisabled(True)
