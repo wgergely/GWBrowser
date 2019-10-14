@@ -337,6 +337,23 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     def is_intermediate(s): return cmds.getAttr(
         u'{}.intermediateObject'.format(s))
 
+    def is_visible(s):
+        """A crude way of testing the visibility of a node."""
+        try:
+            parent = cmds.listRelatives(s, type='transform', parent=True)[0]
+            if not cmds.getAttr(u'{}.visibility'.format(parent)):
+                return False
+            try:
+                if parent:
+                    parent = cmds.listRelatives(parent, type='transform', parent=True)[0]
+                    if not cmds.getAttr(u'{}.visibility'.format(parent)):
+                        return False
+            except:
+                pass
+        except:
+            pass
+        return cmds.getAttr(u'{}.visibility'.format(s))
+        
     world_shapes = []
     valid_shapes = []
 
@@ -345,6 +362,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         shapes = cmds.listRelatives(item, fullPath=True)
         for shape in shapes:
             if is_intermediate(shape):
+                continue
+            if not is_visible(shape):
                 continue
             try:
                 # AbcExport will fail if a shape node's name is not unique
@@ -452,7 +471,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                            deleteNamespaceContent=True)
         cmds.evalDeferred(teardown)
 
-        
+
 @QtCore.Slot()
 def capture_viewport(size=1.0):
     """Saves a versioned capture to the ``capture_folder`` defined in the preferences.
