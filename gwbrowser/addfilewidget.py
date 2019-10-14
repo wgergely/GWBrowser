@@ -1598,11 +1598,12 @@ class AddFileWidget(QtWidgets.QDialog):
                 ext=self.extension)
             return self._file_path
 
+
+        asset = self.asset_widget.view().selectionModel().currentIndex()
         # The model might still be loading...
         if asset.data(common.ParentRole) is None:
             return
 
-        asset = self.asset_widget.view().selectionModel().currentIndex()
         asset = asset.data(common.ParentRole)[-1] if asset.isValid() else u''
         mode = self.name_mode_widget.currentIndex()
         mode = self.name_mode_widget.currentData(
