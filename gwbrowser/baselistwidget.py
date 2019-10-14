@@ -1758,9 +1758,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.scrollbar_changed_timer = QtCore.QTimer(parent=self)
         self.scrollbar_changed_timer.setSingleShot(True)
         self.scrollbar_changed_timer.setInterval(500)
-        # self.scrollbar_changed_timer.timeout.connect(self.model().sourceModel().reset_thread_worker_queues)
-        self.scrollbar_changed_timer.timeout.connect(self.initialize_visible_indexes)
-        self.verticalScrollBar().valueChanged.connect(self.scrollbar_value_changed)
 
         self.hide_archived_items_timer = QtCore.QTimer(parent=self)
         self.hide_archived_items_timer.setSingleShot(False)
@@ -1790,15 +1787,13 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.model().sourceModel().reset_thread_worker_queues)
 
         # Initializing the indexes
-        self.model().sourceModel().modelReset.connect(self.initialize_visible_indexes)
-        self.model().sourceModel().dataTypeChanged.connect(self.initialize_visible_indexes)
+        self.model().sourceModel().modelReset.connect(self.restart_timer)
+        self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
+        self.verticalScrollBar().valueChanged.connect(self.restart_timer)
+        self.scrollbar_changed_timer.timeout.connect(self.initialize_visible_indexes)
 
-        # self.model().sourceModel().dataSorted.connect(self.scrollbar_value_changed)
-
-    @QtCore.Slot()
-    def scrollbar_value_changed(self):
-        if not self.scrollbar_changed_timer.isActive():
-            self.scrollbar_changed_timer.start()
+    def restart_timer(self):
+        self.scrollbar_changed_timer.start(1000)
 
     @QtCore.Slot()
     def hide_archived_items(self):

@@ -266,8 +266,6 @@ class FileThumbnailWorker(BaseWorker):
             make (bool): Will generate a thumbnail image if there isn't one already
 
         """
-        if not index.data(common.FileInfoLoaded):
-            return
         if index.flags() & common.MarkedAsArchived:
             return
         try:
@@ -1143,9 +1141,9 @@ class FilesWidget(ThreadedBaseWidget):
         if not clickable_rectangles:
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
-        if clickable_rectangles[0][0].contains(cursor_position):
-            self.description_editor_widget.show()
-            return super(FilesWidget, self).mouseReleaseEvent(event)
+        # if clickable_rectangles[0][0].contains(cursor_position):
+        #     self.description_editor_widget.show()
+        #     return super(FilesWidget, self).mouseReleaseEvent(event)
 
         for item in clickable_rectangles:
             rect, text = item
