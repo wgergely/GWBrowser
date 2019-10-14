@@ -515,6 +515,8 @@ class ImageCache(QtCore.QObject):
 
         """
         path = u'{}/../rsc/{}.png'.format(__file__, name)
+        path = os.path.normpath(path)
+        path = os.path.abspath(path)
         file_info = QtCore.QFileInfo(path)
 
         if get_path:
