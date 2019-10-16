@@ -316,7 +316,7 @@ class AddButton(BaseControlButton):
         if not bookmark.isValid():
             return
 
-        bookmark = bookmark.data(common.ParentRole)
+        bookmark = bookmark.data(common.ParentPathRole)
         bookmark = u'/'.join(bookmark)
         widget = AddAssetWidget(
             bookmark, parent=self.stacked_widget())

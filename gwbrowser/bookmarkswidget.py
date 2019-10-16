@@ -208,7 +208,7 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.FlagsRole: flags,
-                common.ParentRole: (file_info.server, file_info.job, file_info.root),
+                common.ParentPathRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: file_info.size(),
@@ -382,7 +382,7 @@ class BookmarksWidget(BaseInlineIconWidget):
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
-        server, job, root = index.data(common.ParentRole)
+        server, job, root = index.data(common.ParentPathRole)
         local_settings.setValue(u'activepath/server', server)
         local_settings.setValue(u'activepath/job', job)
         local_settings.setValue(u'activepath/root', root)
@@ -462,7 +462,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         text = index.data(QtCore.Qt.DisplayRole)
         text = re.sub(ur'[\W\d\_]+', '', text)
         text = u'  {}  |  {}  '.format(
-            text, index.data(common.ParentRole)[-1].upper())
+            text, index.data(common.ParentPathRole)[-1].upper())
 
         width = metrics.width(text)
         rect.moveLeft(rect.left() + width)

@@ -385,7 +385,7 @@ class DataKeyModel(BaseModel):
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
-                common.ParentRole: self._parent_item,
+                common.ParentPathRole: self._parent_item,
                 #
                 common.FileInfoLoaded: False,
                 common.FileThumbnailLoaded: True,

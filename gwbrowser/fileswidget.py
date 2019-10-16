@@ -78,7 +78,7 @@ class FileInfoWorker(BaseWorker):
         """
         if index.data(common.FileInfoLoaded):
             return
-        if not index.data(common.ParentRole):
+        if not index.data(common.ParentPathRole):
             return
 
         try:
@@ -86,7 +86,7 @@ class FileInfoWorker(BaseWorker):
         except:
             return
 
-        if not index.data(common.ParentRole):
+        if not index.data(common.ParentPathRole):
             return
         settings = AssetSettings(index)
 
@@ -542,7 +542,7 @@ class FilesModel(BaseModel):
                     #
                     common.EntryRole: [entry, ],
                     common.FlagsRole: flags,
-                    common.ParentRole: (server, job, root, asset, location, fileroot),
+                    common.ParentPathRole: (server, job, root, asset, location, fileroot),
                     common.DescriptionRole: u'',
                     common.TodoCountRole: 0,
                     common.FileDetailsRole: u'',
@@ -627,7 +627,7 @@ class FilesModel(BaseModel):
                             QtCore.Qt.SizeHintRole: rowsize,
                             common.EntryRole: [],
                             common.FlagsRole: flags,
-                            common.ParentRole: (server, job, root, asset, location, fileroot),
+                            common.ParentPathRole: (server, job, root, asset, location, fileroot),
                             common.DescriptionRole: u'',
                             common.TodoCountRole: 0,
                             common.FileDetailsRole: u'',
@@ -989,7 +989,7 @@ class FilesWidget(ThreadedBaseWidget):
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Sets the current file as the ``active`` file."""
-        parent_role = index.data(common.ParentRole)
+        parent_role = index.data(common.ParentPathRole)
         if not parent_role:
             return
         if len(parent_role) < 5:
@@ -1032,7 +1032,7 @@ class FilesWidget(ThreadedBaseWidget):
             rect, text = item
             root_dir.append(text)
             if rect.contains(cursor_position):
-                path = u'/'.join(index.data(common.ParentRole)[0:5]).rstrip('/')
+                path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip('/')
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = u'{}/{}'.format(path, root_path)
                 common.reveal(path)
@@ -1049,7 +1049,7 @@ class FilesWidget(ThreadedBaseWidget):
             return
         if not index.data(QtCore.Qt.StatusTipRole):
             return
-        if not index.data(common.ParentRole):
+        if not index.data(common.ParentPathRole):
             return
 
         self.drag_source_index = index
@@ -1082,7 +1082,7 @@ class FilesWidget(ThreadedBaseWidget):
         pixmap = None
         path = index.data(QtCore.Qt.StatusTipRole)
 
-        bookmark = u'/'.join(index.data(common.ParentRole)[:3])
+        bookmark = u'/'.join(index.data(common.ParentPathRole)[:3])
         path = path.replace(bookmark, u'')
         path = path.strip(u'/')
         if no_modifier:

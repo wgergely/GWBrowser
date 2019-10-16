@@ -551,12 +551,12 @@ class ServersSettingsWidget(BaseSettingsWidget):
             parser.set(section, key, values[k])
 
         # Making the path if the folder doesn't exist
-        file_info = QtCore.QFileInfo(common.Server.conf_path())
+        file_info = QtCore.QFileInfo(common.Server.config_path())
         if not file_info.exists():
             file_info.dir().mkpath(file_info.dir().path())
 
         # Creating the config file if it doesn't exist
-        with open(common.Server.conf_path(), u'w+') as configfile:
+        with open(common.Server.config_path(), u'w+') as configfile:
             parser.write(configfile)
 
 

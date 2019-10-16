@@ -1413,7 +1413,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         index = self.browserwidget.assetswidget.model().sourceModel().active_index()
         if not index.isValid():
             return
-        parent = index.data(common.ParentRole)
+        parent = index.data(common.ParentPathRole)
         if not parent:
             return
         if not all(parent):

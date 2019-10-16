@@ -1601,10 +1601,10 @@ class AddFileWidget(QtWidgets.QDialog):
 
         asset = self.asset_widget.view().selectionModel().currentIndex()
         # The model might still be loading...
-        if asset.data(common.ParentRole) is None:
+        if asset.data(common.ParentPathRole) is None:
             return
 
-        asset = asset.data(common.ParentRole)[-1] if asset.isValid() else u''
+        asset = asset.data(common.ParentPathRole)[-1] if asset.isValid() else u''
         mode = self.name_mode_widget.currentIndex()
         mode = self.name_mode_widget.currentData(
             QtCore.Qt.DisplayRole).lower() if mode != -1 else u''
@@ -1821,10 +1821,13 @@ class AddFileWidget(QtWidgets.QDialog):
 
         # We don't have a QModelIndex to use but we can initiate a settings
         # instance using a tuple of bookmark and path variables
-        args = index.data(common.ParentRole)
-        args.append(self.get_file_path())
-
-        settings = AssetSettings(QtCore.QModelIndex(), args=args)
+        server, job, root = index.data(common.ParentPathRole)[0:3]
+        settings = AssetSettings(
+            server=server,
+            job=job,
+            root=root,
+            filepath=self.get_file_path()
+        )
 
         # Saving the thumbnail
         if not self.thumbnail_widget.image.isNull():

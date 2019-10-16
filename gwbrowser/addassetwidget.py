@@ -244,10 +244,14 @@ class AddAssetWidget(QtWidgets.QDialog):
         if not bindex.isValid():
             return
 
-        server, job, root = bindex.data(common.ParentRole)
+        server, job, root = bindex.data(common.ParentPathRole)
         asset = self.name_widget.text()
         settings = Settings.AssetSettings(
-            QtCore.QModelIndex(), args=(server, job, root, asset))
+            server=server,
+            job=job,
+            root=root,
+            filepath=asset
+        )
 
         description = self.description_widget.text()
         if description:

@@ -72,7 +72,7 @@ class BaseWorker(QtCore.QObject):
                 continue
             if not index.data(QtCore.Qt.StatusTipRole):
                 continue
-            if not index.data(common.ParentRole):
+            if not index.data(common.ParentPathRole):
                 continue
             cls.queue.put(index)
 

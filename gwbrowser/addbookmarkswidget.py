@@ -723,7 +723,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         bookmarkswidget.model().sourceModel().__initdata__()
         for idx in xrange(bookmarkswidget.model().rowCount()):
             index = bookmarkswidget.model().index(idx, 0)
-            parent = index.data(common.ParentRole)
+            parent = index.data(common.ParentPathRole)
             if parent[0].lower() == server.lower() and parent[1].lower() == job.lower() and parent[2].lower() == root.lower():
                 bookmarkswidget.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)

@@ -219,7 +219,7 @@ class AssetModel(BaseModel):
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
-                common.ParentRole: (server, job, root, filename),
+                common.ParentPathRole: (server, job, root, filename),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
@@ -306,7 +306,7 @@ class AssetsWidget(ThreadedBaseWidget):
 
         """
         local_settings.setValue(
-            u'activepath/asset', index.data(common.ParentRole)[-1])
+            u'activepath/asset', index.data(common.ParentPathRole)[-1])
         # Resetting invalid paths
         Active.paths()
 

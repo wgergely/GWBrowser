@@ -31,7 +31,7 @@ def validate_index(func):
             return None
         if not args[0].data(QtCore.Qt.StatusTipRole):
             return None
-        if not args[0].data(common.ParentRole):
+        if not args[0].data(common.ParentPathRole):
             return None
         if isinstance(args[0].model(), FilterProxyModel):
             args = [f for f in args]
@@ -540,7 +540,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         """This is a slot, setting the parent of the model.
 
         Parent refers to the search path the model will get it's data from. It
-        us usually contained in the `common.ParentRole` data with the exception
+        us usually contained in the `common.ParentPathRole` data with the exception
         of the bookmark items - we don't have parent for these.
 
         """
@@ -548,7 +548,7 @@ class BaseModel(QtCore.QAbstractItemModel):
             self._parent_item = None
             return
 
-        self._parent_item = index.data(common.ParentRole)
+        self._parent_item = index.data(common.ParentPathRole)
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -1121,12 +1121,12 @@ class BaseListWidget(QtWidgets.QListView):
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
 
                         # Saving the settings to a file
+                        server, job, root = _item[common.ParentPathRole][0:3]
                         settings = AssetSettings(
-                            QtCore.QModelIndex(),
-                            (_item[common.ParentRole][0],
-                             _item[common.ParentRole][1],
-                             _item[common.ParentRole][2],
-                             _item[QtCore.Qt.StatusTipRole])
+                            server=server,
+                            job=job,
+                            root=root,
+                            filepath=filepath
                         )
                         settings.setValue(u'config/archived', False)
 
@@ -1179,12 +1179,12 @@ class BaseListWidget(QtWidgets.QListView):
                     _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsArchived
 
                     # Saving the settings to a file
+                    server, job, root = _item[common.ParentPathRole][0:3]
                     settings = AssetSettings(
-                        QtCore.QModelIndex(),
-                        (_item[common.ParentRole][0],
-                         _item[common.ParentRole][1],
-                         _item[common.ParentRole][2],
-                         _item[QtCore.Qt.StatusTipRole])
+                        server=server,
+                        job=job,
+                        root=root,
+                        filepath=filepath
                     )
                     settings.setValue(u'config/archived', True)
 

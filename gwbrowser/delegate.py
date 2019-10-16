@@ -687,9 +687,9 @@ class FilesWidgetDelegate(BaseDelegate):
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
 
-        if index.data(common.ParentRole) and not self.parent().buttons_hidden():
+        if index.data(common.ParentPathRole) and not self.parent().buttons_hidden():
             self.paint_name(*args)
-        elif index.data(common.ParentRole) and self.parent().buttons_hidden():
+        elif index.data(common.ParentPathRole) and self.parent().buttons_hidden():
             self.paint_simple_name(*args)
 
         if index.data(common.FileInfoLoaded):
@@ -766,7 +766,7 @@ class FilesWidgetDelegate(BaseDelegate):
                     continue
 
             # Background
-            rootdir = index.data(common.ParentRole)[-1]
+            rootdir = index.data(common.ParentPathRole)[-1]
             rootdirs = rootdir.split(u'/')
             rootdir = rootdirs[n]
             clickable.append((r, rootdir))
@@ -921,7 +921,7 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.FAVOURITE if n==0 else QtGui.QColor(70, 70, 70)
             color = common.REMOVE if r.contains(cursor_position) else color
 
-            rootdir = index.data(common.ParentRole)[-1]
+            rootdir = index.data(common.ParentPathRole)[-1]
             rootdirs = rootdir.split(u'/')
             _subpath = rootdirs[n]
             if self.parent().model().filter_text():
@@ -1221,7 +1221,7 @@ class FilesWidgetDelegate(BaseDelegate):
         modes_rectangle.setHeight(metrics.height())
         modes_rectangle.moveCenter(rect.center())
 
-        subdirs = index.data(common.ParentRole)
+        subdirs = index.data(common.ParentPathRole)
         subdirs = subdirs[-1].upper().split(u'/')
 
         o = 2
@@ -1283,7 +1283,7 @@ class FavouritesWidgetDelegate(FilesWidgetDelegate):
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
 
-        if index.data(common.ParentRole):
+        if index.data(common.ParentPathRole):
             self.paint_simple_name(*args)
 
         self.paint_archived(*args)

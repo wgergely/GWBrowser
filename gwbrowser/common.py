@@ -85,7 +85,7 @@ class Server(object):
     """
 
     @classmethod
-    def conf_path(cls):
+    def config_path(cls):
         """Returns the path to ``server.conf``."""
         datadir = next(f for f in QtCore.QStandardPaths.standardLocations(
             QtCore.QStandardPaths.DocumentsLocation))
@@ -97,7 +97,7 @@ class Server(object):
     @classmethod
     def conf(cls):
         parser = ConfigParser.RawConfigParser()
-        parser.read(cls.conf_path())
+        parser.read(cls.config_path())
         return parser
 
     @classmethod
@@ -409,7 +409,7 @@ NameFilters = {
 # Extending the
 FlagsRole = 1024
 """Role used to store the path of the item."""
-ParentRole = 1026
+ParentPathRole = 1026
 """Role used to store the paths the item is associated with."""
 DescriptionRole = 1027
 """Role used to store the description of the item."""
@@ -966,7 +966,7 @@ MacOSPath = 3
 def copy_path(index, mode=WindowsPath, first=True):
     """Copies the given path to the clipboard. We have to do some magic here
     for the copied paths to be fully qualified."""
-    server = index.data(ParentRole)[0]
+    server = index.data(ParentPathRole)[0]
     path = index.data(QtCore.Qt.StatusTipRole)
     if first:
         path = get_sequence_startpath(path)

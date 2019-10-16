@@ -686,18 +686,18 @@ class BrowserWidget(QtWidgets.QWidget):
 
         # Active monitor
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentRole)[0]))
+            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentPathRole)[0]))
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentRole)[1]))
+            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentPathRole)[1]))
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentRole)[2]))
+            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentPathRole)[2]))
         self.active_monitor.activeBookmarkChanged.connect(
             b.model().sourceModel().modelDataResetRequested)
         # self.active_monitor.activeBookmarkChanged.connect(
         #     lambda: lc.listChanged.emit(1))
 
         a.activated.connect(
-            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentRole)[-1]))
+            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
         self.active_monitor.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
         # self.active_monitor.activeAssetChanged.connect(

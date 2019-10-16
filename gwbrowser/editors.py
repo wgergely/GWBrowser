@@ -310,7 +310,7 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
             self.hide()
             return
 
-        if not self.index().data(common.ParentRole):
+        if not self.index().data(common.ParentPathRole):
             self.hide()
             return
 
