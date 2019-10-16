@@ -13,6 +13,20 @@ import gwbrowser.common as common
 SOLO = False
 
 
+def _bool(v):
+    """Converts True/False/None to their valid values."""
+    if isinstance(v, basestring):
+        if v.lower() == u'true':
+            return True
+        elif v.lower() == u'false':
+            return False
+        elif v.lower() == u'none':
+            return None
+        if not v:
+            return None
+    return v
+
+
 class Active(QtCore.QObject):
     """Utility class to querry and monitor the changes to the active paths.
 
@@ -169,24 +183,13 @@ class LocalSettings(QtCore.QSettings):
         self.internal_settings = {}
 
     def value(self, k):
-        """An override for the default value method.
+        """An override for the default get value method.
 
-        We will convert string values to False/True and None respectively, where
-        appropiate. We also disable saving `activepath` values to the local
-        settings when the solo mode is activate and redirect querries instead to
-        a temporary proxy dictionary."""
-        def _bool(v):
-            if isinstance(v, basestring):
-                if v.lower() == u'true':
-                    return True
-                elif v.lower() == u'false':
-                    return False
-                elif v.lower() == u'none':
-                    return None
-                if not v:
-                    return None
-            return v
+        When solo mode is on we have to disable saving `activepath` values to
+        the local settings and redirect querries instead to a temporary proxy
+        dictionary.
 
+        """
         if SOLO and k.lower().startswith(u'activepath'):
             if k not in self.internal_settings:
                 v = super(LocalSettings, self).value(k)
@@ -196,7 +199,9 @@ class LocalSettings(QtCore.QSettings):
 
     def setValue(self, k, v):
         """This is a global override for our preferences to disable the setting
-        of the active path settings."""
+        of the active path settings.
+
+        """
         if SOLO and k.lower().startswith(u'activepath'):
             self.internal_settings[k] = v
             return
@@ -204,124 +209,101 @@ class LocalSettings(QtCore.QSettings):
 
 
 class AssetSettings(QtCore.QSettings):
-    """This class is intended for reading and writing asset & file associated
-    settings.
+    """Provides the file paths and the data of asset's configuration file and
+    cached thumbnail.
 
-    Asset settings are stored in the root of the current bookmark in a folder
-    called ``.browser``. There are usually two files associated with a folder or
-    a file: a **.conf** and a **.png** image file.
+    The settings are stored in the current bookmark folder, eg:
+    `{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.conf`, or
+    `{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.png`
 
-    Each config file's name is generated based on the folder or file's path name
-    relative to the current bookmark folder.
+    The file-name is generated based on the file or folder's path name relative
+    to the current bookmark folder using a md5 hash. For instance,
+    `//{server}/{job}/{bookmark}/asset/myfile.ma will take *asset/myfile.ma*
+    to generate the hash and will return
+    `//{server}/{job}/{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.conf`
+    as the configuration file's path.
 
-    For instance, if the file path is ``//server/job/bookmark/asset/myfile.ma``,
-    the config name will be generated using ``asset/myfile.ma``.
-
-    The resulting config files will look something like as below:
-
-    .. code-block::
-
-        //server/job/bookmark/.browser/986613d368816aa7e0ae910dfd863297.conf
-        //server/job/bookmark/.browser/986613d368816aa7e0ae910dfd863297.png
+    The asset settings object takes a ``QModelIndex`` (note: the index should
+    contain a valid value for `common.ParentPathRole`), otherwise, the
+    server, job, and bookmark folders can be passed manually when a QModelIndex
+    is not available.
 
     Example:
 
         .. code-block:: python
 
-        index = list_widget.currentIndex() # QtCore.QModelIndex
-        settings = AssetSettings(index)
-
-        settings.conf_path()
+        index = list_widget.currentIndex() # QtCore.QModelIndex settings =
+        AssetSettings(index)
+        settings.config_path()
         settings.thumbnail_path()
-
-    Arguments:
-
-        index (QtCore.QModelIndex): The index the instance will be associated
-        args (tuple: server, job, root, filepath): It is not always
-        possible to provide a QModelIndex but we can get around this by
-        providing the path elements as a tuple.
 
     """
 
-    def __init__(self, index, args=None, parent=None):
-        if args is None:
-            bookmark = u'{}/{}/{}'.format(
-                index.data(common.ParentRole)[0],
-                index.data(common.ParentRole)[1],
-                index.data(common.ParentRole)[2],
-            )
-            _bookmark = u'{}/{}'.format(
-                index.data(common.ParentRole)[1],
-                index.data(common.ParentRole)[2],
-            )
+    def __init__(self, index=QtCore.QModelIndex(), server=None, job=None, root=None, filepath=None, parent=None):
+        if index.isValid():
+            parents = index.data(common.ParentPathRole)
+            if not parents:
+                raise RuntimeError('Index does not contain a valid parent path information')
+            server, job, root = parents[0:3]
             filepath = index.data(QtCore.Qt.StatusTipRole)
-        else:
-            bookmark = u'{}/{}/{}'.format(
-                args[0],
-                args[1],
-                args[2],
-            )
-            _bookmark = u'{}/{}'.format(
-                args[1],
-                args[2],
-            )
-            filepath = args[3]
 
-        collapsed = common.is_collapsed(filepath)
-        if collapsed:
-            filepath = collapsed.expand(ur'\1[0]\3')
-
-        path = u'{}/{}'.format(
-            _bookmark,
-            filepath.replace(bookmark, u'').strip(u'/')).strip(u'/')
-        path = hashlib.md5(path.encode('utf-8')).hexdigest()
+        hash = self.hash(server, job, root, filepath)
+        config_path = u'{server}/{job}/{root}/.browser/{hash}.conf'.format(
+            server=server,
+            job=job,
+            root=root,
+            hash=hash
+        )
+        print config_path
 
         self._file_path = filepath
-        self._conf_path = u'{}/.browser/{}.conf'.format(bookmark, path)
-        self._thumbnail_path = self._conf_path.replace(u'.conf', u'.png')
+        self._config_path = config_path
+        self._thumbnail_path = config_path.replace(u'.conf', u'.png')
 
         super(AssetSettings, self).__init__(
-            self.conf_path(),
+            self.config_path(),
             QtCore.QSettings.IniFormat,
             parent=parent
         )
         self.setFallbacksEnabled(False)
 
-    def conf_path(self):
-        """The configuration files associated with assets are stored in
-        the root folder of the current bookmark.
+    @staticmethod
+    def hash(server, job, root, filepath):
+        # Sequences have their own asset setting and because the sequence frames might
+        # change we will use a generic name instead of the current in-out frames
+        collapsed = common.is_collapsed(filepath)
+        if collapsed:
+            filepath = collapsed.expand(ur'\1[0]\3')
+        path = filepath.replace(server, u'').strip(u'/')
+        path = hashlib.md5(path.encode(u'utf-8')).hexdigest()
+        return path
+
+
+
+    def config_path(self):
+        """The path of the configuration file associated with the current file.
 
         For example:
             //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.conf
-            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.png
 
         Returns:
-            str: The path to the configuration file as a string.
+            unicode: The path to the configuration file as a string.
 
         """
-        return self._conf_path
+        return self._config_path
 
     def thumbnail_path(self):
+        """The path of the saved thumbnail associated with the current file."""
         return self._thumbnail_path
 
-    def value(self, *args, **kwargs):
-        val = super(AssetSettings, self).value(*args, **kwargs)
-        if not val:
-            return None
-        if isinstance(val, basestring):
-            if val.lower() == u'true':
-                return True
-            elif val.lower() == u'false':
-                return False
-            elif val.lower() == u'none':
-                return None
-        return val
+    def value(self, k):
+        return _bool(super(AssetSettings, self).value(k))
 
-    def setValue(self, *args, **kwargs):
+    def setValue(self, k, v):
         """Adding a pointer to the original file and a timestamp as well."""
         super(AssetSettings, self).setValue(u'file', self._file_path)
         super(AssetSettings, self).setValue(u'lastmodified', time.time())
-        super(AssetSettings, self).setValue(*args, **kwargs)
+        super(AssetSettings, self).setValue(k, v)
 
 
 local_settings = LocalSettings()
