@@ -1126,7 +1126,7 @@ class BaseListWidget(QtWidgets.QListView):
                             server=server,
                             job=job,
                             root=root,
-                            filepath=filepath
+                            filepath=_item[QtCore.Qt.StatusTipRole]
                         )
                         settings.setValue(u'config/archived', False)
 
@@ -1184,7 +1184,7 @@ class BaseListWidget(QtWidgets.QListView):
                         server=server,
                         job=job,
                         root=root,
-                        filepath=filepath
+                        filepath=_item[QtCore.Qt.StatusTipRole]
                     )
                     settings.setValue(u'config/archived', True)
 

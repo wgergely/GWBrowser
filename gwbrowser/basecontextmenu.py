@@ -561,6 +561,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Ads the menu-items needed to add set favourite or archived status."""
         remove_icon = ImageCache.get_rsc_pixmap(
             u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+        save_icon = ImageCache.get_rsc_pixmap(
+            u'import', common.TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & common.MarkedAsFavourite
 
@@ -570,5 +572,12 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'checkable': False,
             u'action': functools.partial(
                 self.parent().toggle_favourite, self.index, state=not favourite)
+        }
+
+        menu_set[u'favourite'] = {
+            u'text': 'Save favourites',
+            u'icon': save_icon,
+            u'checkable': False,
+            u'action': common.save_favourites
         }
         return menu_set

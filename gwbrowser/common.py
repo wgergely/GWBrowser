@@ -53,6 +53,30 @@ PRODUCT = u'GWBrowser'
 SLACK_URL = ur'https://gwbcn.slack.com/'
 ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
 
+
+def save_favourites():
+    """Saves the currently saved favourites as a new file."""
+    from gwbrowser.settings import local_settings
+    res = QtWidgets.QFileDialog.getSaveFileName(
+        caption=u'Select where to save your favourites items',
+        filter='*.items',
+        options=QtWidgets.QFileDialog.ShowDirsOnly
+    )
+    path, ext = res
+    if not path:
+        return
+    favourites = local_settings.value('favourites')
+    with open(path, 'w') as f:
+        data = u'\n'.join(favourites)
+        f.write(data)
+
+def load_favourites():
+    res = QtWidgets.QFileDialog.getOpenFileName(
+        caption=u'Select where to save your favourites items',
+        filter='*.items',
+        options=QtWidgets.QFileDialog.ShowDirsOnly
+    )
+
 def get_platform():
     """Returns the name of the current platform.
 

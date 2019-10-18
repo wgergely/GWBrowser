@@ -247,14 +247,14 @@ class AssetSettings(QtCore.QSettings):
             server, job, root = parents[0:3]
             filepath = index.data(QtCore.Qt.StatusTipRole)
 
-        hash = self.hash(server, job, root, filepath)
+        hashed = self.hash(server, job, root, filepath)
         config_path = u'{server}/{job}/{root}/.browser/{hash}.conf'.format(
             server=server,
             job=job,
             root=root,
-            hash=hash
+            hash=hashed
         )
-        print config_path
+
 
         self._file_path = filepath
         self._config_path = config_path
@@ -262,10 +262,10 @@ class AssetSettings(QtCore.QSettings):
 
         super(AssetSettings, self).__init__(
             self.config_path(),
-            QtCore.QSettings.IniFormat,
-            parent=parent
+            QtCore.QSettings.IniFormat
         )
-        self.setFallbacksEnabled(False)
+        # self.setDefaultFormat(QtCore.QSettings.IniFormat)
+        # self.setFallbacksEnabled(False)
 
     @staticmethod
     def hash(server, job, root, filepath):

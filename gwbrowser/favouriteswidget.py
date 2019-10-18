@@ -11,7 +11,7 @@ from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 
-from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FavouritesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
@@ -25,6 +25,12 @@ from gwbrowser.fileswidget import validate_index
 from gwbrowser.fileswidget import FileInfoWorker
 from gwbrowser.fileswidget import SecondaryFileInfoWorker
 from gwbrowser.fileswidget import FileThumbnailWorker
+
+
+def rsc_path(f, n):
+    path = u'{}/../rsc/{}.png'.format(f, n)
+    path = os.path.normpath(os.path.abspath(path))
+    return path
 
 
 class FavouriteInfoWorker(FileInfoWorker):
@@ -66,12 +72,6 @@ class FavouriteThumbnailThread(BaseThread):
     Worker = FavouriteThumbnailWorker
 
 
-def rsc_path(f, n):
-    path = u'{}/../rsc/{}.png'.format(f, n)
-    path = os.path.normpath(os.path.abspath(path))
-    return path
-
-
 class FavouritesWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
@@ -94,6 +94,7 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         self.add_separator()
         #
         self.add_refresh_menu()
+
 
 
 class FavouritesModel(FilesModel):

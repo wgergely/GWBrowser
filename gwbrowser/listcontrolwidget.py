@@ -232,7 +232,7 @@ class ToggleFavouriteButton(BaseControlButton):
     def __init__(self, parent=None):
         super(ToggleFavouriteButton, self).__init__(
             u'favourite',
-            u'Show starred only',
+            u'Show Favourites only',
             parent=parent
         )
 
@@ -729,7 +729,7 @@ class FavouritesTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(FavouritesTabButton, self).__init__(
-            u'Starred',
+            u'Favourites',
             3,
             u'Click to see your saved favourites',
             parent=parent
