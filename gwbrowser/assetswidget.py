@@ -236,7 +236,7 @@ class AssetModel(BaseModel):
                 common.ThumbnailRole: default_thumbnail_image,
                 common.ThumbnailBackgroundRole: default_background_color,
                 #
-                common.TypeRole: common.AssetItem,
+                common.TypeRole: common.FileItem,
                 #
                 common.SortByName: filepath,
                 common.SortByLastModified: 0,

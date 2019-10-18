@@ -220,7 +220,7 @@ class BookmarksModel(BaseModel):
                 common.ThumbnailRole: QtGui.QImage(),
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
-                common.TypeRole: common.BookmarkItem,
+                common.TypeRole: common.FileItem,
                 common.FileInfoLoaded: True,
                 #
                 common.SortByName: file_info.filePath(),

@@ -23,6 +23,9 @@ TINT_THUMBNAIL_BACKGROUND = True
 ROW_HEIGHT = common.ROW_HEIGHT
 BOOKMARK_ROW_HEIGHT = common.BOOKMARK_ROW_HEIGHT
 ASSET_ROW_HEIGHT = common.ASSET_ROW_HEIGHT
+SMALL_FONT_SIZE = common.SMALL_FONT_SIZE
+MEDIUM_FONT_SIZE = common.MEDIUM_FONT_SIZE
+LARGE_FONT_SIZE = common.LARGE_FONT_SIZE
 
 regex_remove_version = re.compile(
     ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE)
@@ -714,7 +717,7 @@ class FilesWidgetDelegate(BaseDelegate):
         name_rect = QtCore.QRect(rect)
         text_segments = self.get_text_segments(index)
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         name_rect.setHeight(metrics.height())
@@ -743,7 +746,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Subfolders
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE)
+        font.setPointSizeF(SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
         subdir_rectangles = self.get_subdir_rectangles(index, rectangles, metrics)
@@ -785,7 +788,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         text_segments = self.get_filedetail_text_segments(index)
@@ -807,7 +810,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # Description
 
         font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+        font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
 
         text = index.data(common.DescriptionRole)
@@ -837,7 +840,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setPen(common.TEXT)
         painter.setBrush(QtCore.Qt.NoBrush)
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         name_rect = QtCore.QRect(rect)
@@ -888,7 +891,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         # Subfolders
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE)
+        font.setPointSizeF(SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetrics(font)
 
         subdir_rectangles = self.get_subdir_rectangles(index, rectangles, metrics)
@@ -961,7 +964,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE - 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE - 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         text_segments = self.get_filedetail_text_segments(index)
@@ -996,7 +999,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # Description
 
         font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+        font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
 
         color = common.TEXT_SELECTED if selected else common.TEXT
@@ -1056,7 +1059,7 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.setPen(common.TEXT)
         painter.setBrush(QtCore.Qt.NoBrush)
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         offset = 0
@@ -1108,7 +1111,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         painter.setOpacity(1.0)
         font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE + 1.0)
+        font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
         color = common.TEXT if hover else common.SECONDARY_TEXT
         color = common.TEXT_SELECTED if selected else color

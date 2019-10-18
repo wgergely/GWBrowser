@@ -254,7 +254,6 @@ class AssetSettings(QtCore.QSettings):
             root=root,
             hash=hash
         )
-        print config_path
 
         self._file_path = filepath
         self._config_path = config_path
