@@ -85,6 +85,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rectangles = self.get_rectangles(option.rect)
         font = common.PrimaryFont
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         painter.setFont(common.PrimaryFont)
         metrics = QtGui.QFontMetricsF(font)
 
@@ -427,6 +428,9 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
+    def get_description_rect(self, *args):
+        return QtCore.QRect()
+
     def get_text_segments(self, index):
         """I'm using QPainterPaths to paint the text of each item. The functions
         returns a tuple of text and colour information to be used to mimick
@@ -592,6 +596,33 @@ class AssetsWidgetDelegate(BaseDelegate):
         self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
+    def get_description_rect(self, rectangles, index):
+        """Returns the description area of an ``AssetsWidget`` item."""
+        rect = QtCore.QRect(rectangles[DataRect])
+        rect.setLeft(rect.left() + common.MARGIN)
+
+        font = common.PrimaryFont
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+        metrics = QtGui.QFontMetricsF(font)
+
+        name_rect = QtCore.QRect(rect)
+        center = name_rect.center()
+        name_rect.setHeight(metrics.height())
+        name_rect.moveCenter(center)
+
+        if index.data(common.DescriptionRole):
+            name_rect.moveCenter(
+                QtCore.QPoint(name_rect.center().x(),
+                name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+            )
+
+        description_rect = QtCore.QRect(name_rect)
+        description_rect.moveCenter(
+            QtCore.QPoint(name_rect.center().x(),
+            name_rect.center().y() + metrics.lineSpacing())
+        )
+        return description_rect
+
     @paintmethod
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
@@ -651,10 +682,9 @@ class AssetsWidgetDelegate(BaseDelegate):
             underline_rect = QtCore.QRect(description_rect)
             underline_rect.setTop(underline_rect.bottom())
             underline_rect.moveTop(underline_rect.top() + 1)
-            painter.setOpacity(0.3)
+            painter.setOpacity(0.5)
             painter.setBrush(common.SEPARATOR)
             painter.drawRect(underline_rect)
-            painter.setOpacity(0.6)
             painter.setBrush(common.SECONDARY_TEXT)
             painter.setOpacity(1.0)
 
@@ -702,6 +732,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
+
+    def get_description_rect(self, rectangles, index):
+        return QtCore.QRect()
 
     def get_clickable_rectangles(self, index, rectangles):
         """I don't know if there's any other way of doing this besides,
@@ -1225,9 +1258,12 @@ class FilesWidgetDelegate(BaseDelegate):
         modes_rectangle.moveCenter(rect.center())
 
         subdirs = index.data(common.ParentPathRole)
+        if not subdirs:
+            return []
         subdirs = subdirs[-1].upper().split(u'/')
+        subdirs = [f for f in subdirs if f]
 
-        o = 2
+        o = 3
         spacing = o * 2
 
         offset = 0
@@ -1242,7 +1278,7 @@ class FilesWidgetDelegate(BaseDelegate):
             r.setWidth(width)
             r.moveLeft(r.left() + offset)
             r = r.marginsAdded(QtCore.QMargins(o + 1, o, o + 1, o))
-            offset += width + ((o + 2) * 2) + spacing
+            offset += width + ((o + 2) * 2) + 2
 
             if r.left() > rect.right():
                 break

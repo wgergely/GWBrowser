@@ -1712,16 +1712,30 @@ class BaseInlineIconWidget(BaseListWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return None
 
-        pos = event.pos()
-        index = self.indexAt(pos)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
+
         if not self.verticalScrollBar().isSliderDown():
             self.update_index(index)
+
+        rectangles = self.itemDelegate().get_rectangles(self.visualRect(index))
+        rect = self.itemDelegate().get_description_rect(rectangles, index)
+
+        app = QtWidgets.QApplication.instance()
+        if rect.contains(cursor_position):
+            if app.overrideCursor():
+                app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+            else:
+                app.restoreOverrideCursor()
+                app.setOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))
+        else:
+            app.restoreOverrideCursor()
 
         if self.multi_toggle_pos is None:
             return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
-        pos.setX(0)
-        index = self.indexAt(pos)
+        cursor_position.setX(0)
+        index = self.indexAt(cursor_position)
 
         initial_index = self.indexAt(self.multi_toggle_pos)
         idx = index.row()
