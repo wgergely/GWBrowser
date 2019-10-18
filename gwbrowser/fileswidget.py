@@ -349,9 +349,12 @@ class FilesWidgetContextMenu(BaseContextMenu):
             self.add_copy_menu()
 
         self.add_separator()
-
+        #
         self.add_sort_menu()
         self.add_collapse_sequence_menu()
+        #
+        self.add_separator()
+        #
         self.add_display_toggles_menu()
 
         self.add_separator()

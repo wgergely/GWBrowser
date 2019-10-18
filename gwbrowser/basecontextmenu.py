@@ -377,18 +377,18 @@ class BaseContextMenu(QtWidgets.QMenu):
         source_index = self.parent().model().mapToSource(self.index)
         refresh_pixmap = ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        if self.index.isValid():
-            menu_set[u'Activate'] = {
-                u'action': lambda: self.parent().activate(source_index)
-            }
+        preferences_pixmap = ImageCache.get_rsc_pixmap(
+            u'settings', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         menu_set[u'Refresh'] = {
             u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
             u'icon': refresh_pixmap
         }
 
-        menu_set[u'Preferences'] = {
-            u'action': self.parent().parent().parent().show_preferences
+        menu_set[u'separator'] = None
+        menu_set[u'Preferences...'] = {
+            u'action': self.parent().parent().parent().show_preferences,
+            u'icon': preferences_pixmap,
         }
 
         return menu_set

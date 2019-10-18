@@ -112,6 +112,9 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         self.add_separator()
 
         self.add_sort_menu()
+
+        self.add_separator()
+        
         self.add_display_toggles_menu()
 
         self.add_separator()

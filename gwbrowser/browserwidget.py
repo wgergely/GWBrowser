@@ -22,6 +22,15 @@ from gwbrowser.settings import local_settings, Active
 from gwbrowser.preferenceswidget import PreferencesWidget
 
 
+DEBUG = False
+
+
+@QtCore.Slot(unicode)
+def debug_signals(label, *args, **kwargs):
+    import time
+    print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(time='{}'.format(time.time())[:-3], label=label, args=args,kwargs=kwargs)
+
+
 class SettingsButton(ClickableIconButton):
     """Small version label responsible for displaying information
     about GWBrowser."""
@@ -103,18 +112,17 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget = None
         self.favouriteswidget = None
         self.statusbar = None
+        self.preferences_widget = None
+        self.add_bookmarks_widget = None
 
         self.active_monitor = Active(parent=self)
 
         self.check_active_state_timer = QtCore.QTimer(parent=self)
         self.check_active_state_timer.setInterval(1000)
         self.check_active_state_timer.setSingleShot(False)
-        # self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
+        self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
         self.check_active_state_timer.timeout.connect(
             self.active_monitor.check_state)
-
-        self.preferences_widget = None
-        self.add_bookmarks_widget = None
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
@@ -122,8 +130,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initializer.timeout.connect(self.initialize)
         self.initializer.timeout.connect(self.initializer.deleteLater)
 
-        # Shutdown monitor - we will exit the application when all the threads
-        # have finished running
         self.shutdown_timer = QtCore.QTimer(parent=self)
         self.shutdown_timer.setInterval(250)
         self.shutdown_timer.setSingleShot(False)
@@ -134,16 +140,27 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def initialize(self):
-        """To make sure the widget is shown as soon as it is created, we're
+        """Slot connected to the ``initializer``.
+
+        To make sure the widget is shown as soon as it is created, we're
         initiating the ui and the models with a little delay. Settings saved in the
-        local_settings are applied after the ui is initialized.
+        local_settings are applied after the ui is initialized and the models
+        finished loading their data.
 
         """
+        def emit_saved_state(flag):
+            b.filterFlagChanged.emit(flag, b.filterFlag(flag))
+            a.filterFlagChanged.emit(flag, a.filterFlag(flag))
+            f.filterFlagChanged.emit(flag, f.filterFlag(flag))
+            ff.filterFlagChanged.emit(flag, ff.filterFlag(flag))
+
         self.shortcuts = []
         if self._initialized:
             return
 
         self._createUI()
+        if DEBUG:
+            self._connectDebugSignals()
         self._connectSignals()
         self._add_shortcuts()
 
@@ -153,69 +170,30 @@ class BrowserWidget(QtWidgets.QWidget):
         Active.paths()
 
         # Proxy model
-        b = self.bookmarkswidget
-        a = self.assetswidget
-        f = self.fileswidget
-        ff = self.favouriteswidget
+        b = self.bookmarkswidget.model()
+        a = self.assetswidget.model()
+        f = self.fileswidget.model()
+        ff = self.favouriteswidget.model()
 
-        b.model().filterTextChanged.emit(b.model().filter_text())
-        a.model().filterTextChanged.emit(a.model().filter_text())
-        f.model().filterTextChanged.emit(f.model().filter_text())
-        ff.model().filterTextChanged.emit(ff.model().filter_text())
+        b.filterTextChanged.emit(b.filter_text())
+        a.filterTextChanged.emit(a.filter_text())
+        f.filterTextChanged.emit(f.filter_text())
+        ff.filterTextChanged.emit(ff.filter_text())
 
-        b.model().filterFlagChanged.emit(common.MarkedAsActive,
-                                         b.model().filterFlag(common.MarkedAsActive))
-        b.model().filterFlagChanged.emit(common.MarkedAsArchived,
-                                         b.model().filterFlag(common.MarkedAsArchived))
-        b.model().filterFlagChanged.emit(common.MarkedAsFavourite,
-                                         b.model().filterFlag(common.MarkedAsFavourite))
+        for flag in (common.MarkedAsActive, common.MarkedAsActive, common.MarkedAsFavourite):
+            emit_saved_state(flag)
 
-        a.model().filterFlagChanged.emit(common.MarkedAsActive,
-                                         a.model().filterFlag(common.MarkedAsActive))
-        a.model().filterFlagChanged.emit(common.MarkedAsArchived,
-                                         a.model().filterFlag(common.MarkedAsArchived))
-        a.model().filterFlagChanged.emit(common.MarkedAsFavourite,
-                                         a.model().filterFlag(common.MarkedAsFavourite))
+        b.sourceModel().modelDataResetRequested.emit()
+        self.check_active_state_timer.start()
+        idx = local_settings.value(u'widget/mode')
+        self.listcontrolwidget.listChanged.emit(idx)
+        self.stackedwidget.currentWidget().setFocus()
 
-        f.model().filterFlagChanged.emit(common.MarkedAsActive,
-                                         f.model().filterFlag(common.MarkedAsActive))
-        f.model().filterFlagChanged.emit(common.MarkedAsArchived,
-                                         f.model().filterFlag(common.MarkedAsArchived))
-        f.model().filterFlagChanged.emit(common.MarkedAsFavourite,
-                                         f.model().filterFlag(common.MarkedAsFavourite))
-
-        ff.model().filterFlagChanged.emit(common.MarkedAsActive,
-                                          ff.model().filterFlag(common.MarkedAsActive))
-        ff.model().filterFlagChanged.emit(common.MarkedAsArchived,
-                                          ff.model().filterFlag(common.MarkedAsArchived))
-        ff.model().filterFlagChanged.emit(common.MarkedAsFavourite,
-                                          ff.model().filterFlag(common.MarkedAsFavourite))
-
-        self.stackedwidget.setFocus()
-
-        # Source model data
-        @QtCore.Slot()
-        def restore_stacked_widget():
-            """The state of the stacked widget is dependent on the model data."""
-            idx = local_settings.value(u'widget/mode')
-            self.listcontrolwidget.listChanged.emit(idx)
-
-        timer = QtCore.QTimer(parent=self)
-        timer.setSingleShot(True)
-        timer.setInterval(1000)
-        timer.timeout.connect(b.model().sourceModel().modelDataResetRequested)
-        timer.timeout.connect(ff.model().sourceModel().modelDataResetRequested)
-        timer.timeout.connect(self.check_active_state_timer.start)
-        timer.timeout.connect(restore_stacked_widget)
-        timer.timeout.connect(timer.deleteLater)
-        timer.start()
+        if local_settings.value(u'firstrun') is None:
+            local_settings.setValue(u'firstrun', False)
 
         self._initialized = True
         self.initialized.emit()
-
-        # Anything here will be run the first time gwbrowser is launched
-        if local_settings.value(u'firstrun') is None:
-            local_settings.setValue(u'firstrun', False)
 
     def _createUI(self):
         common.set_custom_stylesheet(self)
@@ -305,8 +283,6 @@ class BrowserWidget(QtWidgets.QWidget):
         solo_button = SoloButton(parent=self)
         row.layout().addWidget(solo_button)
 
-        # row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-
     def show_preferences(self):
         self.stackedwidget.setCurrentIndex(4)
 
@@ -376,19 +352,19 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def decrease_row_size(self):
         import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT - 6) < common.ROW_HEIGHT:
+        if (d.ROW_HEIGHT - 12.0) < common.ROW_HEIGHT:
             return
-        d.ROW_HEIGHT -= 6
-        d.SMALL_FONT_SIZE -= 0.3334
+        d.ROW_HEIGHT -= 12.0
+        d.SMALL_FONT_SIZE -= 1.0
         for n in xrange(self.stackedwidget.count()):
             self.stackedwidget.widget(2).reset()
 
     def increase_row_size(self):
         import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT + 6) > common.ASSET_ROW_HEIGHT:
+        if (d.ROW_HEIGHT + 12.0) > common.ASSET_ROW_HEIGHT:
             return
-        d.ROW_HEIGHT += 6
-        d.SMALL_FONT_SIZE += 0.3334
+        d.ROW_HEIGHT += 12.0
+        d.SMALL_FONT_SIZE += 1.0
         for n in xrange(self.stackedwidget.count()):
             if n >= 3:
                 continue
@@ -479,174 +455,13 @@ class BrowserWidget(QtWidgets.QWidget):
         f = self.fileswidget
         ff = self.favouriteswidget
         lc = self.listcontrolwidget
-
         l = lc.control_view()
         lb = lc.control_button()
-
-        # Progress
-        # b.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.show_progress_message(u'Loading bookmarks...'))
-        # b.model().sourceModel().modelReset.connect(self.hide_progress_message)
-        #
-        # a.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.show_progress_message(u'Loading assets...'))
-        # a.model().sourceModel().modelReset.connect(self.hide_progress_message)
-        #
-        f.model().sourceModel().modelAboutToBeReset.connect(
-            lambda: self.show_progress_message(u'Loading files...'))
-        f.model().sourceModel().modelReset.connect(self.hide_progress_message)
-        # No need to show this...
-        # ff.model().sourceModel().modelAboutToBeReset.connect(
-        #     lambda: self.show_progress_message(u'Loading favourites..'))
-        # ff.model().sourceModel().modelReset.connect(self.hide_progress_message)
-
         s = self.stackedwidget
 
+        #####################################################
         self.shutdown.connect(self.shutdown_timer.start)
-
-        # Signals responsible for saveing the activation changes
-        b.model().sourceModel().activeChanged.connect(b.save_activated)
-        a.model().sourceModel().activeChanged.connect(a.save_activated)
-        f.model().sourceModel().activeChanged.connect(f.save_activated)
-
-        # Making sure the Favourites widget is updated when the favourite-list changes
-        b.favouritesChanged.connect(
-            ff.model().sourceModel().modelDataResetRequested)
-        a.favouritesChanged.connect(
-            ff.model().sourceModel().modelDataResetRequested)
-        f.favouritesChanged.connect(
-            ff.model().sourceModel().modelDataResetRequested)
-        ff.favouritesChanged.connect(
-            ff.model().sourceModel().modelDataResetRequested)
-
-        # Signal/slot connections for the primary bookmark/asset and filemodels
-        b.model().sourceModel().modelReset.connect(
-            lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
-        b.model().sourceModel().modelReset.connect(
-            a.model().sourceModel().modelDataResetRequested)
-        b.model().sourceModel().activeChanged.connect(
-            a.model().sourceModel().set_active)
-        b.model().sourceModel().activeChanged.connect(
-            lambda x: a.model().sourceModel().modelDataResetRequested.emit())
-
-        a.model().sourceModel().modelReset.connect(
-            lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
-        a.model().sourceModel().modelReset.connect(
-            f.model().sourceModel().modelDataResetRequested)
-
-        a.model().sourceModel().activeChanged.connect(
-            f.model().sourceModel().set_active)
-        a.model().sourceModel().activeChanged.connect(
-            lambda x: f.model().sourceModel().modelDataResetRequested.emit())
-
-        a.model().sourceModel().modelReset.connect(f.model().invalidateFilter)
-
-        # Bookmark/Asset/FileModel/View  ->  DataKeyModel/View
-        # These connections are responsible for keeping the DataKeyModel updated
-        # when navigating the list widgets.
-        f.model().modelReset.connect(l.model().modelDataResetRequested)
-        f.model().sourceModel().modelReset.connect(l.model().modelDataResetRequested)
-
-        b.activated.connect(
-            lambda x: l.model().modelDataResetRequested.emit())
-        a.activated.connect(
-            lambda x: l.model().modelDataResetRequested.emit())
-
-        b.model().modelReset.connect(lb.update)
-        b.model().layoutChanged.connect(lb.update)
-        a.model().modelReset.connect(lb.update)
-        a.model().layoutChanged.connect(lb.update)
-        f.model().modelReset.connect(lb.update)
-        f.model().layoutChanged.connect(lb.update)
-        ff.model().modelReset.connect(lb.update)
-        ff.model().layoutChanged.connect(lb.update)
-
-        # Active monitor
-        # We have to save the states before we respond to the dataKeyChanged
-        # signal in the models
-        # self.active_monitor.activeLocationChanged.connect(
-        #     lambda x: lc.listChanged.emit(2))
-        lc.dataKeyChanged.connect(
-            lambda x: self.active_monitor.save_state(u'location', x))
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: self.active_monitor.save_state(u'location', x))
-        self.active_monitor.activeLocationChanged.connect(
-            f.model().sourceModel().dataKeyChanged)
-
-        # I don't think we have to respond to any active file changes
-
-        # Bookmark/Asset/FileModel/View  <-  DataKeyModel/View
-        # These are the signals responsible for changing the active items & data keys.
-        lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
-        f.model().sourceModel().dataKeyChanged.connect(
-            f.model().sourceModel().set_data_key)
-
-        @QtCore.Slot(unicode)
-        def set_filter_text(data_key):
-            model = f.model().sourceModel()
-            cls = model.__class__.__name__
-            k = u'widget/{}/{}/filtertext'.format(cls, data_key)
-            f.model().set_filter_text(local_settings.value(k))
-
-        f.model().sourceModel().dataKeyChanged.connect(set_filter_text)
-
-        f.model().sourceModel().dataKeyChanged.connect(
-            f.model().sourceModel().check_data)
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: f.model().beginResetModel())
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: f.model().endResetModel())
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: f.model().sourceModel().sort_data())
-
-        # Visible widget
-        lc.listChanged.connect(s.setCurrentIndex)
-
-        lc.dataKeyChanged.connect(lc.textChanged)
-        f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
-
-        # Stacked widget navigation
-        b.activated.connect(lambda: lc.listChanged.emit(1))
-        a.activated.connect(lambda: lc.listChanged.emit(2))
-        b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
-        a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
-
-        b.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
-        b.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
-        a.activated.connect(
-            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
-        a.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
-
-        # Statusbar
-        b.entered.connect(self.entered)
-        a.entered.connect(self.entered)
-        f.entered.connect(self.entered)
-        ff.entered.connect(self.entered)
-        l.entered.connect(self.entered)
-
-        lc.bookmarks_button.message.connect(self.entered2)
-        lc.assets_button.message.connect(self.entered2)
-        lc.files_button.message.connect(self.entered2)
-        lc.favourites_button.message.connect(self.entered2)
-
-        lc.add_button.message.connect(self.entered2)
-        lc.generate_thumbnails_button.message.connect(self.entered2)
-        lc.filter_button.message.connect(self.entered2)
-        lc.collapse_button.message.connect(self.entered2)
-        lc.archived_button.message.connect(self.entered2)
-        lc.simple_mode_button.message.connect(self.entered2)
-        lc.favourite_button.message.connect(self.entered2)
-        lc.slack_button.message.connect(self.entered2)
-
-        # Controlbutton text should be invisible when there's no active asset set
-        b.model().sourceModel().activeChanged.connect(
-            lambda x: lc.textChanged.emit(u'Files'))
-        a.model().sourceModel().activeChanged.connect(
-            lambda x: self.fileswidget.model().sourceModel().data_key())
-
+        #####################################################
         lc.bookmarks_button.clicked.connect(
             lambda: lc.listChanged.emit(0))
         lc.assets_button.clicked.connect(
@@ -655,13 +470,101 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda: lc.listChanged.emit(2))
         lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3))
+        #####################################################
+        # Active monitor
+        b.activated.connect(
+            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentPathRole)[0]))
+        b.activated.connect(
+            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentPathRole)[1]))
+        b.activated.connect(
+            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentPathRole)[2]))
+        a.activated.connect(
+            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda x: self.active_monitor.save_state(u'location', x))
+        #####################################################
+        # Linkage between the different tabs are established here
+        # Fist, the parent paths are set
+        b.model().sourceModel().modelReset.connect(
+            lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
+        b.model().sourceModel().activeChanged.connect(
+            a.model().sourceModel().set_active)
+        a.model().sourceModel().modelReset.connect(
+            lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
+        a.model().sourceModel().activeChanged.connect(
+            f.model().sourceModel().set_active)
 
+        b.model().sourceModel().modelReset.connect(
+            a.model().sourceModel().modelDataResetRequested)
+        b.model().sourceModel().activeChanged.connect(
+            a.model().sourceModel().modelDataResetRequested)
+        b.model().sourceModel().activeChanged.connect(
+            l.model().modelDataResetRequested)
+        a.model().sourceModel().modelReset.connect(
+            f.model().sourceModel().modelDataResetRequested)
+        a.model().sourceModel().activeChanged.connect(
+            f.model().sourceModel().modelDataResetRequested)
+        a.model().sourceModel().activeChanged.connect(
+            l.model().modelDataResetRequested)
+        f.model().sourceModel().modelDataResetRequested.connect(
+            l.model().modelDataResetRequested)
+        #####################################################
+        # Stacked widget navigation
+        lc.listChanged.connect(s.setCurrentIndex)
+        b.activated.connect(lambda: lc.listChanged.emit(1))
+        a.activated.connect(lambda: lc.listChanged.emit(2))
+        b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
+        a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
+        #####################################################
+        @QtCore.Slot(unicode)
+        def set_filter_text(data_key):
+            model = f.model().sourceModel()
+            cls = model.__class__.__name__
+            k = u'widget/{}/{}/filtertext'.format(cls, data_key)
+            f.model().set_filter_text(local_settings.value(k))
+
+        f.model().sourceModel().dataKeyChanged.connect(
+            f.model().sourceModel().set_data_key)
+        f.model().sourceModel().dataKeyChanged.connect(
+            f.model().sourceModel().check_data)
+        f.model().sourceModel().dataKeyChanged.connect(set_filter_text)
+        f.model().sourceModel().dataKeyChanged.connect(f.model().invalidateFilter)
+
+        # Control bar connections
+        lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
+        lc.dataKeyChanged.connect(lc.textChanged)
+        f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
+        #####################################################
+        # Active monitor
+        self.active_monitor.activeBookmarkChanged.connect(
+            b.model().sourceModel().modelDataResetRequested)
+        self.active_monitor.activeAssetChanged.connect(
+            a.model().sourceModel().modelDataResetRequested)
+        self.active_monitor.activeLocationChanged.connect(
+            f.model().sourceModel().dataKeyChanged)
+        self.active_monitor.activeLocationChanged.connect(
+            l.model().modelDataResetRequested)
+        self.active_monitor.activeLocationChanged.connect(
+            l.model().dataKeyChanged)
+        #####################################################
+        b.activated.connect(
+            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        b.model().sourceModel().activeChanged.connect(
+            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        a.activated.connect(
+            lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        a.model().sourceModel().activeChanged.connect(
+            lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
+        #####################################################
+        # b.model().sourceModel().activeChanged.connect(
+        #     lambda x: lc.textChanged.emit(u'Files'))
         # Updates the list-control buttons when changing lists
         lc.listChanged.connect(lb.update)
         lc.listChanged.connect(lc.update_buttons)
 
         self.stackedwidget.animationFinished.connect(lc.update_buttons)
         s.currentChanged.connect(lc.bookmarks_button.update)
+
         f.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
         ff.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)
         b.model().filterFlagChanged.connect(lc.update_buttons)
@@ -676,71 +579,30 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().modelReset.connect(lc.update_buttons)
         f.model().modelReset.connect(lc.update_buttons)
         ff.model().modelReset.connect(lc.update_buttons)
-        b.model().layoutChanged.connect(lc.update_buttons)
-        a.model().layoutChanged.connect(lc.update_buttons)
-        f.model().layoutChanged.connect(lc.update_buttons)
-        ff.model().layoutChanged.connect(lc.update_buttons)
 
-        b.model().layoutChanged.connect(b.update)
-        a.model().layoutChanged.connect(a.update)
-        f.model().layoutChanged.connect(f.update)
-        ff.model().layoutChanged.connect(f.update)
-
-        # Active monitor
-        b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentPathRole)[0]))
-        b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentPathRole)[1]))
-        b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentPathRole)[2]))
-        self.active_monitor.activeBookmarkChanged.connect(
-            b.model().sourceModel().modelDataResetRequested)
-        # self.active_monitor.activeBookmarkChanged.connect(
-        #     lambda: lc.listChanged.emit(1))
-
-        a.activated.connect(
-            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
-        self.active_monitor.activeAssetChanged.connect(
-            a.model().sourceModel().modelDataResetRequested)
-        # self.active_monitor.activeAssetChanged.connect(
-        #     lambda: lc.listChanged.emit(1))
-
-        # Progresslabel
+        b.model().modelReset.connect(lb.update)
+        a.model().modelReset.connect(lb.update)
+        f.model().modelReset.connect(lb.update)
+        ff.model().modelReset.connect(lb.update)
+        ########################################################################
+        # Messages
         b.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
-        b.model().layoutAboutToBeChanged.connect(
-            lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
-        b.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        b.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        b.model().sourceModel().modelReset.connect(
+        b.model().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
-        b.model().sourceModel().layoutChanged.connect(
+        b.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
 
         a.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
-        a.model().layoutAboutToBeChanged.connect(
-            lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
         a.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        a.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
         a.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
-        a.model().sourceModel().layoutChanged.connect(
-            lambda: self.statusbar.showMessage(u''))
-
         f.model().modelAboutToBeReset.connect(
             lambda: self.statusbar.showMessage(u'Getting files...', 99999))
-        f.model().layoutAboutToBeChanged.connect(
-            lambda: self.statusbar.showMessage(u'Getting files...', 99999))
         f.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        f.model().layoutChanged.connect(lambda: self.statusbar.showMessage(u'', 99999))
-        f.model().sourceModel().layoutAboutToBeChanged.connect(
-            lambda: self.statusbar.showMessage(u'Getting files...'))
         f.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
-        f.model().sourceModel().layoutChanged.connect(
-            lambda: self.statusbar.showMessage(u'', 99999))
-
         b.model().sourceModel().messageChanged.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
         a.model().sourceModel().messageChanged.connect(
@@ -749,6 +611,81 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda m: self.statusbar.showMessage(m, 99999))
         ff.model().sourceModel().messageChanged.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
+
+
+        # Statusbar
+        b.entered.connect(self.entered)
+        a.entered.connect(self.entered)
+        f.entered.connect(self.entered)
+        ff.entered.connect(self.entered)
+        l.entered.connect(self.entered)
+        lc.bookmarks_button.message.connect(self.entered2)
+        lc.assets_button.message.connect(self.entered2)
+        lc.files_button.message.connect(self.entered2)
+        lc.favourites_button.message.connect(self.entered2)
+        lc.add_button.message.connect(self.entered2)
+        lc.generate_thumbnails_button.message.connect(self.entered2)
+        lc.filter_button.message.connect(self.entered2)
+        lc.collapse_button.message.connect(self.entered2)
+        lc.archived_button.message.connect(self.entered2)
+        lc.simple_mode_button.message.connect(self.entered2)
+        lc.favourite_button.message.connect(self.entered2)
+        lc.slack_button.message.connect(self.entered2)
+
+    def _connectDebugSignals(self):
+        b = self.bookmarkswidget
+        a = self.assetswidget
+        f = self.fileswidget
+        ff = self.favouriteswidget
+        lc = self.listcontrolwidget
+        l = lc.control_view()
+        lb = lc.control_button()
+
+        ###############################################
+        b.model().sourceModel().dataSorted.connect(
+            lambda *a, **kw: debug_signals('bookmarks:source   dataSorted', *a, **kw))
+        b.model().sourceModel().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('bookmarks:source   modelAboutToBeReset', *a, **kw))
+        b.model().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('bookmarks:proxy    modelAboutToBeReset', *a, **kw))
+        b.model().sourceModel().modelReset.connect(
+            lambda *a, **kw: debug_signals('bookmarks:source   modelReset', *a, **kw))
+        b.model().modelReset.connect(
+            lambda *a, **kw: debug_signals('bookmarks:proxy    modelReset', *a, **kw))
+        ################################################
+        a.model().sourceModel().dataSorted.connect(
+            lambda *a, **kw: debug_signals('assets:source      dataSorted', *a, **kw))
+        a.model().sourceModel().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('assets:source      modelAboutToBeReset', *a, **kw))
+        a.model().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('assets:proxy       modelAboutToBeReset', *a, **kw))
+        a.model().sourceModel().modelReset.connect(
+            lambda *a, **kw: debug_signals('assets:source      modelReset', *a, **kw))
+        a.model().modelReset.connect(
+            lambda *a, **kw: debug_signals('assets:proxy       modelReset', *a, **kw))
+        ###############################################
+        f.model().sourceModel().dataSorted.connect(
+            lambda *a, **kw: debug_signals('files:source       dataSorted', *a, **kw))
+        f.model().sourceModel().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('files:source       modelAboutToBeReset', *a, **kw))
+        f.model().modelAboutToBeReset.connect(
+            lambda *a, **kw: debug_signals('files:proxy        modelAboutToBeReset', *a, **kw))
+        f.model().sourceModel().modelReset.connect(
+            lambda *a, **kw: debug_signals('files:source       modelReset', *a, **kw))
+        f.model().modelReset.connect(
+            lambda *a, **kw: debug_signals('files:proxy        modelReset', *a, **kw))
+        ################################################
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda *a, **kw: debug_signals('files:source       dataKeyChanged', *a, **kw))
+        f.model().sourceModel().dataTypeChanged.connect(
+            lambda *a, **kw: debug_signals('files:source       dataTypeChanged', *a, **kw))
+        f.model().sourceModel().sortingChanged.connect(
+            lambda *a, **kw: debug_signals('files:source       sortingChanged', *a, **kw))
+        f.model().filterFlagChanged.connect(
+            lambda *a, **kw: debug_signals('files:source       filterFlagChanged', *a, **kw))
+        f.model().filterTextChanged.connect(
+            lambda *a, **kw: debug_signals('files:source       filterTextChanged', *a, **kw))
+        ################################################
 
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget

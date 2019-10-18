@@ -327,6 +327,10 @@ class DataKeyModel(BaseModel):
     def data_type(self):
         return common.FileItem
 
+    def sort_data(self):
+        """This model is always alphabetical."""
+        pass
+
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """

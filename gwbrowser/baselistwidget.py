@@ -54,6 +54,7 @@ def initdata(func):
             res = None
         finally:
             self.endResetModel()
+            self.sort_data()
         return res
     return func_wrapper
 
@@ -798,44 +799,36 @@ class BaseListWidget(QtWidgets.QListView):
         """
 
         proxy = FilterProxyModel(parent=self)
+
+        model.beginResetModel()
         proxy.setSourceModel(model)
-        proxy.initialize_filter_values()
+        model.endResetModel()
 
         self.setModel(proxy)
-
-        model.modelAboutToBeReset.connect(proxy.initialize_filter_values)
-
-        # Index repaints
-        model.indexUpdated.connect(
-            self.update_index, type=QtCore.Qt.QueuedConnection)
 
         model.modelDataResetRequested.connect(
             model.beginResetModel)
         model.modelDataResetRequested.connect(
             model.__resetdata__)
-
-        # Selection
-        proxy.modelAboutToBeReset.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()))
-
-        model.dataTypeChanged.connect(lambda x: proxy.beginResetModel())
-        model.dataTypeChanged.connect(model.set_data_type)
-        model.dataTypeChanged.connect(lambda x: model.sort_data())
-        model.dataTypeChanged.connect(lambda x: proxy.endResetModel())
-
         model.modelAboutToBeReset.connect(
             lambda: model.set_data_type(model.data_type()))
 
+        model.activeChanged.connect(self.save_activated)
+
+        # Swithing between files and sequences
+        model.dataTypeChanged.connect(model.set_data_type)
+        model.dataTypeChanged.connect(model.sort_data)
+
+        model.indexUpdated.connect(
+            self.update_index, type=QtCore.Qt.QueuedConnection)
+
+        proxy.modelAboutToBeReset.connect(
+            lambda: self.save_selection(self.selectionModel().currentIndex()))
+
         proxy.filterTextChanged.connect(proxy.set_filter_text)
         proxy.filterFlagChanged.connect(proxy.set_filter_flag)
-
-        proxy.filterTextChanged.connect(lambda x: proxy.invalidateFilter())
-        proxy.filterFlagChanged.connect(lambda x: proxy.invalidateFilter())
-
-        # Multitoggle
-        proxy.modelAboutToBeReset.connect(self.reset_multitoggle)
-        proxy.modelReset.connect(self.reset_multitoggle)
-        proxy.layoutChanged.connect(self.reset_multitoggle)
+        proxy.filterTextChanged.connect(proxy.invalidateFilter)
+        proxy.filterFlagChanged.connect(proxy.invalidateFilter)
 
         model.sortingChanged.connect(
             lambda x, y: self.save_selection(self.selectionModel().currentIndex()))
@@ -843,9 +836,14 @@ class BaseListWidget(QtWidgets.QListView):
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
 
-        model.modelReset.connect(model.sort_data)
+        model.dataSorted.connect(proxy.initialize_filter_values)
         model.dataSorted.connect(proxy.invalidateFilter)
         model.dataSorted.connect(self.reselect_previous)
+
+        model.modelAboutToBeReset.connect(self.reset_multitoggle)
+        model.modelReset.connect(self.reset_multitoggle)
+
+        proxy.initialize_filter_values()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update_index(self, index):
@@ -1796,34 +1794,36 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.hide_archived_items_timer.setInterval(1000)
         self.hide_archived_items_timer.timeout.connect(
             self.hide_archived_items)
+
         # Stopping the timer
         self.model().sourceModel().modelAboutToBeReset.connect(
             self.hide_archived_items_timer.stop)
-        self.model().modelAboutToBeReset.connect(self.hide_archived_items_timer.stop)
-        self.model().layoutAboutToBeChanged.connect(self.hide_archived_items_timer.stop)
-        # Starting the timer
-        self.model().sourceModel().modelReset.connect(
-            self.hide_archived_items_timer.start)
-        self.model().modelReset.connect(self.hide_archived_items_timer.start)
-        self.model().layoutChanged.connect(self.hide_archived_items_timer.start)
-
-        # SecondaryFileInfoThread
-        self.model().sourceModel().modelReset.connect(
-            self.model().sourceModel().reset_file_info_loaded)
-        self.model().sourceModel().dataKeyChanged.connect(
-            self.model().sourceModel().reset_file_info_loaded)
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.scrollbar_changed_timer.stop)
 
         # Clearing the queues
-        self.model().sourceModel().modelAboutToBeReset.connect(
+        self.model().modelAboutToBeReset.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().sourceModel().dataTypeChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().sourceModel().dataKeyChanged.connect(
             self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().modelReset.connect(
+            self.model().sourceModel().reset_thread_worker_queues)
+        self.model().sourceModel().modelReset.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+
+        self.model().sourceModel().dataSorted.connect(
+            self.hide_archived_items_timer.start)
+        self.model().sourceModel().dataSorted.connect(
+            self.restart_timer)
 
         # Initializing the indexes
-        self.model().sourceModel().modelReset.connect(self.restart_timer)
+        self.model().sourceModel().dataSorted.connect(self.restart_timer)
         self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
+        self.model().sourceModel().dataKeyChanged.connect(self.restart_timer)
         self.verticalScrollBar().valueChanged.connect(self.restart_timer)
         self.scrollbar_changed_timer.timeout.connect(
             self.initialize_visible_indexes)
@@ -1899,6 +1899,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         # Starting from the to we add all the visible, and unititalized indexes
         rect = self.visualRect(index)
         while self.rect().contains(rect):
+            if idx not in data:
+                return
             if not data[idx][common.FileInfoLoaded]:
                 needs_info.append(index)
             if generate_thumbnails and not data[idx][common.FileThumbnailLoaded]:
