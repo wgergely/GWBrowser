@@ -263,8 +263,6 @@ class AssetSettings(QtCore.QSettings):
             self.config_path(),
             QtCore.QSettings.IniFormat
         )
-        # self.setDefaultFormat(QtCore.QSettings.IniFormat)
-        # self.setFallbacksEnabled(False)
 
     @staticmethod
     def hash(server, job, root, filepath):
