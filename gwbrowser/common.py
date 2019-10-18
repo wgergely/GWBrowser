@@ -463,8 +463,6 @@ SortBySize = 2050
 
 FileItem = 1100
 SequenceItem = 1200
-AssetItem = 1300
-BookmarkItem = 1400
 
 LowerCase = 0
 UpperCase = 1

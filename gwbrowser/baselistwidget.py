@@ -20,7 +20,6 @@ from gwbrowser.settings import local_settings, AssetSettings
 import gwbrowser.delegate as delegate
 
 
-
 def validate_index(func):
     """Decorator to validate an index"""
     @wraps(func)
@@ -40,8 +39,6 @@ def validate_index(func):
             args = tuple(args)
         return func(*args, **kwargs)
     return func_wrapper
-
-
 
 
 def initdata(func):
@@ -171,6 +168,7 @@ class FilterOnOverlayWidget(ProgressWidget):
 
     def showEvent(self, event):
         self.repaint()
+
 
 class FilterProxyModel(QtCore.QSortFilterProxyModel):
     """Proxy model responsible for **filtering** data for the view.
@@ -317,8 +315,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filter_includes_row(self, filtertext, searchable):
         _filtertext = unicode(filtertext)
-        it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'(--".*?")', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)',
+                         filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'(--".*?")', filtertext,
+                                flags=re.IGNORECASE | re.MULTILINE)
 
         for match in it:
             _filtertext = re.sub(match.group(1), u'', _filtertext)
@@ -332,8 +332,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filter_excludes_row(self, filtertext, searchable):
-        it = re.finditer(ur'--([^\"\'\[\]\*\s]+)', filtertext, flags=re.IGNORECASE | re.MULTILINE)
-        it_quoted = re.finditer(ur'--"(.*?)"', filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it = re.finditer(ur'--([^\"\'\[\]\*\s]+)',
+                         filtertext, flags=re.IGNORECASE | re.MULTILINE)
+        it_quoted = re.finditer(ur'--"(.*?)"', filtertext,
+                                flags=re.IGNORECASE | re.MULTILINE)
 
         for match in it:
             if match.group(1).lower() in searchable:
@@ -390,7 +392,6 @@ class BaseModel(QtCore.QAbstractItemModel):
     InfoThread = None
     SecondaryInfoThread = None
     ThumbnailThread = None
-
 
     def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
         super(BaseModel, self).__init__(parent=parent)
@@ -772,7 +773,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.set_model(self.SourceModel(parent=self))
         self.setItemDelegate(self.Delegate(parent=self))
 
-
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return self._buttons_hidden
@@ -800,7 +800,6 @@ class BaseListWidget(QtWidgets.QListView):
         proxy = FilterProxyModel(parent=self)
         proxy.setSourceModel(model)
         proxy.initialize_filter_values()
-
 
         self.setModel(proxy)
 
@@ -843,7 +842,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
-
 
         model.modelReset.connect(model.sort_data)
         model.dataSorted.connect(proxy.invalidateFilter)
@@ -991,79 +989,112 @@ class BaseListWidget(QtWidgets.QListView):
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
             self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
-    def toggle_favourite(self, index, state=None):
+    def toggle_favourite(self, index, flag=common.MarkedAsFavourite, state=None):
         """Toggles the ``favourite`` state of the current item.
         If `item` and/or `state` are set explicity, those values will be used
         instead of the current item state.
 
         Args:
-            item (QListWidgetItem): The item to change.
-            state (None or bool): The state to set.
+            item (QModelIndex): The item to change.
+            flag (int): the flag to toggle
+            state (None or bool): The explicit state to set for the flag (on or off).
 
         """
         if not index.isValid():
             return
+        model = self.model()
+        if hasattr(model, u'sourceModel'):
+            index = model.mapToSource(index)
+            model = index.model()
 
-        # Favouriting archived items are not allowed
-        archived = index.flags() & common.MarkedAsArchived
-        if archived:
+        data = model.model_data()[index.row()]
+        data_key = model.data_key()
+        data_type = model.data_type()
+
+        state = not data[common.FlagsRole] & flag if state is None else state
+        is_file = data[common.TypeRole] == common.FileItem
+
+        flags = data[common.FlagsRole]
+        data[common.FlagsRole] = flags | flag if state else flags & ~flag
+
+        # An item can be a sequence, a file, or a sequence with a single file.
+        # Eg. a sequence with a single file will refer ONE file only but
+        # the data will be stored in BOTH the data[FileItem] and data[SequenceItem]
+        # entries and we have to update both dictinaries accordingly.
+        # Only exception is non-sequence item: the data dictionary will in this case
+        # use the same object in both data[FileItem] and data[SequenceItem]
+        if is_file:
+            key = data[QtCore.Qt.StatusTipRole].lower()
+        else:
+            key = common.is_collapsed(data[QtCore.Qt.StatusTipRole])
+            key = key.expand(ur'\1\3').lower() if key else key
+
+        if flag == common.MarkedAsFavourite:
+            favourites = local_settings.value(u'favourites')
+            favourites = [f.lower() for f in favourites] if favourites else []
+            sfavourites = set(favourites)
+
+            if state and key not in sfavourites:
+                favourites.append(key)
+            if not state and key in sfavourites:
+                favourites.remove(key)
+
+            sfavourites = set(favourites)
+
+        # For non-sequence items there nothing else to do.
+        if not data[common.SequenceRole]:
+            if flag == common.MarkedAsFavourite:
+                local_settings.setValue(u'favourites', sorted(favourites))
             return
 
-        favourites = local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-        sfavourites = set(favourites)
+        # Update the data[SequenceItem] model if currently browsing data[FileItems]
+        if data_type == common.SequenceItem:
+            for data in model._data[data_key][common.FileItem].itervalues():
+                seq = data[common.SequenceRole]
+                if not seq:
+                    continue
 
-        source_index = self.model().mapToSource(index)
-        data = source_index.model().model_data()[source_index.row()]
-        m = self.model().sourceModel()
+                if is_file:
+                    fileitem_key = data[QtCore.Qt.StatusTipRole].lower()
+                else:
+                    fileitem_key = seq.expand(ur'\1\3.\4').lower()
 
-        key = index.data(QtCore.Qt.StatusTipRole)
-        collapsed = common.is_collapsed(key)
-        if collapsed:
-            key = collapsed.expand(ur'\1\3')  # \2 is the sequence-string
+                if fileitem_key != key:
+                    continue
+                data[common.FlagsRole] = flags | flag if state else flags & ~flag
 
-        # Let's check what our operation is going to be first
-        # If the key is already in the favourites, we will remove it,
-        # otherwise add it. We will also iterate through all individual files
-        # as well and set their flags too.
+                if flag == common.MarkedAsFavourite:
+                    path = data[QtCore.Qt.StatusTipRole].lower()
+                    if state and path not in sfavourites:
+                        favourites.append(path)
+                    if not state and path in sfavourites:
+                        favourites.remove(path)
 
-        if key.lower() in sfavourites:
-            if state is None or state is False:  # clears flag
-                favourites.remove(key.lower())
-                data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
+        # Update the data[FileItems] model if currently browsing data[SequenceItem]
+        if data_type == common.FileItem:
+            for data in model._data[data_key][common.SequenceItem].itervalues():
+                if data[common.TypeRole] != common.FileItem:
+                    continue
 
-            # Removing flags for all subsequent sequence files
-            if self.model().sourceModel().data_type() == common.SequenceItem:
-                for _item in m._data[m.data_key()][common.FileItem].itervalues():
-                    _seq = _item[common.SequenceRole]
-                    if not _seq:
-                        continue
-                    if _seq.expand(ur'\1\3.\4').lower() != key.lower():
-                        continue
-                    if _item[QtCore.Qt.StatusTipRole].lower() in sfavourites:
-                        favourites.remove(
-                            _item[QtCore.Qt.StatusTipRole].lower())
-                    _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
-        else:
-            if state is None or state is True:  # adds flag
-                favourites.append(key.lower())
-                data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsFavourite
+                fileitem_key = data[QtCore.Qt.StatusTipRole].lower()
+                if fileitem_key != key:
+                    continue
 
-            # Adding flags
-            if m.data_type() == common.SequenceItem:
-                for _item in m._data[m.data_key()][common.FileItem].itervalues():
-                    _seq = _item[common.SequenceRole]
-                    if not _seq:
-                        continue
-                    if _seq.expand(ur'\1\3.\4').lower() != key.lower():
-                        continue
-                    if _item[QtCore.Qt.StatusTipRole].lower() not in sfavourites:
-                        favourites.append(
-                            _item[QtCore.Qt.StatusTipRole].lower())
-                    _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsFavourite
+                data[common.FlagsRole] = flags | flag if state else flags & ~flag
 
-        # Let's save the favourites list
-        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+                if flag == common.MarkedAsFavourite:
+                    path = data[QtCore.Qt.StatusTipRole].lower()
+                    if state and path not in sfavourites:
+                        favourites.append(path)
+                    if not state and path in sfavourites:
+                        favourites.remove(path)
+
+
+        if flag == common.MarkedAsFavourite:
+            local_settings.setValue(u'favourites', sorted(favourites))
+
+        self.update(index)
+
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1763,13 +1794,16 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.hide_archived_items_timer = QtCore.QTimer(parent=self)
         self.hide_archived_items_timer.setSingleShot(False)
         self.hide_archived_items_timer.setInterval(1000)
-        self.hide_archived_items_timer.timeout.connect(self.hide_archived_items)
+        self.hide_archived_items_timer.timeout.connect(
+            self.hide_archived_items)
         # Stopping the timer
-        self.model().sourceModel().modelAboutToBeReset.connect(self.hide_archived_items_timer.stop)
+        self.model().sourceModel().modelAboutToBeReset.connect(
+            self.hide_archived_items_timer.stop)
         self.model().modelAboutToBeReset.connect(self.hide_archived_items_timer.stop)
         self.model().layoutAboutToBeChanged.connect(self.hide_archived_items_timer.stop)
         # Starting the timer
-        self.model().sourceModel().modelReset.connect(self.hide_archived_items_timer.start)
+        self.model().sourceModel().modelReset.connect(
+            self.hide_archived_items_timer.start)
         self.model().modelReset.connect(self.hide_archived_items_timer.start)
         self.model().layoutChanged.connect(self.hide_archived_items_timer.start)
 
@@ -1791,7 +1825,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.model().sourceModel().modelReset.connect(self.restart_timer)
         self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
         self.verticalScrollBar().valueChanged.connect(self.restart_timer)
-        self.scrollbar_changed_timer.timeout.connect(self.initialize_visible_indexes)
+        self.scrollbar_changed_timer.timeout.connect(
+            self.initialize_visible_indexes)
 
     def restart_timer(self):
         self.scrollbar_changed_timer.start(1000)
@@ -1823,7 +1858,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                 return
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
-
 
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
@@ -2002,7 +2036,8 @@ class StackedWidget(QtWidgets.QStackedWidget):
         self.animGroup.addAnimation(animcurrent_idx)
         self.animGroup.addAnimation(animnext_idx)
         self.animGroup.finished.connect(self.animation_finished)
-        self.animGroup.finished.connect(lambda: self.widget(next_idx).setDisabled(False))
+        self.animGroup.finished.connect(
+            lambda: self.widget(next_idx).setDisabled(False))
 
         @QtCore.Slot()
         def initialize_visible_indexes():
@@ -2023,6 +2058,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
         super(StackedWidget, self).setCurrentIndex(self.next_idx)
         self.widget(self.current_idx).hide()
         self.widget(self.current_idx).move(self.pointcurrent_idx)
-        self.widget(self.current_idx).repaint(self.widget(self.current_idx).rect())
+        self.widget(self.current_idx).repaint(
+            self.widget(self.current_idx).rect())
         self.activeState = False
         self.animationFinished.emit()

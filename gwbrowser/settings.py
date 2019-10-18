@@ -255,7 +255,6 @@ class AssetSettings(QtCore.QSettings):
             hash=hashed
         )
 
-
         self._file_path = filepath
         self._config_path = config_path
         self._thumbnail_path = config_path.replace(u'.conf', u'.png')

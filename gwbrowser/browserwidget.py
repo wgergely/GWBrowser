@@ -376,17 +376,19 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def decrease_row_size(self):
         import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT - 8) < common.ROW_HEIGHT:
+        if (d.ROW_HEIGHT - 6) < common.ROW_HEIGHT:
             return
-        d.ROW_HEIGHT -= 8
+        d.ROW_HEIGHT -= 6
+        d.SMALL_FONT_SIZE -= 0.3334
         for n in xrange(self.stackedwidget.count()):
             self.stackedwidget.widget(2).reset()
 
     def increase_row_size(self):
         import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT + 8) > common.ASSET_ROW_HEIGHT:
+        if (d.ROW_HEIGHT + 6) > common.ASSET_ROW_HEIGHT:
             return
-        d.ROW_HEIGHT += 8
+        d.ROW_HEIGHT += 6
+        d.SMALL_FONT_SIZE += 0.3334
         for n in xrange(self.stackedwidget.count()):
             if n >= 3:
                 continue
