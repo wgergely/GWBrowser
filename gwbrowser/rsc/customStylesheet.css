@@ -328,30 +328,44 @@ QMenu {{
 		font-family: "{SECONDARY_FONT}";
 		font-size: {SMALL_FONT_SIZE}pt;
 		margin: 0px;
+		padding: 2px;
 		border: none;
+		color: rgba({TEXT});
 		menu-scrollable: 1;
 }}
-QMenu::item {{
-	padding: 6px 30px 6px 30px;
-	margin: 0px;
-	border: none;
+QMenu::separator {{
+  height: 1px;
+	margin: 4px 0px 4px 0px;
+	padding: 0px 0px 0px 0px;
+  background-color: rgba(0,0,0,30);
+  color: rgba(0,0,0,0);
 }}
-QMenu::icon {{
-	padding: 8px 8px 8px 6px;
-	margin: 0;
-}}
-QMenu::item:disabled{{
-	color: rgba({TEXT_DISABLED});
-}}
-QMenu::item:selected, QMenu::item:hover {{ /* when user selects item using mouse or keyboard */
-    color: rgba({TEXT_SELECTED});
-    background-color: rgba({BACKGROUND_SELECTED});
-}}
+QMenu::icon,
 QMenu::indicator {{
-    height: 1px;
-    background: rgba({SEPARATOR});
-    margin-left: 30px;
-    margin-right: 30px;
+	margin: 0px;
+	padding: 4px;
+	background-color: rgba(0, 0, 0, 0);
+	border-left: 2px solid rgba(0,0,0,0);
+}}
+QMenu::icon:selected,
+QMenu::indicator:selected {{
+	background-color: rgba(0, 0, 0, 0);
+	border-left: 2px solid rgba({FAVOURITE});
+}}
+QMenu::item {{
+	margin: 0px 0px 1px 0px;
+	padding: 4px 26px 4px 30px;
+  background-color: transparent;
+}}
+QMenu::item:selected {{
+	color: rgba({TEXT_SELECTED});
+  background-color: rgba(255,255,255,100);
+}}
+QMenu::right-arrow {{
+  margin: 0px;
+  image: url({BRANCH_CLOSED});
+  height: 24px;
+  width: 24px;
 }}
 
 

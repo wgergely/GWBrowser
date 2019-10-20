@@ -77,6 +77,9 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         super(FavouritesWidgetContextMenu, self).__init__(index, parent=parent)
         self.index = index
 
+        self.add_control_favourites_menu()
+        self.add_separator()
+
         if index.isValid():
             self.add_remove_favourite_menu()
             self.add_thumbnail_menu()
@@ -162,7 +165,7 @@ class FavouritesModel(FilesModel):
             favourites = [f for f in favourites if f.lower() not in superfluous]
         sfavourites = set(favourites)
 
-        # A suitable substitue for `self._parent_item`
+        # A suitable substitue for `self.parent_path`
         server = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation)
         job = u'gwbrowser'
@@ -358,6 +361,86 @@ class FavouritesWidget(FilesWidget):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
+    def toggle_archived(self, *args, **kwargs):
+        self.toggle_favourite(*args, **kwargs)
+
+    def toggle_favourite(self, *args, **kwargs):
+        """On the FavouritesWidget it only make sense to map the toggle
+        method to 'removing' items.
+
+        We will iterate through the sequence and file models and remove
+        each sequence and file item.
+
+        """
+        index = self.selectionModel().currentIndex()
+        path = index.data(QtCore.Qt.StatusTipRole).lower()
+        ref_path = self._get_path(index.data(QtCore.Qt.StatusTipRole))
+
+        index = self.model().mapToSource(index)
+        model = self.model().sourceModel()
+
+        data_type = self.model().sourceModel().data_type()
+        favourites = local_settings.value(u'favourites')
+        favourites = [f.lower() for f in favourites] if favourites else []
+        new_favourites = []
+
+        if data_type == common.FileItem:
+            for favourite in favourites:
+                if path == favourite.lower():
+                    continue
+                new_favourites.append(favourite)
+        elif data_type == common.SequenceItem:
+            for favourite in favourites:
+                if ref_path.lower() == self._get_path(favourite).lower():
+                    continue
+                if ref_path.lower() == favourite.lower():
+                    continue
+                if path.lower() == self._get_path(favourite).lower():
+                    continue
+                if path.lower() == favourite.lower():
+                    continue
+                new_favourites.append(favourite)
+        local_settings.setValue(u'favourites', new_favourites)
+
+        data = self.model().sourceModel()._data[model.data_key()]
+        file_data = {}
+        sequence_data = {}
+
+        if data_type == common.FileItem:
+            for k, v in data[common.FileItem].iteritems():
+                if path.lower() == v[QtCore.Qt.StatusTipRole]:
+                    continue
+                file_data[len(file_data)] = v
+            for k, v in data[common.SequenceItem].iteritems():
+                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
+                    continue
+                sequence_data[len(sequence_data)] = v
+        elif data_type == common.SequenceItem:
+            for k, v in data[common.FileItem].iteritems():
+                if ref_path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
+                    continue
+                if ref_path.lower() == v[QtCore.Qt.StatusTipRole].lower():
+                    continue
+                if path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
+                    continue
+                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
+                    continue
+                file_data[len(file_data)] = v
+            for k, v in data[common.SequenceItem].iteritems():
+                if ref_path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
+                    continue
+                if ref_path.lower() == v[QtCore.Qt.StatusTipRole].lower():
+                    continue
+                if path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
+                    continue
+                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
+                    continue
+                sequence_data[len(sequence_data)] = v
+
+        data[common.FileItem] = file_data
+        data[common.SequenceItem] = sequence_data
+        self.model().invalidate()
+
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return True
@@ -397,7 +480,22 @@ class FavouritesWidget(FilesWidget):
         favourites = [f.lower() for f in favourites] if favourites else []
 
         for url in mime.urls():
-            path = QtCore.QFileInfo(url.toLocalFile()).filePath()
+            file_info = QtCore.QFileInfo(url.toLocalFile())
+            path = file_info.filePath()
+
+            if file_info.suffix().lower() == u'gwb':
+                with open(path, 'r') as f:
+                    paths = f.readlines()
+                    paths = [f.rstrip() for f in paths]
+
+                    for saved_path in paths:
+                        saved_info = QtCore.QFileInfo(saved_path)
+                        if not saved_info.exists():
+                            continue
+                        if saved_path.lower() not in favourites:
+                            favourites.append(saved_path.lower())
+                continue
+
             if path.lower() not in favourites:
                 favourites.append(path.lower())
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
@@ -427,6 +525,9 @@ class FavouritesWidget(FilesWidget):
 
         return super(FavouritesWidget, self).eventFilter(widget, event)
 
+    def showEvent(self, event):
+        super(FavouritesWidget, self).showEvent(event)
+        self.model().sourceModel().modelDataResetRequested.emit()
 
 if __name__ == '__main__':
     a = QtWidgets.QApplication([])

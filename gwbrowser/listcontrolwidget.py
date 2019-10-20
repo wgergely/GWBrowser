@@ -74,19 +74,23 @@ class FilterButton(BaseControlButton):
         """The action to perform when finished editing the filter text."""
         if not self.current_widget():
             return
-        filter_text = self.current_widget().model().filter_text()
-        filter_text = filter_text.lower() if filter_text else u''
-        #
-        parent = self.stacked_widget().parent().stackedwidget
-        editor = FilterEditor(filter_text, parent=parent)
+        if self.current_widget().filter_editor.isHidden():
+            self.current_widget().filter_editor.show()
+            return
+        self.current_widget().filter_editor.hide()
 
-        model = self.current_widget().model()
-        editor.finished.connect(model.filterTextChanged)
-        editor.finished.connect(lambda: self.repaint(self.rect()))
-        editor.finished.connect(editor.deleteLater)
-        #
-        editor.show()
+    def mouseReleaseEvent(self, event):
+        modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+        shift_modifier = modifiers & QtCore.Qt.ShiftModifier
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
 
+        if alt_modifier or shift_modifier or control_modifier:
+            self.current_widget().model().filterTextChanged.emit(u'')
+            return
+
+        super(FilterButton, self).mouseReleaseEvent(event)
 
 class CollapseSequenceButton(BaseControlButton):
     """The buttons responsible for collapsing/expanding the sequences of the
@@ -277,114 +281,6 @@ class SlackButton(BaseControlButton):
         return True
 
 
-class AddButton(BaseControlButton):
-    """The buttons responsible for adding new items.
-
-    The functionality differs based on the currently selected tab:
-    For bookmarks the user will be prompted with the ``AddBookmarksWidget``,
-    for assets, a new asset will be created, and for files a new template file
-    can be added.
-
-    """
-
-    def __init__(self, parent=None):
-        super(AddButton, self).__init__(
-            u'add',
-            u'Click to add a new bookmark, asset, or file...',
-            parent=parent
-        )
-
-    def state(self):
-        if self.current_index() == 0:
-            return True
-        if self.current_index() == 1:
-            if self.stacked_widget().widget(0).model().sourceModel().active_index().isValid():
-                return True
-            return False
-        if self.current_index() == 2:
-            if self.stacked_widget().widget(1).model().sourceModel().active_index().isValid():
-                return True
-            return False
-        return False
-
-    def add_asset(self):
-        from gwbrowser.addassetwidget import AddAssetWidget
-
-        view = self.stacked_widget().widget(0)
-        model = view.model().sourceModel()
-        bookmark = model.active_index()
-        if not bookmark.isValid():
-            return
-
-        bookmark = bookmark.data(common.ParentPathRole)
-        bookmark = u'/'.join(bookmark)
-        widget = AddAssetWidget(
-            bookmark, parent=self.stacked_widget())
-        pos = self.window().rect().center()
-        pos = self.window().mapToGlobal(pos)
-        widget.move(
-            pos.x() - (widget.width() / 2),
-            pos.y() - (widget.height() / 2),
-        )
-
-        cwidget = self.parent().parent().stackedwidget.currentWidget()
-        cwidget.disabled_overlay_widget.show()
-        widget.exec_()
-
-        if not widget.last_asset_added:
-            cwidget.disabled_overlay_widget.hide()
-            return
-
-        model.modelDataResetRequested.emit()
-        view = self.stacked_widget().widget(1)
-        for n in xrange(view.model().rowCount()):
-            index = view.model().index(n, 0)
-            if index.data(QtCore.Qt.DisplayRole).lower() == widget.last_asset_added.lower():
-                view.selectionModel().setCurrentIndex(
-                    index, QtCore.QItemSelectionModel.ClearAndSelect)
-                view.scrollTo(index)
-                break
-
-        cwidget.disabled_overlay_widget.hide()
-        return
-
-    def create_file(self):
-        """Adds an empty reference file."""
-        from gwbrowser.addfilewidget import AddFileWidget
-        widget = AddFileWidget(u'temp')
-
-        if widget.exec_() == QtWidgets.QDialog.Accepted:
-            file_path = widget.filePath()
-            with open(file_path, 'w') as f:
-                f.write(u'A temporary reference file created by GWBrowser...')
-                common.reveal(file_path)
-
-    @QtCore.Slot()
-    def action(self):
-        """``AddButton`` action."""
-        if not self.current_widget():
-            return
-        # Bookmark
-        if self.current_index() == 0:
-            self.parent().listChanged.emit(5)
-            return
-        # Asset
-        if self.current_index() == 1:
-            self.add_asset()
-            return
-        # This will open the Saver to save a new file
-        if self.current_index() == 2:
-            self.create_file()
-
-    def update(self):
-        """The button is only visible when showing bookmarks or files."""
-        super(AddButton, self).update()
-        if self.current_index() in (0, 1, 2):
-            self.show()
-        else:
-            self.hide()
-
-
 class GenerateThumbnailsButton(BaseControlButton):
     """Custom QLabel with a `clicked` signal."""
 
@@ -442,12 +338,12 @@ class PaintedTextButton(QtWidgets.QLabel):
     doubleClicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
-    def __init__(self, label, idx, description, height=common.CONTROL_HEIGHT, parent=None):
+    def __init__(self, label, idx, description, parent=None):
         super(PaintedTextButton, self).__init__(parent=parent)
         self.default_label = label
-        self._height = height
         self.index = idx
         self.font = QtGui.QFont(common.PrimaryFont)
+        self.font.setPointSizeF(common.MEDIUM_FONT_SIZE)
 
         self.setStatusTip(description)
         self.setToolTip(description)
@@ -493,51 +389,6 @@ class PaintedTextButton(QtWidgets.QLabel):
     def leaveEvent(self, event):
         self.update()
 
-    def paintEvent(self, event):
-        """The control button's paint method - shows the the set text and
-        an underline if the tab is active."""
-        if not self.stacked_widget():
-            return
-
-        rect = QtCore.QRect(self.rect())
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
-
-        option = QtWidgets.QStyleOptionButton()
-        option.initFrom(self)
-        hover = option.state & QtWidgets.QStyle.State_MouseOver
-
-        if self.current_index() == self.index:
-            color = common.TEXT_SELECTED if hover else common.TEXT
-        else:
-            color = common.SECONDARY_TEXT if hover else common.BACKGROUND
-
-        common.draw_aliased_text(
-            painter,
-            self.font,
-            rect,
-            self.text(),
-            QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
-            color
-        )
-
-        if not hover and self.current_index() != self.index:
-            return
-        metrics = QtGui.QFontMetrics(self.font)
-        center = rect.center()
-        rect.setHeight(2)
-        rect.moveCenter(center)
-        rect.moveTop(rect.top() + (metrics.height() / 2) + 3)
-        rect.setWidth(metrics.width(self.text()))
-        painter.setBrush(color)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setOpacity(0.5)
-        painter.drawRect(rect)
-        painter.end()
-
     def mouseReleaseEvent(self, event):
         """Only triggered when the left buttons is pressed."""
         if not isinstance(event, QtGui.QMouseEvent):
@@ -564,19 +415,66 @@ class PaintedTextButton(QtWidgets.QLabel):
         return text
 
     def get_size(self):
-        metrics = QtGui.QFontMetrics(self.font)
-        width = metrics.width(self.text()) + (common.INDICATOR_WIDTH * 2)
-        return QtCore.QSize(width, self._height)
+        o = common.INDICATOR_WIDTH * 2
+        width = QtGui.QFontMetrics(self.font).width(self.text()) + (o * 2)
+        return QtCore.QSize(width, common.INLINE_ICON_SIZE + o)
 
     @QtCore.Slot()
     def adjust_size(self):
         """Slot responsible for setting the size of the widget to match the text."""
         self.setFixedSize(self.get_size())
-        self.repaint()
         self.update()
 
     def showEvent(self, event):
         self.adjust_size()
+
+    def paintEvent(self, event):
+        """The control button's paint method - shows the the set text and
+        an underline if the tab is active."""
+        if not self.stacked_widget():
+            return
+
+        rect = QtCore.QRect(self.rect())
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+
+        option = QtWidgets.QStyleOptionButton()
+        option.initFrom(self)
+        hover = option.state & QtWidgets.QStyle.State_MouseOver
+        painter.setPen(QtCore.Qt.NoPen)
+
+
+        if self.current_index() == self.index:
+            color = common.TEXT_SELECTED if hover else common.TEXT
+            painter.setBrush(color)
+        else:
+            color = common.TEXT if hover else common.BACKGROUND
+            painter.setBrush(color)
+
+        metrics = QtGui.QFontMetrics(self.font)
+        width = metrics.width(self.text())
+
+        x = (self.width() / 2.0) - (width / 2.0)
+        y = self.rect().center().y() + (metrics.ascent() * 0.5)
+        path = QtGui.QPainterPath()
+        path.addText(x, y, self.font, self.text())
+
+        painter.drawPath(path)
+
+        if self.current_index() == self.index:
+            color = common.TEXT if hover else common.REMOVE
+        else:
+            color = common.BACKGROUND if hover else common.SECONDARY_BACKGROUND
+        rect.setHeight(2.0)
+        rect.setWidth(self.rect().width())
+        painter.setBrush(color)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setOpacity(0.9)
+        painter.drawRect(rect)
+        painter.end()
 
 
 class BookmarksTabButton(PaintedTextButton):
@@ -599,6 +497,7 @@ class BookmarksTabButton(PaintedTextButton):
         else:
             text = self.default_label
         return text
+
 
 
 class AssetsTabButton(PaintedTextButton):
@@ -752,9 +651,9 @@ class ListControlWidget(QtWidgets.QWidget):
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.CONTROL_HEIGHT)
+        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
 
         # Control view/model/button
         self.bookmarks_button = BookmarksTabButton(parent=self)
@@ -766,7 +665,6 @@ class ListControlWidget(QtWidgets.QWidget):
             parent=self.parent().fileswidget, altparent=self)
         self.data_key_view.setHidden(True)
 
-        self.add_button = AddButton(parent=self)
         self.generate_thumbnails_button = GenerateThumbnailsButton(parent=self)
         self.filter_button = FilterButton(parent=self)
         self.collapse_button = CollapseSequenceButton(parent=self)
@@ -775,29 +673,24 @@ class ListControlWidget(QtWidgets.QWidget):
         self.slack_button = SlackButton(parent=self)
         self.simple_mode_button = SimpleModeButton(parent=self)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
-        #
         self.layout().addWidget(self.bookmarks_button)
-        # sep = PaintedLabel(u': ', color=common.SECONDARY_BACKGROUND, size=common.MEDIUM_FONT_SIZE, parent=self)
-        # sep.setFixedHeight(common.CONTROL_HEIGHT)
-        # self.layout().addWidget(sep, 0)
         self.layout().addWidget(self.assets_button)
         self.layout().addWidget(self.files_button)
-        sep = PaintedLabel(u'| ', color=common.SECONDARY_BACKGROUND,
-                           size=common.MEDIUM_FONT_SIZE, parent=self)
-        sep.setFixedHeight(common.CONTROL_HEIGHT)
-        self.layout().addWidget(sep, 0)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.favourites_button)
-        #
         self.layout().addStretch()
-        #
         self.layout().addWidget(self.simple_mode_button)
-        self.layout().addWidget(self.add_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.generate_thumbnails_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.filter_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.collapse_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.archived_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.favourite_button)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.slack_button)
         #
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
@@ -808,7 +701,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.assets_button.update()
         self.files_button.update()
         self.favourites_button.update()
-        self.add_button.update()
         self.generate_thumbnails_button.update()
         self.filter_button.update()
         self.collapse_button.update()

@@ -59,23 +59,66 @@ def save_favourites():
     from gwbrowser.settings import local_settings
     res = QtWidgets.QFileDialog.getSaveFileName(
         caption=u'Select where to save your favourites items',
-        filter='*.items',
+        filter=u'*.gwb',
+        dir=QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.HomeLocation),
         options=QtWidgets.QFileDialog.ShowDirsOnly
     )
     path, ext = res
     if not path:
         return
-    favourites = local_settings.value('favourites')
+    favourites = local_settings.value(u'favourites')
     with open(path, 'w') as f:
         data = u'\n'.join(favourites)
         f.write(data)
 
-def load_favourites():
+
+def import_favourites():
+    from gwbrowser.settings import local_settings
     res = QtWidgets.QFileDialog.getOpenFileName(
         caption=u'Select where to save your favourites items',
-        filter='*.items',
+        filter='*.gwb',
         options=QtWidgets.QFileDialog.ShowDirsOnly
     )
+    path, ext = res
+    if not path:
+        return
+
+    favourites = local_settings.value(u'favourites')
+    favourites = [f.lower() for f in favourites] if favourites else []
+    with open(path, 'r') as f:
+        paths = f.readlines()
+        paths = [f.rstrip() for f in paths]
+
+        for saved_path in paths:
+            saved_info = QtCore.QFileInfo(saved_path)
+            if not saved_info.exists():
+                continue
+            if saved_path.lower() not in favourites:
+                favourites.append(saved_path.lower())
+    local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+
+
+def clear_favourites():
+    from gwbrowser.settings import local_settings
+    mbox = QtWidgets.QMessageBox()
+    mbox.setWindowTitle(u'Clear favourites')
+    mbox.setText(
+        u'Are you sure you want to reset your favourites?'.format(
+            Server.primary())
+    )
+    mbox.setInformativeText(
+        u'The action is not undoable.')
+    mbox.setStandardButtons(
+        QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+    mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+
+    res = mbox.exec_()
+    if mbox.result() == QtWidgets.QMessageBox.Cancel:
+        return
+
+    local_settings.setValue(u'favourites', [])
+
 
 def get_platform():
     """Returns the name of the current platform.
@@ -297,6 +340,7 @@ def rgb(color):
     """
     return u'{},{},{},{}'.format(*color.getRgb())
 
+
 MARGIN = 18.0
 
 INDICATOR_WIDTH = 4.0
@@ -320,9 +364,10 @@ TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
-SEPARATOR = QtGui.QColor(45, 45, 45)
+SEPARATOR = QtGui.QColor(50, 50, 50)
 FAVOURITE = QtGui.QColor(120, 110, 200)
-REMOVE = QtGui.QColor(180, 100, 70)
+REMOVE = QtGui.QColor(230, 100, 90)
+ADD = QtGui.QColor(90, 200, 120)
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
@@ -474,8 +519,9 @@ FilterTextRegex = re.compile(ur'[^0-9\.\#\-\_\/a-zA-Z]+')
 
 SORT_WITH_BASENAME = False
 
+
 def namekey(s):
-    """Key function used to sort alphanumeric filenames."""#
+    """Key function used to sort alphanumeric filenames."""
     if SORT_WITH_BASENAME:
         return [int(f) if f.isdigit() else f for f in s.split('/').pop().lower()]
     return [int(f) if f.isdigit() else f for f in s.strip('/').lower()]
@@ -576,11 +622,14 @@ def set_custom_stylesheet(widget):
                 TEXT_SELECTED=rgb(TEXT_SELECTED),
                 SEPARATOR=rgb(SEPARATOR),
                 FAVOURITE=rgb(FAVOURITE),
-                BRANCH_CLOSED=ImageCache.get_rsc_pixmap(u'branch_closed', None, None, get_path=True),
-                BRANCH_OPEN=ImageCache.get_rsc_pixmap(u'branch_open', None, None, get_path=True)
+                BRANCH_CLOSED=ImageCache.get_rsc_pixmap(
+                    u'branch_closed', None, None, get_path=True),
+                BRANCH_OPEN=ImageCache.get_rsc_pixmap(
+                    u'branch_open', None, None, get_path=True)
             )
         except KeyError as err:
-            msg = u'Looks like there might be an error in the css file: {}'.format(err)
+            msg = u'Looks like there might be an error in the css file: {}'.format(
+                err)
             raise KeyError(msg)
         widget.setStyleSheet(qss)
 
@@ -706,6 +755,7 @@ def get_ranges(arr, padding):
             if arr[idx + 1] != n + 1:  # break coming up
                 k += 1
     return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
+
 
 ValidFilenameRegex = re.compile(
     ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
@@ -970,7 +1020,8 @@ def mount():
             mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Server no mounted')
             mbox.setText(
-                u'Could not find {} - it probably is not mounted.'.format(Server.primary())
+                u'Could not find {} - it probably is not mounted.'.format(
+                    Server.primary())
             )
             mbox.setInformativeText(
                 u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.')
@@ -1004,7 +1055,8 @@ def copy_path(index, mode=WindowsPath, first=True):
             if server[u'platform'] != 'win':
                 continue
             if file_path.startswith(server['path']):
-                win_server = Server.get_server_platform_name(server[u'path'], u'win')
+                win_server = Server.get_server_platform_name(
+                    server[u'path'], u'win')
                 server = server[u'path']
                 break
 
@@ -1014,7 +1066,8 @@ def copy_path(index, mode=WindowsPath, first=True):
             if server[u'platform'] != 'win':
                 continue
             if file_path.startswith(server['path']):
-                mac_server = Server.get_server_platform_name(server[u'path'], u'mac')
+                mac_server = Server.get_server_platform_name(
+                    server[u'path'], u'mac')
                 server = server[u'path']
                 break
 
@@ -1229,7 +1282,8 @@ def create_asset_from_template(name, basepath, template):
         mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'Error creating asset')
         mbox.setText('The template file could not be located.')
-        mbox.setInformativeText('Make sure the Asset.zip and Job.zip files exist and are valid.\n\nTemplate must be placed here:\n{}'.format(template_info.filePath()))
+        mbox.setInformativeText(
+            'Make sure the Asset.zip and Job.zip files exist and are valid.\n\nTemplate must be placed here:\n{}'.format(template_info.filePath()))
         mbox.exec_()
         raise RuntimeError(
             u'The "{}.zip" template file could not be located.'.format(AssetTypes[template]))
@@ -1242,11 +1296,13 @@ def create_asset_from_template(name, basepath, template):
     with zipfile.ZipFile(template_info.absoluteFilePath(), 'r', zipfile.ZIP_DEFLATED) as f:
         f.extractall(dest_info.absolutePath(), members=None, pwd=None)
 
+
 def push_to_rv(path):
     """Pushes the given given path to RV."""
     import subprocess
     from gwbrowser.settings import local_settings
-    get_preference = lambda k: local_settings.value(u'preferences/ApplicationSettings/{}'.format(k))
+    def get_preference(k): return local_settings.value(
+        u'preferences/ApplicationSettings/{}'.format(k))
 
     def alert():
         mbox = QtWidgets.QMessageBox()

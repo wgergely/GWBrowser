@@ -311,13 +311,13 @@ class DataKeyModel(BaseModel):
             self.threads[n].start()
 
     @property
-    def _parent_item(self):
+    def parent_path(self):
         """We will use the currently active asset as the parent."""
         view = self.view.parent().parent().parent().fileswidget
-        return view.model().sourceModel()._parent_item
+        return view.model().sourceModel().parent_path
 
-    @_parent_item.setter
-    def _parent_item(self, val):
+    @parent_path.setter
+    def parent_path(self, val):
         """Setting the parent makes no difference..."""
         pass
 
@@ -349,7 +349,7 @@ class DataKeyModel(BaseModel):
         )
         data = self.model_data()
 
-        if not self._parent_item:
+        if not self.parent_path:
             return
 
         # Thumbnail image
@@ -359,7 +359,7 @@ class DataKeyModel(BaseModel):
             rowsize)
         default_thumbnail = default_thumbnail.toImage()
 
-        parent_path = u'/'.join(self._parent_item)
+        parent_path = u'/'.join(self.parent_path)
         indexes = []
         entries = sorted(
             ([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
@@ -389,7 +389,7 @@ class DataKeyModel(BaseModel):
                 common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
                 #
                 common.FlagsRole: flags,
-                common.ParentPathRole: self._parent_item,
+                common.ParentPathRole: self.parent_path,
                 #
                 common.FileInfoLoaded: False,
                 common.FileThumbnailLoaded: True,

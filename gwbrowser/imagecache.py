@@ -38,7 +38,7 @@ def get_width_height(bound, width, height):
 
 def oiio(func):
     """Decorator to wrap the oiio process"""
-    def func_wrapper(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
+    def func_wrapper(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True):
         """This wrapper will make sure the passed parameters are ok to pass onto
         OpenImageIO. We will also update the index value here."""
 
@@ -66,7 +66,7 @@ def oiio(func):
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
         try:
             func(index, source=source,
-                 dest=dest, dest_size=dest_size)
+                 dest=dest, dest_size=dest_size, update=update)
         except Exception as err:
             sys.stderr.write(traceback.format_exc())
             if index.isValid():
@@ -80,7 +80,7 @@ def oiio(func):
 @QtCore.Slot(QtCore.QModelIndex)
 @QtCore.Slot(unicode)
 @oiio
-def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, nthreads=3):
+def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True, nthreads=3):
     """This is a the main method generating thumbnail for items in GWBrowser.
     We're using the python binds of OpenImageIO to process the images.
 
@@ -232,7 +232,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
-    model.indexUpdated.emit(index)
+    if update:
+        model.indexUpdated.emit(index)
     return True
 
 
@@ -480,6 +481,9 @@ class ImageCache(QtCore.QObject):
     @classmethod
     def pick(cls, index):
         """Opens a file-dialog to select an OpenImageIO compliant file."""
+        if hasattr(index.model(), 'sourceModel'):
+            index = index.model().mapToSource(index)
+
         dialog = QtWidgets.QFileDialog()
         common.set_custom_stylesheet(dialog)
         dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
@@ -497,9 +501,9 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
+        oiio_make_thumbnail(index, source=dialog.selectedFiles()[0])
         data = index.model().model_data()[index.row()]
         data[common.FileThumbnailLoaded] = False
-        oiio_make_thumbnail(index, source=dialog.selectedFiles()[0])
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):

@@ -18,6 +18,7 @@ import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.settings import local_settings, AssetSettings
 import gwbrowser.delegate as delegate
+from gwbrowser.imagecache import ImageCache
 
 
 def validate_index(func):
@@ -114,7 +115,7 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.end()
 
     def mousePressEvent(self, event):
-        """``ProgressWidget`` closes on mouse press events."""
+        """``ProgressWidgeqt`` closes on mouse press events."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
         self.hide()
@@ -144,9 +145,6 @@ class FilterOnOverlayWidget(ProgressWidget):
 
     """
 
-    def __init__(self, parent=None):
-        super(FilterOnOverlayWidget, self).__init__(parent=parent)
-
     def paintEvent(self, event):
         """Custom message painted here."""
         if self.parent().model().rowCount() == self.parent().model().sourceModel().rowCount():
@@ -154,9 +152,7 @@ class FilterOnOverlayWidget(ProgressWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         rect = self.rect()
-        rect.setHeight(3)
-        # rect.setWidth(rect.width() - 1)
-        # rect.setHeight(rect.height() - 1)
+        rect.setHeight(1)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         painter.setOpacity(0.8)
@@ -406,9 +402,9 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._proxy_idxs = {}
         self._data = {}
         self._datakey = None
-        self._datatype = None
+        self._datatype = {}
         self._keywords = {}
-        self._parent_item = None
+        self.parent_path = None
 
         self._sortrole = None
         self._sortorder = None
@@ -547,10 +543,10 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         """
         if not index.isValid():
-            self._parent_item = None
+            self.parent_path = None
             return
 
-        self._parent_item = index.data(common.ParentPathRole)
+        self.parent_path = index.data(common.ParentPathRole)
 
     def __resetdata__(self):
         """Resets the internal data."""
@@ -683,25 +679,31 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def data_type(self):
         """Current key to the data dictionary."""
-        if self._datatype is None:
-            val = common.SequenceItem
+        data_key = self.data_key()
+        if data_key not in self._datatype:
             cls = self.__class__.__name__
-            key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
-            savedval = local_settings.value(key)
-            return savedval if savedval else val
-        return self._datatype
+            key = u'widget/{}/{}/datatype'.format(cls, data_key)
+            val = local_settings.value(key)
+            val = val if val else common.SequenceItem
+            self._datatype[data_key] = val
+        return self._datatype[data_key]
 
     @QtCore.Slot(int)
     def set_data_type(self, val):
-        if val == self._datatype:
+        data_key = self.data_key()
+        if data_key not in self._datatype:
+            self._datatype[data_key] = val
+
+        if self._datatype[data_key] == val:
             return
+
         if val not in (common.FileItem, common.SequenceItem):
             raise ValueError(
-                'Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
+                u'Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
         cls = self.__class__.__name__
         key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
         local_settings.setValue(key, val)
-        self._datatype = val
+        self._datatype[data_key] = val
 
 
 class BaseListWidget(QtWidgets.QListView):
@@ -709,7 +711,6 @@ class BaseListWidget(QtWidgets.QListView):
 
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
-    sizeChanged = QtCore.Signal(QtCore.QSize)
     favouritesChanged = QtCore.Signal()
 
     SourceModel = None
@@ -723,21 +724,23 @@ class BaseListWidget(QtWidgets.QListView):
         self.disabled_overlay_widget = DisabledOverlayWidget(parent=self)
         self.disabled_overlay_widget.setHidden(True)
         self.filter_active_widget = FilterOnOverlayWidget(parent=self)
+        self.filter_editor = editors.FilterEditor(parent=self)
+        self.filter_editor.setHidden(True)
 
-        self.sizeChanged.connect(
+        self.parent().resized.connect(
             lambda x: self.progress_widget.setGeometry(self.viewport().geometry()))
-        self.sizeChanged.connect(
+        self.parent().resized.connect(
             lambda x: self.disabled_overlay_widget.setGeometry(self.viewport().geometry()))
-        self.sizeChanged.connect(
+        self.parent().resized.connect(
             lambda x: self.filter_active_widget.setGeometry(self.viewport().geometry()))
+        self.parent().resized.connect(self.filter_editor.adjust_size)
 
         self.thumbnail_viewer_widget = None
-        self._current_selection = None
         self._location = None
         self.collector_count = 0
         self.description_editor_widget = editors.DescriptionEditorWidget(
             parent=self)
-        self.description_editor_widget.hide()
+        self.description_editor_widget.setHidden(True)
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
         self._buttons_hidden = False if local_settings.value(
@@ -818,20 +821,16 @@ class BaseListWidget(QtWidgets.QListView):
         # Swithing between files and sequences
         model.dataTypeChanged.connect(model.set_data_type)
         model.dataTypeChanged.connect(model.sort_data)
+        model.dataTypeChanged.connect(self.reselect_previous)
 
         model.indexUpdated.connect(
             self.update_index, type=QtCore.Qt.QueuedConnection)
-
-        proxy.modelAboutToBeReset.connect(
-            lambda: self.save_selection(self.selectionModel().currentIndex()))
 
         proxy.filterTextChanged.connect(proxy.set_filter_text)
         proxy.filterFlagChanged.connect(proxy.set_filter_flag)
         proxy.filterTextChanged.connect(proxy.invalidateFilter)
         proxy.filterFlagChanged.connect(proxy.invalidateFilter)
 
-        model.sortingChanged.connect(
-            lambda x, y: self.save_selection(self.selectionModel().currentIndex()))
         model.sortingChanged.connect(lambda x, _: model.setSortRole(x))
         model.sortingChanged.connect(lambda _, y: model.setSortOrder(y))
         model.sortingChanged.connect(lambda x, y: model.sort_data())
@@ -842,6 +841,9 @@ class BaseListWidget(QtWidgets.QListView):
 
         model.modelAboutToBeReset.connect(self.reset_multitoggle)
         model.modelReset.connect(self.reset_multitoggle)
+
+        self.filter_editor.finished.connect(proxy.filterTextChanged)
+
 
         proxy.initialize_filter_values()
 
@@ -929,63 +931,70 @@ class BaseListWidget(QtWidgets.QListView):
         """"`save_activated` is abstract and has to be implemented in the subclass."""
         pass
 
-    @QtCore.Slot(QtCore.QModelIndex)
-    def save_selection(self, current):
+    @staticmethod
+    def _get_path(v):
+        is_collapsed = common.is_collapsed(v)
+        is_sequence = common.get_sequence(v)
+
+        if is_collapsed:
+            v = is_collapsed.expand(ur'\1\3')
+        elif is_sequence:
+            v = is_sequence.expand(ur'\1\3.\4')
+        return v
+
+    @QtCore.Slot()
+    def save_selection(self):
         """Saves the currently selected path."""
-        if not current.isValid():
-            self._current_selection = None
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
             return
-        val = current.data(QtCore.Qt.StatusTipRole)
-        self._current_selection = val
-        local_settings.setValue(
-            u'widget/{}/selected_item'.format(self.__class__.__name__),
-            val
+
+        cls = self.__class__.__name__
+        k = u'widget/{}/{}/selected_item'.format(
+            cls,
+            self.model().sourceModel().data_key(),
         )
+        v = self._get_path(index.data(QtCore.Qt.StatusTipRole))
+        local_settings.setValue(k, v)
 
     @QtCore.Slot()
     def reselect_previous(self):
         """Slot called when the model has finished a reset operation.
         The method will try to reselect the previously selected path."""
         cls = self.__class__.__name__
-        val = local_settings.value(u'widget/{}/selected_item'.format(cls)
-                                   ) if not self._current_selection else self._current_selection
+        k = u'widget/{}/{}/selected_item'.format(
+            cls,
+            self.model().sourceModel().data_key(),
+        )
+        val = local_settings.value(k)
+
         if not val:
             return
 
-        saved_is_sequence = common.get_sequence(val)
-        saved_is_collapsed = common.is_collapsed(val)
-        saved_path = saved_is_collapsed.expand(
-            ur'\1\3') if saved_is_collapsed else val
-
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
-            index_path = index.data(QtCore.Qt.StatusTipRole)
-            index_is_collapsed = common.is_collapsed(index_path)
-            index_is_sequence = index.data(common.SequenceRole)
-
-            if index_is_collapsed:
-                index_path = index_is_collapsed.expand(ur'\1\3')
-
-            if saved_is_collapsed and index_is_sequence:
-                index_path = index_is_sequence.expand(ur'\1\3.\4')
-
-            if saved_is_sequence and index_is_collapsed:
-                index_path = index_is_collapsed.expand(ur'\1\3')
-                saved_path = saved_is_sequence.expand(ur'\1\3.\4')
-
-            if index_path == saved_path:
+            path = self._get_path(index.data(QtCore.Qt.StatusTipRole))
+            if val.lower() == path.lower():
                 self.selectionModel().setCurrentIndex(
                     index, QtCore.QItemSelectionModel.ClearAndSelect)
                 self.scrollTo(
                     index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
-        # Selecting the first item if couldn't find a saved selection
-        if self.model().rowCount():
-            index = self.model().index(0, 0)
+        index = self.model().sourceModel().active_index()
+        if index.isValid():
             self.selectionModel().setCurrentIndex(
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
             self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+            return
+
+        if not self.model().rowCount():
+            return
+
+        index = self.model().index(0, 0)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def toggle_favourite(self, index, flag=common.MarkedAsFavourite, state=None):
         """Toggles the ``favourite`` state of the current item.
@@ -1092,7 +1101,6 @@ class BaseListWidget(QtWidgets.QListView):
             local_settings.setValue(u'favourites', sorted(favourites))
 
         self.update(index)
-
 
     def toggle_archived(self, index, state=None):
         """Toggles the ``archived`` state of the current item.
@@ -1327,24 +1335,32 @@ class BaseListWidget(QtWidgets.QListView):
                     QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
             elif event.key() == QtCore.Qt.Key_Down:
                 self.key_down()
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_Up:
                 self.key_up()
+                self.save_selection()
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.key_down()
                 self.key_tab()
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_Backtab:
                 self.key_up()
                 self.key_tab()
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_PageDown:
                 super(BaseListWidget, self).keyPressEvent(event)
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_PageUp:
                 super(BaseListWidget, self).keyPressEvent(event)
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_Home:
                 super(BaseListWidget, self).keyPressEvent(event)
+                self.save_selection()
             elif event.key() == QtCore.Qt.Key_End:
                 super(BaseListWidget, self).keyPressEvent(event)
+                self.save_selection()
             else:  # keyboard search and select
                 if not self.timer.isActive():
                     self.timed_search_string = u''
@@ -1356,7 +1372,6 @@ class BaseListWidget(QtWidgets.QListView):
                 sel = self.selectionModel()
                 for n in xrange(self.model().rowCount()):
                     index = self.model().index(n, 0, parent=QtCore.QModelIndex())
-
                     # When only one key is pressed we want to cycle through
                     # only items starting with that letter:
                     if len(self.timed_search_string) == 1:
@@ -1368,6 +1383,7 @@ class BaseListWidget(QtWidgets.QListView):
                                 index,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
+                            self.save_selection()
                             break
                     else:
                         match = re.search(
@@ -1380,6 +1396,7 @@ class BaseListWidget(QtWidgets.QListView):
                                 index,
                                 QtCore.QItemSelectionModel.ClearAndSelect
                             )
+                            self.save_selection()
                             break
 
         if event.modifiers() & QtCore.Qt.ControlModifier:
@@ -1466,24 +1483,58 @@ class BaseListWidget(QtWidgets.QListView):
     def action_on_enter_key(self):
         self.activate(self.selectionModel().currentIndex())
 
-    def resizeEvent(self, event):
-        """Custom resize event will emit the ``sizeChanged`` signal."""
-        self.sizeChanged.emit(event.size())
-        super(BaseListWidget, self).resizeEvent(event)
-
     def mousePressEvent(self, event):
         """Deselecting item when the index is invalid."""
         if not isinstance(event, QtGui.QMouseEvent):
             self.reset_multitoggle()
             return
-
-        index = self.indexAt(event.pos())
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
         if not index.isValid():
             self.selectionModel().setCurrentIndex(
                 QtCore.QModelIndex(),
                 QtCore.QItemSelectionModel.ClearAndSelect
             )
+        else:
+            self.selectionModel().setCurrentIndex(
+                index,
+                QtCore.QItemSelectionModel.ClearAndSelect
+            )
+        self.save_selection()
         super(BaseListWidget, self).mousePressEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        """Custom double - click event.
+
+        A double click can `activate` an item, or it can trigger an edit event.
+        As each item is associated with multiple editors we have to inspect
+        the double - click location before deciding what action to take.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
+        if not index.isValid():
+            return
+        if index.flags() & common.MarkedAsArchived:
+            return
+
+        if not index.isValid():
+            return super(AssetsWidget, self).mousePressEvent(event)
+
+        rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        description_rectangle = self.itemDelegate().get_description_rect(rectangles, index)
+
+        if description_rectangle.contains(cursor_position):
+            return self.description_editor_widget.show()
+
+        if rectangles[delegate.DataRect].contains(cursor_position):
+            return self.activate(self.selectionModel().currentIndex())
+
+        if rectangles[delegate.ThumbnailRect].contains(cursor_position):
+            return ImageCache.pick(index)
 
     def eventFilter(self, widget, event):
         """This custom paint event is used to paint status messages."""
@@ -1521,7 +1572,7 @@ class BaseListWidget(QtWidgets.QListView):
             align = QtCore.Qt.AlignCenter
 
             text = u''
-            if not source_model._parent_item:
+            if not source_model.parent_path:
                 if self.parent().currentIndex() == 0:
                     if self.model().sourceModel().rowCount() == 0:
                         text = u'No bookmarks added yet. Click the plus icon above to get started.'
@@ -1617,7 +1668,8 @@ class BaseInlineIconWidget(BaseListWidget):
             self.reset_multitoggle()
             return
 
-        index = self.indexAt(event.pos())
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
         if not index.isValid():
             super(BaseInlineIconWidget, self).mousePressEvent(event)
             self.reset_multitoggle()
@@ -1627,7 +1679,6 @@ class BaseInlineIconWidget(BaseListWidget):
 
         rect = self.visualRect(index)
         rectangles = self.itemDelegate().get_rectangles(rect)
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.multi_toggle_pos = cursor_position
@@ -1695,12 +1746,6 @@ class BaseInlineIconWidget(BaseListWidget):
         if rectangles[delegate.TodoRect].contains(cursor_position):
             self.show_todos(index)
 
-        if rectangles[delegate.ThumbnailRect].contains(cursor_position):
-            if not self.thumbnail_viewer_widget:
-                editors.ThumbnailViewer(parent=self)
-            else:
-                self.thumbnail_viewer_widget.close()
-
         super(BaseInlineIconWidget, self).mouseReleaseEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -1714,6 +1759,8 @@ class BaseInlineIconWidget(BaseListWidget):
 
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
         index = self.indexAt(cursor_position)
+        if not index.isValid():
+            return
 
         if not self.verticalScrollBar().isSliderDown():
             self.update_index(index)
@@ -1743,7 +1790,6 @@ class BaseInlineIconWidget(BaseListWidget):
         # Exclude the current item
         if index == self.multi_toggle_item:
             return
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         self.multi_toggle_item = index
 
@@ -1760,12 +1806,9 @@ class BaseInlineIconWidget(BaseListWidget):
                 self.toggle_archived(index, state=self.multi_toggle_state)
 
             return
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
         if index == initial_index:
             return
-            return super(BaseInlineIconWidget, self).mouseMoveEvent(event)
-            # return
 
         if self.multi_toggle_idx == delegate.FavouriteRect:
             self.toggle_favourite(
@@ -1773,8 +1816,6 @@ class BaseInlineIconWidget(BaseListWidget):
         elif self.multi_toggle_idx == delegate.FavouriteRect:
             self.toggle_archived(
                 index=index, state=self.multi_toggle_items.pop(idx))
-
-        # super(BaseInlineIconWidget, self).mouseMoveEvent(event)
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
@@ -1948,6 +1989,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def showEvent(self, event):
         self.hide_archived_items_timer.start()
+        self.progress_widget.setGeometry(self.viewport().geometry())
+        self.disabled_overlay_widget.setGeometry(self.viewport().geometry())
+        self.filter_active_widget.setGeometry(self.viewport().geometry())
         super(ThreadedBaseWidget, self).showEvent(event)
 
     def hideEvent(self, event):

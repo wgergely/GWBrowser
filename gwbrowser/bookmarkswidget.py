@@ -4,7 +4,6 @@ bookmarks. This includes the utility classes for getting bookmark status and to
 allow dropping files and urls on the view.
 
 """
-
 import re
 
 from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
@@ -18,6 +17,7 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
+import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 
@@ -114,7 +114,7 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         self.add_sort_menu()
 
         self.add_separator()
-        
+
         self.add_display_toggles_menu()
 
         self.add_separator()
@@ -200,7 +200,7 @@ class BookmarksModel(BaseModel):
             idx = len(data)
 
             text = u'{}   |   {}'.format(file_info.job, file_info.root)
-            text = text.replace('_', ' ')
+            text = text.replace(u'_', u' ')
             text = text.replace(u'/', u' / ')
 
             data[idx] = {
@@ -210,11 +210,17 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ToolTipRole: file_info.filePath(),
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
+                common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentPathRole: (file_info.server, file_info.job, file_info.root),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: file_info.size(),
+                common.SequenceRole: None,
+                common.EntryRole: [],
+                common.FileInfoLoaded: True,
+                common.StartpathRole: None,
+                common.EndpathRole: None,
                 common.AssetCountRole: file_info.size(),
                 #
                 common.DefaultThumbnailRole: QtGui.QImage(),
@@ -382,6 +388,44 @@ class BookmarksWidget(BaseInlineIconWidget):
             return 0
         return 5
 
+    def add_asset(self):
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        bookmark = index.data(common.ParentPathRole)
+        bookmark = u'/'.join(bookmark)
+
+        from gwbrowser.addassetwidget import AddAssetWidget
+        widget = AddAssetWidget(bookmark, parent=self)
+        pos = self.rect().center()
+        pos = self.mapToGlobal(pos)
+        widget.move(
+            pos.x() - (widget.width() / 2.0),
+            self.mapToGlobal(self.rect().topLeft()).y() + common.MARGIN
+        )
+
+        self.disabled_overlay_widget.show()
+        try:
+            widget.exec_()
+            if not widget.last_asset_added:
+                self.disabled_overlay_widget.hide()
+                return
+
+            self.parent().parent().listcontrolwidget.listChanged.emit(1)
+            view = self.parent().widget(1)
+            view.model().sourceModel().modelDataResetRequested.emit()
+            for n in xrange(view.model().rowCount()):
+                index = view.model().index(n, 0)
+                file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+                if file_info.fileName().lower() == widget.last_asset_added.lower():
+                    view.selectionModel().setCurrentIndex(
+                        index, QtCore.QItemSelectionModel.ClearAndSelect)
+                    view.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                    break
+        finally:
+            self.disabled_overlay_widget.hide()
+
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
@@ -434,48 +478,21 @@ class BookmarksWidget(BaseInlineIconWidget):
         else:
             self.model().sourceModel().__initdata__()
 
-    def mouseDoubleClickEvent(self, event):
-        """When the bookmark item is double-clicked the the item will be actiaved."""
+    def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        index = self.indexAt(event.pos())
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        index = self.indexAt(cursor_position)
         if not index.isValid():
             return
         if index.flags() & common.MarkedAsArchived:
             return
 
         rect = self.visualRect(index)
+        rectangles = self.itemDelegate().get_rectangles(rect)
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
-        thumbnail_rect = QtCore.QRect(rect)
-        thumbnail_rect.setWidth(rect.height())
-        thumbnail_rect.moveLeft(common.INDICATOR_WIDTH)
-
-        font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
-
-        rect.setLeft(
-            common.INDICATOR_WIDTH
-            + rect.height()
-            + common.MARGIN - 2
-        )
-        rect.moveTop(rect.top() + (rect.height() / 2.0))
-        rect.setHeight(common.INLINE_ICON_SIZE)
-        rect.moveTop(rect.top() - (rect.height() / 2.0))
-
-        text = index.data(QtCore.Qt.DisplayRole)
-        text = re.sub(ur'[\W\d\_]+', '', text)
-        text = u'  {}  |  {}  '.format(
-            text, index.data(common.ParentPathRole)[-1].upper())
-
-        width = metrics.width(text)
-        rect.moveLeft(rect.left() + width)
-
-        source_index = self.model().mapToSource(index)
-        if rect.contains(event.pos()):
-            self.description_editor_widget.show()
+        if rectangles[delegate.BookmarkCountRect].contains(cursor_position):
+            self.add_asset()
             return
-        elif thumbnail_rect.contains(event.pos()):
-            ImageCache.instance().pick(source_index)
-            return
-
-        self.activate(self.selectionModel().currentIndex())
+        super(BookmarksWidget, self).mouseReleaseEvent(event)

@@ -534,7 +534,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = taskfolder_pixmap
 
-        parent_item = self.parent().model().sourceModel()._parent_item
+        parent_item = self.parent().model().sourceModel().parent_path
         if not parent_item:
             return menu_set
         if not all(parent_item):
@@ -560,7 +560,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_remove_favourite_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         remove_icon = ImageCache.get_rsc_pixmap(
-            u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
         save_icon = ImageCache.get_rsc_pixmap(
             u'import', common.TEXT, common.INLINE_ICON_SIZE)
 
@@ -573,11 +573,37 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'action': functools.partial(
                 self.parent().toggle_favourite, self.index, state=not favourite)
         }
+        return menu_set
 
-        menu_set[u'favourite'] = {
-            u'text': 'Save favourites',
+    @contextmenu
+    def add_control_favourites_menu(self, menu_set):
+        """Ads the menu-items needed to add set favourite or archived status."""
+        add_icon = ImageCache.get_rsc_pixmap(
+            u'add', common.ADD, common.INLINE_ICON_SIZE)
+        save_icon = ImageCache.get_rsc_pixmap(
+            u'import', common.TEXT, common.INLINE_ICON_SIZE)
+        remove_icon = ImageCache.get_rsc_pixmap(
+            u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+
+        favourite = self.index.flags() & common.MarkedAsFavourite
+
+        menu_set[u'export_favourites'] = {
+            u'text': u'Export favourites...',
             u'icon': save_icon,
             u'checkable': False,
             u'action': common.save_favourites
         }
+        menu_set[u'import_favourites'] = {
+            u'text': u'Import favourites...',
+            u'icon': add_icon,
+            u'checkable': False,
+            u'action': (common.import_favourites, self.parent().favouritesChanged.emit)
+        }
+        menu_set[u'remove'] = {
+            u'text': u'Clear all favourites',
+            u'icon': remove_icon,
+            u'checkable': False,
+            u'action': (common.clear_favourites, self.parent().favouritesChanged.emit)
+        }
+
         return menu_set

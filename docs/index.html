@@ -1070,7 +1070,7 @@ widget.</p>
 file at their room (see <code class="docutils literal notranslate"><span class="pre">common.ASSET_IDENTIFIER</span></code>).</p>
 <p>The model will querry the currently set bookmark folder and will pull all
 necessary information via the <strong>__initdata__</strong> method. In practice the path
-used for the querry is extrapolated from <code class="docutils literal notranslate"><span class="pre">self._parent_item</span></code>.</p>
+used for the querry is extrapolated from <code class="docutils literal notranslate"><span class="pre">self.parent_path</span></code>.</p>
 <p class="rubric">Example</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">AssetModel</span><span class="p">()</span>
 <span class="n">model</span><span class="o">.</span><span class="n">set_active</span><span class="p">(</span><span class="n">index</span><span class="p">)</span> <span class="c1"># Must set the parent item of the model using the index of the active bookmark item</span>
@@ -1081,7 +1081,7 @@ used for the querry is extrapolated from <code class="docutils literal notransla
 <dt id="gwbrowser.assetswidget.AssetModel.__initdata__">
 <code class="descname">__initdata__</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#gwbrowser.assetswidget.AssetModel.__initdata__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Collects the data needed to populate the bookmarks model by querrying
-the path stored in <code class="docutils literal notranslate"><span class="pre">self._parent_item</span></code>.</p>
+the path stored in <code class="docutils literal notranslate"><span class="pre">self.parent_path</span></code>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Getting asset information is relatively cheap,
@@ -1203,7 +1203,7 @@ current data-key.</p>
 <code class="descname">__initdata__</code><span class="sig-paren">(</span><em>*args</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#gwbrowser.fileswidget.FilesModel.__initdata__" title="Permalink to this definition">¶</a></dt>
 <dd><p>The method is responsible for getting the bare-bones file and
 sequence definitions by running a file-iterator stemming from
-<code class="docutils literal notranslate"><span class="pre">self._parent_item</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">self.parent_path</span></code>.</p>
 <p>Getting all additional information, like description, item flags,
 thumbnails are costly and therefore are populated by thread-workers.</p>
 <p>The method will iterate through all files in every subfolder and will

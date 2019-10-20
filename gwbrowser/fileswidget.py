@@ -227,12 +227,12 @@ class SecondaryFileInfoWorker(FileInfoWorker):
 
                     if not data[n][common.FileThumbnailLoaded]:
                         self.model.ThumbnailThread.Worker.process_index(
-                            index, update=True, make=False)
+                            index, update=False, make=False)
 
                 if all_loaded:
                     self.model.file_info_loaded = True
         except:
-            sys.stderr.write('{}\n'.format(traceback.format_exc()))
+            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
         finally:
             if self.shutdown_requested:
                 self.finished.emit()
@@ -268,6 +268,14 @@ class FileThumbnailWorker(BaseWorker):
         """
         if index.flags() & common.MarkedAsArchived:
             return
+
+        # THe model might be loading...
+        if not index.model():
+            return
+        data = index.model().model_data()
+        if not data:
+            return
+
         try:
             data = index.model().model_data()[index.row()]
         except KeyError:
@@ -309,7 +317,7 @@ class FileThumbnailWorker(BaseWorker):
                 model.indexUpdated.emit(index)
 
             # Emits an indexUpdated signal if successfully generated the thumbnail
-            oiio_make_thumbnail(index)
+            oiio_make_thumbnail(index, update=update)
 
 
 class FileInfoThread(BaseThread):
@@ -396,7 +404,7 @@ class FilesModel(BaseModel):
     def __initdata__(self):
         """The method is responsible for getting the bare-bones file and
         sequence definitions by running a file-iterator stemming from
-        ``self._parent_item``.
+        ``self.parent_path``.
 
         Getting all additional information, like description, item flags,
         thumbnails are costly and therefore are populated by thread-workers.
@@ -442,13 +450,13 @@ class FilesModel(BaseModel):
         self.reset_thread_worker_queues()
 
         # Invalid asset, we'll do nothing.
-        if not self._parent_item:
+        if not self.parent_path:
             return
-        if not all(self._parent_item):
+        if not all(self.parent_path):
             return
 
         dkey = self.data_key()
-        rowsize = QtCore.QSize(0, common.ROW_HEIGHT)
+        rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
 
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
@@ -456,6 +464,7 @@ class FilesModel(BaseModel):
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         thumbnails = {}
+        thumbnail_backgrounds = {}
         defined_thumbnails = set(
             common.creative_cloud_formats +
             common.exports_formats +
@@ -463,8 +472,9 @@ class FilesModel(BaseModel):
             common.misc_formats
         )
         for ext in defined_thumbnails:
-            thumbnails[ext] = ImageCache.get(
-                common.rsc_path(__file__, ext), rowsize.height())
+            image = ImageCache.get(common.rsc_path(__file__, ext), rowsize.height())
+            thumbnails[ext] = image
+            thumbnail_backgrounds[ext] = ImageCache.get_color_average(image)
 
         self._data[dkey] = {
             common.FileItem: {},
@@ -478,7 +488,7 @@ class FilesModel(BaseModel):
         sfavourites = set(favourites)
         activefile = local_settings.value('activepath/file')
 
-        server, job, root, asset = self._parent_item
+        server, job, root, asset = self.parent_path
         location = self.data_key()
         location_is_filtered = location in common.NameFilters
         location_path = (u'{}/{}/{}/{}/{}'.format(
@@ -522,6 +532,7 @@ class FilesModel(BaseModel):
 
                 if ext in defined_thumbnails:
                     placeholder_image = thumbnails[ext]
+                    default_background_color = thumbnail_backgrounds[ext]
                 else:
                     placeholder_image = default_thumbnail_image
 
@@ -709,7 +720,7 @@ class FilesModel(BaseModel):
         """Slot used to save data key to the model instance and the local
         settings.
 
-        Each subfolder inside the root folder, defined by``_parent_item``,
+        Each subfolder inside the root folder, defined by``parent_path``,
         corresponds to a `key`. We use these keys to save model data associated
         with these folders.
 
@@ -721,7 +732,7 @@ class FilesModel(BaseModel):
         k = u'activepath/location'
         stored_value = local_settings.value(k)
         # Nothing to do for us when the parent is not set
-        if not self._parent_item:
+        if not self.parent_path:
             return
 
         if self._datakey is None and stored_value:
@@ -754,6 +765,7 @@ class FilesModel(BaseModel):
             local_settings.setValue(k, self._datakey)
             stored_value = self._datakey
             return
+        # This is a default fallback...
         elif val not in entries and u'scenes' in entries:
             val = u'scenes'
 
@@ -767,9 +779,9 @@ class FilesModel(BaseModel):
         the first folder if the default does not exist.
 
         """
-        if not self._parent_item:
+        if not self.parent_path:
             return False
-        path = u'/'.join(self._parent_item)
+        path = u'/'.join(self.parent_path)
         entries = [f.name.lower() for f in gwscandir.scandir(path)]
         if not entries:
             return False
@@ -1005,11 +1017,8 @@ class FilesWidget(ThreadedBaseWidget):
         local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
-        """Custom double - click event.
-
-        A double click can `activate` an item, or it can trigger an edit event.
-        As each item is associated with multiple editors we have to inspect
-        the double - click location before deciding what action to take.
+        """We will check if the event is over one of the sub-dir rectangles,
+        and if so we will reveal the folder in the file-explorer.
 
         """
         if not isinstance(event, QtGui.QMouseEvent):
@@ -1022,26 +1031,34 @@ class FilesWidget(ThreadedBaseWidget):
 
         rect = self.visualRect(index)
         rectangles = self.itemDelegate().get_rectangles(rect)
+
+        if self.buttons_hidden():
+            return super(FilesWidget, self).mouseDoubleClickEvent(event)
+
         clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
-        if not clickable_rectangles:
-            return
 
-        if clickable_rectangles[0][0].contains(cursor_position):
-            self.description_editor_widget.show()
-            return
+        if not clickable_rectangles:
+            return super(FilesWidget, self).mouseDoubleClickEvent(event)
+
         root_dir = []
+        if clickable_rectangles[0][0].contains(cursor_position):
+            return self.description_editor_widget.show()
+
         for item in clickable_rectangles:
             rect, text = item
+
+            if not text:
+                continue
+
             root_dir.append(text)
             if rect.contains(cursor_position):
                 path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip('/')
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = u'{}/{}'.format(path, root_path)
-                common.reveal(path)
-                return
+                return common.reveal(path)
 
-        self.activate(self.selectionModel().currentIndex())
+        return super(FilesWidget, self).mouseDoubleClickEvent(event)
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -1122,7 +1139,7 @@ class FilesWidget(ThreadedBaseWidget):
 
     def mouseReleaseEvent(self, event):
         """The files widget has a few addittional clickable inline icons
-        that control filtering.
+        that control filtering we set the action for here.
 
         """
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
@@ -1138,19 +1155,17 @@ class FilesWidget(ThreadedBaseWidget):
         control_modifier = modifiers & QtCore.Qt.ControlModifier
 
         rect = self.visualRect(index)
+        if self.buttons_hidden():
+            return super(FilesWidget, self).mouseReleaseEvent(event)
+
         rectangles = self.itemDelegate().get_rectangles(rect)
         clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
         if not clickable_rectangles:
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
-        # if clickable_rectangles[0][0].contains(cursor_position):
-        #     self.description_editor_widget.show()
-        #     return super(FilesWidget, self).mouseReleaseEvent(event)
-
         for idx, item in enumerate(clickable_rectangles):
-            # First rectanble is always the description editor
-            if idx == 0:
+            if idx == 0: # First rectanble is always the description editor
                 continue
             rect, text = item
             text = text.lower()
@@ -1159,6 +1174,8 @@ class FilesWidget(ThreadedBaseWidget):
                 filter_text = self.model().filter_text()
                 filter_text = filter_text.lower() if filter_text else u''
 
+                # Shift modifier will add a "positive" filter and hide all items
+                # that does not contain the given text.
                 if shift_modifier:
                     folder_filter = u'"/{}/"'.format(text)
                     if folder_filter.lower() == filter_text.lower():
@@ -1167,9 +1184,13 @@ class FilesWidget(ThreadedBaseWidget):
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
 
+                # The alt or control modifiers will add a "negative filter"
+                # and hide the selected subfolder from the view
                 if alt_modifier or control_modifier:
                     folder_filter = u'--"/{}/"'.format(text)
                     if filter_text:
+                        if u'"/{}/"'.format(text).lower() in filter_text.lower():
+                            filter_text = filter_text.lower().replace(u'"/{}/"'.format(text).lower(), u'')
                         if folder_filter.lower() not in filter_text.lower():
                             folder_filter = u'{} {}'.format(filter_text, folder_filter)
                     self.model().filterTextChanged.emit(folder_filter.lower())

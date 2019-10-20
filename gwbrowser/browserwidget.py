@@ -126,7 +126,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
-        self.initializer.setInterval(200)
+        self.initializer.setInterval(1000)
         self.initializer.timeout.connect(self.initialize)
         self.initializer.timeout.connect(self.initializer.deleteLater)
 
@@ -135,8 +135,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shutdown_timer.setSingleShot(False)
 
         self.init_progress = u'Loading...'
-        self.adjustSize()
-        self.update()
+        # self.adjustSize()
+        # self.update()
 
     @QtCore.Slot()
     def initialize(self):
@@ -324,8 +324,6 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Ctrl+4', (lc.favourites_button.clicked, lc.favourites_button.update))
         #
         self.add_shortcut(
-            u'Ctrl+N', (lc.add_button.action, lc.add_button.update))
-        self.add_shortcut(
             u'Ctrl+M', (lc.generate_thumbnails_button.action, lc.generate_thumbnails_button.update))
         self.add_shortcut(
             u'Ctrl+F', (lc.filter_button.action, lc.filter_button.update))
@@ -508,6 +506,8 @@ class BrowserWidget(QtWidgets.QWidget):
             l.model().modelDataResetRequested)
         f.model().sourceModel().modelDataResetRequested.connect(
             l.model().modelDataResetRequested)
+
+        ff.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
         #####################################################
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
@@ -523,12 +523,18 @@ class BrowserWidget(QtWidgets.QWidget):
             k = u'widget/{}/{}/filtertext'.format(cls, data_key)
             f.model().set_filter_text(local_settings.value(k))
 
+
         f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().set_data_key)
         f.model().sourceModel().dataKeyChanged.connect(
+            f.model().sourceModel().reset_thread_worker_queues)
+        f.model().sourceModel().dataKeyChanged.connect(
+            lambda *a: f.model().sourceModel().set_data_type(f.model().sourceModel().data_type()))
+        f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().check_data)
         f.model().sourceModel().dataKeyChanged.connect(set_filter_text)
-        f.model().sourceModel().dataKeyChanged.connect(f.model().invalidateFilter)
+        f.model().sourceModel().dataKeyChanged.connect(f.model().invalidate)
+        f.model().sourceModel().dataKeyChanged.connect(f.reselect_previous)
 
         # Control bar connections
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
@@ -623,7 +629,6 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.assets_button.message.connect(self.entered2)
         lc.files_button.message.connect(self.entered2)
         lc.favourites_button.message.connect(self.entered2)
-        lc.add_button.message.connect(self.entered2)
         lc.generate_thumbnails_button.message.connect(self.entered2)
         lc.filter_button.message.connect(self.entered2)
         lc.collapse_button.message.connect(self.entered2)
@@ -754,8 +759,9 @@ class BrowserWidget(QtWidgets.QWidget):
         """
         if not self._initialized:
             self.initializer.start()
-        else:
-            self.stackedwidget.currentWidget().setFocus()
+            return
+        self.stackedwidget.currentWidget().setFocus()
+
 
     def resizeEvent(self, event):
         """Custom resize event."""

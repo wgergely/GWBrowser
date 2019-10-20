@@ -257,6 +257,17 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.show_help = None
         self.check_updates = None
 
+    def pick_rv(self):
+        if common.get_platform() =='win':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select RV.exe',
+                filter='rv.exe',
+                dir=QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
+            )
+            path, ext = res
+            if path:
+                self.rv_path.setText(path)
+
     def _createUI(self):
         import gwbrowser
         add_label(u'You\'re running GWBrowser v{}'.format(
@@ -297,6 +308,9 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.rv_path = add_line_edit(
             u'eg. C:/rv/bin/rv.exe', parent=row)
         row.layout().addWidget(self.rv_path, 1)
+        button = PaintedButton(u'Select RV...')
+        button.clicked.connect(self.pick_rv)
+        row.layout().addWidget(button)
         self.layout().addSpacing(common.MARGIN)
 
         add_label(u'Shortcuts', parent=self)

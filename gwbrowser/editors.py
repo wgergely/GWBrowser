@@ -163,49 +163,85 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.close()
 
 
-class DescriptionEditorWidget(QtWidgets.QWidget):
-    """Note editor baseclass."""
+class DescriptionEditorWidget(QtWidgets.QLineEdit):
+    """The editor used to edit the desciption of items."""
 
     def __init__(self, parent=None):
         super(DescriptionEditorWidget, self).__init__(parent=parent)
-        self.editor = None
-
-        self._createUI()
         self._connectSignals()
 
-        self.editor.focusOutEvent = self.focusOutEvent
-        self.editor.installEventFilter(self)
+        self.installEventFilter(self)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.setTextMargins(2,2,2,2)
+        self.setStyleSheet(
+"""
+QLineEdit {{
+	font-family: "{FONT}";
+	font-size: {SIZE}pt;
+    margin: 0px;
+    padding: 0px;
+}}
+        """.format(
+            FONT=common.SecondaryFont.family(),
+            SIZE=common.SMALL_FONT_SIZE + 1.0
+        )
+    )
 
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
+    def _connectSignals(self):
+        """Connects signals."""
+        self.editingFinished.connect(self.action)
+        self.parent().verticalScrollBar().valueChanged.connect(self.hide)
+        self.parent().parent().resized.connect(self.update_editor)
 
-        self.editor.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.editor.setFocus(QtCore.Qt.PopupFocusReason)
+    def action(self):
+        """Main actions to run when the return key is pressed."""
+        index = self.parent().selectionModel().currentIndex()
+        if index.data(common.DescriptionRole).lower() == self.text().lower():
+            self.hide()
+            return
 
-    def index(self):
-        return self.parent().selectionModel().currentIndex()
+        if not index.data(common.ParentPathRole):
+            self.hide()
+            return
+
+        settings = AssetSettings(index)
+        settings.setValue(u'config/description', self.text())
+
+        source_index = index.model().mapToSource(index)
+        data = source_index.model().model_data()[source_index.row()]
+        data[common.DescriptionRole] = self.text()
+        self.parent().update_index(source_index)
+        self.hide()
+
+    def update_editor(self):
+        """Sets the widget size, position and contents."""
+        index = self.parent().selectionModel().currentIndex()
+        if not index.isValid():
+            self.hide()
+            return
+        rect = self.parent().visualRect(index)
+        rectangles = self.parent().itemDelegate().get_rectangles(rect)
+        description_rect = self.parent().itemDelegate().get_description_rect(rectangles, index)
+        if not description_rect:
+            self.hide()
+        self.setGeometry(description_rect.marginsAdded(QtCore.QMargins(0,4,0,4)))
+        if self.geometry().bottom() > rect.bottom():
+            self.move(
+                self.geometry().x(),
+                self.geometry().y() + (rect.bottom() - self.geometry().bottom() - 4)
+            )
+        self.setText(index.data(common.DescriptionRole))
+        self.selectAll()
 
     def showEvent(self, event):
-        if not self.index().isValid():
+        index = self.parent().selectionModel().currentIndex()
+        if not index.isValid():
             self.hide()
-        if not self.index().data(common.FileInfoLoaded):
+        if not index.data(common.FileInfoLoaded):
             self.hide()
-
-        self.update_editor(self.parent().viewport().size())
-        self.editor.setFocus(QtCore.Qt.PopupFocusReason)
-
-    def update_editor(self, size):
-        """Sets the widget size, position and contents."""
-        if not self.index().isValid():
-            self.hide()
-
-        rect = QtCore.QRect(self.parent().visualRect(self.index()))
-        rect.setLeft(rect.left() + common.INDICATOR_WIDTH +
-                     (rect.height() - 2))
-        self.move(rect.left(), rect.top())
-        self.resize(size.width() - rect.left(), rect.height())
-
-        self.editor.setText(self.index().data(common.DescriptionRole))
-        self.editor.selectAll()
+        self.update_editor()
+        self.setFocus(QtCore.Qt.PopupFocusReason)
 
     def eventFilter(self, widget, event):
         """We're filtering the enter key event here, otherwise, the
@@ -256,72 +292,6 @@ class DescriptionEditorWidget(QtWidgets.QWidget):
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.hide()
-
-    def _connectSignals(self):
-        """Connects signals."""
-        self.editor.editingFinished.connect(self.action)
-        self.parent().sizeChanged.connect(self.update_editor)
-
-    def _createUI(self):
-        """Creates the layout."""
-        QtWidgets.QHBoxLayout(self)
-        self.setWindowFlags(QtCore.Qt.Widget)
-        o = common.INDICATOR_WIDTH
-        self.layout().setContentsMargins(o * 2,o,o*2,o)
-        self.layout().setSpacing(o)
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding
-        )
-
-        self.editor = QtWidgets.QLineEdit(parent=self)
-        self.editor.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-        self.editor.setTextMargins(0, 0, 0, 0)
-
-        label = QtWidgets.QLabel(u'Description:')
-        label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter)
-
-        self.layout().addWidget(label)
-        self.layout().addWidget(self.editor, 1)
-
-    def paintEvent(self, event):
-        """Custom paint used to paint the background."""
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(self)
-            rect = QtCore.QRect()
-            rect.setWidth(self.width())
-            rect.setHeight(self.height())
-
-            pen = QtGui.QPen(common.FAVOURITE)
-            pen.setWidth(2)
-            painter.setPen(pen)
-            color = QtGui.QColor(common.BACKGROUND_SELECTED)
-            painter.setBrush(QtGui.QBrush(color))
-            painter.drawRect(rect)
-            painter.end()
-            return
-        super(DescriptionEditorWidget, self).paintEvent(event)
-
-    def action(self):
-        """Main actions to run when the return key is pressed."""
-        if self.index().data(common.DescriptionRole).lower() == self.editor.text().lower():
-            self.hide()
-            return
-
-        if not self.index().data(common.ParentPathRole):
-            self.hide()
-            return
-
-        settings = AssetSettings(self.index())
-        settings.setValue(u'config/description', self.editor.text())
-
-        source_index = self.index().model().mapToSource(self.index())
-        data = source_index.model().model_data()[source_index.row()]
-        data[common.DescriptionRole] = self.editor.text()
-        source_index.model().dataChanged.emit(self.index(), self.index())
-        self.hide()
 
 
 class EditorContextMenu(BaseContextMenu):
@@ -417,56 +387,37 @@ class FilterEditor(QtWidgets.QWidget):
     """Editor widget used to set a text filter on the associated model."""
     finished = QtCore.Signal(unicode)
 
-    def __init__(self, text, parent=None):
+    def __init__(self, parent=None):
         super(FilterEditor, self).__init__(parent=parent)
         self.editor_widget = None
-        self.subfolders_widget = None
         self.context_menu_open = False
-        self.kw_row = None
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.Maximum
         )
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setWindowFlags(QtCore.Qt.Window |
-                            QtCore.Qt.FramelessWindowHint)
         self._createUI()
         self._connectSignals()
 
         self.setFocusProxy(self.editor_widget)
-        self.editor_widget.setText(u'' if text == u'/' else text)
-        self.editor_widget.selectAll()
-        self.editor_widget.setFocus()
 
-        # Settings the completer associated with the Editor widget
-        if not self.keywords():
-            return
-
+    def add_keywords(self):
         keys = self.keywords().keys()
-        if not keys:
-            self.kw_row.hide()
-            return
-
         completer = QtWidgets.QCompleter(sorted(keys), self)
         completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
         completer.setCompletionMode(
             QtWidgets.QCompleter.InlineCompletion)
         self.editor_widget.setCompleter(completer)
 
-        self.add_keywords(keys)
-
     def _createUI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN * 2
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(12)
+        self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        self.layout().addStretch(1)
 
         row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         icon = ClickableIconButton(
@@ -478,53 +429,28 @@ class FilterEditor(QtWidgets.QWidget):
         label = u'Edit the filter to help find items in the current list:'
         row.layout().addWidget(PaintedLabel(label, parent=self))
 
-        self.f_row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
+        row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
+        label = u'text'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet('color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        row.layout().addWidget(label, 1)
+
+        row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         self.editor_widget = Editor(parent=self)
         self.editor_widget.setAlignment(QtCore.Qt.AlignLeft)
-        self.f_row.layout().addWidget(self.editor_widget, 1)
-
-        self.kw_row = add_row(u'Keywords', padding=0, parent=self, height=common.ASSET_ROW_HEIGHT)
-        self.subfolders_widget = QtWidgets.QListWidget(parent=self)
-        self.kw_row.layout().addStretch(1)
-        self.kw_row.layout().addSpacing(o)
-        self.kw_row.layout().addWidget(self.subfolders_widget)
+        row.layout().addWidget(self.editor_widget, 1)
         self.layout().addStretch(1)
 
     def _connectSignals(self):
-        if self.parent():
-            self.parent().parent().resized.connect(self.adjust_size)
-        self.subfolders_widget.itemActivated.connect(lambda i: self.finished.emit(i.text()))
-        self.subfolders_widget.itemClicked.connect(lambda i: self.finished.emit(i.text()))
         self.editor_widget.finished.connect(self.finished)
-        self.finished.connect(self.close)
-
-    def add_keywords(self, keys):
-        scrollToItem = None
-        for key in sorted([f.replace(u'%%', u'') for f in keys if u'%%' in f]):
-            item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, key.upper())
-            item.setData(common.DescriptionRole, key.upper())
-            item.setData(QtCore.Qt.StatusTipRole, key.upper())
-            item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                200, common.INLINE_ICON_SIZE))
-
-            if self.editor_widget.text().lower() != key.lower():
-                scrollToItem = item
-                item.setForeground(QtGui.QBrush(common.SECONDARY_TEXT))
-            else:
-                item.setForeground(QtGui.QBrush(common.TEXT))
-
-            self.subfolders_widget.addItem(item)
-
-        if scrollToItem:
-            self.subfolders_widget.scrollToItem(item, hint=QtWidgets.QAbstractItemView.PositionAtCenter)
+        self.finished.connect(self.hide)
 
     def keywords(self):
         """Shortcut to access the models filter keyword values."""
         if not self.parent():
             return {}
-
-        val = self.parent().currentWidget().model().sourceModel().keywords()
+        val = self.parent().model().sourceModel().keywords()
         return val
 
     @QtCore.Slot()
@@ -532,12 +458,10 @@ class FilterEditor(QtWidgets.QWidget):
         if not self.parent():
             return
 
-        rect = self.parent().rect()
-        pos = rect.topLeft()
-        pos = self.parent().mapToGlobal(pos)
-        self.move(pos)
-        self.setFocus()
-        self.resize(rect.width(), self.height())
+        self.resize(
+            self.parent().geometry().width(),
+            self.parent().geometry().height(),
+        )
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -550,8 +474,8 @@ class FilterEditor(QtWidgets.QWidget):
 
         rect = self.rect()
         center = rect.center()
-        rect.setWidth(rect.width() - common.MARGIN)
-        rect.setHeight(rect.height() - common.MARGIN)
+        rect.setWidth(rect.width() - (common.MARGIN * 2))
+        rect.setHeight(rect.height() - (common.MARGIN * 2))
         rect.moveCenter(center)
         painter.setBrush(common.SEPARATOR)
         painter.drawRoundedRect(rect, 6, 6)
@@ -581,14 +505,15 @@ class FilterEditor(QtWidgets.QWidget):
 
     def showEvent(self, event):
         self.adjust_size()
-        if self.parent():
-            self.parent().currentWidget().disabled_overlay_widget.show()
-        if not self.keywords():
-            self.kw_row.hide()
+        self.add_keywords()
+        text = self.parent().model().filter_text()
+        text = text.lower() if text else u''
+        text = u'' if text == u'/' else text
 
-    def hideEvent(self, event):
-        if self.parent():
-            self.parent().currentWidget().disabled_overlay_widget.hide()
+        self.editor_widget.setText(text)
+        self.editor_widget.selectAll()
+        self.editor_widget.setFocus()
+
 
 class ThumbnailLabel(QtWidgets.QLabel):
     """Custom QLabel to select a thumbnail."""
