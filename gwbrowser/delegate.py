@@ -189,9 +189,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
-        painter.setBrush(common.SECONDARY_BACKGROUND)
-        painter.setOpacity(0.8)
-        painter.drawRect(rectangles[DataRect])
+        painter.setBrush(common.BACKGROUND_SELECTED)
+        rect = QtCore.QRect(option.rect)
+        rect.setLeft(rectangles[ThumbnailRect].right())
+        painter.drawRect(rect)
 
     @paintmethod
     def paint_thumbnail(self, *args):

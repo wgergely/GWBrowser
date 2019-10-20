@@ -13,6 +13,7 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
+import gwbrowser.delegate as delegate
 
 
 class ThumbnailViewer(QtWidgets.QLabel):
@@ -225,7 +226,10 @@ QLineEdit {{
         description_rect = self.parent().itemDelegate().get_description_rect(rectangles, index)
         if not description_rect:
             self.hide()
-        self.setGeometry(description_rect.marginsAdded(QtCore.QMargins(0,4,0,4)))
+        rect = description_rect.marginsAdded(QtCore.QMargins(0,4,0,4))
+        rect.setRight(rectangles[delegate.DataRect].right() - common.MARGIN)
+        self.setGeometry(rect)
+
         if self.geometry().bottom() > rect.bottom():
             self.move(
                 self.geometry().x(),
