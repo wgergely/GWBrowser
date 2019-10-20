@@ -63,6 +63,10 @@ SCENE_FILE_MODES = {
         'path': u'scenes/ifds',
         'description': u''
     },
+    u'comp': {
+        'path': u'scenes/comp',
+        'description': u''
+    },
     u'layout': {
         'path': u'scenes/layout',
         'description': u'Animation layout, animatic and blocking scene files'
@@ -92,7 +96,7 @@ SCENE_FILE_MODES = {
         'description': u'Animation rig files'
     },
     u'render': {
-        'path': u'scenes/rig',
+        'path': u'scenes/render',
         'description': u'Render files'
     },
     u'sculpt': {
@@ -369,7 +373,7 @@ class BaseListView(BaseInlineIconWidget):
         self.adjust_height()
         if self.selectionModel().hasSelection():
             index = self.selectionModel().currentIndex()
-            self.scrollTo(index)
+            self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):
@@ -553,7 +557,7 @@ class SelectFolderViewContextMenu(BaseContextMenu):
                     return
 
                 index = self.parent().model().mkdir(self.index, w.textValue())
-                self.parent().scrollTo(index)
+                self.parent().scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 self.parent().selectionModel().setCurrentIndex(
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect
@@ -732,7 +736,7 @@ class SelectFolderView(QtWidgets.QTreeView):
     def showEvent(self, event):
         self.adjust_height()
         if self.selectionModel().hasSelection():
-            self.scrollTo(self.selectionModel().currentIndex())
+            self.scrollTo(self.selectionModel().currentIndex(), QtWidgets.QAbstractItemView.PositionAtCenter)
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):
@@ -1154,13 +1158,12 @@ class NameModeWidget(QtWidgets.QComboBox):
         root_path = index.model().rootPath()
         file_path = index.data(QtWidgets.QFileSystemModel.FilePathRole)
         base_path = file_path.replace(root_path, u'').strip(u'/')
-
         for n in xrange(self.count()):
             data = self.itemData(n, QtCore.Qt.StatusTipRole)
             if not data:
                 continue
 
-            if base_path.lower() == data.lower():
+            if data.lower() in base_path.lower():
                 self.setCurrentIndex(n)
                 return
 
@@ -1462,6 +1465,7 @@ class AddFileWidget(QtWidgets.QDialog):
               file_path = saver.get_file_path()
 
     """
+    resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, extension, file=None, parent=None):
         super(AddFileWidget, self).__init__(parent=parent)
