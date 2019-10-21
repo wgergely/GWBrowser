@@ -1034,7 +1034,7 @@ class FilesWidgetDelegate(BaseDelegate):
             _subpath = rootdirs[n]
             f_subpath = u'"/{}/"'.format(_subpath)
             if self.parent().model().filter_text():
-                if f_subpath in self.parent().model().filter_text():
+                if f_subpath.lower() in self.parent().model().filter_text().lower():
                     color = common.ADD
 
             painter.setBrush(color)
@@ -1045,7 +1045,7 @@ class FilesWidgetDelegate(BaseDelegate):
             color = common.TEXT_SELECTED if n == 0 else common.SECONDARY_TEXT
             color = common.TEXT if r.contains(cursor_position) else color
             if self.parent().model().filter_text():
-                if f_subpath in self.parent().model().filter_text():
+                if f_subpath.lower() in self.parent().model().filter_text().lower():
                     color = common.TEXT_SELECTED
             x = r.center().x() - (metrics.width(text) / 2.0) + 1
             y = r.center().y() + (metrics.ascent() / 2.0)
