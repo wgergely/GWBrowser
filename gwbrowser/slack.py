@@ -8,7 +8,7 @@ sys.path.append(r'I:\dev\python-slackclient')
 from slackclient import SlackClient
 
 class Slacker(QtCore.QObject):
-    SLACK_AUTH_TOKEN = 'xoxb-4397889867-789355634130-a3ejcqeBYmfEV98Wg7glLdLQ'
+    SLACK_AUTH_TOKEN = None
 
     def __init__(self, parent=None):
         super(Slacker, self).__init__(parent=parent)
