@@ -422,6 +422,18 @@ class BookmarksListView(BaseListView):
     Delegate = BookmarksWidgetDelegate2
     ContextMenu = None
 
+    @QtCore.Slot()
+    def reselect_previous(self):
+        """This is to override the default behaviour and instead always
+        select the active index."""
+        index = self.model().sourceModel().active_index()
+        if not index.isValid():
+            return super(AssetsListView, self).reselect_previous()
+        index = self.model().mapFromSource(index)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
 
 class ThreadlessAssetModel(AssetModel):
     def __init__(self, parent=None):
@@ -506,6 +518,19 @@ class AssetsListView(BaseListView):
     SourceModel = ThreadlessAssetModel
     Delegate = AssetsWidgetDelegate2
     ContextMenu = None
+
+    @QtCore.Slot()
+    def reselect_previous(self):
+        """This is to override the default behaviour and instead always
+        select the active index."""
+        index = self.model().sourceModel().active_index()
+        if not index.isValid():
+            return super(AssetsListView, self).reselect_previous()
+        index = self.model().mapFromSource(index)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
 
 
 class SelectFolderViewContextMenu(BaseContextMenu):
