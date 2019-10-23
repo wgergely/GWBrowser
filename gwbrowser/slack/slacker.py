@@ -10,7 +10,6 @@ from gwbrowser.settings import local_settings
 
 class Slacker(QtCore.QObject):
     SLACK_AUTH_TOKEN = local_settings.value(u'slack_access_token')
-    # SLACK_AUTH_TOKEN = 'xoxb-4397889867-789355634130-G5H6xCX01Ag4NcRSOfJX5FoQ'
 
     def __init__(self, parent=None):
         super(Slacker, self).__init__(parent=parent)
