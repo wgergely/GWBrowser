@@ -599,40 +599,48 @@ def capture_viewport(size=1.0):
     width = int(cmds.getAttr('defaultResolution.width') * size)
     height = int(cmds.getAttr('defaultResolution.height') * size)
 
-    mCapture.capture(
-        camera=camera,
-        width=width,
-        height=height,
-        display_options=DisplayOptions,
-        camera_options=CameraOptions,
-        viewport2_options=options['viewport2_options'],
-        viewport_options=options['viewport_options'],
-        format=u'image',
-        compression=ext,
-        filename=complete_filename,
-        overwrite=True,
-        viewer=False
-    )
-    cmds.ogs(reset=True)
-
-    # Show hidden panels
-    for panel in cmds.getPanel(type=u'modelPanel'):
-        if not cmds.modelPanel(panel, exists=True):
-            continue
-        try:
-            ptr = OpenMayaUI.MQtUtil.findControl(panel)
-            if not ptr:
+    error = False
+    try:
+        mCapture.capture(
+            camera=camera,
+            width=width,
+            height=height,
+            display_options=DisplayOptions,
+            camera_options=CameraOptions,
+            viewport2_options=options['viewport2_options'],
+            viewport_options=options['viewport_options'],
+            format=u'image',
+            compression=ext,
+            filename=complete_filename,
+            overwrite=True,
+            viewer=False
+        )
+    except Exception as err:
+        print u'# And error occured capturing the viewport: {}'.format(err)
+        error = True
+    finally:
+        cmds.ogs(reset=True)
+        # Show hidden panels
+        for panel in cmds.getPanel(type=u'modelPanel'):
+            if not cmds.modelPanel(panel, exists=True):
                 continue
-            panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
-            if panel_widget:
-                if panel in current_state:
-                    panel_widget.setVisible(current_state[panel])
-                else:
-                    panel_widget.setVisible(True)
-        except:
-            print '# Could not restore {} after capture'.format(panel)
+            try:
+                ptr = OpenMayaUI.MQtUtil.findControl(panel)
+                if not ptr:
+                    continue
+                panel_widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+                if panel_widget:
+                    if panel in current_state:
+                        panel_widget.setVisible(current_state[panel])
+                    else:
+                        panel_widget.setVisible(True)
+            except:
+                print '# Could not restore {} after capture'.format(panel)
 
-    print u'# Capture saved to:\n{}'.format(complete_filename)
+        print u'# Capture saved to:\n{}'.format(complete_filename)
+
+    if error:
+        return
 
     rv_seq_path = u'{workspace}/{capture_folder}/{scene}/{scene}.{frame}.{ext}'.format(
         workspace=workspace,

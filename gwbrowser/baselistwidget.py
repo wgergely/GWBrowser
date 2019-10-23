@@ -1925,7 +1925,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     def initialize_visible_indexes(self):
         """The sourceModel() loads its data in multiples steps: There's a
         single-threaded walk of all sub-directories, and a threaded querry for
-        image and file information.
+        image and file information. This method is responsible for passing the
+        indexes to the threads so they can update the ui accordingly.
 
         """
         if not self.isVisible():

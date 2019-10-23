@@ -229,6 +229,7 @@ QListWidget::item {{
 	outline: 0;
 	color: rgba({TEXT});
   background: rgba(255,255,255,20);
+	border-bottom: 1px solid rgba(0,0,0,50);
 }}
 QListWidget::item:hover {{
   background: rgba(255,255,255,50);
@@ -390,21 +391,6 @@ CheckBoxButton, DragIndicatorButton{{
 CheckBoxButton:disabled, DragIndicatorButton:disabled {{
 	background-color: rgba(0,0,0,0);
 }}
-
-
-
-AddBookmarksWidget {{
-	background-color: rgba(150,150,150,255);
-	color: rgba({SECONDARY_TEXT});
-	border-width: 1px;
-	border: none;
-	margin: 0px;
-	padding: 0px;
-	outline: 0;
-	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
-}}
-
 
 
 ThumbnailButton {{

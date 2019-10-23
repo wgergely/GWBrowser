@@ -58,7 +58,8 @@ def oiio(func):
                 return
             if not index.data(common.ThumbnailPathRole):
                 return
-
+            if hasattr(index, 'sourceModel'):
+                index = index.model().mapToSource(index)
             model = index.model()
             data = model.model_data()[index.row()]
             error_pixmap = ImageCache.get(
@@ -78,7 +79,6 @@ def oiio(func):
 
 
 @QtCore.Slot(QtCore.QModelIndex)
-@QtCore.Slot(unicode)
 @oiio
 def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True, nthreads=3):
     """This is a the main method generating thumbnail for items in GWBrowser.
@@ -226,12 +226,13 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         overwrite=True)
     color = ImageCache.get(
         data[common.ThumbnailPathRole],
-        'BackgroundColor',
-        overwrite=False)
+        u'BackgroundColor',
+        overwrite=True)
 
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
+    print data[common.ThumbnailPathRole]
     if update:
         model.indexUpdated.emit(index)
     return True
@@ -423,6 +424,9 @@ class ImageCache(QtCore.QObject):
         if not index.isValid():
             return
 
+        if hasattr(index, 'sourceModel'):
+            index = index.model().mapToSource(index)
+
         pixmap = ScreenGrabber.capture()
         if not pixmap:
             return
@@ -451,32 +455,47 @@ class ImageCache(QtCore.QObject):
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
-        index.model().dataChanged.emit(index, index)
+        index.model().indexUpdated.emit(index)
 
     def remove(self, index):
-        """Deletes the thumbnail file from storage and the cached entry associated
+        """Deletes the thumbnail file and the cached entries associated
         with it.
 
         """
         if not index.isValid():
             return
 
-        file_ = QtCore.QFile(index.data(common.ThumbnailPathRole))
+        source_index = index
+        if hasattr(index, 'sourceModel'):
+            source_index = index.model().mapToSource(index)
+
+        data = source_index.model().model_data()
+        data = data[source_index.row()]
+        file_ = QtCore.QFile(data[common.ThumbnailPathRole])
 
         if file_.exists():
-            file_.remove()
+            if not file_.remove():
+                print '# Failed to remove thumbnail: {}'.format(data[common.ThumbnailPathRole])
 
-        keys = [k for k in self._data if index.data(
-            common.ThumbnailPathRole).lower() in k.lower()]
+        keys = [k for k in self._data if data[common.ThumbnailPathRole].lower() in k.lower()]
         for key in keys:
             del self._data[key]
 
-        data = index.model().model_data()
-        data[index.row()][common.ThumbnailRole] = data[index.row()
-                                                       ][common.DefaultThumbnailRole]
-        data[index.row()][common.ThumbnailBackgroundRole] = data[index.row()
-                                                                 ][common.DefaultThumbnailBackgroundRole]
-        index.model().dataChanged.emit(index, index)
+        data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
+        data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
+        data[common.FileThumbnailLoaded] = False
+
+        model = source_index.model()
+        if not model.generate_thumbnails:
+            source_index.model().indexUpdated.emit(source_index)
+            return
+
+        if hasattr(source_index.model(), 'ThumbnailThread'):
+            source_index.model().ThumbnailThread.Worker.add_to_queue([index,])
+            source_index.model().indexUpdated.emit(source_index)
+            # self.parent().initialize_visible_indexes()
+        # oiio_make_thumbnail(index)
+
 
     @classmethod
     def pick(cls, index):

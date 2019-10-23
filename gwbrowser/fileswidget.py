@@ -532,6 +532,7 @@ class FilesModel(BaseModel):
 
                 if ext in defined_thumbnails:
                     placeholder_image = thumbnails[ext]
+                    default_thumbnail_image = thumbnails[ext]
                     default_background_color = thumbnail_backgrounds[ext]
                 else:
                     placeholder_image = default_thumbnail_image

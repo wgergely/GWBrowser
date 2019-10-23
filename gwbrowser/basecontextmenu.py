@@ -405,7 +405,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', QtGui.QColor(200, 50, 50), common.INLINE_ICON_SIZE)
+            u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+        refresh_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+            u'refresh', common.ADD, common.INLINE_ICON_SIZE)
         show_thumbnail = ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         addpixmap = ImageCache.get_rsc_pixmap(
@@ -459,27 +461,25 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, source_index)}
 
-        suffix = QtCore.QFileInfo(source_index.data(
-            QtCore.Qt.StatusTipRole)).suffix()
-        if suffix in common.oiio_formats:
-            menu_set[key]['_separator_'] = {}
+        # suffix = QtCore.QFileInfo(source_index.data(
+        #     QtCore.Qt.StatusTipRole)).suffix()
+        # if suffix in common.oiio_formats:
+        #     menu_set[key]['_separator_'] = {}
 
-            def make():
-                source_index.model().model_data()[
-                    source_index.row()][common.FileThumbnailLoaded] = False
-                (source_index)
-
-            menu_set[key][u'generatethis'] = {
-                u'text': u'Make',
-                u'action': make
-            }
 
         if QtCore.QFileInfo(settings.thumbnail_path()).exists():
             menu_set[key][u'separator.'] = {}
-            menu_set[key][u'Remove'] = {
-                u'action': functools.partial(ImageCache.instance().remove, source_index),
-                u'icon': remove_thumbnail_pixmap
-            }
+            if source_index.model().generate_thumbnails:
+                menu_set[key][u'Remove'] = {
+                    u'action': lambda: ImageCache.instance().remove(source_index),
+                    u'text': u'Update thumbnail',
+                    u'icon': refresh_thumbnail_pixmap
+                }
+            else:
+                menu_set[key][u'Remove'] = {
+                    u'action': lambda: ImageCache.instance().remove(source_index),
+                    u'icon': remove_thumbnail_pixmap
+                }
             menu_set[key][u'Reveal'] = {
                 u'action': functools.partial(
                     common.reveal,

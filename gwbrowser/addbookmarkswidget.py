@@ -22,7 +22,7 @@ from gwbrowser.settings import local_settings
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableIconButton, add_row
 
 
-custom_string = u'Select a custom bookmark folder...'
+custom_string = u'Select a folder...'
 
 
 class ComboboxContextMenu(BaseContextMenu):
@@ -179,6 +179,7 @@ class ComboboxButton(QtWidgets.QPushButton):
         if not index.row() == 0:
             return
 
+
         parent = self.parent().parent()
         index = parent.pick_server_widget.view().selectionModel().currentIndex()
         server = index.data(QtCore.Qt.StatusTipRole)
@@ -285,8 +286,7 @@ class ListWidgetDelegate(BaseDelegate):
             painter.setPen(QtCore.Qt.NoPen)
             painter.drawRect(_rect)
 
-        if text != custom_string:
-            text = text.upper()
+        color = common.ADD if u'✓' in text.lower() else color
 
         width = common.draw_aliased_text(
             painter,
@@ -389,7 +389,7 @@ class RefreshButton(ClickableIconButton):
         self.parent().parent().initialize()
 
 
-class AddBookmarksWidget(QtWidgets.QDialog):
+class AddBookmarksWidget(QtWidgets.QWidget):
     """Defines the widget used add a bookmark.
 
     A bookmark is made up of the *server*, *job* and *root* folders.
@@ -464,7 +464,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
 
-        label = PaintedLabel(u'Add new bookmark', size=common.LARGE_FONT_SIZE)
+        label = PaintedLabel(u'Add Bookmark', size=common.LARGE_FONT_SIZE)
         self.layout().addWidget(label, 0)
 
         self.layout().addSpacing(common.MARGIN)
@@ -539,10 +539,8 @@ class AddBookmarksWidget(QtWidgets.QDialog):
         self.pick_root_widget.view().itemClicked.connect(self.validate)
         self.pick_root_widget.view().itemActivated.connect(self.validate)
 
-        self.pick_root_widget.view().itemClicked.connect(
-            lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
-        self.pick_root_widget.view().itemActivated.connect(
-            lambda x: self.pick_root_widget.pick_custom(self.pick_root_widget.view().selectionModel().currentIndex()))
+        self.pick_root_widget.view().clicked.connect(self.pick_root_widget.pick_custom)
+        self.pick_root_widget.view().activated.connect(self.pick_root_widget.pick_custom)
 
         self.pick_server_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
@@ -779,7 +777,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             name = server[u'path'].split(u'/').pop()
 
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, name)
+            item.setData(QtCore.Qt.DisplayRole, name.upper())
             item.setData(common.DescriptionRole, server[u'description'])
             item.setData(QtCore.Qt.StatusTipRole, file_info.filePath())
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
@@ -826,7 +824,7 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             if not entry.is_dir():
                 continue
             item = QtWidgets.QListWidgetItem()
-            item.setData(QtCore.Qt.DisplayRole, entry.name)
+            item.setData(QtCore.Qt.DisplayRole, entry.name.upper())
             item.setData(QtCore.Qt.StatusTipRole,
                          entry.path.replace(u'\\', u'/'))
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
@@ -859,16 +857,16 @@ class AddBookmarksWidget(QtWidgets.QDialog):
             item = QtWidgets.QListWidgetItem()
             name = entry.replace(index.data(
                 QtCore.Qt.StatusTipRole), u'').strip(u'/')
-            item.setData(QtCore.Qt.DisplayRole, name)
+            item.setData(QtCore.Qt.DisplayRole, name.upper())
             item.setData(QtCore.Qt.StatusTipRole, entry)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 
             # Disabling the item if it has already been added to the widget
-            if entry.replace(u'\\', u'/') in bookmarks:
+            if entry.replace(u'\\', u'/').lower() in [f.lower() for f in bookmarks]:
                 item.setFlags(QtCore.Qt.NoItemFlags)
                 item.setData(QtCore.Qt.DisplayRole,
-                             u'{} (bookmark already added)'.format(name))
+                             u'{} ✓'.format(name.upper()))
 
             self.pick_root_widget.view().addItem(item)
 
@@ -889,5 +887,5 @@ class AddBookmarksWidget(QtWidgets.QDialog):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     w = AddBookmarksWidget()
-    w.exec_()
+    w.show()
     # app.exec_()
