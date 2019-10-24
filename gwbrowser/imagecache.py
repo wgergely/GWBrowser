@@ -119,7 +119,6 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     cache = OpenImageIO.ImageCache()
     img = OpenImageIO.ImageBuf(source)
     cache.invalidate(source)
-    # img.read(force=True)
 
     # Let's check if the loaded item is a movie and let's pick the middle
     # of the timeline as the thumbnail image
