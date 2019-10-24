@@ -115,7 +115,11 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         set_error_thumbnail()
         return False
     i.close()
+
+    cache = OpenImageIO.ImageCache()
     img = OpenImageIO.ImageBuf(source)
+    cache.invalidate(source)
+    # img.read(force=True)
 
     # Let's check if the loaded item is a movie and let's pick the middle
     # of the timeline as the thumbnail image
@@ -203,6 +207,12 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         _b = b
 
     # Saving the processed thumbnail
+    i = OpenImageIO.ImageInput.open(source)
+    if not i:  # the file is not understood by OpenImageIO
+        set_error_thumbnail()
+        return False
+    i.close()
+
     success = _b.write(dest, dtype='uint8')
     if not success:
         QtCore.QFile(dest).remove()
@@ -219,6 +229,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     except KeyError:
         return
 
+
     # We will load the image and the background color
     image = ImageCache.get(
         data[common.ThumbnailPathRole],
@@ -232,7 +243,6 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
-    print data[common.ThumbnailPathRole]
     if update:
         model.indexUpdated.emit(index)
     return True
