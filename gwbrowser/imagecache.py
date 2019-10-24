@@ -90,10 +90,9 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
             return
         model = index.model()
         data = model.model_data()[index.row()]
-        error_pixmap = ImageCache.get(
-            common.rsc_path(__file__, u'failed'),
-            data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-        data[common.ThumbnailRole] = error_pixmap
+        height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
+        error_pixmap = ImageCache.get_rsc_pixmap('failed', common.REMOVE, height)
+        data[common.ThumbnailRole] = error_pixmap.toImage()
         data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
         data[common.FileThumbnailLoaded] = True
 
@@ -237,7 +236,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     color = ImageCache.get(
         data[common.ThumbnailPathRole],
         u'BackgroundColor',
-        overwrite=True)
+        overwrite=False)
 
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
@@ -334,10 +333,9 @@ class ImageCache(QtCore.QObject):
         image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
         image = ImageCache.resize_image(image, height)
 
-        # Saving the background color
         ImageCache._data[u'{k}:BackgroundColor'.format(
             k=path
-        )] = ImageCache.get_color_average(image)
+        )] = ImageCache.get_color_average(path)
         ImageCache._data[k] = image
 
         return ImageCache._data[k]
@@ -371,62 +369,14 @@ class ImageCache(QtCore.QObject):
         return image
 
     @staticmethod
-    def get_color_average(image):
+    def get_color_average(path):
         """Returns the average color of an image."""
-        # return common.SEPARATOR
-
-        if image.isNull():
-            return common.THUMBNAIL_BACKGROUND
-
-        r = []
-        g = []
-        b = []
-
-        for x in xrange(image.width()):
-            for y in xrange(image.height()):
-                if image.pixelColor(x, y).alpha() < 0.01:
-                    continue
-                r.append(image.pixelColor(x, y).red())
-                g.append(image.pixelColor(x, y).green())
-                b.append(image.pixelColor(x, y).blue())
-
-        if not all([float(len(r)), float(len(g)), float(len(b))]):
-            return common.THUMBNAIL_BACKGROUND
-        else:
-            average_color = QtGui.QColor(
-                sum(r) / float(len(r)),
-                sum(g) / float(len(g)),
-                sum(b) / float(len(b))
-            )
-        return average_color
-
-    @staticmethod
-    def get_bottom_row_color(image):
-        """Returns the average color of an image."""
-        if image.isNull():
-            return common.THUMBNAIL_BACKGROUND
-
-        r = []
-        g = []
-        b = []
-
-        y = image.height() - 1
-        for x in xrange(image.width()):
-            if image.pixelColor(x, y).alpha() < 0.01:
-                continue
-            r.append(image.pixelColor(x, y).red())
-            g.append(image.pixelColor(x, y).green())
-            b.append(image.pixelColor(x, y).blue())
-
-        if not all([float(len(r)), float(len(g)), float(len(b))]):
-            return common.THUMBNAIL_BACKGROUND
-        else:
-            average_color = QtGui.QColor(
-                sum(r) / float(len(r)),
-                sum(g) / float(len(g)),
-                sum(b) / float(len(b))
-            )
-        return average_color
+        img = OpenImageIO.ImageBuf(path)
+        stats = OpenImageIO.ImageBufAlgo.computePixelStats(img)
+        a = stats.avg
+        if len(a) in (3, 4):
+            return QtGui.QColor.fromRgbF(*a)
+        return QtGui.QColor()
 
     def capture(self, index):
         """Uses ``ScreenGrabber`` to save a custom screen-grab."""
@@ -502,8 +452,6 @@ class ImageCache(QtCore.QObject):
         if hasattr(source_index.model(), 'ThumbnailThread'):
             source_index.model().ThumbnailThread.Worker.add_to_queue([index,])
             source_index.model().indexUpdated.emit(source_index)
-            # self.parent().initialize_visible_indexes()
-        # oiio_make_thumbnail(index)
 
 
     @classmethod
@@ -530,8 +478,8 @@ class ImageCache(QtCore.QObject):
 
         # Saving the thumbnail
         oiio_make_thumbnail(index, source=dialog.selectedFiles()[0])
-        data = index.model().model_data()[index.row()]
-        data[common.FileThumbnailLoaded] = False
+        # data = index.model().model_data()[index.row()]
+        # data[common.FileThumbnailLoaded] = False
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):

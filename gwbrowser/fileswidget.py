@@ -227,7 +227,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
 
                     if not data[n][common.FileThumbnailLoaded]:
                         self.model.ThumbnailThread.Worker.process_index(
-                            index, update=False, make=False)
+                            index, update=True, make=False)
 
                 if all_loaded:
                     self.model.file_info_loaded = True
@@ -472,10 +472,12 @@ class FilesModel(BaseModel):
             common.misc_formats
         )
         for ext in defined_thumbnails:
-            image = ImageCache.get(common.rsc_path(__file__, ext), rowsize.height())
+            k = common.rsc_path(__file__, ext)
+            image = ImageCache.get(k, rowsize.height())
             thumbnails[ext] = image
-            thumbnail_backgrounds[ext] = ImageCache.get_color_average(image)
-
+            k = u'{}:BackgroundColor'.format(k)
+            thumbnail_backgrounds[ext] = ImageCache._data[k]
+            thumbnail_backgrounds[ext].setAlpha(150)
         self._data[dkey] = {
             common.FileItem: {},
             common.SequenceItem: {}

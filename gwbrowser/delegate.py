@@ -211,9 +211,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         color = index.data(
             common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
+        color = color if color else QtGui.QColor(0,0,0,0)
         painter.setBrush(color)
-        painter.setOpacity(0.9)
+        painter.setOpacity(0.7)
         painter.drawRect(rect)
+        bottom_row_rect = QtCore.QRect(rectangles[ThumbnailRect])
+        bottom_row_rect.setHeight(common.ROW_SEPARATOR)
+        bottom_row_rect.moveTop(rectangles[ThumbnailRect].bottom() + common.ROW_SEPARATOR)
+        painter.drawRect(bottom_row_rect)
+
 
         o = 0.9 if selected else 0.8
         o = 1.0 if hover else o
@@ -236,14 +242,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         irect.moveCenter(rect.center())
         painter.drawImage(irect, image, image.rect())
 
-        color = ImageCache.get_bottom_row_color(image)
-        painter.setBrush(color)
+        color = index.data(common.ThumbnailBackgroundRole)
+        #
 
-        bottom_row_rect = QtCore.QRect(irect)
-        bottom_row_rect.setHeight(1)
-        bottom_row_rect.moveTop(irect.bottom() + common.ROW_SEPARATOR)
-        painter.setOpacity(0.5)
-        painter.drawRect(bottom_row_rect)
 
     @paintmethod
     def paint_background(self, *args):

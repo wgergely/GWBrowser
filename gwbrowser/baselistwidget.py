@@ -10,6 +10,8 @@ the widget used to switch between the lists.
 """
 
 import re
+import sys
+import traceback
 from functools import wraps
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -53,6 +55,7 @@ def initdata(func):
             res = func(self, *args, **kwargs)
         except:
             res = None
+            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
         finally:
             self.endResetModel()
             self.sort_data()

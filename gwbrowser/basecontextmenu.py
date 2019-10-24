@@ -419,8 +419,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         source_index = self.index.model().mapToSource(self.index)
         settings = AssetSettings(source_index)
+        thumbnail_info =  QtCore.QFileInfo(settings.thumbnail_path())
+        exists = thumbnail_info.exists()
 
-        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
+        if exists:
             menu_set[key][u'Preview'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
@@ -461,31 +463,26 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, source_index)}
 
-        # suffix = QtCore.QFileInfo(source_index.data(
-        #     QtCore.Qt.StatusTipRole)).suffix()
-        # if suffix in common.oiio_formats:
-        #     menu_set[key]['_separator_'] = {}
-
-
-        if QtCore.QFileInfo(settings.thumbnail_path()).exists():
-            menu_set[key][u'separator.'] = {}
-            if source_index.model().generate_thumbnails:
-                menu_set[key][u'Remove'] = {
-                    u'action': lambda: ImageCache.instance().remove(source_index),
-                    u'text': u'Update thumbnail',
-                    u'icon': refresh_thumbnail_pixmap
-                }
-            else:
-                menu_set[key][u'Remove'] = {
-                    u'action': lambda: ImageCache.instance().remove(source_index),
-                    u'icon': remove_thumbnail_pixmap
-                }
-            menu_set[key][u'Reveal'] = {
-                u'action': functools.partial(
-                    common.reveal,
-                    settings.thumbnail_path(),
-                )
+        menu_set[key][u'separator.'] = {}
+        ext = QtCore.QFileInfo(source_index.data(QtCore.Qt.StatusTipRole)).suffix().lower()
+        valid = ext in [f.lower() for f in common.get_oiio_extensions()]
+        if exists and source_index.model().generate_thumbnails and valid:
+            menu_set[key][u'Remove'] = {
+                u'action': lambda: ImageCache.instance().remove(source_index),
+                u'text': u'Update thumbnail',
+                u'icon': refresh_thumbnail_pixmap
             }
+        elif exists:
+            menu_set[key][u'Remove'] = {
+                u'action': lambda: ImageCache.instance().remove(source_index),
+                u'icon': remove_thumbnail_pixmap
+            }
+        menu_set[key][u'Reveal'] = {
+            u'action': functools.partial(
+                common.reveal,
+                settings.thumbnail_path(),
+            )
+        }
         return menu_set
 
     @contextmenu
