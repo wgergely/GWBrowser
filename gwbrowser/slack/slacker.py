@@ -65,9 +65,9 @@ class ImageDownloader(QtCore.QObject):
 
         if save_cache:
             # Cache directory
-            cache_file_path = u'{}/{}'.format(temp, file_name)
             temp = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.TempLocation)
             temp = u'{}/gwbrowser/temp'.format(temp)
+            cache_file_path = u'{}/{}'.format(temp, file_name)
             QtCore.QDir(temp).mkpath('.')
 
             _file = QtCore.QFile(cache_file_path)

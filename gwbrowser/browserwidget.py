@@ -41,46 +41,88 @@ class SettingsButton(ClickableIconButton):
         self.clicked.connect(self.parent().show_preferences)
 
 
-class SoloButton(ClickableIconButton):
+class SoloButton(QtWidgets.QWidget):
     """Small version label responsible for displaying information
     about GWBrowser."""
+    clicked = QtCore.Signal()
 
     def __init__(self, parent=None):
-        super(SoloButton, self).__init__(
-            'settings',
-            (common.TEXT, common.TEXT),
-            common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2),
-            description='Click to toggle the solo mode.\nWhen on, your bookmark and asset selections won\'t be\nsaved and will revert the next time you start GWBrowser.',
-            parent=parent
-        )
+        super(SoloButton, self).__init__(parent=parent)
+        size = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        self.setFixedSize(size, size)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
-        self.clicked.connect(self.toggle_solo)
-        self.clicked.connect(self.update)
+        self.animation_value = 1.0
 
-    def state(self):
-        return Settings.SOLO
+        self.animation = QtCore.QPropertyAnimation(self, u'animation_value')
+        self.animation.setStartValue(1.0)
+        self.animation.setEndValue(0.5)
+        self.animation.setEasingCurve(QtCore.QEasingCurve.InCubic)
+        self.animation.setLoopCount(1) # Loops for forever
+        self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
+        self.animation.setDuration(1500)
+        self.animation.valueChanged.connect(self.update)
+        self.animation.finished.connect(self.reverse_direction)
 
-    def toggle_solo(self):
-        Settings.SOLO = not Settings.SOLO
+        self.clicked.connect(self.set_solo_state)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setBrush(QtCore.Qt.NoBrush)
 
-        rect = self.rect()
-        center = rect.center()
-        rect.setWidth(12)
-        rect.setHeight(12)
+        color = common.REMOVE if Settings.SOLO else common.ADD
+        pen = QtGui.QPen(color)
+
+        pen.setWidthF(2.5)
+        painter.setPen(pen)
+        painter.setOpacity(self.animation.currentValue())
+        rect = QtCore.QRectF(self.rect())
+        center = self.rect().center()
+
+        size = QtCore.QSizeF(12, 12)
+        rect.setSize(size * self.animation.currentValue())
         rect.moveCenter(center)
+        c = rect.height() / 2.0
+        painter.drawRoundedRect(rect , c, c)
 
-        color = common.TEXT if self.state() else common.SECONDARY_BACKGROUND
-        painter.setBrush(color)
-        if self.state():
-            painter.drawRect(rect)
-        else:
-            painter.drawRoundedRect(rect, rect.height() / 2, rect.height() / 2)
         painter.end()
+
+    @QtCore.Slot()
+    def reverse_direction(self):
+        """ A bounce."""
+        if self.animation.direction() == QtCore.QPropertyAnimation.Forward:
+            self.animation.setDirection(QtCore.QPropertyAnimation.Backward)
+        else:
+            self.animation.setDirection(QtCore.QPropertyAnimation.Forward)
+        self.animation.start()
+        self.update()
+
+    def set_solo_state(self, state=None):
+        """Simply toggles the solo state."""
+        if state is not None:
+            Settings.SOLO = state
+        else:
+            Settings.SOLO = not Settings.SOLO
+
+        if Settings.SOLO:
+            self.animation.setCurrentTime(0)
+            self.animation.start()
+        if not Settings.SOLO:
+            self.set
+            self.animation.setCurrentTime(0)
+            self.animation.stop()
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        if self.rect().contains(cursor_position):
+            self.clicked.emit()
+
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -148,6 +190,9 @@ class BrowserWidget(QtWidgets.QWidget):
         finished loading their data.
 
         """
+        if self._initialized:
+            return
+
         def emit_saved_state(flag):
             b.filterFlagChanged.emit(flag, b.filterFlag(flag))
             a.filterFlagChanged.emit(flag, a.filterFlag(flag))
@@ -155,8 +200,6 @@ class BrowserWidget(QtWidgets.QWidget):
             ff.filterFlagChanged.emit(flag, ff.filterFlag(flag))
 
         self.shortcuts = []
-        if self._initialized:
-            return
 
         self._createUI()
         if DEBUG:
