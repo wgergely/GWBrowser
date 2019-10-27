@@ -42,7 +42,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
-
+ 
 # Flags
 MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
@@ -52,6 +52,10 @@ COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
 SLACK_URL = ur'https://gwbcn.slack.com/'
 ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
+
+
+SynchronisedMode = 0
+SoloMode = 1
 
 
 def save_favourites():
