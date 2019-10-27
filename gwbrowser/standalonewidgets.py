@@ -2,7 +2,7 @@
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
 import os
-import functools
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.settings import Active
@@ -13,229 +13,10 @@ from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
-
+from gwbrowser.browserwidget import TrayMenu
 
 # High DPI scaling
 # os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1;2'
-
-
-class TrayMenu(BaseContextMenu):
-    """The context-menu associated with the BrowserButton."""
-
-    def __init__(self, parent=None):
-        super(TrayMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-
-        self.stays_on_top = False
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
-
-        self.add_show_menu()
-        self.add_toolbar_menu()
-        self.add_visibility_menu()
-
-    def show_window(self):
-        """Raises and shows the widget."""
-        screen = self.parent().window().windowHandle().screen()
-        self.parent().move(screen.geometry().center() - self.parent().rect().center())
-        self.parent().showNormal()
-        self.parent().activateWindow()
-
-    @contextmenu
-    def add_visibility_menu(self, menu_set):
-        """Actions associated with the visibility of the widget."""
-
-        def toggle_window_flag():
-            """Sets the WindowStaysOnTopHint for the window."""
-            flags = self.parent().windowFlags()
-            self.hide()
-            if flags & QtCore.Qt.WindowStaysOnTopHint:
-                flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
-            else:
-                flags = flags | QtCore.Qt.WindowStaysOnTopHint
-            self.parent().setWindowFlags(flags)
-            self.parent().showNormal()
-            self.parent().activateWindow()
-
-        menu_set['Keep on top of other windows'] = {
-            'checkable': True,
-            'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
-            'action': toggle_window_flag
-        }
-        menu_set['Restore window...'] = {
-            'action': self.show_window
-        }
-        menu_set['separator1'] = {}
-        menu_set['Quit'] = {
-            'action': self.parent().shutdown.emit
-        }
-        return menu_set
-
-    @contextmenu
-    def add_show_menu(self, menu_set):
-        if not hasattr(self.parent(), 'clicked'):
-            return menu_set
-        menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
-            u'text': u'Open...',
-            u'action': self.parent().clicked.emit
-        }
-        return menu_set
-
-    @contextmenu
-    def add_toolbar_menu(self, menu_set):
-        active_paths = Active.paths()
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        asset = bookmark + (active_paths[u'asset'],)
-        location = asset + (active_paths[u'location'],)
-
-        if all(bookmark):
-            menu_set[u'bookmark'] = {
-                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-                u'disabled': not all(bookmark),
-                u'text': u'Show active bookmark in the file manager...',
-                u'action': functools.partial(common.reveal, u'/'.join(bookmark))
-            }
-            if all(asset):
-                menu_set[u'asset'] = {
-                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-                    u'disabled': not all(asset),
-                    u'text': u'Show active asset in the file manager...',
-                    u'action': functools.partial(common.reveal, '/'.join(asset))
-                }
-                if all(location):
-                    menu_set[u'location'] = {
-                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-                        u'disabled': not all(location),
-                        u'text': u'Show current task folder in the file manager...',
-                        u'action': functools.partial(common.reveal, '/'.join(location))
-                    }
-
-        return menu_set
-
-
-class AppIconButton(ClickableIconButton):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(AppIconButton, self).__init__(
-            u'custom',
-            (common.TEXT_SELECTED, common.TEXT_SELECTED),
-            12,
-            description=u'',
-            parent=parent
-        )
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-
-class MinimizeButton(ClickableIconButton):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(MinimizeButton, self).__init__(
-            u'minimize',
-            (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE,
-            description=u'Click to minimize the window...',
-            parent=parent
-        )
-
-
-class CloseButton(ClickableIconButton):
-    """Button used to close/hide a widget or window."""
-
-    def __init__(self, parent=None):
-        super(CloseButton, self).__init__(
-            u'close',
-            (QtGui.QColor(200, 100, 50), common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE,
-            description=u'Click to close the window...',
-            parent=parent
-        )
-
-
-class HeaderWidget(QtWidgets.QWidget):
-    """Horizontal widget for controlling the position of the widget active window."""
-    widgetMoved = QtCore.Signal(QtCore.QPoint)
-
-    def __init__(self, parent=None):
-        super(HeaderWidget, self).__init__(parent=parent)
-        self.label = None
-        self.closebutton = None
-        self.move_in_progress = False
-        self.move_start_event_pos = None
-        self.move_start_widget_pos = None
-
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-
-        self._createUI()
-
-    def _createUI(self):
-        QtWidgets.QHBoxLayout(self)
-        o = 0
-        self.layout().setContentsMargins(o, o, o, o)
-
-        menu_bar = QtWidgets.QMenuBar(parent=self)
-        self.layout().addWidget(menu_bar)
-        menu_bar.hide()
-        menu = menu_bar.addMenu(u'GWBrowser')
-        action = menu.addAction(u'Quit')
-        action.triggered.connect(self.window().shutdown)
-
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
-
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
-        self.layout().addWidget(AppIconButton(parent=self))
-        self.layout().addStretch()
-        self.layout().addWidget(MinimizeButton(parent=self))
-        self.layout().addWidget(CloseButton(parent=self))
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
-
-    def mousePressEvent(self, event):
-        """Custom ``movePressEvent``.
-        We're setting the properties needed to moving the main window.
-
-        """
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        self.move_in_progress = True
-        self.move_start_event_pos = event.pos()
-        self.move_start_widget_pos = self.mapToGlobal(
-            self.geometry().topLeft())
-
-    def mouseMoveEvent(self, event):
-        """The custom mouse move event responsbiel for moving the parent window.
-
-        """
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        if event.buttons() == QtCore.Qt.NoButton:
-            return
-        if self.move_start_widget_pos:
-            margins = self.window().layout().contentsMargins()
-            offset = (event.pos() - self.move_start_event_pos)
-            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
-            self.parent().move(
-                pos.x() - margins.left(),
-                pos.y() - margins.top()
-            )
-            bl = self.window().rect().bottomLeft()
-            bl = self.window().mapToGlobal(bl)
-            self.widgetMoved.emit(bl)
-
-    def contextMenuEvent(self, event):
-        """Shows the context menu associated with the tray in the header."""
-        widget = TrayMenu(parent=self.window())
-        pos = self.window().mapToGlobal(event.pos())
-        widget.move(pos)
-        common.move_widget_to_available_geo(widget)
-        widget.show()
 
 
 class StandaloneBrowserWidget(BrowserWidget):
@@ -261,8 +42,6 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         """
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
-        self.headerwidget = None
-
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
@@ -303,9 +82,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         shortcut.activated.connect(
             self.shutdown, type=QtCore.Qt.QueuedConnection)
-        self.shutdown_timer.timeout.connect(
-            lambda: self.terminate(quit_app=True), type=QtCore.Qt.QueuedConnection)
-
         self.adjustSize()
 
     def _get_offset_rect(self, offset):
@@ -389,23 +165,10 @@ class StandaloneBrowserWidget(BrowserWidget):
     @QtCore.Slot()
     def tweak_ui(self):
         """Modifies layout for display in standalone-mode."""
-
-        self.headerwidget = HeaderWidget(parent=self)
-        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
-
-        o = common.INDICATOR_WIDTH  # offset around the widget
-
-        self.layout().setContentsMargins(o, o, o, o)
-        self.layout().insertSpacing(0, common.INDICATOR_WIDTH)
-        self.layout().insertWidget(0, self.headerwidget)
-
-        self.findChild(MinimizeButton).clicked.connect(self.showMinimized)
-        self.findChild(CloseButton).clicked.connect(self.close)
-
         self.fileswidget.activated.connect(common.execute)
         self.favouriteswidget.activated.connect(common.execute)
-        QtWidgets.QApplication.instance().aboutToQuit.connect(
-            self.save_widget_settings)
+        self.terminated.connect(QtWidgets.QApplication.instance().quit)
+
 
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""
@@ -423,16 +186,6 @@ class StandaloneBrowserWidget(BrowserWidget):
             return
         if reason == QtWidgets.QSystemTrayIcon.MiddleClick:
             return
-
-    @QtCore.Slot()
-    def save_widget_settings(self):
-        """Saves the position and size of thew widget to the local settings."""
-        cls = self.__class__.__name__
-        geo = self.geometry()
-        local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
-        local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
     def hideEvent(self, event):
         """Custom hide event."""

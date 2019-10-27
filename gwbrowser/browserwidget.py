@@ -1,61 +1,275 @@
 # -*- coding: utf-8 -*-
 """``browserwidget.py`` is the main widget of GWBrowser.
-It contains the ``StackedWidget`` and the ``HeaderWidget`` in standalone mode.
-
 """
 import sys
+import time
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.common as common
-from gwbrowser.common_ui import ClickableIconButton, add_row
-from gwbrowser.threads import BaseThread
-from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
-from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.assetswidget import AssetsWidget
-from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.basecontextmenu import contextmenu
+from gwbrowser.baselistwidget import StackedWidget
+from gwbrowser.bookmarkswidget import BookmarksWidget
+from gwbrowser.common_ui import ClickableIconButton, PaintedLabel, add_row
 from gwbrowser.favouriteswidget import FavouritesWidget
-from gwbrowser.listcontrolwidget import ListControlWidget
+from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.imagecache import ImageCache
-import gwbrowser.settings as Settings
-from gwbrowser.settings import local_settings, Active
+from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.preferenceswidget import PreferencesWidget
+from gwbrowser.settings import Active
+from gwbrowser.settings import local_settings, Active
+from gwbrowser.threads import BaseThread
+import gwbrowser.common as common
+import gwbrowser.mode as mode
+import gwbrowser.settings as Settings
 
 
 DEBUG = False
 
 
+
+
 @QtCore.Slot(unicode)
 def debug_signals(label, *args, **kwargs):
-    import time
     print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(time='{}'.format(time.time())[:-3], label=label, args=args,kwargs=kwargs)
 
 
-class SettingsButton(ClickableIconButton):
-    """Small version label responsible for displaying information
-    about GWBrowser."""
 
-    def __init__(self, pixmap, colors, size, description=u'', parent=None):
-        super(SettingsButton, self).__init__(pixmap, colors,
-                                             size, description=description, parent=parent)
-        self.clicked.connect(self.parent().show_preferences)
+class TrayMenu(BaseContextMenu):
+    """The context-menu associated with the BrowserButton."""
+
+    def __init__(self, parent=None):
+        super(TrayMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
+
+        self.stays_on_top = False
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
+
+        self.add_show_menu()
+        self.add_toolbar_menu()
+        self.add_visibility_menu()
+
+    def show_window(self):
+        """Raises and shows the widget."""
+        screen = self.parent().window().windowHandle().screen()
+        self.parent().move(screen.geometry().center() - self.parent().rect().center())
+        self.parent().showNormal()
+        self.parent().activateWindow()
+
+    @contextmenu
+    def add_visibility_menu(self, menu_set):
+        """Actions associated with the visibility of the widget."""
+
+        def toggle_window_flag():
+            """Sets the WindowStaysOnTopHint for the window."""
+            flags = self.parent().windowFlags()
+            self.hide()
+            if flags & QtCore.Qt.WindowStaysOnTopHint:
+                flags = flags & ~QtCore.Qt.WindowStaysOnTopHint
+            else:
+                flags = flags | QtCore.Qt.WindowStaysOnTopHint
+            self.parent().setWindowFlags(flags)
+            self.parent().showNormal()
+            self.parent().activateWindow()
+
+        menu_set['Keep on top of other windows'] = {
+            'checkable': True,
+            'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
+            'action': toggle_window_flag
+        }
+        menu_set['Restore window...'] = {
+            'action': self.show_window
+        }
+        menu_set['separator1'] = {}
+        menu_set['Quit'] = {
+            'action': self.parent().shutdown.emit
+        }
+        return menu_set
+
+    @contextmenu
+    def add_show_menu(self, menu_set):
+        if not hasattr(self.parent(), 'clicked'):
+            return menu_set
+        menu_set[u'show'] = {
+            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
+            u'text': u'Open...',
+            u'action': self.parent().clicked.emit
+        }
+        return menu_set
+
+    @contextmenu
+    def add_toolbar_menu(self, menu_set):
+        active_paths = Active.paths()
+        bookmark = (active_paths[u'server'],
+                    active_paths[u'job'], active_paths[u'root'])
+        asset = bookmark + (active_paths[u'asset'],)
+        location = asset + (active_paths[u'location'],)
+
+        if all(bookmark):
+            menu_set[u'bookmark'] = {
+                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
+                u'disabled': not all(bookmark),
+                u'text': u'Show active bookmark in the file manager...',
+                u'action': lambda: common.reveal(u'/'.join(bookmark))
+            }
+            if all(asset):
+                menu_set[u'asset'] = {
+                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
+                    u'disabled': not all(asset),
+                    u'text': u'Show active asset in the file manager...',
+                    u'action': lambda: common.reveal(u'/'.join(asset))
+                }
+                if all(location):
+                    menu_set[u'location'] = {
+                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
+                        u'disabled': not all(location),
+                        u'text': u'Show current task folder in the file manager...',
+                        u'action': lambda: common.reveal(u'/'.join(location))
+                    }
+
+        return menu_set
 
 
-class SoloButton(QtWidgets.QWidget):
+class AppIconButton(ClickableIconButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(AppIconButton, self).__init__(
+            u'custom',
+            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            description=u'',
+            parent=parent
+        )
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+
+
+class MinimizeButton(ClickableIconButton):
+    """Custom QLabel with a `clicked` signal."""
+
+    def __init__(self, parent=None):
+        super(MinimizeButton, self).__init__(
+            u'minimize',
+            (common.REMOVE, common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            description=u'Click to minimize the window...',
+            parent=parent
+        )
+
+
+class CloseButton(ClickableIconButton):
+    """Button used to close/hide a widget or window."""
+
+    def __init__(self, parent=None):
+        super(CloseButton, self).__init__(
+            u'close',
+            (common.REMOVE, common.SECONDARY_TEXT),
+            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            description=u'Click to close the window...',
+            parent=parent
+        )
+
+
+class HeaderWidget(QtWidgets.QWidget):
+    """Horizontal widget for controlling the position of the widget active window."""
+    widgetMoved = QtCore.Signal(QtCore.QPoint)
+
+    def __init__(self, parent=None):
+        super(HeaderWidget, self).__init__(parent=parent)
+        self.label = None
+        self.closebutton = None
+        self.move_in_progress = False
+        self.move_start_event_pos = None
+        self.move_start_widget_pos = None
+
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.MARGIN / 2.0))
+
+        self._createUI()
+
+    def _createUI(self):
+        QtWidgets.QHBoxLayout(self)
+        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setSpacing(0)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+        menu_bar = QtWidgets.QMenuBar(parent=self)
+        self.layout().addWidget(menu_bar)
+        menu_bar.hide()
+        menu = menu_bar.addMenu(u'GWBrowser')
+        action = menu.addAction(u'Quit')
+        action.triggered.connect(self.parent().shutdown)
+
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addWidget(AppIconButton(parent=self))
+        self.layout().addStretch()
+        self.layout().addWidget(MinimizeButton(parent=self))
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        self.layout().addWidget(CloseButton(parent=self))
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+
+    def mousePressEvent(self, event):
+        """Custom ``movePressEvent``.
+        We're setting the properties needed to moving the main window.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        self.move_in_progress = True
+        self.move_start_event_pos = event.pos()
+        self.move_start_widget_pos = self.mapToGlobal(
+            self.geometry().topLeft())
+
+    def mouseMoveEvent(self, event):
+        """The custom mouse move event responsbiel for moving the parent window.
+
+        """
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        if event.buttons() == QtCore.Qt.NoButton:
+            return
+        if self.move_start_widget_pos:
+            margins = self.window().layout().contentsMargins()
+            offset = (event.pos() - self.move_start_event_pos)
+            pos = self.window().mapToGlobal(self.geometry().topLeft()) + offset
+            self.parent().move(
+                pos.x() - margins.left(),
+                pos.y() - margins.top()
+            )
+            bl = self.window().rect().bottomLeft()
+            bl = self.window().mapToGlobal(bl)
+            self.widgetMoved.emit(bl)
+
+    def contextMenuEvent(self, event):
+        """Shows the context menu associated with the tray in the header."""
+        widget = TrayMenu(parent=self.window())
+        pos = self.window().mapToGlobal(event.pos())
+        widget.move(pos)
+        common.move_widget_to_available_geo(widget)
+        widget.show()
+
+
+class ToggleModeButton(QtWidgets.QWidget):
     """Small version label responsible for displaying information
     about GWBrowser."""
     clicked = QtCore.Signal()
+    message = QtCore.Signal(unicode)
 
-    def __init__(self, parent=None):
-        super(SoloButton, self).__init__(parent=parent)
-        size = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+    def __init__(self, size, parent=None):
+        super(ToggleModeButton, self).__init__(parent=parent)
+        size = size - 4
         self.setFixedSize(size, size)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.animation_value = 1.0
 
-        self.animation = QtCore.QPropertyAnimation(self, u'animation_value')
+        self.animation = QtCore.QVariantAnimation(parent=self)
         self.animation.setStartValue(1.0)
         self.animation.setEndValue(0.5)
         self.animation.setEasingCurve(QtCore.QEasingCurve.InCubic)
@@ -64,31 +278,13 @@ class SoloButton(QtWidgets.QWidget):
         self.animation.setDuration(1500)
         self.animation.valueChanged.connect(self.update)
         self.animation.finished.connect(self.reverse_direction)
+        self.clicked.connect(self.toggle_mode)
 
-        self.clicked.connect(self.set_solo_state)
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(QtCore.Qt.NoBrush)
-
-        color = common.REMOVE if Settings.SOLO else common.ADD
-        pen = QtGui.QPen(color)
-
-        pen.setWidthF(2.5)
-        painter.setPen(pen)
-        painter.setOpacity(self.animation.currentValue())
-        rect = QtCore.QRectF(self.rect())
-        center = self.rect().center()
-
-        size = QtCore.QSizeF(12, 12)
-        rect.setSize(size * self.animation.currentValue())
-        rect.moveCenter(center)
-        c = rect.height() / 2.0
-        painter.drawRoundedRect(rect , c, c)
-
-        painter.end()
+    def statusTip(self):
+        if mode.CURRENT_MODE == common.SynchronisedMode:
+            return u'This GWBrowser instance is syncronised with other instances. Click to toggle!'
+        elif mode.CURRENT_MODE == common.SoloMode:
+            return u'This GWBrowser instance is not synronised with other instances. Click to toggle!'
 
     @QtCore.Slot()
     def reverse_direction(self):
@@ -100,21 +296,45 @@ class SoloButton(QtWidgets.QWidget):
         self.animation.start()
         self.update()
 
-    def set_solo_state(self, state=None):
-        """Simply toggles the solo state."""
-        if state is not None:
-            Settings.SOLO = state
-        else:
-            Settings.SOLO = not Settings.SOLO
-
-        if Settings.SOLO:
+    def toggle_mode(self):
+        """Simply toggles the solo mode."""
+        if mode.CURRENT_MODE == common.SynchronisedMode:
+            mode.CURRENT_MODE = common.SoloMode
             self.animation.setCurrentTime(0)
             self.animation.start()
-        if not Settings.SOLO:
-            self.set
+        elif mode.CURRENT_MODE == common.SoloMode:
+            mode.CURRENT_MODE = common.SynchronisedMode
             self.animation.setCurrentTime(0)
             self.animation.stop()
-            self.update()
+        self.update()
+        mode.save()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setBrush(QtCore.Qt.NoBrush)
+
+        color = common.REMOVE if mode.CURRENT_MODE else common.ADD
+        pen = QtGui.QPen(color)
+
+        o = 2.5
+        pen.setWidthF(o)
+        painter.setPen(pen)
+        painter.setOpacity(self.animation.currentValue())
+        rect = QtCore.QRectF(self.rect())
+        center = self.rect().center()
+
+        size = QtCore.QSizeF(rect.width() - (o * 2), rect.height() - (o * 2))
+        rect.setSize(size * self.animation.currentValue())
+        rect.moveCenter(center)
+        c = rect.height() / 2.0
+        painter.drawRoundedRect(rect , c, c)
+
+        painter.end()
+
+    def enterEvent(self, event):
+        self.message.emit(self.statusTip())
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -123,6 +343,15 @@ class SoloButton(QtWidgets.QWidget):
         if self.rect().contains(cursor_position):
             self.clicked.emit()
 
+    def showEvent(self, event):
+        if mode.CURRENT_MODE == common.SoloMode:
+            self.animation.setCurrentTime(0)
+            self.animation.start()
+            self.update()
+        elif mode.CURRENT_MODE == common.SynchronisedMode:
+            self.animation.setCurrentTime(0)
+            self.animation.stop()
+            self.update()
 
 
 class BrowserWidget(QtWidgets.QWidget):
@@ -144,9 +373,10 @@ class BrowserWidget(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(pixmap))
         self.setMouseTracking(True)
 
-        self.__qn = 0
         self._contextMenu = None
         self._initialized = False
+
+        self.headerwidget = None
         self.stackedwidget = None
         self.bookmarkswidget = None
         self.listcontrolwidget = None
@@ -156,6 +386,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.statusbar = None
         self.preferences_widget = None
         self.add_bookmarks_widget = None
+        self.solo_button = None
 
         self.active_monitor = Active(parent=self)
 
@@ -172,13 +403,66 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initializer.timeout.connect(self.initialize)
         self.initializer.timeout.connect(self.initializer.deleteLater)
 
-        self.shutdown_timer = QtCore.QTimer(parent=self)
-        self.shutdown_timer.setInterval(250)
-        self.shutdown_timer.setSingleShot(False)
-
         self.init_progress = u'Loading...'
-        # self.adjustSize()
-        # self.update()
+
+    def _createUI(self):
+        common.set_custom_stylesheet(self)
+
+        # Main layout
+        QtWidgets.QVBoxLayout(self)
+        o = common.INDICATOR_WIDTH  # offset around the widget
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(0)
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Preferred,
+            QtWidgets.QSizePolicy.Preferred
+        )
+
+        self.headerwidget = HeaderWidget(parent=self)
+        self.stackedwidget = StackedWidget(parent=self)
+        self.bookmarkswidget = BookmarksWidget(parent=self)
+        self.assetswidget = AssetsWidget(parent=self)
+        self.fileswidget = FilesWidget(parent=self)
+        self.favouriteswidget = FavouritesWidget(parent=self)
+        self.preferences_widget = PreferencesWidget(parent=self)
+        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+
+        self.stackedwidget.addWidget(self.bookmarkswidget)
+        self.stackedwidget.addWidget(self.assetswidget)
+        self.stackedwidget.addWidget(self.fileswidget)
+        self.stackedwidget.addWidget(self.favouriteswidget)
+        self.stackedwidget.addWidget(self.preferences_widget)
+        self.stackedwidget.addWidget(self.add_bookmarks_widget)
+        self.listcontrolwidget = ListControlWidget(parent=self)
+
+        self.layout().addWidget(self.headerwidget)
+        self.layout().addWidget(self.listcontrolwidget)
+        self.layout().addWidget(self.stackedwidget)
+
+        height = common.INLINE_ICON_SIZE
+
+        self.statusbar = QtWidgets.QStatusBar(parent=self)
+        self.statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
+        self.statusbar.setSizeGripEnabled(False)
+        self.statusbar.setFixedHeight(height)
+        self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.statusbar.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Fixed
+        )
+
+        row = add_row(u'', height=height, parent=self)
+        row.layout().setSpacing(0)
+        row.layout().addWidget(self.statusbar)
+
+        self.solo_button = ToggleModeButton(height, parent=self)
+        self.solo_button.message.connect(
+            lambda s: self.statusbar.showMessage(s, 4000))
+        row.layout().addWidget(self.solo_button)
+        row.layout().addSpacing(common.INDICATOR_WIDTH)
 
     @QtCore.Slot()
     def initialize(self):
@@ -198,6 +482,9 @@ class BrowserWidget(QtWidgets.QWidget):
             a.filterFlagChanged.emit(flag, a.filterFlag(flag))
             f.filterFlagChanged.emit(flag, f.filterFlag(flag))
             ff.filterFlagChanged.emit(flag, ff.filterFlag(flag))
+
+        mode.touch()
+        mode.save()
 
         self.shortcuts = []
 
@@ -238,93 +525,86 @@ class BrowserWidget(QtWidgets.QWidget):
         self._initialized = True
         self.initialized.emit()
 
-    def _createUI(self):
-        common.set_custom_stylesheet(self)
+    @QtCore.Slot()
+    def terminate(self):
+        """Terminates the browserwidget gracefully by stopping the associated
+        threads.
 
-        # Main layout
-        QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
+        """
+        def ui_teardown():
+            self.setUpdatesEnabled(False)
+            self.check_active_state_timer.stop()
+            self.active_monitor.macos_mount_timer.stop()
+            self.listcontrolwidget.bookmarks_button.timer.stop()
+            self.listcontrolwidget.assets_button.timer.stop()
+            self.listcontrolwidget.files_button.timer.stop()
+            self.listcontrolwidget.favourites_button.timer.stop()
 
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Preferred
-        )
+            self.bookmarkswidget.timer.stop()
+            self.assetswidget.timer.stop()
+            self.fileswidget.timer.stop()
+            self.favouriteswidget.timer.stop()
+            self.check_active_state_timer.stop()
 
-        self.stackedwidget = StackedWidget(parent=self)
+            for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
+                widget.timer.stop()
+                widget.scrollbar_changed_timer.stop()
+                widget.hide_archived_items_timer.stop()
 
-        self.init_progress = u'Creating bookmarks tab...'
-        self.update()
+                for child in widget.model().sourceModel().children():
+                    child.deleteLater()
+                widget.model().sourceModel().deleteLater()
+                for child in widget.model().children():
+                    child.deleteLater()
+                widget.model().deleteLater()
+                for child in widget.children():
+                    child.deleteLater()
+                widget.deleteLater()
 
-        self.bookmarkswidget = BookmarksWidget(parent=self)
+            for child in self.headerwidget.children():
+                child.deleteLater()
+            self.headerwidget.deleteLater()
+            for child in self.stackedwidget.children():
+                child.deleteLater()
+            self.stackedwidget.deleteLater()
+            for child in self.statusbar.children():
+                child.deleteLater()
+            self.statusbar.deleteLater()
+            for child in self.children():
+                child.deleteLater()
+            self.deleteLater()
 
-        self.init_progress = u'Creating assets tab...'
-        self.update()
+        self.statusbar.showMessage(u'Closing down...')
 
-        self.assetswidget = AssetsWidget(parent=self)
+        threadpool = self.get_all_threads()
+        for thread in threadpool:
+            if thread.isRunning():
+                thread.worker.shutdown()
+                thread.exit(0)
 
-        self.init_progress = u'Creating files tab...'
-        self.update()
+        n = 0
+        while any([f.isRunning() for f in threadpool]):
+            for thread in threadpool:
+                if thread.isRunning():
+                    thread.worker.shutdown()
+                    thread.quit()
+            n += 1
+            time.sleep(0.4)
+            if n > 20:
+                for thread in threadpool:
+                    thread.terminate()
+                break
 
-        self.fileswidget = FilesWidget(parent=self)
-        self.favouriteswidget = FavouritesWidget(parent=self)
-        self.preferences_widget = PreferencesWidget(parent=self)
-        self.preferences_widget.hide()
-        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
-        self.add_bookmarks_widget.hide()
+        # self.hide()
+        ui_teardown()
 
-        self.stackedwidget.addWidget(self.bookmarkswidget)
-        self.stackedwidget.addWidget(self.assetswidget)
-        self.stackedwidget.addWidget(self.fileswidget)
-        self.stackedwidget.addWidget(self.favouriteswidget)
-        self.stackedwidget.addWidget(self.preferences_widget)
-        self.stackedwidget.addWidget(self.add_bookmarks_widget)
+        keys = sys.modules.keys()
+        for k in keys:
+            if 'gwbrowser' in k:
+                del sys.modules[k]
 
-        self.init_progress = u'Adding top bar...'
-        self.update()
-
-        self.listcontrolwidget = ListControlWidget(parent=self)
-
-        self.init_progress = u'Finishing...'
-        self.update()
-
-        statusbar = QtWidgets.QStatusBar(parent=self)
-        statusbar.setSizeGripEnabled(False)
-
-        settings_button = SettingsButton(
-            u'info',
-            (common.TEXT_SELECTED, common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE,
-            description=u'Click to open the settings',
-            parent=self
-        )
-        settings_button.message.connect(
-            lambda s: statusbar.showMessage(s, 4000))
-
-        statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        statusbar.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Minimum
-        )
-        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
-        statusbar.setFixedHeight(height)
-        statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
-
-        # statusbar.layout().setContentsMargins(20, 20, 20, 20)
-        self.statusbar = statusbar
-
-        self.layout().addWidget(self.listcontrolwidget)
-        self.layout().addWidget(self.stackedwidget)
-
-        row = add_row('', height=height, parent=self)
-        row.layout().setSpacing(0)
-        row.layout().addWidget(self.statusbar)
-        row.layout().addWidget(settings_button)
-
-        solo_button = SoloButton(parent=self)
-        row.layout().addWidget(solo_button)
+        sys.stdout.write(u'# GWBrowser terminated.\n')
+        self.terminated.emit()
 
     def show_preferences(self):
         self.stackedwidget.setCurrentIndex(4)
@@ -416,52 +696,6 @@ class BrowserWidget(QtWidgets.QWidget):
         The ``BaseThread`` will keep track of all instances so we can use it to querry."""
         return BaseThread._instances.values()
 
-    @QtCore.Slot()
-    def terminate(self, quit_app=False):
-        """Terminates the browserwidget gracefully by stopping the associated
-        threads.
-
-        """
-        self.__qn += 1
-        self.statusbar.showMessage(u'Closing down...')
-
-        self.listcontrolwidget.bookmarks_button.timer.stop()
-        self.listcontrolwidget.assets_button.timer.stop()
-        self.listcontrolwidget.files_button.timer.stop()
-        self.listcontrolwidget.favourites_button.timer.stop()
-
-        self.bookmarkswidget.timer.stop()
-        self.assetswidget.timer.stop()
-        self.fileswidget.timer.stop()
-        self.favouriteswidget.timer.stop()
-        self.check_active_state_timer.stop()
-
-        threadpool = self.get_all_threads()
-        for thread in threadpool:
-            if thread.isRunning():
-                thread.worker.shutdown()
-                thread.exit(0)
-
-        if all([not f.isRunning() for f in threadpool]):
-            if quit_app:
-                QtWidgets.QApplication.instance().exit(0)
-
-        # Forcing the application to close after n tries
-        # circa 5 seconds to wrap things up, will exit by force after
-        if self.__qn < 20:
-            return
-
-        # After that time we will force-terminate the threads
-        for thread in threadpool:
-            thread.terminate()
-
-        if quit_app:
-            QtWidgets.QApplication.instance().closeAllWindows()
-            QtWidgets.QApplication.instance().exit(0)
-
-        sys.stdout.write(u'# GWBrowser terminated.\n')
-        self.terminated.emit()
-
     @QtCore.Slot(unicode)
     def show_progress_message(self, message):
         b = self.bookmarkswidget.progress_widget
@@ -501,7 +735,11 @@ class BrowserWidget(QtWidgets.QWidget):
         s = self.stackedwidget
 
         #####################################################
-        self.shutdown.connect(self.shutdown_timer.start)
+        self.headerwidget.widgetMoved.connect(self.save_widget_settings)
+        self.headerwidget.findChild(MinimizeButton).clicked.connect(self.showMinimized)
+        self.headerwidget.findChild(CloseButton).clicked.connect(self.close)
+        #####################################################
+        self.shutdown.connect(self.terminate)
         #####################################################
         lc.bookmarks_button.clicked.connect(
             lambda: lc.listChanged.emit(0))
@@ -742,6 +980,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
+        rect = rect.marginsRemoved(QtCore.QMargins(3,3,3,3))
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
@@ -791,6 +1030,16 @@ class BrowserWidget(QtWidgets.QWidget):
         """Method to change between views."""
         self.stackedwidget.setCurrentIndex(idx)
 
+    @QtCore.Slot()
+    def save_widget_settings(self):
+        """Saves the position and size of thew widget to the local settings."""
+        cls = self.__class__.__name__
+        geo = self.geometry()
+        local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
+        local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
+        local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
+        local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
+
     def sizeHint(self):
         """The widget's default size."""
         return QtCore.QSize(common.WIDTH, common.HEIGHT)
@@ -804,7 +1053,6 @@ class BrowserWidget(QtWidgets.QWidget):
             self.initializer.start()
             return
         self.stackedwidget.currentWidget().setFocus()
-
 
     def resizeEvent(self, event):
         """Custom resize event."""
