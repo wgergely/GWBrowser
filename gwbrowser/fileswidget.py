@@ -1181,9 +1181,11 @@ class FilesWidget(ThreadedBaseWidget):
                 # that does not contain the given text.
                 if shift_modifier:
                     folder_filter = u'"/{}/"'.format(text)
-                    if folder_filter.lower() == filter_text.lower():
-                        folder_filter = u''
-                    self.model().filterTextChanged.emit(folder_filter)
+                    if folder_filter.lower() in filter_text.lower():
+                        filter_text = filter_text.lower().replace(folder_filter.lower(), u'')
+                    else:
+                        filter_text = u'{} {}'.format(filter_text, folder_filter)
+                    self.model().filterTextChanged.emit(filter_text)
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
 
