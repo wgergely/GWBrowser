@@ -37,6 +37,13 @@ QStackedWidget:focus {{
 /* Preferences widget */
 SectionsStackWidget {{
 	background-color: rgba({BACKGROUND});
+	border-top: 1px solid rgba(30,30,30,200);
+	border-bottom: 1px solid rgba(30,30,30,200);
+}}
+
+QSplitter:handle {{
+	border-top: 1px dotted rgba(0,0,0,230);
+	/* background-color: rgba(0, 0, 0, 150); */
 }}
 
 

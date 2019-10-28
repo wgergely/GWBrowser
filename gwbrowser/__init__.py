@@ -34,7 +34,7 @@ __dependencies__ = (
     u'numpy',
     u'PySide2.QtCore'
 )
-__version__ = u'0.2.7'
+__version__ = u'0.2.8'
 
 
 
@@ -116,7 +116,11 @@ def exec_():
     gwbrowser = importlib.import_module(
         u'{}.standalonewidgets'.format(__name__))
 
-    app = gwbrowser.StandaloneApp([])
+    from PySide2 import QtWidgets
+    if QtWidgets.QApplication.instance():
+        app = QtWidgets.QApplication.instance()
+    else:
+        app = gwbrowser.StandaloneApp([])
     widget = gwbrowser.StandaloneBrowserWidget()
     widget.show()
 

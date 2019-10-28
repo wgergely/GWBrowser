@@ -368,19 +368,14 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             # if the mesh was intended to be rendered\used...
             # if not is_visible(shape):
             #     continue
+            basename = shape.split(u'|').pop()
             try:
                 # AbcExport will fail if a shape node's name is not unique
                 # We will try and see if this passes...
-                basename = shape.split('|').pop()
                 cmds.listRelatives(basename)
             except ValueError as err:
-                # Nope :(
-                mbox = QtWidgets.QMessageBox()
-                mbox.setWindowTitle(u'Alembic export error :(')
-                mbox.setIcon(QtWidgets.QMessageBox.Warning)
-                mbox.setText(u'"{shape}" does not have a unique name.  This is not allowed for alembic exports.  Sorry!  Please, make sure all the shape nodes have unique names and try again.\n\nError:\n{err}:'.format(shape=shape, err=err))
-                mbox.exec_()
-                return
+                print u'"{shape}" does not have a unique name.  This is not usually allowed for alembic exports and might cause the export to fail.\n\nError:\n{err}'.format(shape=shape, err=err)
+                
             # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
                 if not cmds.attributeQuery(u'outMesh', node=shape, exists=True):
@@ -479,7 +474,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 def capture_viewport(size=1.0):
     """Saves a versioned capture to the ``capture_folder`` defined in the preferences.
 
-    The script will output to the an image sequence and if FFMpeg is present converts it to a h264 movie file.
+    The script will output to the an image sequence and if FFmpeg is present converts it to a h264 movie file.
     It will also try to create a ``latest`` folder with a copy of the last exported image sequence.
 
     Usage:
@@ -707,13 +702,13 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         idx += 1
 
 def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
-    ffmpeg_bin_path = get_preference(u'ffmpeg_path')
+    ffmpeg_bin_path = local_settings.value(u'preferences/IntegrationSettings/ffmpeg_path')
     ffmpeg_bin_path = ffmpeg_bin_path if ffmpeg_bin_path else None
     if not ffmpeg_bin_path:
         return
     ffmpeg_info = QtCore.QFileInfo(ffmpeg_bin_path)
     if not ffmpeg_info.exists():
-        print u'# Could not find FFMPEG.'
+        print u'# Could not find FFmpeg.'
         return
 
     ffmpeg_in_path = u'{workspace}/{capture_folder}/{scene}/{scene}.%4d.{ext}'.format(
@@ -1184,6 +1179,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
+        self.browserwidget.initialized.connect(lambda: self.browserwidget.layout().setContentsMargins(0, 0, 0, 0))
         self.browserwidget.initialized.connect(self.connectSignals)
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
@@ -1354,6 +1350,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     @QtCore.Slot()
     def connectSignals(self):
+        self.browserwidget.headerwidget.hide()
+
         bookmarkswidget = self.browserwidget.bookmarkswidget
         assetswidget = self.browserwidget.assetswidget
         fileswidget = self.browserwidget.fileswidget

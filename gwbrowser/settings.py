@@ -9,8 +9,7 @@ import collections
 from PySide2 import QtCore
 
 import gwbrowser.common as common
-
-SOLO = False
+import gwbrowser.mode as mode
 
 
 def _bool(v):
@@ -190,7 +189,7 @@ class LocalSettings(QtCore.QSettings):
         dictionary.
 
         """
-        if SOLO and k.lower().startswith(u'activepath'):
+        if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
             if k not in self.internal_settings:
                 v = super(LocalSettings, self).value(k)
                 self.internal_settings[k] = _bool(v)
@@ -202,7 +201,7 @@ class LocalSettings(QtCore.QSettings):
         of the active path settings.
 
         """
-        if SOLO and k.lower().startswith(u'activepath'):
+        if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
             self.internal_settings[k] = v
             return
         super(LocalSettings, self).setValue(k, v)
@@ -243,7 +242,8 @@ class AssetSettings(QtCore.QSettings):
         if index.isValid():
             parents = index.data(common.ParentPathRole)
             if not parents:
-                raise RuntimeError('Index does not contain a valid parent path information')
+                raise RuntimeError(
+                    'Index does not contain a valid parent path information')
             server, job, root = parents[0:3]
             filepath = index.data(QtCore.Qt.StatusTipRole)
 
@@ -274,8 +274,6 @@ class AssetSettings(QtCore.QSettings):
         path = filepath.replace(server, u'').strip(u'/')
         path = hashlib.md5(path.encode(u'utf-8')).hexdigest()
         return path
-
-
 
     def config_path(self):
         """The path of the configuration file associated with the current file.

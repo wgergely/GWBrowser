@@ -3,16 +3,15 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.datakeywidget import DataKeyView
-import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.common_ui import ClickableIconButton, PaintedLabel
+from gwbrowser.common_ui import ClickableIconButton
+from gwbrowser.common_ui import PaintedLabel
+from gwbrowser.datakeywidget import DataKeyView
 from gwbrowser.editors import FilterEditor
-
-from gwbrowser.imagecache import ImageCache
 from gwbrowser.fileswidget import FileThumbnailWorker
-
+from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings
+import gwbrowser.common as common
 
 
 class BaseControlButton(ClickableIconButton):
@@ -91,6 +90,7 @@ class FilterButton(BaseControlButton):
             return
 
         super(FilterButton, self).mouseReleaseEvent(event)
+
 
 class CollapseSequenceButton(BaseControlButton):
     """The buttons responsible for collapsing/expanding the sequences of the
@@ -271,6 +271,9 @@ class SlackButton(BaseControlButton):
             u'Open Slack',
             parent=parent
         )
+        self.setAcceptDrops(True)
+        self.setMouseTracking(True)
+        self.drop_target = False
 
     @QtCore.Slot()
     def action(self):
@@ -279,6 +282,59 @@ class SlackButton(BaseControlButton):
 
     def state(self):
         return True
+
+    def paintEvent(self, event):
+        super(SlackButton, self).paintEvent(event)
+
+        if not self.drop_target:
+            return
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRoundedRect(self.rect(), 4, 4)
+
+        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.ADD, self.rect().height() - 6)
+        rect = pixmap.rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        rect = self.rect().marginsRemoved(QtCore.QMargins(1,1,1,1))
+        painter.setBrush(QtCore.Qt.NoBrush)
+        pen = QtGui.QPen(common.ADD)
+        pen.setWidthF(2.0)
+        painter.setPen(pen)
+        painter.drawRoundedRect(rect, 4, 4)
+
+        painter.end()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        import gwbrowser.slack.slacker as slacker
+        if event.source() == self:
+            return  # Won't allow dropping an item from itself
+        mime = event.mimeData()
+
+        if not mime.hasUrls():
+            return
+
+        event.accept()
+
+        message = []
+        for f in mime.urls():
+            file_info = QtCore.QFileInfo(f.toLocalFile())
+            line = u'```{}```'.format(file_info.filePath())
+            message.append(line)
+
+        message = u'\n'.join(message)
+        self.parent().parent().slack_widget.append_message(message)
+        self.parent().listChanged.emit(6)
 
 
 class GenerateThumbnailsButton(BaseControlButton):
@@ -306,15 +362,20 @@ class GenerateThumbnailsButton(BaseControlButton):
         if not self.current_widget():
             return
         model = self.current_widget().model().sourceModel()
-        val = model.generate_thumbnails
 
+        val = model.generate_thumbnails
         cls = model.__class__.__name__
-        local_settings.setValue(
-            u'widget/{}/generate_thumbnails'.format(cls), not val)
-        if not val == False:
-            FileThumbnailWorker.reset_queue()
+        k = u'widget/{}/generate_thumbnails'.format(cls)
+
+        local_settings.setValue(k, not val)
         model.generate_thumbnails = not val
         self.update()
+
+        if not val == False:
+            model.ThumbnailThread.Worker.reset_queue()
+            FileThumbnailWorker.reset_queue()
+        if val == True:
+            self.current_widget().initialize_visible_indexes()
 
     def update(self):
         """Will only show for favourite and file items."""
@@ -387,6 +448,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         self.update()
 
     def leaveEvent(self, event):
+        self.message.emit(u' ')
         self.update()
 
     def mouseReleaseEvent(self, event):
@@ -415,9 +477,10 @@ class PaintedTextButton(QtWidgets.QLabel):
         return text
 
     def get_size(self):
-        o = common.INDICATOR_WIDTH * 2
+        o = common.INDICATOR_WIDTH * 3
         width = QtGui.QFontMetrics(self.font).width(self.text()) + (o * 2)
-        return QtCore.QSize(width, common.INLINE_ICON_SIZE + o)
+        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        return QtCore.QSize(width, height)
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -446,7 +509,6 @@ class PaintedTextButton(QtWidgets.QLabel):
         hover = option.state & QtWidgets.QStyle.State_MouseOver
         painter.setPen(QtCore.Qt.NoPen)
 
-
         if self.current_index() == self.index:
             color = common.TEXT_SELECTED if hover else common.TEXT
             painter.setBrush(color)
@@ -461,13 +523,12 @@ class PaintedTextButton(QtWidgets.QLabel):
         y = self.rect().center().y() + (metrics.ascent() * 0.5)
         path = QtGui.QPainterPath()
         path.addText(x, y, self.font, self.text())
-
         painter.drawPath(path)
 
-        if self.current_index() == self.index:
-            color = common.TEXT if hover else common.REMOVE
-        else:
-            color = common.BACKGROUND if hover else common.SECONDARY_BACKGROUND
+
+        if self.current_index() != self.index:
+            return
+        color = common.TEXT if hover else common.REMOVE
         rect.setHeight(2.0)
         rect.setWidth(self.rect().width())
         painter.setBrush(color)
@@ -497,7 +558,6 @@ class BookmarksTabButton(PaintedTextButton):
         else:
             text = self.default_label
         return text
-
 
 
 class AssetsTabButton(PaintedTextButton):
@@ -561,23 +621,22 @@ class FilesTabButton(PaintedTextButton):
             painter = QtGui.QPainter()
             painter.begin(self)
 
-            rect = self.rect()
-            center = rect.center()
-            rect.setHeight(common.INLINE_ICON_SIZE + common.INDICATOR_WIDTH)
-            rect.moveCenter(center)
-
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(QtGui.QColor(0, 0, 0, 30))
+            painter.drawRect(self.rect())
 
-            painter.drawRoundedRect(rect, 4, 4)
+            rect = self.rect()
+            center = rect.center()
+            rect.setHeight(2.0)
+            painter.setBrush(common.ADD)
             painter.drawRect(rect)
 
             common.draw_aliased_text(
                 painter,
                 common.PrimaryFont,
-                rect,
+                self.rect(),
                 u'...',
                 QtCore.Qt.AlignCenter,
                 common.BACKGROUND
@@ -647,13 +706,17 @@ class ListControlWidget(QtWidgets.QWidget):
         super(ListControlWidget, self).__init__(parent=parent)
         self._createUI()
         self._connectSignals()
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+
+        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        self.setFixedHeight(height)
 
         # Control view/model/button
         self.bookmarks_button = BookmarksTabButton(parent=self)
@@ -673,10 +736,19 @@ class ListControlWidget(QtWidgets.QWidget):
         self.slack_button = SlackButton(parent=self)
         self.simple_mode_button = SimpleModeButton(parent=self)
 
+        t = QtGui.QTransform()
+        t.rotate(180)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'gradient', None, height)
+        pixmap = pixmap.transformed(t)
+        pixmap = pixmap.scaled(common.INDICATOR_WIDTH, pixmap.height())
+        label = QtWidgets.QLabel()
+        label.setPixmap(pixmap)
+        self.layout().addWidget(label)
+
         self.layout().addWidget(self.bookmarks_button)
         self.layout().addWidget(self.assets_button)
         self.layout().addWidget(self.files_button)
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
         self.layout().addWidget(self.favourites_button)
         self.layout().addStretch()
         self.layout().addWidget(self.simple_mode_button)
@@ -723,3 +795,15 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def control_button(self):
         return self.findChild(FilesTabButton)
+
+    def paintEvent(self, event):
+        painter=QtGui.QPainter()
+        painter.begin(self)
+        pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
+        t = QtGui.QTransform()
+
+        t.rotate(90)
+        pixmap = pixmap.transformed(t)
+        painter.setOpacity(0.5)
+        painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+        painter.end()

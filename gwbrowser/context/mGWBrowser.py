@@ -63,41 +63,21 @@ def delete_module_import_cache():
         u'# GWBrowser: Import cache deleted.\n')
 
 
-def find_widget():
-    """Returns the first ``MayaBrowserWidget`` widget instance found."""
-    app = QtWidgets.QApplication.instance()
-    for widget in app.allWidgets():
-        # Skipping workspaceControls objects, just in case there's a name conflict
-        # between what the parent().objectName() and this method yields
-        if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
-            continue
-        match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
-        if not match:
-            continue
-        return widget
-    return None
-
-
 @QtCore.Slot()
-def remove_widgets():
+def remove_button():
     """Removes the workspaceControl, and workspaceControlState objects."""
     from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
     ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
     widget = wrapInstance(long(ptr), QtWidgets.QWidget)
     widget = widget.findChild(MayaBrowserButton)
-    if widget:
-        widget.deleteLater()
 
-    widget = find_widget()
     if not widget:
         return
 
-    if not widget.parent():
-        widget.close()
-        widget.deleteLater()
-        return
+    widget.deleteLater()
 
-    workspace_control = widget.parent().objectName()
+
+def remove_workspace_control(workspace_control):
     if cmds.workspaceControl(workspace_control, q=True, exists=True):
         cmds.deleteUI(workspace_control)
         if cmds.workspaceControlState(workspace_control, ex=True):
@@ -123,7 +103,19 @@ def uninitializePlugin(plugin):
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
 
-    widget = find_widget()
+    app = QtWidgets.QApplication.instance()
+    widget = None
+
+    for widget in app.allWidgets():
+        # Skipping workspaceControls objects, just in case there's a name conflict
+        # between what the parent().objectName() and this method yields
+        if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+            continue
+        match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
+        if not match:
+            continue
+        break
+
     if not widget:
         sys.stderr.write(
             u'# GWBrowser: MayaBrowserWidget not found.\n')
@@ -133,11 +125,14 @@ def uninitializePlugin(plugin):
             u'# GWBrowser: MayaBrowserWidget not found.\n')
         return
 
-    widget.browserwidget.shutdown_timer.timeout.connect(
-        widget.browserwidget.terminate)
-    widget.browserwidget.terminated.connect(remove_widgets)
-    widget.browserwidget.terminated.connect(delete_module_import_cache)
-
     widget.workspace_timer.stop()
     widget.remove_context_callbacks()
-    widget.browserwidget.shutdown_timer.start()
+    remove_button()
+    widget.browserwidget.terminate()
+    for widget in app.allWidgets():
+        try:
+            if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+                remove_workspace_control(widget.objectName())
+        except:
+            pass
+    delete_module_import_cache()

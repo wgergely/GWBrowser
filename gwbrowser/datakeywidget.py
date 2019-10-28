@@ -365,11 +365,6 @@ class DataKeyModel(BaseModel):
             ([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
 
         for entry in entries:
-            if entry.name in common.ASSET_FOLDERS:
-                description = common.ASSET_FOLDERS[entry.name]
-            else:
-                description = common.ASSET_FOLDERS[u'misc']
-
             if entry.name.startswith(u'.'):
                 continue
             if not entry.is_dir():
@@ -380,7 +375,7 @@ class DataKeyModel(BaseModel):
                 QtCore.Qt.DisplayRole: entry.name,
                 QtCore.Qt.EditRole: entry.name,
                 QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
-                QtCore.Qt.ToolTipRole: description,
+                QtCore.Qt.ToolTipRole: u'',
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.DefaultThumbnailRole: default_thumbnail,

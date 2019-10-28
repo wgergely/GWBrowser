@@ -1151,7 +1151,7 @@ class FilesWidget(ThreadedBaseWidget):
         lc.favourites_button.timer.stop()
 
         lc.slack_button.drop_target = True
-        lc.slack_button.setFixedSize(lc.width() * 0.333, lc.height())
+        lc.slack_button.setFixedSize(lc.width() * 0.5, lc.height())
         lc.slack_button.setHidden(False)
         lc.slack_button.repaint()
 

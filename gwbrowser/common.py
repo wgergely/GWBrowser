@@ -42,7 +42,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
- 
+
 # Flags
 MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
@@ -1306,7 +1306,7 @@ def push_to_rv(path):
     import subprocess
     from gwbrowser.settings import local_settings
     def get_preference(k): return local_settings.value(
-        u'preferences/ApplicationSettings/{}'.format(k))
+        u'preferences/IntegrationSettings/{}'.format(k))
 
     def alert():
         mbox = QtWidgets.QMessageBox()
