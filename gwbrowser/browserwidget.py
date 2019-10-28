@@ -834,12 +834,12 @@ class BrowserWidget(QtWidgets.QWidget):
             b.model().sourceModel().modelDataResetRequested)
         self.active_monitor.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
-        self.active_monitor.activeLocationChanged.connect(
-            f.model().sourceModel().dataKeyChanged)
-        self.active_monitor.activeLocationChanged.connect(
-            l.model().modelDataResetRequested)
-        self.active_monitor.activeLocationChanged.connect(
-            l.model().dataKeyChanged)
+        # self.active_monitor.activeLocationChanged.connect(
+        #     f.model().sourceModel().dataKeyChanged)
+        # self.active_monitor.activeLocationChanged.connect(
+        #     l.model().modelDataResetRequested)
+        # self.active_monitor.activeLocationChanged.connect(
+        #     l.model().dataKeyChanged)
         #####################################################
         b.activated.connect(
             lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
