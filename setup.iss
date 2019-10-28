@@ -56,29 +56,61 @@ Name: english; MessagesFile: compiler:Default.isl
 [installDelete]
 Type: filesandordirs; Name: {app}
 Type: files; Name: {userdocs}\maya\plug-ins\mGWBrowser.py
+Type: filesandordirs; Name: {userdocs}\maya\scripts\certifi
+Type: filesandordirs; Name: {userdocs}\maya\scripts\chardet
 Type: filesandordirs; Name: {userdocs}\maya\scripts\gwalembic
 Type: filesandordirs; Name: {userdocs}\maya\scripts\gwbrowser
+Type: filesandordirs; Name: {userdocs}\maya\scripts\idna
 Type: filesandordirs; Name: {userdocs}\maya\scripts\numpy
 Type: filesandordirs; Name: {userdocs}\maya\scripts\OpenImageIO
 Type: filesandordirs; Name: {userdocs}\maya\scripts\psutil
+Type: filesandordirs; Name: {userdocs}\maya\scripts\requests
+Type: filesandordirs; Name: {userdocs}\maya\scripts\slackclient
+Type: filesandordirs; Name: {userdocs}\maya\scripts\urllib3
+Type: filesandordirs; Name: {userdocs}\maya\scripts\websocket
+Type: filesandordirs; Name: {userdocs}\maya\scripts\six.py
 
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\certifi
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\chardet
 Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\gwalembic
 Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\gwbrowser
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\idna
 Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\numpy
 Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\OpenImageIO
 Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\psutil
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\requests
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\slackclient
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\urllib3
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\websocket
+Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\six.py
 
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\certifi
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\chardet
 Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\gwalembic
 Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\gwbrowser
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\idna
 Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\numpy
 Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\OpenImageIO
 Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\psutil
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\requests
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\slackclient
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\urllib3
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\websocket
+Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\six.py
 
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\certifi
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\chardet
 Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\gwalembic
 Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\gwbrowser
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\idna
 Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\numpy
 Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\OpenImageIO
 Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\psutil
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\requests
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\slackclient
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\urllib3
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\websocket
+Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\six.py
 
 [Tasks]
 Name: desktopicon; Description: {cm:CreateDesktopIcon}; GroupDescription: {cm:AdditionalIcons}; Flags: unchecked
@@ -100,25 +132,19 @@ Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\templates\Job.zip; Dest
 
 ; Maya modules will be installed in the %username%/maya folder
 Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\context\mGWBrowser.py; DestDir: {userdocs}\maya\2017\plug-ins; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\*; DestDir: {userdocs}\maya\2017\scripts\gwbrowser; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\OpenImageIO\*; DestDir: {userdocs}\maya\2017\scripts\OpenImageIO; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwalembic\*; DestDir: {userdocs}\maya\2017\scripts\gwalembic; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\numpy\*; DestDir: {userdocs}\maya\2017\scripts\numpy; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\psutil\*; DestDir: {userdocs}\maya\2017\scripts\psutil; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\context\mGWBrowser.py; DestDir: {userdocs}\maya\2018\plug-ins; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\*; DestDir: {userdocs}\maya\2018\scripts\gwbrowser; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\OpenImageIO\*; DestDir: {userdocs}\maya\2018\scripts\OpenImageIO; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwalembic\*; DestDir: {userdocs}\maya\2018\scripts\gwalembic; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\numpy\*; DestDir: {userdocs}\maya\2018\scripts\numpy; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\psutil\*; DestDir: {userdocs}\maya\2018\scripts\psutil; Components: maya2018; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\context\mGWBrowser.py; DestDir: {userdocs}\maya\2019\plug-ins; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\*; DestDir: {userdocs}\maya\2019\scripts\gwbrowser; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\OpenImageIO\*; DestDir: {userdocs}\maya\2019\scripts\OpenImageIO; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwalembic\*; DestDir: {userdocs}\maya\2019\scripts\gwalembic; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\numpy\*; DestDir: {userdocs}\maya\2019\scripts\numpy; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\psutil\*; DestDir: {userdocs}\maya\2019\scripts\psutil; Components: maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\certifi\*; DestDir: {userdocs}\maya\scripts\certifi; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\chardet\*; DestDir: {userdocs}\maya\scripts\chardet; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\gwalembic\*; DestDir: {userdocs}\maya\scripts\gwalembic; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\*; DestDir: {userdocs}\maya\scripts\gwbrowser; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\idna\*; DestDir: {userdocs}\maya\scripts\idna; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\numpy\*; DestDir: {userdocs}\maya\scripts\numpy; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\OpenImageIO\*; DestDir: {userdocs}\maya\scripts\OpenImageIO; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\psutil\*; DestDir: {userdocs}\maya\scripts\psutil; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\requests\*; DestDir: {userdocs}\maya\scripts\requests; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\slackclient\*; DestDir: {userdocs}\maya\scripts\slackclient; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\urllib3\*; DestDir: {userdocs}\maya\scripts\urllib3; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\websocket\*; DestDir: {userdocs}\maya\scripts\websocket; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+Source: {#SourceDir}\package\Lib\site-packages\six.py; DestDir: {userdocs}\maya\scripts\six.py; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
 
 [Icons]
 Name: {autoprograms}\{#MyAppName}; Filename: {app}\{#MyAppExeName}
