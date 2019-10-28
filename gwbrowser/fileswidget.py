@@ -739,42 +739,42 @@ class FilesModel(BaseModel):
             return
 
         if self._datakey is None and stored_value:
-            self._datakey = stored_value
+            self._datakey = stored_value.lower()
 
         # We are in sync with a valid value set already
-        if self._datakey == val == stored_value and stored_value is not None:
+        if stored_value is not None and self._datakey == val.lower() == stored_value.lower():
             return
 
         # Update the local_settings
-        if self._datakey == val and val != stored_value:
+        if self._datakey.lower() == val.lower() and val.lower() != stored_value.lower():
             local_settings.setValue(k, val)
             return
 
-        # About to set a new value. We can accept or reject this...
-        if val == self._datakey and val is not None:
+        if val is not None and val.lower() == self._datakey.lower():
             return
 
+        # About to set a new value. We can accept or reject this...
         entries = self.can_accept_datakey(val)
         if not entries:
             self._datakey = None
             return
+        entries = [f.lower() for f in entries]
 
-        if val in entries:
-            self._datakey = val
-            local_settings.setValue(k, val)
+        if val.lower() in entries:
+            self._datakey = val.lower()
+            local_settings.setValue(k, val.lower())
             return
-        elif val not in entries and self._datakey in entries:
-            val = self._datakey
-            local_settings.setValue(k, self._datakey)
-            stored_value = self._datakey
+        elif val.lower() not in entries and self._datakey.lower() in entries:
+            val = self._datakey.lower()
+            local_settings.setValue(k, self._datakey.lower())
             return
         # This is a default fallback...
-        elif val not in entries and u'scenes' in entries:
-            val = u'scenes'
+        elif val.lower() not in entries and u'scenes' in entries:
+                val = u'scenes'
 
         val = entries[0]
         self._datakey = val
-        local_settings.setValue(k, val)
+        local_settings.setValue(k, val.lower())
 
     def can_accept_datakey(self, val):
         """Checks if the key about to be set corresponds to a real
@@ -788,7 +788,7 @@ class FilesModel(BaseModel):
         entries = [f.name.lower() for f in gwscandir.scandir(path)]
         if not entries:
             return False
-        if val not in entries:
+        if val.lower() not in entries:
             return False
         return entries
 
