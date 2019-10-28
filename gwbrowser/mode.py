@@ -2,6 +2,7 @@
 """
 """
 import os
+import re
 import psutil
 from functools import wraps
 import gwbrowser.gwscandir as gwscandir
@@ -17,9 +18,12 @@ def prune(func):
         for entry in gwscandir.scandir(lockfile_info.path()):
             if entry.is_dir():
                 continue
-            path = entry.path.replace(u'\\', u'/')
-            if not path.endswith(u'.lock'):
+
+            match = re.match(ur'gwbrowser_session_[0-9]+\.lock', entry.name.lower())
+            if not match:
                 continue
+
+            path = entry.path.replace(u'\\', u'/')
             pid = path.strip(u'.lock').split(u'_').pop()
             pid = int(pid)
             if pid not in psutil.pids():
