@@ -1133,16 +1133,57 @@ class FilesWidget(ThreadedBaseWidget):
         self.update(index)
         pixmap = DragPixmap.pixmap(pixmap, path)
         drag.setPixmap(pixmap)
-        # drag.setHotSpot(pixmap)
+
+        lc = slack_button = self.parent().parent().listcontrolwidget
+        state = {}
+        for n in xrange(lc.layout().count()):
+            widget_item = lc.layout().itemAt(n)
+            if not widget_item:
+                continue
+            if not widget_item.widget():
+                continue
+            state[n] =  widget_item.widget().isHidden()
+            widget_item.widget().setHidden(True)
+
+        lc.bookmarks_button.timer.stop()
+        lc.assets_button.timer.stop()
+        lc.files_button.timer.stop()
+        lc.favourites_button.timer.stop()
+
+        lc.slack_button.drop_target = True
+        lc.slack_button.setFixedSize(lc.width() * 0.333, lc.height())
+        lc.slack_button.setHidden(False)
+        lc.slack_button.repaint()
 
         drag.exec_(supported_actions)
 
-        # Cleanup
+        lc.bookmarks_button.timer.start()
+        lc.assets_button.timer.start()
+        lc.files_button.timer.start()
+        lc.favourites_button.timer.start()
+
+        for n in xrange(lc.layout().count()):
+            widget_item = lc.layout().itemAt(n)
+            if not widget_item:
+                continue
+            if not widget_item.widget():
+                continue
+            widget_item.widget().setHidden(state[n])
+
+        lc.slack_button.drop_target = False
+        lc.slack_button.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
+        lc.slack_button.repaint()
         self.drag_source_index = QtCore.QModelIndex()
 
     def mouseReleaseEvent(self, event):
         """The files widget has a few addittional clickable inline icons
         that control filtering we set the action for here.
+
+        ``Shift`` modifier will add a "positive" filter and hide all items
+        that does not contain the given text.
+
+        The ``alt`` or control modifiers will add a "negative filter"
+        and hide the selected subfolder from the view.
 
         """
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())

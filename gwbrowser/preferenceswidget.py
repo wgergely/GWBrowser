@@ -2,17 +2,20 @@
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
+from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings
 import gwbrowser.common as common
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row, add_label, add_line_edit
-
+import gwbrowser.slack.slacker as slacker
 
 def get_sections(): return (
-    {'name': u'General', 'description': u'Common preferences',
+    {'name': u'General', 'description': u'Common Preferences',
         'cls': ApplicationSettingsWidget},
-    {'name': u'Servers', 'description': u'Server preferences',
+    {'name': u'Servers', 'description': u'Server Preferences',
         'cls': ServersSettingsWidget},
-    {'name': u'Maya', 'description': u'Maya settings', 'cls': MayaSettingsWidget},
+    {'name': u'Integrations', 'description': u'External Package Integrations',
+        'cls': IntegrationSettingsWidget},
+    {'name': u'Maya Plugin', 'description': u'Maya Plugin Settings', 'cls': MayaSettingsWidget},
     # {'name': u'Folder templates', 'description': u'Various folder options', 'cls': TemplateSettingsWidget},
 )
 
@@ -53,9 +56,13 @@ class BaseSettingsWidget(QtWidgets.QWidget):
 class MayaSettingsWidget(BaseSettingsWidget):
     def __init__(self, parent=None):
         super(MayaSettingsWidget, self).__init__(
-            u'Maya Settings', parent=parent)
+            u'Maya Plugin Settings', parent=parent)
 
     def _createUI(self):
+        pixmap = ImageCache.get_rsc_pixmap('maya', None, 32)
+        label = QtWidgets.QLabel()
+        label.setPixmap(pixmap)
+        self.layout().addWidget(label)
         add_label(u'Bookmark & Asset Syncing', parent=self)
         label = u'The running instances of GWBrowser are syncronised by default. Eg. when an asset is activated in one instance, all the other instances will activate the same asset. You can disable this behaviour below (default is "off").'
         label = QtWidgets.QLabel(label)
@@ -129,25 +136,6 @@ class MayaSettingsWidget(BaseSettingsWidget):
             u'eg. viewport_captures/animation', parent=row)
         row.layout().addWidget(self.capture_path, 1)
 
-        label = u'Enter the path to FFMPEG. When set, FFMPEG will be used to convert viewport captures to h264 videos.'
-        label = QtWidgets.QLabel(label)
-        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
-        label.setWordWrap(True)
-        self.layout().addWidget(label)
-        row = add_row(u'ffmpeg path', parent=self)
-        self.ffmpeg_path = add_line_edit(
-            u'eg. //myserver/path/to/ffmpeg.exe', parent=row)
-        row.layout().addWidget(self.ffmpeg_path, 1)
-
-        label = u'Edit the FFMPEG convert command below. This is the argument passed to ffmpeg to create, by default, a h264 video. The following tokens have to be included:\n\n{framerate}: The scene\' framerate\n{start}: The first frame of the sequence, eg. 1001\n{source} Path to the capture\n{dest}: Output path'
-        label = QtWidgets.QLabel(label)
-        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
-        label.setWordWrap(True)
-        self.layout().addWidget(label)
-        row = add_row(u'ffmpeg command', parent=self)
-        self.ffmpeg_command = add_line_edit(
-            u'eg. -loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p "{dest}"', parent=row)
-        row.layout().addWidget(self.ffmpeg_command, 1)
 
         label = u'Reveal output folder in the file explorer after the capture finishes.'
         label = QtWidgets.QLabel(label)
@@ -192,10 +180,6 @@ class MayaSettingsWidget(BaseSettingsWidget):
             lambda x: local_settings.setValue(self.get_preference(u'alembic_export_path'), x))
         self.capture_path.textChanged.connect(
             lambda x: local_settings.setValue(self.get_preference(u'capture_path'), x))
-        self.ffmpeg_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_path'), x))
-        self.ffmpeg_command.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_command'), x))
 
     def _init_values(self):
         val = local_settings.value(self.get_preference(u'disable_active_sync'))
@@ -234,11 +218,113 @@ class MayaSettingsWidget(BaseSettingsWidget):
         else:
             self.capture_path.setText(common.CAPTURE_PATH)
 
-        val = local_settings.value(self.get_preference(u'ffmpeg_path'))
-        if val:
-            self.ffmpeg_path.setText(val)
+
+class IntegrationSettingsWidget(BaseSettingsWidget):
+
+    def __init__(self, parent=None):
+        super(IntegrationSettingsWidget, self).__init__(
+            u'Integration Settings', parent=parent)
+
+    def _createUI(self):
+
+
+        add_label(u'Slack', parent=self)
+
+
+        row = add_row(u'Workspace Url', parent=self)
+
+        label = QtWidgets.QLabel(parent=self)
+        pixmap = ImageCache.get_rsc_pixmap('slack', common.TEXT, 32)
+        label.setPixmap(pixmap)
+        row.layout().addWidget(label)
+
+        self.slack_url = add_line_edit(
+            u'eg. https://mystudio.slack.com...', parent=row)
+        row.layout().addWidget(self.slack_url, 1)
+        button = PaintedButton(u'Visit')
+        button.clicked.connect(
+            lambda: QtGui.QDesktopServices.openUrl(self.slack_url.text()))
+        row.layout().addWidget(button)
+
+        row = add_row(u'Slack API Token', parent=self)
+        label = u'You will have to add a Slack App or Bot to your workspace to use this feature. Make sure they have adequate permissions to read user data and to send messages. Once all set up, paste the authentication token (usually starting with "xoxb" or "xoxp") here.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+        self.slack_token = add_line_edit(
+            u'eg. xoxb-01234567890-01234567...', parent=row)
+        row.layout().addWidget(self.slack_token, 1)
+        button = PaintedButton(u'Test Token')
+        button.clicked.connect(self.test_slack_token)
+        row.layout().addWidget(button)
+
+        self.layout().addSpacing(common.MARGIN)
+
+        add_label(u'Shotgun RV', parent=self)
+        row = add_row(u'RV Executable', parent=self)
+        self.rv_path = add_line_edit(
+            u'eg. C:/rv/bin/rv.exe', parent=row)
+        row.layout().addWidget(self.rv_path, 1)
+        button = PaintedButton(u'Pick')
+        button.clicked.connect(self.pick_rv)
+        row.layout().addWidget(button)
+        button = PaintedButton(u'Reveal')
+        button.clicked.connect(lambda: common.reveal(self.rv_path.text()))
+        row.layout().addWidget(button)
+
+        self.layout().addSpacing(common.MARGIN)
+
+        add_label(u'FFMPEG', parent=self)
+        row = add_row(u'FFmpeg Executable', parent=self)
+        self.ffmpeg_path = add_line_edit(
+            u'eg. //myserver/path/to/ffmpeg.exe', parent=row)
+        row.layout().addWidget(self.ffmpeg_path, 1)
+        button = PaintedButton(u'Pick')
+        button.clicked.connect(self.pick_ffmpeg)
+        row.layout().addWidget(button)
+        button = PaintedButton(u'Reveal')
+        button.clicked.connect(lambda: common.reveal(self.ffmpeg_path.text()))
+        row.layout().addWidget(button)
+
+        row = add_row(u'FFmpeg Command', parent=self)
+        self.ffmpeg_command = add_line_edit(
+            u'eg. -loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p "{dest}"', parent=row)
+        row.layout().addWidget(self.ffmpeg_command, 1)
+        label = u'Edit the FFMPEG convert command above. This is the argument passed to ffmpeg to create, by default, a h264 video. The following tokens have to be included:\n\n{framerate}: The scene\' framerate\n{start}: The first frame of the sequence, eg. 1001\n{source} Path to the capture\n{dest}: Output path'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+
+        self.layout().addStretch()
+
+    def _init_values(self):
+        slack_url = local_settings.value(self.get_preference(u'slack_url'))
+        val = slack_url if slack_url else common.SLACK_URL
+        self.slack_url.setText(val)
+
+        slack_token = local_settings.value(self.get_preference(u'slack_token'))
+        val = slack_token if slack_token else u''
+        self.slack_token.setText(val)
+
+        rv_path = local_settings.value(self.get_preference(u'rv_path'))
+        val = rv_path if rv_path else None
+        self.rv_path.setText(val)
+        file_info = QtCore.QFileInfo(val)
+        if file_info.exists():
+            self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
         else:
-            self.ffmpeg_path.setText(u'')
+            self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+
+        val = local_settings.value(self.get_preference(u'ffmpeg_path'))
+        val = val if val else u''
+        self.ffmpeg_path.setText(val)
+        file_info = QtCore.QFileInfo(val)
+        if file_info.exists():
+            self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
+        else:
+            self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
         val = local_settings.value(self.get_preference(u'ffmpeg_command'))
         if val:
@@ -246,29 +332,119 @@ class MayaSettingsWidget(BaseSettingsWidget):
         else:
             self.ffmpeg_command.setText(common.FFMPEG_COMMAND)
 
+    def _connectSignals(self):
+        self.slack_url.textChanged.connect(
+            lambda x: local_settings.setValue(self.get_preference(u'slack_url'), x))
+        self.slack_token.textChanged.connect(
+            lambda x: local_settings.setValue(self.get_preference(u'slack_token'), x))
+
+        @QtCore.Slot(unicode)
+        def set_rv_path(val):
+            local_settings.setValue(self.get_preference(u'rv_path'), val)
+            file_info = QtCore.QFileInfo(val)
+            if file_info.exists():
+                self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
+            else:
+                self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+
+        @QtCore.Slot(unicode)
+        def set_ffmpeg_path(val):
+            local_settings.setValue(self.get_preference(u'ffmpeg_path'), val)
+            file_info = QtCore.QFileInfo(val)
+            if file_info.exists():
+                self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
+            else:
+                self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+
+        self.rv_path.textChanged.connect(set_rv_path)
+
+        self.ffmpeg_path.textChanged.connect(set_ffmpeg_path)
+        self.ffmpeg_command.textChanged.connect(
+            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_command'), x))
+
+    def test_slack_token(self):
+        try:
+            client = slacker.Slacker(self.slack_token.text())
+            client.profiles()
+
+            self.slack_token.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setIcon(QtWidgets.QMessageBox.Information)
+            mbox.setWindowTitle(u'Slack: Thumbs up!')
+            mbox.setText(u'All seems to be working correctly. Thumbs up!')
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            res = mbox.exec_()
+        except Exception as err:
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setIcon(QtWidgets.QMessageBox.Information)
+            mbox.setWindowTitle(u'Slack: An error occured')
+            mbox.setText(u'An error occured validating the Slack API token:')
+            mbox.setInformativeText(u'{}'.format(err))
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            self.slack_token.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+            res = mbox.exec_()
+
+    def pick_rv(self):
+        if common.get_platform() == u'win':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select RV.exe',
+                filter=u'rv.exe',
+                dir=u'/'
+            )
+            path, ext = res
+            if path:
+                self.rv_path.setText(path)
+        if common.get_platform() == u'mac':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select RV',
+                filter=u'*.*',
+                dir=u'/'
+            )
+            path, ext = res
+            if path:
+                self.rv_path.setText(path)
+
+    def pick_ffmpeg(self):
+        if common.get_platform() == u'win':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select ffmpeg.exe',
+                filter=u'ffmpeg.exe',
+                dir=u'/'
+            )
+            path, ext = res
+            if path:
+                self.ffmpeg_path.setText(path)
+
+        if common.get_platform() == u'mac':
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select FFmpeg',
+                filter=u'*.*',
+                dir=u'/'
+            )
+            path, ext = res
+            if path:
+                self.ffmpeg_path.setText(path)
+
 
 class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
         super(ApplicationSettingsWidget, self).__init__(
             u'General Settings', parent=parent)
-        self.slack_url = None
         self.reveal_asset_template = None
         self.show_help = None
         self.check_updates = None
 
-    def pick_rv(self):
-        if common.get_platform() =='win':
-            res = QtWidgets.QFileDialog.getOpenFileName(
-                caption=u'Select RV.exe',
-                filter='rv.exe',
-                dir=QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
-            )
-            path, ext = res
-            if path:
-                self.rv_path.setText(path)
-
     def _createUI(self):
+        label = QtWidgets.QLabel()
+        pixmap = ImageCache.get_rsc_pixmap('custom', None, 64)
+        label.setPixmap(pixmap)
+        self.layout().addWidget(label)
+
+
         import gwbrowser
         add_label(u'You\'re running GWBrowser v{}'.format(
             gwbrowser.__version__), parent=self)
@@ -292,26 +468,10 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row.layout().addStretch(1)
         row.layout().addWidget(self.reveal_asset_template, 1)
 
-        add_label(u'Slack shortcut', parent=self)
-        row = add_row(u'Current URL', parent=self)
-        self.slack_url = add_line_edit(
-            u'eg. https://mystudio.slack.com...', parent=row)
-        row.layout().addWidget(self.slack_url, 1)
-
         add_label(u'Company Name', parent=self)
         row = add_row(u'Company', parent=self)
         self.company_name = add_line_edit(
             u'eg. My Studio', parent=row)
-
-        add_label(u'Shotgun RV Path', parent=self)
-        row = add_row(u'RV path', parent=self)
-        self.rv_path = add_line_edit(
-            u'eg. C:/rv/bin/rv.exe', parent=row)
-        row.layout().addWidget(self.rv_path, 1)
-        button = PaintedButton(u'Select RV...')
-        button.clicked.connect(self.pick_rv)
-        row.layout().addWidget(button)
-        self.layout().addSpacing(common.MARGIN)
 
         add_label(u'Shortcuts', parent=self)
         label = QtWidgets.QLabel(parent=self)
@@ -340,31 +500,24 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
 'Space': Preview thumbnail
 
-'Ctrl+1': Show Bookmarks tab
+'Ctrl+1': Show Bookmarks tab0
 'Ctrl+2': Show Assets tab
 'Ctrl+3': Show Files tab
 'Ctrl+4': Show Favourites tab
 """
         )
         label.setWordWrap(True)
-        label.setStyleSheet(u'color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setStyleSheet(u'color: rgba({});'.format(
+            common.rgb(common.TEXT),
+        ))
         self.layout().addWidget(label)
         self.layout().addStretch(1)
 
 
     def _init_values(self):
-        slack_url = local_settings.value(self.get_preference(u'slack_url'))
-        val = slack_url if slack_url else common.SLACK_URL
-        self.slack_url.setText(val)
-
         company_name = local_settings.value(self.get_preference(u'company'))
         val = company_name if company_name else common.COMPANY
         self.company_name .setText(val)
-
-        rv_path = local_settings.value(self.get_preference(u'rv_path'))
-        val = rv_path if rv_path else None
-
-        self.rv_path.setText(val)
 
     def _connectSignals(self):
         import gwbrowser.versioncontrol.versioncontrol as vc
@@ -372,15 +525,9 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.show_help.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
         self.reveal_asset_template.clicked.connect(self.show_asset_template)
-
-        self.slack_url.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'slack_url'), x))
-
         self.company_name.textChanged.connect(
             lambda x: local_settings.setValue(self.get_preference(u'company'), x))
 
-        self.rv_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'rv_path'), x))
 
     @QtCore.Slot()
     def show_asset_template(self):

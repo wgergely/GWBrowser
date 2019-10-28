@@ -24,6 +24,7 @@ from gwbrowser.threads import BaseThread
 import gwbrowser.common as common
 import gwbrowser.mode as mode
 import gwbrowser.settings as Settings
+import gwbrowser.slack.slacker as slacker
 
 
 DEBUG = False
@@ -189,7 +190,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.MARGIN / 2.0))
+        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
 
         self._createUI()
 
@@ -386,7 +387,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.statusbar = None
         self.preferences_widget = None
         self.add_bookmarks_widget = None
+        self.slack_widget = None
         self.solo_button = None
+
 
         self.active_monitor = Active(parent=self)
 
@@ -428,6 +431,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.favouriteswidget = FavouritesWidget(parent=self)
         self.preferences_widget = PreferencesWidget(parent=self)
         self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
+        self.slack_widget = slacker.SlackMessageWidget(parent=self)
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
@@ -435,6 +439,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
         self.stackedwidget.addWidget(self.preferences_widget)
         self.stackedwidget.addWidget(self.add_bookmarks_widget)
+        self.stackedwidget.addWidget(self.slack_widget)
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.layout().addWidget(self.headerwidget)
@@ -454,8 +459,9 @@ class BrowserWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Fixed
         )
 
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
         row = add_row(u'', height=height, parent=self)
-        row.layout().setSpacing(0)
+        row.layout().setSpacing(common.INDICATOR_WIDTH)
         row.layout().addWidget(self.statusbar)
 
         self.solo_button = ToggleModeButton(height, parent=self)
@@ -463,6 +469,7 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda s: self.statusbar.showMessage(s, 4000))
         row.layout().addWidget(self.solo_button)
         row.layout().addSpacing(common.INDICATOR_WIDTH)
+
 
     @QtCore.Slot()
     def initialize(self):
