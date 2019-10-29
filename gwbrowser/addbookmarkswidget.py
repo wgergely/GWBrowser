@@ -888,4 +888,4 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     w = AddBookmarksWidget()
     w.show()
-    # app.exec_()
+    app.exec_()

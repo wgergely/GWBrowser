@@ -1137,45 +1137,10 @@ class FilesWidget(ThreadedBaseWidget):
         pixmap = DragPixmap.pixmap(pixmap, path)
         drag.setPixmap(pixmap)
 
-        lc = slack_button = self.parent().parent().listcontrolwidget
-        state = {}
-        for n in xrange(lc.layout().count()):
-            widget_item = lc.layout().itemAt(n)
-            if not widget_item:
-                continue
-            if not widget_item.widget():
-                continue
-            state[n] =  widget_item.widget().isHidden()
-            widget_item.widget().setHidden(True)
-
-        lc.bookmarks_button.timer.stop()
-        lc.assets_button.timer.stop()
-        lc.files_button.timer.stop()
-        lc.favourites_button.timer.stop()
-
-        lc.slack_button.drop_target = True
-        lc.slack_button.setFixedSize(lc.width() * 0.5, lc.height())
-        lc.slack_button.setHidden(False)
-        lc.slack_button.repaint()
-
+        lc = self.parent().parent().listcontrolwidget
+        lc.drop_overlay.show()
         drag.exec_(supported_actions)
-
-        lc.bookmarks_button.timer.start()
-        lc.assets_button.timer.start()
-        lc.files_button.timer.start()
-        lc.favourites_button.timer.start()
-
-        for n in xrange(lc.layout().count()):
-            widget_item = lc.layout().itemAt(n)
-            if not widget_item:
-                continue
-            if not widget_item.widget():
-                continue
-            widget_item.widget().setHidden(state[n])
-
-        lc.slack_button.drop_target = False
-        lc.slack_button.setFixedSize(common.INLINE_ICON_SIZE, common.INLINE_ICON_SIZE)
-        lc.slack_button.repaint()
+        lc.drop_overlay.hide()
         self.drag_source_index = QtCore.QModelIndex()
 
     def mouseReleaseEvent(self, event):

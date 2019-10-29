@@ -4,6 +4,7 @@
 import sys
 import time
 import functools
+import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
@@ -24,7 +25,7 @@ from gwbrowser.threads import BaseThread
 import gwbrowser.common as common
 import gwbrowser.mode as mode
 import gwbrowser.settings as Settings
-import gwbrowser.slack.slacker as slacker
+import gwbrowser.slacker as slacker
 
 
 DEBUG = False
@@ -642,8 +643,16 @@ class BrowserWidget(QtWidgets.QWidget):
             shortcut.activated.connect(func)
         self.shortcuts.append(shortcut)
 
+    def open_new_instance(self):
+        path = local_settings.value(u'installpath')
+        if not path:
+            return
+        subprocess.Popen(path)
+
     def _add_shortcuts(self):
         lc = self.listcontrolwidget
+        self.add_shortcut(
+            u'Ctrl+N', (self.open_new_instance, ))
         self.add_shortcut(
             u'Ctrl+1', (lc.bookmarks_button.clicked, lc.bookmarks_button.update))
         self.add_shortcut(

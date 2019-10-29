@@ -6,7 +6,7 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import local_settings
 import gwbrowser.common as common
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row, add_label, add_line_edit
-import gwbrowser.slack.slacker as slacker
+import gwbrowser.slacker as slacker
 
 def get_sections(): return (
     {'name': u'General', 'description': u'Common Preferences',
@@ -259,6 +259,19 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         button.clicked.connect(self.test_slack_token)
         row.layout().addWidget(button)
 
+        row = add_row(u'Your Member ID', parent=self)
+        self.slack_member_id = add_line_edit(
+            u'eg. U01ABC23D', parent=row)
+        row.layout().addWidget(self.slack_member_id)
+        button = PaintedButton(u'Test ID')
+        button.clicked.connect(self.test_slack_member_id)
+        row.layout().addWidget(button)
+        label = u'You can get your Member ID from Slack (usually found on your profile page).\nThis is used to let other users know who is sending the message.'
+        label = QtWidgets.QLabel(label)
+        label.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setWordWrap(True)
+        self.layout().addWidget(label)
+
         self.layout().addSpacing(common.MARGIN)
 
         add_label(u'Shotgun RV', parent=self)
@@ -308,6 +321,10 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         val = slack_token if slack_token else u''
         self.slack_token.setText(val)
 
+        slack_member_id = local_settings.value(self.get_preference(u'slack_member_id'))
+        val = slack_member_id if slack_member_id else u''
+        self.slack_member_id.setText(val)
+
         rv_path = local_settings.value(self.get_preference(u'rv_path'))
         val = rv_path if rv_path else None
         self.rv_path.setText(val)
@@ -337,6 +354,8 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
             lambda x: local_settings.setValue(self.get_preference(u'slack_url'), x))
         self.slack_token.textChanged.connect(
             lambda x: local_settings.setValue(self.get_preference(u'slack_token'), x))
+        self.slack_member_id.textChanged.connect(
+            lambda x: local_settings.setValue(self.get_preference(u'slack_member_id'), x))
 
         @QtCore.Slot(unicode)
         def set_rv_path(val):
@@ -364,7 +383,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
 
     def test_slack_token(self):
         try:
-            client = slacker.Slacker(self.slack_token.text())
+            client = slacker.Slacker(self.slack_token.text(), self.slack_member_id.text())
             client.profiles()
 
             self.slack_token.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
@@ -385,6 +404,33 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
             mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
             mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
             self.slack_token.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+            res = mbox.exec_()
+
+    def test_slack_member_id(self):
+        try:
+            client = slacker.Slacker(self.slack_token.text(), self.slack_member_id.text())
+            profiles = client.profiles()
+            if not self.slack_member_id.text().lower() in [f[u'id'].lower() for f in profiles if f[u'id']]:
+                raise RuntimeError(u'Member ID not found in the profiles.')
+
+            self.slack_member_id.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setIcon(QtWidgets.QMessageBox.Information)
+            mbox.setWindowTitle(u'Slack: Thumbs up!')
+            mbox.setText(u'All seems to be working correctly. Thumbs up!')
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            res = mbox.exec_()
+        except Exception as err:
+            mbox = QtWidgets.QMessageBox(parent=self)
+            mbox.setIcon(QtWidgets.QMessageBox.Information)
+            mbox.setWindowTitle(u'Slack: An error occured')
+            mbox.setText(u'An error occured validating the Slack API token:')
+            mbox.setInformativeText(u'{}'.format(err))
+            mbox.setIcon(QtWidgets.QMessageBox.Warning)
+            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+            self.slack_member_id.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
             res = mbox.exec_()
 
     def pick_rv(self):
@@ -728,7 +774,6 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
         super(SectionSwitcherWidget, self).__init__(parent=parent)
         self._connectSignals()
         self.setMaximumWidth(130)
-        self.setMinimumWidth(50)
 
     def _connectSignals(self):
         self.selectionModel().currentChanged.connect(self.save_settings)

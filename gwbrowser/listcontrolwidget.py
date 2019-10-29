@@ -271,70 +271,14 @@ class SlackButton(BaseControlButton):
             u'Open Slack',
             parent=parent
         )
-        self.setAcceptDrops(True)
-        self.setMouseTracking(True)
-        self.drop_target = False
 
     @QtCore.Slot()
     def action(self):
         """Opens the set slack workspace."""
-        QtGui.QDesktopServices.openUrl(common.SLACK_URL)
+        self.parent().listChanged.emit(6)
 
     def state(self):
         return True
-
-    def paintEvent(self, event):
-        super(SlackButton, self).paintEvent(event)
-
-        if not self.drop_target:
-            return
-
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(self.rect(), 4, 4)
-
-        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.ADD, self.rect().height() - 6)
-        rect = pixmap.rect()
-        rect.moveCenter(self.rect().center())
-        painter.drawPixmap(rect, pixmap, pixmap.rect())
-
-        rect = self.rect().marginsRemoved(QtCore.QMargins(1,1,1,1))
-        painter.setBrush(QtCore.Qt.NoBrush)
-        pen = QtGui.QPen(common.ADD)
-        pen.setWidthF(2.0)
-        painter.setPen(pen)
-        painter.drawRoundedRect(rect, 4, 4)
-
-        painter.end()
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        import gwbrowser.slack.slacker as slacker
-        if event.source() == self:
-            return  # Won't allow dropping an item from itself
-        mime = event.mimeData()
-
-        if not mime.hasUrls():
-            return
-
-        event.accept()
-
-        message = []
-        for f in mime.urls():
-            file_info = QtCore.QFileInfo(f.toLocalFile())
-            line = u'```{}```'.format(file_info.filePath())
-            message.append(line)
-
-        message = u'\n'.join(message)
-        self.parent().parent().slack_widget.append_message(message)
-        self.parent().listChanged.emit(6)
 
 
 class GenerateThumbnailsButton(BaseControlButton):
@@ -694,6 +638,78 @@ class FavouritesTabButton(PaintedTextButton):
         )
 
 
+class ListControlWidgetDropOverlay(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(ListControlWidgetDropOverlay, self).__init__(parent=parent)
+        self.setAcceptDrops(True)
+        self.setMouseTracking(True)
+        self.drop_target = True
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint
+        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+
+    def paintEvent(self, event):
+        if not self.drop_target:
+            return
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.SEPARATOR)
+        painter.drawRoundedRect(self.rect(), 4, 4)
+
+        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.ADD, self.rect().height() - 6)
+        rect = pixmap.rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+
+        rect = self.rect().marginsRemoved(QtCore.QMargins(1,1,1,1))
+        painter.setBrush(QtCore.Qt.NoBrush)
+        pen = QtGui.QPen(common.ADD)
+        pen.setWidthF(2.0)
+        painter.setPen(pen)
+        painter.drawRoundedRect(rect, 4, 4)
+
+        painter.end()
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        import gwbrowser.slacker as slacker
+        if event.source() == self:
+            return  # Won't allow dropping an item from itself
+        mime = event.mimeData()
+
+        if not mime.hasUrls():
+            return
+
+        event.accept()
+
+        message = []
+        for f in mime.urls():
+            file_info = QtCore.QFileInfo(f.toLocalFile())
+            line = u'```{}```'.format(file_info.filePath())
+            message.append(line)
+
+        message = u'\n'.join(message)
+        self.parent().parent().slack_widget.append_message(message)
+        self.parent().listChanged.emit(6)
+
+    def showEvent(self, event):
+        pos = self.parent().rect().topLeft()
+        pos = self.parent().mapToGlobal(pos)
+        self.move(pos)
+        self.setFixedWidth(self.parent().rect().width())
+        self.setFixedHeight(self.parent().rect().height())
+
+
 class ListControlWidget(QtWidgets.QWidget):
     """The bar above the stacked widget containing the main app control buttons.
     """
@@ -766,6 +782,9 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.slack_button)
         #
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+
+        self.drop_overlay = ListControlWidgetDropOverlay(parent=self)
+        self.drop_overlay.setHidden(True)
 
     @QtCore.Slot()
     def update_buttons(self):
