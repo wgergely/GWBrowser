@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "GWBrowser"
-#define MyAppVersion "0.2.8"
+#define MyAppVersion "0.2.9"
 #define MyAppPublisher "Gergely Wootsch"
 #define MyAppURL "http://wgergely.github.io/GWBrowser"
 #define MyAppExeName "GWBrowser.exe"
@@ -22,6 +22,7 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
+
 DisableDirPage=false
 DisableProgramGroupPage=false
 ; The [Icons] "quicklaunchicon" entry uses {userappdata} but its [Tasks] entry has a proper IsAdminInstallMode Check.
@@ -29,10 +30,21 @@ UsedUserAreasWarning=no
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 OutputDir={#SourceDir}
+
+ChangesEnvironment=yes
+ChangesAssociations=yes
+
 OutputBaseFilename=GWBrowserSetup
 SetupIconFile={#SourceDir}\vs2015\GWBrowser\icon.ico
-Compression=lzma2/max
-SolidCompression=true
+
+;Compression
+;https://stackoverflow.com/questions/40447498/best-compression-settings-in-inno-setup-compiler
+SolidCompression=yes
+Compression=lzma2/fast
+LZMAUseSeparateProcess=yes
+LZMADictionarySize=1048576
+LZMANumFastBytes=273
+
 WizardStyle=modern
 VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
@@ -55,62 +67,6 @@ Name: english; MessagesFile: compiler:Default.isl
 
 [installDelete]
 Type: filesandordirs; Name: {app}
-Type: files; Name: {userdocs}\maya\plug-ins\mGWBrowser.py
-Type: filesandordirs; Name: {userdocs}\maya\scripts\certifi
-Type: filesandordirs; Name: {userdocs}\maya\scripts\chardet
-Type: filesandordirs; Name: {userdocs}\maya\scripts\gwalembic
-Type: filesandordirs; Name: {userdocs}\maya\scripts\gwbrowser
-Type: filesandordirs; Name: {userdocs}\maya\scripts\idna
-Type: filesandordirs; Name: {userdocs}\maya\scripts\numpy
-Type: filesandordirs; Name: {userdocs}\maya\scripts\OpenImageIO
-Type: filesandordirs; Name: {userdocs}\maya\scripts\psutil
-Type: filesandordirs; Name: {userdocs}\maya\scripts\requests
-Type: filesandordirs; Name: {userdocs}\maya\scripts\slackclient
-Type: filesandordirs; Name: {userdocs}\maya\scripts\urllib3
-Type: filesandordirs; Name: {userdocs}\maya\scripts\websocket
-Type: filesandordirs; Name: {userdocs}\maya\scripts\six.py
-
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\certifi
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\chardet
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\gwalembic
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\gwbrowser
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\idna
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\numpy
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\OpenImageIO
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\psutil
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\requests
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\slackclient
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\urllib3
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\websocket
-Type: filesandordirs; Name: {userdocs}\maya\2017\scripts\six.py
-
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\certifi
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\chardet
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\gwalembic
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\gwbrowser
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\idna
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\numpy
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\OpenImageIO
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\psutil
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\requests
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\slackclient
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\urllib3
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\websocket
-Type: filesandordirs; Name: {userdocs}\maya\2018\scripts\six.py
-
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\certifi
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\chardet
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\gwalembic
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\gwbrowser
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\idna
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\numpy
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\OpenImageIO
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\psutil
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\requests
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\slackclient
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\urllib3
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\websocket
-Type: filesandordirs; Name: {userdocs}\maya\2019\scripts\six.py
 
 [Tasks]
 Name: desktopicon; Description: {cm:CreateDesktopIcon}; GroupDescription: {cm:AdditionalIcons}; Flags: unchecked
@@ -118,33 +74,34 @@ Name: quicklaunchicon; Description: {cm:CreateQuickLaunchIcon}; GroupDescription
 
 [Components]
 Name: standalone; Description: Standalone; Types: full compact custom; Flags: fixed;
-Name: maya2017; Description: mGWBrowser: Maya 2017 Plugin; Types: full; Check: DirExists(ExpandConstant('{userdocs}\maya\2017'))
-Name: maya2018; Description: mGWBrowser: Maya 2018 Plugin; Types: full; Check: DirExists(ExpandConstant('{userdocs}\maya\2018'))
-Name: maya2019; Description: mGWBrowser: Maya 2019 Plugin; Types: full; Check: DirExists(ExpandConstant('{userdocs}\maya\2019'))
+Name: maya; Description: mGWBrowser: Maya Plugin; Types: full; Check: DirExists(ExpandConstant('{userdocs}\maya'))
 
 [Files]
-Source: {#SourceDir}\package\GWBrowser.exe; DestDir: {app}; Components: standalone; Flags: ignoreversion
+Source: {#SourceDir}\package\{#MyAppExeName}; DestDir: {app}; Components: standalone; Flags: ignoreversion
 Source: {#SourceDir}\package\*; DestDir: {app}; Components: standalone; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
 
 Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\templates\servers.conf; DestDir: {userdocs}\{#MyAppName}; Components: standalone; Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist; Permissions: users-modify
 Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\templates\Asset.zip; DestDir: {userdocs}\{#MyAppName}; Components: standalone; Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist; Permissions: users-modify
 Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\templates\Job.zip; DestDir: {userdocs}\{#MyAppName}; Components: standalone; Flags: ignoreversion recursesubdirs createallsubdirs onlyifdoesntexist; Permissions: users-modify
 
-; Maya modules will be installed in the %username%/maya folder
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\context\mGWBrowser.py; DestDir: {userdocs}\maya\2017\plug-ins; Components: maya2017; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\certifi\*; DestDir: {userdocs}\maya\scripts\certifi; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\chardet\*; DestDir: {userdocs}\maya\scripts\chardet; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwalembic\*; DestDir: {userdocs}\maya\scripts\gwalembic; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\*; DestDir: {userdocs}\maya\scripts\gwbrowser; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\idna\*; DestDir: {userdocs}\maya\scripts\idna; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\numpy\*; DestDir: {userdocs}\maya\scripts\numpy; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\OpenImageIO\*; DestDir: {userdocs}\maya\scripts\OpenImageIO; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\psutil\*; DestDir: {userdocs}\maya\scripts\psutil; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\requests\*; DestDir: {userdocs}\maya\scripts\requests; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\slackclient\*; DestDir: {userdocs}\maya\scripts\slackclient; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\urllib3\*; DestDir: {userdocs}\maya\scripts\urllib3; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\websocket\*; DestDir: {userdocs}\maya\scripts\websocket; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
-Source: {#SourceDir}\package\Lib\site-packages\six.py; DestDir: {userdocs}\maya\scripts\six.py; Components: maya2017 maya2018 maya2019; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+; mGWBrowser
+Source: {#SourceDir}\package\Lib\site-packages\gwbrowser\context\mGWBrowser.py; DestDir: {userdocs}\maya\plug-ins; Components: maya; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: users-modify
+
+[Registry]
+Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
+    ValueType: expandsz; ValueName: "PYTHONPATH"; ValueData: "{olddata};{app}\Lib\site-packages"; \
+    Check: NeedsAddPath('{app}\Lib\site-packages')
+
+; Extension
+Root: HKCR; Subkey: ".gwb";                             ValueData: "{#MyAppName}";          Flags: uninsdeletevalue; ValueType: string;  ValueName: ""
+Root: HKCR; Subkey: "{#MyAppName}";                     ValueData: "Program {#MyAppName}";  Flags: uninsdeletekey;   ValueType: string;  ValueName: ""
+Root: HKCR; Subkey: "{#MyAppName}\DefaultIcon";         ValueData: "{app}\{#MyAppExeName},0";               ValueType: string;  ValueName: ""
+Root: HKCR; Subkey: "{#MyAppName}\shell\open\command";  ValueData: """{app}\{#MyAppExeName}"" ""%1""";  ValueType: string;  ValueName: ""
+Root: HKCR; Subkey: "{#MyAppName}\shell\open\command";  ValueData: """{app}\{#MyAppExeName}"" ""%1""";  ValueType: string;  ValueName: ""
+
+; Install path
+Root: HKCR; Subkey: "{#MyAppName}\installpath";  ValueData: "{app}\{#MyAppExeName}";  ValueType: string;  ValueName: ""
+Root: HKCU; Subkey: "Software\{#MyAppName}\{#MyAppName}";  ValueData: "{app}\{#MyAppExeName}";  ValueType: string;  ValueName: "installpath"
 
 [Icons]
 Name: {autoprograms}\{#MyAppName}; Filename: {app}\{#MyAppExeName}
@@ -153,3 +110,21 @@ Name: {userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}; Filen
 
 [Run]
 Filename: {app}\{#MyAppExeName}; Description: {cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}; Flags: nowait postinstall skipifsilent
+
+;https://stackoverflow.com/questions/3304463/how-do-i-modify-the-path-environment-variable-when-running-an-inno-setup-install
+[Code]
+function NeedsAddPath(Param: string): boolean;
+var
+  OrigPath: string;
+begin
+  if not RegQueryStringValue(HKEY_LOCAL_MACHINE,
+    'SYSTEM\CurrentControlSet\Control\Session Manager\Environment',
+    'PYTHONPATH', OrigPath)
+  then begin
+    Result := True;
+    exit;
+  end;
+  { look for the path with leading and trailing semicolon }
+  { Pos() returns 0 if not found }
+  Result := Pos(';' + Param + ';', ';' + OrigPath + ';') = 0;
+end;
