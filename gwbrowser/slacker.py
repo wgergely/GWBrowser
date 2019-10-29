@@ -17,9 +17,10 @@ ImageDownloaderRole = 4099
 
 class Slacker(QtCore.QObject):
 
-    def __init__(self, api_token, parent=None):
+    def __init__(self, api_token, member_id, parent=None):
         super(Slacker, self).__init__(parent=parent)
         self.api_token = api_token
+        self.member_id = member_id
         self.__connection__ = SlackClient(api_token)
 
     def profiles(self):
@@ -42,8 +43,8 @@ class Slacker(QtCore.QObject):
 
     def message(self, channel, text):
         text = text.replace(u'&', u'&amp')
-        text = text.replace(u'<', u'&lt')
-        text = text.replace(u'>', u'&gt')
+        # text = text.replace(u'<', u'&lt')
+        # text = text.replace(u'>', u'&gt')
         response = self.__connection__.api_call(
             "chat.postMessage",
             channel=channel,
@@ -106,7 +107,7 @@ class ImageDownloader(QtCore.QObject):
             QtCore.QModelIndex(),
             source=cache_file_path,
             dest=dest,
-            dest_size=72.0,
+            dest_size=32.0,
         )
 
         # image = QtGui.QImage()
@@ -129,6 +130,7 @@ class UsersModel(QtCore.QAbstractItemModel):
         self._data = {}
         self.slacker = Slacker(
             local_settings.value(u'preferences/IntegrationSettings/slack_token'),
+            local_settings.value(u'preferences/IntegrationSettings/slack_member_id'),
             parent=self
         )
         self._connectSignals()
@@ -159,7 +161,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                 IdRole: profile[u'id'],
                 EmailRole: profile[u'email'],
                 TeamRole: profile[u'team'],
-                ImageDownloaderRole: ImageDownloader(profile[u'image_72'], idx, parent=self),
+                ImageDownloaderRole: ImageDownloader(profile[u'image_32'], idx, parent=self),
             }
         self.endResetModel()
 
@@ -302,7 +304,7 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         row.layout().addStretch(1)
 
         self.message_widget = QtWidgets.QTextEdit(parent=self)
-        self.message_widget.setPlaceholderText('Enter the message you want to send via Slack and select the user below...')
+        self.message_widget.setPlaceholderText(u'Enter the message you want to send via Slack and select the user below...')
         self.message_widget.setAcceptRichText(False)
         self.message_widget.moveCursor(QtGui.QTextCursor.End)
 
@@ -379,9 +381,13 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         channel_id = index.data(IdRole)
 
         try:
-            self.users_widget.model().sourceModel().slacker.message(
+            slacker = self.users_widget.model().sourceModel().slacker
+            message = self.message_widget.toPlainText()
+            if slacker.member_id:
+                message = u'<@{}>:\n{}'.format(slacker.member_id, message)
+            slacker.message(
               channel_id,
-              self.message_widget.toPlainText()
+              message
             )
         except:
             raise
