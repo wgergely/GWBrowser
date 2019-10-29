@@ -100,6 +100,10 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
     def paintEvent(self, event):
         """Custom paint event"""
+        index = self.parent().selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
         painter = QtGui.QPainter()
         painter.begin(self)
 
@@ -111,65 +115,64 @@ class ThumbnailViewer(QtWidgets.QLabel):
         painter.drawRect(self.rect())
 
         # Let's paint extra information:
-        index = self.parent().selectionModel().currentIndex()
-        if index.isValid():
-            font = QtGui.QFont(common.PrimaryFont)
-            metrics = QtGui.QFontMetrics(font)
+        rect = self.rect()
 
-            if self.pixmap():
-                bg_rect = self.pixmap().rect()
-                size = max((bg_rect.width(), bg_rect.height()))
-                bg_rect.setWidth(size)
-                bg_rect.setHeight(size)
-                bg_rect.moveCenter(self.rect().center())
-                painter.setBrush(QtGui.QColor(0,0,0,60))
-                painter.drawRect(bg_rect)
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetrics(font)
 
-                rect = self.rect()
-                center = rect.center()
-                rect.setHeight(metrics.lineSpacing())
-                rect.setWidth(rect.width() - (common.MARGIN * 4))
-                rect.moveCenter(center)
+        if self.pixmap():
+            bg_rect = self.pixmap().rect()
+            size = max((bg_rect.width(), bg_rect.height()))
+            bg_rect.setWidth(size)
+            bg_rect.setHeight(size)
+            bg_rect.moveCenter(self.rect().center())
+            painter.setBrush(QtGui.QColor(0,0,0,60))
+            painter.drawRect(bg_rect)
 
-                # Aligned to the bottom of the pixmap
-                rect.moveTop(
-                    rect.top() + bg_rect.height() / 2.0 + common.MARGIN)
+            center = rect.center()
+            rect.setHeight(metrics.lineSpacing())
+            rect.setWidth(rect.width() - (common.MARGIN * 4))
+            rect.moveCenter(center)
 
-                # Filename
+            # Aligned to the bottom of the pixmap
+            rect.moveTop(
+                rect.top() + bg_rect.height() / 2.0 + common.MARGIN)
 
-                text = index.data(QtCore.Qt.StatusTipRole)
-                if text:
-                    text = u' / '.join(text.split(u'/'))
-                    common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
-                    rect.moveTop(rect.center().y() + metrics.lineSpacing())
+            # Filename
 
-                text = index.data(common.DescriptionRole)
-                if text:
-                    text = text if text else u''
-                    common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.FAVOURITE)
-                    rect.moveTop(rect.center().y() + metrics.lineSpacing())
-                text = index.data(common.FileDetailsRole)
-                if text:
-                    text = u'{}'.format(text)
-                    text = u'   |   '.join(text.split(u';')) if text else u'-'
-                    common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
-                    rect.moveTop(rect.center().y() + metrics.lineSpacing())
+            text = index.data(QtCore.Qt.StatusTipRole)
+            if text:
+                text = u' / '.join(text.split(u'/'))
+                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
+                rect.moveTop(rect.center().y() + metrics.lineSpacing())
 
-            # Image info
-            ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
-            if ext.lower() in common.get_oiio_extensions():
-                metrics = QtGui.QFontMetrics(common.SecondaryFont)
+            text = index.data(common.DescriptionRole)
+            if text:
+                text = text if text else u''
+                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.FAVOURITE)
+                rect.moveTop(rect.center().y() + metrics.lineSpacing())
+            text = index.data(common.FileDetailsRole)
+            if text:
+                text = u'{}'.format(text)
+                text = u'   |   '.join(text.split(u';')) if text else u'-'
+                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
+                rect.moveTop(rect.center().y() + metrics.lineSpacing())
 
-                path = index.data(QtCore.Qt.StatusTipRole)
-                path = common.get_sequence_endpath(path)
-                img = OpenImageIO.ImageBuf(path)
-                image_info = img.spec().serialize().split('\n')
-                image_info = [f.strip() for f in image_info if f]
-                for n, text in enumerate(image_info):
-                    if n > 2:
-                        break
-                    common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.SECONDARY_TEXT)
-                    rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
+        # Image info
+        ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
+        if ext.lower() in common.get_oiio_extensions():
+            metrics = QtGui.QFontMetrics(common.SecondaryFont)
+
+            path = index.data(QtCore.Qt.StatusTipRole)
+            path = common.get_sequence_endpath(path)
+            img = OpenImageIO.ImageBuf(path)
+            image_info = img.spec().serialize().split('\n')
+            image_info = [f.strip() for f in image_info if f]
+            for n, text in enumerate(image_info):
+                if n > 2:
+                    break
+                common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.SECONDARY_TEXT)
+                rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
 
         painter.end()
         super(ThumbnailViewer, self).paintEvent(event)

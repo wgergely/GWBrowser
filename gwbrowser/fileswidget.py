@@ -734,23 +734,27 @@ class FilesModel(BaseModel):
         """
         k = u'activepath/location'
         stored_value = local_settings.value(k)
+        stored_value = stored_value.lower() if stored_value else stored_value
+        self._datakey = self._datakey.lower() if self._datakey else self._datakey
+        val = val.lower() if val else val
+
         # Nothing to do for us when the parent is not set
         if not self.parent_path:
             return
 
         if self._datakey is None and stored_value:
-            self._datakey = stored_value.lower()
+            self._datakey = stored_value
 
         # We are in sync with a valid value set already
-        if stored_value is not None and self._datakey == val.lower() == stored_value.lower():
+        if stored_value is not None and self._datakey == val == stored_value:
             return
 
         # Update the local_settings
-        if self._datakey.lower() == val.lower() and val.lower() != stored_value.lower():
+        if self._datakey == val and val != stored_value:
             local_settings.setValue(k, val)
             return
 
-        if val is not None and val.lower() == self._datakey.lower():
+        if val is not None and val == self._datakey:
             return
 
         # About to set a new value. We can accept or reject this...
@@ -758,23 +762,22 @@ class FilesModel(BaseModel):
         if not entries:
             self._datakey = None
             return
-        entries = [f.lower() for f in entries]
 
         if val.lower() in entries:
-            self._datakey = val.lower()
-            local_settings.setValue(k, val.lower())
+            self._datakey = val
+            local_settings.setValue(k, val)
             return
-        elif val.lower() not in entries and self._datakey.lower() in entries:
+        elif val not in entries and self._datakey in entries:
             val = self._datakey.lower()
-            local_settings.setValue(k, self._datakey.lower())
+            local_settings.setValue(k, self._datakey)
             return
         # This is a default fallback...
-        elif val.lower() not in entries and u'scenes' in entries:
+        elif val not in entries and u'scenes' in entries:
                 val = u'scenes'
 
         val = entries[0]
         self._datakey = val
-        local_settings.setValue(k, val.lower())
+        local_settings.setValue(k, val)
 
     def can_accept_datakey(self, val):
         """Checks if the key about to be set corresponds to a real
