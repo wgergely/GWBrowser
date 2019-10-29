@@ -208,6 +208,7 @@ class UsersWidget(QtWidgets.QListView):
         super(UsersWidget, self).__init__(parent=parent)
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setViewMode(QtWidgets.QListView.ListMode)
+        self.setMinimumWidth(150)
 
         proxy_model = QtCore.QSortFilterProxyModel(parent=self)
         proxy_model.setFilterRole(QtCore.Qt.DisplayRole)
@@ -279,8 +280,7 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         self.initialize_timer.timeout.connect(self.initialize)
 
         self.setOrientation(QtCore.Qt.Vertical)
-        self.setWindowFlags(QtCore.Qt.Window)
-        self.setWindowTitle(u'Send a message on Slack')
+        self.setWindowTitle(u'Send a message with Slack')
 
         self._createUI()
         self._connectSignals()
@@ -299,7 +299,7 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         pixmap = ImageCache.get_rsc_pixmap(u'slack', common.TEXT, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
-        label = PaintedLabel(u'Slack: Send a Message', size=common.LARGE_FONT_SIZE, parent=self)
+        label = PaintedLabel(u'Slack Message', size=common.LARGE_FONT_SIZE, parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
 
@@ -322,6 +322,7 @@ class SlackMessageWidget(QtWidgets.QSplitter):
 
         self.user_filter = QtWidgets.QLineEdit(parent=self)
         self.user_filter.setPlaceholderText(u'Search...')
+        self.user_filter.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignRight)
         row.layout().addStretch(1)
         row.layout().addWidget(self.user_filter)
 
@@ -331,7 +332,7 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         bottom_widget.layout().addSpacing(common.MARGIN)
         row = add_row(u'', parent=bottom_widget)
         self.send_button = PaintedButton(u'Send')
-        row.layout().addWidget(self.send_button, 1)
+        row.layout().addWidget(self.send_button)
 
         self.addWidget(top_widget)
         self.addWidget(bottom_widget)
@@ -339,9 +340,6 @@ class SlackMessageWidget(QtWidgets.QSplitter):
     def _connectSignals(self):
         self.send_button.pressed.connect(self.send_message)
         self.user_filter.textChanged.connect(self.users_widget.model().setFilterFixedString)
-
-    def sizeHint(self):
-        return QtCore.QSize(640, 480)
 
     def showEvent(self, event):
         self.initialize_timer.start()
