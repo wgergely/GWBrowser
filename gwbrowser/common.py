@@ -41,6 +41,7 @@ import ConfigParser
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO.OpenImageIO as OpenImageIO
 
+
 import gwbrowser.gwscandir as gwscandir
 
 # Flags
@@ -58,9 +59,28 @@ SynchronisedMode = 0
 SoloMode = 1
 
 
+def create_temp_dir():
+    server, job, root = get_favourite_parent_paths()
+    path = u'{}/{}/{}/.browser'.format(server, job, root)
+    _dir = QtCore.QDir(path)
+    if _dir.exists():
+        return
+    _dir.mkpath(u'.')
+
+def get_favourite_parent_paths():
+    server = QtCore.QStandardPaths.writableLocation(
+        QtCore.QStandardPaths.TempLocation)
+    job = u'gwbrowser'
+    root = u'favourites'
+    return server, job, root
+
+
 def save_favourites():
-    """Saves the currently saved favourites as a new file."""
+    """Saves all favourites including the descriptions and the thumbnails."""
+    import uuid
     from gwbrowser.settings import local_settings
+    from gwbrowser.settings import AssetSettings
+
     res = QtWidgets.QFileDialog.getSaveFileName(
         caption=u'Select where to save your favourites items',
         filter=u'*.gwb',
@@ -68,39 +88,106 @@ def save_favourites():
             QtCore.QStandardPaths.HomeLocation),
         options=QtWidgets.QFileDialog.ShowDirsOnly
     )
-    path, ext = res
-    if not path:
-        return
-    favourites = local_settings.value(u'favourites')
-    with open(path, 'w') as f:
-        data = u'\n'.join(favourites)
-        f.write(data)
-
-
-def import_favourites():
-    from gwbrowser.settings import local_settings
-    res = QtWidgets.QFileDialog.getOpenFileName(
-        caption=u'Select where to save your favourites items',
-        filter='*.gwb',
-        options=QtWidgets.QFileDialog.ShowDirsOnly
-    )
-    path, ext = res
-    if not path:
+    destination, ext = res
+    if not destination:
         return
 
     favourites = local_settings.value(u'favourites')
     favourites = [f.lower() for f in favourites] if favourites else []
-    with open(path, 'r') as f:
-        paths = f.readlines()
-        paths = [f.rstrip() for f in paths]
 
-        for saved_path in paths:
-            saved_info = QtCore.QFileInfo(saved_path)
-            if not saved_info.exists():
+    server = QtCore.QStandardPaths.writableLocation(
+        QtCore.QStandardPaths.TempLocation)
+    job = u'gwbrowser'
+    root = u'favourites'
+    zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
+
+    # Make sure the temp folder exists
+    QtCore.QFileInfo(zip_path).dir().mkpath(u'.')
+
+    with zipfile.ZipFile(zip_path, 'a') as z:
+        for favourite in favourites:
+            settings = AssetSettings(
+                QtCore.QModelIndex(),
+                server=server,
+                job=job,
+                root=root,
+                filepath=favourite
+            )
+            file_info = QtCore.QFileInfo(settings.thumbnail_path())
+            if not file_info.exists():
                 continue
-            if saved_path.lower() not in favourites:
-                favourites.append(saved_path.lower())
-    local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+            z.write(file_info.filePath(), file_info.fileName())
+            file_info = QtCore.QFileInfo(settings.config_path())
+            if not file_info.exists():
+                continue
+            z.write(file_info.filePath(), file_info.fileName())
+        z.writestr(u'favourites', u'\n'.join(favourites))
+
+    file_info = QtCore.QFileInfo(zip_path)
+    if not file_info.exists():
+        raise RuntimeError(u'Unexpected error, could not find the favrouites file')
+
+    QtCore.QDir().rename(file_info.filePath(), destination)
+    if not QtCore.QFileInfo(destination).exists():
+        raise RuntimeError(u'Unexpected error, could not find the favrouites file')
+    reveal(destination)
+
+
+def import_favourites():
+    from gwbrowser.settings import local_settings
+    from gwbrowser.settings import AssetSettings
+
+    res = QtWidgets.QFileDialog.getOpenFileName(
+        caption=u'Select the favourites file to import',
+        filter='*.gwb',
+        options=QtWidgets.QFileDialog.ShowDirsOnly
+    )
+    source, ext = res
+    if not source:
+        return
+
+    current_favourites = local_settings.value(u'favourites')
+    current_favourites = [f.lower() for f in current_favourites] if current_favourites else []
+
+    create_temp_dir()
+
+    with zipfile.ZipFile(source) as zip:
+        namelist = zip.namelist()
+        if u'favourites' not in namelist:
+            mbox = QtWidgets.QMessageBox()
+            mbox.setWindowTitle(u'Invalid ".gwb" file')
+            mbox.setText(u'This file does not seem to be valid, sorry!')
+            mbox.setInformativeText(u'The favourites list is missing from the archive.')
+            return mbox.exec_()
+
+        with zip.open(u'favourites') as f:
+            favourites = f.readlines()
+            favourites = [f.strip() for f in favourites]
+
+        for favourite in favourites:
+            server, job, root = get_favourite_parent_paths()
+            settings = AssetSettings(
+                server=server,
+                job=job,
+                root=root,
+                filepath=favourite
+            )
+
+            file_info = QtCore.QFileInfo(settings.thumbnail_path())
+            if file_info.fileName() in namelist:
+                dest = u'{}/{}/{}/.browser'.format(server, job, root, file_info.fileName())
+                zip.extract(file_info.fileName(), dest)
+
+            file_info = QtCore.QFileInfo(settings.config_path())
+            if file_info.fileName() in namelist:
+                dest = u'{}/{}/{}/.browser'.format(server, job, root, file_info.fileName())
+                zip.extract(file_info.fileName(), dest)
+
+            if favourite not in current_favourites:
+                current_favourites.append(favourite)
+
+        current_favourites = sorted(list(set(current_favourites)))
+        local_settings.setValue(u'favourites', current_favourites)
 
 
 def clear_favourites():
@@ -1335,3 +1422,5 @@ def push_to_rv(path):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
+
+create_temp_dir()

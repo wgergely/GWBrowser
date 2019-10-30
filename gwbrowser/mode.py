@@ -34,11 +34,15 @@ def prune(func):
 
 def file_path():
     """The path to this session's lock-file."""
-    return u'{tmp}/gwbrowser/gwbrowser_session_{pid}.lock'.format(
+    path = u'{tmp}/gwbrowser/gwbrowser_session_{pid}.lock'.format(
         tmp=QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation),
         pid=os.getpid()
     )
+    file_info = QtCore.QFileInfo(path)
+    if not file_info.exists():
+        file_info.dir().mkpath(u'.')
+    return file_info.filePath()
 
 
 @prune
@@ -82,6 +86,5 @@ def get_mode():
         except:
             pass
     return common.SynchronisedMode
-
 
 CURRENT_MODE = get_mode()

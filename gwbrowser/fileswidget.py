@@ -514,7 +514,7 @@ class FilesModel(BaseModel):
                 ext = filename.split(u'.')[-1].lower()
 
                 # This line will make sure only extensions we choose to display
-                # are actually returned. This is important for the Context widgets
+                # are actually returned
                 if location_is_filtered:
                     if ext not in common.NameFilters[location]:
                         continue

@@ -12,6 +12,7 @@ import gwbrowser.common as common
 import gwbrowser.mode as mode
 
 
+
 def _bool(v):
     """Converts True/False/None to their valid values."""
     if isinstance(v, basestring):
@@ -68,7 +69,7 @@ class Active(QtCore.QObject):
         """
         # When active sync is disabled we won't
         val = local_settings.value(
-            'preferences/MayaSettings/disable_active_sync')
+            u'preferences/MayaSettings/disable_active_sync')
         if val is True:
             return
 
