@@ -335,8 +335,8 @@ QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 		font-family: "{SECONDARY_FONT}";
 		font-size: {SMALL_FONT_SIZE}pt;
-		margin: 0px;
-		padding: 2px;
+		margin: 12px;
+		padding: 0px;
 		border: none;
 		color: rgba({TEXT});
 		menu-scrollable: 1;
@@ -351,29 +351,29 @@ QMenu::separator {{
 QMenu::icon,
 QMenu::indicator {{
 	margin: 0px;
-	padding: 4px;
+	padding-left: 8px;
+	height: 28px;
 	background-color: rgba(0, 0, 0, 0);
-	border-left: 2px solid rgba(0,0,0,0);
 }}
 QMenu::icon:selected,
 QMenu::indicator:selected {{
 	background-color: rgba(0, 0, 0, 0);
-	border-left: 2px solid rgba({FAVOURITE});
 }}
 QMenu::item {{
-	margin: 0px 0px 1px 0px;
-	padding: 4px 26px 4px 30px;
+	height: 28px;
+	margin: 0px 0px 0px 0px;
+	padding: 0px 28px 0px 30px;
   background-color: transparent;
 }}
 QMenu::item:selected {{
 	color: rgba({TEXT_SELECTED});
-  background-color: rgba(255,255,255,100);
+  background-color: rgba(255,255,255,50);
 }}
 QMenu::right-arrow {{
   margin: 0px;
   image: url({BRANCH_CLOSED});
-  height: 24px;
-  width: 24px;
+  height: 28px;
+  width: 28px;
 }}
 
 

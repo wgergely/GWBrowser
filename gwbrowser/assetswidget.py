@@ -208,7 +208,7 @@ class AssetModel(BaseModel):
                 flags = flags | common.MarkedAsFavourite
 
             if activeasset:
-                if activeasset in filepath:
+                if activeasset.lower() == filename.lower():
                     flags = flags | common.MarkedAsActive
 
             idx = len(self._data[dkey][dtype])

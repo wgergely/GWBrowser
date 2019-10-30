@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='gwbrowser',
-    version='0.2.8',
+    version='0.2.10',
     author='Gergely Wootsch',
     author_email='hello@gergely-wootsch.com',
     description='A PySide2 based asset-manager for digital productions',

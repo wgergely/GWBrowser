@@ -861,13 +861,15 @@ class BaseListWidget(QtWidgets.QListView):
         if not hasattr(index.model(), u'sourceModel'):
             index = self.model().mapFromSource(index)
 
-        rect = self.visualRect(index)
-        if self.rect().contains(rect):
+        # rect = self.visualRect(index)
+        rect = self.rectForIndex(index)
+        _rect = self.rect()
+        if _rect.contains(rect):
             self.update(index)
             return
 
         # Here we add the last index of the window
-        index = self.indexAt(self.rect().bottomLeft())
+        index = self.indexAt(_rect.bottomLeft())
         idx = index.row()
         if index.isValid():
             self.update(index)
@@ -1481,7 +1483,12 @@ class BaseListWidget(QtWidgets.QListView):
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
         common.move_widget_to_available_geo(widget)
-        widget.exec_()
+        
+        try:
+            self.disabled_overlay_widget.show()
+            widget.exec_()
+        finally:
+            self.disabled_overlay_widget.hide()
 
     def action_on_enter_key(self):
         self.activate(self.selectionModel().currentIndex())
@@ -1885,6 +1892,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.verticalScrollBar().valueChanged.connect(self.restart_timer)
         self.scrollbar_changed_timer.timeout.connect(
             self.initialize_visible_indexes)
+
+        self.viewportEntered.connect(self.initialize_visible_indexes)
 
     def restart_timer(self):
         self.scrollbar_changed_timer.start(1000)
