@@ -477,7 +477,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'action': lambda: ImageCache.instance().remove(source_index),
                 u'icon': remove_thumbnail_pixmap
             }
-        menu_set[key][u'Reveal'] = {
+        menu_set[key][u'Reveal thumbnail cache'] = {
             u'action': functools.partial(
                 common.reveal,
                 settings.thumbnail_path(),
