@@ -19,7 +19,6 @@ from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
-from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 
 
 class ImageDownloader(QtCore.QObject):

@@ -8,6 +8,7 @@ import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
+from gwbrowser.addassetwidget import AddAssetWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
@@ -441,6 +442,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.preferences_widget)
         self.stackedwidget.addWidget(self.add_bookmarks_widget)
         self.stackedwidget.addWidget(self.slack_widget)
+        self.stackedwidget.addWidget(AddAssetWidget(parent=self.stackedwidget))
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.layout().addWidget(self.headerwidget)

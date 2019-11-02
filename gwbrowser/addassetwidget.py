@@ -40,12 +40,11 @@ class AddAssetWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class AddAssetWidget(QtWidgets.QDialog):
+class AddAssetWidget(QtWidgets.QWidget):
     """Defines the widget used add an asset to the currently active bookmark."""
 
-    def __init__(self, path, parent=None):
+    def __init__(self, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
-        self._path = path
         self.last_asset_added = None
         self.thumbnail_image = None
 
@@ -61,9 +60,6 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.setWindowTitle(u'Add asset')
         self.installEventFilter(self)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.Window)
 
         self._createUI()
         self._connectSignals()
@@ -71,14 +67,20 @@ class AddAssetWidget(QtWidgets.QDialog):
     @property
     def path(self):
         """The active bookmark"""
-        return self._path
+        index = self.parent().widget(0).model().sourceModel().active_index()
+        if not index.isValid():
+            return None
+        return index.data(QtCore.Qt.StatusTipRole)
 
     def completer_keywords(self):
         """We can give some hints when naming assets using auto-completion.
         The will contain the already existing folder names and some predefined
-        shot, sequence names.
+        shot, sequence names, etc.
 
         """
+        if not self.path:
+            return []
+
         kw = []
         for entry in gwscandir.scandir(self.path):
             kw.append(entry.name)
@@ -128,45 +130,39 @@ class AddAssetWidget(QtWidgets.QDialog):
         # Settings the completer associated with the Editor widget
         self.name_widget = QtWidgets.QLineEdit(parent=self)
         self.name_widget.setPlaceholderText(u'Enter asset name...')
-        self.name_widget.setFixedWidth(200)
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
         validator = QtGui.QRegExpValidator(regex)
         self.name_widget.setValidator(validator)
-        completer = QtWidgets.QCompleter(
-            sorted(self.completer_keywords()), self)
-        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        completer.setModelSorting(
-            QtWidgets.QCompleter.CaseInsensitivelySortedModel)
-        completer.setCompletionMode(
-            QtWidgets.QCompleter.InlineCompletion)
-        self.name_widget.setCompleter(completer)
 
         column = add_row(u'', vertical=True,
                          height=common.ASSET_ROW_HEIGHT, parent=row)
         self.description_widget = DescriptionEditor(parent=self)
-        column.layout().addWidget(self.description_widget)
-        row = add_row(u'', parent=column)
-        row.layout().addWidget(self.name_widget)
+        column.layout().addWidget(self.name_widget, 1)
+        column.layout().addWidget(self.description_widget, 1)
 
+        row = add_row(u'', parent=self)
         self.save_button = PaintedButton(u'Add asset', parent=self)
         self.cancel_button = PaintedButton(u'Cancel', parent=self)
 
-        row.layout().addWidget(self.save_button)
-        row.layout().addWidget(self.cancel_button)
+        row.layout().addWidget(self.save_button, 1)
+        row.layout().addWidget(self.cancel_button, 1)
         self.layout().addSpacing(common.MARGIN)
+        self.layout().addStretch(1)
 
     def _connectSignals(self):
-        self.save_button.clicked.connect(self.accept)
-        self.cancel_button.clicked.connect(self.reject)
+        self.save_button.clicked.connect(self.action)
+        self.cancel_button.clicked.connect(
+            lambda: self.parent().parent().listcontrolwidget.listChanged.emit(1))
 
         # self.thumbnail_widget.clicked.connect(
         #     self.thumbnail_widget.pick_thumbnail)
         #
 
-    def done(self, result):
+    @QtCore.Slot()
+    def action(self):
         """Slot called by the check button to create a new asset."""
-        if result == QtWidgets.QDialog.Rejected:
-            return super(AddAssetWidget, self).done(result)
+        if not self.path:
+            return
 
         mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'Error adding asset')
@@ -230,27 +226,21 @@ class AddAssetWidget(QtWidgets.QDialog):
             return
         else:
             self.last_asset_added = self.name_widget.text()
+            self.cancel_button.clicked.emit()
             common.reveal(u'{}/{}'.format(self.path, self.name_widget.text()))
-        super(AddAssetWidget, self).done(result)
 
     def save_thumbnail_and_description(self):
         """Saves the selected thumbnail and description in the config file."""
-        if not self.parent():
+        index = self.parent().widget(0).model().sourceModel().active_index()
+        if not index.isValid():
             return
-        if not hasattr(self.parent(), 'widget'):
-            return
-
-        bindex = self.parent().widget(0).model().sourceModel().active_index()
-        if not bindex.isValid():
-            return
-
-        server, job, root = bindex.data(common.ParentPathRole)
+        server, job, root = index.data(common.ParentPathRole)
         asset = self.name_widget.text()
         settings = Settings.AssetSettings(
             server=server,
             job=job,
             root=root,
-            filepath=asset
+            filepath=u'{}/{}/{}/{}'.format(server, job, root, asset)
         )
 
         description = self.description_widget.text()
@@ -268,6 +258,27 @@ class AddAssetWidget(QtWidgets.QDialog):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
+
+    def showEvent(self, event):
+        completer = QtWidgets.QCompleter(
+            sorted(self.completer_keywords()), self)
+        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        completer.setModelSorting(
+            QtWidgets.QCompleter.CaseInsensitivelySortedModel)
+        completer.setCompletionMode(
+            QtWidgets.QCompleter.InlineCompletion)
+        self.name_widget.setCompleter(completer)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.BACKGROUND)
+        painter.drawRoundedRect(
+            self.rect().marginsRemoved(QtCore.QMargins(8,8,8,8)), 6, 6)
+        painter.end()
 
 
 if __name__ == '__main__':
