@@ -249,33 +249,38 @@ class StandaloneBrowserWidget(BrowserWidget):
 
     def mouseMoveEvent(self, event):
         """Custom mouse move event - responsible for resizing the frameless
-        widgets geometry.
+        widget's geometry.
+        It identifies the dragable edge area, sets the cursor override.
 
-        It identifies the dragable edge area, sets the cursor override."""
+        """
         if not isinstance(event, QtGui.QMouseEvent):
             return
         if self.resize_initial_pos == QtCore.QPoint(-1, -1):
             self.set_resize_icon(event, clamp=True)
             return
 
-        if self.resize_area is not None:
-            o = event.pos() - self.resize_initial_pos
-            geo = self.geometry()
+        if self.resize_area is None:
+            return
 
-            g_topleft = self.mapToGlobal(
-                self.resize_initial_rect.topLeft())
-            g_bottomright = self.mapToGlobal(
-                self.resize_initial_rect.bottomRight())
+        o = event.pos() - self.resize_initial_pos
+        geo = self.geometry()
 
-            if self.resize_area in (1, 2, 5):
-                geo.setTop(g_topleft.y() + o.y())
-            if self.resize_area in (3, 4, 7):
-                geo.setBottom(g_bottomright.y() + o.y())
-            if self.resize_area in (1, 3, 8):
-                geo.setLeft(g_topleft.x() + o.x())
-            if self.resize_area in (2, 4, 6):
-                geo.setRight(g_bottomright.x() + o.x())
-            self.setGeometry(geo)
+        g_topleft = self.mapToGlobal(
+            self.resize_initial_rect.topLeft())
+        g_bottomright = self.mapToGlobal(
+            self.resize_initial_rect.bottomRight())
+
+        if self.resize_area in (1, 2, 5):
+            geo.setTop(g_topleft.y() + o.y())
+        if self.resize_area in (3, 4, 7):
+            geo.setBottom(g_bottomright.y() + o.y())
+        if self.resize_area in (1, 3, 8):
+            geo.setLeft(g_topleft.x() + o.x())
+        if self.resize_area in (2, 4, 6):
+            geo.setRight(g_bottomright.x() + o.x())
+
+        revert_geo = self.geometry()
+        self.setGeometry(geo)
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""

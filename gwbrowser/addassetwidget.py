@@ -112,7 +112,6 @@ class AddAssetWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedWidth(common.WIDTH)
 
         mainrow = add_row(u'', parent=self)
         # top label
@@ -227,6 +226,7 @@ class AddAssetWidget(QtWidgets.QWidget):
         else:
             self.last_asset_added = self.name_widget.text()
             self.cancel_button.clicked.emit()
+            self.parent().widget(1).model().sourceModel().modelDataResetRequested.emit()
             common.reveal(u'{}/{}'.format(self.path, self.name_widget.text()))
 
     def save_thumbnail_and_description(self):

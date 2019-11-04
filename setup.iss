@@ -41,9 +41,6 @@ SetupIconFile={#SourceDir}\vs2015\GWBrowser\icon.ico
 ;https://stackoverflow.com/questions/40447498/best-compression-settings-in-inno-setup-compiler
 SolidCompression=yes
 Compression=lzma2/fast
-LZMAUseSeparateProcess=yes
-LZMADictionarySize=1048576
-LZMANumFastBytes=273
 
 WizardStyle=modern
 VersionInfoVersion={#MyAppVersion}

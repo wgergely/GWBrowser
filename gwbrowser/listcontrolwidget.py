@@ -731,7 +731,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 3)
         self.setFixedHeight(height)
 
         # Control view/model/button

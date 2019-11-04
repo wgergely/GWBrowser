@@ -213,7 +213,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
         color = color if color else QtGui.QColor(0,0,0,0)
         painter.setBrush(color)
-        painter.setOpacity(0.7)
+        painter.setOpacity(0.8)
         painter.drawRect(rect)
         bottom_row_rect = QtCore.QRect(rectangles[ThumbnailRect])
         bottom_row_rect.setHeight(common.ROW_SEPARATOR)
@@ -221,8 +221,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawRect(bottom_row_rect)
 
 
-        o = 0.9 if selected else 0.8
-        o = 1.0 if hover else o
+        o = 0.7 if selected else 0.6
+        o = 0.75 if hover else o
         painter.setOpacity(o)
 
         # Image
@@ -358,7 +358,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
                     text = u'{}'.format(index.data(common.TodoCountRole))
                     _font = QtGui.QFont(common.PrimaryFont)
-                    _font.setPointSize(common.SMALL_FONT_SIZE)
+                    _font.setPointSizeF(common.SMALL_FONT_SIZE)
                     _metrics = QtGui.QFontMetricsF(_font)
                     x = count_rect.center().x() - (_metrics.width(text) / 2.0) + 1
                     y = count_rect.center().y() + (_metrics.ascent() / 2.0)
@@ -394,7 +394,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
                     text = u'{}'.format(asset_count)
                     _font = QtGui.QFont(common.PrimaryFont)
-                    _font.setPointSize(common.SMALL_FONT_SIZE)
+                    _font.setPointSizeF(common.SMALL_FONT_SIZE)
                     _metrics = QtGui.QFontMetricsF(_font)
                     x = rect.center().x() - (_metrics.width(text) / 2.0) + 0.666
                     y = rect.center().y() + (_metrics.ascent() / 2.0)
@@ -724,7 +724,7 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        font.setPointSize(common.MEDIUM_FONT_SIZE)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         _metrics = QtGui.QFontMetricsF(common.SecondaryFont)
         text = _metrics.elidedText(
             text,
