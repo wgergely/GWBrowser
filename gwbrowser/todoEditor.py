@@ -893,7 +893,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             painter = QtGui.QPainter()
             painter.begin(self)
             font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSize(common.MEDIUM_FONT_SIZE)
+            font.setPointSizeF(common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
 
             rect = QtCore.QRect(self.rect())

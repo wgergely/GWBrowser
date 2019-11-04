@@ -118,6 +118,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     cache = OpenImageIO.ImageCache()
     img = OpenImageIO.ImageBuf(source)
     cache.invalidate(source)
+    cache.invalidate(dest)
 
     # Let's check if the loaded item is a movie and let's pick the middle
     # of the timeline as the thumbnail image
@@ -215,6 +216,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     if not success:
         QtCore.QFile(dest).remove()
         set_error_thumbnail()
+        cache.invalidate(source)
+        cache.invalidate(dest)
         return False
 
     # We will update the index with saved and ask the model/view to update
@@ -243,6 +246,11 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.FileThumbnailLoaded] = True
     if update:
         model.indexUpdated.emit(index)
+
+    cache.invalidate(source)
+    cache.invalidate(data[common.ThumbnailPathRole])
+    cache.invalidate(dest)
+
     return True
 
 

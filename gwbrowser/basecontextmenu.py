@@ -45,7 +45,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
         self.index = index
-        self.setToolTipsVisible(True)
+        self.setToolTipsVisible(False)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
     @contextmenu
@@ -488,11 +488,22 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_add_bookmark_menu(self, menu_set):
         pixmap = ImageCache.get_rsc_pixmap(
-            'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'add', common.ADD, common.INLINE_ICON_SIZE)
         menu_set[u'Add bookmark'] = {
-            u'text': 'Add bookmark',
+            u'text': 'Add bookmark...',
             u'icon': pixmap,
             u'action': lambda: self.parent().parent().parent().listcontrolwidget.listChanged.emit(5)
+        }
+        return menu_set
+
+    @contextmenu
+    def add_add_asset_menu(self, menu_set):
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'add', common.ADD, common.INLINE_ICON_SIZE)
+        menu_set[u'Add bookmark'] = {
+            u'text': 'Add asset...',
+            u'icon': pixmap,
+            u'action': lambda: self.parent().parent().parent().listcontrolwidget.listChanged.emit(7)
         }
         return menu_set
 

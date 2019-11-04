@@ -8,6 +8,7 @@ import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.addbookmarkswidget import AddBookmarksWidget
+from gwbrowser.addassetwidget import AddAssetWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
@@ -441,6 +442,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.preferences_widget)
         self.stackedwidget.addWidget(self.add_bookmarks_widget)
         self.stackedwidget.addWidget(self.slack_widget)
+        self.stackedwidget.addWidget(AddAssetWidget(parent=self.stackedwidget))
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.layout().addWidget(self.headerwidget)
@@ -1000,13 +1002,15 @@ class BrowserWidget(QtWidgets.QWidget):
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        painter.setPen(QtCore.Qt.NoPen)
+        pen = QtGui.QPen(QtGui.QColor(35,35,35,255))
+        pen.setWidth(1.0)
+        painter.setPen(pen)
         painter.setBrush(common.SEPARATOR)
         painter.drawRoundedRect(rect, 10, 10)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSize(common.MEDIUM_FONT_SIZE)
+            font.setPointSizeF(common.MEDIUM_FONT_SIZE)
 
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter

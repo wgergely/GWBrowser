@@ -334,8 +334,8 @@ QLabel:disabled {{
 QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 		font-family: "{SECONDARY_FONT}";
-		font-size: {SMALL_FONT_SIZE}pt;
-		margin: 12px;
+		font-size: {MEDIUM_FONT_SIZE}pt;
+		margin: 0px;
 		padding: 0px;
 		border: none;
 		color: rgba({TEXT});
@@ -351,8 +351,8 @@ QMenu::separator {{
 QMenu::icon,
 QMenu::indicator {{
 	margin: 0px;
-	padding-left: 8px;
-	height: 28px;
+	padding-left: 20px;
+	height: 30px;
 	background-color: rgba(0, 0, 0, 0);
 }}
 QMenu::icon:selected,
@@ -360,9 +360,9 @@ QMenu::indicator:selected {{
 	background-color: rgba(0, 0, 0, 0);
 }}
 QMenu::item {{
-	height: 28px;
+	height: 30px;
 	margin: 0px 0px 0px 0px;
-	padding: 0px 28px 0px 30px;
+	padding: 0px 12px 0px 40px;
   background-color: transparent;
 }}
 QMenu::item:selected {{

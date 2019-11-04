@@ -391,18 +391,18 @@ ASSET_FOLDERS = {
 }
 
 # Sizes
-ROW_HEIGHT = 38.0
+ROW_HEIGHT = 34.0
 BOOKMARK_ROW_HEIGHT = 42.0
 ASSET_ROW_HEIGHT = 78.0
-CONTROL_HEIGHT = 38.0
+CONTROL_HEIGHT = 34.0
 ROW_SEPARATOR = 1.0
 
 INLINE_ICONS_MIN_WIDTH = 320.0
 
 # Font scaling seems at best random given platform differences.
 # Programmatically scaling might fix matters...
-SMALL_FONT_SIZE = 8.0
-MEDIUM_FONT_SIZE = 9.0
+SMALL_FONT_SIZE = 7.5
+MEDIUM_FONT_SIZE = 8.5
 LARGE_FONT_SIZE = 12.0
 
 pscale = 1.0
@@ -432,7 +432,7 @@ def rgb(color):
     return u'{},{},{},{}'.format(*color.getRgb())
 
 
-MARGIN = 18.0
+MARGIN = 20.0
 
 INDICATOR_WIDTH = 4.0
 ROW_BUTTONS_HEIGHT = 36.0
@@ -445,7 +445,7 @@ THUMBNAIL_IMAGE_SIZE = 680.0
 
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(70, 70, 70)
-BACKGROUND = QtGui.QColor(88, 88, 88)
+BACKGROUND = QtGui.QColor(95, 95, 95)
 THUMBNAIL_BACKGROUND = SECONDARY_BACKGROUND
 
 TEXT = QtGui.QColor(220, 220, 220)
@@ -456,14 +456,14 @@ TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
 SEPARATOR = QtGui.QColor(50, 50, 50)
-FAVOURITE = QtGui.QColor(120, 110, 200)
-REMOVE = QtGui.QColor(230, 100, 90)
-ADD = QtGui.QColor(90, 200, 120)
+FAVOURITE = QtGui.QColor(107, 126, 180)
+REMOVE = QtGui.QColor(219, 114, 114)
+ADD = QtGui.QColor(90, 200, 155)
 
 PrimaryFont = QtGui.QFont(u'Roboto Black')
-PrimaryFont.setPointSize(MEDIUM_FONT_SIZE)
+PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
-SecondaryFont.setPointSize(SMALL_FONT_SIZE)
+SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
 
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)

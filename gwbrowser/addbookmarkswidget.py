@@ -19,6 +19,8 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
 from gwbrowser.settings import local_settings
+from gwbrowser.addjobwidget import AddJobWidget
+from gwbrowser.imagecache import ImageCache
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableIconButton, add_row
 
 
@@ -362,11 +364,21 @@ class AddJobButton(ClickableIconButton):
 
     def __init__(self, parent=None):
         super(AddJobButton, self).__init__(
-            u'add_folder',
-            (common.TEXT, common.SECONDARY_TEXT),
+            u'add',
+            (common.ADD, common.ADD),
             common.ROW_BUTTONS_HEIGHT * 0.66,
-            description=u'Click to add a new job to the server',
+            description=u'Add a new job',
         )
+
+    def action(self):
+        view = self.parent().parent().pick_server_widget.view()
+        if not view.selectionModel().hasSelection():
+            return
+        index = view.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        w = AddJobWidget(index.data(QtCore.Qt.StatusTipRole), parent=self)
+        w.exec_()
 
 class RefreshButton(ClickableIconButton):
     """The button responsible for showing the ``AddJobWidget``."""
@@ -464,8 +476,17 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
 
+        self.layout().addSpacing(common.MARGIN)
+
+        row = add_row(u'', parent=self)
+        row.setFixedHeight(48)
+        pixmap = ImageCache.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 48)
+        label = QtWidgets.QLabel(parent=self)
+        label.setPixmap(pixmap)
+        row.layout().addWidget(label)
         label = PaintedLabel(u'Add Bookmark', size=common.LARGE_FONT_SIZE)
-        self.layout().addWidget(label, 0)
+        row.layout().addWidget(label, 0)
+        row.layout().addStretch(1)
 
         self.layout().addSpacing(common.MARGIN)
 
@@ -883,6 +904,16 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         """Custom show event responsible for placing the widget inthe right place."""
         self.initialize()
 
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.BACKGROUND)
+        painter.drawRoundedRect(
+            self.rect().marginsRemoved(QtCore.QMargins(8,8,8,8)), 6, 6)
+        painter.end()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -1432,6 +1432,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             if event.key() == QtCore.Qt.Key_S:
                 self.toggle_favourite(index)
+                self.update(index)
                 self.model().invalidateFilter()
                 return
 
@@ -1483,7 +1484,7 @@ class BaseListWidget(QtWidgets.QListView):
         widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
         common.move_widget_to_available_geo(widget)
-        
+
         try:
             self.disabled_overlay_widget.show()
             widget.exec_()
@@ -1578,7 +1579,7 @@ class BaseListWidget(QtWidgets.QListView):
 
             painter.setPen(QtCore.Qt.NoPen)
             font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSize(common.MEDIUM_FONT_SIZE - 1)
+            font.setPointSizeF(common.MEDIUM_FONT_SIZE - 1)
             align = QtCore.Qt.AlignCenter
 
             text = u''
@@ -1702,6 +1703,14 @@ class BaseInlineIconWidget(BaseListWidget):
 
         super(BaseInlineIconWidget, self).mousePressEvent(event)
 
+    def enterEvent(self, event):
+        app = QtWidgets.QApplication.instance()
+        app.restoreOverrideCursor()
+
+    def leaveEvent(self, event):
+        app = QtWidgets.QApplication.instance()
+        app.restoreOverrideCursor()
+
     def mouseReleaseEvent(self, event):
         """Finishes `BaseInlineIconWidget`'s multi-item toggle operation, and
         resets the associated variables.
@@ -1768,8 +1777,10 @@ class BaseInlineIconWidget(BaseListWidget):
             return None
 
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
+        app = QtWidgets.QApplication.instance()
         index = self.indexAt(cursor_position)
         if not index.isValid():
+            app.restoreOverrideCursor()
             return
 
         if not self.verticalScrollBar().isSliderDown():
@@ -1778,7 +1789,6 @@ class BaseInlineIconWidget(BaseListWidget):
         rectangles = self.itemDelegate().get_rectangles(self.visualRect(index))
         rect = self.itemDelegate().get_description_rect(rectangles, index)
 
-        app = QtWidgets.QApplication.instance()
         if rect.contains(cursor_position):
             if app.overrideCursor():
                 app.changeOverrideCursor(QtGui.QCursor(QtCore.Qt.IBeamCursor))

@@ -253,6 +253,9 @@ QListView::item:selected {{
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
         v = local_settings.value(k)
+        
+        if not v:
+            return
 
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
