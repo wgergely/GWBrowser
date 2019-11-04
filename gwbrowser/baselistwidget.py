@@ -1415,6 +1415,7 @@ class BaseListWidget(QtWidgets.QListView):
                         mode = common.UnixPath
                     if event.modifiers() & QtCore.Qt.ShiftModifier:
                         return common.copy_path(index, mode=common.UnixPath, first=True)
+                    print '!'
                     return common.copy_path(index, mode=mode, first=False)
 
             if event.key() == QtCore.Qt.Key_R:
