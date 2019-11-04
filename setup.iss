@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "GWBrowser"
-#define MyAppVersion "0.2.10"
+#define MyAppVersion "0.2.11"
 #define MyAppPublisher "Gergely Wootsch"
 #define MyAppURL "http://wgergely.github.io/GWBrowser"
 #define MyAppExeName "GWBrowser.exe"
