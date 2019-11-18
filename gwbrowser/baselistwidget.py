@@ -852,7 +852,13 @@ class BaseListWidget(QtWidgets.QListView):
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update_index(self, index):
-        """Repaints the given index."""
+        """This slot is used by all threads to repaint/update the given index
+        after it's thumbnail or file information has been loaded.
+
+        The actualy repaint will only occure if the index is visible
+        in the view currently.
+
+        """
         if not index.isValid():
             return
         if self.isHidden():
@@ -861,8 +867,7 @@ class BaseListWidget(QtWidgets.QListView):
         if not hasattr(index.model(), u'sourceModel'):
             index = self.model().mapFromSource(index)
 
-        # rect = self.visualRect(index)
-        rect = self.rectForIndex(index)
+        rect = self.visualRect(index)
         _rect = self.rect()
         if _rect.contains(rect):
             self.update(index)
@@ -1415,7 +1420,6 @@ class BaseListWidget(QtWidgets.QListView):
                         mode = common.UnixPath
                     if event.modifiers() & QtCore.Qt.ShiftModifier:
                         return common.copy_path(index, mode=common.UnixPath, first=True)
-                    print '!'
                     return common.copy_path(index, mode=mode, first=False)
 
             if event.key() == QtCore.Qt.Key_R:
@@ -1863,11 +1867,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         self.scrollbar_changed_timer = QtCore.QTimer(parent=self)
         self.scrollbar_changed_timer.setSingleShot(True)
-        self.scrollbar_changed_timer.setInterval(500)
+        self.scrollbar_changed_timer.setInterval(250)
 
         self.hide_archived_items_timer = QtCore.QTimer(parent=self)
         self.hide_archived_items_timer.setSingleShot(False)
-        self.hide_archived_items_timer.setInterval(1000)
+        self.hide_archived_items_timer.setInterval(500)
         self.hide_archived_items_timer.timeout.connect(
             self.hide_archived_items)
 
@@ -1904,10 +1908,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.scrollbar_changed_timer.timeout.connect(
             self.initialize_visible_indexes)
 
-        self.viewportEntered.connect(self.initialize_visible_indexes)
-
     def restart_timer(self):
-        self.scrollbar_changed_timer.start(1000)
+        self.scrollbar_changed_timer.start(self.scrollbar_changed_timer.interval())
 
     @QtCore.Slot()
     def hide_archived_items(self):
@@ -1963,8 +1965,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         if not proxy_model.rowCount():
             return
 
-        index = self.indexAt(self.rect().topLeft())
-        idx = proxy_model.mapToSource(index).row()
+        r = self.rect()
+        index = self.indexAt(r.topLeft())
         if not index.isValid():
             return
 
@@ -1972,43 +1974,39 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         needs_thumbnail = []
         visible = []
         source_model = proxy_model.sourceModel()
-        data = source_model.model_data()
-        generate_thumbnails = source_model.generate_thumbnails
 
-        # Starting from the to we add all the visible, and unititalized indexes
+        # Starting from the top left we'll get all visible indexes
         rect = self.visualRect(index)
-        while self.rect().contains(rect):
-            if idx not in data:
-                return
-            if not data[idx][common.FileInfoLoaded]:
-                needs_info.append(index)
-            if generate_thumbnails and not data[idx][common.FileThumbnailLoaded]:
-                needs_thumbnail.append(index)
+        while r.contains(rect):
             visible.append(index)
+
+            if not index.data(common.FileInfoLoaded):
+                needs_info.append(index)
+
+            if source_model.generate_thumbnails and not index.data(common.FileThumbnailLoaded):
+                needs_thumbnail.append(index)
             rect.moveTop(rect.top() + rect.height())
+
             index = self.indexAt(rect.topLeft())
-            idx = proxy_model.mapToSource(index).row()
             if not index.isValid():
                 break
 
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
-        idx = proxy_model.mapToSource(index).row()
         if index.isValid():
             visible.append(index)
-            if not data[idx][common.FileInfoLoaded]:
+            if not index.data(common.FileInfoLoaded):
                 if index not in needs_info:
                     needs_info.append(index)
 
-            if generate_thumbnails:
-                if not data[idx][common.FileThumbnailLoaded]:
+            if source_model.generate_thumbnails:
+                if not index.data(common.FileThumbnailLoaded):
                     if index not in needs_thumbnail:
                         needs_thumbnail.append(index)
-
         if needs_info:
             source_model.InfoThread.Worker.add_to_queue(needs_info)
 
-        if generate_thumbnails:
+        if source_model.generate_thumbnails:
             source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
 
     def showEvent(self, event):

@@ -35,16 +35,6 @@ class AssetInfoWorker(FileInfoWorker):
     queue = Unique(999999)
     indexes_in_progress = []
 
-    @staticmethod
-    @validate_index
-    @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, update=True, exists=False):
-        """The main processing function called by the worker.
-        Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
-
-        """
-        return FileInfoWorker.process_index(index, update=update, exists=exists)
-
 
 class SecondaryAssetInfoWorker(AssetInfoWorker):
     """The worker associated with the ``SecondaryAssetInfoWorker``.
@@ -216,7 +206,7 @@ class AssetModel(BaseModel):
                     flags = flags | common.MarkedAsActive
 
             idx = len(self._data[dkey][dtype])
-            name = re.sub(ur'[_]{1,}', ' ', filename).strip(u'_')
+            name = re.sub(ur'[_]{1,}', u' ', filename).strip(u'_')
             self._data[dkey][dtype][idx] = {
                 QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
