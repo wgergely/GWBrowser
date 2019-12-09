@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PySide2 import QtWidgets,QtGui,QtCore, QtNetwork
+from PySide2 import QtWidgets,QtGui,QtCore
 import uuid
 from gwbrowser import common
 from gwbrowser.common_ui import add_row, add_label, add_line_edit, PaintedButton, PaintedLabel
@@ -253,6 +253,9 @@ QListView::item:selected {{
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
         v = local_settings.value(k)
+        
+        if not v:
+            return
 
         for n in xrange(self.model().rowCount()):
             index = self.model().index(n, 0)
