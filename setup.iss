@@ -2,11 +2,11 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "GWBrowser"
-#define MyAppVersion "0.2.10"
+#define MyAppVersion "0.2.11"
 #define MyAppPublisher "Gergely Wootsch"
 #define MyAppURL "http://wgergely.github.io/GWBrowser"
 #define MyAppExeName "GWBrowser.exe"
-#define SourceDir "I:\dev\gwbrowser-standalone"
+#define SourceDir "E:\dev\gwbrowser-standalone"
 
 
 
@@ -39,8 +39,11 @@ SetupIconFile={#SourceDir}\vs2015\GWBrowser\icon.ico
 
 ;Compression
 ;https://stackoverflow.com/questions/40447498/best-compression-settings-in-inno-setup-compiler
-SolidCompression=yes
-Compression=lzma2/fast
+SolidCompression=no
+Compression=lzma2/ultra64
+LZMAUseSeparateProcess=yes
+LZMADictionarySize=65536
+LZMANumFastBytes=64
 
 WizardStyle=modern
 VersionInfoVersion={#MyAppVersion}

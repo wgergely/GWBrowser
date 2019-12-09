@@ -16,7 +16,7 @@ import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
 
-__version__ = u'0.2.10'
+__version__ = u'0.2.11'
 
 
 def maya_useNewAPI():

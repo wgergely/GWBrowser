@@ -226,7 +226,7 @@ def _is_set_created_by_user(name):
     if apiNodeType == "kPluginObjectSet":
         return True
 
-  # We do not need to test is the object is a set, since that test
+    # We do not need to test is the object is a set, since that test
     # has already been done by the outliner
     try:
         nodeType = cmds.nodeType(name)
@@ -329,7 +329,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     their geometry in the world-space.
 
     Only the normals, geometry and uvs will be exported. No addittional user or
-    scene data will be picked up!
+    scene data will is picked up by default.
 
     """
     destination_path = QtCore.QFileInfo(destination_path).filePath()
@@ -337,22 +337,10 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
     def is_intermediate(s): return cmds.getAttr(
         u'{}.intermediateObject'.format(s))
 
-    def is_visible(s):
-        """A crude way of testing the visibility of a node."""
-        try:
-            parent = cmds.listRelatives(s, type='transform', parent=True)[0]
-            if not cmds.getAttr(u'{}.visibility'.format(parent)):
-                return False
-            try:
-                if parent:
-                    parent = cmds.listRelatives(parent, type='transform', parent=True)[0]
-                    if not cmds.getAttr(u'{}.visibility'.format(parent)):
-                        return False
-            except:
-                pass
-        except:
-            pass
-        return cmds.getAttr(u'{}.visibility'.format(s))
+    # We'll need to use the DecomposeMatrix Nodes, let's check if the plugin
+    # is loaded and ready to use
+    if not cmds.pluginInfo(u'matrixNodes.mll', loaded=True, q=True):
+        cmds.loadPlugin(u'matrixNodes.mll', quiet=True)
 
     world_shapes = []
     valid_shapes = []
@@ -363,19 +351,15 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         for shape in shapes:
             if is_intermediate(shape):
                 continue
-            # We will keep invisible renderable, but invisible meshes
-            # in the alembic. Sadly there's no way of telling easiliy
-            # if the mesh was intended to be rendered\used...
-            # if not is_visible(shape):
-            #     continue
+
             basename = shape.split(u'|').pop()
             try:
-                # AbcExport will fail if a shape node's name is not unique
+                # AbcExport will fail if a transform or a shape node's name is not unique
                 # We will try and see if this passes...
                 cmds.listRelatives(basename)
             except ValueError as err:
-                print u'"{shape}" does not have a unique name.  This is not usually allowed for alembic exports and might cause the export to fail.\n\nError:\n{err}'.format(shape=shape, err=err)
-                
+                print u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(shape=shape, err=err)
+
             # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
                 if not cmds.attributeQuery(u'outMesh', node=shape, exists=True):
@@ -387,19 +371,22 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
             u'# No valid shapes found in "{}" to export! Aborting...'.format(outliner_set))
 
     cmds.select(clear=True)
+
     # Creating a temporary namespace to avoid name-clashes later when we duplicate
     # the meshes. We will delete this namespace after the export...
     if cmds.namespace(exists=u'mayaExport'):
         cmds.namespace(removeNamespace=u'mayaExport',
                        deleteNamespaceContent=True)
     ns = cmds.namespace(add=u'mayaExport')
+    
     world_transforms = []
+
     try:
         # For meshes, we will create an empty mesh and connect the outMesh and
-        # UV  attributes from our source.
+        # UV attributes from our source.
         # We will also apply the source mesh's transform matrix to the newly created mesh
         for shape in valid_shapes:
-            basename = shape.split('|').pop()
+            basename = shape.split(u'|').pop()
             if cmds.nodeType(shape) != u'camera':
                 # Create new empty shape node
                 world_shape = cmds.createNode(
@@ -462,7 +449,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         raise
     finally:
         # Finally, we will delete the previously created namespace and the object
-        # contained inside. I wrapped it into an evalDeferred call to let maya
+        # contained inside. I wrapped the call into an evalDeferred to let maya
         # recover after the export and delete the objects safely
         def teardown():
             cmds.namespace(removeNamespace=u'mayaExport',
