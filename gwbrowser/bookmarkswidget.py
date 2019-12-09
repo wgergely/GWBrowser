@@ -6,7 +6,7 @@ allow dropping files and urls on the view.
 """
 import re
 
-from PySide2 import QtWidgets, QtGui, QtCore, QtNetwork
+from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
@@ -19,34 +19,6 @@ from gwbrowser.settings import local_settings, Active
 from gwbrowser.settings import AssetSettings
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
-
-
-class ImageDownloader(QtCore.QObject):
-    """Utility class to download an image from a url. Used by the drag and drop operations."""
-    # Signals
-    downloaded = QtCore.Signal(QtCore.QByteArray, unicode)
-
-    def __init__(self, url, destination, parent=None):
-        super(ImageDownloader, self).__init__(parent=parent)
-        self.url = url
-        self.manager = QtNetwork.QNetworkAccessManager(parent=self)
-        self.request = QtNetwork.QNetworkRequest(self.url)
-        self.manager.finished.connect(
-            lambda reply: self.downloaded.emit(reply.readAll(), destination))
-        self.downloaded.connect(self.save_image)
-
-    def get(self):
-        self.manager.get(self.request)
-
-    def save_image(self, data, path):
-        """Saves the downloaded data as an image."""
-        image = QtGui.QImage()
-        loaded = image.loadFromData(data)
-        if not loaded:
-            return
-
-        image = image.convertToFormat(QtGui.QImage.Format_RGB32)
-        image.save(path)
 
 
 class BookmarkInfo(QtCore.QFileInfo):
@@ -275,63 +247,6 @@ class BookmarksModel(BaseModel):
             else:
                 todocount = 0
             data[idx][common.TodoCountRole] = todocount
-
-    def canDropMimeData(self, data, action, row, column, parent):
-        """Accepts url drops."""
-        if data.hasUrls():
-            return True
-        return False
-
-    def dropMimeData(self, data, action, row, column, parent):
-        """Action to perform when a drop happens."""
-        index = parent
-        if not parent.isValid():
-            return
-        if not data.hasUrls():
-            return
-
-        for url in data.urls():
-            if not url.isLocalFile():  # url is coming from the web!
-                destination = u'{}/{}'.format(index.data(
-                    QtCore.Qt.StatusTipRole), url.fileName())
-                downloader = ImageDownloader(url, destination, parent=self)
-                downloader.get()
-                continue
-
-            source = QtCore.QFileInfo(url.toLocalFile())
-            destination = u'{}/{}'.format(index.data(
-                QtCore.Qt.StatusTipRole), source.fileName())
-            destination = QtCore.QFileInfo(destination)
-
-            if source.filePath() == destination.filePath():
-                continue
-
-            if destination.exists():
-                res = QtWidgets.QMessageBox(
-                    QtWidgets.QMessageBox.Warning,
-                    u'File already exist',
-                    u'{} already exists in the folder. Are you sure you want to override it with the new file?.'.format(
-                        destination.fileName()),
-                    QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-                    parent=self
-                ).exec_()
-                if res == QtWidgets.QMessageBox.Cancel:
-                    break  # Cancels the operation
-                if res == QtWidgets.QMessageBox.Ok:
-                    QtCore.QFile.remove(destination.filePath())
-
-            if action == QtCore.Qt.CopyAction:
-                QtCore.QFile.copy(source.filePath(), destination.filePath())
-                continue
-            if action == QtCore.Qt.MoveAction:
-                QtCore.QFile.rename(source.filePath(), destination.filePath())
-                continue
-            # return True
-        return True
-
-    def supportedDropActions(self):
-        """The default accepted drop actions."""
-        return QtCore.Qt.MoveAction | QtCore.Qt.CopyAction
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
