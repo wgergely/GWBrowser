@@ -29,8 +29,8 @@ __author__ = 'Gergely Wootsch'
 __website__ = 'https://gergely-wootsch.com'
 __email__ = 'hello@gergely-wootsch.com'
 __dependencies__ = (
-    u'OpenImageIO.OpenImageIO',
-    u'gwalembic.alembic',
+    u'OpenImageIO',
+    u'alembic',
     u'numpy',
     u'PySide2.QtCore'
 )

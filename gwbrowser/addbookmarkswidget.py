@@ -491,7 +491,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.layout().addSpacing(common.MARGIN)
 
         # Server
-        row = add_row(u'Select server', parent=self)
+        row = add_row(u'Server', parent=self)
         description = u'Click to select the server your job is located on.\nThis should in most cases be the primary server ({}),\nhowever, it is possible to work locally on the local SSD drive by selecting "jobs-local".'.format(
             common.Server.primary())
         self.pick_server_widget = ComboboxButton(
@@ -501,7 +501,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.refresh_button, 0)
 
         # Job
-        row = add_row(u'Select job', parent=self)
+        row = add_row(u'Jobs', parent=self)
         description = u'Click to select the job.\nEach job contains multiple locations to keep files and folders, referred to as a "bookmark".\n\nEg. the "data/shots" and "data/assets" folders.'
         self.pick_job_widget = ComboboxButton(
             u'job', description=description, parent=self)
@@ -510,7 +510,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         row.layout().addWidget(self.add_job_widget, 0)
 
         # Bookmarks folder
-        row = add_row(u'Select bookmark', parent=self)
+        row = add_row(u'Bookmark folders', parent=self)
         description = u'Select the bookmark folder.'
         self.pick_root_widget = ComboboxButton(
             u'bookmark', description=description, parent=self)

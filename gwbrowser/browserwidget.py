@@ -32,12 +32,10 @@ import gwbrowser.slacker as slacker
 DEBUG = False
 
 
-
-
 @QtCore.Slot(unicode)
 def debug_signals(label, *args, **kwargs):
-    print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(time='{}'.format(time.time())[:-3], label=label, args=args,kwargs=kwargs)
-
+    print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
+        time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs)
 
 
 class TrayMenu(BaseContextMenu):
@@ -192,13 +190,14 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+        self.setFixedHeight(common.INLINE_ICON_SIZE +
+                            (common.INDICATOR_WIDTH * 2))
 
         self._createUI()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
         menu_bar = QtWidgets.QMenuBar(parent=self)
@@ -276,7 +275,7 @@ class ToggleModeButton(QtWidgets.QWidget):
         self.animation.setStartValue(1.0)
         self.animation.setEndValue(0.5)
         self.animation.setEasingCurve(QtCore.QEasingCurve.InCubic)
-        self.animation.setLoopCount(1) # Loops for forever
+        self.animation.setLoopCount(1)  # Loops for forever
         self.animation.setDirection(QtCore.QAbstractAnimation.Forward)
         self.animation.setDuration(1500)
         self.animation.valueChanged.connect(self.update)
@@ -332,7 +331,7 @@ class ToggleModeButton(QtWidgets.QWidget):
         rect.setSize(size * self.animation.currentValue())
         rect.moveCenter(center)
         c = rect.height() / 2.0
-        painter.drawRoundedRect(rect , c, c)
+        painter.drawRoundedRect(rect, c, c)
 
         painter.end()
 
@@ -391,7 +390,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.add_bookmarks_widget = None
         self.slack_widget = None
         self.solo_button = None
-
 
         self.active_monitor = Active(parent=self)
 
@@ -472,7 +470,6 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda s: self.statusbar.showMessage(s, 4000))
         row.layout().addWidget(self.solo_button)
         row.layout().addSpacing(common.INDICATOR_WIDTH)
-
 
     @QtCore.Slot()
     def initialize(self):
@@ -754,7 +751,8 @@ class BrowserWidget(QtWidgets.QWidget):
 
         #####################################################
         self.headerwidget.widgetMoved.connect(self.save_widget_settings)
-        self.headerwidget.findChild(MinimizeButton).clicked.connect(self.showMinimized)
+        self.headerwidget.findChild(
+            MinimizeButton).clicked.connect(self.showMinimized)
         self.headerwidget.findChild(CloseButton).clicked.connect(self.close)
         #####################################################
         self.shutdown.connect(self.terminate)
@@ -806,7 +804,8 @@ class BrowserWidget(QtWidgets.QWidget):
         f.model().sourceModel().modelDataResetRequested.connect(
             l.model().modelDataResetRequested)
 
-        ff.favouritesChanged.connect(ff.model().sourceModel().modelDataResetRequested)
+        ff.favouritesChanged.connect(
+            ff.model().sourceModel().modelDataResetRequested)
         #####################################################
         # Stacked widget navigation
         lc.listChanged.connect(s.setCurrentIndex)
@@ -821,7 +820,6 @@ class BrowserWidget(QtWidgets.QWidget):
             cls = model.__class__.__name__
             k = u'widget/{}/{}/filtertext'.format(cls, data_key)
             f.model().set_filter_text(local_settings.value(k))
-
 
         f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().set_data_key)
@@ -917,7 +915,6 @@ class BrowserWidget(QtWidgets.QWidget):
         ff.model().sourceModel().messageChanged.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
 
-
         # Statusbar
         b.entered.connect(self.entered)
         a.entered.connect(self.entered)
@@ -998,11 +995,11 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        rect = rect.marginsRemoved(QtCore.QMargins(3,3,3,3))
+        rect = rect.marginsRemoved(QtCore.QMargins(3, 3, 3, 3))
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
-        pen = QtGui.QPen(QtGui.QColor(35,35,35,255))
+        pen = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
         pen.setWidth(1.0)
         painter.setPen(pen)
         painter.setBrush(common.SEPARATOR)

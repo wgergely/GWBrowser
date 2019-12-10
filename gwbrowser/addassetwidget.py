@@ -72,37 +72,6 @@ class AddAssetWidget(QtWidgets.QWidget):
             return None
         return index.data(QtCore.Qt.StatusTipRole)
 
-    def completer_keywords(self):
-        """We can give some hints when naming assets using auto-completion.
-        The will contain the already existing folder names and some predefined
-        shot, sequence names, etc.
-
-        """
-        if not self.path:
-            return []
-
-        kw = []
-        for entry in gwscandir.scandir(self.path):
-            kw.append(entry.name)
-
-        for n in xrange(98):
-            shot = u'sh{}0'.format(u'{}'.format(n + 1).zfill(2))
-            kw.append(shot)
-            kw.append(u'lay_{}'.format(shot))
-            kw.append(u'lay_{}'.format(shot))
-            kw.append(u'ani_{}'.format(shot))
-            kw.append(u'fx_{}'.format(shot))
-            for m in xrange(98):
-                seq = u'seq{}0'.format(u'{}'.format(m + 1).zfill(2))
-                kw.append(u'{}_{}'.format(seq, shot))
-                kw.append(u'{}_ani_{}'.format(seq, shot))
-                kw.append(u'{}_fx_{}'.format(seq, shot))
-                kw.append(u'{}_lay_{}'.format(seq, shot))
-        kw = sorted(kw)
-        kw = sorted(kw, key=lambda s: len(s))
-
-        return kw
-
     def _createUI(self):
         """Creates the ``AddAssetsWidget``'s ui and layout."""
         common.set_custom_stylesheet(self)
@@ -258,16 +227,6 @@ class AddAssetWidget(QtWidgets.QWidget):
         pos = self.mapToGlobal(pos)
         menu.move(pos)
         menu.exec_()
-
-    def showEvent(self, event):
-        completer = QtWidgets.QCompleter(
-            sorted(self.completer_keywords()), self)
-        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        completer.setModelSorting(
-            QtWidgets.QCompleter.CaseInsensitivelySortedModel)
-        completer.setCompletionMode(
-            QtWidgets.QCompleter.InlineCompletion)
-        self.name_widget.setCompleter(completer)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()

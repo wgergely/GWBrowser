@@ -4,7 +4,7 @@
 import os
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
-import OpenImageIO.OpenImageIO as OpenImageIO
+import OpenImageIO
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
@@ -347,43 +347,6 @@ QLineEdit {{
             self.hide()
 
 
-class EditorContextMenu(BaseContextMenu):
-    """The context menu associated with the filter text editor."""
-    finished = QtCore.Signal(unicode)
-
-    def __init__(self, parent=None):
-        super(EditorContextMenu, self).__init__(
-            QtCore.QModelIndex(), parent=parent)
-        self.add_keywords_menu()
-
-    @contextmenu
-    def add_keywords_menu(self, menu_set):
-        """Custom context menu to add a keyword to the search list."""
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'filter', common.TEXT, common.INLINE_ICON_SIZE)
-        kws = self.parent().parent().parent().keywords()
-        if not kws:
-            return menu_set
-
-        def insert_keyword(s):
-            """The action to execute when a keyword is inserted."""
-            s = s.split(u'/')
-            s = u' '.join(s)
-
-            self.parent().insert(s)
-            self.finished.emit(self.parent().text())
-
-        for k in sorted(list(kws.iterkeys())):
-            text = kws[k].split(u'/')
-            text = u'  |  '.join(text) if len(text) > 1 else text[0]
-            menu_set[k] = {
-                u'text': text.upper(),
-                u'icon': pixmap,
-                u'action': functools.partial(insert_keyword, kws[k])
-            }
-        return menu_set
-
-
 class Editor(QtWidgets.QLineEdit):
     """Customized QLineEditor to input out filter text."""
     finished = QtCore.Signal(unicode)
@@ -418,22 +381,7 @@ QLineEdit:focus {{
             common.PrimaryFont.family(),
             common.psize(common.LARGE_FONT_SIZE)
         ))
-
-        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-
-    def contextMenuEvent(self, event):
-        """Custom context menu for the editor widget."""
-        if not self.parent().parent().keywords():
-            return
-
-        widget = EditorContextMenu(parent=self)
-        widget.finished.connect(self.finished)
-        pos = self.rect().bottomLeft()
-        pos = self.mapToGlobal(pos)
-        widget.move(pos)
-        self.parent().context_menu_open = True
-        widget.exec_()
-        self.parent().context_menu_open = False
+        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
 
 class FilterEditor(QtWidgets.QWidget):
@@ -456,14 +404,6 @@ class FilterEditor(QtWidgets.QWidget):
 
         self.setFocusProxy(self.editor_widget)
 
-    def add_keywords(self):
-        keys = self.keywords().keys()
-        completer = QtWidgets.QCompleter(sorted(keys), self)
-        completer.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
-        completer.setCompletionMode(
-            QtWidgets.QCompleter.InlineCompletion)
-        self.editor_widget.setCompleter(completer)
-
     def _createUI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
@@ -479,17 +419,18 @@ class FilterEditor(QtWidgets.QWidget):
             common.ROW_HEIGHT
         )
         row.layout().addWidget(icon)
-        label = u'Edit the filter to help find items in the current list:'
+        label = u'Edit the filter to help find items in the current list'
         row.layout().addWidget(PaintedLabel(label, parent=self))
 
         row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         label = u'text'
         label = QtWidgets.QLabel(label)
-        label.setStyleSheet('color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setStyleSheet(u'color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         row.layout().addWidget(label, 1)
 
         row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
+        row.setFixedHeight(64)
         self.editor_widget = Editor(parent=self)
         self.editor_widget.setAlignment(QtCore.Qt.AlignLeft)
         row.layout().addWidget(self.editor_widget, 1)
@@ -498,13 +439,6 @@ class FilterEditor(QtWidgets.QWidget):
     def _connectSignals(self):
         self.editor_widget.finished.connect(self.finished)
         self.finished.connect(self.hide)
-
-    def keywords(self):
-        """Shortcut to access the models filter keyword values."""
-        if not self.parent():
-            return {}
-        val = self.parent().model().sourceModel().keywords()
-        return val
 
     @QtCore.Slot()
     def adjust_size(self):
@@ -558,7 +492,6 @@ class FilterEditor(QtWidgets.QWidget):
 
     def showEvent(self, event):
         self.adjust_size()
-        self.add_keywords()
         text = self.parent().model().filter_text()
         text = text.lower() if text else u''
         text = u'' if text == u'/' else text

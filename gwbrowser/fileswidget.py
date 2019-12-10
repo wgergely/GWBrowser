@@ -426,20 +426,6 @@ class FilesModel(BaseModel):
             on Windows and Mac OS X the performance seems to be adequate.
 
         """
-        def add_keywords(l):
-            """Adds searchable keywords given a list of string."""
-            arr = []
-            for s in l:
-                self._keywords[s] = s
-                ns = u'--{}'.format(s)
-                self._keywords[ns] = ns
-
-                arr.append(s)
-                k = u' '.join(arr).strip()
-                self._keywords[k] = k
-                nk = u' --'.join(arr).strip()
-                self._keywords[nk] = nk
-
         def dflags():
             """The default flags to apply to the item."""
             return (
@@ -582,26 +568,6 @@ class FilesModel(BaseModel):
                     common.SortByLastModified: 0,
                     common.SortBySize: 0,
                 }
-
-                # Keywords for filtering
-                # We will prefix folernames with '%%'.
-                # This has no significance, just an arbitary prefix that
-                # will be used by the FilterEditor to display the folder
-                # keywords
-                _rr = u'%%{}'.format(fileroot)
-                self._keywords[_rr] = _rr
-                self._keywords[filename] = filename
-
-                split_root = fileroot.split(u'/')
-                _rr = u'%%{}'.format(split_root[0])
-                self._keywords[_rr] = _rr
-                if len(split_root) <= 4:
-                    add_keywords(split_root)
-                    add_keywords(regex.split(filename))
-
-                    for _root in split_root:
-                        add_keywords(regex.split(_root))
-                        self._keywords[_root] = _root
 
                 # If the file in question is a sequence, we will also save a reference
                 # to it in `self._model_data[location][True]` dictionary.

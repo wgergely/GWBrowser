@@ -2,7 +2,6 @@
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
 import os
-
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.settings import Active
@@ -14,9 +13,6 @@ import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.browserwidget import TrayMenu
-
-# High DPI scaling
-# os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1;2'
 
 
 class StandaloneBrowserWidget(BrowserWidget):
@@ -169,7 +165,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.favouriteswidget.activated.connect(common.execute)
         self.terminated.connect(QtWidgets.QApplication.instance().quit)
 
-
     def trayActivated(self, reason):
         """Slot called by the QSystemTrayIcon when clicked."""
         if reason == QtWidgets.QSystemTrayIcon.Unknown:
@@ -316,8 +311,6 @@ class StandaloneApp(QtWidgets.QApplication):
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
-
-        self.setAttribute(QtCore.Qt.AA_DisableHighDpiScaling)
 
     def set_model_id(self):
         """Setting this is needed to add custom window icons on windows.

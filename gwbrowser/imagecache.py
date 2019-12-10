@@ -19,9 +19,10 @@ import sys
 import traceback
 from xml.etree import ElementTree
 from PySide2 import QtWidgets, QtGui, QtCore
-import OpenImageIO.OpenImageIO as OpenImageIO
+import OpenImageIO
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
+
 
 def get_width_height(bound, width, height):
     aspect = float(max((width, height))) / float(min((width, height)))
@@ -91,7 +92,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         model = index.model()
         data = model.model_data()[index.row()]
         height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
-        error_pixmap = ImageCache.get_rsc_pixmap('failed', common.REMOVE, height)
+        error_pixmap = ImageCache.get_rsc_pixmap(
+            u'failed', common.REMOVE, height)
         data[common.ThumbnailRole] = error_pixmap.toImage()
         data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
         data[common.FileThumbnailLoaded] = True
@@ -131,7 +133,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         set_error_thumbnail()
         return False
 
-    _width, _height = get_width_height(common.THUMBNAIL_IMAGE_SIZE, img.spec().width, img.spec().height)
+    _width, _height = get_width_height(
+        common.THUMBNAIL_IMAGE_SIZE, img.spec().width, img.spec().height)
 
     # Deep
     if img.spec().deep:
@@ -144,7 +147,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     spec.attribute('oiio:ColorSpace', 'Linear')
     spec.attribute('oiio:Gamma', '0.454545')
 
-    b = OpenImageIO.ImageBufAlgo.resample(img, roi=spec.roi, interpolate=False, nthreads=nthreads)
+    b = OpenImageIO.ImageBufAlgo.resample(
+        img, roi=spec.roi, interpolate=False, nthreads=nthreads)
     b.set_write_format('uint8')
 
     spec = b.spec()
@@ -230,7 +234,6 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     except KeyError:
         return
 
-
     # We will load the image and the background color
     image = ImageCache.get(
         data[common.ThumbnailPathRole],
@@ -295,9 +298,8 @@ class ImageCache(QtCore.QObject):
             os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
         ImageCache.get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
-
-    @staticmethod
-    def get(path, height, overwrite=False):
+    @classmethod
+    def get(cls, path, height, overwrite=False):
         """Saves a resized copy of path to the cache.
 
         Returns the cached image if it already is in the cache, or the placholder
@@ -321,8 +323,8 @@ class ImageCache(QtCore.QObject):
             return None
 
         # Return cached item if exsits
-        if k in ImageCache._data and not overwrite:
-            return ImageCache._data[k]
+        if k in cls._data and not overwrite:
+            return cls._data[k]
 
         # Checking if the file can be opened
         i = OpenImageIO.ImageInput.open(path)
@@ -336,14 +338,14 @@ class ImageCache(QtCore.QObject):
             return None
 
         image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
-        image = ImageCache.resize_image(image, height)
+        image = cls.resize_image(image, height)
 
-        ImageCache._data[u'{k}:BackgroundColor'.format(
+        cls._data[u'{k}:BackgroundColor'.format(
             k=path
-        )] = ImageCache.get_color_average(path)
-        ImageCache._data[k] = image
+        )] = cls.get_color_average(path)
+        cls._data[k] = image
 
-        return ImageCache._data[k]
+        return cls._data[k]
 
     @staticmethod
     def resize_image(image, size):
@@ -383,7 +385,8 @@ class ImageCache(QtCore.QObject):
             return QtGui.QColor.fromRgbF(*a)
         return QtGui.QColor()
 
-    def capture(self, index):
+    @classmethod
+    def capture(cls, index):
         """Uses ``ScreenGrabber`` to save a custom screen-grab."""
         if not index.isValid():
             return
@@ -397,7 +400,7 @@ class ImageCache(QtCore.QObject):
         if pixmap.isNull():
             return
         image = pixmap.toImage()
-        image = self.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
+        image = cls.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         if image.isNull():
             return
 
@@ -407,11 +410,11 @@ class ImageCache(QtCore.QObject):
         if not image.save(index.data(common.ThumbnailPathRole)):
             return
 
-        image = self.get(
+        image = cls.get(
             index.data(common.ThumbnailPathRole),
             index.data(QtCore.Qt.SizeHintRole).height() - 2,
             overwrite=True)
-        color = self.get(
+        color = cls.get(
             index.data(common.ThumbnailPathRole),
             'BackgroundColor',
             overwrite=False)
@@ -421,7 +424,8 @@ class ImageCache(QtCore.QObject):
         data[index.row()][common.ThumbnailBackgroundRole] = color
         index.model().indexUpdated.emit(index)
 
-    def remove(self, index):
+    @classmethod
+    def remove(cls, index):
         """Deletes the thumbnail file and the cached entries associated
         with it.
 
@@ -439,11 +443,13 @@ class ImageCache(QtCore.QObject):
 
         if file_.exists():
             if not file_.remove():
-                print '# Failed to remove thumbnail: {}'.format(data[common.ThumbnailPathRole])
+                print '# Failed to remove thumbnail: {}'.format(
+                    data[common.ThumbnailPathRole])
 
-        keys = [k for k in self._data if data[common.ThumbnailPathRole].lower() in k.lower()]
+        keys = [k for k in cls._data if data[common.ThumbnailPathRole].lower()
+                in k.lower()]
         for key in keys:
-            del self._data[key]
+            del cls._data[key]
 
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
@@ -454,14 +460,17 @@ class ImageCache(QtCore.QObject):
             source_index.model().indexUpdated.emit(source_index)
             return
 
-        if hasattr(source_index.model(), 'ThumbnailThread'):
-            source_index.model().ThumbnailThread.Worker.add_to_queue([index,])
-            source_index.model().indexUpdated.emit(source_index)
+        if not hasattr(source_index.model(), u'ThumbnailThread'):
+            return
+        if not source_index.model().ThumbnailThread:
+            return
 
+        source_index.model().ThumbnailThread.Worker.add_to_queue([index, ])
+        source_index.model().indexUpdated.emit(source_index)
 
     @classmethod
     def pick(cls, index):
-        """Opens a file-dialog to select an OpenImageIO compliant file."""
+        """Opens a file-dialog to select an OpenImageIO compliant file# to use as a thumbnail."""
         if hasattr(index.model(), 'sourceModel'):
             index = index.model().mapToSource(index)
 
@@ -482,9 +491,8 @@ class ImageCache(QtCore.QObject):
             return
 
         # Saving the thumbnail
+        cls.remove(index)
         oiio_make_thumbnail(index, source=dialog.selectedFiles()[0])
-        # data = index.model().model_data()[index.row()]
-        # data[common.FileThumbnailLoaded] = False
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
@@ -563,6 +571,7 @@ class ImageCache(QtCore.QObject):
             if u'rsc:' in k:
                 data[k] = v
         cls._data = data
+
 
 # Initializing the ImageCache:
 ImageCache.initialize()

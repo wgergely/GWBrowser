@@ -406,7 +406,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._data = {}
         self._datakey = None
         self._datatype = {}
-        self._keywords = {}
         self.parent_path = None
 
         self._sortrole = None
@@ -425,10 +424,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.initialize_default_sort_values()
 
         self.__init_threads__()
-
-    def keywords(self):
-        """We're using the ``keywords`` property to help filter our lists."""
-        return self._keywords
 
     def initialize_default_sort_values(self):
         cls = self.__class__.__name__

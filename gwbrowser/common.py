@@ -39,7 +39,7 @@ import zipfile
 import ConfigParser
 
 from PySide2 import QtGui, QtCore, QtWidgets
-import OpenImageIO.OpenImageIO as OpenImageIO
+import OpenImageIO
 
 
 import gwbrowser.gwscandir as gwscandir
