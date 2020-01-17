@@ -13,7 +13,7 @@ each users.
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate

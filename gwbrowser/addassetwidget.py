@@ -18,7 +18,6 @@ from gwbrowser.addfilewidget import DescriptionEditor
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row
 from gwbrowser.addfilewidget import ThumbnailButton
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
-import gwbrowser.gwscandir as gwscandir
 import gwbrowser.settings as Settings
 
 

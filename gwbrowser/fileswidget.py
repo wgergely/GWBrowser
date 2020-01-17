@@ -38,7 +38,7 @@ from gwbrowser.baselistwidget import FilterProxyModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.baselistwidget import validate_index
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
@@ -474,7 +474,7 @@ class FilesModel(BaseModel):
         favourites = local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
-        activefile = local_settings.value('activepath/file')
+        activefile = local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
         location = self.data_key()

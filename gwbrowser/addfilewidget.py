@@ -31,7 +31,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 
 from gwbrowser.settings import local_settings
 import gwbrowser.common as common
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 import gwbrowser.editors as editors
 from gwbrowser.common_ui import ClickableIconButton, add_row, PaintedButton, PaintedLabel
 from gwbrowser.bookmarkswidget import BookmarksModel

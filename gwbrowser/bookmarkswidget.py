@@ -8,7 +8,7 @@ import re
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
