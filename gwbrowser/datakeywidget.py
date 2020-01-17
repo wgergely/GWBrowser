@@ -12,7 +12,7 @@ in the common module.
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 import gwbrowser.common as common
 
 from gwbrowser.delegate import paintmethod
@@ -52,11 +52,10 @@ class DataKeyWorker(BaseWorker):
             return
 
         count = 0
-        for _, _, fileentries in common.walk(index.data(QtCore.Qt.StatusTipRole)):
-            for _ in fileentries:
-                count += 1
-                if count > 999:
-                    break
+        for _ in common.walk(index.data(QtCore.Qt.StatusTipRole)):
+            count += 1
+            if count > 999:
+                break
 
         # The underlying data can change whilst walking...
         if not index.isValid():
