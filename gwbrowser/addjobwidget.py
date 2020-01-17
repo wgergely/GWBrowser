@@ -182,6 +182,10 @@ class AddJobWidget(QtWidgets.QDialog):
         menu.exec_()
 
 
+
+
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     w = AddJobWidget('C:/temp')

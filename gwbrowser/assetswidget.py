@@ -7,7 +7,7 @@ import traceback
 import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.imagecache import oiio_make_thumbnail
@@ -128,7 +128,8 @@ class AssetModel(BaseModel):
     ThumbnailThread = AssetThumbnailThread
 
     def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
-        super(AssetModel, self).__init__(thread_count=thread_count, parent=parent)
+        super(AssetModel, self).__init__(
+            thread_count=thread_count, parent=parent)
 
     @initdata
     def __initdata__(self):
@@ -183,7 +184,8 @@ class AssetModel(BaseModel):
 
             filepath = entry.path.replace(u'\\', u'/')
 
-            identifier_file = u'{}/{}'.format(filepath, common.ASSET_IDENTIFIER)
+            identifier_file = u'{}/{}'.format(filepath,
+                                              common.ASSET_IDENTIFIER)
             if not QtCore.QFileInfo(identifier_file).exists():
                 continue
 
@@ -239,7 +241,6 @@ class AssetModel(BaseModel):
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
             }
-
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -314,5 +315,6 @@ class AssetsWidget(ThreadedBaseWidget):
 
         index = self.model().mapFromSource(source_index)
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
-        self.selectionModel().setCurrentIndex(index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
