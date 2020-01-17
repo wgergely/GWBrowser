@@ -42,7 +42,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
 
-import gwbrowser.gwscandir as gwscandir
+import gwbrowser._scandir as gwscandir
 
 # Flags
 MarkedAsArchived = 0b1000000000
@@ -1214,97 +1214,150 @@ def execute(index, first=False):
     QtGui.QDesktopServices.openUrl(url)
 
 
-enc = sys.getfilesystemencoding()
 
+def walk(path):
+    """This is a custom generator expression using scandir's `walk`.
+    We're using the C module for performance's sake without python-native
+    fallbacks. The method yields each found DirEntry.
 
-def walk(top, topdown=True, onerror=None, followlinks=False):
-    """This is a modified version using the C based _scandir module for iterating through
-    directories. The code is taken from the scandir module but here forcing the code to
-    use the _scandir(gwscandir) iterator on all platforms.
+    The used _scandir module itself is customized to contain the addittional
+    ``DirEntry.relativepath(unicode: basepath)`` method and ``DirEntry.dirpath``
+    attribute.
 
-    Returns:
-        tuple(
-            path(unicode),
-            folders(DirEntries),
-            files(DirEntries)
-        )
+    Yields:
+        DirEntry:   A ctype class.
 
     """
+    # MacOS/Windows encoding error workaround
     try:
-        top = unicode(top, 'utf-8')
+        top = unicode(path, u'utf-8')
     except TypeError:
         try:
-            top = top.decode(enc)
+            top = top.decode(sys.getfilesystemencoding())
         except:
             pass
-    dirs = []
-    nondirs = []
 
-    # We may not have read permission for top, in which case we can't
-    # get a list of the files the directory contains.  os.walk
-    # always suppressed the exception then, rather than blow up for a
-    # minor reason when (say) a thousand readable directories are still
-    # left to visit.  That logic is copied here.
     try:
-        scandir_it = gwscandir.scandir(top)
+        it = gwscandir.scandir(path=path)
     except OSError as error:
-        if onerror is not None:
-            onerror(error)
         return
 
     while True:
         try:
             try:
-                entry = next(scandir_it)
+                entry = next(it)
             except StopIteration:
                 break
         except OSError as error:
-            if onerror is not None:
-                onerror(error)
             return
 
         try:
             is_dir = entry.is_dir()
         except OSError:
-            # If is_dir() raises an OSError, consider that the entry is not
-            # a directory, same behaviour than os.path.isdir().
             is_dir = False
 
-        if is_dir:
-            dirs.append(entry)
-        else:
-            nondirs.append(entry)
+        if not is_dir:
+            yield entry
 
-        if not topdown and is_dir:
-            # Bottom-up: recurse into sub-directory, but exclude symlinks to
-            # directories if followlinks is False
-            if followlinks:
-                walk_into = True
-            else:
-                try:
-                    is_symlink = entry.is_symlink()
-                except OSError:
-                    # If is_symlink() raises an OSError, consider that the
-                    # entry is not a symbolic link, same behaviour than
-                    # os.path.islink().
-                    is_symlink = False
-                walk_into = not is_symlink
-
-            if walk_into:
-                for entry in walk(entry.path, topdown, onerror, followlinks):
-                    yield entry
-
-    # Yield before recursion if going top down
-    if topdown:
-        yield top, dirs, nondirs
-
-        # Recurse into sub-directories
-        for direntry in dirs:
-            new_path = u'%s/%s' % (top, direntry.name)
-            for entry in walk(new_path, topdown, onerror, followlinks):
+        try:
+            is_symlink = entry.is_symlink()
+        except OSError:
+            is_symlink = False
+        if not is_symlink:
+            for entry in walk(entry.path):
                 yield entry
-    else:
-        yield top, dirs, nondirs
+
+# def walk(top, topdown=True, onerror=None, followlinks=False):
+#     """This is a modified version using the C based _scandir module for iterating through
+#     directories. The code is taken from the scandir module but here forcing the code to
+#     use the _scandir(gwscandir) iterator on all platforms.
+#
+#     Returns:
+#         tuple(
+#             path(unicode),
+#             folders(DirEntries),
+#             files(DirEntries)
+#         )
+#
+#     """
+#
+#     # MacOS/Windows encoding error workaround
+#     try:
+#         top = unicode(top, 'utf-8')
+#     except TypeError:
+#         try:
+#             top = top.decode(sys.getfilesystemencoding())
+#         except:
+#             pass
+#
+#     dirs = []
+#     nondirs = []
+#
+#     # We may not have read permission for top, in which case we can't
+#     # get a list of the files the directory contains.  os.walk
+#     # always suppressed the exception then, rather than blow up for a
+#     # minor reason when (say) a thousand readable directories are still
+#     # left to visit.  That logic is copied here.
+#     try:
+#         scandir_it = gwscandir.scandir(top)
+#     except OSError as error:
+#         if onerror is not None:
+#             onerror(error)
+#         return
+#
+#     while True:
+#         try:
+#             try:
+#                 entry = next(scandir_it)
+#             except StopIteration:
+#                 break
+#         except OSError as error:
+#             if onerror is not None:
+#                 onerror(error)
+#             return
+#
+#         try:
+#             is_dir = entry.is_dir()
+#         except OSError:
+#             # If is_dir() raises an OSError, consider that the entry is not
+#             # a directory, same behaviour than os.path.isdir().
+#             is_dir = False
+#
+#         if is_dir:
+#             dirs.append(entry)
+#         else:
+#             nondirs.append(entry)
+#
+#         if not topdown and is_dir:
+#             # Bottom-up: recurse into sub-directory, but exclude symlinks to
+#             # directories if followlinks is False
+#             if followlinks:
+#                 walk_into = True
+#             else:
+#                 try:
+#                     is_symlink = entry.is_symlink()
+#                 except OSError:
+#                     # If is_symlink() raises an OSError, consider that the
+#                     # entry is not a symbolic link, same behaviour than
+#                     # os.path.islink().
+#                     is_symlink = False
+#                 walk_into = not is_symlink
+#
+#             if walk_into:
+#                 for entry in walk(entry.path, topdown, onerror, followlinks):
+#                     yield entry
+#
+#     # Yield before recursion if going top down
+#     if topdown:
+#         yield top, dirs, nondirs
+#
+#         # Recurse into sub-directories
+#         for direntry in dirs:
+#             new_path = u'%s/%s' % (top, direntry.name)
+#             for entry in walk(new_path, topdown, onerror, followlinks):
+#                 yield entry
+#     else:
+#         yield top, dirs, nondirs
 
 
 def rsc_path(f, n):
