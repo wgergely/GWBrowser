@@ -487,156 +487,156 @@ class FilesModel(BaseModel):
 
         nth = 987
         c = 0
-        for _, _, fileentries in common.walk(location_path):
-            for entry in fileentries:
-                filename = entry.name
+        for entry in common.walk(location_path):
+            filename = entry.name
 
-                if filename[0] == u'.':
+            if filename[0] == u'.':
+                continue
+            if u'thumbs.db' in filename.lower():
+                continue
+
+            print entry.path
+            filepath = entry.path.replace(u'\\', u'/')
+            ext = filename.split(u'.')[-1].lower()
+
+            # This line will make sure only extensions we choose to display
+            # are actually stored by the model
+            if location_is_filtered:
+                if ext not in common.NameFilters[location]:
                     continue
-                if u'thumbs.db' in filename.lower():
-                    continue
 
-                filepath = entry.path.replace(u'\\', u'/')
-                ext = filename.split(u'.')[-1].lower()
+            # Progress bar
+            c += 1
+            if not c % nth:
+                self.messageChanged.emit(
+                    u'Found {} files...'.format(c))
+                QtWidgets.QApplication.instance().processEvents(
+                    QtCore.QEventLoop.ExcludeUserInputEvents)
 
-                # This line will make sure only extensions we choose to display
-                # are actually returned
-                if location_is_filtered:
-                    if ext not in common.NameFilters[location]:
-                        continue
+            fileroot = filepath.replace(location_path, u'')
+            fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
 
-                # Progress bar
-                c += 1
-                if not c % nth:
-                    self.messageChanged.emit(
-                        u'Found {} files...'.format(c))
-                    QtWidgets.QApplication.instance().processEvents(
-                        QtCore.QEventLoop.ExcludeUserInputEvents)
+            seq = common.get_sequence(filepath)
 
-                fileroot = filepath.replace(location_path, u'')
-                fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
+            if ext in defined_thumbnails:
+                placeholder_image = thumbnails[ext]
+                default_thumbnail_image = thumbnails[ext]
+                default_background_color = thumbnail_backgrounds[ext]
+            else:
+                placeholder_image = default_thumbnail_image
 
-                seq = common.get_sequence(filepath)
+            flags = dflags()
 
-                if ext in defined_thumbnails:
-                    placeholder_image = thumbnails[ext]
-                    default_thumbnail_image = thumbnails[ext]
-                    default_background_color = thumbnail_backgrounds[ext]
-                else:
-                    placeholder_image = default_thumbnail_image
+            if filepath.lower() in sfavourites:
+                flags = flags | common.MarkedAsFavourite
 
-                flags = dflags()
+            if activefile:
+                if activefile in filepath:
+                    flags = flags | common.MarkedAsActive
 
-                if filepath.lower() in sfavourites:
-                    flags = flags | common.MarkedAsFavourite
+            # stat = entry.stat()
+            idx = len(self._data[dkey][common.FileItem])
+            self._data[dkey][common.FileItem][idx] = {
+                QtCore.Qt.DisplayRole: filename,
+                QtCore.Qt.EditRole: filename,
+                QtCore.Qt.StatusTipRole: filepath,
+                QtCore.Qt.ToolTipRole: filepath,
+                QtCore.Qt.SizeHintRole: rowsize,
+                #
+                common.EntryRole: [entry, ],
+                common.FlagsRole: flags,
+                common.ParentPathRole: (server, job, root, asset, location, fileroot),
+                common.DescriptionRole: u'',
+                common.TodoCountRole: 0,
+                common.FileDetailsRole: u'',
+                common.SequenceRole: seq,
+                common.FramesRole: [],
+                common.FileInfoLoaded: False,
+                common.StartpathRole: None,
+                common.EndpathRole: None,
+                #
+                common.FileThumbnailLoaded: False,
+                common.DefaultThumbnailRole: default_thumbnail_image,
+                common.DefaultThumbnailBackgroundRole: default_background_color,
+                common.ThumbnailPathRole: None,
+                common.ThumbnailRole: placeholder_image,
+                common.ThumbnailBackgroundRole: default_background_color,
+                #
+                common.TypeRole: common.FileItem,
+                #
+                common.SortByName: filepath,
+                common.SortByLastModified: 0,
+                common.SortBySize: 0,
+            }
 
-                if activefile:
-                    if activefile in filepath:
-                        flags = flags | common.MarkedAsActive
+            # If the file in question is a sequence, we will also save a reference
+            # to it in `self._model_data[location][True]` dictionary.
+            if seq:
+                try:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        unicode(seq.group(1), 'utf-8'),
+                        unicode(seq.group(3), 'utf-8'),
+                        unicode(seq.group(4), 'utf-8'))
+                except TypeError:
+                    seqpath = u'{}[0]{}.{}'.format(
+                        seq.group(1),
+                        seq.group(3),
+                        seq.group(4))
 
-                # stat = entry.stat()
-                idx = len(self._data[dkey][common.FileItem])
-                self._data[dkey][common.FileItem][idx] = {
-                    QtCore.Qt.DisplayRole: filename,
-                    QtCore.Qt.EditRole: filename,
-                    QtCore.Qt.StatusTipRole: filepath,
-                    QtCore.Qt.ToolTipRole: filepath,
-                    QtCore.Qt.SizeHintRole: rowsize,
-                    #
-                    common.EntryRole: [entry, ],
-                    common.FlagsRole: flags,
-                    common.ParentPathRole: (server, job, root, asset, location, fileroot),
-                    common.DescriptionRole: u'',
-                    common.TodoCountRole: 0,
-                    common.FileDetailsRole: u'',
-                    common.SequenceRole: seq,
-                    common.FramesRole: [],
-                    common.FileInfoLoaded: False,
-                    common.StartpathRole: None,
-                    common.EndpathRole: None,
-                    #
-                    common.FileThumbnailLoaded: False,
-                    common.DefaultThumbnailRole: default_thumbnail_image,
-                    common.DefaultThumbnailBackgroundRole: default_background_color,
-                    common.ThumbnailPathRole: None,
-                    common.ThumbnailRole: placeholder_image,
-                    common.ThumbnailBackgroundRole: default_background_color,
-                    #
-                    common.TypeRole: common.FileItem,
-                    #
-                    common.SortByName: filepath,
-                    common.SortByLastModified: 0,
-                    common.SortBySize: 0,
-                }
-
-                # If the file in question is a sequence, we will also save a reference
-                # to it in `self._model_data[location][True]` dictionary.
-                if seq:
+                # If the sequence has not yet been added to our dictionary
+                # of seqeunces we add it here
+                if seqpath.lower() not in seqs:  # ... and create it if it doesn't exist
+                    seqname = seqpath.split(u'/')[-1]
+                    flags = dflags()
                     try:
-                        seqpath = u'{}[0]{}.{}'.format(
+                        key = u'{}{}.{}'.format(
                             unicode(seq.group(1), 'utf-8'),
                             unicode(seq.group(3), 'utf-8'),
                             unicode(seq.group(4), 'utf-8'))
                     except TypeError:
-                        seqpath = u'{}[0]{}.{}'.format(
+                        key = u'{}{}.{}'.format(
                             seq.group(1),
                             seq.group(3),
                             seq.group(4))
 
-                    # If the sequence has not yet been added to our dictionary
-                    # of seqeunces we add it here
-                    if seqpath.lower() not in seqs:  # ... and create it if it doesn't exist
-                        seqname = seqpath.split(u'/')[-1]
-                        flags = dflags()
-                        try:
-                            key = u'{}{}.{}'.format(
-                                unicode(seq.group(1), 'utf-8'),
-                                unicode(seq.group(3), 'utf-8'),
-                                unicode(seq.group(4), 'utf-8'))
-                        except TypeError:
-                            key = u'{}{}.{}'.format(
-                                seq.group(1),
-                                seq.group(3),
-                                seq.group(4))
+                    if key.lower() in sfavourites:
+                        flags = flags | common.MarkedAsFavourite
 
-                        if key.lower() in sfavourites:
-                            flags = flags | common.MarkedAsFavourite
+                    seqs[seqpath.lower()] = {
+                        QtCore.Qt.DisplayRole: seqname,
+                        QtCore.Qt.EditRole: seqname,
+                        QtCore.Qt.StatusTipRole: seqpath,
+                        QtCore.Qt.ToolTipRole: seqpath,
+                        QtCore.Qt.SizeHintRole: rowsize,
+                        common.EntryRole: [],
+                        common.FlagsRole: flags,
+                        common.ParentPathRole: (server, job, root, asset, location, fileroot),
+                        common.DescriptionRole: u'',
+                        common.TodoCountRole: 0,
+                        common.FileDetailsRole: u'',
+                        common.SequenceRole: seq,
+                        common.FramesRole: [],
+                        common.FileInfoLoaded: False,
+                        common.StartpathRole: None,
+                        common.EndpathRole: None,
+                        #
+                        common.FileThumbnailLoaded: False,
+                        common.DefaultThumbnailRole: default_thumbnail_image,
+                        common.DefaultThumbnailBackgroundRole: default_background_color,
+                        common.ThumbnailPathRole: None,
+                        common.ThumbnailRole: placeholder_image,
+                        common.ThumbnailBackgroundRole: default_background_color,
+                        #
+                        common.TypeRole: common.SequenceItem,
+                        common.SortByName: seqpath,
+                        common.SortByLastModified: 0,
+                        common.SortBySize: 0,  # Initializing with null-size
+                    }
 
-                        seqs[seqpath.lower()] = {
-                            QtCore.Qt.DisplayRole: seqname,
-                            QtCore.Qt.EditRole: seqname,
-                            QtCore.Qt.StatusTipRole: seqpath,
-                            QtCore.Qt.ToolTipRole: seqpath,
-                            QtCore.Qt.SizeHintRole: rowsize,
-                            common.EntryRole: [],
-                            common.FlagsRole: flags,
-                            common.ParentPathRole: (server, job, root, asset, location, fileroot),
-                            common.DescriptionRole: u'',
-                            common.TodoCountRole: 0,
-                            common.FileDetailsRole: u'',
-                            common.SequenceRole: seq,
-                            common.FramesRole: [],
-                            common.FileInfoLoaded: False,
-                            common.StartpathRole: None,
-                            common.EndpathRole: None,
-                            #
-                            common.FileThumbnailLoaded: False,
-                            common.DefaultThumbnailRole: default_thumbnail_image,
-                            common.DefaultThumbnailBackgroundRole: default_background_color,
-                            common.ThumbnailPathRole: None,
-                            common.ThumbnailRole: placeholder_image,
-                            common.ThumbnailBackgroundRole: default_background_color,
-                            #
-                            common.TypeRole: common.SequenceItem,
-                            common.SortByName: seqpath,
-                            common.SortByLastModified: 0,
-                            common.SortBySize: 0,  # Initializing with null-size
-                        }
-
-                    seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
-                    seqs[seqpath.lower()][common.EntryRole].append(entry)
-                else:
-                    seqs[filepath] = self._data[dkey][common.FileItem][idx]
+                seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
+                seqs[seqpath.lower()][common.EntryRole].append(entry)
+            else:
+                seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
