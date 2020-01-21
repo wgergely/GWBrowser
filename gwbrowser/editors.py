@@ -612,7 +612,7 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
             if pixmap.isNull():
                 continue
             label = ThumbnailLabel(
-                entry.path.replace(u'\\', u'/'), self.thumbnail_size, parent=self)
+                entry.path, self.thumbnail_size, parent=self)
             label.setPixmap(pixmap)
 
             column = idx % self.columns

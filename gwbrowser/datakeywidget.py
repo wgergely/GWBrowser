@@ -373,7 +373,7 @@ class DataKeyModel(BaseModel):
             data[idx] = {
                 QtCore.Qt.DisplayRole: entry.name,
                 QtCore.Qt.EditRole: entry.name,
-                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
+                QtCore.Qt.StatusTipRole: entry.path,
                 QtCore.Qt.ToolTipRole: u'',
                 QtCore.Qt.SizeHintRole: rowsize,
                 #

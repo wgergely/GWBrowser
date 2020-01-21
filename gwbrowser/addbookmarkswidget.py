@@ -608,7 +608,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                     continue
 
                 identifier_path = u'{}/{}'.format(
-                    entry.path.replace(u'\\', u'/'),
+                    entry.path,
                     common.ASSET_IDENTIFIER)
 
                 if QtCore.QFileInfo(identifier_path).exists():
@@ -846,8 +846,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                 continue
             item = QtWidgets.QListWidgetItem()
             item.setData(QtCore.Qt.DisplayRole, entry.name.upper())
-            item.setData(QtCore.Qt.StatusTipRole,
-                         entry.path.replace(u'\\', u'/'))
+            item.setData(QtCore.Qt.StatusTipRole, entry.path)
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
                 common.WIDTH, common.ROW_BUTTONS_HEIGHT))
 

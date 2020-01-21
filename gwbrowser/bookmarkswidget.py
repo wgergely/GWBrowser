@@ -51,7 +51,7 @@ class BookmarkInfo(QtCore.QFileInfo):
             if not entry.is_dir():
                 continue
             identifier_path = u'{}/{}'.format(
-                entry.path.replace(u'\\', u'/'),
+                entry.path,
                 common.ASSET_IDENTIFIER)
             if QtCore.QFileInfo(identifier_path).exists():
                 count += 1

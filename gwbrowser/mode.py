@@ -23,7 +23,7 @@ def prune(func):
             if not match:
                 continue
 
-            path = entry.path.replace(u'\\', u'/')
+            path = entry.path
             pid = path.strip(u'.lock').split(u'_').pop()
             pid = int(pid)
             if pid not in psutil.pids():
@@ -74,7 +74,7 @@ def get_mode():
     for entry in gwscandir.scandir(lockfile_info.path()):
         if entry.is_dir():
             continue
-        path = entry.path.replace(u'\\', u'/')
+        path = entry.path
         if not path.endswith(u'.lock'):
             continue
         with open(path, 'r') as f:

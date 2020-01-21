@@ -182,7 +182,7 @@ class AssetModel(BaseModel):
             if not entry.is_dir():
                 continue
 
-            filepath = entry.path.replace(u'\\', u'/')
+            filepath = entry.path
 
             identifier_file = u'{}/{}'.format(filepath,
                                               common.ASSET_IDENTIFIER)

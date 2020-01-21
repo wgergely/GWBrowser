@@ -495,8 +495,7 @@ class FilesModel(BaseModel):
             if u'thumbs.db' in filename.lower():
                 continue
 
-            print entry.path
-            filepath = entry.path.replace(u'\\', u'/')
+            filepath = entry.path
             ext = filename.split(u'.')[-1].lower()
 
             # This line will make sure only extensions we choose to display

@@ -1091,7 +1091,7 @@ def find_largest_file(index):
 
     def key(x): return x.stat().st_size
     entry = max(index.data(EntryRole), key=key)
-    return entry.path.replace(u'\\', u'/')
+    return entry.path
 
 
 def mount():

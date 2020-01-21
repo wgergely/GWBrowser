@@ -1250,41 +1250,42 @@ class NameVersionWidget(NameBase):
 
     @QtCore.Slot()
     def check_version(self):
-        """Checks the currently set version against the folders in the
-        set destination folder. If our set version is lower than any of the
-        existing files.
+        """This method checks the files inside the directory returned by
+        `get_file_path()` against the currently set version number. The method
+        will automatically increment the current version number if needed, eg.
+        if a file with a larger version number exists already in the folder.
 
         """
         file_info = QtCore.QFileInfo(self.window().get_file_path())
         match = common.is_valid_filename(file_info.fileName())
         if not match:
             return
-        version = match.group(5)
+
+        version = match.group(5).lower()
         prefix = match.expand(ur'\1_\2').lower()
 
         versions = []
         ext = self.window().extension.lower()
-        for entry in gwscandir.scandir(file_info.path()):
+        name_prefix = self.window().name_prefix_widget.text().lower()
 
-            path = entry.path.replace(u'\\', u'/').lower()
+        for entry in gwscandir.scandir(file_info.path()):
+            path = entry.path.lower()
             basename = path.split(u'/').pop(-1)
 
-            if not basename.lower().startswith(self.window().name_prefix_widget.text()):
+            if not basename.startswith(name_prefix):
                 continue
-            # Let's skip the files with a different version
+
+            # Let's skip the files with a different extension
             if not path.endswith(ext):
                 continue
 
             # Skipping files that are not versioned appropiately
-            if prefix.lower() not in path.lower():
+            if prefix not in path:
                 continue
 
-            _match = common.is_valid_filename(path.lower())
+            _match = common.is_valid_filename(path)
             if not _match:
                 continue
-                # _math = common.get_sequence(_match)
-                # if not _match:
-                # _version = _match.group(2).lower()
             _version = _match.group(5).lower()
             versions.append(int(_version))
 
