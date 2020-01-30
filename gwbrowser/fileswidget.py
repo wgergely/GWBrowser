@@ -399,6 +399,15 @@ class FilesModel(BaseModel):
 
     def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
         super(FilesModel, self).__init__(thread_count=thread_count, parent=parent)
+        # Only used to cache the thumbnails
+        self._extension_thumbnails = {}
+        self._extension_thumbnail_backgrounds = {}
+        self._defined_thumbnails = set(
+            common.creative_cloud_formats +
+            common.exports_formats +
+            common.scene_formats +
+            common.misc_formats
+        )
 
     @initdata
     def __initdata__(self):
@@ -444,26 +453,24 @@ class FilesModel(BaseModel):
         dkey = self.data_key()
         rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
 
+        # Initializing default thumbnails
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
 
-        thumbnails = {}
-        thumbnail_backgrounds = {}
-        defined_thumbnails = set(
-            common.creative_cloud_formats +
-            common.exports_formats +
-            common.scene_formats +
-            common.misc_formats
-        )
-        for ext in defined_thumbnails:
+        for ext in self._defined_thumbnails:
+            thumb_cache_k = u'{}:{}'.format(ext, rowsize.height())
+            if thumb_cache_k in self._extension_thumbnails:
+                continue
+
             k = common.rsc_path(__file__, ext)
-            image = ImageCache.get(k, rowsize.height())
-            thumbnails[ext] = image
+            image = ImageCache.get(k, rowsize.height() - common.ROW_SEPARATOR)
+            self._extension_thumbnails[thumb_cache_k] = image
             k = u'{}:BackgroundColor'.format(k)
-            thumbnail_backgrounds[ext] = ImageCache._data[k]
-            thumbnail_backgrounds[ext].setAlpha(150)
+            self._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
+            self._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
+
         self._data[dkey] = {
             common.FileItem: {},
             common.SequenceItem: {}
@@ -497,6 +504,7 @@ class FilesModel(BaseModel):
 
             filepath = entry.path
             ext = filename.split(u'.')[-1].lower()
+            thumb_cache_k = u'{}:{}'.format(ext, rowsize.height())
 
             # This line will make sure only extensions we choose to display
             # are actually stored by the model
@@ -517,10 +525,10 @@ class FilesModel(BaseModel):
 
             seq = common.get_sequence(filepath)
 
-            if ext in defined_thumbnails:
-                placeholder_image = thumbnails[ext]
-                default_thumbnail_image = thumbnails[ext]
-                default_background_color = thumbnail_backgrounds[ext]
+            if ext in self._defined_thumbnails:
+                placeholder_image = self._extension_thumbnails[thumb_cache_k]
+                default_thumbnail_image = self._extension_thumbnails[thumb_cache_k]
+                default_background_color = self._extension_thumbnail_backgrounds[thumb_cache_k]
             else:
                 placeholder_image = default_thumbnail_image
 
