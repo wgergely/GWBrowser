@@ -687,7 +687,7 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Ctrl+-', (self.decrease_row_size, ), repeat=True)
         #
         self.add_shortcut(
-        u'Ctrl+P', (self.push_to_rv, ), repeat=False)
+            u'Ctrl+P', (self.push_to_rv, ), repeat=False)
 
     def push_to_rv(self):
         """Pushes the selected footage to RV."""
@@ -695,28 +695,68 @@ class BrowserWidget(QtWidgets.QWidget):
         index = widget.currentIndex()
         if not index.isValid():
             return
-        path = common.get_sequence_startpath(index.data(QtCore.Qt.StatusTipRole))
+        path = common.get_sequence_startpath(
+            index.data(QtCore.Qt.StatusTipRole))
         common.push_to_rv(path)
 
     def decrease_row_size(self):
-        import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT - 12.0) < common.ROW_HEIGHT:
+        import gwbrowser.delegate as delegate
+        if (delegate.ROW_HEIGHT - 12) < common.ROW_HEIGHT:
             return
-        d.ROW_HEIGHT -= 12.0
-        d.SMALL_FONT_SIZE -= 1.0
-        for n in xrange(self.stackedwidget.count()):
-            self.stackedwidget.widget(2).reset()
+        delegate.ROW_HEIGHT -= 12
+        delegate.SMALL_FONT_SIZE -= 1.0
+        # for n in xrange(self.stackedwidget.count()):
+        #     if n >= 3:
+        #         continue
+
+        view = self.stackedwidget.widget(2)
+        model = view.model().sourceModel()
+
+        for ext in model._defined_thumbnails:
+            thumb_cache_k = u'{}:{}'.format(
+                ext, delegate.ROW_HEIGHT - common.ROW_HEIGHT)
+            if thumb_cache_k in model._extension_thumbnails:
+                continue
+
+            k = common.rsc_path(__file__, ext)
+            image = ImageCache.get(
+                k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+            model._extension_thumbnails[thumb_cache_k] = image
+            k = u'{}:BackgroundColor'.format(k)
+            model._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
+            model._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
+
+        for n in xrange(view.model().rowCount()):
+            index = view.model().index(n, 0)
+            source_index = view.model().mapToSource(index)
+            data = model.model_data()[source_index.row()]
+
+            if not data[common.FileThumbnailLoaded]:
+                continue
+
+            ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
+            if not ext:
+                continue
+
+            thumb_cache_k = u'{}:{}'.format(
+                ext, delegate.ROW_HEIGHT - common.ROW_HEIGHT)
+
+            # data[common.ThumbnailRole] = model._extension_thumbnails[thumb_cache_k]
+            # data[source_index.row()][common.FileThumbnailLoaded] = False
+
+        self.stackedwidget.widget(2).reset()
+        print delegate.ROW_HEIGHT - common.ROW_SEPARATOR
 
     def increase_row_size(self):
-        import gwbrowser.delegate as d
-        if (d.ROW_HEIGHT + 12.0) > common.ASSET_ROW_HEIGHT:
+        import gwbrowser.delegate as delegate
+        if (delegate.ROW_HEIGHT + 12) > common.ASSET_ROW_HEIGHT:
             return
-        d.ROW_HEIGHT += 12.0
-        d.SMALL_FONT_SIZE += 1.0
-        for n in xrange(self.stackedwidget.count()):
-            if n >= 3:
-                continue
-            self.stackedwidget.widget(n).reset()
+        delegate.ROW_HEIGHT += 12
+        delegate.SMALL_FONT_SIZE += 1.0
+        # for n in xrange(self.stackedwidget.count()):
+        #     if n >= 3:
+        #         continue
+        self.stackedwidget.widget(2).reset()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.
