@@ -1347,13 +1347,19 @@ class BaseListWidget(QtWidgets.QListView):
             elif (event.key() == QtCore.Qt.Key_Return) or (event.key() == QtCore.Qt.Key_Enter):
                 self.action_on_enter_key()
             elif event.key() == QtCore.Qt.Key_Tab:
-                self.key_down()
-                self.key_tab()
-                self.save_selection()
+                if not self.description_editor_widget.isVisible():
+                    self.key_tab()
+                else:
+                    self.key_down()
+                    self.key_tab()
+                    self.save_selection()
             elif event.key() == QtCore.Qt.Key_Backtab:
-                self.key_up()
-                self.key_tab()
-                self.save_selection()
+                if not self.description_editor_widget.isVisible():
+                    self.key_tab()
+                else:
+                    self.key_up()
+                    self.key_tab()
+                    self.save_selection()
             elif event.key() == QtCore.Qt.Key_PageDown:
                 super(BaseListWidget, self).keyPressEvent(event)
                 self.save_selection()
