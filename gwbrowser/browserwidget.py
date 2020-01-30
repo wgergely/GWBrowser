@@ -685,6 +685,18 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Ctrl++', (self.increase_row_size, ), repeat=True)
         self.add_shortcut(
             u'Ctrl+-', (self.decrease_row_size, ), repeat=True)
+        #
+        self.add_shortcut(
+        u'Ctrl+P', (self.push_to_rv, ), repeat=False)
+
+    def push_to_rv(self):
+        """Pushes the selected footage to RV."""
+        widget = self.stackedwidget.currentWidget()
+        index = widget.currentIndex()
+        if not index.isValid():
+            return
+        path = common.get_sequence_startpath(index.data(QtCore.Qt.StatusTipRole))
+        common.push_to_rv(path)
 
     def decrease_row_size(self):
         import gwbrowser.delegate as d
