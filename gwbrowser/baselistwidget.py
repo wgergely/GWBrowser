@@ -842,7 +842,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.filter_editor.finished.connect(proxy.filterTextChanged)
 
-
         proxy.initialize_filter_values()
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -1101,7 +1100,6 @@ class BaseListWidget(QtWidgets.QListView):
                     if not state and path in sfavourites:
                         favourites.remove(path)
 
-
         if flag == common.MarkedAsFavourite:
             local_settings.setValue(u'favourites', sorted(favourites))
 
@@ -1183,7 +1181,6 @@ class BaseListWidget(QtWidgets.QListView):
                 return
 
         if state is None or state is True:
-
             # Removing favourite flags when the item is to be archived
             if key.lower() in sfavourites:
                 if state is None or state is False:  # clears flag
@@ -1243,7 +1240,13 @@ class BaseListWidget(QtWidgets.QListView):
         local_settings.setValue(u'favourites', sorted(list(set(favourites))))
 
     def key_down(self):
-        """Custom action on  `down` arrow key-press."""
+        """Custom action on  `down` arrow key-press.
+
+        We're implementing a continous 'scroll' function: reaching the last
+        item in the list will automatically jump to the beginning to the list
+        and vice-versa.
+
+        """
         sel = self.selectionModel()
         current_index = self.selectionModel().currentIndex()
         first_index = self.model().index(0, 0, parent=QtCore.QModelIndex())
@@ -1280,6 +1283,10 @@ class BaseListWidget(QtWidgets.QListView):
         """Custom action to perform when the `up` arrow is pressed
         on the keyboard.
 
+        We're implementing a continous 'scroll' function: reaching the last
+        item in the list will automatically jump to the beginning to the list
+        and vice-versa.
+
         """
         sel = self.selectionModel()
         current_index = self.selectionModel().currentIndex()
@@ -1315,6 +1322,7 @@ class BaseListWidget(QtWidgets.QListView):
             break
 
     def key_tab(self):
+        """Custom `tab` key action."""
         self.description_editor_widget.show()
 
     def keyPressEvent(self, event):
@@ -1487,7 +1495,6 @@ class BaseListWidget(QtWidgets.QListView):
         else:
             widget.move(QtGui.QCursor().pos())
 
-        widget.setFixedWidth(width)
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
         common.move_widget_to_available_geo(widget)
 
@@ -1910,7 +1917,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.initialize_visible_indexes)
 
     def restart_timer(self):
-        self.scrollbar_changed_timer.start(self.scrollbar_changed_timer.interval())
+        self.scrollbar_changed_timer.start(
+            self.scrollbar_changed_timer.interval())
 
     @QtCore.Slot()
     def hide_archived_items(self):
