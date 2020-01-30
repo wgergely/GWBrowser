@@ -456,16 +456,15 @@ class FilesModel(BaseModel):
         # Initializing default thumbnails
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
-            rowsize.height() - common.ROW_SEPARATOR)
+            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         for ext in self._defined_thumbnails:
-            thumb_cache_k = u'{}:{}'.format(ext, rowsize.height())
+            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
             if thumb_cache_k in self._extension_thumbnails:
                 continue
-
             k = common.rsc_path(__file__, ext)
-            image = ImageCache.get(k, rowsize.height() - common.ROW_SEPARATOR)
+            image = ImageCache.get(k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
             self._extension_thumbnails[thumb_cache_k] = image
             k = u'{}:BackgroundColor'.format(k)
             self._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
@@ -504,7 +503,7 @@ class FilesModel(BaseModel):
 
             filepath = entry.path
             ext = filename.split(u'.')[-1].lower()
-            thumb_cache_k = u'{}:{}'.format(ext, rowsize.height())
+            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
 
             # This line will make sure only extensions we choose to display
             # are actually stored by the model
