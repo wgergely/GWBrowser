@@ -338,36 +338,43 @@ QMenu {{
 		margin: 0px;
 		padding: 0px;
 		border: none;
-		color: rgba({TEXT});
 		menu-scrollable: 1;
 }}
 QMenu::separator {{
   height: 1px;
-	margin: 4px 0px 4px 0px;
+	margin: 6px 0px 6px 0px;
 	padding: 0px 0px 0px 0px;
-  background-color: rgba(0,0,0,30);
+  background-color: rgba(0,0,0,20);
   color: rgba(0,0,0,0);
 }}
-QMenu::icon,
-QMenu::indicator {{
-	margin: 0px;
-	padding-left: 20px;
-	height: 30px;
-	background-color: rgba(0, 0, 0, 0);
+QMenu::indicator,
+QMenu::icon {{
+	padding: 7px;
+	/* padding: 0px 0px 0px 22px;
+	margin: 0px 0px 0px 0px;
+	height: 30px; */
+	alignment: center;
+	text-align: center;
+	background-color: rgba(0,0,0,20);
 }}
 QMenu::icon:selected,
 QMenu::indicator:selected {{
-	background-color: rgba(0, 0, 0, 0);
+	background-color: transparent;
 }}
 QMenu::item {{
-	height: 30px;
+	color: rgba({TEXT});
+	padding: 0px 32px 0px 18px;
 	margin: 0px 0px 0px 0px;
-	padding: 0px 12px 0px 40px;
+	height: 30px;
   background-color: transparent;
 }}
 QMenu::item:selected {{
 	color: rgba({TEXT_SELECTED});
   background-color: rgba(255,255,255,50);
+}}
+QMenu::item:disabled {{
+	color: rgba({TEXT_DISABLED});
+  background-color: rgba(0,0,0,20);
 }}
 QMenu::right-arrow {{
   margin: 0px;
