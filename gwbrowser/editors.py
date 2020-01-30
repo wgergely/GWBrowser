@@ -82,7 +82,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
         if not file_info.exists():
             self.clear()
             if index.data(common.ThumbnailRole):
-                pixmap = QtGui.QPixmap.fromImage(index.data(common.ThumbnailRole))
+                pixmap = QtGui.QPixmap.fromImage(
+                    index.data(common.ThumbnailRole))
                 self.setPixmap(pixmap)
             return
 
@@ -94,7 +95,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
         self.clear()
         if pixmap.width() > common.THUMBNAIL_IMAGE_SIZE or pixmap.height() > common.THUMBNAIL_IMAGE_SIZE:
-            image = ImageCache.resize_image(pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+            image = ImageCache.resize_image(
+                pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
             pixmap = QtGui.QPixmap.fromImage(image)
         self.setPixmap(pixmap)
 
@@ -110,7 +112,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
-        painter.setBrush(QtGui.QColor(15,15,15,230))
+        painter.setBrush(QtGui.QColor(15, 15, 15, 230))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(self.rect())
 
@@ -126,7 +128,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
             bg_rect.setWidth(size)
             bg_rect.setHeight(size)
             bg_rect.moveCenter(self.rect().center())
-            painter.setBrush(QtGui.QColor(0,0,0,60))
+            painter.setBrush(QtGui.QColor(0, 0, 0, 60))
             painter.drawRect(bg_rect)
 
             center = rect.center()
@@ -143,19 +145,22 @@ class ThumbnailViewer(QtWidgets.QLabel):
             text = index.data(QtCore.Qt.StatusTipRole)
             if text:
                 text = u' / '.join(text.split(u'/'))
-                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
+                common.draw_aliased_text(painter, font, QtCore.QRect(
+                    rect), text, QtCore.Qt.AlignCenter, common.TEXT)
                 rect.moveTop(rect.center().y() + metrics.lineSpacing())
 
             text = index.data(common.DescriptionRole)
             if text:
                 text = text if text else u''
-                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.FAVOURITE)
+                common.draw_aliased_text(painter, font, QtCore.QRect(
+                    rect), text, QtCore.Qt.AlignCenter, common.FAVOURITE)
                 rect.moveTop(rect.center().y() + metrics.lineSpacing())
             text = index.data(common.FileDetailsRole)
             if text:
                 text = u'{}'.format(text)
                 text = u'   |   '.join(text.split(u';')) if text else u'-'
-                common.draw_aliased_text(painter, font, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.TEXT)
+                common.draw_aliased_text(painter, font, QtCore.QRect(
+                    rect), text, QtCore.Qt.AlignCenter, common.TEXT)
                 rect.moveTop(rect.center().y() + metrics.lineSpacing())
 
         # Image info
@@ -171,7 +176,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
             for n, text in enumerate(image_info):
                 if n > 2:
                     break
-                common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(rect), text, QtCore.Qt.AlignCenter, common.SECONDARY_TEXT)
+                common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(
+                    rect), text, QtCore.Qt.AlignCenter, common.SECONDARY_TEXT)
                 rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
 
         painter.end()
@@ -221,11 +227,12 @@ class DescriptionEditorWidget(QtWidgets.QLineEdit):
         self._connectSignals()
 
         self.installEventFilter(self)
-        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
+        self.setPlaceholderText(u'Edit description...')
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setTextMargins(2,2,2,2)
+        self.setTextMargins(2, 2, 2, 2)
         self.setStyleSheet(
-"""
+            """
 QLineEdit {{
 	font-family: "{FONT}";
 	font-size: {SIZE}pt;
@@ -233,10 +240,10 @@ QLineEdit {{
     padding: 0px;
 }}
         """.format(
-            FONT=common.SecondaryFont.family(),
-            SIZE=common.SMALL_FONT_SIZE + 1.0
+                FONT=common.SecondaryFont.family(),
+                SIZE=common.SMALL_FONT_SIZE + 1.0
+            )
         )
-    )
 
     def _connectSignals(self):
         """Connects signals."""
@@ -265,25 +272,32 @@ QLineEdit {{
         self.hide()
 
     def update_editor(self):
-        """Sets the widget size, position and contents."""
+        """Sets the editor widget's size, position and text contents."""
         index = self.parent().selectionModel().currentIndex()
         if not index.isValid():
             self.hide()
             return
+
         rect = self.parent().visualRect(index)
         rectangles = self.parent().itemDelegate().get_rectangles(rect)
         description_rect = self.parent().itemDelegate().get_description_rect(rectangles, index)
+
+        # Won't be showing the editor if there's no appropiate description area
+        # provided by the delegate (eg. the bookmark items don't have this)
         if not description_rect:
             self.hide()
-        rect = description_rect.marginsAdded(QtCore.QMargins(0,4,0,4))
-        rect.setRight(rectangles[delegate.DataRect].right() - common.MARGIN)
+
+        # Let's set the size based on the size provided by the delegate but
+        # center it instead of a direct overlay
+        rect = description_rect.marginsAdded(QtCore.QMargins(0, 4, 0, 4))
+        rect.moveCenter(rectangles[delegate.DataRect].center())
+        rect.setLeft(
+            rectangles[delegate.DataRect].left() + common.INDICATOR_WIDTH)
+        rect.setRight(
+            rectangles[delegate.DataRect].right() - common.INDICATOR_WIDTH)
         self.setGeometry(rect)
 
-        if self.geometry().bottom() > rect.bottom():
-            self.move(
-                self.geometry().x(),
-                self.geometry().y() + (rect.bottom() - self.geometry().bottom() - 4)
-            )
+        # Set the text and select it
         self.setText(index.data(common.DescriptionRole))
         self.selectAll()
 
@@ -353,8 +367,7 @@ class Editor(QtWidgets.QLineEdit):
 
     def __init__(self, parent=None):
         super(Editor, self).__init__(parent=parent)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setPlaceholderText(u'Filter text...')
+        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.setStyleSheet("""
 QLineEdit {{
     margin: 6px;
@@ -425,14 +438,14 @@ class FilterEditor(QtWidgets.QWidget):
         row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         label = u'text'
         label = QtWidgets.QLabel(label)
-        label.setStyleSheet(u'color: rgba({});'.format(common.rgb(common.SECONDARY_TEXT)))
+        label.setStyleSheet(u'color: rgba({});'.format(
+            common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         row.layout().addWidget(label, 1)
 
         row = add_row(u'', parent=self, padding=0, height=common.ROW_HEIGHT)
         row.setFixedHeight(64)
         self.editor_widget = Editor(parent=self)
-        self.editor_widget.setAlignment(QtCore.Qt.AlignLeft)
         row.layout().addWidget(self.editor_widget, 1)
         self.layout().addStretch(1)
 
