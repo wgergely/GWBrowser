@@ -1405,11 +1405,15 @@ class BaseListWidget(QtWidgets.QListView):
                             self.save_selection()
                             break
                     else:
-                        match = re.search(
-                            self.timed_search_string,
-                            index.data(QtCore.Qt.DisplayRole),
-                            flags=re.IGNORECASE
-                        )
+                        try:
+                            match = re.search(
+                                self.timed_search_string,
+                                index.data(QtCore.Qt.DisplayRole),
+                                flags=re.IGNORECASE
+                            )
+                        except:
+                            match = None
+
                         if match:
                             sel.setCurrentIndex(
                                 index,
@@ -1909,6 +1913,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.restart_timer)
 
         # Initializing the indexes
+        self.setMouseTracking(True)
+        self.entered.connect(self.restart_timer)
         self.model().sourceModel().dataSorted.connect(self.restart_timer)
         self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
         self.model().sourceModel().dataKeyChanged.connect(self.restart_timer)
@@ -1916,7 +1922,12 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.scrollbar_changed_timer.timeout.connect(
             self.initialize_visible_indexes)
 
+    @QtCore.Slot()
     def restart_timer(self):
+        """Fires the timer responsible for updating the visible model indexes on
+        a threaded viewer.
+
+        """
         self.scrollbar_changed_timer.start(
             self.scrollbar_changed_timer.interval())
 
@@ -1958,9 +1969,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     @QtCore.Slot()
     def initialize_visible_indexes(self):
         """The sourceModel() loads its data in multiples steps: There's a
-        single-threaded walk of all sub-directories, and a threaded querry for
+        single-threaded walk of all sub-directories, and a threaded query for
         image and file information. This method is responsible for passing the
-        indexes to the threads so they can update the ui accordingly.
+        indexes to the threads so they can update the model accordingly.
 
         """
         if not self.isVisible():
@@ -2133,7 +2144,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
         @QtCore.Slot()
         def initialize_visible_indexes():
             if next_idx in (1, 2, 3):
-                self.widget(next_idx).initialize_visible_indexes()
+                self.widget(next_idx).restart_timer()
 
         self.animGroup.finished.connect(initialize_visible_indexes)
         self.animGroup.finished.connect(self.widget(next_idx).setFocus)
