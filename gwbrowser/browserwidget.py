@@ -705,47 +705,13 @@ class BrowserWidget(QtWidgets.QWidget):
             return
         delegate.ROW_HEIGHT -= 12
         delegate.SMALL_FONT_SIZE -= 1.0
-        # for n in xrange(self.stackedwidget.count()):
-        #     if n >= 3:
-        #         continue
 
-        view = self.stackedwidget.widget(2)
-        model = view.model().sourceModel()
-
-        for ext in model._defined_thumbnails:
-            thumb_cache_k = u'{}:{}'.format(
-                ext, delegate.ROW_HEIGHT - common.ROW_HEIGHT)
-            if thumb_cache_k in model._extension_thumbnails:
-                continue
-
-            k = common.rsc_path(__file__, ext)
-            image = ImageCache.get(
-                k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-            model._extension_thumbnails[thumb_cache_k] = image
-            k = u'{}:BackgroundColor'.format(k)
-            model._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
-            model._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
-
-        for n in xrange(view.model().rowCount()):
-            index = view.model().index(n, 0)
-            source_index = view.model().mapToSource(index)
-            data = model.model_data()[source_index.row()]
-
-            if not data[common.FileThumbnailLoaded]:
-                continue
-
-            ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
-            if not ext:
-                continue
-
-            thumb_cache_k = u'{}:{}'.format(
-                ext, delegate.ROW_HEIGHT - common.ROW_HEIGHT)
-
-            # data[common.ThumbnailRole] = model._extension_thumbnails[thumb_cache_k]
-            # data[source_index.row()][common.FileThumbnailLoaded] = False
-
-        self.stackedwidget.widget(2).reset()
-        print delegate.ROW_HEIGHT - common.ROW_SEPARATOR
+        for n in (2,3):
+            view = self.stackedwidget.widget(n)
+            model = view.model().sourceModel()
+            model.reset_thumbnails()
+            self.stackedwidget.widget(n).reset()
+            view.restart_timer()
 
     def increase_row_size(self):
         import gwbrowser.delegate as delegate
@@ -753,10 +719,13 @@ class BrowserWidget(QtWidgets.QWidget):
             return
         delegate.ROW_HEIGHT += 12
         delegate.SMALL_FONT_SIZE += 1.0
-        # for n in xrange(self.stackedwidget.count()):
-        #     if n >= 3:
-        #         continue
-        self.stackedwidget.widget(2).reset()
+
+        for n in (2,3):
+            view = self.stackedwidget.widget(n)
+            model = view.model().sourceModel()
+            model.reset_thumbnails()
+            self.stackedwidget.widget(n).reset()
+            view.restart_timer()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.
