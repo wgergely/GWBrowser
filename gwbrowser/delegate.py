@@ -211,15 +211,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         color = index.data(
             common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
-        color = color if color else QtGui.QColor(0,0,0,0)
+        color = color if color else QtGui.QColor(0, 0, 0, 0)
         painter.setBrush(color)
         painter.setOpacity(0.8)
         painter.drawRect(rect)
-        bottom_row_rect = QtCore.QRect(rectangles[ThumbnailRect])
-        bottom_row_rect.setHeight(common.ROW_SEPARATOR)
-        bottom_row_rect.moveTop(rectangles[ThumbnailRect].bottom() + common.ROW_SEPARATOR)
-        painter.drawRect(bottom_row_rect)
 
+        # If this is the last item, there's not need painting this
+        if index.row() < (index.model().rowCount() - 1):
+            bottom_row_rect = QtCore.QRect(rectangles[ThumbnailRect])
+            bottom_row_rect.setHeight(common.ROW_SEPARATOR)
+            bottom_row_rect.moveTop(
+                rectangles[ThumbnailRect].bottom() + common.ROW_SEPARATOR)
+            painter.drawRect(bottom_row_rect)
 
         o = 0.7 if selected else 0.6
         o = 0.75 if hover else o
@@ -243,8 +246,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         painter.drawImage(irect, image, image.rect())
 
         color = index.data(common.ThumbnailBackgroundRole)
-        #
-
 
     @paintmethod
     def paint_background(self, *args):
@@ -1287,7 +1288,6 @@ class FilesWidgetDelegate(BaseDelegate):
             if r.right() > rect.right():
                 r.setRight(rect.right() - (common.INDICATOR_WIDTH))
 
-
         font = QtGui.QFont(common.SecondaryFont)
         font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
@@ -1300,7 +1300,6 @@ class FilesWidgetDelegate(BaseDelegate):
             QtCore.QPoint(description_rect.center().x(),
                           name_rect.center().y() + metrics.lineSpacing())
         )
-
 
         return description_rect
 
@@ -1449,7 +1448,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         text = '"Drag+Shift" grabs all files    |    "Drag+Alt" grabs the first file    |    "Drag+Shift+Alt" grabs the parent folder'
         painter.drawText(
-            option.rect.marginsRemoved(QtCore.QMargins(18,0,18,0)),
+            option.rect.marginsRemoved(QtCore.QMargins(18, 0, 18, 0)),
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
             text,
             boundingRect=option.rect,
