@@ -4,6 +4,7 @@
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.basecontextmenu import BaseContextMenu
+from gwbrowser.basecontextmenu import contextmenu
 from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.common_ui import PaintedLabel
 from gwbrowser.datakeywidget import DataKeyView
@@ -504,6 +505,32 @@ class BookmarksTabButton(PaintedTextButton):
         return text
 
 
+class QuickAssetsContextMenu(BaseContextMenu):
+    """Quick asset change menu."""
+
+    def __init__(self, parent=None):
+        super(QuickAssetsContextMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        self.add_assetlist_menu()
+
+    @contextmenu
+    def add_assetlist_menu(self, menu_set):
+        import functools
+        widget = self.parent().parent().parent().stackedwidget.widget(1)
+        items = widget.model().sourceModel().model_data().items()
+        items = sorted(items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
+
+        for idx, item in items:
+            if item[common.FlagsRole] & common.MarkedAsArchived:
+                continue
+            source_index = widget.model().sourceModel().index(idx, 0)
+            index = widget.model().mapFromSource(source_index)
+            menu_set[item[QtCore.Qt.DisplayRole].upper()] = {
+                u'icon': QtGui.QIcon(QtGui.QPixmap.fromImage(item[common.ThumbnailRole])),
+                u'action': functools.partial(widget.activate, index)
+            }
+        return menu_set
+
+
 class AssetsTabButton(PaintedTextButton):
     """The button responsible for revealing the ``AssetsWidget``"""
 
@@ -514,6 +541,14 @@ class AssetsTabButton(PaintedTextButton):
             u'Click to see the list of available assets',
             parent=parent
         )
+
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+    def contextMenuEvent(self, event):
+        menu = QuickAssetsContextMenu(parent=self)
+        pos = self.mapToGlobal(event.pos())
+        menu.move(pos)
+        menu.exec_()
 
     @QtCore.Slot()
     def adjust_size(self):
