@@ -269,7 +269,7 @@ class FileThumbnailWorker(BaseWorker):
         if index.flags() & common.MarkedAsArchived:
             return
 
-        # THe model might be loading...
+        # The model might be loading...
         if not index.model():
             return
         data = index.model().model_data()
@@ -408,6 +408,52 @@ class FilesModel(BaseModel):
             common.scene_formats +
             common.misc_formats
         )
+
+    def reset_thumbnails(self):
+        """Resets all thumbnails of data of the model.
+
+        It resets the original state, but it is still up to the worker threads
+        to actually load the image data for the viewer to display.
+
+        """
+        default_thumbnail_image = ImageCache.get(
+            common.rsc_path(__file__, u'placeholder'),
+            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+        default_background_color = common.THUMBNAIL_BACKGROUND
+
+        for ext in self._defined_thumbnails:
+            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+            if thumb_cache_k in self._extension_thumbnails:
+                continue
+            k = common.rsc_path(__file__, ext)
+            image = ImageCache.get(k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+            self._extension_thumbnails[thumb_cache_k] = image
+            k = u'{}:BackgroundColor'.format(k)
+            self._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
+            self._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
+
+        seqs = {}
+
+        for k in (common.FileItem, common.SequenceItem):
+            for item in self._data[self.data_key()][k].itervalues():
+                ext = item[QtCore.Qt.StatusTipRole].split(u'.')[-1]
+                if not ext:
+                    continue
+
+                thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+                if ext in self._defined_thumbnails:
+                    placeholder_image = self._extension_thumbnails[thumb_cache_k]
+                    default_thumbnail_image = self._extension_thumbnails[thumb_cache_k]
+                    default_background_color = self._extension_thumbnail_backgrounds[thumb_cache_k]
+                else:
+                    placeholder_image = default_thumbnail_image
+
+                item[common.FileThumbnailLoaded] = False
+                item[common.DefaultThumbnailRole] = default_thumbnail_image
+                item[common.DefaultThumbnailBackgroundRole] = default_background_color
+                item[common.ThumbnailPathRole] = None
+                item[common.ThumbnailRole] = placeholder_image
+                item[common.ThumbnailBackgroundRole] = default_background_color
 
     @initdata
     def __initdata__(self):
