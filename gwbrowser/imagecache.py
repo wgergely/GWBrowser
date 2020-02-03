@@ -63,40 +63,69 @@ def oiio(func):
                 index = index.model().mapToSource(index)
             model = index.model()
             data = model.model_data()[index.row()]
-            error_pixmap = ImageCache.get(
-                common.rsc_path(__file__, u'failed'),
-                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
         try:
-            func(index, source=source,
+            return func(index, source=source,
                  dest=dest, dest_size=dest_size, update=update)
         except Exception as err:
             sys.stderr.write(traceback.format_exc())
             if index.isValid():
-                data[common.ThumbnailRole] = error_pixmap
-                data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+                data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
+                data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
                 data[common.FileThumbnailLoaded] = True
                 model.indexUpdated.emit(index)
+            return False
     return func_wrapper
 
 
 @QtCore.Slot(QtCore.QModelIndex)
 @oiio
 def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True, nthreads=3):
-    """This is a the main method generating thumbnail for items in GWBrowser.
-    We're using the python binds of OpenImageIO to process the images.
+    """Main function for generating thumbnails using the python bindings of
+    OpenImageIO.
+
+    Example:
+
+        .. code-block:: python
+
+        # Pass an invalid QModelIndex when making a thumbnail from a specific file
+        oiio_make_thumbnail(
+            QtCore.QModelIndex(),
+            source=ur'//sloth/jobs/TSTPP_0005/FILMS/TEASER/SHOTS/TS_0090/renders/animation/personajes/TENORIO SC9 ROUGH FINAL.mov',
+            dest=ur'C:/tmp/debug_thumb.png',
+            dest_size=1024
+        )
+
+        # Otherwise, both the destination and the source paths will be retrieved
+        # from `QModelIndex.data()`
+        oiio_make_thumbnail(
+            index,
+            dest_size=1024
+        )
+
+    Args:
+        index (QModelIndex): A QModelIndex item.
+        source (unicode): The path of the source file.
+        dest (unicode): The save destination for the generated thumbnail.
+        dest_size (int): The size of the generated thumbnail.
+        update (bool): Emits an ``indexChanged`` signal when `true`.
+        nthreads (int): The number of threads to use.
+
+    Returns:
+        Bool: `True` is the operation was successful, `False` upon failure.
 
     """
     def set_error_thumbnail():
+        """This method will set the default thumbnail when generating a preview
+        fails."""
         if not index.isValid():
             return
         model = index.model()
         data = model.model_data()[index.row()]
-        height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
-        error_pixmap = ImageCache.get_rsc_pixmap(
-            u'failed', common.REMOVE, height)
-        data[common.ThumbnailRole] = error_pixmap.toImage()
-        data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+        data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
+        data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
         data[common.FileThumbnailLoaded] = True
+
+    cache = OpenImageIO.ImageCache()
 
     # If it's a sequence, we will find the largest file in the sequence and
     # generate the thumbnail for that item
@@ -106,18 +135,22 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     dest = dest if dest else index.data(common.ThumbnailPathRole)
 
     # It is best to make sure we're not trying to generate a thumbnail for
-    # an enournmous file - eg 512MB should be the biggest file we take
+    # an enournmous file
     if QtCore.QFileInfo(source).size() >= 836870912:
         set_error_thumbnail()
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
         return False
+
     # First let's check if the file is readable by OpenImageIO
     i = OpenImageIO.ImageInput.open(source)
     if not i:  # the file is not understood by OpenImageIO
         set_error_thumbnail()
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
         return False
     i.close()
 
-    cache = OpenImageIO.ImageCache()
     img = OpenImageIO.ImageBuf(source)
     cache.invalidate(source, force=True)
     cache.invalidate(dest, force=True)
@@ -125,30 +158,44 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     # Let's check if the loaded item is a movie and let's pick the middle
     # of the timeline as the thumbnail image
     if img.spec().get_int_attribute('oiio:Movie') == 1:
+        # [BUG] Not all codec formats are supported by ffmpeg. Sadly, there does
+        # not seem to be proper error handling and an unsupported codec will
+        # crash the whole app. I'll
+        accepted_codecs = ('h.264', 'mpeg-4')
+        for codec in accepted_codecs:
+            codec_name = img.spec().get_string_attribute('ffmpeg:codec_name')
+            if codec.lower() not in codec_name.lower():
+                set_error_thumbnail()
+                cache.invalidate(source, force=True)
+                cache.invalidate(dest, force=True)
+                return False
+
         # http://lists.openimageio.org/pipermail/oiio-dev-openimageio.org/2017-December/001104.html
         frame = int(img.nsubimages / 2)
         img.reset(source, subimage=frame)
 
     if img.has_error:
         set_error_thumbnail()
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
         return False
 
     _width, _height = get_width_height(
-        common.THUMBNAIL_IMAGE_SIZE, img.spec().width, img.spec().height)
+        int(dest_size), img.spec().width, img.spec().height)
 
     # Deep
     if img.spec().deep:
         img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
 
-    size = int(dest_size)
     spec = OpenImageIO.ImageSpec(_width, _height, 4, 'uint8')
     spec.channelnames = ('R', 'G', 'B', 'A')
     spec.alpha_channel = 3
     spec.attribute('oiio:ColorSpace', 'Linear')
     spec.attribute('oiio:Gamma', '0.454545')
 
+    # Resizing the image
     b = OpenImageIO.ImageBufAlgo.resample(
-        img, roi=spec.roi, interpolate=False, nthreads=nthreads)
+        img, roi=spec.roi, interpolate=True, nthreads=nthreads)
     b.set_write_format('uint8')
 
     spec = b.spec()
@@ -213,6 +260,8 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     i = OpenImageIO.ImageInput.open(source)
     if not i:  # the file is not understood by OpenImageIO
         set_error_thumbnail()
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
         return False
     i.close()
 
@@ -226,13 +275,17 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
 
     # We will update the index with saved and ask the model/view to update
     if not index.isValid():
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
         return False
 
     model = index.model()
     try:
         data = model.model_data()[index.row()]
     except KeyError:
-        return
+        cache.invalidate(source, force=True)
+        cache.invalidate(dest, force=True)
+        return True
 
     # We will load the image and the background color
     image = ImageCache.get(
@@ -247,12 +300,13 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
+
     if update:
         model.indexUpdated.emit(index)
 
     cache.invalidate(source, force=True)
     cache.invalidate(dest, force=True)
-
+    return True
 
 class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
