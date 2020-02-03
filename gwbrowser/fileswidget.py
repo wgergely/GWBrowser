@@ -283,7 +283,7 @@ class FileThumbnailWorker(BaseWorker):
         settings = AssetSettings(index)
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
-        height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
+        height = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
         ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
