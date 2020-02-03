@@ -700,6 +700,7 @@ class BrowserWidget(QtWidgets.QWidget):
         common.push_to_rv(path)
 
     def decrease_row_size(self):
+        """Increases the FilesWidget's row size."""
         import gwbrowser.delegate as delegate
         if (delegate.ROW_HEIGHT - 12) < common.ROW_HEIGHT:
             return
@@ -710,22 +711,22 @@ class BrowserWidget(QtWidgets.QWidget):
             view = self.stackedwidget.widget(n)
             model = view.model().sourceModel()
             model.reset_thumbnails()
-            self.stackedwidget.widget(n).reset()
+            self.stackedwidget.widget(2).reset()
             view.restart_timer()
 
     def increase_row_size(self):
+        """Increases the FilesWidget's row size."""
         import gwbrowser.delegate as delegate
         if (delegate.ROW_HEIGHT + 12) > common.ASSET_ROW_HEIGHT:
             return
         delegate.ROW_HEIGHT += 12
         delegate.SMALL_FONT_SIZE += 1.0
 
-        for n in (2,3):
-            view = self.stackedwidget.widget(n)
-            model = view.model().sourceModel()
-            model.reset_thumbnails()
-            self.stackedwidget.widget(n).reset()
-            view.restart_timer()
+        view = self.stackedwidget.widget(2)
+        model = view.model().sourceModel()
+        model.reset_thumbnails()
+        self.stackedwidget.widget(2).reset()
+        view.restart_timer()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.
