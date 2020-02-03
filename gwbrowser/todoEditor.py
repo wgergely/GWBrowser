@@ -74,33 +74,25 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                 break
 
             if flags & common.HeadingHighlight:
-                char_format.setFontWeight(QtGui.QFont.Bold)
+                char_format.setFontWeight(QtGui.QFont.Normal)
                 char_format.setFontPointSize(
-                    font.pointSize() + 0 + (6 - len(match)))
+                    font.pointSizeF() + 0.0 + (6.0 - float(len(match))))
                 char_format.setFontCapitalization(QtGui.QFont.AllUppercase)
                 if len(match) > 1:
                     char_format.setUnderlineStyle(
                         QtGui.QTextCharFormat.SingleUnderline)
+                    char_format.setForeground(common.FAVOURITE)
                     char_format.setFontPointSize(
-                        font.pointSize() + 1)
+                        font.pointSizeF() + 1.0)
                 self.setFormat(0, len(text), char_format)
                 break
-            # elif flags & common.QuoteHighlight:
-            #     char_format.setForeground(QtGui.QColor(100, 100, 100))
-            #     char_format.setBackground(QtGui.QColor(230, 230, 230))
-            #     self.setFormat(0, len(text), char_format)
-            #     break
-            #
-            # if flags & common.CodeHighlight:
-            #     char_format.setFontWeight(QtGui.QFont.Bold)
-            #     char_format.setForeground(common.FAVOURITE)
-            #     self.setFormat(start, end, char_format)
-            # if flags & common.BoldHighlight:
-            #     char_format.setFontWeight(QtGui.QFont.Bold)
-            #     self.setFormat(start, end, char_format)
-            # if flags & common.ItalicHighlight:
-            #     char_format.setFontItalic(True)
-            #     self.setFormat(start, end, char_format)
+
+            if flags & common.PathHighlight:
+                char_format.setAnchor(True)
+                char_format.setAnchorHref(match)
+                char_format.setForeground(common.ADD)
+                self.setFormat(start, end, char_format)
+                break
         return
 
 
@@ -119,7 +111,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.setDisabled(checked)
         self.document().setDocumentMargin(8)
 
-        self.highlighter = Highlighter(self.document())
+        self.highlighter = Highlighter(self.document(), parent=self)
         self.setOpenExternalLinks(True)
         self.setOpenLinks(False)
         self.setReadOnly(False)
@@ -130,7 +122,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             self.setTextInteractionFlags(
                 QtCore.Qt.TextEditorInteraction | QtCore.Qt.LinksAccessibleByMouse)
 
-        metrics = QtGui.QFontMetrics(self.document().defaultFont())
+        metrics = QtGui.QFontMetricsF(self.document().defaultFont())
         metrics.width(u'   ')
         self.setTabStopWidth(common.MARGIN)
 
@@ -143,9 +135,9 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setMouseTracking(True)
 
-        self.document().contentsChanged.connect(self.contentChanged)
+        self.document().setUseDesignMetrics(True)
         self.document().setHtml(text)
-
+        self.document().contentsChanged.connect(self.contentChanged)
         self.anchorClicked.connect(self.open_url)
 
     @QtCore.Slot()
@@ -159,7 +151,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         """Returns the desired minimum height of the editor."""
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(11.0)
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
@@ -167,7 +159,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         """Returns the desired minimum height of the editor."""
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(11.0)
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
 
@@ -226,6 +218,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def showEvent(self, event):
         self.setFixedHeight(self.heightForWidth())
+
+        # Move the cursor to the end of the document
+        cursor = QtGui.QTextCursor(self.document())
+        cursor.movePosition(QtGui.QTextCursor.End)
+        self.setTextCursor(cursor)
+
+        # Rehighlight the document to apply the formatting
+        self.highlighter.rehighlight()
 
     def canInsertFromMimeData(self, mimedata):
         """Checks if we can insert from the given mime-type."""
@@ -315,65 +315,16 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             QtGui.QDesktopServices.openUrl(url)
 
 
-class CustomButton(QtWidgets.QLabel):
-    """Custom button used to draw the editor control buttons."""
-    pressed = QtCore.Signal()
-    message = QtCore.Signal(unicode)
-
-    def __init__(self, button, size=32.0, message=None, parent=None):
-        super(CustomButton, self).__init__(parent=parent)
-        self.button = button
-        self._size = size
-        self._message = message
-
-        self.setMouseTracking(True)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setFixedHeight(self._size)
-        self.setFixedWidth(self._size)
-        self.setPixmap(self._pixmap())
-
-    def mouseReleaseEvent(self, event):
-        if not isinstance(event, QtGui.QMouseEvent):
-            return
-        # Checking if the cursor is over the button when released
-        cursor = QtGui.QCursor()
-        pos = self.mapFromGlobal(cursor.pos())
-        if not self.rect().contains(pos):
-            return
-
-        self.pressed.emit()
-
-    def enterEvent(self, event):
-        self.setPixmap(self._pixmap(type=event.type()))
-        self.update()
-
-        if self._message:
-            self.message.emit(self._message)
-
-    def leaveEvent(self, event):
-        self.setPixmap(self._pixmap(type=event.type()))
-        self.update()
-
-    def _pixmap(self, type=QtCore.QEvent.Leave):
-        if self.button is None:
-            return QtGui.QPixmap(self._size, self._size)
-
-        if type == QtCore.QEvent.Leave:
-            return ImageCache.get_rsc_pixmap(
-                self.button, common.SECONDARY_BACKGROUND, self._size)
-        if type == QtCore.QEvent.Enter:
-            return ImageCache.get_rsc_pixmap(
-                self.button, common.FAVOURITE, self._size)
-
-        return QtGui.QPixmap(self._size, self._size)
-
-
-class RemoveNoteButton(CustomButton):
+class RemoveNoteButton(ClickableIconButton):
     def __init__(self, parent=None):
         super(RemoveNoteButton, self).__init__(
-            u'remove', size=common.INLINE_ICON_SIZE, parent=parent)
-        self.pressed.connect(self.remove_note)
+            u'remove',
+            (common.REMOVE, common.REMOVE),
+            common.INLINE_ICON_SIZE,
+            description=u'Click to remove this note',
+            parent=parent
+        )
+        self.clicked.connect(self.remove_note)
 
     def remove_note(self):
         mbox = QtWidgets.QMessageBox(parent=self)
@@ -383,7 +334,7 @@ class RemoveNoteButton(CustomButton):
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
         mbox.setText(
-            u'Are you sure you want to delete this note?')
+            u'Are you sure you want to remove this note?')
         res = mbox.exec_()
         if res == QtWidgets.QMessageBox.No:
             return
@@ -397,31 +348,6 @@ class RemoveNoteButton(CustomButton):
     def _pixmap(self, type=QtCore.QEvent.Leave):
         return ImageCache.get_rsc_pixmap(
             u'remove', common.REMOVE, self._size, opacity=1.0)
-
-
-class RemoveButton(CustomButton):
-    """Custom icon button to remove an item or close the editor."""
-
-    def __init__(self, size=32.0, parent=None):
-        super(RemoveButton, self).__init__(u'check', size=size, parent=parent)
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, event):
-        """Accepting the drag operation."""
-        if event.mimeData().hasFormat(u'gwbrowser/todo-drag'):
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        """Drop event responsible for deleting an item from the todo list."""
-        self.setUpdatesEnabled(False)
-
-        editors_widget = self.parent().parent().todoeditors_widget
-        idx = editors_widget.items.index(event.source())
-        row = editors_widget.items.pop(idx)
-        editors_widget.layout().removeWidget(row)
-        row.deleteLater()
-
-        self.setUpdatesEnabled(True)
 
 
 class DragIndicatorButton(QtWidgets.QLabel):
@@ -447,7 +373,7 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """Custom disabled function."""
         if b:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.FAVOURITE, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
                 u'drag_indicator', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
@@ -509,11 +435,6 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay_widget.setPixmap(pixmap)
 
         # Preparing the drag...
-        remove_button = parent_widget.parent().parent(
-        ).parent().parent().findChild(RemoveButton)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, 32)
-        remove_button.setPixmap(pixmap)
         parent_widget.parent().separator.setHidden(False)
         overlay_widget.show()
 
@@ -524,9 +445,6 @@ class DragIndicatorButton(QtWidgets.QLabel):
         overlay_widget.close()
         overlay_widget.deleteLater()
         parent_widget.parent().separator.setHidden(True)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'remove', common.FAVOURITE, 32)
-        remove_button.setPixmap(pixmap)
 
 
 class CheckBoxButton(QtWidgets.QLabel):
@@ -546,8 +464,29 @@ class CheckBoxButton(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.set_pixmap(self._checked)
-
+        self._entered = False
         self._connectSignals()
+
+    def enterEvent(self, event):
+        self._entered = True
+        self.repaint()
+        pixmap = self.pixmap()
+
+    def leaveEvent(self, event):
+        self._entered = False
+        self.repaint()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        if not self._entered and self.checked:
+            painter.setOpacity(0.3)
+
+        rect = self.pixmap().rect()
+        rect.moveCenter(self.rect().center())
+
+        painter.drawPixmap(rect, self.pixmap(), self.pixmap().rect())
+        painter.end()
 
     @property
     def checked(self):
@@ -559,11 +498,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'checkbox_unchecked', common.SECONDARY_BACKGROUND, 18)
+                u'check', common.BACKGROUND, 24)
             self.setPixmap(pixmap)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'checkbox_checked', common.FAVOURITE, 18)
+                u'check', common.ADD, 24)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -783,7 +722,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.create_lockfile()
         self.refresh()
 
-
     def _updateGeometry(self, *args, **kwargs):
         geo = self.parent().viewport().rect()
         self.resize(geo.width(), geo.height())
@@ -796,7 +734,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
 
         # Top row
-        height = common.ROW_BUTTONS_HEIGHT * 0.8
+        height = common.ROW_BUTTONS_HEIGHT
         row = add_row('', height=height, parent=self)
         row.layout().setSpacing(8)
 
@@ -810,17 +748,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
             pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'todo', common.SECONDARY_BACKGROUND, height, opacity=0.5)
+                u'todo', common.SECONDARY_BACKGROUND, height)
         thumbnail.setPixmap(pixmap)
 
         # Name label
         if self.index.isValid():
-            name = self.index.data(QtCore.Qt.DisplayRole)
-            text = u'  Notes and Tasks: {} '.format(name).upper()
+            text = self.index.data(QtCore.Qt.DisplayRole).upper()
         else:
-            text = u'  Notes and Tasks...  '
+            text = u'Notes and Tasks'.upper()
+
         if len(text) >= 48:
-            text = u'{}...{}'.format(text[0:22], text[-22:])
+            text = u'{}...{}'.format(text[0:22], text[-21:]).upper()
         label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND,
                              size=common.LARGE_FONT_SIZE, parent=self)
 
@@ -829,16 +767,23 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.layout().addStretch(1)
 
         # Add button
-        self.add_button = CustomButton(u'add', size=height, parent=self)
-        self.add_button.pressed.connect(self.add_new_item)
+        # def __init__(self, pixmap, colors, size, description=u'', parent=None):
+
+        self.add_button = ClickableIconButton(
+            u'add',
+            (common.ADD, common.ADD),
+            height * 0.8,
+            description=u'Click to add a new Todo item...',
+            parent=self
+        )
+        self.add_button.clicked.connect(self.add_new_item)
         row.layout().addWidget(self.add_button, 0)
 
-        self.refresh_button = CustomButton(
-            u'refresh', size=height, parent=self)
-        self.refresh_button.pressed.connect(self.refresh)
+        self.refresh_button = PaintedButton('Refresh', width=None, parent=self)
+        self.refresh_button.clicked.connect(self.refresh)
         row.layout().addWidget(self.refresh_button, 0)
 
-        self.remove_button = RemoveButton(size=height, parent=self)
+        self.remove_button = PaintedButton(u'Close', width=None, parent=self)
         self.remove_button.pressed.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
@@ -849,7 +794,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.scrollarea = QtWidgets.QScrollArea(parent=self)
         self.scrollarea.setWidgetResizable(True)
         self.scrollarea.setWidget(self.todoeditors_widget)
-        # self.scrollarea.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -1013,7 +957,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
         checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
         drag = DragIndicatorButton(checked=False, parent=item)
         drag.setFocusPolicy(QtCore.Qt.NoFocus)
-        editor = TodoItemEditor(text, read_only=self.read_only, checked=not checked, parent=item)
+        editor = TodoItemEditor(
+            text, read_only=self.read_only, checked=not checked, parent=item)
         editor.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         checkbox.clicked.connect(
@@ -1133,6 +1078,6 @@ if __name__ == '__main__':
     index = QtCore.QModelIndex()
     widget = TodoEditorWidget(index)
     item = widget.add_item(
-        text=u'This is a test link:\n\n\n\nClick this: file://gordo/jobs')
+        text=u'<span>### This is a test link:</span><br><span>Click this: file://gordo/jobs</span>')
     widget.show()
     app.exec_()
