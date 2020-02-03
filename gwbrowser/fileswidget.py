@@ -283,7 +283,16 @@ class FileThumbnailWorker(BaseWorker):
         settings = AssetSettings(index)
 
         data[common.ThumbnailPathRole] = settings.thumbnail_path()
-        height = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
+
+        # This is a less than elegant solution for making sure the thumbnail size
+        # of the AssetsWidget does not get overriden. There's a fair amount of
+        # criss-cross importing here which makes it less then elegant.
+        import gwbrowser.assetswidget as assetswidget
+        if isinstance(index.model(), assetswidget.AssetModel):
+            height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
+        else:
+            height = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
+
         ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
 
@@ -409,11 +418,9 @@ class FilesModel(BaseModel):
             common.misc_formats
         )
 
-    def reset_thumbnails(self):
-        """Resets all thumbnails of data of the model.
-
-        It resets the original state, but it is still up to the worker threads
-        to actually load the image data for the viewer to display.
+    def reset_thumbnails(self, force=True):
+        """Resets all thumbnail-data to its initial state.
+        This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
 
         """
         default_thumbnail_image = ImageCache.get(
