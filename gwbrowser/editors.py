@@ -120,7 +120,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         rect = self.rect()
 
         font = QtGui.QFont(common.PrimaryFont)
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
 
         if self.pixmap():
             bg_rect = self.pixmap().rect()
@@ -166,7 +166,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in common.get_oiio_extensions():
-            metrics = QtGui.QFontMetrics(common.SecondaryFont)
+            metrics = QtGui.QFontMetricsF(common.SecondaryFont)
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)

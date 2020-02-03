@@ -894,7 +894,7 @@ class DragPixmap(QtWidgets.QWidget):
         self._text = text
 
         font = common.PrimaryFont
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
         self._text_width = metrics.width(text)
 
         width = self._text_width + common.MARGIN

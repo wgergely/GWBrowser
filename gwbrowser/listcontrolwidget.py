@@ -423,7 +423,7 @@ class PaintedTextButton(QtWidgets.QLabel):
 
     def get_size(self):
         o = common.INDICATOR_WIDTH * 3
-        width = QtGui.QFontMetrics(self.font).width(self.text()) + (o * 2)
+        width = QtGui.QFontMetricsF(self.font).width(self.text()) + (o * 2)
         height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
         return QtCore.QSize(width, height)
 
@@ -461,7 +461,7 @@ class PaintedTextButton(QtWidgets.QLabel):
             color = common.TEXT if hover else common.BACKGROUND
             painter.setBrush(color)
 
-        metrics = QtGui.QFontMetrics(self.font)
+        metrics = QtGui.QFontMetricsF(self.font)
         width = metrics.width(self.text())
 
         x = (self.width() / 2.0) - (width / 2.0)

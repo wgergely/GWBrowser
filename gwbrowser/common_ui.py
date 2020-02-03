@@ -116,7 +116,7 @@ class PaintedLabel(QtWidgets.QLabel):
         self._font = QtGui.QFont(common.PrimaryFont)
         self._font.setPointSizeF(size)
         self._color = color
-        metrics = QtGui.QFontMetrics(self._font)
+        metrics = QtGui.QFontMetricsF(self._font)
         self.setFixedHeight(metrics.height())
         self.setFixedWidth(metrics.width(text) + 2)
 

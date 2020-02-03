@@ -1030,7 +1030,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
     x, y = (rect.left(), rect.top())
     elide = None
-    metrics = QtGui.QFontMetrics(font)
+    metrics = QtGui.QFontMetricsF(font)
 
     x = rect.left()
     y = rect.center().y() + (metrics.ascent() / 2.0)

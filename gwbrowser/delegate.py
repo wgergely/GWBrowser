@@ -843,7 +843,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # Subfolders
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(SMALL_FONT_SIZE)
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
 
         subdir_rectangles = self.get_subdir_rectangles(
             index, rectangles, metrics)
@@ -998,7 +998,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # Subfolders
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(SMALL_FONT_SIZE)
-        metrics = QtGui.QFontMetrics(font)
+        metrics = QtGui.QFontMetricsF(font)
 
         subdir_rectangles = self.get_subdir_rectangles(
             index, rectangles, metrics)

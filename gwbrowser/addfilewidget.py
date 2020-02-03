@@ -264,7 +264,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot(unicode)
     def setText(self, text):
         super(SelectButton, self).setText(text)
-        metrics = QtGui.QFontMetrics(common.PrimaryFont)
+        metrics = QtGui.QFontMetricsF(common.PrimaryFont)
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN)
         self.update()
