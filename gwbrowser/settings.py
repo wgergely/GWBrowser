@@ -244,7 +244,7 @@ class AssetSettings(QtCore.QSettings):
             parents = index.data(common.ParentPathRole)
             if not parents:
                 raise RuntimeError(
-                    'Index does not contain a valid parent path information')
+                    u'Index does not contain a valid parent path information')
             server, job, root = parents[0:3]
             filepath = index.data(QtCore.Qt.StatusTipRole)
 

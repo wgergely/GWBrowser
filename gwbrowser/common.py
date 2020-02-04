@@ -761,68 +761,55 @@ def reveal(path):
         QtCore.QSysInfo().productType()))
 
 
-NoHighlightFlag = 0b000000
+NoHighlightFlag =  0b000000
 HeadingHighlight = 0b000001
-QuoteHighlight = 0b000010
-CodeHighlight = 0b000100
-BoldHighlight = 0b001000
-ItalicHighlight = 0b010000
-PathHighlight = 0b100000
+QuoteHighlight =   0b000010
+ItalicsHighlight = 0b001000
+BoldHighlight =    0b010000
+PathHighlight =    0b100000
 
 HIGHLIGHT_RULES = {
     u'url': {
         u're': re.compile(
-            ur'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+',
-            flags=re.IGNORECASE | re.UNICODE),
+            ur'((?:rvlink|file|http)[s]?:[/\\][/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': PathHighlight
     },
-    u'spaces': {
+    u'drivepath': {
         u're': re.compile(
-            ur'([\s\t\n\r]*)',
-            flags=re.IGNORECASE | re.UNICODE),
-        u'flag': CodeHighlight
-    },
-    u'file_path': {
-        u're': re.compile(
-            ur'/^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]+-?)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/[^\s]*)?$/',
-            flags=re.IGNORECASE | re.UNICODE),
+            ur'((?:[a-zA-Z]{1})[s]?:[/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': PathHighlight
     },
-    u'folder_path': {
+    u'uncpath': {
         u're': re.compile(
-            ur'([a-z]{2,5}:)?([\/\\]{2}[^\"\*\<\>\?\|\s]+)',
-            flags=re.IGNORECASE | re.UNICODE),
+            ur'([/\\]{1,2}(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': PathHighlight
-    },
-    u'quotes': {
-        u're': re.compile(
-            ur'([\"\']+[^\"\']+[\'\"]+)',
-            flags=re.IGNORECASE | re.UNICODE),
-        u'flag': CodeHighlight
-    },
-    u'bold': {
-        u're': re.compile(
-            ur'(\*{2}|_{2})([^\*_]+)(\*{2}|_{2})',
-            flags=re.IGNORECASE | re.UNICODE),
-        u'flag': BoldHighlight
-    },
-    u'italicized': {
-        u're': re.compile(
-            ur'([\*_]{1})([^\*_]+)([\*_]{1})',
-            flags=re.IGNORECASE | re.UNICODE),
-        u'flag': ItalicHighlight
     },
     u'heading': {
         u're': re.compile(
-            ur'^([#]{1,6})',
-            flags=re.IGNORECASE | re.UNICODE),
+            ur'^(?<!#)#{1,2}(?!#)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': HeadingHighlight
     },
-    u'quote': {
+    u'quotes': {
         u're': re.compile(
-            ur'^([>]{1})',
-            flags=re.IGNORECASE | re.UNICODE),
+            ur'([\"\'])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': QuoteHighlight
+    },
+    u'italics': {
+        u're': re.compile(
+            ur'([\_])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': ItalicsHighlight
+    },
+    u'bold': {
+        u're': re.compile(
+            ur'([\*])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': BoldHighlight
     },
 }
 
