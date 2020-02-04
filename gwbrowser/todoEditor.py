@@ -43,57 +43,113 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         start = 0
         end = len(text)
 
-        flags = common.NoHighlightFlag
-        for case in common.HIGHLIGHT_RULES:
-            match = u''
-            search = common.HIGHLIGHT_RULES[case][u're'].search(text)
-            if not search:
-                continue
+        FORMAT = {}
+        font = self.document().defaultFont()
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(font)
+        char_format.setFontWeight(QtGui.QFont.Normal)
+        self.setFormat(0, len(text), char_format)
 
-            flags = flags | common.HIGHLIGHT_RULES[case][u'flag']
-            for group in search.groups():
-                if not group:
-                    continue
-                group = u'{}'.format(group)
-                group.encode(u'utf-8')
-                match += group
+        _font = char_format.font()
+        _foreground = char_format.foreground()
+        _weight = char_format.fontWeight()
+        _psize = char_format.font().pointSizeF()
 
-            if not match:
-                continue
+        flag = common.NoHighlightFlag
+        for case in common.HIGHLIGHT_RULES.itervalues():
+            flag = flag | case[u'flag']
 
-            match.rstrip()
-            start = text.find(match)
-            end = len(match)
-
-            char_format = QtGui.QTextCharFormat()
-            font = self.document().defaultFont()
-            char_format.setFont(font)
-
-            if flags == common.NoHighlightFlag:
-                self.setFormat(start, end, char_format)
-                break
-
-            if flags & common.HeadingHighlight:
-                char_format.setFontWeight(QtGui.QFont.Normal)
-                char_format.setFontPointSize(
-                    font.pointSizeF() + 0.0 + (6.0 - float(len(match))))
-                char_format.setFontCapitalization(QtGui.QFont.AllUppercase)
-                if len(match) > 1:
-                    char_format.setUnderlineStyle(
-                        QtGui.QTextCharFormat.SingleUnderline)
-                    char_format.setForeground(common.FAVOURITE)
+            if case['flag'] == common.HeadingHighlight:
+                match = case[u're'].match(text)
+                if match:
                     char_format.setFontPointSize(
-                        font.pointSizeF() + 1.0)
-                self.setFormat(0, len(text), char_format)
-                break
+                        font.pointSizeF() + ((3.0 - len(match.group(0))) * 4))
+                    self.setFormat(0, len(text), char_format)
 
-            if flags & common.PathHighlight:
-                char_format.setAnchor(True)
-                char_format.setAnchorHref(match)
-                char_format.setForeground(common.ADD)
-                self.setFormat(start, end, char_format)
-                break
-        return
+                    char_format.setForeground(QtGui.QColor(0, 0, 0, 80))
+                    self.setFormat(match.start(0), len(
+                        match.group(0)), char_format)
+
+            if case['flag'] == common.PathHighlight:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    groups = match.groups()
+                    if groups:
+                        grp = match.group(0)
+                        if grp:
+                            char_format.setAnchor(True)
+                            char_format.setForeground(common.ADD)
+                            char_format.setAnchorHref(grp)
+                            self.setFormat(match.start(
+                                0), len(grp), char_format)
+                            cursor = self.document().find(grp)
+                            cursor.mergeCharFormat(char_format)
+
+            if case['flag'] == common.QuoteHighlight:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    groups = match.groups()
+                    if groups:
+                        if match.group(1) in (u'\'', u'\"'):
+                            grp = match.group(2)
+                            if grp:
+                                char_format.setAnchor(True)
+                                char_format.setForeground(common.ADD)
+                                char_format.setAnchorHref(grp)
+                                self.setFormat(match.start(
+                                    2), len(grp), char_format)
+                                cursor = self.document().find(grp)
+                                cursor.mergeCharFormat(char_format)
+
+                                char_format.setForeground(
+                                    QtGui.QColor(0, 0, 0, 40))
+                                self.setFormat(match.start(
+                                    2) - 1, 1, char_format)
+                                self.setFormat(match.start(
+                                    2) + len(grp), 1, char_format)
+
+            if case['flag'] == common.ItalicsHighlight:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    groups = match.groups()
+                    if groups:
+                        if match.group(1) in u'_':
+                            grp = match.group(2)
+                            if grp:
+                                flag == flag | common.ItalicsHighlight
+                                char_format.setFontItalic(True)
+                                self.setFormat(match.start(
+                                    2), len(grp), char_format)
+
+                                char_format.setForeground(
+                                    QtGui.QColor(0, 0, 0, 20))
+                                self.setFormat(match.start(
+                                    2) - 1, 1, char_format)
+                                self.setFormat(match.start(
+                                    2) + len(grp), 1, char_format)
+
+            if case['flag'] == common.BoldHighlight:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    groups = match.groups()
+                    if groups:
+                        if match.group(1) in u'*':
+                            grp = match.group(2)
+                            if grp:
+                                char_format.setFontWeight(QtGui.QFont.Bold)
+                                self.setFormat(match.start(
+                                    2), len(grp), char_format)
+
+                                char_format.setForeground(
+                                    QtGui.QColor(0, 0, 0, 20))
+                                self.setFormat(match.start(
+                                    2) - 1, 1, char_format)
+                                self.setFormat(match.start(
+                                    2) + len(grp), 1, char_format)
+
+            char_format.setFont(_font)
+            char_format.setForeground(_foreground)
+            char_format.setFontWeight(_weight)
 
 
 class TodoItemEditor(QtWidgets.QTextBrowser):
@@ -1071,13 +1127,3 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if not self.parent():
             return QtCore.QSize(800, 600)
         return self.parent().viewport().rect().size()
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    index = QtCore.QModelIndex()
-    widget = TodoEditorWidget(index)
-    item = widget.add_item(
-        text=u'<span>### This is a test link:</span><br><span>Click this: file://gordo/jobs</span>')
-    widget.show()
-    app.exec_()
