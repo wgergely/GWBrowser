@@ -59,6 +59,12 @@ SynchronisedMode = 0
 SoloMode = 1
 
 
+def get_username():
+    n = QtCore.QFileInfo(os.path.expanduser(u'~')).fileName()
+    n = re.sub(ur'[^a-zA-Z0-9]*', u'', n)
+    return n
+
+
 def create_temp_dir():
     server, job, root = get_favourite_parent_paths()
     path = u'{}/{}/{}/.browser'.format(server, job, root)
@@ -66,6 +72,7 @@ def create_temp_dir():
     if _dir.exists():
         return
     _dir.mkpath(u'.')
+
 
 def get_favourite_parent_paths():
     server = QtCore.QStandardPaths.writableLocation(
@@ -125,11 +132,13 @@ def save_favourites():
 
     file_info = QtCore.QFileInfo(zip_path)
     if not file_info.exists():
-        raise RuntimeError(u'Unexpected error, could not find the favrouites file')
+        raise RuntimeError(
+            u'Unexpected error, could not find the favrouites file')
 
     QtCore.QDir().rename(file_info.filePath(), destination)
     if not QtCore.QFileInfo(destination).exists():
-        raise RuntimeError(u'Unexpected error, could not find the favrouites file')
+        raise RuntimeError(
+            u'Unexpected error, could not find the favrouites file')
     reveal(destination)
 
 
@@ -147,7 +156,8 @@ def import_favourites():
         return
 
     current_favourites = local_settings.value(u'favourites')
-    current_favourites = [f.lower() for f in current_favourites] if current_favourites else []
+    current_favourites = [f.lower()
+                          for f in current_favourites] if current_favourites else []
 
     create_temp_dir()
 
@@ -157,7 +167,8 @@ def import_favourites():
             mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Invalid ".gwb" file')
             mbox.setText(u'This file does not seem to be valid, sorry!')
-            mbox.setInformativeText(u'The favourites list is missing from the archive.')
+            mbox.setInformativeText(
+                u'The favourites list is missing from the archive.')
             return mbox.exec_()
 
         with zip.open(u'favourites') as f:
@@ -175,12 +186,14 @@ def import_favourites():
 
             file_info = QtCore.QFileInfo(settings.thumbnail_path())
             if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.browser'.format(server, job, root, file_info.fileName())
+                dest = u'{}/{}/{}/.browser'.format(server,
+                                                   job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
             file_info = QtCore.QFileInfo(settings.config_path())
             if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.browser'.format(server, job, root, file_info.fileName())
+                dest = u'{}/{}/{}/.browser'.format(server,
+                                                   job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
             if favourite not in current_favourites:
@@ -761,12 +774,12 @@ def reveal(path):
         QtCore.QSysInfo().productType()))
 
 
-NoHighlightFlag =  0b000000
+NoHighlightFlag = 0b000000
 HeadingHighlight = 0b000001
-QuoteHighlight =   0b000010
+QuoteHighlight = 0b000010
 ItalicsHighlight = 0b001000
-BoldHighlight =    0b010000
-PathHighlight =    0b100000
+BoldHighlight = 0b010000
+PathHighlight = 0b100000
 
 HIGHLIGHT_RULES = {
     u'url': {
@@ -795,19 +808,20 @@ HIGHLIGHT_RULES = {
     },
     u'quotes': {
         u're': re.compile(
-            ur'([\"\'])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            # Group(2) captures the contents
+            ur'([\"\'])((?:(?=(\\?))\3.)*?)\1',
             flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': QuoteHighlight
     },
     u'italics': {
         u're': re.compile(
-            ur'([\_])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            ur'([\_])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
             flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': ItalicsHighlight
     },
     u'bold': {
         u're': re.compile(
-            ur'([\*])((?:(?=(\\?))\3.)*?)\1', # Group(2) captures the contents
+            ur'([\*])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
             flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
         u'flag': BoldHighlight
     },
@@ -1208,7 +1222,6 @@ def execute(index, first=False):
     QtGui.QDesktopServices.openUrl(url)
 
 
-
 def walk(path):
     """This is a custom generator expression using scandir's `walk`.
     We're using the C module for performance's sake without python-native
@@ -1377,5 +1390,6 @@ def push_to_rv(path):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
+
 
 create_temp_dir()
