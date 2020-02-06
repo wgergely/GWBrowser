@@ -160,8 +160,7 @@ class BookmarkDatabase(QtCore.QObject):
         _cursor.execute("""SELECT {key} FROM {table} WHERE id='{id}'""".format(
             table=table,
             key=key,
-<<<<<<< HEAD
-            id=self.id(id)))
+            id=id))
 
         res = _cursor.fetchone()
         if not res:
@@ -170,13 +169,6 @@ class BookmarkDatabase(QtCore.QObject):
 
     def values(self, table=u'data'):
         """Returns all values from the `bookmark.db` of the given table.
-=======
-            path=self._get_id(path)))
-        res = cursor.fetchone()
-        if not res:
-            return None
-        return res[0]
->>>>>>> 60a7b3d510f5453bd0c460b027a01f1c6656adca
 
         Args:
             table (string): Optional table parameter, defaults to 'data'.
@@ -255,7 +247,6 @@ if __name__ == '__main__':
     # #####################
     t = time.time()
     with bookmark_db.transaction_contextmanager():
-<<<<<<< HEAD
         for n in xrange(x):
             id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
             v = bookmark_db.value(id, u'description')
@@ -267,13 +258,3 @@ if __name__ == '__main__':
         id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
         v = data[id]['description']
     print '`values()` took', time.time() - t, '\n'
-=======
-        for n in xrange(1000):
-            bookmark_db.setValue(
-                ur'C:/tmp/job/root/testfolder/testfile.ma{}'.format(n), u'description', u'test description{}'.format(n))
-            bookmark_db.setValue(
-                ur'C:/tmp/job/root/testfolder/testfile.ma{}'.format(n), u'notes', u'test note')
-    # with bookmark_db.transaction_contextmanager():
-    v = bookmark_db.value(ur'job/root/testfolder/testfile.ma123', u'description')
-    print v
->>>>>>> 60a7b3d510f5453bd0c460b027a01f1c6656adca
