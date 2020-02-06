@@ -11,8 +11,9 @@ import sqlite3
 from sqlite3 import Error
 
 
-class BookmarkDatabase(object):
+class BookmarkDatabase(QtCore.QObject):
     def __init__(self, index=QtCore.QModelIndex(), server=None, job=None, root=None, parent=None):
+        super(BookmarkDatabase, self).__init__(parent=parent)
         self._connection = None
         self._exception = u''
 
@@ -44,19 +45,20 @@ class BookmarkDatabase(object):
         try:
             self._connection = sqlite3.connect(
                 database_path, isolation_level=None)
-            self._connection.execute(u'pragma journal_mode=wal;')
-            self._connection.execute(u'pragma synchronous=OFF;')
         except Error as e:
             self._exception = u'Unable to connect to the database at "{}"\n-> "{}"'.format(
                 database_path, e.message)
             return
 
-    def _get_id(self, filepath):
-        collapsed = common.is_collapsed(filepath)
+    def id(self, val):
+        """Returns the database ID based on the given value."""
+        if isinstance(val, int):
+            return val
+        collapsed = common.is_collapsed(val)
         if collapsed:
-            filepath = collapsed.expand(ur'\1[0]\3')
-        filepath = filepath.lower().replace(self._server, u'').strip(u'/')
-        return filepath
+            val = collapsed.expand(ur'\1[0]\3')
+        val = val.replace(self._server, u'').strip(u'/')
+        return hash(val)
 
     @contextmanager
     def transaction_contextmanager(self):
@@ -96,20 +98,19 @@ class BookmarkDatabase(object):
             # Main ``data`` table
             self._connection.cursor().execute("""
                 CREATE TABLE IF NOT EXISTS data (
-                    path TEXT PRIMARY KEY COLLATE NOCASE,
+                    id INTEGER PRIMARY KEY NOT NULL,
+                    /* File's relative path is used as the ID*/
                     description TEXT,
                     notes TEXT,
                     flags INTEGER,
-                    thumbnail_path TEXT,
-                    thumbnail_timestamp REAL,
-                    thumbnail_hash TEXT,
+                    thumbnail_stamp REAL,
                     user TEXT
                 )
             """)
             # Single-row ``info`` table
             self._connection.cursor().execute("""
                 CREATE TABLE IF NOT EXISTS info (
-                    path TEXT PRIMARY KEY COLLATE NOCASE,
+                    id TEXT PRIMARY KEY COLLATE NOCASE,
                     server TEXT NOT NULL,
                     job TEXT NOT NULL,
                     root TEXT NOT NULL,
@@ -121,11 +122,11 @@ class BookmarkDatabase(object):
             # Adding info data to the ``info`` table
             self._connection.execute("""
             INSERT OR IGNORE INTO info
-                (path, server, job, root, user, host, created)
+                (id, server, job, root, user, host, created)
             VALUES
-                ('{path}', '{server}', '{job}', '{root}', '{user}', '{host}', '{created}')
+                ('{id}', '{server}', '{job}', '{root}', '{user}', '{host}', '{created}')
             """.format(
-                path=self._bookmark,
+                id=self._bookmark,
                 server=self._server,
                 job=self._job,
                 root=self._root,
@@ -134,28 +135,68 @@ class BookmarkDatabase(object):
                 created=time.time(),
             ))
 
-    def value(self, path, key):
-        cursor = self._connection.cursor()
-        cursor.execute("""SELECT {key} FROM data WHERE path='{path}'""".format(
-            key=key,
-            path=self._get_id(path)))
-        # cursor.execute("""SELECT description FROM data WHERE path='job/root/testfolder/testfile.ma1'""".format(
-        #     key='description'))
-        # cursor.execute('BEGIN')
-        print cursor.fetchall()
+    def value(self, id, key, table=u'data'):
+        """Returns a single value from the `bookmark.db`.
 
-    def setValue(self, path, key, value):
+        Args:
+            id (string or int): The database key.
+            key (string): The data key to return.
+            table (string): Optional table parameter, defaults to 'data'.
+
+        Returns:
+            type: Description of returned object.
+
+        """
+        _cursor = self._connection.cursor()
+        _cursor.execute("""SELECT {key} FROM {table} WHERE id='{id}'""".format(
+            table=table,
+            key=key,
+            id=self.id(id)))
+
+        res = _cursor.fetchone()
+        if not res:
+            return None
+        return res[0]
+
+    def values(self, table=u'data'):
+        """Returns all values from the `bookmark.db` of the given table.
+
+        Args:
+            table (string): Optional table parameter, defaults to 'data'.
+
+        Returns:
+            dict: The structured database data.
+
+        """
+        _cursor = self._connection.cursor()
+        _cursor.execute("""SELECT * FROM {table}""".format(table=table))
+
+        # Let's wrap the retrevied data into a more pythonic directory
+        _data = _cursor.fetchall()
+        data = {}
+        for v in _data:
+            data[v[0]] = {
+                u'description': v[1],
+                u'notes': v[2],
+                u'flags': v[3],
+                u'thumbnail_stamp': v[4],
+                u'user': v[5],
+            }
+        return data
+
+
+    def setValue(self, id, key, value):
         """Sets a value to the database.
 
         Pass the full the file or folder path including the server, job and root. The database uses the relative path as the row id, which is
-        returned by `_get_id()`. The method will update existing row, or create
+        returned by `id()`. The method will update existing row, or create
         a new one if the row id does not exists yet.
 
         Note:
             The method does NOT commit the transaction!
 
         Args:
-            path (unicode): A file path.
+            id (unicode or int): Row id.
             key (unicode): A database column name.
             value (unicode or float): The value to set.
 
@@ -164,10 +205,10 @@ class BookmarkDatabase(object):
             return
 
         self._connection.execute("""
-        INSERT INTO data(path, {key}) VALUES('{path}','{value}')
-          ON CONFLICT(path) DO UPDATE SET {key}=excluded.{key};
+        INSERT INTO data(id, {key}) VALUES('{id}','{value}')
+          ON CONFLICT(id) DO UPDATE SET {key}=excluded.{key};
         """.format(
-            path=self._get_id(path),
+            id=self.id(id),
             key=key,
             value=value
         ))
@@ -176,19 +217,35 @@ class BookmarkDatabase(object):
 if __name__ == '__main__':
     bookmark_db = BookmarkDatabase(
         index=QtCore.QModelIndex(),
-        server='C:/tmp',
-        job='job',
-        root='root',
+        server=u'C:/tmp',
+        job=u'job',
+        root=u'root',
     )
     if not bookmark_db.isValid():
         print bookmark_db.last_error()
     bookmark_db.init_tables()
 
+    x = 1000
+
+    # #####################
+    t = time.time()
     with bookmark_db.transaction_contextmanager():
-        for n in xrange(1000):
-            bookmark_db.setValue(
-                ur'C:/tmp/job/root/testfolder/testfile.ma{}'.format(n), u'description', u'test description{}'.format(n))
-            bookmark_db.setValue(
-                ur'C:/tmp/job/root/testfolder/testfile.ma{}'.format(n), u'notes', u'test note')
-    # with bookmark_db.transaction_contextmanager():
-    bookmark_db.value(ur'C:/tmp/job/root/testfolder/testfile.ma123', u'description')
+        for n in xrange(x):
+            id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
+            bookmark_db.setValue(id, u'description', u'test description{}'.format(n))
+            bookmark_db.setValue(id, u'notes', u'testnote{}'.format(n))
+    print '`setValue()` took', time.time() - t, '(x{})'.format(n), '\n'
+    # #####################
+    t = time.time()
+    with bookmark_db.transaction_contextmanager():
+        for n in xrange(x):
+            id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
+            v = bookmark_db.value(id, u'description')
+    print '`value()` took', time.time() - t, '\n'
+    ######################
+    t = time.time()
+    data = bookmark_db.values()
+    for n in xrange(x):
+        id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
+        v = data[id]['description']
+    print '`values()` took', time.time() - t, '\n'
