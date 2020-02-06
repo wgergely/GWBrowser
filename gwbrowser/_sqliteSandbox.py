@@ -133,16 +133,25 @@ class BookmarkDatabase(object):
                 host=platform.node(),
                 created=time.time(),
             ))
+            # ``properties`` table
+            self._connection.cursor().execute("""
+                CREATE TABLE IF NOT EXISTS properties (
+                    width INTEGER,
+                    height INTEGER,
+                    framerate REAL
+                )
+            """)
+
 
     def value(self, path, key):
         cursor = self._connection.cursor()
         cursor.execute("""SELECT {key} FROM data WHERE path='{path}'""".format(
             key=key,
             path=self._get_id(path)))
-        # cursor.execute("""SELECT description FROM data WHERE path='job/root/testfolder/testfile.ma1'""".format(
-        #     key='description'))
-        # cursor.execute('BEGIN')
-        print cursor.fetchall()
+        res = cursor.fetchone()
+        if not res:
+            return None
+        return res[0]
 
     def setValue(self, path, key, value):
         """Sets a value to the database.
@@ -191,4 +200,5 @@ if __name__ == '__main__':
             bookmark_db.setValue(
                 ur'C:/tmp/job/root/testfolder/testfile.ma{}'.format(n), u'notes', u'test note')
     # with bookmark_db.transaction_contextmanager():
-    bookmark_db.value(ur'C:/tmp/job/root/testfolder/testfile.ma123', u'description')
+    v = bookmark_db.value(ur'job/root/testfolder/testfile.ma123', u'description')
+    print v
