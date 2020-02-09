@@ -34,6 +34,20 @@ QStackedWidget:focus {{
 	border-color: rgba({FAVOURITE});
 }}
 
+QGroupBox {{
+		border: 1px solid rgba({SECONDARY_BACKGROUND});
+		border-radius: 3px;
+}}
+QGroupBox::title {{
+		font-size: {SMALL_FONT_SIZE}pt;
+		color: rgba({SECONDARY_TEXT});
+    /* subcontrol-origin: padding; */
+    subcontrol-position: top center; /* position at the top center */
+    margin: 0px 6px;
+    /* background-color: rgba({BACKGROUND}); */
+}}
+
+
 /* Preferences widget */
 SectionsStackWidget {{
 	background-color: rgba({BACKGROUND});
