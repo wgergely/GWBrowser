@@ -125,6 +125,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
         data[common.FileThumbnailLoaded] = True
 
+    # OpenImageIO ImageCache instance to control file handles
     cache = OpenImageIO.ImageCache()
 
     # If it's a sequence, we will find the largest file in the sequence and
@@ -157,13 +158,13 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
 
     # Let's check if the loaded item is a movie and let's pick the middle
     # of the timeline as the thumbnail image
-    if img.spec().get_int_attribute('oiio:Movie') == 1:
+    if img.spec().get_int_attribute(u'oiio:Movie') == 1:
         # [BUG] Not all codec formats are supported by ffmpeg. Sadly, there does
         # not seem to be proper error handling and an unsupported codec will
         # crash the whole app. I'll
-        accepted_codecs = ('h.264', 'mpeg-4')
+        accepted_codecs = (u'h.264', u'mpeg-4')
         for codec in accepted_codecs:
-            codec_name = img.spec().get_string_attribute('ffmpeg:codec_name')
+            codec_name = img.spec().get_string_attribute(u'ffmpeg:codec_name')
             if codec.lower() not in codec_name.lower():
                 set_error_thumbnail()
                 cache.invalidate(source, force=True)
@@ -187,19 +188,19 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     if img.spec().deep:
         img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
 
-    spec = OpenImageIO.ImageSpec(_width, _height, 4, 'uint8')
-    spec.channelnames = ('R', 'G', 'B', 'A')
+    spec = OpenImageIO.ImageSpec(_width, _height, 4, u'uint8')
+    spec.channelnames = (u'R', u'G', u'B', u'A')
     spec.alpha_channel = 3
-    spec.attribute('oiio:ColorSpace', 'Linear')
-    spec.attribute('oiio:Gamma', '0.454545')
+    spec.attribute(u'oiio:ColorSpace', u'Linear')
+    spec.attribute(u'oiio:Gamma', u'0.454545')
 
     # Resizing the image
     b = OpenImageIO.ImageBufAlgo.resample(
         img, roi=spec.roi, interpolate=True, nthreads=nthreads)
-    b.set_write_format('uint8')
+    b.set_write_format(u'uint8')
 
     spec = b.spec()
-    if spec.get_string_attribute('oiio:ColorSpace') == 'Linear':
+    if spec.get_string_attribute(u'oiio:ColorSpace') == u'Linear':
         roi = OpenImageIO.get_roi(b.spec())
         roi.chbegin = 0
         roi.chend = 3
@@ -207,20 +208,20 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
             b, b, 1.0 / 2.2, roi, nthreads=nthreads)
 
     # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
-    if spec.get_string_attribute('oiio:ColorSpace') == 'GammaCorrectedinf':
-        spec.attribute('oiio:ColorSpace', 'Linear')
-        spec.attribute('oiio:Gamma', '0.454545')
+    if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
+        spec.attribute(u'oiio:ColorSpace', u'Linear')
+        spec.attribute(u'oiio:Gamma', u'0.454545')
 
     if int(spec.nchannels) < 3:
         b = OpenImageIO.ImageBufAlgo.channels(
-            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), ('R', 'G', 'B'))
+            b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), (u'R', u'G', u'B'))
     elif int(spec.nchannels) > 4:
-        if spec.channelindex('A') > -1:
+        if spec.channelindex(u'A') > -1:
             b = OpenImageIO.ImageBufAlgo.channels(
-                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+                b, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
         else:
             b = OpenImageIO.ImageBufAlgo.channels(
-                b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+                b, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
 
     # There seems to be a problem with the ICC profile exported from Adobe
     # applications and the PNG library. The sRGB profile seems to be out of date
@@ -235,9 +236,9 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     xml = b.spec().to_xml()
     xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
     root = ElementTree.fromstring(
-        xml, ElementTree.XMLParser(encoding='utf-8'))
-    for attrib in root.findall('attrib'):
-        if attrib.attrib['name'] == 'ICCProfile':
+        xml, ElementTree.XMLParser(encoding=u'utf-8'))
+    for attrib in root.findall(u'attrib'):
+        if attrib.attrib[u'name'] == u'ICCProfile':
             root.remove(attrib)
             modified = True
             break
@@ -251,7 +252,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         # Lastly, copying the pixels over from the old to the new buffer.
         _b = OpenImageIO.ImageBuf(spec)
         pixels = b.get_pixels()
-        _b.set_write_format('uint8')
+        _b.set_write_format(u'uint8')
         _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
     else:
         _b = b
@@ -265,7 +266,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         return False
     i.close()
 
-    success = _b.write(dest, dtype='uint8')
+    success = _b.write(dest, dtype=u'uint8')
     if not success:
         QtCore.QFile(dest).remove()
         set_error_thumbnail()

@@ -865,12 +865,6 @@ class BrowserWidget(QtWidgets.QWidget):
             b.model().sourceModel().modelDataResetRequested)
         self.active_monitor.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
-        # self.active_monitor.activeLocationChanged.connect(
-        #     f.model().sourceModel().dataKeyChanged)
-        # self.active_monitor.activeLocationChanged.connect(
-        #     l.model().modelDataResetRequested)
-        # self.active_monitor.activeLocationChanged.connect(
-        #     l.model().dataKeyChanged)
         #####################################################
         b.activated.connect(
             lambda: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
@@ -881,13 +875,10 @@ class BrowserWidget(QtWidgets.QWidget):
         a.model().sourceModel().activeChanged.connect(
             lambda x: lc.textChanged.emit(f.model().sourceModel().data_key()) if f.model().sourceModel().data_key() else 'Files')
         #####################################################
-        # b.model().sourceModel().activeChanged.connect(
-        #     lambda x: lc.textChanged.emit(u'Files'))
-        # Updates the list-control buttons when changing lists
         lc.listChanged.connect(lb.update)
         lc.listChanged.connect(lc.update_buttons)
 
-        self.stackedwidget.animationFinished.connect(lc.update_buttons)
+        s.currentChanged.connect(lc.update_buttons)
         s.currentChanged.connect(lc.bookmarks_button.update)
 
         f.model().sourceModel().dataTypeChanged.connect(lc.update_buttons)

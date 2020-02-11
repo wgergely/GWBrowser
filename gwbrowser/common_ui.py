@@ -25,7 +25,8 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
         QtWidgets.QSizePolicy.Expanding,
         QtWidgets.QSizePolicy.Expanding,
     )
-    w.setFixedHeight(height)
+    if height:
+        w.setFixedHeight(height)
     w.setAttribute(QtCore.Qt.WA_NoBackground)
     w.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
@@ -130,7 +131,22 @@ class PaintedLabel(QtWidgets.QLabel):
 
 
 class ClickableIconButton(QtWidgets.QLabel):
-    """A generic icon button used accross the project.
+    """A utility class for creating a square icon button.
+
+    Args:
+        pixmap (unicode): The name of the resource file without the extension.
+        colors (tuple(QColor, QColor)): A tuple of QColors, for enabled and disabled states.
+        size (int): The value for width and height.
+        description (unicode): A user readable description of the action the button performs.
+        parent (QObject): The widget's parent.
+
+    Signals:
+        clicked (QtCore.Signal()):
+        doubleClicked (QtCore.Signal()):
+        message (QtCore.Signal(unicode)):
+
+    Returns:
+        type: Description of returned object.
 
     """
     clicked = QtCore.Signal()
@@ -138,6 +154,7 @@ class ClickableIconButton(QtWidgets.QLabel):
     message = QtCore.Signal(unicode)
 
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
+
         super(ClickableIconButton, self).__init__(parent=parent)
 
         self._pixmap = pixmap

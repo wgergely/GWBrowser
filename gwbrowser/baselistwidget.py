@@ -1564,98 +1564,99 @@ class BaseListWidget(QtWidgets.QListView):
         if rectangles[delegate.ThumbnailRect].contains(cursor_position):
             return ImageCache.pick(index)
 
-    def eventFilter(self, widget, event):
-        """This custom paint event is used to paint status messages."""
-        if widget is not self:
-            return False
+    def paint_status_message(self, widget, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
 
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(self)
+        model = self.model()
+        source_model = model.sourceModel()
+        filter_text = model.filter_text()
 
-            model = self.model()
-            source_model = model.sourceModel()
-            filter_text = model.filter_text()
+        sizehint = self.itemDelegate().sizeHint(
+            self.viewOptions(), QtCore.QModelIndex())
 
-            sizehint = self.itemDelegate().sizeHint(
-                self.viewOptions(), QtCore.QModelIndex())
+        rect = self.rect()
+        center = rect.center()
+        rect.setWidth(rect.width() - common.MARGIN)
+        rect.moveCenter(center)
 
-            rect = self.rect()
-            center = rect.center()
-            rect.setWidth(rect.width() - common.MARGIN)
-            rect.moveCenter(center)
+        favourite_mode = model.filterFlag(common.MarkedAsFavourite)
+        active_mode = model.filterFlag(common.MarkedAsActive)
 
-            favourite_mode = model.filterFlag(common.MarkedAsFavourite)
-            active_mode = model.filterFlag(common.MarkedAsActive)
+        text_rect = QtCore.QRect(rect)
+        text_rect.setHeight(sizehint.height())
 
-            text_rect = QtCore.QRect(rect)
-            text_rect.setHeight(sizehint.height())
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        painter.setPen(QtCore.Qt.NoPen)
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 1)
+        align = QtCore.Qt.AlignCenter
 
-            painter.setPen(QtCore.Qt.NoPen)
-            font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSizeF(common.MEDIUM_FONT_SIZE - 1)
-            align = QtCore.Qt.AlignCenter
+        text = u''
+        if not source_model.parent_path:
+            if self.parent().currentIndex() == 0:
+                if self.model().sourceModel().rowCount() == 0:
+                    text = u'No bookmarks added yet. Click the plus icon above to get started.'
+            elif self.parent().currentIndex() == 1:
+                text = u'Assets will be shown here once a bookmark is activated.'
+            elif self.parent().currentIndex() == 2:
+                text = u'Files will be shown here once an asset is activated.'
+            elif self.parent().currentIndex() == 3:
+                text = u'You don\'t have any favourites yet.'
 
-            text = u''
-            if not source_model.parent_path:
-                if self.parent().currentIndex() == 0:
-                    if self.model().sourceModel().rowCount() == 0:
-                        text = u'No bookmarks added yet. Click the plus icon above to get started.'
-                elif self.parent().currentIndex() == 1:
-                    text = u'Assets will be shown here once a bookmark is activated.'
-                elif self.parent().currentIndex() == 2:
-                    text = u'Files will be shown here once an asset is activated.'
-                elif self.parent().currentIndex() == 3:
-                    text = u'You don\'t have any favourites yet.'
+            common.draw_aliased_text(
+                painter, font, rect, text, align, common.TEXT_DISABLED)
+            return True
 
-                common.draw_aliased_text(
-                    painter, font, rect, text, align, common.TEXT_DISABLED)
-                return True
-
-            if not source_model.data_key():
-                if self.parent().currentIndex() == 2:
-                    text = u'No task folder selected.'
-                    common.draw_aliased_text(
-                        painter, font, text_rect, text, align, common.TEXT_DISABLED)
-                    return True
-
-            if source_model.rowCount() == 0:
-                text = u'No items to show.'
+        if not source_model.data_key():
+            if self.parent().currentIndex() == 2:
+                text = u'No task folder selected.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
-            for n in xrange((self.height() / sizehint.height()) + 1):
-                if n >= model.rowCount():  # Empty items
-                    rect_ = QtCore.QRect(rect)
-                    rect_.setWidth(sizehint.height() - 2)
+        if source_model.rowCount() == 0:
+            text = u'No items to show.'
+            common.draw_aliased_text(
+                painter, font, text_rect, text, align, common.TEXT_DISABLED)
+            return True
 
-                if n == model.rowCount():  # filter mode
-                    hidden_count = source_model.rowCount() - model.rowCount()
-                    filtext = u''
-                    favtext = u''
-                    acttext = u''
-                    hidtext = u''
+        for n in xrange((self.height() / sizehint.height()) + 1):
+            if n >= model.rowCount():  # Empty items
+                rect_ = QtCore.QRect(rect)
+                rect_.setWidth(sizehint.height() - 2)
 
-                    if filter_text:
-                        filtext = filter_text.upper()
-                    if favourite_mode:
-                        favtext = u'Showing favourites only'
-                    if active_mode:
-                        acttext = u'Showing active item only'
-                    if hidden_count:
-                        hidtext = u'{} items are hidden'.format(hidden_count)
-                    text = [f for f in (
-                        filtext, favtext, acttext, hidtext) if f]
-                    text = u'  |  '.join(text)
-                    common.draw_aliased_text(
-                        painter, font, text_rect, text, align, common.SECONDARY_TEXT)
+            if n == model.rowCount():  # filter mode
+                hidden_count = source_model.rowCount() - model.rowCount()
+                filtext = u''
+                favtext = u''
+                acttext = u''
+                hidtext = u''
 
-                text_rect.moveTop(text_rect.top() + sizehint.height())
-                rect.moveTop(rect.top() + sizehint.height())
+                if filter_text:
+                    filtext = filter_text.upper()
+                if favourite_mode:
+                    favtext = u'Showing favourites only'
+                if active_mode:
+                    acttext = u'Showing active item only'
+                if hidden_count:
+                    hidtext = u'{} items are hidden'.format(hidden_count)
+                text = [f for f in (
+                    filtext, favtext, acttext, hidtext) if f]
+                text = u'  |  '.join(text)
+                common.draw_aliased_text(
+                    painter, font, text_rect, text, align, common.SECONDARY_TEXT)
+
+            text_rect.moveTop(text_rect.top() + sizehint.height())
+            rect.moveTop(rect.top() + sizehint.height())
+
+    def eventFilter(self, widget, event):
+        if widget is not self:
+            return False
+        if event.type() == QtCore.QEvent.Paint:
+            self.paint_status_message(widget, event)
             return True
         return False
 
@@ -2044,7 +2045,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the
     bookmarks, assets, files and favourites."""
-    animationFinished = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)
@@ -2053,15 +2053,6 @@ class StackedWidget(QtWidgets.QStackedWidget):
             QtWidgets.QSizePolicy.MinimumExpanding
         )
         self.setObjectName(u'BrowserStackedWidget')
-
-        self.speed = 500
-        self.animationType = QtCore.QEasingCurve.InOutQuint
-        self.current_idx = 0
-        self.next_idx = 1
-        self.wrap = False
-        self.activeState = False
-        self.blockedPageList = []
-        self.vertical = False
 
     def setCurrentIndex(self, idx):
         """Sets the current index of the ``StackedWidget``.
@@ -2088,79 +2079,4 @@ class StackedWidget(QtWidgets.QStackedWidget):
             k = u'widget/mode'
             local_settings.setValue(k, idx)
 
-        self.slide_index(idx)
-        # return super(StackedWidget, self).setCurrentIndex(idx)
-
-    def slide_index(self, next_idx):
-        current_idx = self.currentIndex()
-        if self.activeState or next_idx == current_idx:
-            return
-        self.activeState = True
-
-        width = self.frameRect().width()
-        height = self.frameRect().height()
-
-        next_idx %= self.count()
-        if next_idx > current_idx:
-            if self.vertical:
-                offsetx, offsety = 0, height
-            else:
-                offsetx, offsety = width, 0
-        elif next_idx < current_idx:
-            if self.vertical:
-                offsetx, offsety = 0, -height
-            else:
-                offsetx, offsety = -width, 0
-        self.widget(next_idx).setGeometry(0,  0, width, height)
-        pcurrent_idx, pnext_idx = self.widget(
-            current_idx).pos(), self.widget(next_idx).pos()
-        self.pointcurrent_idx = pcurrent_idx
-
-        self.widget(next_idx).move(pnext_idx.x() +
-                                   offsetx, pnext_idx.y() + offsety)
-
-        animcurrent_idx = QtCore.QPropertyAnimation(
-            self.widget(current_idx), 'pos')
-        animcurrent_idx.setDuration(self.speed)
-        animcurrent_idx.setStartValue(pcurrent_idx)
-        animcurrent_idx.setEndValue(QtCore.QPoint(
-            pcurrent_idx.x() - offsetx, pcurrent_idx.y() - offsety))
-        animcurrent_idx.setEasingCurve(self.animationType)
-
-        animnext_idx = QtCore.QPropertyAnimation(self.widget(next_idx), 'pos')
-        animnext_idx.setDuration(self.speed)
-        animnext_idx.setStartValue(QtCore.QPoint(
-            offsetx + pnext_idx.x(), offsety + pnext_idx.y()))
-        animnext_idx.setEndValue(pnext_idx)
-        animnext_idx.setEasingCurve(self.animationType)
-
-        self.animGroup = QtCore.QParallelAnimationGroup()
-        self.animGroup.addAnimation(animcurrent_idx)
-        self.animGroup.addAnimation(animnext_idx)
-        self.animGroup.finished.connect(self.animation_finished)
-        self.animGroup.finished.connect(
-            lambda: self.widget(next_idx).setDisabled(False))
-
-        @QtCore.Slot()
-        def initialize_visible_indexes():
-            if next_idx in (1, 2, 3):
-                self.widget(next_idx).restart_timer()
-
-        self.animGroup.finished.connect(initialize_visible_indexes)
-        self.animGroup.finished.connect(self.widget(next_idx).setFocus)
-        self.widget(next_idx).show()
-        self.widget(next_idx).setDisabled(True)
-        self.animGroup.start()
-
-        self.next_idx = next_idx
-        self.current_idx = current_idx
-
-    @QtCore.Slot()
-    def animation_finished(self):
-        super(StackedWidget, self).setCurrentIndex(self.next_idx)
-        self.widget(self.current_idx).hide()
-        self.widget(self.current_idx).move(self.pointcurrent_idx)
-        self.widget(self.current_idx).repaint(
-            self.widget(self.current_idx).rect())
-        self.activeState = False
-        self.animationFinished.emit()
+        super(StackedWidget, self).setCurrentIndex(idx)

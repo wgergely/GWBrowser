@@ -767,9 +767,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
-        # The index might still be populated...
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
+
         args = self.get_paint_arguments(painter, option, index)
         self.paint_background(*args)
         self.paint_thumbnail(*args)

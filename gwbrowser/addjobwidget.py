@@ -15,7 +15,9 @@ import functools
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.common as common
-from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row
+import gwbrowser.common_ui as common_ui
+
+from gwbrowser.common_ui import PaintedButton, add_row
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 
 
@@ -37,14 +39,10 @@ class AddJobWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class AddJobWidget(QtWidgets.QDialog):
+class AddJobWidget(QtWidgets.QWidget):
     """Defines the widget used add a job to a selected server."""
-    shutdown = QtCore.Signal()
-
-    def __init__(self, path, parent=None):
+    def __init__(self, parent=None):
         super(AddJobWidget, self).__init__(parent=parent)
-        self._path = path
-
         self.save_button = None
         self.cancel_button = None
         self.last_asset_added = None
@@ -54,40 +52,22 @@ class AddJobWidget(QtWidgets.QDialog):
         self.move_start_event_pos = None
         self.move_start_widget_pos = None
 
-        self.setWindowTitle(u'Add job')
         self.installEventFilter(self)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.Window)
 
         self._createUI()
         self._connectSignals()
-
-    @property
-    def path(self):
-        """The active bookmark"""
-        return self._path
 
     def _createUI(self):
         """Creates the ``AddAssetsWidget``'s ui and layout."""
         common.set_custom_stylesheet(self)
         #
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
+        o = 0
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
         #
-
-        #
-        row = add_row(u'', parent=self)
-        label = PaintedLabel(u'Add new job', size=common.LARGE_FONT_SIZE)
-        row.layout().addWidget(label)
-        row.layout().addStretch(1)
-
-        #
-        row = add_row(u'Job name:', parent=self)
-        self.layout().addWidget(row, 1)
+        row = common_ui.add_row(u'Job name:', padding=0, parent=self)
 
         self.name_widget = QtWidgets.QLineEdit(parent=self)
         self.name_widget.setFixedWidth(200)
@@ -96,20 +76,20 @@ class AddJobWidget(QtWidgets.QDialog):
         self.name_widget.setValidator(validator)
         row.layout().addWidget(self.name_widget, 1)
 
-        self.save_button = PaintedButton(u'Add job', parent=self)
-        self.cancel_button = PaintedButton(u'Cancel', parent=self)
+        self.save_button = common_ui.PaintedButton(u'Add job', parent=self)
+        self.cancel_button = common_ui.PaintedButton(u'Cancel', parent=self)
         row.layout().addWidget(self.save_button)
         row.layout().addWidget(self.cancel_button)
-        self.layout().addSpacing(common.MARGIN)
 
     def _connectSignals(self):
-        self.save_button.clicked.connect(self.accept)
-        self.cancel_button.clicked.connect(self.reject)
+        self.save_button.clicked.connect(lambda: self.done(QtWidgets.QDialog.Accepted))
+        self.cancel_button.clicked.connect(lambda: self.done(QtWidgets.QDialog.Rejected))
 
+    @QtCore.Slot()
     def done(self, result):
         """Slot called by the check button to initiate the save."""
         if result == QtWidgets.QDialog.Rejected:
-            return super(AddJobWidget, self).done(result)
+            return self.hide()
 
         mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'Error adding asset')
@@ -188,6 +168,6 @@ class AddJobWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = AddJobWidget('C:/temp')
-    w.exec_()
+    w = AddJobWidget()
+    w.show()
     app.exec_()

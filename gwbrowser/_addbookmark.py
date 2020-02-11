@@ -2,17 +2,19 @@
 """
 """
 import re
+import os
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
 from PySide2 import QtCore, QtWidgets, QtGui
 from _scanbookmark import scanbookmark as scanbookmark_it
+from _scandir import scandir as scandir_it
 
 
 class ServerEditor(QtWidgets.QGroupBox):
-    BUTTON_SIZE = 18
-
     serversChanged = QtCore.Signal()
+
+    BUTTON_SIZE = 18
 
     def __init__(self, parent=None):
         super(ServerEditor, self).__init__(parent=parent)
@@ -21,7 +23,6 @@ class ServerEditor(QtWidgets.QGroupBox):
 
         self.createUI()
         self.add_rows()
-
 
     def createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -111,6 +112,10 @@ class ServerEditor(QtWidgets.QGroupBox):
                 parent=self
             )
             button.clicked.connect(add_server)
+            label.returnPressed.connect(add_server)
+
+        button.clicked.connect(self.parent().init_select_server_combobox)
+        label.returnPressed.connect(self.parent().init_select_server_combobox)
 
         row.layout().addWidget(label)
         row.layout().addWidget(button)
@@ -122,14 +127,18 @@ class ServerEditor(QtWidgets.QGroupBox):
         for server in self.parent().data.get_saved_servers():
             self.add_row(server=server, read_only=True)
 
+
+class JobEditor(QtWidgets.QGroupBox):
+    def __init__(self, parent=None):
+        super(JobEditor, self).__init__(parent=parent)
+
+
 class BookmarksData(QtCore.QObject):
     BOOKMARK_KEY = u'bookmarks'
     SERVER_KEY = u'servers'
 
     def __init__(self, parent=None):
         super(BookmarksData, self).__init__(parent=parent)
-        path = ur'C:/tmp/conf.conf'
-
         path = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.GenericDataLocation)
         path = u'{}/{}/settings.ini'.format(path, common.PRODUCT)
@@ -171,7 +180,6 @@ class BookmarksData(QtCore.QObject):
         if val.lower() in s:
             s.remove(val.lower())
         self._settings.setValue(self.SERVER_KEY, list(set(s)))
-        print self._settings.value(self.SERVER_KEY)
 
     def get_saved_bookmarks(self):
         def r(s): return re.sub(ur'[\\]', u'/',
@@ -261,15 +269,17 @@ class BookmarksData(QtCore.QObject):
 
 class BookmarksWidget(QtWidgets.QWidget):
     ROW_HEIGHT = 36
-
+    BUTTON_SIZE = 20
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
         self.data = BookmarksData(parent=self)
-        self.createUI()
-        self.init_values()
 
-    def createUI(self):
+        self._createUI()
+        self._connectSignals()
+        self.init_select_server_combobox()
+
+    def _createUI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
@@ -277,23 +287,72 @@ class BookmarksWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o,o,o,o)
 
         row = common_ui.add_row(u'Select server', padding=0, parent=self)
-        self.edit_servers_button = common_ui.PaintedButton(u'Edit', parent=row)
+        self.edit_servers_button = common_ui.PaintedButton(u'Edit...', parent=row)
         self.select_server_combobox = QtWidgets.QComboBox(parent=self)
         self.select_server_combobox.setDuplicatesEnabled(False)
+        self.select_server_combobox.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
 
         row.layout().addWidget(self.select_server_combobox, 1)
         row.layout().addWidget(self.edit_servers_button)
         self.server_editor = ServerEditor(parent=self)
+        self.server_editor.setHidden(True)
         self.layout().addWidget(self.server_editor)
+
+        row = common_ui.add_row(u'Select job', padding=0, parent=self)
+        self.select_job_combobox = QtWidgets.QComboBox(parent=self)
+        self.select_job_combobox.setDuplicatesEnabled(False)
+        self.select_job_combobox.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
+        self.add_job_button = common_ui.ClickableIconButton(
+            u'add',
+            (common.ADD, common.ADD),
+            self.BUTTON_SIZE,
+            description=u'Add a new job to the current server',
+            parent=row
+        )
+        self.reveal_job_button = common_ui.ClickableIconButton(
+            u'folder',
+            (common.SECONDARY_BACKGROUND, common.SECONDARY_BACKGROUND),
+            self.BUTTON_SIZE,
+            description=u'Show the job in the explorer',
+            parent=row
+        )
+        row.layout().addWidget(self.select_job_combobox, 1)
+        row.layout().addWidget(self.add_job_button, 0)
+        row.layout().addWidget(self.reveal_job_button, 0)
         self.layout().addStretch(1)
 
         @QtCore.Slot()
         def toggle_server_editor():
-            self.server_editor.setHidden(not self.server_editor.isHidden())
+            _bool = not self.server_editor.isHidden()
+            self.server_editor.setHidden(_bool)
+            self.edit_servers_button.setText(u'Edit...' if _bool else u'Done')
+            if _bool:
+                self.init_select_server_combobox()
+
         self.edit_servers_button.clicked.connect(toggle_server_editor)
 
-    def init_values(self):
+        @QtCore.Slot()
+        def reveal():
+            idx = self.select_job_combobox.currentIndex()
+            if idx < 0:
+                return
+            data = self.select_job_combobox.itemData(
+                idx, role=QtCore.Qt.UserRole
+            )
+            common.reveal(data)
+
+        self.reveal_job_button.clicked.connect(reveal)
+
+    def _connectSignals(self):
+        self.select_server_combobox.currentIndexChanged.connect(
+            self.init_select_job_combobox)
+
+    @QtCore.Slot()
+    def init_select_server_combobox(self):
         n = 0
+        idx = self.select_server_combobox.currentIndex()
+
+        self.select_server_combobox.clear()
         for k in self.data.get_saved_servers():
             pixmap = ImageCache.get_rsc_pixmap(u'server', common.TEXT, self.ROW_HEIGHT)
             icon = QtGui.QIcon(pixmap)
@@ -312,7 +371,73 @@ class BookmarksWidget(QtWidgets.QWidget):
                 _pixmap = ImageCache.get_rsc_pixmap(u'close', common.REMOVE, self.ROW_HEIGHT)
                 self.select_server_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
             n += 1
-            # item = QtWidgets.QList
+
+        if idx >= 0:
+            self.select_server_combobox.setCurrentIndex(idx)
+        else:
+            for n in xrange(self.select_server_combobox.count()):
+                index = self.select_server_combobox.model().index(n, 0)
+                if index.flags() & QtCore.Qt.ItemIsEnabled:
+                    self.select_server_combobox.setCurrentIndex(n)
+                    break
+
+    @QtCore.Slot(int)
+    def init_select_job_combobox(self, idx):
+        self.select_job_combobox.clear()
+
+        if idx < 0:
+            return
+
+        server = self.select_server_combobox.itemData(idx, role=QtCore.Qt.UserRole)
+
+        file_info = QtCore.QFileInfo(server)
+        if not file_info.exists():
+            self.show_warning('"{}" does not exist'.format(server))
+            return
+        if not file_info.isReadable():
+            self.show_warning('"{}" is not readable'.format(server))
+            return
+
+        n = 0
+        for entry in scandir_it(server):
+            # Let's explicitly check read access by trying to get the
+            # files inside the folder
+            is_valid = False
+            try:
+                next(scandir_it(entry.path))
+                is_valid = True
+            except StopIteration:
+                is_valid = True
+            except OSError:
+                is_valid = False
+
+            pixmap = ImageCache.get_rsc_pixmap(u'folder', common.TEXT, self.ROW_HEIGHT)
+            icon = QtGui.QIcon(pixmap)
+
+            self.select_job_combobox.addItem(icon, entry.name.upper(), userData=entry.path)
+            item = self.select_job_combobox.model().item(n)
+            self.select_job_combobox.setItemData(n, QtCore.QSize(0, self.ROW_HEIGHT), QtCore.Qt.SizeHintRole)
+            item.setData(common.TEXT, role=QtCore.Qt.TextColorRole)
+            item.setData(common.BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
+
+            if not is_valid:
+                item.setFlags(item.flags() & ~QtCore.Qt.ItemIsEnabled)
+                item.setData(common.TEXT_DISABLED, role=QtCore.Qt.TextColorRole)
+                item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
+                # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
+                _pixmap = ImageCache.get_rsc_pixmap(u'close', common.REMOVE, self.ROW_HEIGHT)
+                self.select_job_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
+            n += 1
+
+    def show_warning(self, text):
+        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox.setWindowTitle(u'Warning')
+        mbox.setIcon(QtWidgets.QMessageBox.Warning)
+        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        mbox.setText(text)
+        mbox.exec_()
+
 
 
 if __name__ == '__main__':
