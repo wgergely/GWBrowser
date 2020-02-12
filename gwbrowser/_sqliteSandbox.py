@@ -29,7 +29,7 @@ class BookmarkDatabase(QtCore.QObject):
         self._root = root.lower()
         self._bookmark = u'{}/{}/{}'.format(server, job, root).lower()
 
-        database_path = u'{server}/{job}/{root}/.browser/bookmark.db'.format(
+        database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
             server=self._server,
             job=self._job,
             root=self._root

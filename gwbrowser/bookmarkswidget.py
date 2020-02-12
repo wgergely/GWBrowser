@@ -137,7 +137,6 @@ class BookmarksModel(BaseModel):
             thumbcolor,
             common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR)
         default_thumbnail_image = default_thumbnail_image.toImage()
-        default_background_color = common.THUMBNAIL_BACKGROUND
 
         favourites = local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
@@ -148,7 +147,7 @@ class BookmarksModel(BaseModel):
             # This folder lives in the root of the bookmarks folder and is
             # created here if not created previously.
             if file_info.exists():
-                _confpath = u'{}/.browser/'.format(file_info.filePath())
+                _confpath = u'{}/.bookmark/'.format(file_info.filePath())
                 _confpath = QtCore.QFileInfo(_confpath)
                 QtCore.QDir().mkpath(_confpath.filePath())
 

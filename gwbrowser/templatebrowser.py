@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from PySide2 import QtCore, QtWidgets, QtGui
 import zipfile
-
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
@@ -16,7 +15,7 @@ class TemplateContextMenu(BaseContextMenu):
         self.add_refresh_menu()
         if not index:
             return
-        self.add_template_menu()
+        self.add_new_template_menu()
 
         self.add_separator()
         self.add_remove_menu()
@@ -58,7 +57,7 @@ class TemplateContextMenu(BaseContextMenu):
 
         parent = self.parent().parent().parent().parent()
         menu_set[u'Import a new {} template...'.format(parent.mode())] = {
-            u'action': parent.add_template,
+            u'action': parent.add_new_template,
             u'icon': add_pixmap
         }
 
@@ -69,7 +68,7 @@ class TemplateContextMenu(BaseContextMenu):
         return menu_set
 
     @contextmenu
-    def add_template_menu(self, menu_set):
+    def add_new_template_menu(self, menu_set):
         pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
@@ -78,182 +77,6 @@ class TemplateContextMenu(BaseContextMenu):
             u'action': lambda: common.reveal(self.index.data(QtCore.Qt.UserRole + 1)),
         }
         return menu_set
-
-
-class TemplatesWidget(QtWidgets.QGroupBox):
-    ROW_SIZE = 24
-
-    def __init__(self, parent_path, mode, parent=None):
-        super(TemplatesWidget, self).__init__(parent=parent)
-        self._parent_path = parent_path
-        self._mode = mode
-        self.ziplist_widget = None
-        self.zipcontents_widget = None
-        self.add_button = None
-
-        self.setWindowTitle(u'Template Browser')
-
-        self._createUI()
-        self._connectSignals()
-
-    def mode(self):
-        return self._mode
-
-    def parent_path(self):
-        return self._parent_path
-
-    def _createUI(self):
-        common.set_custom_stylesheet(self)
-        QtWidgets.QVBoxLayout(self)
-
-        # Name
-        row = common_ui.add_row(u'{} name'.format(self.mode().title()), padding=None, parent=self)
-        self.name_widget = NameBase(parent=self)
-        self.name_widget.set_transparent()
-        self.name_widget.setFont(common.PrimaryFont)
-        self.name_widget.setPlaceholderText('Enter the name here...')
-        regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
-        validator = QtGui.QRegExpValidator(regex, parent=self)
-        self.name_widget.setValidator(validator)
-        row.layout().addWidget(self.name_widget, 1)
-        self.add_button = common_ui.ClickableIconButton(
-            u'add',
-            (common.ADD, common.ADD),
-            self.ROW_SIZE,
-            description=u'Add new {}'.format(self.mode().title()),
-            parent=row
-        )
-        row.layout().addWidget(self.add_button)
-
-        # Template Header
-        row = common_ui.add_row(u'Select template', height=None, padding=None, parent=self)
-        splitter = QtWidgets.QSplitter(parent=self)
-        self.ziplist_widget = ZipListWidget(self.mode(), parent=self)
-        self.ziplist_widget.setMinimumHeight(120)
-        self.zipcontents_widget = QtWidgets.QListWidget(parent=self)
-        splitter.addWidget(self.ziplist_widget)
-        splitter.addWidget(self.zipcontents_widget)
-        # splitter.setSizes([60, 30])
-
-        row.layout().addWidget(splitter, 1)
-        self.layout().addStretch(1)
-
-    def _connectSignals(self):
-        self.ziplist_widget.selectionModel().selectionChanged.connect(self.itemActivated)
-
-    @QtCore.Slot()
-    def add_template(self):
-        dialog = QtWidgets.QFileDialog(parent=self)
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilters([u'*.zip', ])
-        dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Select {} Template'.format(self.mode().title()))
-        dialog.setWindowTitle(u'Select {}.zip template file containing a folder hierarchy'.format(self.mode().lower()))
-        if not dialog.exec_():
-            return
-
-        templates_dir = self.ziplist_widget.templates_dir_path()
-        for source in dialog.selectedFiles():
-            file_info = QtCore.QFileInfo(source)
-            destination = u'{}/{}'.format(templates_dir, file_info.fileName())
-            res = QtCore.QFile.copy(source, destination)
-            if res:
-                self.ziplist_widget.load_templates()
-
-    @QtCore.Slot()
-    def itemActivated(self, selectionList):
-        self.zipcontents_widget.clear()
-        if not selectionList:
-            return
-        index = selectionList.first().topLeft()
-        if not index.isValid():
-            return
-
-        size = QtCore.QSize(0, self.ROW_SIZE)
-        folder_pixmap = ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        folder_icon = QtGui.QIcon(folder_pixmap)
-        file_pixmap = ImageCache.get_rsc_pixmap(
-            u'files', common.ADD, common.INLINE_ICON_SIZE)
-        file_icon = QtGui.QIcon(file_pixmap)
-
-        for f in index.data(QtCore.Qt.UserRole):
-            if QtCore.QFileInfo(f).suffix():
-                icon = file_icon
-            else:
-                icon = folder_icon
-            item = QtWidgets.QListWidgetItem(parent=self)
-            item.setData(QtCore.Qt.FontRole, common.SecondaryFont)
-            item.setData(QtCore.Qt.DisplayRole, f)
-            item.setData(QtCore.Qt.SizeHintRole, size)
-            item.setData(QtCore.Qt.DecorationRole, icon)
-            item.setFlags(QtCore.Qt.ItemIsSelectable)
-            self.zipcontents_widget.addItem(item)
-
-    def verify_and_create_template(self):
-        mbox = QtWidgets.QMessageBox(parent=self)
-        mbox.setWindowTitle(u'Error adding asset')
-        mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-
-        file_info = QtCore.QFileInfo(self.path)
-
-        if not file_info.exists():
-            mbox.setText(
-                u'The destination folder does not exists.')
-            mbox.setInformativeText(
-                u'{} does not exist. Make sure a valid bookmark is activated before trying to add the asset.'.format(file_info.filePath()))
-            return mbox.exec_()
-
-        if not file_info.isWritable():
-            mbox.setText(
-                u'{} is not writable.'.format(file_info.filePath()))
-            mbox.setInformativeText(
-                u'The destination folder is not writeable. Check if you have permissions to create files and folders.')
-            return mbox.exec_()
-
-        if not self.name_widget.text():
-            mbox.setText(u'The asset has no name.')
-            mbox.setInformativeText(
-                u'You must set a name before adding an asset.')
-            return mbox.exec_()
-
-        path = ur'{}/{}'.format(file_info.filePath(), self.name_widget.text())
-        file_info = QtCore.QFileInfo(path)
-        if file_info.exists():
-            mbox.setText(u'"{}" already exists. Try again with a different name...'.format(
-                self.name_widget.text()))
-            mbox.setInformativeText(u'')
-            return mbox.exec_()
-
-        # Finally, let's actually create the asset
-        try:
-            common.create_asset_from_template(
-                self.name_widget.text(), self.path, template=common.ProjectTemplate)
-        except Exception as err:
-            mbox.setText(u'An error occured when creating the asset:')
-            mbox.setInformativeText('{}'.format(err))
-            return mbox.exec_()
-
-        mbox.setWindowTitle(u'Success')
-        mbox.setText(u'Succesfully added "{}".'.format(
-            self.name_widget.text()))
-        mbox.setIcon(QtWidgets.QMessageBox.NoIcon)
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.No)
-        mbox.setInformativeText(
-            u'Do you want to add another asset?')
-        if mbox.exec_() == QtWidgets.QMessageBox.Yes:
-            self.name_widget.setText(u'')
-            return
-        else:
-            self.last_asset_added = self.name_widget.text()
-            common.reveal(u'{}/{}'.format(self.path, self.name_widget.text()))
-
 
 
 class ZipListDelegate(QtWidgets.QStyledItemDelegate):
@@ -265,7 +88,7 @@ class ZipListDelegate(QtWidgets.QStyledItemDelegate):
         editor.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         editor.setStyleSheet(u'padding: 0px; margin: 0px; border-radius: 0px;')
         validator = QtGui.QRegExpValidator(parent=editor)
-        validator.setRegExp(QtCore.QRegExp(u'[\_\-a-zA-z0-9]+'))
+        validator.setRegExp(QtCore.QRegExp(ur'[\_\-a-zA-z0-9]+'))
         editor.setValidator(validator)
         return editor
 
@@ -354,8 +177,194 @@ class ZipListWidget(QtWidgets.QListWidget):
         menu.exec_()
 
 
+class TemplatesWidget(QtWidgets.QGroupBox):
+    templateCreated = QtCore.Signal()
+    ROW_SIZE = 24
+
+    def __init__(self, mode, parent=None):
+        super(TemplatesWidget, self).__init__(parent=parent)
+        self._path = None
+        self._mode = mode
+        self.ziplist_widget = None
+        self.zipcontents_widget = None
+        self.add_button = None
+
+        self.setWindowTitle(u'Template Browser')
+
+        self._createUI()
+        self._connectSignals()
+
+    def mode(self):
+        return self._mode
+
+    def path(self):
+        return self._path
+
+    def set_path(self, val):
+        self._path = val
+
+    def _createUI(self):
+        common.set_custom_stylesheet(self)
+        QtWidgets.QVBoxLayout(self)
+        # Name
+        row = common_ui.add_row(u'{} name'.format(self.mode().title()), padding=None, parent=self)
+        self.name_widget = NameBase(parent=self)
+        self.name_widget.set_transparent()
+        self.name_widget.setFont(common.PrimaryFont)
+        self.name_widget.setPlaceholderText('Enter the name here...')
+        regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
+        validator = QtGui.QRegExpValidator(regex, parent=self)
+        self.name_widget.setValidator(validator)
+        row.layout().addWidget(self.name_widget, 1)
+        self.add_button = common_ui.ClickableIconButton(
+            u'add',
+            (common.ADD, common.ADD),
+            self.ROW_SIZE,
+            description=u'Add new {}'.format(self.mode().title()),
+            parent=row
+        )
+        row.layout().addWidget(self.add_button)
+
+        # Template Header
+        row = common_ui.add_row(u'Select template', height=None, padding=None, parent=self)
+        splitter = QtWidgets.QSplitter(parent=self)
+        self.ziplist_widget = ZipListWidget(self.mode(), parent=self)
+        self.ziplist_widget.setMinimumHeight(120)
+        self.zipcontents_widget = QtWidgets.QListWidget(parent=self)
+        splitter.addWidget(self.ziplist_widget)
+        splitter.addWidget(self.zipcontents_widget)
+        splitter.setSizes([60, 30])
+
+        row.layout().addWidget(splitter, 1)
+        self.layout().addStretch(1)
+
+    def _connectSignals(self):
+        self.ziplist_widget.selectionModel().selectionChanged.connect(self.itemActivated)
+        self.add_button.clicked.connect(self.create_template)
+
+    @QtCore.Slot()
+    def create_template(self):
+        """Verifies the user choices and expands the selected template to the
+        currently set `path`.
+
+        """
+        mbox = QtWidgets.QMessageBox(parent=self)
+        mbox.setWindowTitle(u'Error')
+        mbox.setIcon(QtWidgets.QMessageBox.Warning)
+        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        mbox.setFixedWidth(500)
+        mbox.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+
+        if not self.path():
+            mbox.setText(
+                u'Unable to create {}.'.format(self.mode().lower()))
+            mbox.setInformativeText(
+                u'The parent path has not yet been set.')
+            return mbox.exec_()
+
+        file_info = QtCore.QFileInfo(self.path())
+        if not file_info.exists():
+            mbox.setText(
+                u'Unable to create {}.'.format(self.mode().lower()))
+            mbox.setInformativeText(
+                u'The root "{}" does not exist.'.format(file_info.filePath()))
+            return mbox.exec_()
+
+        if not self.name_widget.text():
+            mbox.setText(
+                u'Must enter a name before adding an asset.')
+            self.name_widget.setFocus()
+            return mbox.exec_()
+
+        file_info = file_info = QtCore.QFileInfo(
+            u'{}/{}'.format(self.path(), self.name_widget.text()))
+
+        if file_info.exists():
+            mbox.setText(
+                u'Unable to create {}.'.format(self.mode().lower()))
+            mbox.setInformativeText(
+                u'"{}" already exists.'.format(self.name_widget.text()))
+            return mbox.exec_()
+
+        model = self.ziplist_widget.selectionModel()
+        if not model.hasSelection():
+            mbox.setText(
+                u'Must select a {} template before adding'.format(self.mode()))
+            return mbox.exec_()
+
+        index = model.selectedIndexes()[0]
+        if not index.isValid():
+            return
+
+        source = index.data(QtCore.Qt.UserRole + 1)
+        try:
+            with zipfile.ZipFile(source, 'r', zipfile.ZIP_DEFLATED) as f:
+                f.extractall(file_info.absoluteFilePath(), members=None, pwd=None)
+            common.reveal(file_info.filePath())
+            self.templateCreated.emit()
+        except Exception as err:
+            mbox.setText(u'An error occured when creating the {}'.format(self.mode()))
+            mbox.setInformativeText('{}'.format(err))
+            return mbox.exec_()
+        finally:
+            self.name_widget.setText(u'')
+
+    @QtCore.Slot()
+    def add_new_template(self):
+        dialog = QtWidgets.QFileDialog(parent=self)
+        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        dialog.setViewMode(QtWidgets.QFileDialog.List)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+        dialog.setNameFilters([u'*.zip', ])
+        dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+        dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Select {} Template'.format(self.mode().title()))
+        dialog.setWindowTitle(u'Select a zip file containing the {m} folder hierarchy'.format(m=self.mode().lower()))
+        if not dialog.exec_():
+            return
+
+        templates_dir = self.ziplist_widget.templates_dir_path()
+        for source in dialog.selectedFiles():
+            file_info = QtCore.QFileInfo(source)
+            destination = u'{}/{}'.format(templates_dir, file_info.fileName())
+            res = QtCore.QFile.copy(source, destination)
+            if res:
+                self.ziplist_widget.load_templates()
+
+    @QtCore.Slot()
+    def itemActivated(self, selectionList):
+        self.zipcontents_widget.clear()
+        if not selectionList:
+            return
+        index = selectionList.first().topLeft()
+        if not index.isValid():
+            return
+
+        size = QtCore.QSize(0, self.ROW_SIZE)
+        folder_pixmap = ImageCache.get_rsc_pixmap(
+            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        folder_icon = QtGui.QIcon(folder_pixmap)
+        file_pixmap = ImageCache.get_rsc_pixmap(
+            u'files', common.ADD, common.INLINE_ICON_SIZE)
+        file_icon = QtGui.QIcon(file_pixmap)
+
+        for f in index.data(QtCore.Qt.UserRole):
+            if QtCore.QFileInfo(f).suffix():
+                icon = file_icon
+            else:
+                icon = folder_icon
+            item = QtWidgets.QListWidgetItem(parent=self)
+            item.setData(QtCore.Qt.FontRole, common.SecondaryFont)
+            item.setData(QtCore.Qt.DisplayRole, f)
+            item.setData(QtCore.Qt.SizeHintRole, size)
+            item.setData(QtCore.Qt.DecorationRole, icon)
+            item.setFlags(QtCore.Qt.ItemIsSelectable)
+            self.zipcontents_widget.addItem(item)
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = TemplatesWidget(u'C:/tmp', u'job')
+    w = TemplatesWidget(u'job')
+    w.set_path(u'C:/tmp')
     w.show()
     app.exec_()

@@ -39,10 +39,11 @@ class AddJobWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class AddJobWidget(QtWidgets.QWidget):
+class AddJobWidget(QtWidgets.QDialog):
     """Defines the widget used add a job to a selected server."""
-    def __init__(self, parent=None):
+    def __init__(self, path, parent=None):
         super(AddJobWidget, self).__init__(parent=parent)
+        self._path = path
         self.save_button = None
         self.cancel_button = None
         self.last_asset_added = None
@@ -57,6 +58,10 @@ class AddJobWidget(QtWidgets.QWidget):
 
         self._createUI()
         self._connectSignals()
+
+    @property
+    def path(self):
+        return self._path
 
     def _createUI(self):
         """Creates the ``AddAssetsWidget``'s ui and layout."""
