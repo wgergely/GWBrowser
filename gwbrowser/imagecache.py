@@ -355,31 +355,34 @@ class ImageCache(QtCore.QObject):
 
     @classmethod
     def get(cls, path, height, overwrite=False):
-        """Saves a resized copy of path to the cache.
-
-        Returns the cached image if it already is in the cache, or the placholder
-        image if loading fails. In addittion, each cached entry
-        will be associated with a backgroun- color based on the image's colours.
+        """Returns a previously cached `QImage` if the image has already been
+        cached, otherwise it will read, resize and cache the image found at `path`.
 
         Args:
-            path (str):    Path to the image file.
-            height (int):  Description of parameter `height`.
+            path (unicode):    Path to an image file.
+            height (int):  The height of the image
+            overwrite (bool): Replaces the cached image with new data
 
-        Returns:
-            QImage: The cached and resized QImage.
+        Returns: QImage: The cached and resized QImage.
 
         """
+        if not path:
+            return None
+        try:
+            height = int(height)
+        except ValueError:
+            pass
+
         k = u'{path}:{height}'.format(
             path=path,
             height=height
-        )
-
-        if not path:
-            return None
+        ).lower()
 
         # Return cached item if exsits
         if k in cls._data and not overwrite:
             return cls._data[k]
+        if k in cls._data and overwrite:
+            del cls._data[k]
 
         # Checking if the file can be opened
         i = OpenImageIO.ImageInput.open(path)
@@ -387,24 +390,22 @@ class ImageCache(QtCore.QObject):
             return None
         i.close()
 
-        image = QtGui.QImage()
-        image.load(path)
+        image = QtGui.QImage(path)
         if image.isNull():
             return None
 
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
         image = cls.resize_image(image, height)
+        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
 
-        cls._data[u'{k}:BackgroundColor'.format(
-            k=path
-        )] = cls.get_color_average(path)
+        cls._data[u'{}:BackgroundColor'.format(path)] = cls.get_color_average(path)
         cls._data[k] = image
 
         return cls._data[k]
 
     @staticmethod
     def resize_image(image, size):
-        """Returns a scaled copy of the image fitting inside the square of ``size``.
+        """Returns a scaled copy of the `QImage` fitting inside the square of
+        ``size``.
 
         Args:
             image (QImage): The image to rescale.
@@ -416,6 +417,7 @@ class ImageCache(QtCore.QObject):
         """
         if not isinstance(size, (int, float)):
             return image
+
         longer = float(max(image.width(), image.height()))
         factor = float(float(size) / float(longer))
         if image.width() < image.height():
