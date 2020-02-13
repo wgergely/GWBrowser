@@ -5,7 +5,7 @@ import os
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 import OpenImageIO
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
 from gwbrowser.settings import AssetSettings

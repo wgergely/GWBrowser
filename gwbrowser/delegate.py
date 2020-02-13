@@ -461,9 +461,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 class BookmarksWidgetDelegate(BaseDelegate):
     """The delegate used to paint the bookmark items."""
 
-    def __init__(self, parent=None):
-        super(BaseDelegate, self).__init__(parent=parent)
-
     def paint(self, painter, option, index):
         """Defines how the ``BookmarksWidgetItems`` should be painted."""
         args = self.get_paint_arguments(painter, option, index)
@@ -633,9 +630,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
 class AssetsWidgetDelegate(BaseDelegate):
     """Delegate used by the ``AssetsWidget`` to display the collecteds assets."""
 
-    def __init__(self, parent):
-        super(AssetsWidgetDelegate, self).__init__(parent=parent)
-
     def paint(self, painter, option, index):
         """Defines how the ``AssetsWidget``'s' items should be painted."""
         # The index might still be populated...
@@ -759,26 +753,25 @@ class FilesWidgetDelegate(BaseDelegate):
     """QAbstractItemDelegate associated with ``FilesWidget``."""
     maximum_subdirs = 4
 
-    def __init__(self, parent=None):
-        super(FilesWidgetDelegate, self).__init__(parent=parent)
-
     def subdir_rectangles(self):
         pass
 
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
-        if index.data(QtCore.Qt.DisplayRole) is None:
-            return
 
         args = self.get_paint_arguments(painter, option, index)
+        if index.data(QtCore.Qt.DisplayRole) is None:
+            return
         self.paint_background(*args)
         self.paint_thumbnail(*args)
 
-        if index.data(common.ParentPathRole) and not self.parent().buttons_hidden():
+        b_hidden = self.parent().buttons_hidden()
+        p_role = index.data(common.ParentPathRole)
+        if p_role and not b_hidden:
             self.paint_file_shadow(*args)
             self.paint_thumbnail_shadow(*args)
             self.paint_name(*args)
-        elif index.data(common.ParentPathRole) and self.parent().buttons_hidden():
+        elif p_role and b_hidden:
             self.paint_simple_name(*args)
 
         if index.data(common.FileInfoLoaded):
@@ -789,6 +782,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
+
 
     def get_description_rect(self, rectangles, index):
         """The description rectangle of a file item."""
@@ -1384,20 +1378,17 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + ((common.MARGIN) * 0.5))
 
-        subdir_rectangles = []
-
         modes_rectangle = QtCore.QRect(rect)
         modes_rectangle.setHeight(metrics.height())
         modes_rectangle.moveCenter(rect.center())
 
         subdirs = index.data(common.ParentPathRole)
         if not subdirs:
-            return []
+            return
         subdirs = subdirs[-1].upper().split(u'/')
         subdirs = [f for f in subdirs if f]
 
         o = 3
-        spacing = o * 2
 
         offset = 0
         for n, text in enumerate(subdirs):
@@ -1423,9 +1414,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 QtCore.Qt.ElideRight,
                 r.width()
             )
-
-            subdir_rectangles.append((r, text))
-        return subdir_rectangles
+            yield (r, text)
 
     @paintmethod
     def paint_drag_source(self, *args, **kwargs):

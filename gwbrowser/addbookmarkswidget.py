@@ -13,7 +13,7 @@ each users.
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
@@ -180,7 +180,6 @@ class ComboboxButton(QtWidgets.QPushButton):
             return
         if not index.row() == 0:
             return
-
 
         parent = self.parent().parent()
         index = parent.pick_server_widget.view().selectionModel().currentIndex()
@@ -370,6 +369,7 @@ class AddJobButton(ClickableIconButton):
             description=u'Add a new job',
         )
 
+
     def action(self):
         view = self.parent().parent().pick_server_widget.view()
         if not view.selectionModel().hasSelection():
@@ -379,6 +379,7 @@ class AddJobButton(ClickableIconButton):
             return
         w = AddJobWidget(index.data(QtCore.Qt.StatusTipRole), parent=self)
         w.exec_()
+
 
 class RefreshButton(ClickableIconButton):
     """The button responsible for showing the ``AddJobWidget``."""
@@ -480,7 +481,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         row = add_row(u'', parent=self)
         row.setFixedHeight(48)
-        pixmap = ImageCache.get_rsc_pixmap(u'bookmark', common.SECONDARY_TEXT, 48)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'bookmark', common.SECONDARY_TEXT, 48)
         label = QtWidgets.QLabel(parent=self)
         label.setPixmap(pixmap)
         row.layout().addWidget(label)
@@ -911,8 +913,9 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.BACKGROUND)
         painter.drawRoundedRect(
-            self.rect().marginsRemoved(QtCore.QMargins(8,8,8,8)), 6, 6)
+            self.rect().marginsRemoved(QtCore.QMargins(8, 8, 8, 8)), 6, 6)
         painter.end()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

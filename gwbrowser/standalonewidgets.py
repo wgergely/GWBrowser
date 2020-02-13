@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 """The module containing all widgets needed to run GWBrowser in standalone-mode."""
 
-import os
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.settings import Active
 from gwbrowser.browserwidget import BrowserWidget
-from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.common_ui import ClickableIconButton, PaintedLabel
-from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.common as common
 from gwbrowser.settings import local_settings
 from gwbrowser.imagecache import ImageCache
@@ -299,14 +294,14 @@ class StandaloneBrowserWidget(BrowserWidget):
 
 class StandaloneApp(QtWidgets.QApplication):
     """This is the app used to run the browser as a standalone widget."""
-    MODEL_ID = u'gwbrowser_standalone'
+    MODEL_ID = u'{}App'.format(common.PRODUCT)
 
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
-        self.setApplicationName(u'GWBrowser')
-
         import gwbrowser
         self.setApplicationVersion(gwbrowser.__version__)
+        self.setApplicationName(common.PRODUCT)
+
 
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)

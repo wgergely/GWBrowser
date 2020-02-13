@@ -12,7 +12,7 @@ in the common module.
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 
 from gwbrowser.delegate import paintmethod
