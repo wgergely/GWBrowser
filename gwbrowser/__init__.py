@@ -116,10 +116,13 @@ def exec_():
     gwbrowser = importlib.import_module(
         u'{}.standalonewidgets'.format(__name__))
 
-    from PySide2 import QtWidgets
+    from PySide2 import QtWidgets, QtCore
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
     else:
+        # High-dpi scaling support
+        # os.putenv('QT_SCALE_FACTOR', '1.2')
+        # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
         app = gwbrowser.StandaloneApp([])
     widget = gwbrowser.StandaloneBrowserWidget()
     widget.show()

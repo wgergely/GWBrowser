@@ -213,14 +213,14 @@ class AssetSettings(QtCore.QSettings):
     cached thumbnail.
 
     The settings are stored in the current bookmark folder, eg:
-    `{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.conf`, or
-    `{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.png`
+    `{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.conf`, or
+    `{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.png`
 
     The file-name is generated based on the file or folder's path name relative
     to the current bookmark folder using a md5 hash. For instance,
     `//{server}/{job}/{bookmark}/asset/myfile.ma will take *asset/myfile.ma*
     to generate the hash and will return
-    `//{server}/{job}/{bookmark}/.browser/986613d368816aa7e0ae910dfd863297.conf`
+    `//{server}/{job}/{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.conf`
     as the configuration file's path.
 
     The asset settings object takes a ``QModelIndex`` (note: the index should
@@ -249,7 +249,7 @@ class AssetSettings(QtCore.QSettings):
             filepath = index.data(QtCore.Qt.StatusTipRole)
 
         hashed = self.hash(server, job, root, filepath)
-        config_path = u'{server}/{job}/{root}/.browser/{hash}.conf'.format(
+        config_path = u'{server}/{job}/{root}/.bookmark/{hash}.conf'.format(
             server=server,
             job=job,
             root=root,
@@ -280,7 +280,7 @@ class AssetSettings(QtCore.QSettings):
         """The path of the configuration file associated with the current file.
 
         For example:
-            //server/job/root/.browser/986613d368816aa7e0ae910dfd863297.conf
+            //server/job/root/.bookmark/986613d368816aa7e0ae910dfd863297.conf
 
         Returns:
             unicode: The path to the configuration file as a string.

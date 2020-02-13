@@ -4,6 +4,41 @@ import OpenImageIO
 import numpy as np
 
 
+def oiio_get_qimage(path):
+    buf = OpenImageIO.ImageBuf(path)
+    spec = buf.spec()
+    if not int(spec.nchannels):
+        return None
+    if int(spec.nchannels) < 3:
+        b = OpenImageIO.ImageBufAlgo.channels(
+            buf,
+            (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]),
+            ('R', 'G', 'B')
+        )
+    elif int(spec.nchannels) > 4:
+        if spec.channelindex('A') > -1:
+            b = OpenImageIO.ImageBufAlgo.channels(
+                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+        else:
+            b = OpenImageIO.ImageBufAlgo.channels(
+                b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+    np_arr = buf.get_pixels()
+    np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
+    image = QtGui.QImage(
+        np_arr,
+        spec.width,
+        spec.height,
+        spec.width * spec.nchannels,  # scanlines
+        QtGui.QImage.Format_RGBA8888
+    )
+
+    # As soon as the numpy array is garbage collected, the QImage becomes
+    # unuseable. By making a copy, the numpy array can safely be GC'd
+    OpenImageIO.ImageCache().invalidate(path)
+    return image.copy()
+
+
 class OIIO_ImageViewer(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super(OIIO_ImageViewer, self).__init__(parent=parent)
@@ -23,50 +58,28 @@ class OIIO_ImageViewer(QtWidgets.QGraphicsView):
         self.setFixedSize(1024,1024)
 
     def set_image(self, path):
-        image = self._oiio_get_qimage(path)
+        image = oiio_get_qimage(path)
         item = QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap.fromImage(image))
         item.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
         item.setTransformationMode(QtCore.Qt.SmoothTransformation)
         self.scene().addItem(item)
         self.fitInView(item, QtCore.Qt.KeepAspectRatio)
 
-    @classmethod
-    def _oiio_get_qimage(cls, path):
-        buf = OpenImageIO.ImageBuf(path)
-        spec = buf.spec()
-        if int(spec.nchannels) < 3:
-            b = OpenImageIO.ImageBufAlgo.channels(
-                b,
-                (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]),
-                ('R', 'G', 'B')
-            )
-        elif int(spec.nchannels) > 4:
-            if spec.channelindex('A') > -1:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
-            else:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, ('R', 'G', 'B'), ('R', 'G', 'B'))
 
-        np_arr = buf.get_pixels()
-        np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
-        image = QtGui.QImage(
-            np_arr,
-            spec.width,
-            spec.height,
-            spec.width * spec.nchannels,  # scanlines
-            QtGui.QImage.Format_RGBA8888
-        )
+t = time.time()
+for _ in xrange(100):
+    oiio_get_qimage(ur'C:\tmp\tmp.png')
+print time.time() - t
 
-        # As soon as the numpy array is garbage collected, the QImage becomes
-        # unuseable. By making a copy, the numpy array can safely be GC'd
-        OpenImageIO.ImageCache().invalidate(path)
-        return image.copy()
+t = time.time()
+for _ in xrange(100):
+    image = QtGui.QImage()
+    image.load(ur'C:\tmp\tmp.png')
+print time.time() - t
 
-
-
-app = QtWidgets.QApplication([])
-iv = OIIO_ImageViewer()
-iv.show()
-iv.set_image(ur'C:\Temp\CandleGlass.exr')
-app.exec_()
+#
+# app = QtWidgets.QApplication([])
+# iv = OIIO_ImageViewer()
+# iv.show()
+# iv.set_image(ur'C:\tmp\tmp.png')
+# app.exec_()

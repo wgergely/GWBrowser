@@ -42,7 +42,7 @@ from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
 
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 
 # Flags
 MarkedAsArchived = 0b1000000000
@@ -67,7 +67,7 @@ def get_username():
 
 def create_temp_dir():
     server, job, root = get_favourite_parent_paths()
-    path = u'{}/{}/{}/.browser'.format(server, job, root)
+    path = u'{}/{}/{}/.bookmark'.format(server, job, root)
     _dir = QtCore.QDir(path)
     if _dir.exists():
         return
@@ -186,13 +186,13 @@ def import_favourites():
 
             file_info = QtCore.QFileInfo(settings.thumbnail_path())
             if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.browser'.format(server,
+                dest = u'{}/{}/{}/.bookmark'.format(server,
                                                    job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
             file_info = QtCore.QFileInfo(settings.config_path())
             if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.browser'.format(server,
+                dest = u'{}/{}/{}/.bookmark'.format(server,
                                                    job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
@@ -1227,7 +1227,7 @@ def walk(path):
     We're using the C module for performance's sake without python-native
     fallbacks. The method yields each found DirEntry.
 
-    The used _scandir module itself is customized to contain the addittional
+    The used gwscandir module itself is customized to contain the addittional
     ``DirEntry.relativepath(unicode: basepath)`` method and ``DirEntry.dirpath``
     attribute.
 
@@ -1318,42 +1318,6 @@ AssetTypes = {
     MayaAssetTemplate: u'Asset',
     ProjectTemplate: u'Job',
 }
-
-
-def create_asset_from_template(name, basepath, template):
-    """Creates a new asset with the given name.
-
-    An asset is a zip-archive containing the pre-defined folder structure for
-    jobs and assets. The available asset types are defined in the
-    ``common.AssetTypes`` variable.
-
-    Args:
-        name (unicode):         The name of the asset to create.
-        basepath (unicode):     The path the asset should be saved to.
-        template (unicode):     The name of the template file *without* the zip extension.
-
-    """
-    datadir = next(f for f in QtCore.QStandardPaths.standardLocations(
-        QtCore.QStandardPaths.DocumentsLocation))
-    template_info = QtCore.QFileInfo(
-        u'{}/{}/{}.zip'.format(datadir, PRODUCT, AssetTypes[template]))
-    if not template_info.exists():
-        mbox = QtWidgets.QMessageBox()
-        mbox.setWindowTitle(u'Error creating asset')
-        mbox.setText('The template file could not be located.')
-        mbox.setInformativeText(
-            'Make sure the Asset.zip and Job.zip files exist and are valid.\n\nTemplate must be placed here:\n{}'.format(template_info.filePath()))
-        mbox.exec_()
-        raise RuntimeError(
-            u'The "{}.zip" template file could not be located.'.format(AssetTypes[template]))
-
-    dest_info = QtCore.QDir(u'{}/{}'.format(basepath, name))
-    if not dest_info.exists():
-        res = QtCore.QDir(basepath).mkdir(name)
-        if not res:
-            raise RuntimeError(u'An error occured creating the asset folders.')
-    with zipfile.ZipFile(template_info.absoluteFilePath(), 'r', zipfile.ZIP_DEFLATED) as f:
-        f.extractall(dest_info.absolutePath(), members=None, pwd=None)
 
 
 def push_to_rv(path):

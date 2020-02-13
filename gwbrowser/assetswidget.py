@@ -7,7 +7,7 @@ import traceback
 import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.imagecache import oiio_make_thumbnail

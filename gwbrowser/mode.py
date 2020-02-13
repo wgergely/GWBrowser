@@ -5,7 +5,7 @@ import os
 import re
 import psutil
 from functools import wraps
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from PySide2 import QtCore
 

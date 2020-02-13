@@ -23,22 +23,18 @@ addittional data. The model will also try to generate thumbnails for any
 """
 
 import sys
-import re
 import time
 import traceback
-from functools import wraps
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import ThreadedBaseWidget
 from gwbrowser.baselistwidget import BaseModel
-from gwbrowser.baselistwidget import FilterProxyModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.baselistwidget import validate_index
 
-import gwbrowser._scandir as gwscandir
+import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
 from gwbrowser.settings import local_settings
@@ -423,37 +419,24 @@ class FilesModel(BaseModel):
         This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
 
         """
-        default_thumbnail_image = ImageCache.get(
-            common.rsc_path(__file__, u'placeholder'),
-            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-        default_background_color = common.THUMBNAIL_BACKGROUND
+        _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
+        thumbnails = self.get_default_thumbnails(overwrite=True)
 
-        for ext in self._defined_thumbnails:
-            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-            if thumb_cache_k in self._extension_thumbnails:
-                continue
-            k = common.rsc_path(__file__, ext)
-            image = ImageCache.get(k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-            self._extension_thumbnails[thumb_cache_k] = image
-            k = u'{}:BackgroundColor'.format(k)
-            self._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
-            self._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
-
-        seqs = {}
-
+        dkey = self.data_key()
         for k in (common.FileItem, common.SequenceItem):
-            for item in self._data[self.data_key()][k].itervalues():
+            for item in self._data[dkey][k].itervalues():
                 ext = item[QtCore.Qt.StatusTipRole].split(u'.')[-1]
                 if not ext:
                     continue
 
-                thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-                if ext in self._defined_thumbnails:
-                    placeholder_image = self._extension_thumbnails[thumb_cache_k]
-                    default_thumbnail_image = self._extension_thumbnails[thumb_cache_k]
-                    default_background_color = self._extension_thumbnail_backgrounds[thumb_cache_k]
+                if ext in thumbnails:
+                    placeholder_image = thumbnails[ext]
+                    default_thumbnail_image = thumbnails[ext]
+                    default_background_color = thumbnails[u'{}:BackgroundColor'.format(ext)]
                 else:
-                    placeholder_image = default_thumbnail_image
+                    placeholder_image = thumbnails[u'placeholder']
+                    default_thumbnail_image = thumbnails[u'placeholder']
+                    default_background_color = thumbnails[u'placeholder:BackgroundColor']
 
                 item[common.FileThumbnailLoaded] = False
                 item[common.DefaultThumbnailRole] = default_thumbnail_image
@@ -461,6 +444,38 @@ class FilesModel(BaseModel):
                 item[common.ThumbnailPathRole] = None
                 item[common.ThumbnailRole] = placeholder_image
                 item[common.ThumbnailBackgroundRole] = default_background_color
+
+    def _entry_iterator(self, path):
+        for entry in gwscandir.scandir(path):
+            if entry.is_dir():
+                for entry in self._entry_iterator(entry.path):
+                    yield entry
+            else:
+                yield entry
+
+    def get_default_thumbnails(self, overwrite=False):
+        d = {}
+        for ext in set(
+            common.creative_cloud_formats +
+            common.exports_formats +
+            common.scene_formats +
+            common.misc_formats
+        ):
+            ext = ext.lower()
+            _ext_path = common.rsc_path(__file__, ext)
+            d[ext] = ImageCache.get(
+                _ext_path,
+                delegate.ROW_HEIGHT - common.ROW_SEPARATOR,
+                overwrite=overwrite
+            )
+            k = u'{}:BackgroundColor'.format(_ext_path)
+            d[u'{}:BackgroundColor'.format(ext)] = ImageCache._data[k]
+
+        d[u'placeholder'] = ImageCache.get(
+            common.rsc_path(__file__, u'placeholder'),
+            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+        d[u'placeholder:BackgroundColor'] = common.THUMBNAIL_BACKGROUND
+        return d
 
     @initdata
     def __initdata__(self):
@@ -504,31 +519,18 @@ class FilesModel(BaseModel):
             return
 
         dkey = self.data_key()
-        rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
-
-        # Initializing default thumbnails
-        default_thumbnail_image = ImageCache.get(
-            common.rsc_path(__file__, u'placeholder'),
-            delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-        default_background_color = common.THUMBNAIL_BACKGROUND
-
-        for ext in self._defined_thumbnails:
-            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-            if thumb_cache_k in self._extension_thumbnails:
-                continue
-            k = common.rsc_path(__file__, ext)
-            image = ImageCache.get(k, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-            self._extension_thumbnails[thumb_cache_k] = image
-            k = u'{}:BackgroundColor'.format(k)
-            self._extension_thumbnail_backgrounds[thumb_cache_k] = ImageCache._data[k]
-            self._extension_thumbnail_backgrounds[thumb_cache_k].setAlpha(150)
+        if not dkey:
+            return
 
         self._data[dkey] = {
             common.FileItem: {},
             common.SequenceItem: {}
         }
-
         seqs = {}
+
+        rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
+        _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
+        thumbnails = self.get_default_thumbnails()
 
         favourites = local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
@@ -536,32 +538,27 @@ class FilesModel(BaseModel):
         activefile = local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
-        location = self.data_key()
-        location_is_filtered = location in common.NameFilters
-        location_path = (u'{}/{}/{}/{}/{}'.format(
-            server, job, root, asset, location
-        ))
-
-        regex = re.compile(ur'[\._\-\s]+')
+        location_is_filtered = dkey in common.NameFilters
+        location_path = u'{}/{}'.format(u'/'.join(self.parent_path), dkey).lower()
 
         nth = 987
         c = 0
-        for entry in common.walk(location_path):
-            filename = entry.name
+        for entry in self._entry_iterator(location_path):
+            # skipping directories
+            if entry.is_dir():
+                continue
+            filename = entry.name.lower()
 
             if filename[0] == u'.':
                 continue
-            if u'thumbs.db' in filename.lower():
+            if u'thumbs.db' in filename:
                 continue
 
-            filepath = entry.path
-            ext = filename.split(u'.')[-1].lower()
-            thumb_cache_k = u'{}:{}'.format(ext, delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
+            filepath = entry.path.lower().replace(u'\\', u'/')
+            ext = filename.split(u'.')[-1]
 
-            # This line will make sure only extensions we choose to display
-            # are actually stored by the model
             if location_is_filtered:
-                if ext not in common.NameFilters[location]:
+                if ext not in common.NameFilters[dkey]:
                     continue
 
             # Progress bar
@@ -572,17 +569,19 @@ class FilesModel(BaseModel):
                 QtWidgets.QApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
+            # Getting the fileroot
             fileroot = filepath.replace(location_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
-
             seq = common.get_sequence(filepath)
 
-            if ext in self._defined_thumbnails:
-                placeholder_image = self._extension_thumbnails[thumb_cache_k]
-                default_thumbnail_image = self._extension_thumbnails[thumb_cache_k]
-                default_background_color = self._extension_thumbnail_backgrounds[thumb_cache_k]
+            if ext in thumbnails:
+                placeholder_image = thumbnails[ext]
+                default_thumbnail_image = thumbnails[ext]
+                default_background_color = thumbnails[u'{}:BackgroundColor'.format(ext)]
             else:
-                placeholder_image = default_thumbnail_image
+                placeholder_image = thumbnails[u'placeholder']
+                default_thumbnail_image = thumbnails[u'placeholder']
+                default_background_color = thumbnails[u'placeholder:BackgroundColor']
 
             flags = dflags()
 
@@ -593,7 +592,6 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            # stat = entry.stat()
             idx = len(self._data[dkey][common.FileItem])
             self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
@@ -604,7 +602,7 @@ class FilesModel(BaseModel):
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (server, job, root, asset, location, fileroot),
+                common.ParentPathRole: (server, job, root, asset, dkey, fileroot),
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
@@ -669,7 +667,7 @@ class FilesModel(BaseModel):
                         QtCore.Qt.SizeHintRole: rowsize,
                         common.EntryRole: [],
                         common.FlagsRole: flags,
-                        common.ParentPathRole: (server, job, root, asset, location, fileroot),
+                        common.ParentPathRole: (server, job, root, asset, dkey, fileroot),
                         common.DescriptionRole: u'',
                         common.TodoCountRole: 0,
                         common.FileDetailsRole: u'',
