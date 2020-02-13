@@ -1017,7 +1017,8 @@ class BrowserWidget(QtWidgets.QWidget):
         painter.begin(self)
 
         rect = QtCore.QRect(self.rect())
-        rect = rect.marginsRemoved(QtCore.QMargins(3, 3, 3, 3))
+        o = 3
+        rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
@@ -1025,7 +1026,7 @@ class BrowserWidget(QtWidgets.QWidget):
         pen.setWidth(1.0)
         painter.setPen(pen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 10, 10)
+        painter.drawRoundedRect(rect, 3, 3)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)
