@@ -471,14 +471,18 @@ class PaintedTextButton(QtWidgets.QLabel):
         painter.drawPath(path)
 
 
-        if self.current_index() != self.index:
-            return
-        color = common.TEXT if hover else common.REMOVE
         rect.setHeight(2.0)
-        rect.setWidth(self.rect().width())
-        painter.setBrush(color)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setOpacity(0.9)
+        rect.setWidth(self.rect().width())
+
+        if self.current_index() == self.index:
+            painter.setOpacity(0.9)
+            color = common.TEXT if hover else common.REMOVE
+        else:
+            painter.setOpacity(0.3)
+            color = common.TEXT if hover else common.FAVOURITE
+
+        painter.setBrush(color)
         painter.drawRect(rect)
         painter.end()
 
@@ -787,16 +791,6 @@ class ListControlWidget(QtWidgets.QWidget):
         self.slack_button = SlackButton(parent=self)
         self.simple_mode_button = SimpleModeButton(parent=self)
 
-        t = QtGui.QTransform()
-        t.rotate(180)
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'gradient', None, height)
-        pixmap = pixmap.transformed(t)
-        pixmap = pixmap.scaled(common.INDICATOR_WIDTH, pixmap.height())
-        label = QtWidgets.QLabel()
-        label.setPixmap(pixmap)
-        self.layout().addWidget(label)
-
         self.layout().addWidget(self.bookmarks_button)
         self.layout().addWidget(self.assets_button)
         self.layout().addWidget(self.files_button)
@@ -851,6 +845,7 @@ class ListControlWidget(QtWidgets.QWidget):
         return self.findChild(FilesTabButton)
 
     def paintEvent(self, event):
+        """`ListControlWidget`' paint event."""
         painter=QtGui.QPainter()
         painter.begin(self)
         pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
@@ -860,4 +855,10 @@ class ListControlWidget(QtWidgets.QWidget):
         pixmap = pixmap.transformed(t)
         painter.setOpacity(0.5)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
+
+        rect = self.rect()
+        rect.setTop(rect.bottom() - common.ROW_SEPARATOR)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.drawRect(rect)
         painter.end()
