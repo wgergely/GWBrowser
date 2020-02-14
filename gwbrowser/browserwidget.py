@@ -37,6 +37,36 @@ def debug_signals(label, *args, **kwargs):
     print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
         time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs)
 
+class StatusBar(QtWidgets.QStatusBar):
+    def __init__(self, height, parent=None):
+        super(StatusBar, self).__init__(parent=parent)
+        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setSpacing(0)
+        self.setSizeGripEnabled(False)
+        self.setFixedHeight(height)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+
+        font = QtGui.QFont(common.SecondaryFont)
+        font.setPointSizeF(font.pointSizeF())
+        common.draw_aliased_text(
+            painter,
+            font,
+            self.rect().marginsRemoved(QtCore.QMargins(common.INDICATOR_WIDTH, 0, common.INDICATOR_WIDTH, 0)),
+            u'  {}  '.format(self.currentMessage()),
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
+            common.TEXT
+        )
+        painter.setBrush(QtGui.QColor(0,0,0,30))
+        rect = self.rect()
+        rect.setHeight(common.ROW_SEPARATOR)
+        painter.drawRect(rect)
+        painter.end()
 
 class TrayMenu(BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
@@ -133,23 +163,6 @@ class TrayMenu(BaseContextMenu):
         return menu_set
 
 
-class AppIconButton(ClickableIconButton):
-    """Custom QLabel with a `clicked` signal."""
-
-    def __init__(self, parent=None):
-        super(AppIconButton, self).__init__(
-            u'custom',
-            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
-            description=u'',
-            parent=parent
-        )
-        self.setAlignment(QtCore.Qt.AlignCenter)
-        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
-        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-
-
 class MinimizeButton(ClickableIconButton):
     """Custom QLabel with a `clicked` signal."""
 
@@ -190,8 +203,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE +
-                            (common.INDICATOR_WIDTH * 2))
+        self.setFixedHeight(common.INLINE_ICON_SIZE)
 
         self._createUI()
 
@@ -203,12 +215,10 @@ class HeaderWidget(QtWidgets.QWidget):
         menu_bar = QtWidgets.QMenuBar(parent=self)
         self.layout().addWidget(menu_bar)
         menu_bar.hide()
-        menu = menu_bar.addMenu(u'GWBrowser')
+        menu = menu_bar.addMenu(common.PRODUCT)
         action = menu.addAction(u'Quit')
         action.triggered.connect(self.parent().shutdown)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
-        self.layout().addWidget(AppIconButton(parent=self))
         self.layout().addStretch()
         self.layout().addWidget(MinimizeButton(parent=self))
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
@@ -264,13 +274,11 @@ class ToggleModeButton(QtWidgets.QWidget):
 
     def __init__(self, size, parent=None):
         super(ToggleModeButton, self).__init__(parent=parent)
-        size = size - 4
         self.setFixedSize(size, size)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.animation_value = 1.0
-
         self.animation = QtCore.QVariantAnimation(parent=self)
         self.animation.setStartValue(1.0)
         self.animation.setEndValue(0.5)
@@ -314,20 +322,31 @@ class ToggleModeButton(QtWidgets.QWidget):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
+
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+
+        painter.setBrush(QtGui.QColor(0,0,0,30))
+        rect = self.rect()
+        rect.setHeight(common.ROW_SEPARATOR)
+        painter.drawRect(rect)
+
         painter.setBrush(QtCore.Qt.NoBrush)
 
         color = common.REMOVE if mode.CURRENT_MODE else common.ADD
         pen = QtGui.QPen(color)
 
-        o = 2.5
-        pen.setWidthF(o)
+        o = 5.0
+        pen.setWidthF(3)
         painter.setPen(pen)
         painter.setOpacity(self.animation.currentValue())
         rect = QtCore.QRectF(self.rect())
+        rect = rect.marginsRemoved(QtCore.QMarginsF(o,o,o,o))
         center = self.rect().center()
 
-        size = QtCore.QSizeF(rect.width() - (o * 2), rect.height() - (o * 2))
+        size = QtCore.QSizeF(rect.width() - (o), rect.height() - (o))
         rect.setSize(size * self.animation.currentValue())
         rect.moveCenter(center)
         c = rect.height() / 2.0
@@ -357,7 +376,7 @@ class ToggleModeButton(QtWidgets.QWidget):
 
 
 class BrowserWidget(QtWidgets.QWidget):
-    """GWBrowser's main widget."""
+    """The main widget."""
 
     initialized = QtCore.Signal()
     terminated = QtCore.Signal()
@@ -366,7 +385,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-        self.setObjectName(u'BrowserWidget')
         self.setWindowFlags(
             QtCore.Qt.Window |
             QtCore.Qt.FramelessWindowHint)
@@ -419,8 +437,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Preferred
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum
         )
 
         self.headerwidget = HeaderWidget(parent=self)
@@ -447,29 +465,19 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 
-        height = common.INLINE_ICON_SIZE
 
-        self.statusbar = QtWidgets.QStatusBar(parent=self)
-        self.statusbar.layout().setAlignment(QtCore.Qt.AlignRight)
-        self.statusbar.setSizeGripEnabled(False)
-        self.statusbar.setFixedHeight(height)
-        self.statusbar.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.statusbar.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.statusbar.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.Fixed
-        )
+        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        row = add_row(None, padding=0, height=height, parent=self)
+        row.layout().setSpacing(0)
+        row.layout().setContentsMargins(0,0,0,0)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
-        row = add_row(u'', height=height, parent=self)
-        row.layout().setSpacing(common.INDICATOR_WIDTH)
-        row.layout().addWidget(self.statusbar)
-
+        self.statusbar = StatusBar(height, parent=self)
         self.solo_button = ToggleModeButton(height, parent=self)
         self.solo_button.message.connect(
             lambda s: self.statusbar.showMessage(s, 4000))
+
+        row.layout().addWidget(self.statusbar)
         row.layout().addWidget(self.solo_button)
-        row.layout().addSpacing(common.INDICATOR_WIDTH)
 
     @QtCore.Slot()
     def initialize(self):
@@ -705,7 +713,7 @@ class BrowserWidget(QtWidgets.QWidget):
         if (delegate.ROW_HEIGHT - 12) < common.ROW_HEIGHT:
             return
         delegate.ROW_HEIGHT -= 12
-        delegate.SMALL_FONT_SIZE -= 1.0
+        delegate.SMALL_FONT_SIZE -= 0.3
 
         for n in (2,3):
             view = self.stackedwidget.widget(n)
@@ -720,7 +728,7 @@ class BrowserWidget(QtWidgets.QWidget):
         if (delegate.ROW_HEIGHT + 12) > common.ASSET_ROW_HEIGHT:
             return
         delegate.ROW_HEIGHT += 12
-        delegate.SMALL_FONT_SIZE += 1.0
+        delegate.SMALL_FONT_SIZE += 0.3
 
         view = self.stackedwidget.widget(2)
         model = view.model().sourceModel()
