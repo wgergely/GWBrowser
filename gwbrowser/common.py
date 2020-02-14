@@ -724,6 +724,8 @@ def set_custom_stylesheet(widget):
                 SECONDARY_TEXT=rgb(SECONDARY_TEXT),
                 TEXT_DISABLED=rgb(TEXT_DISABLED),
                 TEXT_SELECTED=rgb(TEXT_SELECTED),
+                ADD=rgb(ADD),
+                REMOVE=rgb(REMOVE),
                 SEPARATOR=rgb(SEPARATOR),
                 FAVOURITE=rgb(FAVOURITE),
                 BRANCH_CLOSED=ImageCache.get_rsc_pixmap(
