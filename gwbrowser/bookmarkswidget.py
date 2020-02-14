@@ -73,7 +73,6 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
         if index.isValid():
             self.add_mode_toggles_menu()
             self.add_separator()
-            self.add_thumbnail_menu()
 
         self.add_separator()
 

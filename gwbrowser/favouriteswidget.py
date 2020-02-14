@@ -83,7 +83,6 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         if index.isValid():
             self.add_remove_favourite_menu()
             self.add_separator()
-            self.add_thumbnail_menu()
             #
             self.add_separator()
             #

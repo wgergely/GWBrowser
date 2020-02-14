@@ -246,8 +246,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
         return menu_set
 
-
-
     @contextmenu
     def add_copy_menu(self, menu_set):
         """Menu containing the subfolders of the selected item."""
@@ -263,7 +261,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         first = self.parent().model().sourceModel().data_key() == common.RendersFolder
 
         menu_set[key][u'windows1'] = {
-            u'text': 'Windows  -  \\\\back\\slashes',
+            u'text': ur'Windows  -  \\back\slashes',
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -272,7 +270,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 first=first)
         }
         menu_set[key][u'unix'] = {
-            u'text': 'Unix  -  //forward/slashes',
+            u'text': u'Unix  -  //forward/slashes',
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -281,7 +279,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 first=first)
         }
         menu_set[key][u'slack'] = {
-            u'text': 'URL  -  file://Slack/friendly',
+            u'text': u'URL  -  file://Slack/friendly',
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -290,7 +288,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 first=first)
         }
         menu_set[key][u'macos'] = {
-            u'text': 'MacOS  -  /MacOS/path',
+            u'text': u'MacOS  -  /MacOS/path',
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -413,26 +411,23 @@ class BaseContextMenu(QtWidgets.QMenu):
         addpixmap = ImageCache.get_rsc_pixmap(
             'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        key = u'Thumbnail'
-        menu_set[key] = collections.OrderedDict()
-        menu_set[u'{}:icon'.format(key)] = capture_thumbnail_pixmap
 
         source_index = self.index.model().mapToSource(self.index)
         settings = AssetSettings(source_index)
-        thumbnail_info =  QtCore.QFileInfo(settings.thumbnail_path())
+        thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
         exists = thumbnail_info.exists()
 
         if exists:
-            menu_set[key][u'Preview'] = {
+            menu_set[u'Preview'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
                     parent=self.parent()
                 )
             }
-            menu_set[key][u'separator'] = {}
+            menu_set[u'separator'] = {}
 
-        menu_set[key][u'Capture screen'] = {
+        menu_set[u'Capture screen'] = {
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().capture, source_index)}
 
@@ -453,31 +448,32 @@ class BaseContextMenu(QtWidgets.QMenu):
             widget.show()
             widget.setFocus(QtCore.Qt.PopupFocusReason)
 
-        menu_set[key]['From library...'] = {
-            u'text': 'Add from library...',
+        menu_set[u'From library...'] = {
+            u'text': u'Add from library...',
             u'icon': pick_thumbnail_pixmap,
             u'action': show_thumbnail_picker
         }
 
-        menu_set[key][u'Add from file...'] = {
+        menu_set[u'Add from file...'] = {
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.instance().pick, source_index)}
 
-        menu_set[key][u'separator.'] = {}
-        ext = QtCore.QFileInfo(source_index.data(QtCore.Qt.StatusTipRole)).suffix().lower()
+        menu_set[u'separator.'] = {}
+        ext = QtCore.QFileInfo(source_index.data(
+            QtCore.Qt.StatusTipRole)).suffix().lower()
         valid = ext in [f.lower() for f in common.get_oiio_extensions()]
         if exists and source_index.model().generate_thumbnails and valid:
-            menu_set[key][u'Remove'] = {
+            menu_set[u'Remove'] = {
                 u'action': lambda: ImageCache.instance().remove(source_index),
                 u'text': u'Update thumbnail',
                 u'icon': refresh_thumbnail_pixmap
             }
         elif exists:
-            menu_set[key][u'Remove'] = {
+            menu_set[u'Remove'] = {
                 u'action': lambda: ImageCache.instance().remove(source_index),
                 u'icon': remove_thumbnail_pixmap
             }
-        menu_set[key][u'Reveal thumbnail cache'] = {
+        menu_set[u'Reveal thumbnail cache'] = {
             u'action': functools.partial(
                 common.reveal,
                 settings.thumbnail_path(),

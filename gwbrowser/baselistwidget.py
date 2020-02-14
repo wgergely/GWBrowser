@@ -18,6 +18,8 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
 import gwbrowser.editors as editors
+from gwbrowser.basecontextmenu import BaseContextMenu
+import gwbrowser.delegate as delegate
 from gwbrowser.settings import local_settings, AssetSettings
 import gwbrowser.delegate as delegate
 from gwbrowser.imagecache import ImageCache
@@ -72,6 +74,13 @@ def flagsmethod(func):
             res = QtCore.Qt.NoItemFlags
         return res
     return func_wrapper
+
+
+
+class ThumbnailsContextMenu(BaseContextMenu):
+    def __init__(self, index, parent=None):
+        super(ThumbnailsContextMenu, self).__init__(index, parent=parent)
+        self.add_thumbnail_menu()
 
 
 class ProgressWidget(QtWidgets.QWidget):
@@ -1487,16 +1496,20 @@ class BaseListWidget(QtWidgets.QListView):
         if not self.ContextMenu:
             return
 
-        widget = self.ContextMenu(index, parent=self)
-
         if index.isValid():
             rect = self.visualRect(index)
             gpos = self.viewport().mapToGlobal(event.pos())
+            rectangles = self.itemDelegate().get_rectangles(rect)
+            if rectangles[delegate.ThumbnailRect].contains(event.pos()):
+                widget = ThumbnailsContextMenu(index, parent=self)
+            else:
+                widget = self.ContextMenu(index, parent=self)
             widget.move(
                 gpos.x(),
                 self.viewport().mapToGlobal(rect.bottomLeft()).y(),
             )
         else:
+            widget = self.ContextMenu(index, parent=self)
             widget.move(QtGui.QCursor().pos())
 
         widget.move(widget.x() + common.INDICATOR_WIDTH, widget.y())
