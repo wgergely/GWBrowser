@@ -36,7 +36,8 @@ QStackedWidget:focus {{
 
 QGroupBox {{
 		border: 1px solid rgba({SECONDARY_BACKGROUND});
-		border-radius: 4px;
+		border-radius: 6px;
+		background-color: rgba(0,0,0,20);
 }}
 QGroupBox::title {{
 		font-size: {SMALL_FONT_SIZE}pt;
@@ -147,19 +148,37 @@ QPushButton:pressed {{
 		background-color: rgba(130, 130, 130, 255);
 }}
 
-
-
-
 QComboBox {{
+	color: rgba({TEXT});
 	text-align: left;
-	height: 24px;
 	padding-left: 10px;
 	padding-right: 10px;
-	border-style: solid;
+	border-style: none;
 	background-color: rgba({BACKGROUND_SELECTED});
 	font-family: "{PRIMARY_FONT}";
 	font-size: {MEDIUM_FONT_SIZE}pt;
+	border-radius: 3px;
 }}
+
+QComboBox::drop-down {{
+		width: 0px;
+		height: 0px;
+		padding: 0px;
+		margin: 1px;
+		border-width: 0px;
+		border-style: none;
+		border-radius: 3px;
+}}
+QComboBox QListView::item {{
+	color: rgba({TEXT});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	padding-left: 4
+}}
+QComboBox QListView::item:hover {{
+	color: rgba({TEXT_SELECTED});
+	background-color: rgba({BACKGROUND_SELECTED});
+}}
+
 QComboBox:hover {{
 		color: rgb({TEXT_SELECTED});
 		background-color: rgba(150, 150, 150, 255);
@@ -168,24 +187,11 @@ QComboBox:disabled {{
 	color: rgba({TEXT_DISABLED});
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
-QComboBox QAbstractItemView {{
-	margin: 0px;
-	padding: 0px;
-	outline: none;
+QComboBox:on {{
+	color: rgba({TEXT_DISABLED});
+	background-color: rgba(0,0,0,20);
 }}
-QComboBox::drop-down {{
-		background-color: transparent;
-		width: 0px;
-		height: 0px;
-		padding: 0px;
-		margin: 0px;
-		border-width: 0px;
-		border-style: none;
-		border-radius: 0px;
-}}
-QComboBox::drop-down:disabled {{
-	background-color: rgba({SECONDARY_BACKGROUND});
-}}
+
 
 QLineEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -243,25 +249,31 @@ QScrollBar::sub-line {{
 }}
 
 
-QListWidget {{
+QListWidget,
+QListView {{
 		background: rgba({SECONDARY_BACKGROUND});
 }}
-QListWidget::item {{
+QListWidget::item,
+QListView::item {{
 	outline: 0;
 	color: rgba({TEXT});
   background: rgba(255,255,255,20);
 	border-bottom: 1px solid rgba(0,0,0,50);
 }}
-QListWidget::item:hover {{
+QListWidget::item:hover,
+QListView::item:hover {{
   background: rgba(255,255,255,50);
 }}
-QListWidget::item:selected {{
+QListWidget::item:selected,
+QListView::item:selected {{
 	background: rgba(255,255,255,100);
 }}
-QListWidget::item:selected:hover {{
+QListWidget::item:selected:hover,
+QListView::item:selected:hover {{
 	background: rgba(255,255,255,130);
 }}
-QListWidget::indicator {{
+QListWidget::indicator,
+QListView::indicator {{
 	width: 12px;
 	height: 12px;
 	border-radius: 6px;
@@ -270,26 +282,9 @@ QListWidget::indicator {{
 	margin-right: 4px;
 	subcontrol-position: center;
 }}
-QListWidget::indicator:checked {{
+QListWidget::indicator:checked,
+QListView::indicator:checked {{
 	background: rgba({ADD});
-}}
-
-
-QListView {{
-	background: rgba({SECONDARY_BACKGROUND});
-}}
-DataKeyView {{
-	margin: 0px;
-	padding: 0px;
-}}
-
-
-QTableView {{
-	background-color: rgba({SECONDARY_BACKGROUND});
-	selection-background-color: transparent;
-}}
-QTableView::indicator {{
-	background-color: rgba({FAVOURITE});
 }}
 
 
