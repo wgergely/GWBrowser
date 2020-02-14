@@ -16,6 +16,9 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.addfilewidget import NameBase
 
 
+BUTTON_SIZE = 20
+ROW_HEIGHT = 28
+
 class TemplateContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
@@ -64,7 +67,7 @@ class TemplateContextMenu(BaseContextMenu):
             u'add', common.ADD, common.INLINE_ICON_SIZE)
 
         parent = self.parent().parent().parent().parent()
-        menu_set[u'Import a new {} template...'.format(parent.mode())] = {
+        menu_set[u'Import a new {} folder template...'.format(parent.mode())] = {
             u'action': parent.add_new_template,
             u'icon': add_pixmap
         }
@@ -189,7 +192,6 @@ class ZipListWidget(QtWidgets.QListWidget):
 class TemplatesWidget(QtWidgets.QWidget):
     templateCreated = QtCore.Signal(unicode)
     ROW_SIZE = 24
-    BUTTON_SIZE = 18
 
     def __init__(self, mode, parent=None):
         super(TemplatesWidget, self).__init__(parent=parent)
@@ -241,9 +243,24 @@ class TemplatesWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(0, o, 0, o)
         self.layout().setSpacing(o)
         # Name
-        row = common_ui.add_row(None, padding=None, parent=self)
+        label = common_ui.PaintedLabel(
+            u'Create a new {}'.format(self.mode()),
+            color=common.TEXT,
+            size=common.MEDIUM_FONT_SIZE + 2.0
+        )
+        self.layout().addWidget(label)
+        row = common_ui.add_row(None, height=ROW_HEIGHT, padding=None, parent=self)
         row.layout().setContentsMargins(0,0,0,0)
         row.layout().setSpacing(0)
+
+        # Label
+        label = common_ui.PaintedLabel(
+            u'Select {} folder template'.format(self.mode()),
+            color=common.SECONDARY_TEXT,
+            size=common.MEDIUM_FONT_SIZE
+        )
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        self.layout().addWidget(label)
 
         self.name_widget = NameBase(parent=self)
         self.name_widget.set_transparent()
@@ -252,15 +269,15 @@ class TemplatesWidget(QtWidgets.QWidget):
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
         validator = QtGui.QRegExpValidator(regex, parent=self)
         self.name_widget.setValidator(validator)
-        row.layout().addWidget(self.name_widget, 1)
         self.add_button = common_ui.ClickableIconButton(
             u'add',
             (common.ADD, common.ADD),
-            self.BUTTON_SIZE,
+            BUTTON_SIZE,
             description=u'Add new {}'.format(self.mode().title()),
             parent=row
         )
-        row.layout().addWidget(self.add_button)
+        row.layout().addWidget(self.add_button, 0)
+        row.layout().addWidget(self.name_widget, 1)
 
         # Template Header
         row = common_ui.add_row(None, height=None, padding=None, parent=self)
@@ -329,7 +346,7 @@ class TemplatesWidget(QtWidgets.QWidget):
         model = self.ziplist_widget.selectionModel()
         if not model.hasSelection():
             mbox.setText(
-                u'Must select a {} template before adding'.format(self.mode()))
+                u'Must select a {} folder template before adding'.format(self.mode()))
             return mbox.exec_()
 
         index = model.selectedIndexes()[0]
@@ -340,8 +357,8 @@ class TemplatesWidget(QtWidgets.QWidget):
         try:
             with zipfile.ZipFile(source, 'r', zipfile.ZIP_DEFLATED) as f:
                 f.extractall(file_info.absoluteFilePath(), members=None, pwd=None)
-            common.reveal(file_info.filePath())
-            self.templateCreated.emit()
+            # common.reveal(file_info.filePath())
+            self.templateCreated.emit(self.name_widget.text())
         except Exception as err:
             mbox.setText(u'An error occured when creating the {}'.format(self.mode()))
             mbox.setInformativeText('{}'.format(err))
@@ -357,7 +374,7 @@ class TemplatesWidget(QtWidgets.QWidget):
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
         dialog.setNameFilters([u'*.zip', ])
         dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Select {} Template'.format(self.mode().title()))
+        dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Select {} folder template'.format(self.mode().title()))
         dialog.setWindowTitle(u'Select a zip file containing the {m} folder hierarchy'.format(m=self.mode().lower()))
         if not dialog.exec_():
             return
@@ -402,7 +419,6 @@ class TemplatesWidget(QtWidgets.QWidget):
 
 
 class ServerEditor(QtWidgets.QWidget):
-    BUTTON_SIZE = 18
 
     def __init__(self, parent=None):
         super(ServerEditor, self).__init__(parent=parent)
@@ -434,19 +450,20 @@ class ServerEditor(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(0)
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
 
-        row = common_ui.add_row(None, padding=0, parent=self)
+        row = common_ui.add_row(None, height=ROW_HEIGHT, padding=0, parent=self)
         self.add_server_button = common_ui.ClickableIconButton(
             u'add',
             (common.ADD, common.ADD),
-            self.BUTTON_SIZE,
+            BUTTON_SIZE,
             description=u'Add a new server',
             parent=row
         )
         self.add_server_label = QtWidgets.QLineEdit(parent=self)
+        self.add_server_label.setPlaceholderText(u'Path to the server, eg. //server/jobs')
         self.add_server_label.returnPressed.connect(self.add_server)
-        self.add_server_button.clicked.connect(lambda: self.add_row(insert=True))
+        self.add_server_button.clicked.connect(lambda: self.add_row(self.add_server_label.text(), insert=True))
 
         row.layout().addWidget(self.add_server_button)
         row.layout().addWidget(self.add_server_label, 1)
@@ -487,10 +504,10 @@ class ServerEditor(QtWidgets.QWidget):
             self.update()
 
         if insert:
-            row = common_ui.add_row(None, padding=0, parent=None)
+            row = common_ui.add_row(None, height=ROW_HEIGHT, padding=0, parent=None)
             self.layout().insertWidget(1, row)
         else:
-            row = common_ui.add_row(None, padding=0, parent=self)
+            row = common_ui.add_row(None, height=ROW_HEIGHT, padding=0, parent=self)
 
         if row not in self._rows:
             if insert:
@@ -506,7 +523,7 @@ class ServerEditor(QtWidgets.QWidget):
         button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            self.BUTTON_SIZE,
+            BUTTON_SIZE,
             description=u'Remove this server',
             parent=self
         )
@@ -666,9 +683,47 @@ class BookmarksData(QtCore.QObject):
         return sorted(res)
 
 
+class BookmarksWidget(QtWidgets.QListWidget):
+
+    def __init__(self, parent=None):
+        super(BookmarksWidget, self).__init__(parent=parent)
+        self._path = None
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
+        self.setStyleSheet(u'background-color: rgba({})'.format(common.rgb(common.BACKGROUND)))
+        self.add_items(0)
+
+    @QtCore.Slot()
+    def add_items(self, idx):
+        # if not self._path:
+        #     return
+
+        item = QtWidgets.QListWidgetItem()
+        item.setData(QtCore.Qt.DisplayRole, u'Test')
+        item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(1, ROW_HEIGHT))
+        item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+        item.setCheckState(QtCore.Qt.Unchecked)
+        self.addItem(item)
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(font.pointSizeF() + 1.0)
+
+        item = QtWidgets.QListWidgetItem()
+        item.setData(QtCore.Qt.DisplayRole, u'Test')
+        item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(0, ROW_HEIGHT))
+        item.setData(QtCore.Qt.FontRole, font)
+        item.setData(QtCore.Qt.ForegroundRole, common.ADD)
+        item.setFlags(item.flags() | QtCore.Qt.ItemIsUserCheckable)
+        item.setCheckState(QtCore.Qt.Unchecked)
+
+        self.addItem(item)
+
+
+
+
 class AddBookmarksWidget(QtWidgets.QWidget):
-    ROW_HEIGHT = 36
-    BUTTON_SIZE = 20
 
     def __init__(self, parent=None):
         super(AddBookmarksWidget, self).__init__(parent=parent)
@@ -685,18 +740,15 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             is_hidden = self.server_editor.isHidden()
             if is_hidden:
                 self.server_editor.setHidden(False)
-                self.edit_servers_button.setText(u'Done')
-
                 if not self.templates_widget.isHidden():
                     self.add_template_button.clicked.emit()
                 return
 
             self.server_editor.fade_out.start()
-            self.edit_servers_button.setText(u'Add new...')
             self.init_select_server_combobox()
 
         @QtCore.Slot()
-        def reveal():
+        def reveal_job():
             idx = self.select_job_combobox.currentIndex()
             if idx < 0:
                 return
@@ -706,37 +758,55 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             common.reveal(_data)
 
         @QtCore.Slot()
+        def reveal_server():
+            idx = self.select_server_combobox.currentIndex()
+            if idx < 0:
+                return
+            _data = self.select_server_combobox.itemData(
+                idx, role=QtCore.Qt.UserRole
+            )
+            common.reveal(_data)
+
+        @QtCore.Slot()
         def toggle_template_editor():
             is_hidden = self.templates_widget.isHidden()
             if is_hidden:
                 self.templates_widget.setHidden(False)
-                self.add_template_button.setText(u'Done')
 
                 if not self.server_editor.isHidden():
                     self.edit_servers_button.clicked.emit()
                 return
 
             self.templates_widget.fade_out.start()
-            self.add_template_button.setText(u'Add new...')
             self.init_select_job_combobox(self.select_server_combobox.currentIndex())
 
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
-        self.layout().setSpacing(o * 0.5)
+        o = common.INDICATOR_WIDTH * 2
+        self.layout().setSpacing(o)
         self.layout().setContentsMargins(o, o, o, o)
 
         # Server row
-        row = common_ui.add_row(u'Select server', padding=0, parent=self)
-        self.edit_servers_button = common_ui.PaintedButton(
-            u'Add new...',
-            width=80,
+        row = QtWidgets.QGroupBox(parent=self)
+        QtWidgets.QVBoxLayout(row)
+        self.layout().addWidget(row)
+
+        # Label
+        label = common_ui.PaintedLabel(u'Servers', size=common.MEDIUM_FONT_SIZE + 2.0)
+        row.layout().addWidget(label)
+        row.layout().addSpacing(common.INDICATOR_WIDTH)
+
+        self.edit_servers_button = common_ui.ClickableIconButton(
+            u'add',
+            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+            BUTTON_SIZE,
+            description=u'Show the job in the explorer',
             parent=row
         )
         self.reveal_server_button = common_ui.ClickableIconButton(
             u'folder',
-            (common.SECONDARY_BACKGROUND, common.SECONDARY_BACKGROUND),
-            self.BUTTON_SIZE,
+            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+            BUTTON_SIZE,
             description=u'Show the job in the explorer',
             parent=row
         )
@@ -744,53 +814,98 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.select_server_combobox.setDuplicatesEnabled(False)
         self.select_server_combobox.setSizeAdjustPolicy(
             QtWidgets.QComboBox.AdjustToContents)
+        self.select_server_combobox.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
 
-        row.layout().addWidget(self.select_server_combobox, 1)
-        row.layout().addWidget(self.edit_servers_button)
-        row.layout().addWidget(self.reveal_server_button)
+        _row = common_ui.add_row(None, padding=0, height=ROW_HEIGHT, parent=row)
+        _row.layout().addWidget(self.edit_servers_button, 0)
+        _row.layout().addWidget(self.select_server_combobox, 1)
+        _row.layout().addWidget(self.reveal_server_button, 0)
 
         # Server Editor row
         self.server_editor = ServerEditor(parent=self)
         self.server_editor.setHidden(True)
-        self.layout().addWidget(self.server_editor)
+        row.layout().addWidget(self.server_editor)
 
         # Select Job row
-        row = common_ui.add_row(u'Select job', padding=0, parent=self)
+        row = QtWidgets.QGroupBox(parent=self)
+        QtWidgets.QVBoxLayout(row)
+        self.layout().addWidget(row)
+
+        # Label
+        label = common_ui.PaintedLabel(u'Jobs', size=common.MEDIUM_FONT_SIZE + 2.0)
+        row.layout().addWidget(label)
+        row.layout().addSpacing(common.INDICATOR_WIDTH)
+
         self.select_job_combobox = QtWidgets.QComboBox(parent=self)
+        self.select_job_combobox.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding
+        )
         self.select_job_combobox.setDuplicatesEnabled(False)
         self.select_job_combobox.setSizeAdjustPolicy(
             QtWidgets.QComboBox.AdjustToContents)
-        self.add_template_button = common_ui.PaintedButton(
-            u'Add new...',
-            width=80,
+        self.add_template_button = common_ui.ClickableIconButton(
+            u'add',
+            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+            BUTTON_SIZE,
+            description=u'Add a new job to the current server',
             parent=row
         )
         self.reveal_job_button = common_ui.ClickableIconButton(
             u'folder',
-            (common.SECONDARY_BACKGROUND, common.SECONDARY_BACKGROUND),
-            self.BUTTON_SIZE,
+            (common.SECONDARY_TEXT, common.SECONDARY_TEXT),
+            BUTTON_SIZE,
             description=u'Show the job in the explorer',
             parent=row
         )
-        row.layout().addWidget(self.select_job_combobox, 1)
-        row.layout().addWidget(self.add_template_button, 0)
-        row.layout().addWidget(self.reveal_job_button, 0)
+        _row = common_ui.add_row(None, padding=0,height=ROW_HEIGHT, parent=row)
+        _row.layout().addWidget(self.add_template_button, 0)
+        _row.layout().addWidget(self.select_job_combobox, 1)
+        _row.layout().addWidget(self.reveal_job_button, 0)
 
         self.templates_widget = TemplatesWidget(u'job', parent=self)
         self.templates_widget.setHidden(True)
-        self.layout().addWidget(self.templates_widget)
+        self.bookmarks_widget = BookmarksWidget(parent=self)
+        row.layout().addWidget(self.templates_widget)
+
+        row = QtWidgets.QGroupBox(parent=self)
+        QtWidgets.QVBoxLayout(row)
+
+        # Label
+        label = common_ui.PaintedLabel(u'Bookmarks', size=common.MEDIUM_FONT_SIZE + 2.0)
+        row.layout().addWidget(label)
+        row.layout().addSpacing(common.INDICATOR_WIDTH)
+        row.layout().addWidget(self.bookmarks_widget)
+
+        row.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Maximum,
+
+        )
+        self.layout().addWidget(row)
         self.layout().addStretch(1)
 
         self.edit_servers_button.clicked.connect(toggle_server_editor)
-        self.reveal_job_button.clicked.connect(reveal)
+        self.reveal_server_button.clicked.connect(reveal_server)
+        self.reveal_job_button.clicked.connect(reveal_job)
         self.add_template_button.clicked.connect(toggle_template_editor)
         self.select_server_combobox.currentIndexChanged.connect(
             self.init_select_job_combobox)
         self.select_server_combobox.currentIndexChanged.connect(
-            lambda idx: self.select_server_combobox.itemData(idx, role=QtCore.Qt.UserRole)
+            lambda idx: self.templates_widget.set_path(self.select_server_combobox.itemData(idx, role=QtCore.Qt.UserRole))
             )
+
+        # Reload jobs
         self.templates_widget.templateCreated.connect(
-            lambda: self.init_select_job_combobox(self.select_server_combobox.currentIndex()))
+            lambda s: self.init_select_job_combobox(self.select_server_combobox.currentIndex()))
+        # Select the newly added job
+        self.templates_widget.templateCreated.connect(
+            lambda s: self.select_job_combobox.setCurrentText(s.upper()))
+        # Hide jobs
+        self.templates_widget.templateCreated.connect(toggle_template_editor)
 
 
     @QtCore.Slot()
@@ -801,13 +916,13 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.select_server_combobox.clear()
         for k in self.data.get_saved_servers():
             pixmap = ImageCache.get_rsc_pixmap(
-                u'server', common.TEXT, self.ROW_HEIGHT)
+                u'server', common.TEXT, ROW_HEIGHT)
             icon = QtGui.QIcon(pixmap)
 
             self.select_server_combobox.addItem(icon, k.upper(), userData=k)
             item = self.select_server_combobox.model().item(n)
             self.select_server_combobox.setItemData(
-                n, QtCore.QSize(0, self.ROW_HEIGHT), QtCore.Qt.SizeHintRole)
+                n, QtCore.QSize(0, ROW_HEIGHT), QtCore.Qt.SizeHintRole)
             item.setData(common.TEXT, role=QtCore.Qt.TextColorRole)
             item.setData(common.BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
 
@@ -819,7 +934,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                              role=QtCore.Qt.BackgroundColorRole)
                 # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
                 _pixmap = ImageCache.get_rsc_pixmap(
-                    u'close', common.REMOVE, self.ROW_HEIGHT)
+                    u'close', common.REMOVE, ROW_HEIGHT)
                 self.select_server_combobox.setItemIcon(
                     n, QtGui.QIcon(_pixmap))
             n += 1
@@ -853,6 +968,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         n = 0
         for entry in scandir_it(server):
+            if not entry.is_dir():
+                continue
             # Let's explicitly check read access by trying to get the
             # files inside the folder
             is_valid = False
@@ -864,15 +981,19 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             except OSError:
                 is_valid = False
 
+            file_info = QtCore.QFileInfo(entry.path)
+            if file_info.isHidden():
+                continue
+
             pixmap = ImageCache.get_rsc_pixmap(
-                u'folder', common.TEXT, self.ROW_HEIGHT)
+                u'folder', common.TEXT, ROW_HEIGHT)
             icon = QtGui.QIcon(pixmap)
 
             self.select_job_combobox.addItem(
                 icon, entry.name.upper(), userData=entry.path)
             item = self.select_job_combobox.model().item(n)
             self.select_job_combobox.setItemData(n, QtCore.QSize(
-                0, self.ROW_HEIGHT), QtCore.Qt.SizeHintRole)
+                0, ROW_HEIGHT), QtCore.Qt.SizeHintRole)
             item.setData(common.TEXT, role=QtCore.Qt.TextColorRole)
             item.setData(common.BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
 
@@ -884,7 +1005,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
                              role=QtCore.Qt.BackgroundColorRole)
                 # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
                 _pixmap = ImageCache.get_rsc_pixmap(
-                    u'close', common.REMOVE, self.ROW_HEIGHT)
+                    u'close', common.REMOVE, ROW_HEIGHT)
                 self.select_job_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
             n += 1
 
