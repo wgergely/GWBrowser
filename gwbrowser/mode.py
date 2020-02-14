@@ -19,7 +19,7 @@ def prune(func):
             if entry.is_dir():
                 continue
 
-            match = re.match(ur'gwbrowser_session_[0-9]+\.lock', entry.name.lower())
+            match = re.match(ur'session_[0-9]+\.lock', entry.name.lower())
             if not match:
                 continue
 
@@ -34,7 +34,7 @@ def prune(func):
 
 def file_path():
     """The path to this session's lock-file."""
-    path = u'{tmp}/gwbrowser/gwbrowser_session_{pid}.lock'.format(
+    path = u'{tmp}/gwbrowser/session_{pid}.lock'.format(
         tmp=QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.TempLocation),
         pid=os.getpid()
