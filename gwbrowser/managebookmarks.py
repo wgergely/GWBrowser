@@ -1252,7 +1252,13 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             count += 1
             if count > limit:
                 return arr
-            for entry in scandir_it(path):
+
+            try:
+                it = scandir_it(path)
+            except:
+                return
+
+            for entry in it:
                 if not entry.is_dir():
                     continue
                 path = entry.path.replace(u'\\', u'/')
