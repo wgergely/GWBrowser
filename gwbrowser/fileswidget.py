@@ -569,6 +569,7 @@ class FilesModel(BaseModel):
                 QtWidgets.QApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
+
             # Getting the fileroot
             fileroot = filepath.replace(location_path, u'')
             fileroot = u'/'.join(fileroot.split(u'/')[:-1]).strip(u'/')
@@ -968,7 +969,9 @@ class FilesWidget(ThreadedBaseWidget):
         self.setDragEnabled(True)
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
-        self.setAutoScroll(True)
+        # self.setAutoScroll(True)
+        self.setMouseTracking(True)
+        self.entered.connect(self.update)
 
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
