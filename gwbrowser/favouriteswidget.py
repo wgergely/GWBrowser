@@ -106,6 +106,10 @@ class FavouritesModel(FilesModel):
     SecondaryInfoThread = SecondaryFavouriteInfoThread
     ThumbnailThread = FavouriteThumbnailThread
 
+    def __init__(self, parent=None):
+        super(FavouritesModel, self).__init__(parent=parent)
+        common.create_temp_dir()
+
     def data_key(self):
         return u'.'
 
@@ -166,10 +170,7 @@ class FavouritesModel(FilesModel):
         sfavourites = set(favourites)
 
         # A suitable substitue for `self.parent_path`
-        server = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation)
-        job = u'gwbrowser'
-        root = u'favourites'
+        server, job, root = common.get_favourite_parent_paths()
 
         for filepath in sfavourites:
             fileroot = filepath
@@ -224,6 +225,8 @@ class FavouritesModel(FilesModel):
                 # Favourites don't have modified and size attributes
                 common.SortByLastModified: len(sortbyname),
                 common.SortBySize: len(sortbyname),
+                #
+                common.TextSegmentRole: None
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -285,6 +288,8 @@ class FavouritesModel(FilesModel):
                         common.SortByName: seqpath,
                         common.SortByLastModified: len(seqpath),
                         common.SortBySize: len(seqpath),
+                        #
+                        common.TextSegmentRole: None
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:

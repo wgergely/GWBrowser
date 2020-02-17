@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Widget reponsible controlling the displayed list and the filter-modes."""
-
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -518,18 +518,23 @@ class QuickAssetsContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_assetlist_menu(self, menu_set):
-        import functools
         widget = self.parent().parent().parent().stackedwidget.widget(1)
+        current = widget.model().sourceModel().active_index().data(QtCore.Qt.DisplayRole)
         items = widget.model().sourceModel().model_data().items()
         items = sorted(items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
 
+        off_pixmap = ImageCache.get_rsc_pixmap(u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        on_pixmap = ImageCache.get_rsc_pixmap(u'check', common.ADD, common.INLINE_ICON_SIZE)
+
         for idx, item in items:
+            active = current.lower() == item[QtCore.Qt.DisplayRole].lower()
             if item[common.FlagsRole] & common.MarkedAsArchived:
                 continue
             source_index = widget.model().sourceModel().index(idx, 0)
             index = widget.model().mapFromSource(source_index)
+
             menu_set[item[QtCore.Qt.DisplayRole].upper()] = {
-                u'icon': QtGui.QIcon(QtGui.QPixmap.fromImage(item[common.ThumbnailRole])),
+                u'icon': on_pixmap if active else off_pixmap,
                 u'action': functools.partial(widget.activate, index)
             }
         return menu_set

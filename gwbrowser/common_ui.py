@@ -154,7 +154,6 @@ class ClickableIconButton(QtWidgets.QLabel):
     message = QtCore.Signal(unicode)
 
     def __init__(self, pixmap, colors, size, description=u'', parent=None):
-
         super(ClickableIconButton, self).__init__(parent=parent)
 
         self._pixmap = pixmap
