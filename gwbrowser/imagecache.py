@@ -91,7 +91,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         oiio_make_thumbnail(
             QtCore.QModelIndex(),
             source=ur'//sloth/jobs/TSTPP_0005/FILMS/TEASER/SHOTS/TS_0090/renders/animation/personajes/TENORIO SC9 ROUGH FINAL.mov',
-            dest=ur'C:/tmp/debug_thumb.png',
+            dest=ur'C:/tmp/debug_thumb.ext',
             dest_size=1024
         )
 
@@ -320,42 +320,10 @@ class ImageCache(QtCore.QObject):
     """
     # Data and instance container
     _data = {}
-    __instance = None
-
-    @staticmethod
-    def instance():
-        """ Static access method. """
-        if ImageCache.__instance == None:
-            ImageCache()
-        return ImageCache.__instance
-
-    @classmethod
-    def initialize(cls, *args, **kwargs):
-        """ Static create method. """
-        cls(*args, **kwargs)
-        return ImageCache.__instance
-
-    def __init__(self, parent=None):
-        """Init method.
-
-        The associated ``ImageCacheThread`` control objects will be create and
-        started here automatically.
-
-        """
-        if ImageCache.__instance != None:
-            raise RuntimeError(u'\n# {} already initialized.\n# Use ImageCache.instance() instead.'.format(
-                self.__class__.__name__))
-        super(ImageCache, self).__init__(parent=parent)
-        ImageCache.__instance = self
-
-        # This will cache all the thumbnail images
-        def rsc_path(f): return os.path.normpath(
-            os.path.abspath(u'{}/../rsc/placeholder.png'.format(f)))
-        ImageCache.get(rsc_path(__file__), common.ROW_HEIGHT - 2)
 
     @classmethod
     def get(cls, path, height, overwrite=False):
-        """Returns a previously cached `QImage` if the image has already been
+        """Returns a previously cached `QPixmap` if the image has already been
         cached, otherwise it will read, resize and cache the image found at `path`.
 
         Args:
@@ -363,7 +331,7 @@ class ImageCache(QtCore.QObject):
             height (int):  The height of the image
             overwrite (bool): Replaces the cached image with new data
 
-        Returns: QImage: The cached and resized QImage.
+        Returns: QPixmap: The cached and resized QPixmap.
 
         """
         if not path:
@@ -390,29 +358,30 @@ class ImageCache(QtCore.QObject):
             return None
         i.close()
 
-        image = QtGui.QImage(path)
+        image = QtGui.QPixmap(path)
         if image.isNull():
             return None
 
         image = cls.resize_image(image, height)
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
 
-        cls._data[u'{}:BackgroundColor'.format(path)] = cls.get_color_average(path)
-        cls._data[k] = image
+        bg_k = u'{}:BackgroundColor'.format(path).lower()
+        cls._data[bg_k] = cls.get_color_average(path)
+        if k != bg_k:
+            cls._data[k] = image
 
         return cls._data[k]
 
     @staticmethod
     def resize_image(image, size):
-        """Returns a scaled copy of the `QImage` fitting inside the square of
+        """Returns a scaled copy of the `QPixmap` fitting inside the square of
         ``size``.
 
         Args:
-            image (QImage): The image to rescale.
+            image (QPixmap): The image to rescale.
             size (int): The width/height of the square.
 
         Returns:
-            QImage: The resized copy of the original image.
+            QPixmap: The resized copy of the original image.
 
         """
         if not isinstance(size, (int, float)):
@@ -420,17 +389,24 @@ class ImageCache(QtCore.QObject):
 
         longer = float(max(image.width(), image.height()))
         factor = float(float(size) / float(longer))
+
+        if isinstance(image, QtGui.QPixmap):
+            image = image.toImage()
+
         if image.width() < image.height():
-            image = image.smoothScaled(
-                float(image.width()) * factor,
-                size
+            _size = QtCore.QSize(
+                int(float(image.width()) * factor),
+                int(size)
             )
-            return image
-        image = image.smoothScaled(
-            size,
-            float(image.height()) * factor
-        )
-        return image
+        else:
+            _size = QtCore.QSize(
+                size,
+                float(image.width()) * factor
+            )
+        image = image.smoothScaled(_size.width(), _size.height())
+        p = QtGui.QPixmap(_size.width(), _size.height())
+        p.convertFromImage(image)
+        return p
 
     @staticmethod
     def get_color_average(path):
@@ -473,7 +449,7 @@ class ImageCache(QtCore.QObject):
             overwrite=True)
         color = cls.get(
             index.data(common.ThumbnailPathRole),
-            'BackgroundColor',
+            u'BackgroundColor',
             overwrite=False)
 
         data = index.model().model_data()
@@ -581,16 +557,17 @@ class ImageCache(QtCore.QObject):
         if not file_info.exists():
             return QtGui.QPixmap(size, size)
 
-        image = QtGui.QImage()
+        image = QtGui.QPixmap()
         image.load(file_info.absoluteFilePath())
 
         if image.isNull():
             return QtGui.QPixmap(size, size)
 
-        image = image.convertToFormat(QtGui.QImage.Format_ARGB32)
         if color is not None:
             painter = QtGui.QPainter()
             painter.begin(image)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
             painter.setCompositionMode(QtGui.QPainter.CompositionMode_SourceIn)
             painter.setBrush(QtGui.QBrush(color))
             painter.drawRect(image.rect())
@@ -600,23 +577,18 @@ class ImageCache(QtCore.QObject):
 
         # Setting transparency
         if opacity < 1.0:
-            image = QtGui.QImage(
-                image.size(), QtGui.QImage.Format_ARGB32)
-            image.fill(QtCore.Qt.transparent)
+            _image = QtGui.QPixmap(image.size())
+            _image.fill(QtCore.Qt.transparent)
 
             painter = QtGui.QPainter()
-            painter.begin(image)
+            painter.begin(_image)
             painter.setOpacity(opacity)
-            painter.drawImage(0, 0, image)
+            painter.drawPixmap(0, 0, image)
             painter.end()
 
-            pixmap = QtGui.QPixmap()
-            pixmap.convertFromImage(image)
+            image = _image
 
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-
-        cls._data[k] = pixmap
+        cls._data[k] = image
         return cls._data[k]
 
     @classmethod
@@ -628,7 +600,3 @@ class ImageCache(QtCore.QObject):
             if u'rsc:' in k:
                 data[k] = v
         cls._data = data
-
-
-# Initializing the ImageCache:
-ImageCache.initialize()
