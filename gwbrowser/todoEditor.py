@@ -18,11 +18,66 @@ import time
 import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import re
 from gwbrowser.imagecache import oiio_make_thumbnail
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
+
+
+NoHighlightFlag = 0b000000
+HeadingHighlight = 0b000001
+QuoteHighlight = 0b000010
+ItalicsHighlight = 0b001000
+BoldHighlight = 0b010000
+PathHighlight = 0b100000
+
+HIGHLIGHT_RULES = {
+    u'url': {
+        u're': re.compile(
+            ur'((?:rvlink|file|http)[s]?:[/\\][/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': PathHighlight
+    },
+    u'drivepath': {
+        u're': re.compile(
+            ur'((?:[a-zA-Z]{1})[s]?:[/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': PathHighlight
+    },
+    u'uncpath': {
+        u're': re.compile(
+            ur'([/\\]{1,2}(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': PathHighlight
+    },
+    u'heading': {
+        u're': re.compile(
+            ur'^(?<!#)#{1,2}(?!#)',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': HeadingHighlight
+    },
+    u'quotes': {
+        u're': re.compile(
+            # Group(2) captures the contents
+            ur'([\"\'])((?:(?=(\\?))\3.)*?)\1',
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': QuoteHighlight
+    },
+    u'italics': {
+        u're': re.compile(
+            ur'([\_])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': ItalicsHighlight
+    },
+    u'bold': {
+        u're': re.compile(
+            ur'([\*])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
+            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
+        u'flag': BoldHighlight
+    },
+}
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -55,11 +110,11 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         _weight = char_format.fontWeight()
         _psize = char_format.font().pointSizeF()
 
-        flag = common.NoHighlightFlag
-        for case in common.HIGHLIGHT_RULES.itervalues():
+        flag = NoHighlightFlag
+        for case in HIGHLIGHT_RULES.itervalues():
             flag = flag | case[u'flag']
 
-            if case['flag'] == common.HeadingHighlight:
+            if case[u'flag'] == HeadingHighlight:
                 match = case[u're'].match(text)
                 if match:
                     char_format.setFontPointSize(
@@ -70,7 +125,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                     self.setFormat(match.start(0), len(
                         match.group(0)), char_format)
 
-            if case['flag'] == common.PathHighlight:
+            if case[u'flag'] == PathHighlight:
                 it = case[u're'].finditer(text)
                 for match in it:
                     groups = match.groups()
@@ -83,9 +138,9 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                             self.setFormat(match.start(
                                 0), len(grp), char_format)
                             cursor = self.document().find(grp)
-                            cursor.mergeCharFormat(char_format)
+                            # cursor.mergeCharFormat(char_format)
 
-            if case['flag'] == common.QuoteHighlight:
+            if case[u'flag'] == QuoteHighlight:
                 it = case[u're'].finditer(text)
                 for match in it:
                     groups = match.groups()
@@ -99,7 +154,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                                 self.setFormat(match.start(
                                     2), len(grp), char_format)
                                 cursor = self.document().find(grp)
-                                cursor.mergeCharFormat(char_format)
+                                # cursor.mergeCharFormat(char_format)
 
                                 char_format.setForeground(
                                     QtGui.QColor(0, 0, 0, 40))
@@ -108,7 +163,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                                 self.setFormat(match.start(
                                     2) + len(grp), 1, char_format)
 
-            if case['flag'] == common.ItalicsHighlight:
+            if case[u'flag'] == ItalicsHighlight:
                 it = case[u're'].finditer(text)
                 for match in it:
                     groups = match.groups()
@@ -116,7 +171,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                         if match.group(1) in u'_':
                             grp = match.group(2)
                             if grp:
-                                flag == flag | common.ItalicsHighlight
+                                flag == flag | ItalicsHighlight
                                 char_format.setFontItalic(True)
                                 self.setFormat(match.start(
                                     2), len(grp), char_format)
@@ -128,7 +183,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                                 self.setFormat(match.start(
                                     2) + len(grp), 1, char_format)
 
-            if case['flag'] == common.BoldHighlight:
+            if case[u'flag'] == BoldHighlight:
                 it = case[u're'].finditer(text)
                 for match in it:
                     groups = match.groups()
@@ -165,12 +220,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     def __init__(self, text, read_only=False, checked=False, parent=None):
         super(TodoItemEditor, self).__init__(parent=parent)
         self.setDisabled(checked)
-        self.document().setDocumentMargin(8)
+        self.document().setDocumentMargin(common.MARGIN)
 
         self.highlighter = Highlighter(self.document(), parent=self)
         self.setOpenExternalLinks(True)
         self.setOpenLinks(False)
         self.setReadOnly(False)
+        self.verticalScrollBar().setFixedWidth(common.INDICATOR_WIDTH)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         if read_only:
             self.setTextInteractionFlags(
                 QtCore.Qt.TextSelectableByMouse | QtCore.Qt.LinksAccessibleByMouse)
@@ -295,69 +352,27 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             return True
         return False
 
-    def insertFromMimeData(self, mimedata):
-        """We can insert media using our image-cache - eg any image-content from
-        the clipboard we will save into our cache folder.
+    # def insertFromMimeData(self, mimedata):
+    #     """We can insert media using our image-cache - eg any image-content from
+    #     the clipboard we will save into our cache folder.
+    #
+    #     """
+    #     def href(url): return u'<a href="{url}">{name}</a>'.format(
+    #         style=u'align:left;',
+    #         url=url.toLocalFile(),
+    #         name=QtCore.QFileInfo(url.toLocalFile()).fileName())
+    #
+    #     # We save our image into the cache for safe-keeping
+    #     if mimedata.hasUrls():
+    #         self.insertHtml(u'{}<br>'.format(href(url)))
+    #
+    #     elif mimedata.hasHtml():
+    #         html = mimedata.html()
+    #         self.insertHtml(u'{}<br>'.format(html))
+    #     elif mimedata.hasText():
+    #         text = mimedata.text()
+    #         self.insertHtml(u'{}<br>'.format(text))
 
-        """
-        index = self.parent().parent().parent().parent().parent().index
-        if not index.isValid():
-            return
-
-        def img(source_url, url): return u'<a href="{source}"><img src="{url}" width="{width}" alt="{name}"></a><br><a href="{source}">{name}</a>'.format(
-            url=url.toLocalFile(),
-            name=QtCore.QFileInfo(source_url.toLocalFile()).fileName(),
-            source=source_url.toLocalFile(),
-            width=560)
-
-        def href(url): return u'<a href="{url}">{name}</a>'.format(
-            style=u'align:left;',
-            url=url.toLocalFile(),
-            name=QtCore.QFileInfo(url.toLocalFile()).fileName())
-
-        # We save our image into the cache for safe-keeping
-        if mimedata.hasUrls():
-            thumbnail_info = QtCore.QFileInfo(
-                index.data(common.ThumbnailPathRole))
-            for url in mimedata.urls():
-                file_info = QtCore.QFileInfo(url.toLocalFile())
-                if file_info.suffix() in common.get_oiio_extensions():
-                    dest = u'{}/{}.{}'.format(
-                        thumbnail_info.dir().path(),
-                        uuid.uuid4(),
-                        thumbnail_info.suffix()
-                    )
-                    oiio_make_thumbnail(
-                        QtCore.QModelIndex(),
-                        source=file_info.filePath(),
-                        dest=dest
-                    )
-                    dest_url = QtCore.QUrl.fromLocalFile(dest)
-                    self.insertHtml(u'{}<br>'.format(img(url, dest_url)))
-                else:
-                    self.insertHtml(u'{}<br>'.format(href(url)))
-
-        elif mimedata.hasHtml():
-            html = mimedata.html()
-            self.insertHtml(u'{}<br>'.format(html))
-        elif mimedata.hasText():
-            text = mimedata.text()
-            self.insertHtml(u'{}<br>'.format(text))
-
-        # If the mime has any image data we will save it as a temp image file
-        elif mimedata.hasImage():
-            image = mimedata.imageData()
-            if not image.isNull():
-                thumbnail_info = QtCore.QFileInfo(
-                    index.data(common.ThumbnailPathRole))
-                dest = u'{}/{}.{}'.format(
-                    thumbnail_info.dir().path(),
-                    uuid.uuid4(),
-                    thumbnail_info.suffix()
-                )
-                if image.save(dest):
-                    url = QtCore.QUrl.fromLocalFile(dest)
-                    self.insertHtml(img(url))
 
     def open_url(self, url):
         """We're handling the clicking of anchors here manually."""
@@ -429,10 +444,10 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """Custom disabled function."""
         if b:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.TEXT, common.INLINE_ICON_SIZE)
 
         self.setPixmap(pixmap)
 
@@ -462,16 +477,16 @@ class DragIndicatorButton(QtWidgets.QLabel):
 
         # Drag pixmap
         # Transparent image
-        image = QtGui.QImage(editor.size(), QtGui.QImage.Format_ARGB32)
-        editor.render(image)
-        for x in xrange(image.width()):
-            for y in xrange(image.height()):
-                color = QtGui.QColor(image.pixel(x, y))
-                color.setAlpha(150)
-                image.setPixel(x, y, color.rgba())
-
-        pixmap = QtGui.QPixmap()
-        pixmap = pixmap.fromImage(image)
+        pixmap = QtGui.QPixmap(editor.size())
+        editor.render(pixmap)
+        # for x in xrange(image.width()):
+        #     for y in xrange(image.height()):
+        #         color = QtGui.QColor(image.pixel(x, y))
+        #         color.setAlpha(150)
+        #         image.setPixel(x, y, color.rgba())
+        #
+        # pixmap = QtGui.QPixmap()
+        # pixmap = pixmap.fromImage(image)
 
         drag.setPixmap(pixmap)
         drag.setHotSpot(QtCore.QPoint(0, pixmap.height() / 2.0))
@@ -619,7 +634,7 @@ class TodoEditors(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(o)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
 
         self.setMouseTracking(True)
         self.setAcceptDrops(True)
@@ -749,8 +764,17 @@ class TodoItemWidget(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(12, 12, 12, 12)
-        self.layout().setSpacing(6)
+        o = common.INDICATOR_WIDTH
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(o)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(common.TEXT_SELECTED)
+        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.end()
 
 
 class TodoEditorWidget(QtWidgets.QWidget):
@@ -786,45 +810,25 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
-        self.layout().setSpacing(0)
+        self.layout().setSpacing(4.0)
         self.layout().setContentsMargins(o, o, o, o)
 
         # Top row
         height = common.ROW_BUTTONS_HEIGHT
-        row = add_row('', height=height, parent=self)
-        row.layout().setSpacing(8)
+        row = add_row(None, height=height, parent=self)
 
+        def paintEvent(event):
+            painter = QtGui.QPainter()
+            painter.begin(row)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QColor(0,0,0,255))
+            rect = row.rect()
+            rect.setTop(rect.bottom() - 1)
+            painter.drawRect(rect)
+            painter.end()
+
+        row.paintEvent = paintEvent
         # Thumbnail
-        thumbnail = QtWidgets.QLabel(parent=self)
-        thumbnail.setScaledContents(True)
-        thumbnail.setFixedHeight(height)
-        thumbnail.setFixedWidth(height)
-        if self.parent() and self.index.isValid():
-            pixmap = QtGui.QPixmap()
-            pixmap.convertFromImage(self.index.data(common.ThumbnailRole))
-        else:
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'todo', common.SECONDARY_BACKGROUND, height)
-        thumbnail.setPixmap(pixmap)
-
-        # Name label
-        if self.index.isValid():
-            text = self.index.data(QtCore.Qt.DisplayRole).upper()
-        else:
-            text = u'Notes and Tasks'.upper()
-
-        if len(text) >= 48:
-            text = u'{}...{}'.format(text[0:22], text[-21:]).upper()
-        label = PaintedLabel(text, color=common.SECONDARY_BACKGROUND,
-                             size=common.LARGE_FONT_SIZE, parent=self)
-
-        row.layout().addWidget(thumbnail, 0)
-        row.layout().addWidget(label, 1)
-        row.layout().addStretch(1)
-
-        # Add button
-        # def __init__(self, pixmap, colors, size, description=u'', parent=None):
-
         self.add_button = ClickableIconButton(
             u'add',
             (common.ADD, common.ADD),
@@ -832,16 +836,40 @@ class TodoEditorWidget(QtWidgets.QWidget):
             description=u'Click to add a new Todo item...',
             parent=self
         )
-        self.add_button.clicked.connect(self.add_new_item)
-        row.layout().addWidget(self.add_button, 0)
 
-        self.refresh_button = PaintedButton('Refresh', width=None, parent=self)
+        # Name label
+        text = u'Notes and Tasks'.upper()
+        label = PaintedLabel(text, color=common.SEPARATOR,
+                             size=common.LARGE_FONT_SIZE, parent=self)
+
+        row.layout().addWidget(self.add_button, 0)
+        row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        row.layout().addWidget(label, 1)
+        row.layout().addStretch(1)
+
+        self.add_button.clicked.connect(self.add_new_item)
+
+        self.refresh_button = ClickableIconButton(
+            u'refresh',
+            (QtGui.QColor(0,0,0,255), QtGui.QColor(0,0,0,255)),
+            height * 0.66,
+            description=u'Refresh...',
+            parent=self
+        )
         self.refresh_button.clicked.connect(self.refresh)
         row.layout().addWidget(self.refresh_button, 0)
 
-        self.remove_button = PaintedButton(u'Close', width=None, parent=self)
-        self.remove_button.pressed.connect(self.close)
+        self.remove_button = ClickableIconButton(
+            u'close',
+            (QtGui.QColor(0,0,0,255), QtGui.QColor(0,0,0,255)),
+            height * 0.66,
+            description=u'Refresh...',
+            parent=self
+        )
+        self.remove_button.clicked.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
+
+        self.layout().addSpacing(common.INDICATOR_WIDTH)
 
         self.todoeditors_widget = TodoEditors(parent=self)
         self.setMinimumWidth(self.todoeditors_widget.minimumWidth() + 6)
@@ -854,7 +882,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
-        self.layout().addWidget(row)
         self.layout().addWidget(self.scrollarea)
 
         common.set_custom_stylesheet(self)
@@ -989,7 +1016,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 self.save_settings()
                 return True
             elif event.key() == QtCore.Qt.Key_N:
-                self.add_button.pressed.emit()
+                self.add_button.clicked.emit()
                 return True
             elif event.key() == QtCore.Qt.Key_Tab:
                 self.key_tab()
@@ -1008,7 +1035,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             widget.setDisabled(not b)
 
         item = TodoItemWidget(parent=self)
-
+        item.layout().addSpacing(common.MARGIN)
         checkbox = CheckBoxButton(checked=not checked, parent=item)
         checkbox.setFocusPolicy(QtCore.Qt.NoFocus)
         drag = DragIndicatorButton(checked=False, parent=item)
@@ -1024,6 +1051,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         if not self.read_only:
             item.layout().addWidget(checkbox)
+            item.layout().addSpacing(common.INDICATOR_WIDTH * 2)
             item.layout().addWidget(drag)
         else:
             checkbox.hide()
@@ -1034,6 +1062,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             remove = RemoveNoteButton(parent=item)
             remove.setFocusPolicy(QtCore.Qt.NoFocus)
             item.layout().addWidget(remove)
+            item.layout().addSpacing(common.INDICATOR_WIDTH)
 
         if idx is None:
             self.todoeditors_widget.layout().addWidget(item, 0)
@@ -1127,3 +1156,10 @@ class TodoEditorWidget(QtWidgets.QWidget):
         if not self.parent():
             return QtCore.QSize(800, 600)
         return self.parent().viewport().rect().size()
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    widget = TodoEditorWidget(QtCore.QModelIndex())
+    widget.show()
+    app.exec_()
