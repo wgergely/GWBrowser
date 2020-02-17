@@ -21,7 +21,6 @@ import gwbrowser.editors as editors
 from gwbrowser.basecontextmenu import BaseContextMenu
 import gwbrowser.delegate as delegate
 from gwbrowser.settings import local_settings, AssetSettings
-import gwbrowser.delegate as delegate
 from gwbrowser.imagecache import ImageCache
 
 
@@ -60,7 +59,12 @@ def initdata(func):
             sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
         finally:
             self.endResetModel()
-            self.sort_data()
+
+            # We won't be able to sort our model before the size and modified
+            # dates are loaded by the Worker threads
+            if self.sortRole()  == common.SortByName:
+                self.sort_data()
+
         return res
     return func_wrapper
 
@@ -385,7 +389,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     # Emit before the model is about to change
     modelDataResetRequested = QtCore.Signal()
-    """This is the main signal to initiate a model data reset."""
+    """Main signal to request a reset and load"""
 
     activeChanged = QtCore.Signal(QtCore.QModelIndex)
     dataKeyChanged = QtCore.Signal(unicode)
@@ -395,7 +399,7 @@ class BaseModel(QtCore.QAbstractItemModel):
     dataSorted = QtCore.Signal()  # (SortRole, SortOrder)
 
     messageChanged = QtCore.Signal(unicode)
-    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
+    updateIndex = QtCore.Signal(QtCore.QModelIndex)
 
     # Threads
     InfoThread = None
@@ -498,9 +502,12 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     @QtCore.Slot()
     def sort_data(self):
-        """Function responsible for sorting data dictionary.
+        """Slot sorts the internal `_data` dictionary.
+
         It takes the currently set sort order and creates a new
         data dictionary with the new order.
+
+        Emits the `dataSorted` signal when finished.
 
         """
         data = self.model_data()
@@ -589,7 +596,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.threads[idx].start()
 
     @QtCore.Slot()
-    def reset_file_info_loaded(self):
+    def reset_file_info_loaded(self, *args):
         """Set the file-info-loaded state to ``False``. This property is used
         by the ``SecondaryFileInfoWorker`` to indicate all information has
         been loaded an no more work is necessary.
@@ -719,8 +726,8 @@ class BaseListWidget(QtWidgets.QListView):
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
     favouritesChanged = QtCore.Signal()
-
     SourceModel = None
+
     Delegate = None
     ContextMenu = None
 
@@ -733,14 +740,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.filter_active_widget = FilterOnOverlayWidget(parent=self)
         self.filter_editor = editors.FilterEditor(parent=self)
         self.filter_editor.setHidden(True)
-
-        self.parent().resized.connect(
-            lambda x: self.progress_widget.setGeometry(self.viewport().geometry()))
-        self.parent().resized.connect(
-            lambda x: self.disabled_overlay_widget.setGeometry(self.viewport().geometry()))
-        self.parent().resized.connect(
-            lambda x: self.filter_active_widget.setGeometry(self.viewport().geometry()))
-        self.parent().resized.connect(self.filter_editor.adjust_size)
 
         self.thumbnail_viewer_widget = None
         self._location = None
@@ -756,6 +755,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
+        self.setTextElideMode(QtCore.Qt.ElideNone)
 
         self.setSizePolicy(
             QtWidgets.QSizePolicy.MinimumExpanding,
@@ -766,11 +766,24 @@ class BaseListWidget(QtWidgets.QListView):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
+        self.setWordWrap(False)
+        self.setLayoutMode(QtWidgets.QListView.Batched)
+        self.setBatchSize(100)
+
         self.installEventFilter(self)
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        common.set_custom_stylesheet(self)
+
+        @QtCore.Slot(QtCore.QRect)
+        def _resize_subwidgets(rect):
+            rect = self.viewport().geometry()
+            self.progress_widget.setGeometry(rect)
+            self.disabled_overlay_widget.setGeometry(rect)
+            self.filter_active_widget.setGeometry(rect)
+            self.filter_editor.adjust_size()
+
+        self.parent().resized.connect(_resize_subwidgets)
 
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
@@ -828,9 +841,6 @@ class BaseListWidget(QtWidgets.QListView):
         model.dataTypeChanged.connect(model.sort_data)
         model.dataTypeChanged.connect(self.reselect_previous)
 
-        model.indexUpdated.connect(
-            self.update_index, type=QtCore.Qt.QueuedConnection)
-
         proxy.filterTextChanged.connect(proxy.set_filter_text)
         proxy.filterFlagChanged.connect(proxy.set_filter_flag)
         proxy.filterTextChanged.connect(proxy.invalidateFilter)
@@ -849,10 +859,13 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.filter_editor.finished.connect(proxy.filterTextChanged)
 
+        model.updateIndex.connect(
+            self.update, type=QtCore.Qt.BlockingQueuedConnection)
+
         proxy.initialize_filter_values()
 
     @QtCore.Slot(QtCore.QModelIndex)
-    def update_index(self, index):
+    def update(self, index):
         """This slot is used by all threads to repaint/update the given index
         after it's thumbnail or file information has been loaded.
 
@@ -864,21 +877,9 @@ class BaseListWidget(QtWidgets.QListView):
             return
         if self.isHidden():
             return
-
         if not hasattr(index.model(), u'sourceModel'):
             index = self.model().mapFromSource(index)
-
-        rect = self.visualRect(index)
-        _rect = self.rect()
-        if _rect.contains(rect):
-            self.update(index)
-            return
-
-        # Here we add the last index of the window
-        index = self.indexAt(_rect.bottomLeft())
-        idx = index.row()
-        if index.isValid():
-            self.update(index)
+        super(BaseListWidget, self).update(index)
 
     def initialize_visible_indexes(self):
         pass
@@ -919,7 +920,7 @@ class BaseListWidget(QtWidgets.QListView):
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
 
         source_index.model().activeChanged.emit(source_index)
-        self.update_index(index)
+        self.update(index)
 
     def deactivate(self, index):
         """Unsets the active flag."""
@@ -935,7 +936,7 @@ class BaseListWidget(QtWidgets.QListView):
         idx = source_index.row()
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] & ~common.MarkedAsActive
 
-        self.update_index(index)
+        self.update(index)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -1780,12 +1781,12 @@ class BaseInlineIconWidget(BaseListWidget):
 
         if rectangles[delegate.FavouriteRect].contains(cursor_position):
             self.toggle_favourite(index)
-            self.update_index(index)
+            self.update(index)
             self.model().invalidateFilter()
 
         if rectangles[delegate.ArchiveRect].contains(cursor_position):
             self.toggle_archived(index)
-            self.update_index(index)
+            self.update(index)
             self.model().invalidateFilter()
 
         if rectangles[delegate.RevealRect].contains(cursor_position):
@@ -1813,7 +1814,7 @@ class BaseInlineIconWidget(BaseListWidget):
             return
 
         if not self.verticalScrollBar().isSliderDown():
-            self.update_index(index)
+            self.update(index)
 
         rectangles = self.itemDelegate().get_rectangles(self.visualRect(index))
         rect = self.itemDelegate().get_description_rect(rectangles, index)
@@ -1918,6 +1919,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.model().sourceModel().reset_thread_worker_queues)
         self.model().sourceModel().modelReset.connect(
             self.model().sourceModel().reset_file_info_loaded)
+        self.model().sourceModel().dataTypeChanged.connect(
+            self.model().sourceModel().reset_file_info_loaded)
+        self.model().sourceModel().modelReset.connect(
+            self.restart_timer)
+
 
         self.model().sourceModel().dataSorted.connect(
             self.hide_archived_items_timer.start)
@@ -1925,7 +1931,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.restart_timer)
 
         # Initializing the indexes
-        self.entered.connect(self.restart_timer)
         self.model().sourceModel().dataSorted.connect(self.restart_timer)
         self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
         self.model().sourceModel().dataKeyChanged.connect(self.restart_timer)
@@ -1952,30 +1957,30 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         proxy_model = self.model()
         if not proxy_model.rowCount():
             return
+
         index = self.indexAt(self.rect().topLeft())
-        idx = proxy_model.mapToSource(index).row()
-        if not index.isValid():
-            return
-        index = self.indexAt(self.rect().topLeft())
-        idx = proxy_model.mapToSource(index).row()
         if not index.isValid():
             return
 
-        show_archived = self.model().filterFlag(common.MarkedAsArchived)
+        show_archived = proxy_model.filterFlag(common.MarkedAsArchived)
         rect = self.visualRect(index)
-        while self.rect().contains(rect):
-            if not show_archived and index.flags() & common.MarkedAsArchived:
-                self.model().invalidateFilter()
+        while self.viewport().rect().intersects(rect):
+            is_archived = index.flags() & common.MarkedAsArchived
+            if not show_archived and is_archived:
+                proxy_model.invalidateFilter()
                 return
+
             rect.moveTop(rect.top() + rect.height())
             index = self.indexAt(rect.topLeft())
 
         # Here we add the last index of the window
         index = self.indexAt(self.rect().bottomLeft())
-        if index.isValid():
-            if not show_archived and index.flags() & common.MarkedAsArchived:
-                self.model().invalidateFilter()
-                return
+        if not index.isValid():
+            return
+
+        is_archived = index.flags() & common.MarkedAsArchived
+        if not show_archived and is_archived:
+            self.model().invalidateFilter()
 
     @QtCore.Slot()
     def initialize_visible_indexes(self):
@@ -1996,7 +2001,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         if not proxy_model.rowCount():
             return
 
-        r = self.rect()
+        r = self.viewport().rect()
         index = self.indexAt(r.topLeft())
         if not index.isValid():
             return
@@ -2008,7 +2013,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         # Starting from the top left we'll get all visible indexes
         rect = self.visualRect(index)
-        while r.contains(rect):
+        while r.intersects(rect):
             visible.append(index)
 
             if not index.data(common.FileInfoLoaded):
@@ -2039,6 +2044,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         if source_model.generate_thumbnails:
             source_model.ThumbnailThread.Worker.add_to_queue(needs_thumbnail)
+
+
 
     def showEvent(self, event):
         self.hide_archived_items_timer.start()
