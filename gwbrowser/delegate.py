@@ -11,7 +11,6 @@ visual indicators.
 
 
 import re
-import os
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -50,45 +49,6 @@ def paintmethod(func):
         args[1].save()
         res = func(self, *args, **kwargs)
         args[1].restore()
-        return res
-    return func_wrapper
-
-
-def cached_text_segments(func):
-    """Caches the text segment result to the model data."""
-    @wraps(func)
-    def func_wrapper(self, index):
-        data = index.model().sourceModel().model_data()[index.row()]
-        if data[common.TextSegmentRole]:
-            return data[common.TextSegmentRole]
-        res = func(self, index)
-        data[common.TextSegmentRole] = res
-        return res
-    return func_wrapper
-
-
-def cached_info_segments(func):
-    """Caches the text segment result to the model data."""
-    @wraps(func)
-    def func_wrapper(self, index):
-        data = index.model().sourceModel().model_data()[index.row()]
-        if data[common.InfoSegmentRole]:
-            return data[common.InfoSegmentRole]
-        res = func(self, index)
-        data[common.InfoSegmentRole] = res
-        return res
-    return func_wrapper
-
-
-def cached_subdir_rects(func):
-    """Caches the text segment result to the model data."""
-    @wraps(func)
-    def func_wrapper(self, index, rectangles, metrics):
-        data = index.model().sourceModel().model_data()[index.row()]
-        if data[common.SubdirRectRole]:
-            return data[common.SubdirRectRole]
-        res = func(self, index, rectangles, metrics)
-        data[common.SubdirRectRole] = res
         return res
     return func_wrapper
 
@@ -251,7 +211,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         # Background
         color = index.data(
             common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
-        color = color if color else QtGui.QPixmap(0, 0, 0, 0)
+        color = color if color else common.THUMBNAIL_BACKGROUND
         painter.setBrush(color)
         painter.setOpacity(0.8)
         painter.drawRect(rect)
@@ -966,12 +926,14 @@ class FilesWidgetDelegate(BaseDelegate):
             subdir_rectangles = self.get_subdir_rectangles(
                 index, rectangles, metrics)
             if not subdir_rectangles:
-                return
+                return rectangles[DataRect].left()
 
             r = rectangles[DataRect]
 
             o = 0.7 if selected else 0.6
             o = 0.8 if hover else o
+            if not hover:
+                o += -0.2
             painter.setOpacity(o)
 
             for n, val in enumerate(subdir_rectangles):
@@ -1032,9 +994,9 @@ class FilesWidgetDelegate(BaseDelegate):
             font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
             metrics = QtGui.QFontMetricsF(font)
 
-            color = common.TEXT_SELECTED if selected else common.TEXT
-            color = common.SECONDARY_TEXT if not index.data(
-                common.DescriptionRole) else color
+            color = common.TEXT_SELECTED if selected else common.ADD
+            # color = common.SECONDARY_TEXT if not index.data(
+            #     common.DescriptionRole) else color
 
             text = u'{}'.format(index.data(common.DescriptionRole))
             text = metrics.elidedText(
@@ -1071,10 +1033,10 @@ class FilesWidgetDelegate(BaseDelegate):
         draw_separator_line()
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE)
+        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
         it = self.get_text_segments(index).itervalues()
-        offset = -1
+        offset = -metrics.descent()
 
         left = draw_file_info(it, font, metrics, offset)
         left_limit = draw_subdirs(left)
@@ -1241,7 +1203,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
         return description_rect
 
-    @cached_text_segments
     def get_text_segments(self, index):
         """Breaks the given index's `DisplayRole` into
         segments associated with custom colors. It is used to paint the
@@ -1310,7 +1271,6 @@ class FilesWidgetDelegate(BaseDelegate):
         d[len(d)] = (s, common.TEXT_SELECTED)
         return d
 
-    @cached_info_segments
     def get_filedetail_text_segments(self, index):
         d = {}
 
@@ -1327,7 +1287,6 @@ class FilesWidgetDelegate(BaseDelegate):
             d[len(d)] = (u'  |  ', common.SECONDARY_BACKGROUND)
         return d
 
-    # @cached_subdir_rects
     def get_subdir_rectangles(self, index, rectangles, metrics):
         """Returns the available mode rectangles for FileWidget index."""
         arr = []

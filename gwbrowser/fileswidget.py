@@ -181,9 +181,6 @@ class FileInfoWorker(BaseWorker):
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
-        # Flush the delegate's text segment cache
-        data[common.TextSegmentRole] = None
-        data[common.InfoSegmentRole] = None
 
         # Forces a ui repaint to show the data-change
         if update:
@@ -628,10 +625,6 @@ class FilesModel(BaseModel):
                 common.SortByName: filepath,
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
-                #
-                common.TextSegmentRole: None,
-                common.InfoSegmentRole: None,
-                common.SubdirRectRole: None,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -696,10 +689,6 @@ class FilesModel(BaseModel):
                         common.SortByName: seqpath,
                         common.SortByLastModified: 0,
                         common.SortBySize: 0,  # Initializing with null-size
-                        #
-                        common.TextSegmentRole: None,
-                        common.InfoSegmentRole: None,
-                        common.SubdirRectRole: None,
                     }
 
                 seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
