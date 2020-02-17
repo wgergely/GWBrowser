@@ -2045,9 +2045,13 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def showEvent(self, event):
         self.hide_archived_items_timer.start()
-        self.progress_widget.setGeometry(self.viewport().geometry())
-        self.disabled_overlay_widget.setGeometry(self.viewport().geometry())
-        self.filter_active_widget.setGeometry(self.viewport().geometry())
+
+        self.parent().parent().resized.emit(self.viewport().geometry())
+
+        # self.progress_widget.setGeometry(self.viewport().geometry())
+        # self.disabled_overlay_widget.setGeometry(self.viewport().geometry())
+        # self.filter_active_widget.setGeometry(self.viewport().geometry())
+
         super(ThreadedBaseWidget, self).showEvent(event)
 
     def hideEvent(self, event):
