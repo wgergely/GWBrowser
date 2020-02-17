@@ -266,7 +266,7 @@ QLineEdit {{
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
         data[common.DescriptionRole] = self.text()
-        self.parent().update_index(source_index)
+        self.parent().update(source_index)
         self.hide()
 
     def update_editor(self):

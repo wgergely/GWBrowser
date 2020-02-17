@@ -41,7 +41,6 @@ class BaseWorker(QtCore.QObject):
     indexes_in_progress = []
 
     queueFinished = QtCore.Signal()
-    indexUpdated = QtCore.Signal(QtCore.QModelIndex)
     finished = QtCore.Signal()
 
     def __init__(self, parent=None):

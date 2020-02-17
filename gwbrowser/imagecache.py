@@ -72,7 +72,7 @@ def oiio(func):
                 data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
                 data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
                 data[common.FileThumbnailLoaded] = True
-                model.indexUpdated.emit(index)
+                model.updateIndex.emit(index)
             return False
     return func_wrapper
 
@@ -132,7 +132,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     # generate the thumbnail for that item
     source = source if source else index.data(QtCore.Qt.StatusTipRole)
     if common.is_collapsed(source):
-        source = common.find_largest_file(index)
+        source = common.get_sequence_startpath(source)
     dest = dest if dest else index.data(common.ThumbnailPathRole)
 
     # It is best to make sure we're not trying to generate a thumbnail for
@@ -301,13 +301,12 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
-
-    if update:
-        model.indexUpdated.emit(index)
+    index.model().updateIndex.emit(index)
 
     cache.invalidate(source, force=True)
     cache.invalidate(dest, force=True)
     return True
+
 
 class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
@@ -455,7 +454,7 @@ class ImageCache(QtCore.QObject):
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
-        index.model().indexUpdated.emit(index)
+        index.model().updateIndex.emit(index)
 
     @classmethod
     def remove(cls, index):
@@ -487,19 +486,17 @@ class ImageCache(QtCore.QObject):
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
         data[common.FileThumbnailLoaded] = False
+        index.model().updateIndex.emit(index)
 
         model = source_index.model()
         if not model.generate_thumbnails:
-            source_index.model().indexUpdated.emit(source_index)
             return
 
         if not hasattr(source_index.model(), u'ThumbnailThread'):
             return
         if not source_index.model().ThumbnailThread:
             return
-
         source_index.model().ThumbnailThread.Worker.add_to_queue([index, ])
-        source_index.model().indexUpdated.emit(source_index)
 
     @classmethod
     def pick(cls, index):

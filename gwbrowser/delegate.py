@@ -53,7 +53,6 @@ def paintmethod(func):
     return func_wrapper
 
 
-
 class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     """Base delegate containing methods to draw our list items."""
 
@@ -278,7 +277,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setOpacity(1.0)
             painter.setPen(common.FAVOURITE)
             painter.setBrush(QtCore.Qt.NoBrush)
-            painter.drawRect(rect.marginsRemoved(QtCore.QMargins(1,1,1,1)))
+            painter.drawRect(rect.marginsRemoved(QtCore.QMargins(1, 1, 1, 1)))
 
         # Hover indicator
         if hover:
@@ -724,12 +723,12 @@ class FilesWidgetDelegate(BaseDelegate):
         if index.data(common.FileInfoLoaded):
             self.paint_archived(*args)
         self.paint_description_editor_background(*args)
+
         self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
 
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
-
 
     def get_description_rect(self, rectangles, index):
         """The description rectangle of a file item."""
@@ -868,7 +867,6 @@ class FilesWidgetDelegate(BaseDelegate):
         """Paints the subfolders and the filename of the current file inside the ``FilesWidget``."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
 
-
         def draw_separator_line():
             _rect = QtCore.QRect(rectangles[DataRect])
             _rect.setWidth(common.ROW_SEPARATOR)
@@ -877,7 +875,6 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.setOpacity(0.5)
             painter.drawRect(_rect)
             painter.setOpacity(1.0)
-
 
         def draw_file_info(it, font, metrics, offset):
             x = 0
@@ -899,7 +896,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 rect.setLeft(rect.right() - width)
 
                 if rect.left() < rectangles[DataRect].left():
-                    rect.setLeft(rectangles[DataRect].left() + (common.INDICATOR_WIDTH))
+                    rect.setLeft(
+                        rectangles[DataRect].left() + (common.INDICATOR_WIDTH))
                     text = metrics.elidedText(
                         text,
                         QtCore.Qt.ElideLeft,
@@ -954,7 +952,8 @@ class FilesWidgetDelegate(BaseDelegate):
                 pen = QtGui.QPen(common.SEPARATOR)
                 pen.setWidth(1)
                 painter.setPen(pen)
-                color = common.FAVOURITE if n == 0 else QtGui.QColor(55, 55, 55)
+                color = common.FAVOURITE if n == 0 else QtGui.QColor(
+                    55, 55, 55)
                 color = common.REMOVE if r.contains(cursor_position) else color
 
                 rootdir = index.data(common.ParentPathRole)[-1]
@@ -1022,13 +1021,10 @@ class FilesWidgetDelegate(BaseDelegate):
                 painter.setOpacity(1.0)
                 color = common.TEXT_SELECTED
 
-
-
             painter.setBrush(color)
             path = QtGui.QPainterPath()
             path.addText(x, y, font, text)
             painter.drawPath(path)
-
 
         draw_separator_line()
 

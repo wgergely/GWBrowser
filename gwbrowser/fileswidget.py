@@ -21,7 +21,6 @@ addittional data. The model will also try to generate thumbnails for any
 ``OpenImageIO`` readable file-format via its workers.
 
 """
-
 import sys
 import time
 import traceback
@@ -67,7 +66,7 @@ class FileInfoWorker(BaseWorker):
     @staticmethod
     @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, update=True, exists=False):
+    def process_index(index, exists=False):
         """The main processing function called by the worker.
         Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
 
@@ -101,10 +100,9 @@ class FileInfoWorker(BaseWorker):
             todocount = 0
         data[common.TodoCountRole] = todocount
 
-        # For sequence items we will work out the name of the sequence
-        # based on the frames contained in the sequence
-        # This is a moderately costly operation hence, we're doing this here
-        # on the thread...
+        # For sequence items we will work out the name of the sequence based on
+        # the frames contained in the sequence This seems like a moderately
+        # costly operation, hence we're doing this here in the thread...
         if data[common.TypeRole] == common.SequenceItem:
             intframes = [int(f) for f in data[common.FramesRole]]
             padding = len(data[common.FramesRole][0])
@@ -125,7 +123,8 @@ class FileInfoWorker(BaseWorker):
             data[QtCore.Qt.DisplayRole] = seqname
             data[QtCore.Qt.EditRole] = seqname
 
-            # File description string
+            # We saved the DirEntry instances previously in `__initdata__` but
+            # only for the thread to extract the information from it.
             if data[common.EntryRole]:
                 mtime = 0
                 for entry in data[common.EntryRole]:
@@ -145,7 +144,8 @@ class FileInfoWorker(BaseWorker):
                     size=common.byte_to_string(data[common.SortBySize])
                 )
                 data[common.FileDetailsRole] = info_string
-        else:
+
+        if data[common.TypeRole] == common.FileItem:
             if data[common.EntryRole]:
                 stat = data[common.EntryRole][0].stat()
                 mtime = stat.st_mtime
@@ -182,9 +182,14 @@ class FileInfoWorker(BaseWorker):
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
 
-        # Forces a ui repaint to show the data-change
-        if update:
-            index.model().indexUpdated.emit(index)
+        # Let's discard the DirEntries we no longer need
+        try:
+            for n, _ in enumerate(data[common.EntryRole]):
+                del data[common.EntryRole][n]
+        except:
+            pass
+        data[common.EntryRole] = []
+        index.model().updateIndex.emit(index)
 
 
 class SecondaryFileInfoWorker(FileInfoWorker):
@@ -205,28 +210,27 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(1)  # Will wait 1 sec between each tries
+                time.sleep(1.5)  # Will wait n secs between each tries
 
-                if not self.model:
+                model = self.model
+                if not model:
                     continue
-                if self.model.file_info_loaded:
+                if model.file_info_loaded:
                     continue
 
                 all_loaded = True
-                data = self.model.model_data()
-                for n in xrange(self.model.rowCount()):
-                    index = self.model.index(n, 0)
+                data = model.model_data()
+                for n in xrange(model.rowCount()):
+                    index = model.index(n, 0)
 
                     if not data[n][common.FileInfoLoaded]:
-                        self.model.InfoThread.Worker.process_index(index, update=True)
+                        model.InfoThread.Worker.process_index(index)
                         all_loaded = False
 
-                    if not data[n][common.FileThumbnailLoaded]:
-                        self.model.ThumbnailThread.Worker.process_index(
-                            index, update=True, make=False)
-
                 if all_loaded:
-                    self.model.file_info_loaded = True
+                    model.file_info_loaded = True
+                    model.sort_data() # Let's re-sort the data
+
         except:
             sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
         finally:
@@ -302,8 +306,7 @@ class FileThumbnailWorker(BaseWorker):
                 data[common.ThumbnailRole] = image
                 data[common.ThumbnailBackgroundRole] = color
                 data[common.FileThumbnailLoaded] = True
-                if update:
-                    index.model().indexUpdated.emit(index)
+                index.model().updateIndex.emit(index)
                 return
 
         # If the item doesn't have a saved thumbnail we will check if
@@ -316,12 +319,10 @@ class FileThumbnailWorker(BaseWorker):
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
             data[common.ThumbnailRole] = spinner_pixmap
             data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
+
             data[common.FileThumbnailLoaded] = False
+            index.model().updateIndex.emit(index)
 
-            if update:
-                model.indexUpdated.emit(index)
-
-            # Emits an indexUpdated signal if successfully generated the thumbnail
             oiio_make_thumbnail(index, update=update)
 
 
@@ -443,8 +444,6 @@ class FilesModel(BaseModel):
                 item[common.ThumbnailPathRole] = None
                 item[common.ThumbnailRole] = placeholder_image
                 item[common.ThumbnailBackgroundRole] = default_background_color
-                #
-                item[common.SubdirRectRole] = None
 
     def _entry_iterator(self, path):
         for entry in gwscandir.scandir(path):

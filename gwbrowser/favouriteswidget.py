@@ -225,8 +225,6 @@ class FavouritesModel(FilesModel):
                 # Favourites don't have modified and size attributes
                 common.SortByLastModified: len(sortbyname),
                 common.SortBySize: len(sortbyname),
-                #
-                common.TextSegmentRole: None
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -287,9 +285,7 @@ class FavouritesModel(FilesModel):
                         common.TypeRole: common.SequenceItem,
                         common.SortByName: seqpath,
                         common.SortByLastModified: len(seqpath),
-                        common.SortBySize: len(seqpath),
-                        #
-                        common.TextSegmentRole: None
+                        common.SortBySize: len(seqpath)
                     }
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
             else:
