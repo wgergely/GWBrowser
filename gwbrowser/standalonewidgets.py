@@ -197,6 +197,12 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         if not all((width, height, x, y)):  # skip if not saved yet
             return
+
+        width = int(width)
+        height = int(height)
+        x = int(x)
+        y = int(y)
+
         size = QtCore.QSize(width, height)
         pos = QtCore.QPoint(x, y)
         # pos = self.mapFromGlobal(pos)
@@ -225,8 +231,9 @@ class StandaloneBrowserWidget(BrowserWidget):
             return
         if self.accept_resize_event(event):
             w = self.stackedwidget.currentWidget()
+            #
             if hasattr(w, u'viewport'):
-                w.viewport().setHidden(True)
+                w.viewport().setUpdatesEnabled(False)
 
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
@@ -279,7 +286,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         w = self.stackedwidget.currentWidget()
 
         if hasattr(w, u'viewport'):
-            w.viewport().setHidden(False)
+            w.viewport().setUpdatesEnabled(True)
 
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
             self.save_widget_settings()
