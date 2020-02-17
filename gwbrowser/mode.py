@@ -34,10 +34,11 @@ def prune(func):
 
 def file_path():
     """The path to this session's lock-file."""
-    path = u'{tmp}/gwbrowser/session_{pid}.lock'.format(
-        tmp=QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.TempLocation),
-        pid=os.getpid()
+    path = u'{}/{}/session_{}.lock'.format(
+        QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation),
+        common.PRODUCT,
+        os.getpid()
     )
     file_info = QtCore.QFileInfo(path)
     if not file_info.exists():
