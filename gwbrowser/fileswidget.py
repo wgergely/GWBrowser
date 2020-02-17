@@ -181,6 +181,9 @@ class FileInfoWorker(BaseWorker):
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
+        # Flush the delegate's text segment cache
+        data[common.TextSegmentRole] = None
+        data[common.InfoSegmentRole] = None
 
         # Forces a ui repaint to show the data-change
         if update:
@@ -443,6 +446,8 @@ class FilesModel(BaseModel):
                 item[common.ThumbnailPathRole] = None
                 item[common.ThumbnailRole] = placeholder_image
                 item[common.ThumbnailBackgroundRole] = default_background_color
+                #
+                item[common.SubdirRectRole] = None
 
     def _entry_iterator(self, path):
         for entry in gwscandir.scandir(path):
@@ -467,7 +472,7 @@ class FilesModel(BaseModel):
                 delegate.ROW_HEIGHT - common.ROW_SEPARATOR,
                 overwrite=overwrite
             )
-            k = u'{}:BackgroundColor'.format(_ext_path)
+            k = u'{}:BackgroundColor'.format(_ext_path).lower()
             d[u'{}:BackgroundColor'.format(ext)] = ImageCache._data[k]
 
         d[u'placeholder'] = ImageCache.get(
@@ -623,6 +628,10 @@ class FilesModel(BaseModel):
                 common.SortByName: filepath,
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
+                #
+                common.TextSegmentRole: None,
+                common.InfoSegmentRole: None,
+                common.SubdirRectRole: None,
             }
 
             # If the file in question is a sequence, we will also save a reference
@@ -687,6 +696,10 @@ class FilesModel(BaseModel):
                         common.SortByName: seqpath,
                         common.SortByLastModified: 0,
                         common.SortBySize: 0,  # Initializing with null-size
+                        #
+                        common.TextSegmentRole: None,
+                        common.InfoSegmentRole: None,
+                        common.SubdirRectRole: None,
                     }
 
                 seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
@@ -1135,7 +1148,6 @@ class FilesWidget(ThreadedBaseWidget):
         path = path.strip(u'/')
         if no_modifier:
             pixmap = index.data(common.ThumbnailRole)
-            pixmap = QtGui.QPixmap.fromImage(pixmap)
             if not pixmap:
                 pixmap = ImageCache.get_rsc_pixmap(
                     u'files', common.SECONDARY_TEXT, height)
