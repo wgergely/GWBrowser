@@ -26,7 +26,7 @@ class Slacker(QtCore.QObject):
     def profiles(self):
         response = self.__connection__.api_call("users.list")
         if not response['ok']:
-            raise RuntimeError(response['error'])
+            return []
 
         profiles = []
         for member in response[u'members']:
@@ -60,7 +60,6 @@ class Slacker(QtCore.QObject):
             raise RuntimeError(response[u'error'])
 
 
-
 class ImageDownloader(QtCore.QObject):
     """Utility class to download an image from a url. Used by the drag and drop operations."""
 
@@ -89,8 +88,8 @@ class ImageDownloader(QtCore.QObject):
         format = file_name.split(u'.').pop()
 
         # Cache directory
-        temp = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.TempLocation)
-        temp = u'{}/gwbrowser/temp'.format(temp)
+        temp = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.GenericDataLocation)
+        temp = u'{}/{}/slack'.format(temp, common.PRODUCT)
         cache_file_path = u'{}/source_{}'.format(temp, file_name)
         QtCore.QDir(temp).mkpath('.')
 
@@ -110,8 +109,6 @@ class ImageDownloader(QtCore.QObject):
             dest_size=32.0,
         )
 
-        # image = QtGui.QImage()
-        # loaded = image.loadFromData(data, format=format)
         image = QtGui.QImage(dest, format=u'png')
         image = ImageCache.resize_image(image, 24.0)
         # icon = QtGui.QIcon(pixmap)
@@ -253,7 +250,7 @@ QListView::item:selected {{
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
         v = local_settings.value(k)
-        
+
         if not v:
             return
 
@@ -369,7 +366,6 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         t = self.message_widget.toPlainText().strip()
         self.message_widget.setText(t)
 
-
     def clear_message(self):
         self.message_widget.setPlainText(u'')
 
@@ -411,7 +407,8 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         self.parent().parent().listcontrolwidget.listChanged.emit(2)
         self.message_widget.setPlainText(u'')
 
-
+    def sizeHint(self):
+        return QtCore.QSize(200,120)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
