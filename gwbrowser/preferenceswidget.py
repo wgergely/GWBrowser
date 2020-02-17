@@ -11,8 +11,6 @@ import gwbrowser.slacker as slacker
 def get_sections(): return (
     {'name': u'General', 'description': u'Common Preferences',
         'cls': ApplicationSettingsWidget},
-    {'name': u'Servers', 'description': u'Server Preferences',
-        'cls': ServersSettingsWidget},
     {'name': u'Integrations', 'description': u'External Package Integrations',
         'cls': IntegrationSettingsWidget},
     {'name': u'Maya Plugin', 'description': u'Maya Plugin Settings', 'cls': MayaSettingsWidget},
@@ -314,7 +312,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
 
     def _init_values(self):
         slack_url = local_settings.value(self.get_preference(u'slack_url'))
-        val = slack_url if slack_url else common.SLACK_URL
+        val = slack_url if slack_url else None
         self.slack_url.setText(val)
 
         slack_token = local_settings.value(self.get_preference(u'slack_token'))
@@ -620,151 +618,6 @@ class TemplateSettingsWidget(BaseSettingsWidget):
             u'Description...', parent=row)
 
         self.layout().addStretch(1)
-
-
-class ServersSettingsWidget(BaseSettingsWidget):
-    """Dialog to edit the server configuration.
-
-    The server information is stored in the templates/servers.conf
-    and is supplied by the ``common.Server`` class. This widget will  write
-    directly into the configuration files.
-
-    """
-
-    def __init__(self, parent=None):
-        """
-        Properties:
-            primary_mac_editor:
-            primary_win_editor:
-            primary_description:
-
-            backup_mac_editor:
-            backup_win_editor:
-            backup_description:
-
-            local_mac_editor:
-            local_win_description:
-            local_description:
-
-        """
-        super(ServersSettingsWidget, self).__init__(
-            u'Server Settings', parent=parent)
-
-    def _createUI(self):
-        o = common.MARGIN
-        # Primary server
-        add_label(u'Primary server', parent=self)
-        row = add_row(u'MacOS', parent=self)
-        self.primary_mac_editor = add_line_edit(
-            u'eg. /Volumes/jobs...', parent=row)
-        row = add_row(u'Windows', parent=self, padding=o)
-        self.primary_win_editor = add_line_edit(
-            u'eg. //myserver/jobs...', parent=row)
-        row = add_row(u'Description', parent=self, padding=o)
-        self.primary_description = add_line_edit(
-            u'Enter a description...', parent=row)
-
-        # Backup server
-        add_label(u'Secondary server', parent=self)
-        row = add_row(u'MacOS', parent=self, padding=o)
-        self.backup_mac_editor = add_line_edit(
-            u'eg. /Volumes/jobs...', parent=row)
-        row = add_row(u'Windows', parent=self, padding=o)
-        self.backup_win_editor = add_line_edit(
-            u'eg. //myserver/jobs...', parent=row)
-        row = add_row(u'Description', parent=self, padding=o)
-        self.backup_description = add_line_edit(
-            u'Enter a description...', parent=row)
-
-        # Backup server
-        add_label(u'Local job folder', parent=self)
-        row = add_row(u'MacOS', parent=self, padding=o)
-        self.local_mac_editor = add_line_edit(u'eg. /jobs...', parent=row)
-        row = add_row(u'Windows', parent=self, padding=o)
-        self.local_win_editor = add_line_edit(u'eg. C:/jobs...', parent=row)
-        row = add_row(u'Description', parent=self, padding=o)
-        self.local_description = add_line_edit(
-            u'Enter a description...', parent=row)
-
-        self.layout().addStretch(1)
-        regex = QtCore.QRegExp(u'[a-zA-Z0-9:\s/_-]*')
-        validator = QtGui.QRegExpValidator(regex)
-        self.primary_mac_editor.setValidator(validator)
-        self.primary_win_editor.setValidator(validator)
-        self.primary_description.setValidator(validator)
-        self.backup_mac_editor.setValidator(validator)
-        self.backup_win_editor.setValidator(validator)
-        self.backup_description.setValidator(validator)
-        self.local_mac_editor.setValidator(validator)
-        self.local_win_editor.setValidator(validator)
-        self.local_description.setValidator(validator)
-
-    def _connectSignals(self):
-        self.primary_mac_editor.textChanged.connect(self.save_settings)
-        self.primary_win_editor.textChanged.connect(self.save_settings)
-        self.primary_description.textChanged.connect(self.save_settings)
-        self.backup_mac_editor.textChanged.connect(self.save_settings)
-        self.backup_win_editor.textChanged.connect(self.save_settings)
-        self.backup_description.textChanged.connect(self.save_settings)
-        self.local_mac_editor.textChanged.connect(self.save_settings)
-        self.local_win_editor.textChanged.connect(self.save_settings)
-        self.local_description.textChanged.connect(self.save_settings)
-
-    def _init_values(self):
-        """Populates the edit fields with the saved values."""
-        parser = common.Server.conf()
-
-        def _get(section, key):
-            try:
-                return parser.get(section, key)
-            except:
-                return u''
-
-        self.primary_mac_editor.setText(_get(u'primary', u'mac'))
-        self.primary_win_editor.setText(_get(u'primary', u'win'))
-        self.primary_description.setText(_get(u'primary', u'description'))
-
-        self.backup_mac_editor.setText(_get(u'backup', u'mac'))
-        self.backup_win_editor.setText(_get(u'backup', u'win'))
-        self.backup_description.setText(_get(u'backup', u'description'))
-
-        self.local_mac_editor.setText(_get(u'local', u'mac'))
-        self.local_win_editor.setText(_get(u'local', u'win'))
-        self.local_description.setText(_get(u'local', u'description'))
-
-    def hideEvent(self, event):
-        self.save_settings()
-
-    @QtCore.Slot()
-    def save_settings(self):
-        """"""
-        values = {
-            u'primary:mac': self.primary_mac_editor.text().rstrip(u'/'),
-            u'primary:win': self.primary_win_editor.text().rstrip(u'/'),
-            u'primary:description': self.primary_description.text(),
-            u'backup:mac': self.backup_mac_editor.text().rstrip(u'/'),
-            u'backup:win': self.backup_win_editor.text().rstrip(u'/'),
-            u'backup:description': self.backup_description.text(),
-            u'local:mac': self.local_mac_editor.text().rstrip(u'/'),
-            u'local:win': self.local_win_editor.text().rstrip(u'/'),
-            u'local:description': self.local_description.text(),
-        }
-
-        parser = common.Server.conf()
-        for k in values:
-            section, key = k.split(u':')
-            if not parser.has_section(section):
-                parser.add_section(section)
-            parser.set(section, key, values[k])
-
-        # Making the path if the folder doesn't exist
-        file_info = QtCore.QFileInfo(common.Server.config_path())
-        if not file_info.exists():
-            file_info.dir().mkpath(file_info.dir().path())
-
-        # Creating the config file if it doesn't exist
-        with open(common.Server.config_path(), u'w+') as configfile:
-            parser.write(configfile)
 
 
 class SectionSwitcherWidget(QtWidgets.QListWidget):
