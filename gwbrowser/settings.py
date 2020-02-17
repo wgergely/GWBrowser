@@ -22,8 +22,15 @@ def _bool(v):
             return False
         elif v.lower() == u'none':
             return None
-        if not v:
-            return None
+
+        try:
+            f = float(v)
+            if f.is_integer():
+                return int(f)
+            else:
+                return f
+        except:
+            return v
     return v
 
 
@@ -173,13 +180,15 @@ class LocalSettings(QtCore.QSettings):
     """
 
     def __init__(self, parent=None):
+        config_path = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation)
+        config_path = u'{}/{}/settings.ini'.format(config_path, common.PRODUCT)
+
         super(LocalSettings, self).__init__(
-            QtCore.QSettings.UserScope,
-            common.COMPANY,
-            common.PRODUCT,
+            config_path,
+            QtCore.QSettings.IniFormat,
             parent=parent
         )
-        self.setDefaultFormat(QtCore.QSettings.NativeFormat)
         self.internal_settings = {}
 
     def value(self, k):
@@ -214,7 +223,7 @@ class AssetSettings(QtCore.QSettings):
 
     The settings are stored in the current bookmark folder, eg:
     `{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.conf`, or
-    `{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.png`
+    `{bookmark}/.bookmark/986613d368816aa7e0ae910dfd863297.ext`
 
     The file-name is generated based on the file or folder's path name relative
     to the current bookmark folder using a md5 hash. For instance,
@@ -258,7 +267,7 @@ class AssetSettings(QtCore.QSettings):
 
         self._file_path = filepath
         self._config_path = config_path
-        self._thumbnail_path = config_path.replace(u'.conf', u'.png')
+        self._thumbnail_path = config_path.replace(u'.conf', u'.{}'.format(common.THUMBNAIL_FORMAT))
 
         super(AssetSettings, self).__init__(
             self.config_path(),
