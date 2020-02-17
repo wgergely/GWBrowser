@@ -917,7 +917,7 @@ class ThumbnailButton(ClickableIconButton):
         )
         self.__pixmap = None
         self.reset_thumbnail()
-        self.image = QtGui.QImage()
+        self.image = QtGui.QPixmap()
 
         tip = u'Right-click to add a thumbnail...'
         self.setToolTip(tip)
@@ -942,19 +942,13 @@ class ThumbnailButton(ClickableIconButton):
         self.setStyleSheet(
             u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
 
-        self.image = QtGui.QImage()
+        self.image = QtGui.QPixmap()
 
     def pixmap(self):
         if self.image.isNull():
             return super(ThumbnailButton, self).pixmap()
-
-        # Resizing for display
-        image = ImageCache.resize_image(
+        pixmap = ImageCache.resize_image(
             self.image, self.height())
-
-        pixmap = QtGui.QPixmap()
-        pixmap.convertFromImage(image)
-
         return pixmap
 
     @QtCore.Slot()
@@ -964,7 +958,7 @@ class ThumbnailButton(ClickableIconButton):
 
         @QtCore.Slot(unicode)
         def _add_thumbnail_from_library(path):
-            image = QtGui.QImage()
+            image = QtGui.QPixmap()
             if not image.load(path):
                 return
 
@@ -999,8 +993,8 @@ class ThumbnailButton(ClickableIconButton):
         if not dialog.selectedFiles():
             return
 
-        temp_path = u'{}/browser_temp_thumbnail_{}.png'.format(
-            QtCore.QDir.tempPath(), uuid.uuid1())
+        temp_path = u'{}/browser_temp_thumbnail_{}.{}'.format(
+            QtCore.QDir.tempPath(), uuid.uuid1(), common.THUMBNAIL_FORMAT)
 
         oiio_make_thumbnail(
             QtCore.QModelIndex(),
@@ -1008,7 +1002,7 @@ class ThumbnailButton(ClickableIconButton):
             dest=temp_path
         )
 
-        image = QtGui.QImage()
+        image = QtGui.QPixmap()
         image.load(temp_path)
         if image.isNull():
             return
@@ -1047,8 +1041,7 @@ class ThumbnailButton(ClickableIconButton):
             if pixmap.isNull():
                 return
 
-            image = ImageCache.resize_image(
-                pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
+            image = ImageCache.resize_image(pixmap, common.THUMBNAIL_IMAGE_SIZE)
             self.image = image
             self.update()
         except:

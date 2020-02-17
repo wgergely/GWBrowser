@@ -7,7 +7,6 @@ import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.addbookmarkswidget import AddBookmarksWidget
 from gwbrowser.addassetwidget import AddAssetWidget
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -37,10 +36,11 @@ def debug_signals(label, *args, **kwargs):
     print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
         time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs)
 
+
 class StatusBar(QtWidgets.QStatusBar):
     def __init__(self, height, parent=None):
         super(StatusBar, self).__init__(parent=parent)
-        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
         self.setSizeGripEnabled(False)
         self.setFixedHeight(height)
@@ -48,7 +48,7 @@ class StatusBar(QtWidgets.QStatusBar):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(self.rect())
 
@@ -57,16 +57,18 @@ class StatusBar(QtWidgets.QStatusBar):
         common.draw_aliased_text(
             painter,
             font,
-            self.rect().marginsRemoved(QtCore.QMargins(common.INDICATOR_WIDTH, 0, common.INDICATOR_WIDTH, 0)),
+            self.rect().marginsRemoved(QtCore.QMargins(
+                common.INDICATOR_WIDTH, 0, common.INDICATOR_WIDTH, 0)),
             u'  {}  '.format(self.currentMessage()),
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             common.TEXT
         )
-        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
         rect = self.rect()
         rect.setHeight(common.ROW_SEPARATOR)
         painter.drawRect(rect)
         painter.end()
+
 
 class TrayMenu(BaseContextMenu):
     """The context-menu associated with the BrowserButton."""
@@ -105,17 +107,17 @@ class TrayMenu(BaseContextMenu):
             self.parent().showNormal()
             self.parent().activateWindow()
 
-        menu_set['Keep on top of other windows'] = {
-            'checkable': True,
-            'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
-            'action': toggle_window_flag
+        menu_set[u'Keep on top of other windows'] = {
+            u'checkable': True,
+            u'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
+            u'action': toggle_window_flag
         }
-        menu_set['Restore window...'] = {
-            'action': self.show_window
+        menu_set[u'Restore window...'] = {
+            u'action': self.show_window
         }
-        menu_set['separator1'] = {}
-        menu_set['Quit'] = {
-            'action': self.parent().shutdown.emit
+        menu_set[u'separator1'] = {}
+        menu_set[u'Quit'] = {
+            u'action': self.parent().shutdown.emit
         }
         return menu_set
 
@@ -324,11 +326,11 @@ class ToggleModeButton(QtWidgets.QWidget):
         painter.begin(self)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(self.rect())
 
-        painter.setBrush(QtGui.QColor(0,0,0,30))
+        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
         rect = self.rect()
         rect.setHeight(common.ROW_SEPARATOR)
         painter.drawRect(rect)
@@ -343,7 +345,7 @@ class ToggleModeButton(QtWidgets.QWidget):
         painter.setPen(pen)
         painter.setOpacity(self.animation.currentValue())
         rect = QtCore.QRectF(self.rect())
-        rect = rect.marginsRemoved(QtCore.QMarginsF(o,o,o,o))
+        rect = rect.marginsRemoved(QtCore.QMarginsF(o, o, o, o))
         center = self.rect().center()
 
         size = QtCore.QSizeF(rect.width() - (o), rect.height() - (o))
@@ -405,7 +407,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.favouriteswidget = None
         self.statusbar = None
         self.preferences_widget = None
-        self.add_bookmarks_widget = None
         self.slack_widget = None
         self.solo_button = None
 
@@ -448,15 +449,14 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget = FilesWidget(parent=self)
         self.favouriteswidget = FavouritesWidget(parent=self)
         self.preferences_widget = PreferencesWidget(parent=self)
-        self.add_bookmarks_widget = AddBookmarksWidget(parent=self)
         self.slack_widget = slacker.SlackMessageWidget(parent=self)
+        # self.slack_widget.hide()
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
         self.stackedwidget.addWidget(self.preferences_widget)
-        self.stackedwidget.addWidget(self.add_bookmarks_widget)
         self.stackedwidget.addWidget(self.slack_widget)
         self.stackedwidget.addWidget(AddAssetWidget(parent=self.stackedwidget))
         self.listcontrolwidget = ListControlWidget(parent=self)
@@ -465,11 +465,10 @@ class BrowserWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 
-
         height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
         row = add_row(None, padding=0, height=height, parent=self)
         row.layout().setSpacing(0)
-        row.layout().setContentsMargins(0,0,0,0)
+        row.layout().setContentsMargins(0, 0, 0, 0)
 
         self.statusbar = StatusBar(height, parent=self)
         self.solo_button = ToggleModeButton(height, parent=self)
@@ -715,7 +714,7 @@ class BrowserWidget(QtWidgets.QWidget):
         delegate.ROW_HEIGHT -= 12
         delegate.SMALL_FONT_SIZE -= 0.3
 
-        for n in (2,3):
+        for n in (2, 3):
             view = self.stackedwidget.widget(n)
             model = view.model().sourceModel()
             model.reset_thumbnails()

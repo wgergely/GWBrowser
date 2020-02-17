@@ -11,7 +11,7 @@ Example:
 .. code-block:: python
     :linenos:
 
-    ScreenGrabber.screen_capture_file(output_path='C:/temp/screengrab.png')
+    ScreenGrabber.screen_capture_file(output_path='C:/temp/screengrab.ext')
 
 
 """
@@ -212,8 +212,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         # seem to work.
         if common.get_platform() == u'mac':
             temppath = tempfile.NamedTemporaryFile(
-                suffix='.png',
-                prefix='gwbrowser_screencapture_',
+                suffix=u'.'.format(common.THUMBNAIL_FORMAT),
+                prefix=u'gwbrowser_screencapture_',
                 delete=False
             ).name
 
@@ -295,10 +295,8 @@ class ScreenGrabber(QtWidgets.QDialog):
         is specified returns the captured pixmap.
         """
         pixmap = cls.screen_capture()
-
         if not pixmap:
             return None
-
         if not output_path:
             return pixmap
 

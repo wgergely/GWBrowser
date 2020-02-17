@@ -82,9 +82,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
         if not file_info.exists():
             self.clear()
             if index.data(common.ThumbnailRole):
-                pixmap = QtGui.QPixmap.fromImage(
-                    index.data(common.ThumbnailRole))
-                self.setPixmap(pixmap)
+                self.setPixmap(index.data(common.ThumbnailRole))
             return
 
         pixmap = QtGui.QPixmap(settings.thumbnail_path())
@@ -95,9 +93,8 @@ class ThumbnailViewer(QtWidgets.QLabel):
 
         self.clear()
         if pixmap.width() > common.THUMBNAIL_IMAGE_SIZE or pixmap.height() > common.THUMBNAIL_IMAGE_SIZE:
-            image = ImageCache.resize_image(
+            pixmap = ImageCache.resize_image(
                 pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
-            pixmap = QtGui.QPixmap.fromImage(image)
         self.setPixmap(pixmap)
 
     def paintEvent(self, event):
@@ -254,7 +251,8 @@ QLineEdit {{
     def action(self):
         """Main actions to run when the return key is pressed."""
         index = self.parent().selectionModel().currentIndex()
-        if index.data(common.DescriptionRole).lower() == self.text().lower():
+        text = u'{}'.format(index.data(common.DescriptionRole))
+        if text.lower() == self.text().lower():
             self.hide()
             return
 
@@ -298,7 +296,7 @@ QLineEdit {{
         self.setGeometry(rect)
 
         # Set the text and select it
-        self.setText(index.data(common.DescriptionRole))
+        self.setText(u'{}'.format(index.data(common.DescriptionRole)))
         self.selectAll()
 
     def showEvent(self, event):

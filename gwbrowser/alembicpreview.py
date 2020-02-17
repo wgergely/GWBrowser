@@ -15,7 +15,7 @@ HEIGHT = 1024.0
 
 
 def get_alembic_thumbnail(path):
-    """Renders the alembic structure as a QImage."""
+    """Renders the alembic structure as a QPixmap."""
     widget = AlembicView(path)
     pixmap = QtGui.QPixmap(WIDTH, HEIGHT)
     painter = QtGui.QPainter()

@@ -51,7 +51,6 @@ MarkedAsActive = 0b100000000000
 
 COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
-SLACK_URL = ur'https://gwbcn.slack.com/'
 ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
 
 
@@ -76,9 +75,9 @@ def create_temp_dir():
 
 def get_favourite_parent_paths():
     server = QtCore.QStandardPaths.writableLocation(
-        QtCore.QStandardPaths.TempLocation)
-    job = u'gwbrowser'
-    root = u'favourites'
+        QtCore.QStandardPaths.GenericDataLocation)
+    job = u'{}'.format(PRODUCT)
+    root = u'local'
     return server, job, root
 
 
@@ -102,10 +101,7 @@ def save_favourites():
     favourites = local_settings.value(u'favourites')
     favourites = [f.lower() for f in favourites] if favourites else []
 
-    server = QtCore.QStandardPaths.writableLocation(
-        QtCore.QStandardPaths.TempLocation)
-    job = u'gwbrowser'
-    root = u'favourites'
+    server, job, root = get_favourite_parent_paths()
     zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
 
     # Make sure the temp folder exists
@@ -120,9 +116,12 @@ def save_favourites():
                 root=root,
                 filepath=favourite
             )
+
+            # Adding thumbnail to zip
             file_info = QtCore.QFileInfo(settings.thumbnail_path())
             if not file_info.exists():
                 continue
+
             z.write(file_info.filePath(), file_info.fileName())
             file_info = QtCore.QFileInfo(settings.config_path())
             if not file_info.exists():
@@ -133,12 +132,12 @@ def save_favourites():
     file_info = QtCore.QFileInfo(zip_path)
     if not file_info.exists():
         raise RuntimeError(
-            u'Unexpected error, could not find the favrouites file')
+            u'Unexpected error occured: could not find the favourites file')
 
     QtCore.QDir().rename(file_info.filePath(), destination)
     if not QtCore.QFileInfo(destination).exists():
         raise RuntimeError(
-            u'Unexpected error, could not find the favrouites file')
+            u'Unexpected error occured: could not find the favourites file')
     reveal(destination)
 
 
@@ -258,8 +257,8 @@ class Server(object):
     @classmethod
     def config_path(cls):
         """Returns the path to ``server.conf``."""
-        datadir = next(f for f in QtCore.QStandardPaths.standardLocations(
-            QtCore.QStandardPaths.DocumentsLocation))
+        datadir = QtCore.QStandardPaths.standardLocations(
+            QtCore.QStandardPaths.GenericDataLocation)[0]
         path = u'{}/{}/servers.conf'.format(datadir, PRODUCT)
         path = os.path.normpath(path)
         path = os.path.abspath(path)
@@ -455,10 +454,11 @@ HEIGHT = 480.0
 
 INLINE_ICON_SIZE = 18.0
 THUMBNAIL_IMAGE_SIZE = 840.0
+THUMBNAIL_FORMAT = u'jpg'
 
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
-SECONDARY_BACKGROUND = QtGui.QColor(70, 70, 70)
-BACKGROUND = QtGui.QColor(95, 95, 95)
+SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
+BACKGROUND = QtGui.QColor(80, 80, 80)
 THUMBNAIL_BACKGROUND = SECONDARY_BACKGROUND
 
 TEXT = QtGui.QColor(220, 220, 220)
@@ -468,7 +468,7 @@ TEXT_DISABLED = QtGui.QColor(140, 140, 140)
 TEXT_NOTE = QtGui.QColor(150, 150, 255)
 SECONDARY_TEXT = QtGui.QColor(170, 170, 170)
 
-SEPARATOR = QtGui.QColor(50, 50, 50)
+SEPARATOR = QtGui.QColor(45, 45, 45)
 FAVOURITE = QtGui.QColor(107, 126, 180)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
@@ -605,6 +605,9 @@ TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
 SettingsRole = 1044
+TextSegmentRole = 1045
+InfoSegmentRole = 1046
+SubdirRectRole = 1047
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -617,9 +620,6 @@ LowerCase = 0
 UpperCase = 1
 """Filename styles"""
 
-
-FilterTextRegex = re.compile(ur'[^0-9\.\#\-\_\/a-zA-Z]+')
-"""This is the valid string accepted by the filter editor."""
 
 SORT_WITH_BASENAME = False
 
@@ -774,60 +774,6 @@ def reveal(path):
 
     raise NotImplementedError('{} os has not been implemented.'.format(
         QtCore.QSysInfo().productType()))
-
-
-NoHighlightFlag = 0b000000
-HeadingHighlight = 0b000001
-QuoteHighlight = 0b000010
-ItalicsHighlight = 0b001000
-BoldHighlight = 0b010000
-PathHighlight = 0b100000
-
-HIGHLIGHT_RULES = {
-    u'url': {
-        u're': re.compile(
-            ur'((?:rvlink|file|http)[s]?:[/\\][/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': PathHighlight
-    },
-    u'drivepath': {
-        u're': re.compile(
-            ur'((?:[a-zA-Z]{1})[s]?:[/\\](?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': PathHighlight
-    },
-    u'uncpath': {
-        u're': re.compile(
-            ur'([/\\]{1,2}(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)',
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': PathHighlight
-    },
-    u'heading': {
-        u're': re.compile(
-            ur'^(?<!#)#{1,2}(?!#)',
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': HeadingHighlight
-    },
-    u'quotes': {
-        u're': re.compile(
-            # Group(2) captures the contents
-            ur'([\"\'])((?:(?=(\\?))\3.)*?)\1',
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': QuoteHighlight
-    },
-    u'italics': {
-        u're': re.compile(
-            ur'([\_])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': ItalicsHighlight
-    },
-    u'bold': {
-        u're': re.compile(
-            ur'([\*])((?:(?=(\\?))\3.)*?)\1',  # Group(2) captures the contents
-            flags=re.IGNORECASE | re.UNICODE | re.MULTILINE),
-        u'flag': BoldHighlight
-    },
-}
 
 
 def get_ranges(arr, padding):
@@ -1054,7 +1000,7 @@ def draw_aliased_text(painter, font, rect, text, align, color):
         elide = QtCore.Qt.ElideMiddle
 
     text = metrics.elidedText(
-        text,
+        u'{}'.format(text),
         elide,
         rect.width() + 2)
     width = metrics.width(text)
@@ -1356,6 +1302,3 @@ def push_to_rv(path):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
-
-
-create_temp_dir()
