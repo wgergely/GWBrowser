@@ -605,9 +605,6 @@ TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
 SettingsRole = 1044
-TextSegmentRole = 1045
-InfoSegmentRole = 1046
-SubdirRectRole = 1047
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -1029,25 +1026,6 @@ def draw_aliased_text(painter, font, rect, text, align, color):
 
     painter.restore()
     return width
-
-
-def find_largest_file(index):
-    """Finds the sequence's largest file from sequence filepath.
-    The largest files of the sequence will probably hold enough visual information
-    to be used a s thumbnail image.: )
-
-    """
-    entries = index.data(EntryRole)
-    if not entries:
-        if index.data(TypeRole) == SequenceItem:
-            return index.data(SequenceRole).expand(
-                ur'\1{}\3.\4'.format(index.data(FramesRole)[0]))
-        else:
-            return index.data(QtCore.Qt.StatusTipRole)
-
-    def key(x): return x.stat().st_size
-    entry = max(index.data(EntryRole), key=key)
-    return entry.path
 
 
 def mount():
