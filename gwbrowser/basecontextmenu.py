@@ -429,7 +429,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[u'Capture screen'] = {
             u'icon': capture_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().capture, source_index)}
+            u'action': functools.partial(ImageCache.capture, source_index)}
 
         # Submenu for picking a thumbnail from our internal thumbnail library
         @QtCore.Slot(unicode)
@@ -456,7 +456,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[u'Add from file...'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.instance().pick, source_index)}
+            u'action': functools.partial(ImageCache.pick, source_index)}
 
         menu_set[u'separator.'] = {}
         ext = QtCore.QFileInfo(source_index.data(
@@ -464,13 +464,13 @@ class BaseContextMenu(QtWidgets.QMenu):
         valid = ext in [f.lower() for f in common.get_oiio_extensions()]
         if exists and source_index.model().generate_thumbnails and valid:
             menu_set[u'Remove'] = {
-                u'action': lambda: ImageCache.instance().remove(source_index),
+                u'action': lambda: ImageCache.remove(source_index),
                 u'text': u'Update thumbnail',
                 u'icon': refresh_thumbnail_pixmap
             }
         elif exists:
             menu_set[u'Remove'] = {
-                u'action': lambda: ImageCache.instance().remove(source_index),
+                u'action': lambda: ImageCache.remove(source_index),
                 u'icon': remove_thumbnail_pixmap
             }
         menu_set[u'Reveal thumbnail cache'] = {
@@ -488,7 +488,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Add bookmark'] = {
             u'text': 'Add bookmark...',
             u'icon': pixmap,
-            u'action': lambda: self.parent().parent().parent().listcontrolwidget.listChanged.emit(5)
+            u'action': lambda: self.parent().manage_bookmarks.show()
         }
         return menu_set
 
