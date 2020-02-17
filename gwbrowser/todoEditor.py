@@ -246,8 +246,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
             QtWidgets.QSizePolicy.Fixed
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setMouseTracking(True)
-
         self.document().setUseDesignMetrics(True)
         self.document().setHtml(text)
         self.document().contentsChanged.connect(self.contentChanged)
@@ -531,7 +529,6 @@ class CheckBoxButton(QtWidgets.QLabel):
 
         self.setAttribute(QtCore.Qt.WA_Hover, True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.set_pixmap(self._checked)
@@ -636,7 +633,6 @@ class TodoEditors(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
 
-        self.setMouseTracking(True)
         self.setAcceptDrops(True)
 
         self.separator = Separator(parent=self)
@@ -793,7 +789,6 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.save_timer.timeout.connect(self.save_settings)
 
         self.setWindowTitle(u'Notes and Tasks')
-        self.setMouseTracking(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self._createUI()

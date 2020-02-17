@@ -754,8 +754,6 @@ class BaseListWidget(QtWidgets.QListView):
             k) is None else local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
-        # self.setMouseTracking(True)
-        self.viewport().setMouseTracking(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
 
@@ -1927,7 +1925,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             self.restart_timer)
 
         # Initializing the indexes
-        self.setMouseTracking(True)
         self.entered.connect(self.restart_timer)
         self.model().sourceModel().dataSorted.connect(self.restart_timer)
         self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)

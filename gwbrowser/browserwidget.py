@@ -393,7 +393,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
-        self.setMouseTracking(True)
 
         self._contextMenu = None
         self._initialized = False

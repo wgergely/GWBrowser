@@ -686,7 +686,6 @@ class ListControlWidgetDropOverlay(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ListControlWidgetDropOverlay, self).__init__(parent=parent)
         self.setAcceptDrops(True)
-        self.setMouseTracking(True)
         self.drop_target = True
         self.setWindowFlags(
             QtCore.Qt.Window |
