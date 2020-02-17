@@ -21,41 +21,26 @@ import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 
 
-class BookmarkInfo(QtCore.QFileInfo):
-    """QFileInfo for bookmarks."""
+def count_assets(path):
+    """Counts number of assets found inside `path`.
 
-    def __init__(self, bookmark, parent=None):
-        self.server = bookmark[u'server']
-        self.job = bookmark[u'job']
-        self.root = bookmark[u'root']
-        self.exists = None
+    Args:
+        path (unicode): A path to a directory.
 
-        path = u'{}/{}/{}'.format(self.server, self.job, self.root)
-        super(BookmarkInfo, self).__init__(path, parent=parent)
+    Returns:
+        int: The number of assets found.
 
-        if not QtCore.QFileInfo(path).exists():
-            self.size = lambda: 0
-            self.count = lambda: 0
-            self.exists = lambda: False
-            return
-
-        self.exists = lambda: True
-        self.size = lambda: self.count_assets(path)
-        self.count = lambda: self.count_assets(path)
-
-    @staticmethod
-    def count_assets(path):
-        """Returns the number of assets inside the given folder."""
-        count = 0
-        for entry in gwscandir.scandir(path):
-            if not entry.is_dir():
-                continue
-            identifier_path = u'{}/{}'.format(
-                entry.path,
-                common.ASSET_IDENTIFIER)
-            if QtCore.QFileInfo(identifier_path).exists():
-                count += 1
-        return count
+    """
+    count = 0
+    for entry in gwscandir.scandir(path):
+        if not entry.is_dir():
+            continue
+        identifier_path = u'{}/{}'.format(
+            entry.path,
+            common.ASSET_IDENTIFIER)
+        if QtCore.QFileInfo(identifier_path).exists():
+            count += 1
+    return count
 
 
 class BookmarksWidgetContextMenu(BaseContextMenu):
@@ -122,70 +107,69 @@ class BookmarksModel(BaseModel):
             common.FileItem: {}, common.SequenceItem: {}}
 
         rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
+        _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
         active_paths = Active.paths()
-
-        items = local_settings.value(
-            u'bookmarks') if local_settings.value(u'bookmarks') else []
-        items = [BookmarkInfo(items[k]) for k in items]
-        items = sorted(items, key=lambda x: x.filePath())
-
-        thumbcolor = QtGui.QColor(common.SEPARATOR)
-        thumbcolor.setAlpha(100)
-        default_thumbnail_image = ImageCache.get_rsc_pixmap(
-            u'bookmark_sm',
-            thumbcolor,
-            common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR)
-        default_thumbnail_image = default_thumbnail_image.toImage()
 
         favourites = local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         favourites = set(favourites)
 
-        for file_info in items:
-            # Let's make sure the Browser's configuration folder exists
-            # This folder lives in the root of the bookmarks folder and is
-            # created here if not created previously.
-            if file_info.exists():
-                _confpath = u'{}/.bookmark/'.format(file_info.filePath())
-                _confpath = QtCore.QFileInfo(_confpath)
-                QtCore.QDir().mkpath(_confpath.filePath())
+        bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = bookmarks if bookmarks else {}
 
-            flags = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable
+        for k, v in bookmarks.iteritems():
+            file_info = QtCore.QFileInfo(k)
 
-            if not file_info.exists():
-                flags = flags | common.MarkedAsArchived
+            exists = file_info.exists()
+            if exists:
+                flags = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable
+                count = count_assets(k)
+                placeholder_image = ImageCache.get_rsc_pixmap(
+                    u'bookmark_sm', common.ADD, _height)
+                default_thumbnail_image = ImageCache.get_rsc_pixmap(
+                    u'bookmark_sm', common.ADD, _height)
+                default_background_color = common.SEPARATOR
+            else:
+                count = 0
+                flags = QtCore.Qt.NoItemFlags | common.MarkedAsArchived
 
-            # Active
-            if (
-                file_info.server == active_paths[u'server'] and
-                file_info.job == active_paths[u'job'] and
-                file_info.root == active_paths[u'root']
-            ):
+                placeholder_image = ImageCache.get_rsc_pixmap(
+                    u'remove', common.REMOVE, _height)
+                default_thumbnail_image = ImageCache.get_rsc_pixmap(
+                    u'remove', common.REMOVE, _height)
+                default_background_color = common.SEPARATOR
+
+            filepath = file_info.filePath().lower()
+
+            # Check if this bookmark is active
+            if all((
+                v[u'server'] == active_paths[u'server'],
+                v[u'job'] == active_paths[u'job'],
+                v[u'bookmark_folder'] == active_paths[u'root']
+            )):
                 flags = flags | common.MarkedAsActive
 
-            if file_info.filePath().lower() in favourites:
+            if filepath.lower() in favourites:
                 flags = flags | common.MarkedAsFavourite
 
             data = self.model_data()
             idx = len(data)
 
-            text = u'{}   |   {}'.format(file_info.job, file_info.root)
-            text = text.replace(u'_', u' ')
-            text = text.replace(u'/', u' / ')
+            text = u'{}  |  {}'.format(v['job'], v['bookmark_folder'])
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
-                QtCore.Qt.EditRole: file_info.job,
-                QtCore.Qt.StatusTipRole: file_info.filePath(),
-                QtCore.Qt.ToolTipRole: file_info.filePath(),
+                QtCore.Qt.EditRole: text,
+                QtCore.Qt.StatusTipRole: filepath,
+                QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.EntryRole: [],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (file_info.server, file_info.job, file_info.root),
+                common.ParentPathRole: (v['server'], v['job'], v['bookmark_folder']),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
-                common.FileDetailsRole: file_info.size(),
+                common.FileDetailsRole: count,
                 common.SequenceRole: None,
                 common.EntryRole: [],
                 common.FileInfoLoaded: True,
@@ -193,18 +177,18 @@ class BookmarksModel(BaseModel):
                 common.EndpathRole: None,
                 common.AssetCountRole: file_info.size(),
                 #
-                common.DefaultThumbnailRole: QtGui.QImage(),
-                common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.DefaultThumbnailRole: placeholder_image,
+                common.DefaultThumbnailBackgroundRole: default_background_color,
                 common.ThumbnailPathRole: None,
-                common.ThumbnailRole: QtGui.QImage(),
-                common.ThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
+                common.ThumbnailRole: default_thumbnail_image,
+                common.ThumbnailBackgroundRole: default_background_color,
                 #
                 common.TypeRole: common.FileItem,
                 common.FileInfoLoaded: True,
                 #
-                common.SortByName: file_info.filePath(),
-                common.SortByLastModified: file_info.filePath(),
-                common.SortBySize: u'{}'.format(file_info.size()),
+                common.SortByName: filepath,
+                common.SortByLastModified: filepath,
+                common.SortBySize: count,
             }
 
             if not file_info.exists():
@@ -216,9 +200,7 @@ class BookmarksModel(BaseModel):
             data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
 
             image = ImageCache.get(
-                data[idx][common.ThumbnailPathRole],
-                rowsize.height() - common.ROW_SEPARATOR,
-                overwrite=True)
+                data[idx][common.ThumbnailPathRole], _height, overwrite=True)
 
             if image:
                 if not image.isNull():
@@ -228,13 +210,6 @@ class BookmarksModel(BaseModel):
 
                     data[idx][common.ThumbnailRole] = image
                     data[idx][common.ThumbnailBackgroundRole] = color
-
-            description = settings.value(u'config/description')
-            if not description:
-                data[idx][common.DescriptionRole] = file_info.filePath()
-                settings.setValue(u'config/description', file_info.filePath())
-            else:
-                data[idx][common.DescriptionRole] = description
 
             # Todos
             todos = settings.value(u'config/todos')
@@ -268,6 +243,29 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.setDropIndicatorShown(True)
         self.setWindowTitle(u'Bookmarks')
 
+        import gwbrowser.managebookmarks as managebookmarks
+
+        # Adding the bookmark manager widget
+        widget = QtWidgets.QScrollArea(parent=self)
+        widget.setWidgetResizable(True)
+        manage_widget = managebookmarks.ManageBookmarksWidget(parent=self)
+        widget.setWidget(manage_widget)
+        self.manage_bookmarks = widget
+        self.manage_bookmarks.hide()
+        self.parent().resized.connect(
+            lambda x: self.manage_bookmarks.setGeometry(self.viewport().geometry()))
+        widget.widget().hide_button.clicked.connect(self.manage_bookmarks.hide)
+
+        @QtCore.Slot(unicode)
+        def _update(bookmark):
+            self.model().sourceModel().blockSignals(True)
+            self.model().sourceModel().__initdata__()
+            self.model().invalidate()
+            self.model().sourceModel().blockSignals(False)
+        manage_widget.bookmark_list.bookmarkAdded.connect(_update)
+        manage_widget.bookmark_list.bookmarkRemoved.connect(_update)
+
+
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
@@ -294,6 +292,10 @@ class BookmarksWidget(BaseInlineIconWidget):
             return True
 
         return False
+
+    def showEvent(self, event):
+        self.manage_bookmarks.resize(self.viewport().geometry().size())
+        super(BookmarksWidget, self).showEvent(event)
 
     def inline_icons_count(self):
         """The number of row-icons an item has."""
@@ -364,7 +366,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         res = QtWidgets.QMessageBox(
             QtWidgets.QMessageBox.NoIcon,
             u'Remove bookmark?',
-            u'Are you sure you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
+            u'Do you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
             QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
             parent=self
         ).exec_()
@@ -380,16 +382,22 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         # Removing the bookmark
         k = index.data(QtCore.Qt.StatusTipRole)
-        bookmarks = local_settings.value(u'bookmarks')
-        bookmarks.pop(k, None)
-        local_settings.setValue(u'bookmarks', bookmarks)
+        d = local_settings.value(u'bookmarks')
+        if k.lower() in d:
+            del d[k.lower()]
+
+        local_settings.setValue(u'bookmarks', d)
+        local_settings.sync()
 
         if index == self.model().sourceModel().active_index():
             self.unset_activated()
             self.model().sourceModel().modelDataResetRequested.emit()
             return
-        else:
-            self.model().sourceModel().__initdata__()
+
+        self.model().sourceModel().blockSignals(True)
+        self.model().sourceModel().__initdata__()
+        self.model().invalidate()
+        self.model().sourceModel().blockSignals(False)
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
