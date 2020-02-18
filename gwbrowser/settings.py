@@ -215,18 +215,12 @@ class LocalSettings(QtCore.QSettings):
         if self._active_paths == active_paths:
             return
 
-        serverChanged = self._active_paths[u'server'].lower(
-        ) != active_paths[u'server'].lower()
-        jobChanged = self._active_paths[u'job'].lower(
-        ) != active_paths[u'job'].lower()
-        rootChanged = self._active_paths[u'root'].lower(
-        ) != active_paths[u'root'].lower()
-        assetChanged = self._active_paths[u'asset'].lower(
-        ) != active_paths[u'asset'].lower()
-        locationChanged = self._active_paths[u'location'].lower(
-        ) != active_paths[u'location'].lower()
-        fileChanged = self._active_paths[u'file'].lower(
-        ) != active_paths[u'file'].lower()
+        serverChanged = self._active_paths[u'server'] != active_paths[u'server']
+        jobChanged = self._active_paths[u'job'] != active_paths[u'job']
+        rootChanged = self._active_paths[u'root'] != active_paths[u'root']
+        assetChanged = self._active_paths[u'asset'] != active_paths[u'asset']
+        locationChanged = self._active_paths[u'location'] != active_paths[u'location']
+        fileChanged = self._active_paths[u'file'] != active_paths[u'file']
 
         if serverChanged or jobChanged or rootChanged:
             self.activeBookmarkChanged.emit()
@@ -357,7 +351,7 @@ class AssetSettings(QtCore.QSettings):
         # change we will use a generic name instead of the current in-out frames
         collapsed = common.is_collapsed(filepath)
         if collapsed:
-            filepath = collapsed.expand(ur'\1[0]\3')
+            filepath = collapsed.group(1) + u'[0]' + collapsed.group(3)
         path = filepath.replace(server, u'').strip(u'/')
         path = hashlib.md5(path.encode(u'utf-8')).hexdigest()
         return path

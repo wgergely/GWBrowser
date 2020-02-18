@@ -359,7 +359,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                     painter.drawRoundedRect(
                         count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
 
-                    text = u'{}'.format(index.data(common.TodoCountRole))
+                    text = unicode(index.data(common.TodoCountRole))
                     _font = QtGui.QFont(common.PrimaryFont)
                     _font.setPointSizeF(common.SMALL_FONT_SIZE)
                     _metrics = QtGui.QFontMetricsF(_font)
@@ -395,7 +395,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                     color = common.TEXT if asset_count else common.SECONDARY_TEXT
                     color = common.TEXT_SELECTED if selected else color
 
-                    text = u'{}'.format(asset_count)
+                    text = unicode(asset_count)
                     _font = QtGui.QFont(common.PrimaryFont)
                     _font.setPointSizeF(common.SMALL_FONT_SIZE)
                     _metrics = QtGui.QFontMetricsF(_font)
@@ -848,13 +848,13 @@ class FilesWidgetDelegate(BaseDelegate):
         metrics = QtGui.QFontMetricsF(font)
 
         text = index.data(common.DescriptionRole)
-        width = metrics.width(u'{}'.format(text))
+        width = metrics.width(text)
         text_right_edge = r.left()
         r = QtCore.QRect(description_rect)
         r.setRight(text_right_edge)
         r.setLeft(text_edge + common.INDICATOR_WIDTH)
         text = metrics.elidedText(
-            u'{}'.format(text),
+            text,
             QtCore.Qt.ElideLeft,
             r.width()
         )
@@ -961,7 +961,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 if n >= len(rootdirs):
                     continue
                 _subpath = rootdirs[n]
-                f_subpath = u'"/{}/"'.format(_subpath)
+                f_subpath = u'"/' + _subpath + '/"'
                 if self.parent().model().filter_text():
                     if f_subpath.lower() in self.parent().model().filter_text().lower():
                         color = common.ADD
@@ -997,7 +997,7 @@ class FilesWidgetDelegate(BaseDelegate):
             # color = common.SECONDARY_TEXT if not index.data(
             #     common.DescriptionRole) else color
 
-            text = u'{}'.format(index.data(common.DescriptionRole))
+            text = index.data(common.DescriptionRole)
             text = metrics.elidedText(
                 text,
                 QtCore.Qt.ElideLeft,
@@ -1123,7 +1123,7 @@ class FilesWidgetDelegate(BaseDelegate):
         color = common.TEXT if hover else common.SECONDARY_TEXT
         color = common.TEXT_SELECTED if selected else color
 
-        text = u'{}'.format(index.data(common.DescriptionRole))
+        text = index.data(common.DescriptionRole)
         width = metrics.width(text)
 
         r = QtCore.QRect(description_rect)
@@ -1219,17 +1219,14 @@ class FilesWidgetDelegate(BaseDelegate):
         if match:
             # Suffix + extension
             s = match.group(3).split(u'.')
-            s = u'{suffix}.{ext}'.format(
-                ext=s.pop().lower(),
-                suffix=u'.'.join(s).upper()
-            )
+            s = u'.'.join(s[:-1]).upper() + u'.' + s[-1].lower()
             d[len(d)] = (s, common.TEXT)
 
             # Frame-range without the "[]" characters
             s = match.group(2)
             s = re.sub(ur'[\[\]]*', u'', s)
             if len(s) > 17:
-                s = u'{}...{}'.format(s[0:8], s[-8:])
+                s = s[0:8] + u'...' + s[-8:]
             d[len(d)] = (s, common.SECONDARY_TEXT)
 
             # Filename
@@ -1242,10 +1239,9 @@ class FilesWidgetDelegate(BaseDelegate):
         if match:
             # The extension and the suffix
             if match.group(4):
-                s = u'{}.{}'.format(match.group(
-                    3).upper(), match.group(4).lower())
+                s = match.group(3).upper() + u'.' + match.group(4).lower()
             else:
-                s = u'{}'.format(match.group(3).upper())
+                s = match.group(3).upper()
             d[len(d)] = (s, common.TEXT_SELECTED)
 
             # Sequence
@@ -1260,8 +1256,7 @@ class FilesWidgetDelegate(BaseDelegate):
         # Items is not collapsed and it isn't a sequence either
         s = s.split(u'.')
         if len(s) > 1:
-            s = u'{suffix}.{ext}'.format(
-                ext=s.pop().lower(), suffix=u'.'.join(s).upper())
+            s = u'.'.join(s[:-1]).upper() + u'.' + s[-1].lower()
         else:
             s = s[0].upper()
         d[len(d)] = (s, common.TEXT_SELECTED)
@@ -1306,7 +1301,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if n >= self.maximum_subdirs:
                 break
             if len(text) > 36:
-                text = u'{}...{}'.format(text[0:16], text[-17:])
+                text = text[0:16] + u'...' + text[-17:]
 
             r = QtCore.QRect(rect)
             width = metrics.width(text)

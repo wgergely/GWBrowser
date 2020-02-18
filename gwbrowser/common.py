@@ -60,7 +60,7 @@ SoloMode = 1
 
 def get_username():
     n = QtCore.QFileInfo(os.path.expanduser(u'~')).fileName()
-    n = re.sub(ur'[^a-zA-Z0-9]*', u'', n)
+    n = re.sub(ur'[^a-zA-Z0-9]*', u'', n, flags=re.IGNORECASE | re.UNICODE)
     return n
 
 
@@ -789,7 +789,7 @@ def get_ranges(arr, padding):
     blocks = {}
     k = 0
     for idx, n in enumerate(arr):  # blocks
-        zfill = u'{}'.format(n).zfill(padding)
+        zfill = unicode(n).zfill(padding)
 
         if k not in blocks:
             blocks[k] = []
@@ -827,16 +827,15 @@ def is_valid_filename(text):
 
        f = u'000_pr_000_layout_gw_v0006.ma'
        match = common.get_valid_filename(f)
-       if match:
-           path = match.expand(ur'\\1\\2\\3\\4\\5.\\6')
+       match.groups()
 
     Args:
-        group 1(SRE_Match object):        "000" - prefix name.
-        group 2(SRE_Match object):        "pr_000" - asset name.
-        group 3(SRE_Match object):        "layout" - mode name.
-        group 4(SRE_Match object):        "gw" - user name.
-        group 5(SRE_Match object):        "0006" - version without the 'v' prefix.
-        group 6(SRE_Match object):        "ma" - file extension without the '.'.
+        group1 (SRE_Match object):        "000" - prefix name.
+        group2 (SRE_Match object):        "pr_000" - asset name.
+        group3 (SRE_Match object):        "layout" - mode name.
+        group4 (SRE_Match object):        "gw" - user name.
+        group5 (SRE_Match object):        "0006" - version without the 'v' prefix.
+        group6 (SRE_Match object):        "ma" - file extension without the '.'.
 
     Returns:
         SRE_Match: A ``SRE_Match`` object if the filename is valid, otherwise ``None``
@@ -952,8 +951,9 @@ def get_sequence_paths(index):
 
     sequence_paths = []
     for frame in index.data(FramesRole):
-        seqpath = index.data(SequenceRole).expand(ur'\1{}\3.\4')
-        sequence_paths.append(seqpath.format(frame))
+        seq = index.data(SequenceRole)
+        seq = seq.group(1) + frame + seq.group(3) + u'.' + seq.group(4)
+        sequence_paths.append(seq)
     return sequence_paths
 
 
@@ -1107,13 +1107,13 @@ def copy_path(index, mode=WindowsPath, first=True):
     if mode == WindowsPath:
         if server.lower() in path.lower():
             path = path.replace(server, win_server)
-        path = re.sub(ur'[\/\\]', ur'\\', path)
+        path = re.sub(ur'[\/\\]', ur'\\', path, flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return
 
     if mode == UnixPath:
-        path = re.sub(ur'[\/\\]', ur'/', path)
+        path = re.sub(ur'[\/\\]', ur'/', path, flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return path
@@ -1127,7 +1127,7 @@ def copy_path(index, mode=WindowsPath, first=True):
     if mode == MacOSPath:
         if server.lower() in path.lower():
             path = path.replace(server, mac_server)
-        path = re.sub(ur'[\/\\]', ur'/', path)
+        path = re.sub(ur'[\/\\]', ur'/', path, flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return path

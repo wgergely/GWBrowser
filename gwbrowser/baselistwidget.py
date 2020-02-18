@@ -950,9 +950,9 @@ class BaseListWidget(QtWidgets.QListView):
         is_sequence = common.get_sequence(v)
 
         if is_collapsed:
-            v = is_collapsed.expand(ur'\1\3')
+            v = is_collapsed.group(1) + is_collapsed.group(3)
         elif is_sequence:
-            v = is_sequence.expand(ur'\1\3.\4')
+            v = is_sequence.group(1) + is_sequence.group(3) + u'.' + is_sequence.group(4)
         return v
 
     @QtCore.Slot()
@@ -1044,10 +1044,11 @@ class BaseListWidget(QtWidgets.QListView):
         # Only exception is non-sequence item: the data dictionary will in this case
         # use the same object in both data[FileItem] and data[SequenceItem]
         if is_file:
-            key = data[QtCore.Qt.StatusTipRole].lower()
+            key = data[QtCore.Qt.StatusTipRole]
         else:
             key = common.is_collapsed(data[QtCore.Qt.StatusTipRole])
-            key = key.expand(ur'\1\3').lower() if key else key
+            key = key.group(1) + key.group(3)
+        key = key.lower()
 
         if flag == common.MarkedAsFavourite:
             favourites = settings_.local_settings.value(u'favourites')
@@ -1077,7 +1078,8 @@ class BaseListWidget(QtWidgets.QListView):
                 if is_file:
                     fileitem_key = data[QtCore.Qt.StatusTipRole].lower()
                 else:
-                    fileitem_key = seq.expand(ur'\1\3.\4').lower()
+                    fileitem_key = seq.group(1) + seq.group(3) + u'.' + seq.group(4)
+                    fileitem_key = fileitem_key.lower()
 
                 if fileitem_key != key:
                     continue
@@ -1144,10 +1146,10 @@ class BaseListWidget(QtWidgets.QListView):
         data = source_index.model().model_data()[source_index.row()]
         m = self.model().sourceModel()
 
-        key = index.data(QtCore.Qt.StatusTipRole)
+        key = index.data(QtCore.Qt.StatusTipRole).lower()
         collapsed = common.is_collapsed(key)
         if collapsed:
-            key = collapsed.expand(ur'\1\3')  # \2 is the sequence-string
+            key = collapsed.group(1) + collapsed.group(3)
 
         if archived:
             if state is None or state is False:  # clears flag
@@ -1165,8 +1167,11 @@ class BaseListWidget(QtWidgets.QListView):
                         _seq = _item[common.SequenceRole]
                         if not _seq:
                             continue
-                        if _seq.expand(ur'\1\3.\4').lower() != key.lower():
+                        _seq = _seq.group(1) + _seq.group(3) + u'.' + _seq.group(4)
+                        _seq = _seq.lower()
+                        if _seq != key:
                             continue
+
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsArchived
 
                         # Saving the settings to a file
@@ -1191,9 +1196,9 @@ class BaseListWidget(QtWidgets.QListView):
 
         if state is None or state is True:
             # Removing favourite flags when the item is to be archived
-            if key.lower() in sfavourites:
+            if key in sfavourites:
                 if state is None or state is False:  # clears flag
-                    favourites.remove(key.lower())
+                    favourites.remove(key)
                     data[common.FlagsRole] = data[common.FlagsRole] & ~common.MarkedAsFavourite
 
                 if self.model().sourceModel().data_type() == common.SequenceItem:
@@ -1202,11 +1207,13 @@ class BaseListWidget(QtWidgets.QListView):
                         _seq = _item[common.SequenceRole]
                         if not _seq:
                             continue
-                        if _seq.expand(ur'\1\3.\4').lower() != key.lower():
+                        _seq = _seq.group(1) + _seq.group(3) + u'.' + _seq.group(4)
+                        _seq = _seq.lower()
+                        if _seq != key:
                             continue
-                        if _item[QtCore.Qt.StatusTipRole].lower() in sfavourites:
-                            favourites.remove(
-                                _item[QtCore.Qt.StatusTipRole].lower())
+                        _key = _item[QtCore.Qt.StatusTipRole].lower()
+                        if _key in sfavourites:
+                            favourites.remove(_key)
                         _item[common.FlagsRole] = _item[common.FlagsRole] & ~common.MarkedAsFavourite
 
             data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
@@ -1222,7 +1229,9 @@ class BaseListWidget(QtWidgets.QListView):
                     _seq = _item[common.SequenceRole]
                     if not _seq:
                         continue
-                    if _seq.expand(ur'\1\3.\4').lower() != key.lower():
+                    _seq = _seq.group(1) + _seq.group(3) + u'.' + _seq.group(4)
+                    _seq = _seq.lower()
+                    if _seq != key:
                         continue
                     _item[common.FlagsRole] = _item[common.FlagsRole] | common.MarkedAsArchived
 

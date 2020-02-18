@@ -295,7 +295,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         overwrite=True)
     color = ImageCache.get(
         data[common.ThumbnailPathRole],
-        u'BackgroundColor',
+        u'backgroundcolor',
         overwrite=False)
 
     data[common.ThumbnailRole] = image
@@ -340,10 +340,9 @@ class ImageCache(QtCore.QObject):
         except ValueError:
             pass
 
-        k = u'{path}:{height}'.format(
-            path=path,
-            height=height
-        ).lower()
+        path = path.lower()
+        k = path + u':' + unicode(height)
+        k = k.lower()
 
         # Return cached item if exsits
         if k in cls._data and not overwrite:
@@ -363,7 +362,7 @@ class ImageCache(QtCore.QObject):
 
         image = cls.resize_image(image, height)
 
-        bg_k = u'{}:BackgroundColor'.format(path).lower()
+        bg_k = path + u':backgroundcolor'
         cls._data[bg_k] = cls.get_color_average(path)
         if k != bg_k:
             cls._data[k] = image
@@ -448,7 +447,7 @@ class ImageCache(QtCore.QObject):
             overwrite=True)
         color = cls.get(
             index.data(common.ThumbnailPathRole),
-            u'BackgroundColor',
+            u'backgroundcolor',
             overwrite=False)
 
         data = index.model().model_data()

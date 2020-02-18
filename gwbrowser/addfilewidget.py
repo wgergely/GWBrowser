@@ -1255,7 +1255,8 @@ class NameVersionWidget(NameBase):
             return
 
         version = match.group(5).lower()
-        prefix = match.expand(ur'\1_\2').lower()
+        prefix = match.group(1) + u'_' + match.group(2)
+        prefix = prefix.lower()
 
         versions = []
         ext = self.window().extension.lower()
@@ -1958,7 +1959,7 @@ class AddFileWidget(QtWidgets.QDialog):
             match = common.is_valid_filename(file_path)
             if not match:
                 return
-            new_version = match.expand(ur'v\5')
+            new_version = u'v' + match.group(5)
 
             mbox = QtWidgets.QMessageBox()
             mbox.setWindowTitle(u'Version changed')

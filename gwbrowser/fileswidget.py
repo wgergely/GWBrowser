@@ -108,11 +108,10 @@ class FileInfoWorker(BaseWorker):
             padding = len(data[common.FramesRole][0])
             rangestring = common.get_ranges(intframes, padding)
 
-            p = data[common.SequenceRole].expand(
-                ur'\1{}\3.\4')
-            startpath = p.format(unicode(min(intframes)).zfill(padding))
-            endpath = p.format(unicode(max(intframes)).zfill(padding))
-            seqpath = p.format(u'[{}]'.format(rangestring))
+            seq = data[common.SequenceRole]
+            startpath = seq.group(1) + unicode(min(intframes)).zfill(padding) + seq.group(3) + u'.' + seq.group(4)
+            endpath = seq.group(1) + unicode(max(intframes)).zfill(padding) + seq.group(3) + u'.' + seq.group(4)
+            seqpath = seq.group(1) + u'[' + rangestring + u']' + seq.group(3) + u'.' + seq.group(4)
             seqname = seqpath.split(u'/')[-1]
 
             # Setting the path names
@@ -302,7 +301,7 @@ class FileThumbnailWorker(BaseWorker):
                 data[common.ThumbnailPathRole], height, overwrite=True)
             if image:
                 color = ImageCache.get(
-                    data[common.ThumbnailPathRole], u'BackgroundColor')
+                    data[common.ThumbnailPathRole], u'backgroundcolor')
                 data[common.ThumbnailRole] = image
                 data[common.ThumbnailBackgroundRole] = color
                 data[common.FileThumbnailLoaded] = True
@@ -432,11 +431,11 @@ class FilesModel(BaseModel):
                 if ext in thumbnails:
                     placeholder_image = thumbnails[ext]
                     default_thumbnail_image = thumbnails[ext]
-                    default_background_color = thumbnails[u'{}:BackgroundColor'.format(ext)]
+                    default_background_color = thumbnails[ext + u':backgroundcolor']
                 else:
                     placeholder_image = thumbnails[u'placeholder']
                     default_thumbnail_image = thumbnails[u'placeholder']
-                    default_background_color = thumbnails[u'placeholder:BackgroundColor']
+                    default_background_color = thumbnails[u'placeholder:backgroundcolor']
 
                 item[common.FileThumbnailLoaded] = False
                 item[common.DefaultThumbnailRole] = default_thumbnail_image
@@ -468,13 +467,14 @@ class FilesModel(BaseModel):
                 delegate.ROW_HEIGHT - common.ROW_SEPARATOR,
                 overwrite=overwrite
             )
-            k = u'{}:BackgroundColor'.format(_ext_path).lower()
-            d[u'{}:BackgroundColor'.format(ext)] = ImageCache._data[k]
+            k = _ext_path + u':backgroundcolor'
+            k = k.lower()
+            d[ext + u':backgroundcolor'] = ImageCache._data[k]
 
         d[u'placeholder'] = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
-        d[u'placeholder:BackgroundColor'] = common.THUMBNAIL_BACKGROUND
+        d[u'placeholder:backgroundcolor'] = common.THUMBNAIL_BACKGROUND
         return d
 
     @initdata
@@ -539,7 +539,7 @@ class FilesModel(BaseModel):
 
         server, job, root, asset = self.parent_path
         location_is_filtered = dkey in common.NameFilters
-        location_path = u'{}/{}'.format(u'/'.join(self.parent_path), dkey).lower()
+        location_path = u'/'.join(self.parent_path).lower() + u'/' + dkey
 
         nth = 987
         c = 0
@@ -564,8 +564,7 @@ class FilesModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                self.messageChanged.emit(
-                    u'Found {} files...'.format(c))
+                self.messageChanged.emit(u'Found' + unicode(c) + u'files...')
                 QtWidgets.QApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
@@ -578,11 +577,11 @@ class FilesModel(BaseModel):
             if ext in thumbnails:
                 placeholder_image = thumbnails[ext]
                 default_thumbnail_image = thumbnails[ext]
-                default_background_color = thumbnails[u'{}:BackgroundColor'.format(ext)]
+                default_background_color = thumbnails[ext + u':backgroundcolor']
             else:
                 placeholder_image = thumbnails[u'placeholder']
                 default_thumbnail_image = thumbnails[u'placeholder']
-                default_background_color = thumbnails[u'placeholder:BackgroundColor']
+                default_background_color = thumbnails[u'placeholder:backgroundcolor']
 
             flags = dflags()
 
@@ -630,37 +629,20 @@ class FilesModel(BaseModel):
             # If the file in question is a sequence, we will also save a reference
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
-                try:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        unicode(seq.group(1), 'utf-8'),
-                        unicode(seq.group(3), 'utf-8'),
-                        unicode(seq.group(4), 'utf-8'))
-                except TypeError:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        seq.group(1),
-                        seq.group(3),
-                        seq.group(4))
-
+                seqpath = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
+                seqpath = seqpath.lower()
                 # If the sequence has not yet been added to our dictionary
                 # of seqeunces we add it here
-                if seqpath.lower() not in seqs:  # ... and create it if it doesn't exist
+                if seqpath not in seqs:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
                     flags = dflags()
-                    try:
-                        key = u'{}{}.{}'.format(
-                            unicode(seq.group(1), 'utf-8'),
-                            unicode(seq.group(3), 'utf-8'),
-                            unicode(seq.group(4), 'utf-8'))
-                    except TypeError:
-                        key = u'{}{}.{}'.format(
-                            seq.group(1),
-                            seq.group(3),
-                            seq.group(4))
+                    key = seq.group(1) + seq.group(3) + u'.' + seq.group(4)
+                    key = key.lower()
 
-                    if key.lower() in sfavourites:
+                    if key in sfavourites:
                         flags = flags | common.MarkedAsFavourite
 
-                    seqs[seqpath.lower()] = {
+                    seqs[seqpath] = {
                         QtCore.Qt.DisplayRole: seqname,
                         QtCore.Qt.EditRole: seqname,
                         QtCore.Qt.StatusTipRole: seqpath,
@@ -691,8 +673,8 @@ class FilesModel(BaseModel):
                         common.SortBySize: 0,  # Initializing with null-size
                     }
 
-                seqs[seqpath.lower()][common.FramesRole].append(seq.group(2))
-                seqs[seqpath.lower()][common.EntryRole].append(entry)
+                seqs[seqpath][common.FramesRole].append(seq.group(2))
+                seqs[seqpath][common.EntryRole].append(entry)
             else:
                 seqs[filepath] = self._data[dkey][common.FileItem][idx]
 
@@ -702,8 +684,8 @@ class FilesModel(BaseModel):
 
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
-                filepath = v[common.SequenceRole].expand(ur'\1{}\3.\4')
-                filepath = filepath.format(v[common.FramesRole][0])
+                _seq = v[common.SequenceRole]
+                filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename
@@ -727,8 +709,8 @@ class FilesModel(BaseModel):
                 v[common.TypeRole] = common.FileItem
             else:
                 if activefile:
-                    _firsframe = v[common.SequenceRole].expand(ur'\1{}\3.\4')
-                    _firsframe = _firsframe.format(min(v[common.FramesRole]))
+                    _seq = v[common.SequenceRole]
+                    _firsframe = _seq.group(1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
             self._data[dkey][common.SequenceItem][idx] = v
@@ -739,7 +721,7 @@ class FilesModel(BaseModel):
             val = None
             key = u'activepath/location'
             savedval = settings_.local_settings.value(key)
-            return savedval if savedval else val
+            return savedval.lower() if savedval else val
         return self._datakey
 
     @QtCore.Slot(unicode)
@@ -1043,9 +1025,7 @@ class FilesWidget(ThreadedBaseWidget):
             return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        filepath = u'{}/{}'.format(  # location/subdir/filename.ext
-            parent_role[5],
-            common.get_sequence_startpath(file_info.fileName()))
+        filepath = parent_role[5] +  u'/' + common.get_sequence_startpath(file_info.fileName())
         settings_.local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
@@ -1087,7 +1067,7 @@ class FilesWidget(ThreadedBaseWidget):
             if rect.contains(cursor_position):
                 path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip('/')
                 root_path = u'/'.join(root_dir).strip(u'/')
-                path = u'{}/{}'.format(path, root_path)
+                path = path + u'/' + root_path
                 return common.reveal(path)
 
         return super(FilesWidget, self).mouseDoubleClickEvent(event)
@@ -1152,7 +1132,7 @@ class FilesWidget(ThreadedBaseWidget):
                 u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_startpath(path)
         elif shift_modifier:
-            path = u'{}, ++'.format(common.get_sequence_startpath(path))
+            path = common.get_sequence_startpath(path) + u', ++'
             pixmap = ImageCache.get_rsc_pixmap(
                 u'multiples_files', common.SECONDARY_TEXT, height)
         else:
@@ -1208,17 +1188,18 @@ class FilesWidget(ThreadedBaseWidget):
             text = text.lower()
 
             if rect.contains(cursor_position):
-                filter_text = self.model().filter_text()
-                filter_text = filter_text.lower() if filter_text else u''
+                filter_text = self.model().filter_text().lower()
+                filter_text = filter_text if filter_text else u''
 
                 # Shift modifier will add a "positive" filter and hide all items
                 # that does not contain the given text.
                 if shift_modifier:
-                    folder_filter = u'"/{}/"'.format(text)
-                    if folder_filter.lower() in filter_text.lower():
-                        filter_text = filter_text.lower().replace(folder_filter.lower(), u'')
+                    folder_filter = u'"/' + text + u'/"'
+
+                    if folder_filter in filter_text:
+                        filter_text = filter_text.replace(folder_filter, u'')
                     else:
-                        filter_text = u'{} {}'.format(filter_text, folder_filter)
+                        filter_text = filter_text + u' ' + folder_filter
                     self.model().filterTextChanged.emit(filter_text)
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
@@ -1226,13 +1207,16 @@ class FilesWidget(ThreadedBaseWidget):
                 # The alt or control modifiers will add a "negative filter"
                 # and hide the selected subfolder from the view
                 if alt_modifier or control_modifier:
-                    folder_filter = u'--"/{}/"'.format(text)
+                    folder_filter = u'--"/' + text + u'/"'
+                    _folder_filter = u'"/' + text + u'/"'
+
                     if filter_text:
-                        if u'"/{}/"'.format(text).lower() in filter_text.lower():
-                            filter_text = filter_text.lower().replace(u'"/{}/"'.format(text).lower(), u'')
-                        if folder_filter.lower() not in filter_text.lower():
-                            folder_filter = u'{} {}'.format(filter_text, folder_filter)
-                    self.model().filterTextChanged.emit(folder_filter.lower())
+                        if _folder_filter in filter_text:
+                            filter_text = filter_text.replace(_folder_filter, u'')
+                        if folder_filter not in filter_text:
+                            folder_filter = filter_text + u' ' + folder_filter
+
+                    self.model().filterTextChanged.emit(folder_filter)
                     self.repaint(self.rect())
                     return super(FilesWidget, self).mouseReleaseEvent(event)
 

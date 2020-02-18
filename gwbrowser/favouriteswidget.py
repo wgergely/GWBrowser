@@ -165,7 +165,9 @@ class FavouritesModel(FilesModel):
             for f in favourites:
                 seq = common.get_sequence(f)
                 if seq:
-                    superfluous.add(seq.expand(ur'\1\3.\4').lower())
+                    _seq = seq.group(1) + seq.group(3) + u'.' + seq.group(4)
+                    _seq = _seq.lower()
+                    superfluous.add(_seq)
             favourites = [f for f in favourites if f.lower() not in superfluous]
         sfavourites = set(favourites)
 
@@ -296,8 +298,8 @@ class FavouritesModel(FilesModel):
             idx = len(self._data[dkey][common.SequenceItem])
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
-                filepath = v[common.SequenceRole].expand(ur'\1{}\3.\4')
-                filepath = filepath.format(v[common.FramesRole][0])
+                _seq = v[common.SequenceRole]
+                filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename

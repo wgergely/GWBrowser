@@ -1,6 +1,8 @@
-"""Sandbox module for replacing config file file properties with a database.
-I'm hoping this will result in some much needed performance increase, especially
-querrying file flags and annotations."""
+"""SQLite based local database used to store file information associated with
+a bookmark.
+
+The database stores it's values in
+"""
 
 from contextlib import contextmanager
 import gwbrowser.common as common
@@ -12,24 +14,14 @@ from sqlite3 import Error
 
 
 class BookmarkDB(QtCore.QObject):
-    def __init__(self, index=QtCore.QModelIndex(), server=None, job=None, root=None, parent=None):
+    def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
         self._connection = None
-        self._exception = u''
-
-        if index.isValid():
-            parents = index.data(common.ParentPathRole)
-            if not parents:
-                raise RuntimeError(
-                    u'Index does not contain a valid parent path information')
-            server, job, root = parents[0:3]
-
         self._server = server.lower()
         self._job = job.lower()
         self._root = root.lower()
-        self._bookmark = u'{}/{}/{}'.format(server, job, root).lower()
-
-        database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
+        self._bookmark = u'{}/{}/{}'.format(server, job, root)
+        self._database_path = u'{server}/{job}/{root}/.bookmark/bookmark.db'.format(
             server=self._server,
             job=self._job,
             root=self._root
@@ -37,26 +29,34 @@ class BookmarkDB(QtCore.QObject):
 
         # Let's make sure the parent folder is created first, otherwise
         # we won't be able to create the database file.
-        if not QtCore.QFileInfo(database_path).dir().mkpath(u'.'):
-            self._exception = u'Unable to create database dir\n"{}"'.format(
-                database_path)
-            return
+        if not QtCore.QFileInfo(self._database_path).dir().mkpath(u'.'):
+            raise RuntimeError(u'Unable to create database dir\n"{}"'.format(
+                self._database_path))
 
         try:
             self._connection = sqlite3.connect(
-                database_path, isolation_level=None)
+                self._database_path, isolation_level=None)
+            self.init_tables()
         except Error as e:
-            self._exception = u'Unable to connect to the database at "{}"\n-> "{}"'.format(
-                database_path, e.message)
-            return
+            raise RuntimeError(u'Unable to connect to the database at "{}"\n-> "{}"'.format(
+                self._database_path, e.message))
 
     def id(self, val):
-        """Returns the database ID based on the given value."""
+        """Pass a valid filepath to retrieve database row number of the given
+        file. Sequences won't have their own settings
+
+        Args:
+            val (unicode):  File path.
+
+        Returns:
+            int: The hashed value of `val`
+
+        """
         if isinstance(val, int):
             return val
         collapsed = common.is_collapsed(val)
         if collapsed:
-            val = collapsed.expand(ur'\1[0]\3')
+            val = collapsed.group(1) + u'[0]' + collapsed.group(3)
         val = val.replace(self._server, u'').strip(u'/')
         return hash(val)
 
@@ -79,21 +79,14 @@ class BookmarkDB(QtCore.QObject):
     def connection(self):
         return self._connection
 
-    def isValid(self):
-        return True if self._connection else False
-
-    def last_error(self):
-        return self._exception
-
     def init_tables(self):
-        """Initialises the database with the default tables.
+        """Initialises the database with the default tables. It is safe to call
+        this even if the table has alrady been initialised.
 
         The  `data` table stores file information of items inside the bookmark,
         whilst `info` contains information about the database itself.
 
         """
-        if not self.isValid():
-            return
         with self.transaction_contextmanager():
             # Main ``data`` table
             self._connection.cursor().execute("""
@@ -134,7 +127,6 @@ class BookmarkDB(QtCore.QObject):
                 host=platform.node(),
                 created=time.time(),
             ))
-            # ``properties`` table
             self._connection.cursor().execute("""
                 CREATE TABLE IF NOT EXISTS properties (
                     width INTEGER,
@@ -148,12 +140,12 @@ class BookmarkDB(QtCore.QObject):
         """Returns a single value from the `bookmark.db`.
 
         Args:
-            id (string or int): The database key.
-            key (string): The data key to return.
-            table (string): Optional table parameter, defaults to 'data'.
+            id (unicode or int): The database key.
+            key (unicode): The data key to return.
+            table (unicode): Optional table parameter, defaults to 'data'.
 
         Returns:
-            type: Description of returned object.
+            data: The requested value or None.
 
         """
         _cursor = self._connection.cursor()
@@ -210,9 +202,6 @@ class BookmarkDB(QtCore.QObject):
             value (unicode or float): The value to set.
 
         """
-        if not self.isValid():
-            return
-
         self._connection.execute("""
         INSERT INTO data(id, {key}) VALUES('{id}','{value}')
           ON CONFLICT(id) DO UPDATE SET {key}=excluded.{key};
@@ -222,39 +211,40 @@ class BookmarkDB(QtCore.QObject):
             value=value
         ))
 
+def benchmark():
+    """The main takeaaway seems to be that `value()` is quicker on smaller
+    databases, but once I have more than 100k+ items values seems to be
+    performaing quicker.
 
-if __name__ == '__main__':
+    """
     bookmark_db = BookmarkDB(
-        index=QtCore.QModelIndex(),
         server=u'C:/tmp',
         job=u'job',
         root=u'root',
     )
-    if not bookmark_db.isValid():
-        print bookmark_db.last_error()
-    bookmark_db.init_tables()
 
-    x = 1000
-
+    x = 100000
     # #####################
     t = time.time()
     with bookmark_db.transaction_contextmanager():
         for n in xrange(x):
             id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
-            bookmark_db.setValue(id, u'description', u'test description{}'.format(n))
-            bookmark_db.setValue(id, u'notes', u'testnote{}'.format(n))
+            bookmark_db.setValue(id, u'description', u'test description' + unicode(n))
+            bookmark_db.setValue(id, u'notes', u'testnote{}' + unicode(n))
     print '`setValue()` took', time.time() - t, '(x{})'.format(n), '\n'
     # #####################
     t = time.time()
     with bookmark_db.transaction_contextmanager():
         for n in xrange(x):
-            id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
+            id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}' + unicode(n))
             v = bookmark_db.value(id, u'description')
     print '`value()` took', time.time() - t, '\n'
     ######################
     t = time.time()
     data = bookmark_db.values()
     for n in xrange(x):
-        id = bookmark_db.id(ur'job/root/testfolder/testfile.ma{}'.format(n))
+        id = bookmark_db.id(ur'job/root/testfolder/testfile.ma' + unicode(n))
         v = data[id]['description']
     print '`values()` took', time.time() - t, '\n'
+
+benchmark()
