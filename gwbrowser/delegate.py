@@ -878,7 +878,7 @@ class FilesWidgetDelegate(BaseDelegate):
             painter.drawRect(_rect)
             painter.setOpacity(1.0)
 
-        def draw_file_info(it, font, metrics, offset):
+        def draw_segments(it, font, metrics, offset):
             x = 0
 
             rect = QtCore.QRect(rectangles[DataRect])
@@ -1031,17 +1031,17 @@ class FilesWidgetDelegate(BaseDelegate):
         draw_separator_line()
 
         font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
+        font.setPointSizeF(SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
         it = self.get_text_segments(index).itervalues()
         offset = -metrics.descent()
 
-        left = draw_file_info(it, font, metrics, offset)
+        left = draw_segments(it, font, metrics, offset)
         left_limit = draw_subdirs(left)
 
         it = self.get_filedetail_text_segments(index).itervalues()
         offset = metrics.ascent()
-        right_limit = draw_file_info(it, font, metrics, offset)
+        right_limit = draw_segments(it, font, metrics, offset)
         draw_description(left_limit, right_limit)
 
     @paintmethod
