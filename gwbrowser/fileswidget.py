@@ -133,15 +133,7 @@ class FileInfoWorker(BaseWorker):
                 data[common.SortByLastModified] = mtime
                 mtime = common.qlast_modified(mtime)
 
-                info_string = u'{count} files;{day}/{month}/{year} {hour}:{minute};{size}'.format(
-                    count=len(intframes),
-                    day=mtime.toString(u'dd'),
-                    month=mtime.toString(u'MM'),
-                    year=mtime.toString(u'yyyy'),
-                    hour=mtime.toString(u'hh'),
-                    minute=mtime.toString(u'mm'),
-                    size=common.byte_to_string(data[common.SortBySize])
-                )
+                info_string = unicode(len(intframes)) + u'files;' + mtime.toString(u'dd') + u'/' + mtime.toString(u'MM') + u'/' + mtime.toString(u'yyyy') + u' ' + mtime.toString(u'hh') + u':' + mtime.toString(u'mm') + u';' + common.byte_to_string(data[common.SortBySize])
                 data[common.FileDetailsRole] = info_string
 
         if data[common.TypeRole] == common.FileItem:
@@ -151,14 +143,7 @@ class FileInfoWorker(BaseWorker):
                 data[common.SortByLastModified] = mtime
                 mtime = common.qlast_modified(mtime)
                 data[common.SortBySize] = stat.st_size
-                info_string = u'{day}/{month}/{year} {hour}:{minute};{size}'.format(
-                    day=mtime.toString(u'dd'),
-                    month=mtime.toString(u'MM'),
-                    year=mtime.toString(u'yyyy'),
-                    hour=mtime.toString(u'hh'),
-                    minute=mtime.toString(u'mm'),
-                    size=common.byte_to_string(data[common.SortBySize])
-                )
+                info_string = mtime.toString(u'dd') + u'/' + mtime.toString(u'MM') + u'/' + mtime.toString(u'yyyy') + u' ' + mtime.toString(u'hh') + u':' + mtime.toString(u'mm') + u';' + common.byte_to_string(data[common.SortBySize])
                 data[common.FileDetailsRole] = info_string
 
         # Item flags
