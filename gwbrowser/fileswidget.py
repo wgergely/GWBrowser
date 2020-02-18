@@ -509,6 +509,7 @@ class FilesModel(BaseModel):
         dkey = self.data_key()
         if not dkey:
             return
+        dkey = dkey.lower()
 
         self._data[dkey] = {
             common.FileItem: {},
