@@ -309,11 +309,11 @@ class ToggleModeButton(QtWidgets.QWidget):
     def toggle_mode(self):
         """Simply toggles the solo mode."""
         if settings_.local_settings.current_mode() == common.SynchronisedMode:
-            settings_.set_mode(common.SoloMode)
+            settings_.local_settings.set_mode(common.SoloMode)
             self.animation.setCurrentTime(0)
             self.animation.start()
         elif settings_.local_settings.current_mode() == common.SoloMode:
-            settings_.set_mode(common.SynchronisedMode)
+            settings_.local_settings.set_mode(common.SynchronisedMode)
             self.animation.setCurrentTime(0)
             self.animation.stop()
         self.update()
