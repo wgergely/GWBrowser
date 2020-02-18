@@ -22,15 +22,6 @@ def _bool(v):
             return False
         elif v.lower() == u'none':
             return None
-
-        try:
-            f = float(v)
-            if f.is_integer():
-                return int(f)
-            else:
-                return f
-        except:
-            return v
     return v
 
 
@@ -204,7 +195,26 @@ class LocalSettings(QtCore.QSettings):
                 v = super(LocalSettings, self).value(k)
                 self.internal_settings[k] = _bool(v)
             return self.internal_settings[k]
-        return _bool(super(LocalSettings, self).value(k))
+
+        k_type = u'{}::type'.format(k)
+        v_type = super(LocalSettings, self).value(k_type)
+
+        v = super(LocalSettings, self).value(k)
+
+        if type(v) != v_type:
+            if v_type == 'float':
+                v = float(v)
+            elif v_type == 'int':
+                v = int(v)
+            elif v_type == 'str':
+                v = str(v)
+            elif v_type == 'unicode':
+                v = unicode(v)
+            elif v_type == 'NoneType':
+                v = _bool(v)
+            elif v_type == 'bool':
+                v = _bool(v)
+        return v
 
     def setValue(self, k, v):
         """This is a global override for our preferences to disable the setting
@@ -214,7 +224,10 @@ class LocalSettings(QtCore.QSettings):
         if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
             self.internal_settings[k] = v
             return
+        k_type = u'{}::type'.format(k)
         super(LocalSettings, self).setValue(k, v)
+        super(LocalSettings, self).setValue(
+            k_type, v.__class__.__name__)
 
 
 class AssetSettings(QtCore.QSettings):
