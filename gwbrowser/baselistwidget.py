@@ -861,7 +861,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.filter_editor.finished.connect(proxy.filterTextChanged)
 
         model.updateIndex.connect(
-            self.update, type=QtCore.Qt.BlockingQueuedConnection)
+            self.update, type=QtCore.Qt.QueuedConnection)
 
         proxy.initialize_filter_values()
 
