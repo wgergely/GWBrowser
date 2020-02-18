@@ -45,12 +45,6 @@ class Active(QtCore.QObject):
 
     def __init__(self, parent=None):
         super(Active, self).__init__(parent=parent)
-        self.macos_mount_timer = QtCore.QTimer(parent=self)
-        self.macos_mount_timer.setInterval(5000)
-        self.macos_mount_timer.setSingleShot(False)
-        self.macos_mount_timer.timeout.connect(common.mount)
-        common.mount()
-
         self._active_paths = self.paths()
 
     @QtCore.Slot(unicode)
@@ -196,7 +190,7 @@ class LocalSettings(QtCore.QSettings):
                 self.internal_settings[k] = _bool(v)
             return self.internal_settings[k]
 
-        k_type = u'{}::type'.format(k)
+        k_type = u'{}__type'.format(k)
         v_type = super(LocalSettings, self).value(k_type)
 
         v = super(LocalSettings, self).value(k)
@@ -224,7 +218,7 @@ class LocalSettings(QtCore.QSettings):
         if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
             self.internal_settings[k] = v
             return
-        k_type = u'{}::type'.format(k)
+        k_type = u'{}__type'.format(k)
         super(LocalSettings, self).setValue(k, v)
         super(LocalSettings, self).setValue(
             k_type, v.__class__.__name__)

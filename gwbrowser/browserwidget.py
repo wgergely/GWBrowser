@@ -507,9 +507,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self._connectSignals()
         self._add_shortcuts()
 
-        if common.get_platform() == u'mac':
-            self.active_monitor.macos_mount_timer.start()
-
         Active.paths()
 
         # Proxy model
@@ -547,7 +544,6 @@ class BrowserWidget(QtWidgets.QWidget):
         def ui_teardown():
             self.setUpdatesEnabled(False)
             self.check_active_state_timer.stop()
-            self.active_monitor.macos_mount_timer.stop()
             self.listcontrolwidget.bookmarks_button.timer.stop()
             self.listcontrolwidget.assets_button.timer.stop()
             self.listcontrolwidget.files_button.timer.stop()

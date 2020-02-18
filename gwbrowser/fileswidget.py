@@ -538,7 +538,7 @@ class FilesModel(BaseModel):
         activefile = local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
-        location_is_filtered = dkey in common.NameFilters
+        location_is_filtered = dkey.lower() in [k.lower() for k in common.NameFilters]
         location_path = u'{}/{}'.format(u'/'.join(self.parent_path), dkey).lower()
 
         nth = 987
@@ -558,7 +558,7 @@ class FilesModel(BaseModel):
             ext = filename.split(u'.')[-1]
 
             if location_is_filtered:
-                if ext not in common.NameFilters[dkey]:
+                if ext not in common.NameFilters[dkey.lower()]:
                     continue
 
             # Progress bar

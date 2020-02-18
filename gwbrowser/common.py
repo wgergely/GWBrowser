@@ -44,10 +44,6 @@ import OpenImageIO
 
 import gwbrowser.gwscandir as gwscandir
 
-# Flags
-MarkedAsArchived = 0b1000000000
-MarkedAsFavourite = 0b10000000000
-MarkedAsActive = 0b100000000000
 
 COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
@@ -56,6 +52,101 @@ ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
 
 SynchronisedMode = 0
 SoloMode = 1
+
+
+MayaAssetTemplate = 1024
+ProjectTemplate = 2048
+
+# Flags
+MarkedAsArchived = 0b1000000000
+MarkedAsFavourite = 0b10000000000
+MarkedAsActive = 0b100000000000
+
+AssetTypes = {
+    MayaAssetTemplate: u'Asset',
+    ProjectTemplate: u'Job',
+}
+
+ASSET_IDENTIFIER = u'workspace.mel'
+"""``ASSET_IDENTIFIER`` is the file needed for GWBrowser to understand a folder
+as an asset. We're using the maya project structure as our asset-base so this is
+a **workspace.mel** file in our case. The file resides in the root of the asset
+directory."""
+
+
+FTHREAD_COUNT = 1
+"""The number of threads used by the ``FilesWidget`` to get file - information."""
+
+LTHREAD_COUNT = 1
+"""The number of threads used by the ``DataKeyModel`` to count files."""
+
+FTIMER_INTERVAL = 800  # 1.0 sec
+"""The frequency of querrying lists to load file and thumbnail info"""
+
+
+ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
+CAPTURE_PATH = u'viewport_captures/animation'
+FFMPEG_COMMAND = u'-loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "{dest}"'
+
+ExportsFolder = u'exports'
+DataFolder = u'data'
+ReferenceFolder = u'references'
+RendersFolder = u'renders'
+ScenesFolder = u'scenes'
+ScriptsFolder = u'scripts'
+TexturesFolder = u'textures'
+
+ASSET_FOLDERS = {
+    ExportsFolder: u'User exported animation, object and simulation cache files',
+    DataFolder: u'System exported caches files',
+    ReferenceFolder: u'Files used for research, reference',
+    RendersFolder: u'Images rendered by the scene files',
+    ScenesFolder: u'Project files for all 2D and 3D scenes',
+    ScriptsFolder: u'Technical dependencies',
+    TexturesFolder: u'Textures used by the 2D/3D projects',
+    u'misc': u'',
+}
+
+# Sizes
+ROW_HEIGHT = 34.0
+BOOKMARK_ROW_HEIGHT = 42.0
+ASSET_ROW_HEIGHT = 78.0
+CONTROL_HEIGHT = 34.0
+ROW_SEPARATOR = 1.0
+
+INLINE_ICONS_MIN_WIDTH = 320.0
+
+# Font scaling seems at best random given platform differences.
+# Programmatically scaling might fix matters...
+SMALL_FONT_SIZE = 7.5
+MEDIUM_FONT_SIZE = 8.5
+LARGE_FONT_SIZE = 12.0
+
+pscale = 1.0
+"""The global font scale value. Not implemeted yet."""
+
+
+def psize(n):
+    """On macosx the font size seem to be smaller given the same point size....
+    Sadly I have to use this function to scale the fonts to an acceptable size.
+    I haven't figured out where the difference comes from or what the differences
+    refers to. Difference of dpi...?
+
+    """
+    return n * (96.0 / 72.0) if get_platform() == u'mac' else n * pscale
+
+
+def rgb(color):
+    """Returns an rgba string representation of the given color.
+
+    Args:
+        color (QtGui.QColor): The `QColor` to convert.
+
+    Returns:
+        unicode: The string representation of the color./
+
+    """
+    return u'{},{},{},{}'.format(*color.getRgb())
 
 
 def get_username():
@@ -186,13 +277,13 @@ def import_favourites():
             file_info = QtCore.QFileInfo(settings.thumbnail_path())
             if file_info.fileName() in namelist:
                 dest = u'{}/{}/{}/.bookmark'.format(server,
-                                                   job, root, file_info.fileName())
+                                                    job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
             file_info = QtCore.QFileInfo(settings.config_path())
             if file_info.fileName() in namelist:
                 dest = u'{}/{}/{}/.bookmark'.format(server,
-                                                   job, root, file_info.fileName())
+                                                    job, root, file_info.fileName())
                 zip.extract(file_info.fileName(), dest)
 
             if favourite not in current_favourites:
@@ -241,210 +332,7 @@ def get_platform():
         u'The platform "{}" is not supported'.format(ptype))
 
 
-class Server(object):
-    """A utility class providing the platform-specific locations of
-    the ``primary``, ``backup``, and ``local`` servers.
-
-    Note:
-        The server values are stored in an external configuration file boundled
-        with GWBrowser found at ``templates/server.conf``. However, a copy of
-        this configuration file is deployed at installation-time to the
-        ~/Documents/GWBrowser folder where GWBrowser will expect to find and
-        load it.
-
-    """
-
-    @classmethod
-    def config_path(cls):
-        """Returns the path to ``server.conf``."""
-        datadir = QtCore.QStandardPaths.standardLocations(
-            QtCore.QStandardPaths.GenericDataLocation)[0]
-        path = u'{}/{}/servers.conf'.format(datadir, PRODUCT)
-        path = os.path.normpath(path)
-        path = os.path.abspath(path)
-        return path
-
-    @classmethod
-    def conf(cls):
-        parser = ConfigParser.RawConfigParser()
-        parser.read(cls.config_path())
-        return parser
-
-    @classmethod
-    def get_server_platform_name(cls, server, platf):
-        """Returns the name of the server for a specified platform.
-
-        Used mostly by the copy function to get a platform accurate path.
-
-        """
-        parser = cls.conf()
-        d = {}
-        for section in parser.sections():
-            d[section] = {}
-            for key, val in parser.items(section):
-                if key not in ('mac', 'win'):
-                    continue
-                val = val.replace(u'\\', u'/').rstrip(u'/').lower()
-                if not val:
-                    continue
-                d[section][key] = u'{}/'.format(val)
-
-        it = d.itervalues()
-        for v in it:
-            if not v:
-                continue
-            for f in v.itervalues():
-                if server in f.lower():
-                    return v[platf.lower()]
-        return None
-
-    @classmethod
-    def _get(cls, section):
-        o = get_platform()
-        parser = cls.conf()
-        if not parser.has_section(section):
-            return None
-        if not parser.has_option(section, o):
-            return None
-        return cls.conf().get(section, o)
-
-    @classmethod
-    def primary(cls):
-        """The path to the primary server.
-        This is where all active jobs are stored.
-
-        """
-        return cls._get('primary')
-
-    @classmethod
-    def backup(cls):
-        """The path to the backup server.
-        This is where all active job backup are stored.
-
-        """
-        return cls._get('backup')
-
-    @classmethod
-    def local(cls):
-        """This is a local copy of the jobs folder. Useful to take advantage
-        when needing quick access to storage using the local SSD drive.
-
-        """
-        return cls._get('local')
-
-    @classmethod
-    def servers(cls, get_all=False):
-        """Returns all available servers."""
-        arr = []
-        parser = cls.conf()
-        d = {}
-        for section in parser.sections():
-            d[section] = {}
-            for key, val in parser.items(section):
-                d[section][key] = val
-        for v in d.itervalues():
-            if get_all:
-                if not any((v['win'], v['mac'])):
-                    continue
-                arr.append({u'path': v['win'], u'platform': u'win',
-                            u'description': v[u'description']})
-                arr.append({u'path': v['mac'],  u'platform': u'mac',
-                            u'description': v[u'description']})
-            else:
-                platform = get_platform()
-                if not v[platform]:
-                    continue
-                if not v[platform]:
-                    continue
-                arr.append({u'path': v[platform], u'platform': platform,
-                            u'description': v[u'description']})
-        arr = sorted(arr, key=lambda x: x[u'path'])
-        return arr
-
-
-ASSET_IDENTIFIER = u'workspace.mel'
-"""``ASSET_IDENTIFIER`` is the file needed for GWBrowser to understand a folder
-as an asset. We're using the maya project structure as our asset-base so this is
-a **workspace.mel** file in our case. The file resides in the root of the asset
-directory."""
-
-
-FTHREAD_COUNT = 1
-"""The number of threads used by the ``FilesWidget`` to get file - information."""
-
-LTHREAD_COUNT = 1
-"""The number of threads used by the ``DataKeyModel`` to count files."""
-
-FTIMER_INTERVAL = 800  # 1.0 sec
-"""The frequency of querrying lists to load file and thumbnail info"""
-
-
-ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
-CAPTURE_PATH = u'viewport_captures/animation'
-FFMPEG_COMMAND = u'-loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "{dest}"'
-
-ExportsFolder = u'exports'
-DataFolder = u'data'
-ReferenceFolder = u'references'
-RendersFolder = u'renders'
-ScenesFolder = u'scenes'
-ScriptsFolder = u'scripts'
-TexturesFolder = u'textures'
-
-ASSET_FOLDERS = {
-    ExportsFolder: u'User exported animation, object and simulation cache files',
-    DataFolder: u'System exported caches files',
-    ReferenceFolder: u'Files used for research, reference',
-    RendersFolder: u'Images rendered by the scene files',
-    ScenesFolder: u'Project files for all 2D and 3D scenes',
-    ScriptsFolder: u'Technical dependencies',
-    TexturesFolder: u'Textures used by the 2D/3D projects',
-    u'misc': u'',
-}
-
-# Sizes
-ROW_HEIGHT = 34.0
-BOOKMARK_ROW_HEIGHT = 42.0
-ASSET_ROW_HEIGHT = 78.0
-CONTROL_HEIGHT = 34.0
-ROW_SEPARATOR = 1.0
-
-INLINE_ICONS_MIN_WIDTH = 320.0
-
-# Font scaling seems at best random given platform differences.
-# Programmatically scaling might fix matters...
-SMALL_FONT_SIZE = 7.5
-MEDIUM_FONT_SIZE = 8.5
-LARGE_FONT_SIZE = 12.0
-
-pscale = 1.0
-"""The global font scale value. Not implemeted yet."""
-
-
-def psize(n):
-    """On macosx the font size seem to be smaller given the same point size....
-    Sadly I have to use this function to scale the fonts to an acceptable size.
-    I haven't figured out where the difference comes from or what the differences
-    refers to. Difference of dpi...?
-
-    """
-    return n * 1.5 if get_platform() == u'mac' else n * pscale
-
-
-def rgb(color):
-    """Returns an rgba string representation of the given color.
-
-    Args:
-        color (QtGui.QColor): The `QColor` to convert.
-
-    Returns:
-        unicode: The string representation of the color./
-
-    """
-    return u'{},{},{},{}'.format(*color.getRgb())
-
-
-MARGIN = 20.0
+MARGIN = 18.0
 
 INDICATOR_WIDTH = 4.0
 ROW_BUTTONS_HEIGHT = 36.0
@@ -477,9 +365,6 @@ PrimaryFont = QtGui.QFont(u'Roboto Black')
 PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
 SecondaryFont = QtGui.QFont(u'Roboto Medium')
 SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
-
-
-def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 def get_oiio_extensions():
@@ -578,7 +463,6 @@ NameFilters = {
 }
 """A list of expected file - formats associated with the location."""
 
-
 # Extending the
 FlagsRole = 1024
 """Role used to store the path of the item."""
@@ -613,12 +497,33 @@ SortBySize = 2050
 FileItem = 1100
 SequenceItem = 1200
 
-LowerCase = 0
-UpperCase = 1
-"""Filename styles"""
-
-
 SORT_WITH_BASENAME = False
+
+
+ValidFilenameRegex = re.compile(
+    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
+    flags=re.IGNORECASE | re.UNICODE)
+IsSequenceRegex = re.compile(
+    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
+SequenceStartRegex = re.compile(
+    ur'^(.*)\[([0-9]+).*\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
+SequenceEndRegex = re.compile(
+    ur'^(.*)\[.*?([0-9]+)\](.*)$',
+    flags=re.IGNORECASE | re.UNICODE)
+GetSequenceRegex = re.compile(
+    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
+    flags=re.IGNORECASE | re.UNICODE)
+
+WindowsPath = 0
+UnixPath = 1
+SlackPath = 2
+MacOSPath = 3
+
+_families = []
+
+
+def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 
 
 def namekey(s):
@@ -664,14 +569,18 @@ def move_widget_to_available_geo(widget):
     widget.move(x, y)
 
 
-_families = []
-
-
 def _add_custom_fonts():
     """Adds custom fonts to the application."""
     global _families
+    global PrimaryFont
+    global SecondaryFont
     if _families:
         return
+
+    PrimaryFont = QtGui.QFont(u'Roboto Black')
+    PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
+    SecondaryFont = QtGui.QFont(u'Roboto Medium')
+    SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
     path = u'{}/../rsc/fonts'.format(__file__)
     path = os.path.normpath(os.path.abspath(path))
@@ -799,22 +708,6 @@ def get_ranges(arr, padding):
             if arr[idx + 1] != n + 1:  # break coming up
                 k += 1
     return u','.join([u'-'.join(sorted(list(set([blocks[k][0], blocks[k][-1]])))) for k in blocks])
-
-
-ValidFilenameRegex = re.compile(
-    ur'^.*([a-zA-Z0-9]+?)\_(.*)\_(.+?)\_([a-zA-Z0-9]+)\_v([0-9]{1,4})\.([a-zA-Z0-9]+$)',
-    flags=re.IGNORECASE | re.UNICODE)
-IsSequenceRegex = re.compile(
-    ur'^(.+?)(\[.*\])(.*)$', flags=re.IGNORECASE | re.UNICODE)
-SequenceStartRegex = re.compile(
-    ur'^(.*)\[([0-9]+).*\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-SequenceEndRegex = re.compile(
-    ur'^(.*)\[.*?([0-9]+)\](.*)$',
-    flags=re.IGNORECASE | re.UNICODE)
-GetSequenceRegex = re.compile(
-    ur'^(.*?)([0-9]+)([0-9\\/]*|[^0-9\\/]*(?=.+?))\.([^\.]{2,5})$',
-    flags=re.IGNORECASE | re.UNICODE)
 
 
 def is_valid_filename(text):
@@ -1028,39 +921,6 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     return width
 
 
-def mount():
-    """Mounts the server in macosx if it isn't mounted already."""
-    # No need to do anything in windows
-    if get_platform() == u'win':
-        return
-
-    if get_platform() == u'mac':
-        mountpoint = u'/volumes/{}'.format(Server.primary()).split(u'/').pop()
-
-        for d in QtCore.QStorageInfo.mountedVolumes():
-            if d.rootPath().lower() == mountpoint.lower():
-                return  # the server is already mounted and we're good to go
-
-        if QtWidgets.QApplication.instance():
-            mbox = QtWidgets.QMessageBox()
-            mbox.setWindowTitle(u'Server no mounted')
-            mbox.setText(
-                u'Could not find {} - it probably is not mounted.'.format(
-                    Server.primary())
-            )
-            mbox.setInformativeText(
-                u'Primary ({}) server is not mounted. Make sure to mount it before launching GWBrowser.')
-            mbox.setStandardButtons(
-                QtWidgets.QMessageBox.Ok
-            )
-
-
-WindowsPath = 0
-UnixPath = 1
-SlackPath = 2
-MacOSPath = 3
-
-
 def copy_path(index, mode=WindowsPath, first=True):
     """Copies the given path to the clipboard. We have to do some magic here
     for the copied paths to be fully qualified."""
@@ -1234,16 +1094,6 @@ def create_asset_template(source, dest, overwrite=False):
             for f in files:
                 arcname = os.path.join(root, f).replace(source, u'.')
                 zipf.write(os.path.join(root, f), arcname=arcname)
-
-
-MayaAssetTemplate = 1024
-ProjectTemplate = 2048
-
-
-AssetTypes = {
-    MayaAssetTemplate: u'Asset',
-    ProjectTemplate: u'Job',
-}
 
 
 def push_to_rv(path):

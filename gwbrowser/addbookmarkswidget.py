@@ -440,7 +440,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.add_servers_from_config()
 
         # Restoring previous setting
-        val = local_settings.value(u'widget/AddBookmarksWidget/server')
+        val = local_settings.value(
+            u'widget/{}/server'.format(self.__class__.__name__))
         if val:
             for idx in xrange(self.pick_server_widget.view().count()):
                 item = self.pick_server_widget.view().item(idx)
@@ -452,7 +453,8 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             self.pick_server_widget.view().selectionModel().currentIndex())
 
         # Restoring previous setting
-        val = local_settings.value(u'widget/AddBookmarksWidget/job')
+        val = local_settings.value(u'widget/{}/job'.format(
+            self.__class__.__name__))
         if val:
             for idx in xrange(self.pick_job_widget.view().count()):
                 item = self.pick_job_widget.view().item(idx)
@@ -567,15 +569,18 @@ class AddBookmarksWidget(QtWidgets.QWidget):
 
         self.pick_server_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widget/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
+                u'widget/{}/server'.format(self.__class__.__name__),
+                x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_job_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widget/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
+                u'widget/{}/job'.format(self.__class__.__name__),
+                x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_root_widget.view().selectionModel().currentChanged.connect(
             lambda x: local_settings.setValue(
-                u'widget/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
+                u'widget/{}/root'.format(self.__class__.__name__),
+                x.data(QtCore.Qt.DisplayRole))
         )
 
         self.ok_button.pressed.connect(self.add_bookmark)
