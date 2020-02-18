@@ -33,6 +33,7 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         """
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
+        self.setMouseTracking(True)
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
@@ -277,8 +278,11 @@ class StandaloneBrowserWidget(BrowserWidget):
         if self.resize_area in (2, 4, 6):
             geo.setRight(g_bottomright.x() + o.x())
 
-        revert_geo = self.geometry()
+        original_geo = self.geometry()
         self.setGeometry(geo)
+        if self.geometry().width() > geo.width():
+            self.setGeometry(original_geo)
+            return
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""
