@@ -187,7 +187,7 @@ class LocalSettings(QtCore.QSettings):
         if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
             if k not in self.internal_settings:
                 v = super(LocalSettings, self).value(k)
-                self.internal_settings[k] = _bool(v)
+                self.internal_settings[k] = v
             return self.internal_settings[k]
 
         k_type = u'{}__type'.format(k)
