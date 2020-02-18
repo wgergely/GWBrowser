@@ -15,7 +15,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
-from gwbrowser.settings import local_settings, Active
+import gwbrowser.settings as settings_
 from gwbrowser.settings import AssetSettings
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
@@ -108,13 +108,13 @@ class BookmarksModel(BaseModel):
 
         rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
-        active_paths = Active.paths()
+        active_paths = settings_.local_settings.verify_paths()
 
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         favourites = set(favourites)
 
-        bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         for k, v in bookmarks.iteritems():
@@ -345,18 +345,18 @@ class BookmarksWidget(BaseInlineIconWidget):
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
         server, job, root = index.data(common.ParentPathRole)
-        local_settings.setValue(u'activepath/server', server)
-        local_settings.setValue(u'activepath/job', job)
-        local_settings.setValue(u'activepath/root', root)
-        Active.paths()  # Resetting invalid paths
+        settings_.local_settings.setValue(u'activepath/server', server)
+        settings_.local_settings.setValue(u'activepath/job', job)
+        settings_.local_settings.setValue(u'activepath/root', root)
+        settings_.local_settings.verify_paths()  # Resetting invalid paths
 
     def unset_activated(self):
         """Saves the activated index to ``LocalSettings``."""
         server, job, root = None, None, None
-        local_settings.setValue(u'activepath/server', server)
-        local_settings.setValue(u'activepath/job', job)
-        local_settings.setValue(u'activepath/root', root)
-        Active.paths()  # Resetting invalid paths
+        settings_.local_settings.setValue(u'activepath/server', server)
+        settings_.local_settings.setValue(u'activepath/job', job)
+        settings_.local_settings.setValue(u'activepath/root', root)
+        settings_.local_settings.verify_paths()  # Resetting invalid paths
 
     def toggle_archived(self, index=None, state=None):
         """Bookmarks cannot be archived but they're automatically removed from
@@ -382,12 +382,12 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         # Removing the bookmark
         k = index.data(QtCore.Qt.StatusTipRole)
-        d = local_settings.value(u'bookmarks')
+        d = settings_.local_settings.value(u'bookmarks')
         if k.lower() in d:
             del d[k.lower()]
 
-        local_settings.setValue(u'bookmarks', d)
-        local_settings.sync()
+        settings_.local_settings.setValue(u'bookmarks', d)
+        settings_.local_settings.sync()
 
         if index == self.model().sourceModel().active_index():
             self.unset_activated()

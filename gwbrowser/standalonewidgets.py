@@ -5,7 +5,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from gwbrowser.browserwidget import BrowserWidget
 import gwbrowser.common as common
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.browserwidget import TrayMenu
 
@@ -190,10 +190,10 @@ class StandaloneBrowserWidget(BrowserWidget):
         super(StandaloneBrowserWidget, self).showEvent(event)
 
         cls = self.__class__.__name__
-        width = local_settings.value(u'widget/{}/width'.format(cls))
-        height = local_settings.value(u'widget/{}/height'.format(cls))
-        x = local_settings.value(u'widget/{}/x'.format(cls))
-        y = local_settings.value(u'widget/{}/y'.format(cls))
+        width = settings_.local_settings.value(u'widget/{}/width'.format(cls))
+        height = settings_.local_settings.value(u'widget/{}/height'.format(cls))
+        x = settings_.local_settings.value(u'widget/{}/x'.format(cls))
+        y = settings_.local_settings.value(u'widget/{}/y'.format(cls))
 
         if not all((width, height, x, y)):  # skip if not saved yet
             return

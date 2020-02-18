@@ -11,9 +11,9 @@ import sqlite3
 from sqlite3 import Error
 
 
-class BookmarkDatabase(QtCore.QObject):
+class BookmarkDB(QtCore.QObject):
     def __init__(self, index=QtCore.QModelIndex(), server=None, job=None, root=None, parent=None):
-        super(BookmarkDatabase, self).__init__(parent=parent)
+        super(BookmarkDB, self).__init__(parent=parent)
         self._connection = None
         self._exception = u''
 
@@ -224,7 +224,7 @@ class BookmarkDatabase(QtCore.QObject):
 
 
 if __name__ == '__main__':
-    bookmark_db = BookmarkDatabase(
+    bookmark_db = BookmarkDB(
         index=QtCore.QModelIndex(),
         server=u'C:/tmp',
         job=u'job',

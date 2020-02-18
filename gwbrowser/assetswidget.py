@@ -21,7 +21,7 @@ import gwbrowser.delegate as delegate
 from gwbrowser.delegate import AssetsWidgetDelegate
 
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings, Active
+import gwbrowser.settings as settings_
 
 from gwbrowser.fileswidget import FileInfoWorker
 from gwbrowser.fileswidget import SecondaryFileInfoWorker
@@ -166,10 +166,10 @@ class AssetModel(BaseModel):
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
-        activeasset = local_settings.value(u'activepath/asset')
+        activeasset = settings_.local_settings.value(u'activepath/asset')
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
@@ -302,10 +302,10 @@ class AssetsWidget(ThreadedBaseWidget):
         emits the ``activeChanged`` signal.
 
         """
-        local_settings.setValue(
+        settings_.local_settings.setValue(
             u'activepath/asset', index.data(common.ParentPathRole)[-1])
         # Resetting invalid paths
-        Active.paths()
+        settings_.local_settings.verify_paths()
 
     def showEvent(self, event):
         source_index = self.model().sourceModel().active_index()

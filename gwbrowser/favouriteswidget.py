@@ -9,7 +9,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import initdata
@@ -155,7 +155,7 @@ class FavouritesModel(FilesModel):
 
         seqs = {}
 
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
 
         # When a favourite is saved there's a superflous key saved for sequence items
@@ -381,7 +381,7 @@ class FavouritesWidget(FilesWidget):
         model = self.model().sourceModel()
 
         data_type = self.model().sourceModel().data_type()
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         new_favourites = []
 
@@ -401,7 +401,7 @@ class FavouritesWidget(FilesWidget):
                 if path.lower() == favourite.lower():
                     continue
                 new_favourites.append(favourite)
-        local_settings.setValue(u'favourites', new_favourites)
+        settings_.local_settings.setValue(u'favourites', new_favourites)
 
         data = self.model().sourceModel()._data[model.data_key()]
         file_data = {}
@@ -477,7 +477,7 @@ class FavouritesWidget(FilesWidget):
             return
 
         event.accept()
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
 
         for url in mime.urls():
@@ -499,7 +499,7 @@ class FavouritesWidget(FilesWidget):
 
             if path.lower() not in favourites:
                 favourites.append(path.lower())
-        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
 
     def mouseReleaseEvent(self, event):

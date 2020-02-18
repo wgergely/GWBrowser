@@ -23,7 +23,7 @@ from gwbrowser.gwscandir import scandir as scandir_it
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.addfilewidget import NameBase
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 
 BUTTON_SIZE = 20
 ROW_HEIGHT = 28
@@ -994,7 +994,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 self.server_combobox.itemData(idx, role=QtCore.Qt.UserRole))
         )
         self.server_combobox.currentIndexChanged.connect(
-            lambda idx: local_settings.setValue(
+            lambda idx: settings_.local_settings.setValue(
                 u'{}/server_selection'.format(self.__class__.__name__), idx)
         )
         self.server_combobox.currentIndexChanged.connect(
@@ -1006,7 +1006,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.job_combobox.currentIndexChanged.connect(
             self.init_bookmark_list)
         self.job_combobox.currentIndexChanged.connect(
-            lambda idx: local_settings.setValue(
+            lambda idx: settings_.local_settings.setValue(
                 u'{}/job_selection'.format(self.__class__.__name__), idx)
         )
 
@@ -1049,7 +1049,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         def r(s):
             return re.sub(
                 ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
-        val = local_settings.value(self.SERVER_KEY)
+        val = settings_.local_settings.value(self.SERVER_KEY)
         if not val:
             return []
         if isinstance(val, unicode):
@@ -1061,17 +1061,17 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         if val.lower() in s:
             return False
         s.append(val.lower())
-        local_settings.setValue(self.SERVER_KEY, list(set(s)))
+        settings_.local_settings.setValue(self.SERVER_KEY, list(set(s)))
         return True
 
     def remove_server(self, val):
         s = self.get_saved_servers()
         if val.lower() in s:
             s.remove(val.lower())
-        local_settings.setValue(self.SERVER_KEY, list(set(s)))
+        settings_.local_settings.setValue(self.SERVER_KEY, list(set(s)))
 
     def _get_saved_bookmarks(self):
-        val = local_settings.value(self.BOOKMARK_KEY)
+        val = settings_.local_settings.value(self.BOOKMARK_KEY)
         if not val:
             return {}
         return val
@@ -1098,14 +1098,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             u'job':  unicode(job).encode(u'utf-8'),
             u'bookmark_folder':  unicode(bookmark_folder).encode(u'utf-8')
         }
-        local_settings.setValue(self.BOOKMARK_KEY, d)
+        settings_.local_settings.setValue(self.BOOKMARK_KEY, d)
 
     def remove_saved_bookmark(self, server, job, bookmark_folder):
         k = self.key(server, job, bookmark_folder)
         d = self._get_saved_bookmarks()
         if k in d:
             del d[k]
-        local_settings.setValue(self.BOOKMARK_KEY, d)
+        settings_.local_settings.setValue(self.BOOKMARK_KEY, d)
 
     @QtCore.Slot()
     def init_server_combobox(self):
@@ -1159,7 +1159,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.server_combobox.blockSignals(False)
 
         # Restoring the server selection from the saved value
-        idx = local_settings.value(
+        idx = settings_.local_settings.value(
             u'{}/server_selection'.format(self.__class__.__name__))
         idx = 0 if idx is None else int(idx)
         idx = idx if idx < self.server_combobox.count() else 0
@@ -1239,7 +1239,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.job_combobox.blockSignals(False)
 
         # Restoring the server selection from the saved value
-        idx = local_settings.value(
+        idx = settings_.local_settings.value(
             u'{}/job_selection'.format(self.__class__.__name__))
         idx = 0 if idx is None else int(idx)
         idx = idx if idx < self.job_combobox.count() else 0

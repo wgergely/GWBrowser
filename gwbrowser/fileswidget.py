@@ -36,7 +36,7 @@ from gwbrowser.baselistwidget import validate_index
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.settings import AssetSettings
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import FilesWidgetDelegate
 
@@ -532,10 +532,10 @@ class FilesModel(BaseModel):
         _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
         thumbnails = self.get_default_thumbnails()
 
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
-        activefile = local_settings.value(u'activepath/file')
+        activefile = settings_.local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
         location_is_filtered = dkey in common.NameFilters
@@ -738,7 +738,7 @@ class FilesModel(BaseModel):
         if not self._datakey:
             val = None
             key = u'activepath/location'
-            savedval = local_settings.value(key)
+            savedval = settings_.local_settings.value(key)
             return savedval if savedval else val
         return self._datakey
 
@@ -757,7 +757,7 @@ class FilesModel(BaseModel):
 
         """
         k = u'activepath/location'
-        stored_value = local_settings.value(k)
+        stored_value = settings_.local_settings.value(k)
         stored_value = stored_value.lower() if stored_value else stored_value
         self._datakey = self._datakey.lower() if self._datakey else self._datakey
         val = val.lower() if val else val
@@ -775,7 +775,7 @@ class FilesModel(BaseModel):
 
         # Update the local_settings
         if self._datakey == val and val != stored_value:
-            local_settings.setValue(k, val)
+            settings_.local_settings.setValue(k, val)
             return
 
         if val is not None and val == self._datakey:
@@ -789,11 +789,11 @@ class FilesModel(BaseModel):
 
         if val.lower() in entries:
             self._datakey = val
-            local_settings.setValue(k, val)
+            settings_.local_settings.setValue(k, val)
             return
         elif val not in entries and self._datakey in entries:
             val = self._datakey.lower()
-            local_settings.setValue(k, self._datakey)
+            settings_.local_settings.setValue(k, self._datakey)
             return
         # This is a default fallback...
         elif val not in entries and u'scenes' in entries:
@@ -801,7 +801,7 @@ class FilesModel(BaseModel):
 
         val = entries[0]
         self._datakey = val
-        local_settings.setValue(k, val)
+        settings_.local_settings.setValue(k, val)
 
     def can_accept_datakey(self, val):
         """Checks if the key about to be set corresponds to a real
@@ -1046,7 +1046,7 @@ class FilesWidget(ThreadedBaseWidget):
         filepath = u'{}/{}'.format(  # location/subdir/filename.ext
             parent_role[5],
             common.get_sequence_startpath(file_info.fileName()))
-        local_settings.setValue(u'activepath/file', filepath)
+        settings_.local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
         """We will check if the event is over one of the sub-dir rectangles,

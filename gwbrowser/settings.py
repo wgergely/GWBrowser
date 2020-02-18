@@ -6,11 +6,18 @@ the application and the asset and file items.
 import time
 import hashlib
 import collections
+import os
+import re
+import psutil
+from functools import wraps
+
 from PySide2 import QtCore
 
 import gwbrowser.common as common
-import gwbrowser.mode as mode
+import gwbrowser.gwscandir as gwscandir
 
+
+ACTIVE_KEYS = (u'server', u'job', u'root', u'asset', u'location', u'file')
 
 
 def _bool(v):
@@ -22,7 +29,6 @@ def _bool(v):
             return False
         elif v.lower() == u'none':
             return None
-
         try:
             f = float(v)
             if f.is_integer():
@@ -34,33 +40,154 @@ def _bool(v):
     return v
 
 
-class Active(QtCore.QObject):
-    """Utility class to querry and monitor the changes to the active paths.
+def get_lockfile_path():
+    """The path to this session's lock-file."""
+    path = u'{}/{}/session_{}.lock'.format(
+        QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation),
+        common.PRODUCT,
+        os.getpid()
+    )
+    file_info = QtCore.QFileInfo(path)
+    if not file_info.exists():
+        file_info.dir().mkpath(u'.')
+    return file_info.filePath()
 
-    Active paths are set by the ``LocalSettings`` module and are stored in the
-    registry at ``HKEY_CURRENT_USER/SOFTWARE/COMPANY/PRODUCT.``
 
-    The fully set active path is made up of the ``server``, ``job``, ``root``,
-    ``asset``, ``location`` and ``file`` components.
+def prune_lockfile(func):
+    """Decorator removes stale lock-files from the GWBrowser's temp folder."""
+    @wraps(func)
+    def func_wrapper(*args, **kwargs):
+        lockfile_info = QtCore.QFileInfo(get_lockfile_path())
+        for entry in gwscandir.scandir(lockfile_info.path()):
+            if entry.is_dir():
+                continue
+
+            match = re.match(ur'session_[0-9]+\.lock', entry.name.lower())
+            if not match:
+                continue
+
+            path = entry.path.replace(u'\\', u'/')
+            pid = path.strip(u'.lock').split(u'_').pop()
+            pid = int(pid)
+            if pid not in psutil.pids():
+                QtCore.QFile(path).remove()
+        return func(*args, **kwargs)
+    return func_wrapper
+
+
+class LocalSettings(QtCore.QSettings):
+    """An `ini` based `QSettings` object to _get_ and _set_ app settings.
+
+    The current path selection are stored under the ``activepath`` section.
+    LocalSettings provides signals that respond to value changes of the
+    `activepath` entried. This is used to sync GWBrowser's state with other
+    running instances.
+
+    Note:
+        The fully set active path is made up of the ``server``, ``job``, ``root``,
+        ``asset``, ``location`` and ``file`` components.
+
+    `activepath` keys:
+        activepath/server (unicode):    Server, eg. '//server/data'.
+        activepath/job (unicode):       Job folder name inside the server.
+        activepath/root (unicode):      Job-relative bookmark path, eg. 'seq_010/shots'.
+        activepath/asset (unicode):     Job folder name inside the root, eg. 'shot_010'.
+        activepath/location (unicode):  A mode folder, 'scenes', 'renders', etc.
+        activepath/file (unicode):      Location-relative file path.
 
     """
-    # Signals
+
     activeBookmarkChanged = QtCore.Signal()
     activeAssetChanged = QtCore.Signal()
     activeLocationChanged = QtCore.Signal(unicode)
     activeFileChanged = QtCore.Signal(unicode)
 
-    keys = (u'server', u'job', u'root', u'asset', u'location', u'file')
-
     def __init__(self, parent=None):
-        super(Active, self).__init__(parent=parent)
-        self.macos_mount_timer = QtCore.QTimer(parent=self)
-        self.macos_mount_timer.setInterval(5000)
-        self.macos_mount_timer.setSingleShot(False)
-        self.macos_mount_timer.timeout.connect(common.mount)
-        common.mount()
+        config_path = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation)
+        config_path = u'{}/{}/settings.ini'.format(config_path, common.PRODUCT)
 
-        self._active_paths = self.paths()
+        super(LocalSettings, self).__init__(
+            config_path,
+            QtCore.QSettings.IniFormat,
+            parent=parent
+        )
+
+        self._data = {} # Internal data storage
+        self._current_mode = self.get_mode()
+        self._active_paths = self.verify_paths()
+
+        # Simple timer to verify the state of the current changes
+        self.server_mount_timer = QtCore.QTimer(parent=self)
+        self.server_mount_timer.setInterval(15000)
+        self.server_mount_timer.setSingleShot(False)
+        self.server_mount_timer.setTimerType(QtCore.Qt.CoarseTimer)
+        self.server_mount_timer.timeout.connect(self.verify_paths)
+
+        self.sync_timer = QtCore.QTimer(parent=self)
+        self.sync_timer.setInterval(1000)
+        self.sync_timer.setSingleShot(False)
+        self.sync_timer.setTimerType(QtCore.Qt.CoarseTimer)
+        self.sync_timer.timeout.connect(self.check_active_path_state)
+
+
+    def value(self, k):
+        """An override for the default get value method.
+
+        When solo mode is on we have to disable saving `activepath` values to
+        the local settings and redirect querries instead to a temporary proxy
+        dictionary.
+
+        """
+        if self.current_mode() and k.lower().startswith(u'activepath'):
+            if k not in self._data:
+                v = super(LocalSettings, self).value(k)
+                self._data[k] = _bool(v)
+            return self._data[k]
+        return _bool(super(LocalSettings, self).value(k))
+
+    def setValue(self, k, v):
+        """This is a global override for our preferences to disable the setting
+        of the active path settings.
+
+        """
+        if self.current_mode() and k.lower().startswith(u'activepath'):
+            self._data[k] = v
+            return
+        super(LocalSettings, self).setValue(k, v)
+
+    def current_mode(self):
+        return self._current_mode
+
+    @QtCore.Slot()
+    def verify_paths(self):
+        """This slot verifies and returns the saved ``active paths`` wrapped
+        in a dictionary.
+
+        If the resulting active path is not an existing file, we will
+        progressively unset the invalid path segments until we get a valid file
+        path. The slot does not emit any changed signals.
+
+        Returns:
+            OrderedDict:    Verified active paths.
+
+        """
+        d = collections.OrderedDict()
+        for k in ACTIVE_KEYS:
+            d[k] = self.value(u'activepath/{}'.format(k))
+
+        # Let's check the path and unset the invalid parts
+        path = u''
+        for idx, k in enumerate(d):
+            if d[k]:
+                path += u'/{}'.format(common.get_sequence_startpath(d[k]))
+                if idx == 0:
+                    path = d[k]
+            if not QtCore.QFileInfo(path).exists():
+                self.setValue(u'activepath/{}'.format(k), None)
+                d[k] = None
+        return d
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
@@ -68,28 +195,38 @@ class Active(QtCore.QObject):
         self._active_paths[k] = d
 
     @QtCore.Slot()
-    def check_state(self):
-        """This method is called by the timeout slot of the `Active.timer` and
-        check the currently set active item. Emits a changed signal if the
+    def check_active_path_state(self):
+        """Slot compares the internally saved `active_paths` against the current
+        values saved in the config file and emits a changed signal if the
         current state differs from the saved state.
+
+        Connected to the `self.active_timer.timeout` to perform periodical
+        checks.
 
         """
         # When active sync is disabled we won't
-        val = local_settings.value(
+        val = self.value(
             u'preferences/MayaSettings/disable_active_sync')
         if val is True:
             return
 
-        active_paths = self.paths()
+        active_paths = self.verify_paths()
 
         if self._active_paths == active_paths:
             return
-        serverChanged = self._active_paths[u'server'] != active_paths[u'server']
-        jobChanged = self._active_paths[u'job'] != active_paths[u'job']
-        rootChanged = self._active_paths[u'root'] != active_paths[u'root']
-        assetChanged = self._active_paths[u'asset'] != active_paths[u'asset']
-        locationChanged = self._active_paths[u'location'] != active_paths[u'location']
-        fileChanged = self._active_paths[u'file'] != active_paths[u'file']
+
+        serverChanged = self._active_paths[u'server'].lower(
+        ) != active_paths[u'server'].lower()
+        jobChanged = self._active_paths[u'job'].lower(
+        ) != active_paths[u'job'].lower()
+        rootChanged = self._active_paths[u'root'].lower(
+        ) != active_paths[u'root'].lower()
+        assetChanged = self._active_paths[u'asset'].lower(
+        ) != active_paths[u'asset'].lower()
+        locationChanged = self._active_paths[u'location'].lower(
+        ) != active_paths[u'location'].lower()
+        fileChanged = self._active_paths[u'file'].lower(
+        ) != active_paths[u'file'].lower()
 
         if serverChanged or jobChanged or rootChanged:
             self.activeBookmarkChanged.emit()
@@ -109,112 +246,51 @@ class Active(QtCore.QObject):
 
         self._active_paths = active_paths
 
-    @classmethod
-    def paths(cls):
-        """Returns the currently set ``active`` paths as a dictionary.
-        Before returning the values we validate wheather the
-        saved path refers to an existing folder. The invalid items will be unset.
+    @prune_lockfile
+    def touch_mode_lockfile(self):
+        """Creates a lockfile based on the current process' PID."""
+        path = get_lockfile_path()
+        lockfile_info = QtCore.QFileInfo()
+        lockfile_info.dir().mkpath(u'.')
+        with open(path, 'w+'):
+            pass
 
-        Note:
-            When the path is fully set it is made up of
-            `server`/`job`/`root`/`asset`/`file` elements.
+    @prune_lockfile
+    def save_mode_lockfile(self):
+        """Saves the current solo mode to the lockfile.
 
-        Returns:
-            OrderedDict: Object containing the set active path items.
-
-        """
-        d = collections.OrderedDict()
-        for k in cls.keys:
-            d[k] = local_settings.value(u'activepath/{}'.format(k))
-
-        # Checking active-path and unsetting invalid parts
-        path = u''
-        for idx, k in enumerate(d):
-            if d[k]:
-                path += u'/{}'.format(common.get_sequence_startpath(d[k]))
-                if idx == 0:
-                    path = d[k]
-            if not QtCore.QFileInfo(path).exists():
-                local_settings.setValue(u'activepath/{}'.format(k), None)
-                d[k] = None
-
-        return d
-
-    @staticmethod
-    def get_active_path():
-        """Returns the currently set, existing ``active`` path as a string.
-
-        Returns:
-            str or None: The currently set active path.
+        This is to inform any new instances of GWBrowser that they need to start in
+        solo mode if the a instance with a non-solo mode is already running.
 
         """
-        paths = []
-        active_path = Active.paths()
-        for k in active_path:
-            if not active_path[k]:
-                break
+        path = get_lockfile_path()
+        lockfile_info = QtCore.QFileInfo(path)
+        lockfile_info.dir().mkpath(u'.')
+        with open(path, 'w+') as f:
+            f.write(u'{}'.format(int(self.current_mode())))
 
-            paths.append(active_path[k])
-            path = u'/'.join(paths)
-            path = common.get_sequence_endpath(path)
-            if not QtCore.QFileInfo(path).exists():
-                break
+    @prune_lockfile
+    def get_mode(self):
+        lockfile_info = QtCore.QFileInfo(get_lockfile_path())
+        for entry in gwscandir.scandir(lockfile_info.path()):
+            if entry.is_dir():
+                continue
+            path = entry.path
+            if not path.endswith(u'.lock'):
+                continue
+            with open(path, 'r') as f:
+                data = f.read()
+            try:
+                data = int(data.strip())
+                if data == common.SynchronisedMode:
+                    return common.SoloMode
+            except:
+                pass
+        return common.SynchronisedMode
 
-        return path if path else None
+    def set_mode(self, val):
+        self._current_mode = val
 
-
-class LocalSettings(QtCore.QSettings):
-    """Used to store all user-specific settings, such as list of favourites,
-    widget settings and filter modes.
-
-    The current path settings are stored under the ``activepath`` section.
-
-    Activepath keys:
-        activepath/server: `Active` server (eg. '//server/data')
-        activepath/job: `Active` job folder inside the server (eg. 'audible_0001')
-        activepath/root: `Active` bookmark folder inside the job folder (eg. 'seq_010/shots').
-        activepath/asset: `Active` asset folder in side the root folder (eg. 'shot_010').
-        activepath/location:  `Active` location inside the asset folder (eg. ``common.RendersFolder``).
-        activepath/file:    The relative path to the `active` file (eg. 'subfolder/mayascene_v001.ma').
-
-    """
-
-    def __init__(self, parent=None):
-        config_path = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.GenericDataLocation)
-        config_path = u'{}/{}/settings.ini'.format(config_path, common.PRODUCT)
-
-        super(LocalSettings, self).__init__(
-            config_path,
-            QtCore.QSettings.IniFormat,
-            parent=parent
-        )
-        self.internal_settings = {}
-
-    def value(self, k):
-        """An override for the default get value method.
-
-        When solo mode is on we have to disable saving `activepath` values to
-        the local settings and redirect querries instead to a temporary proxy
-        dictionary.
-
-        """
-        if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
-            if k not in self.internal_settings:
-                v = super(LocalSettings, self).value(k)
-                self.internal_settings[k] = _bool(v)
-            return self.internal_settings[k]
-        return _bool(super(LocalSettings, self).value(k))
-
-    def setValue(self, k, v):
-        """This is a global override for our preferences to disable the setting
-        of the active path settings.
-
-        """
-        if mode.CURRENT_MODE and k.lower().startswith(u'activepath'):
-            self.internal_settings[k] = v
-            return
-        super(LocalSettings, self).setValue(k, v)
 
 
 class AssetSettings(QtCore.QSettings):
@@ -267,7 +343,8 @@ class AssetSettings(QtCore.QSettings):
 
         self._file_path = filepath
         self._config_path = config_path
-        self._thumbnail_path = config_path.replace(u'.conf', u'.{}'.format(common.THUMBNAIL_FORMAT))
+        self._thumbnail_path = config_path.replace(
+            u'.conf', u'.{}'.format(common.THUMBNAIL_FORMAT))
 
         super(AssetSettings, self).__init__(
             self.config_path(),

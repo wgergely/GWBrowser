@@ -18,7 +18,7 @@ import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.delegate import paintmethod
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 from gwbrowser.addjobwidget import AddJobWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, ClickableIconButton, add_row
@@ -440,7 +440,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.add_servers_from_config()
 
         # Restoring previous setting
-        val = local_settings.value(u'widget/AddBookmarksWidget/server')
+        val = settings_.local_settings.value(u'widget/AddBookmarksWidget/server')
         if val:
             for idx in xrange(self.pick_server_widget.view().count()):
                 item = self.pick_server_widget.view().item(idx)
@@ -452,7 +452,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             self.pick_server_widget.view().selectionModel().currentIndex())
 
         # Restoring previous setting
-        val = local_settings.value(u'widget/AddBookmarksWidget/job')
+        val = settings_.local_settings.value(u'widget/AddBookmarksWidget/job')
         if val:
             for idx in xrange(self.pick_job_widget.view().count()):
                 item = self.pick_job_widget.view().item(idx)
@@ -566,15 +566,15 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.pick_root_widget.view().activated.connect(self.pick_root_widget.pick_custom)
 
         self.pick_server_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(
+            lambda x: settings_.local_settings.setValue(
                 u'widget/AddBookmarksWidget/server', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_job_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(
+            lambda x: settings_.local_settings.setValue(
                 u'widget/AddBookmarksWidget/job', x.data(QtCore.Qt.DisplayRole))
         )
         self.pick_root_widget.view().selectionModel().currentChanged.connect(
-            lambda x: local_settings.setValue(
+            lambda x: settings_.local_settings.setValue(
                 u'widget/AddBookmarksWidget/root', x.data(QtCore.Qt.DisplayRole))
         )
 
@@ -685,7 +685,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             self.ok_button.update()
             return
 
-        bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         if key in bookmarks:
@@ -729,13 +729,13 @@ class AddBookmarksWidget(QtWidgets.QWidget):
             return
 
         bookmark = {key: {u'server': server, u'job': job, u'root': root}}
-        bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = settings_.local_settings.value(u'bookmarks')
 
         if not bookmarks:
-            local_settings.setValue(u'bookmarks', bookmark)
+            settings_.local_settings.setValue(u'bookmarks', bookmark)
         else:
             bookmarks[key] = bookmark[key]
-            local_settings.setValue(u'bookmarks', bookmarks)
+            settings_.local_settings.setValue(u'bookmarks', bookmarks)
 
         # We will set the newly added Bookmark as the active item
         self.new_key = key
@@ -871,7 +871,7 @@ class AddBookmarksWidget(QtWidgets.QWidget):
         self.get_root_folder_items(index.data(
             QtCore.Qt.StatusTipRole), arr=arr)
 
-        bookmarks = local_settings.value(u'bookmarks')
+        bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         for entry in sorted(arr):

@@ -11,7 +11,7 @@ from gwbrowser.datakeywidget import DataKeyView
 from gwbrowser.editors import FilterEditor
 from gwbrowser.fileswidget import FileThumbnailWorker
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 import gwbrowser.common as common
 
 
@@ -199,9 +199,9 @@ class SimpleModeButton(BaseControlButton):
             return
         cls = self.current_widget().__class__.__name__
         k = 'widget/{}/sort_with_basename'.format(cls)
-        val = local_settings.value(k)
+        val = settings_.local_settings.value(k)
         if val is None:
-            local_settings.setValue(k, self.state())
+            settings_.local_settings.setValue(k, self.state())
         common.SORT_WITH_BASENAME = val
 
     def hideEvent(self, event):
@@ -219,7 +219,7 @@ class SimpleModeButton(BaseControlButton):
 
         cls = self.current_widget().__class__.__name__
         k = 'widget/{}/sort_with_basename'.format(cls)
-        local_settings.setValue(k, not val)
+        settings_.local_settings.setValue(k, not val)
 
         # self.current_widget().update()
 
@@ -312,7 +312,7 @@ class GenerateThumbnailsButton(BaseControlButton):
         cls = model.__class__.__name__
         k = u'widget/{}/generate_thumbnails'.format(cls)
 
-        local_settings.setValue(k, not val)
+        settings_.local_settings.setValue(k, not val)
         model.generate_thumbnails = not val
         self.update()
 

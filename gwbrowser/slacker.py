@@ -5,7 +5,7 @@ from gwbrowser import common
 from gwbrowser.common_ui import add_row, add_label, add_line_edit, PaintedButton, PaintedLabel
 from slackclient import SlackClient
 from gwbrowser.imagecache import oiio_make_thumbnail
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 from gwbrowser.imagecache import ImageCache
 
 
@@ -126,8 +126,8 @@ class UsersModel(QtCore.QAbstractItemModel):
         super(UsersModel, self).__init__(parent=parent)
         self._data = {}
         self.slacker = Slacker(
-            local_settings.value(u'preferences/IntegrationSettings/slack_token'),
-            local_settings.value(u'preferences/IntegrationSettings/slack_member_id'),
+            settings_.local_settings.value(u'preferences/IntegrationSettings/slack_token'),
+            settings_.local_settings.value(u'preferences/IntegrationSettings/slack_member_id'),
             parent=self
         )
         self._connectSignals()
@@ -243,13 +243,13 @@ QListView::item:selected {{
         v = index.data(QtCore.Qt.DisplayRole)
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
-        local_settings.setValue(k, v)
+        settings_.local_settings.setValue(k, v)
 
     @QtCore.Slot()
     def restore_selection(self):
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
-        v = local_settings.value(k)
+        v = settings_.local_settings.value(k)
 
         if not v:
             return

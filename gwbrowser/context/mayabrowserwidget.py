@@ -32,7 +32,7 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-from gwbrowser.settings import Active, local_settings
+import gwbrowser.settings as settings_
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
@@ -101,7 +101,7 @@ MAYA_FPS = {
 def get_framerate(): return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
 
 
-def get_preference(k): return local_settings.value(
+def get_preference(k): return settings_.local_settings.value(
     u'preferences/MayaSettings/{}'.format(k))
 
 
@@ -378,7 +378,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         cmds.namespace(removeNamespace=u'mayaExport',
                        deleteNamespaceContent=True)
     ns = cmds.namespace(add=u'mayaExport')
-    
+
     world_transforms = []
 
     try:
@@ -689,7 +689,7 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         idx += 1
 
 def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
-    ffmpeg_bin_path = local_settings.value(u'preferences/IntegrationSettings/ffmpeg_path')
+    ffmpeg_bin_path = settings_.local_settings.value(u'preferences/IntegrationSettings/ffmpeg_path')
     ffmpeg_bin_path = ffmpeg_bin_path if ffmpeg_bin_path else None
     if not ffmpeg_bin_path:
         return
@@ -833,7 +833,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_toolbar_menu(self, menu_set):
-        active_paths = Active.paths()
+        active_paths = settings_.local_settings.verify_paths()
         bookmark = (active_paths[u'server'],
                     active_paths[u'job'], active_paths[u'root'])
         asset = bookmark + (active_paths[u'asset'],)

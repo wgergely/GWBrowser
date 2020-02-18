@@ -29,7 +29,7 @@ import re
 import uuid
 from PySide2 import QtCore, QtWidgets, QtGui
 
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 import gwbrowser.common as common
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.editors as editors
@@ -720,9 +720,9 @@ class SelectFolderView(QtWidgets.QTreeView):
         folder_basepath = folder_filepath.replace(
             folder_root_path, u'').strip(u'/')
 
-        local_settings.setValue(u'saver/folder_filepath', folder_filepath)
-        local_settings.setValue(u'saver/folder_basepath', folder_basepath)
-        local_settings.setValue(u'saver/folder_rootpath', folder_root_path)
+        settings_.local_settings.setValue(u'saver/folder_filepath', folder_filepath)
+        settings_.local_settings.setValue(u'saver/folder_basepath', folder_basepath)
+        settings_.local_settings.setValue(u'saver/folder_rootpath', folder_root_path)
 
     @QtCore.Slot()
     def restore_previous_selection(self):
@@ -733,7 +733,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         if self._initialized:
             return
 
-        folder_basepath = local_settings.value(u'saver/folder_basepath')
+        folder_basepath = settings_.local_settings.value(u'saver/folder_basepath')
 
         if not folder_basepath:
             self._initialized = True
@@ -1111,10 +1111,10 @@ class NamePrefixWidget(NameBase):
 
     @QtCore.Slot()
     def save(self):
-        local_settings.setValue(u'saver/prefix', self.text())
+        settings_.local_settings.setValue(u'saver/prefix', self.text())
 
     def showEvent(self, event):
-        val = local_settings.value(u'saver/prefix')
+        val = settings_.local_settings.value(u'saver/prefix')
         if not val:
             return
         self.setText(val)
@@ -1189,13 +1189,13 @@ class NameModeWidget(QtWidgets.QComboBox):
     def save_selection(self, idx):
         """Slot responsible for saving the current selection."""
         item = self.view().model().item(idx)
-        local_settings.setValue(
+        settings_.local_settings.setValue(
             u'saver/mode', item.data(QtCore.Qt.StatusTipRole))
 
     @QtCore.Slot()
     def restore_selection(self):
         """Slot responsible for restoring the saved selection."""
-        val = local_settings.value(u'saver/mode')
+        val = settings_.local_settings.value(u'saver/mode')
         if not val:
             return
         idx = self.findData(val, role=QtCore.Qt.StatusTipRole)
@@ -1310,10 +1310,10 @@ class NameUserWidget(NameBase):
 
     @QtCore.Slot()
     def save(self):
-        local_settings.setValue(u'saver/username', self.text())
+        settings_.local_settings.setValue(u'saver/username', self.text())
 
     def showEvent(self, event):
-        val = local_settings.value(u'saver/username')
+        val = settings_.local_settings.value(u'saver/username')
         if not val:
             return
         self.setText(val)
@@ -1343,10 +1343,10 @@ class NameCustomWidget(NameBase):
 
     @QtCore.Slot()
     def save(self):
-        local_settings.setValue(u'saver/customname', self.text())
+        settings_.local_settings.setValue(u'saver/customname', self.text())
 
     def showEvent(self, event):
-        val = local_settings.value(u'saver/customname')
+        val = settings_.local_settings.value(u'saver/customname')
         if not val:
             return
         self.setText(val)
@@ -1366,10 +1366,10 @@ class ToggleCustomNameWidget(QtWidgets.QCheckBox):
 
     @QtCore.Slot()
     def save(self):
-        local_settings.setValue(u'saver/togglecustom', self.isChecked())
+        settings_.local_settings.setValue(u'saver/togglecustom', self.isChecked())
 
     def showEvent(self, event):
-        val = local_settings.value(u'saver/togglecustom')
+        val = settings_.local_settings.value(u'saver/togglecustom')
         if not val:
             self.toggled.emit(self.isChecked())
             return
@@ -1628,9 +1628,9 @@ class AddFileWidget(QtWidgets.QDialog):
             return
 
         asset = asset.data(common.ParentPathRole)[-1] if asset.isValid() else u''
-        mode = self.name_mode_widget.currentIndex()
-        mode = self.name_mode_widget.currentData(
-            QtCore.Qt.DisplayRole).lower() if mode != -1 else u''
+        _mode = self.name_mode_widget.currentIndex()
+        _mode = self.name_mode_widget.currentData(
+            QtCore.Qt.DisplayRole).lower() if _mode != -1 else u''
         _user = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.HomeLocation)
         _user = QtCore.QFileInfo(_user)
@@ -1645,7 +1645,7 @@ class AddFileWidget(QtWidgets.QDialog):
             folder=folder,
             prefix=self.name_prefix_widget.text().lower(),
             asset=asset.lower(),
-            mode=mode.lower(),
+            mode=_mode.lower(),
             user=user.lower(),
             version=version.lower(),
             ext=self.extension.lower()

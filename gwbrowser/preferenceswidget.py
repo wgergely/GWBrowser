@@ -3,7 +3,7 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import local_settings
+import gwbrowser.settings as settings_
 import gwbrowser.common as common
 from gwbrowser.common_ui import PaintedButton, PaintedLabel, add_row, add_label, add_line_edit
 import gwbrowser.slacker as slacker
@@ -163,54 +163,54 @@ class MayaSettingsWidget(BaseSettingsWidget):
 
     def _connectSignals(self):
         self.sync_active_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'disable_active_sync'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'disable_active_sync'), x))
         self.sync_maya_project_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'disable_workspace_sync'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'disable_workspace_sync'), x))
         self.save_warning_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'disable_save_warnings'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'disable_save_warnings'), x))
         self.workspace_warning_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'disable_workspace_warnings'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'disable_workspace_warnings'), x))
         self.reveal_capture_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'reveal_capture'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'reveal_capture'), x))
         self.push_to_rv_button.toggled.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'push_to_rv'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'push_to_rv'), x))
         self.alembic_export_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'alembic_export_path'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'alembic_export_path'), x))
         self.capture_path.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'capture_path'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'capture_path'), x))
 
     def _init_values(self):
-        val = local_settings.value(self.get_preference(u'disable_active_sync'))
+        val = settings_.local_settings.value(self.get_preference(u'disable_active_sync'))
         if val is not None:
             self.sync_active_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'disable_workspace_sync'))
+        val = settings_.local_settings.value(self.get_preference(u'disable_workspace_sync'))
         if val is not None:
             self.sync_maya_project_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'disable_save_warnings'))
+        val = settings_.local_settings.value(self.get_preference(u'disable_save_warnings'))
         if val is not None:
             self.save_warning_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'disable_workspace_warnings'))
+        val = settings_.local_settings.value(self.get_preference(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'reveal_capture'))
+        val = settings_.local_settings.value(self.get_preference(u'reveal_capture'))
         val = val if val is not None else False
         self.reveal_capture_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'push_to_rv'))
+        val = settings_.local_settings.value(self.get_preference(u'push_to_rv'))
         val = val if val is not None else True
         self.push_to_rv_button.setChecked(val)
 
-        val = local_settings.value(self.get_preference(u'alembic_export_path'))
+        val = settings_.local_settings.value(self.get_preference(u'alembic_export_path'))
         if val:
             self.alembic_export_path.setText(val)
         else:
             self.alembic_export_path.setText(common.ALEMBIC_EXPORT_PATH)
 
-        val = local_settings.value(self.get_preference(u'capture_path'))
+        val = settings_.local_settings.value(self.get_preference(u'capture_path'))
         if val:
             self.capture_path.setText(val)
         else:
@@ -311,19 +311,19 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         self.layout().addStretch()
 
     def _init_values(self):
-        slack_url = local_settings.value(self.get_preference(u'slack_url'))
+        slack_url = settings_.local_settings.value(self.get_preference(u'slack_url'))
         val = slack_url if slack_url else None
         self.slack_url.setText(val)
 
-        slack_token = local_settings.value(self.get_preference(u'slack_token'))
+        slack_token = settings_.local_settings.value(self.get_preference(u'slack_token'))
         val = slack_token if slack_token else u''
         self.slack_token.setText(val)
 
-        slack_member_id = local_settings.value(self.get_preference(u'slack_member_id'))
+        slack_member_id = settings_.local_settings.value(self.get_preference(u'slack_member_id'))
         val = slack_member_id if slack_member_id else u''
         self.slack_member_id.setText(val)
 
-        rv_path = local_settings.value(self.get_preference(u'rv_path'))
+        rv_path = settings_.local_settings.value(self.get_preference(u'rv_path'))
         val = rv_path if rv_path else None
         self.rv_path.setText(val)
         file_info = QtCore.QFileInfo(val)
@@ -332,7 +332,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         else:
             self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
-        val = local_settings.value(self.get_preference(u'ffmpeg_path'))
+        val = settings_.local_settings.value(self.get_preference(u'ffmpeg_path'))
         val = val if val else u''
         self.ffmpeg_path.setText(val)
         file_info = QtCore.QFileInfo(val)
@@ -341,7 +341,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         else:
             self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.REMOVE)))
 
-        val = local_settings.value(self.get_preference(u'ffmpeg_command'))
+        val = settings_.local_settings.value(self.get_preference(u'ffmpeg_command'))
         if val:
             self.ffmpeg_command.setText(val)
         else:
@@ -349,15 +349,15 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
 
     def _connectSignals(self):
         self.slack_url.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'slack_url'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'slack_url'), x))
         self.slack_token.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'slack_token'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'slack_token'), x))
         self.slack_member_id.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'slack_member_id'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'slack_member_id'), x))
 
         @QtCore.Slot(unicode)
         def set_rv_path(val):
-            local_settings.setValue(self.get_preference(u'rv_path'), val)
+            settings_.local_settings.setValue(self.get_preference(u'rv_path'), val)
             file_info = QtCore.QFileInfo(val)
             if file_info.exists():
                 self.rv_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
@@ -366,7 +366,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
 
         @QtCore.Slot(unicode)
         def set_ffmpeg_path(val):
-            local_settings.setValue(self.get_preference(u'ffmpeg_path'), val)
+            settings_.local_settings.setValue(self.get_preference(u'ffmpeg_path'), val)
             file_info = QtCore.QFileInfo(val)
             if file_info.exists():
                 self.ffmpeg_path.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))
@@ -377,7 +377,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
 
         self.ffmpeg_path.textChanged.connect(set_ffmpeg_path)
         self.ffmpeg_command.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'ffmpeg_command'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'ffmpeg_command'), x))
 
     def test_slack_token(self):
         try:
@@ -559,7 +559,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
 
     def _init_values(self):
-        company_name = local_settings.value(self.get_preference(u'company'))
+        company_name = settings_.local_settings.value(self.get_preference(u'company'))
         val = company_name if company_name else common.COMPANY
         self.company_name .setText(val)
 
@@ -570,7 +570,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
         self.reveal_asset_template.clicked.connect(self.show_asset_template)
         self.company_name.textChanged.connect(
-            lambda x: local_settings.setValue(self.get_preference(u'company'), x))
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'company'), x))
 
 
     @QtCore.Slot()
@@ -635,7 +635,7 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
         self.init_settings()
 
     def init_settings(self):
-        val = local_settings.value(u'preferences/current_section')
+        val = settings_.local_settings.value(u'preferences/current_section')
         if not val:
             self.setCurrentRow(0)
             return
@@ -645,7 +645,7 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
         """Saves the current row selection to the local settings."""
         if not index.isValid():
             return
-        local_settings.setValue(u'preferences/current_section', index.row())
+        settings_.local_settings.setValue(u'preferences/current_section', index.row())
 
 
 class SectionsStackWidget(QtWidgets.QStackedWidget):

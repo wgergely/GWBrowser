@@ -19,11 +19,9 @@ from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.preferenceswidget import PreferencesWidget
-from gwbrowser.settings import Active
-from gwbrowser.settings import local_settings, Active
+import gwbrowser.settings as settings_
 from gwbrowser.threads import BaseThread
 import gwbrowser.common as common
-import gwbrowser.mode as mode
 import gwbrowser.settings as Settings
 import gwbrowser.slacker as slacker
 
@@ -134,7 +132,7 @@ class TrayMenu(BaseContextMenu):
 
     @contextmenu
     def add_toolbar_menu(self, menu_set):
-        active_paths = Active.paths()
+        active_paths = settings_.local_settings.verify_paths()
         bookmark = (active_paths[u'server'],
                     active_paths[u'job'], active_paths[u'root'])
         asset = bookmark + (active_paths[u'asset'],)
@@ -293,9 +291,9 @@ class ToggleModeButton(QtWidgets.QWidget):
         self.clicked.connect(self.toggle_mode)
 
     def statusTip(self):
-        if mode.CURRENT_MODE == common.SynchronisedMode:
+        if settings_.local_settings.current_mode() == common.SynchronisedMode:
             return u'This GWBrowser instance is syncronised with other instances. Click to toggle!'
-        elif mode.CURRENT_MODE == common.SoloMode:
+        elif settings_.local_settings.current_mode() == common.SoloMode:
             return u'This GWBrowser instance is not synronised with other instances. Click to toggle!'
 
     @QtCore.Slot()
@@ -310,16 +308,16 @@ class ToggleModeButton(QtWidgets.QWidget):
 
     def toggle_mode(self):
         """Simply toggles the solo mode."""
-        if mode.CURRENT_MODE == common.SynchronisedMode:
-            mode.CURRENT_MODE = common.SoloMode
+        if settings_.local_settings.current_mode() == common.SynchronisedMode:
+            settings_.set_mode(common.SoloMode)
             self.animation.setCurrentTime(0)
             self.animation.start()
-        elif mode.CURRENT_MODE == common.SoloMode:
-            mode.CURRENT_MODE = common.SynchronisedMode
+        elif settings_.local_settings.current_mode() == common.SoloMode:
+            settings_.set_mode(common.SynchronisedMode)
             self.animation.setCurrentTime(0)
             self.animation.stop()
         self.update()
-        mode.save()
+        settings_.save_mode_lockfile()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -337,7 +335,7 @@ class ToggleModeButton(QtWidgets.QWidget):
 
         painter.setBrush(QtCore.Qt.NoBrush)
 
-        color = common.REMOVE if mode.CURRENT_MODE else common.ADD
+        color = common.REMOVE if settings_.local_settings.current_mode() else common.ADD
         pen = QtGui.QPen(color)
 
         o = 5.0
@@ -367,11 +365,11 @@ class ToggleModeButton(QtWidgets.QWidget):
             self.clicked.emit()
 
     def showEvent(self, event):
-        if mode.CURRENT_MODE == common.SoloMode:
+        if settings_.local_settings.current_mode() == common.SoloMode:
             self.animation.setCurrentTime(0)
             self.animation.start()
             self.update()
-        elif mode.CURRENT_MODE == common.SynchronisedMode:
+        elif settings_.local_settings.current_mode() == common.SynchronisedMode:
             self.animation.setCurrentTime(0)
             self.animation.stop()
             self.update()
@@ -408,15 +406,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.preferences_widget = None
         self.slack_widget = None
         self.solo_button = None
-
-        self.active_monitor = Active(parent=self)
-
-        self.check_active_state_timer = QtCore.QTimer(parent=self)
-        self.check_active_state_timer.setInterval(1000)
-        self.check_active_state_timer.setSingleShot(False)
-        self.check_active_state_timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.check_active_state_timer.timeout.connect(
-            self.active_monitor.check_state)
 
         self.initializer = QtCore.QTimer(parent=self)
         self.initializer.setSingleShot(True)
@@ -496,8 +485,8 @@ class BrowserWidget(QtWidgets.QWidget):
             f.filterFlagChanged.emit(flag, f.filterFlag(flag))
             ff.filterFlagChanged.emit(flag, ff.filterFlag(flag))
 
-        mode.touch()
-        mode.save()
+        settings_.local_settings.touch_mode_lockfile()
+        settings_.local_settings.save_mode_lockfile()
 
         self.shortcuts = []
 
@@ -508,9 +497,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self._add_shortcuts()
 
         if common.get_platform() == u'mac':
-            self.active_monitor.macos_mount_timer.start()
+            settings_.local_settings.macos_mount_timer.start()
 
-        Active.paths()
+        settings_.local_settings.verify_paths()
 
         # Proxy model
         b = self.bookmarkswidget.model()
@@ -527,13 +516,13 @@ class BrowserWidget(QtWidgets.QWidget):
             emit_saved_state(flag)
 
         b.sourceModel().modelDataResetRequested.emit()
-        self.check_active_state_timer.start()
-        idx = local_settings.value(u'widget/mode')
+        settings_.local_settings.sync_timer.start()
+        idx = settings_.local_settings.value(u'widget/mode')
         self.listcontrolwidget.listChanged.emit(idx)
         self.stackedwidget.currentWidget().setFocus()
 
-        if local_settings.value(u'firstrun') is None:
-            local_settings.setValue(u'firstrun', False)
+        if settings_.local_settings.value(u'firstrun') is None:
+            settings_.local_settings.setValue(u'firstrun', False)
 
         self._initialized = True
         self.initialized.emit()
@@ -546,8 +535,10 @@ class BrowserWidget(QtWidgets.QWidget):
         """
         def ui_teardown():
             self.setUpdatesEnabled(False)
-            self.check_active_state_timer.stop()
-            self.active_monitor.macos_mount_timer.stop()
+            settings_.local_settings.sync_timer.stop()
+            settings_.local_settings.server_mount_timer.stop()
+            settings_.local_settings.deleteLater()
+
             self.listcontrolwidget.bookmarks_button.timer.stop()
             self.listcontrolwidget.assets_button.timer.stop()
             self.listcontrolwidget.files_button.timer.stop()
@@ -557,7 +548,7 @@ class BrowserWidget(QtWidgets.QWidget):
             self.assetswidget.timer.stop()
             self.fileswidget.timer.stop()
             self.favouriteswidget.timer.stop()
-            self.check_active_state_timer.stop()
+            settings_.local_settings.sync_timer.stop()
 
             for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
                 widget.timer.stop()
@@ -649,7 +640,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shortcuts.append(shortcut)
 
     def open_new_instance(self):
-        path = local_settings.value(u'installpath')
+        path = settings_.local_settings.value(u'installpath')
         if not path:
             return
         subprocess.Popen(path)
@@ -794,17 +785,17 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3))
         #####################################################
-        # Active monitor
+        # Sync settings_.local_settings.active_monitor
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'server', x.data(common.ParentPathRole)[0]))
+            lambda x: settings_.local_settings.save_state(u'server', x.data(common.ParentPathRole)[0]))
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'job', x.data(common.ParentPathRole)[1]))
+            lambda x: settings_.local_settings.save_state(u'job', x.data(common.ParentPathRole)[1]))
         b.activated.connect(
-            lambda x: self.active_monitor.save_state(u'root', x.data(common.ParentPathRole)[2]))
+            lambda x: settings_.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
         a.activated.connect(
-            lambda x: self.active_monitor.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
+            lambda x: settings_.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
         f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: self.active_monitor.save_state(u'location', x))
+            lambda x: settings_.local_settings.save_state(u'location', x))
         #####################################################
         # Linkage between the different tabs are established here
         # Fist, the parent paths are set
@@ -847,7 +838,7 @@ class BrowserWidget(QtWidgets.QWidget):
             model = f.model().sourceModel()
             cls = model.__class__.__name__
             k = u'widget/{}/{}/filtertext'.format(cls, data_key)
-            f.model().set_filter_text(local_settings.value(k))
+            f.model().set_filter_text(settings_.local_settings.value(k))
 
         f.model().sourceModel().dataKeyChanged.connect(
             f.model().sourceModel().set_data_key)
@@ -866,10 +857,10 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.dataKeyChanged.connect(lc.textChanged)
         f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
         #####################################################
-        # Active monitor
-        self.active_monitor.activeBookmarkChanged.connect(
+        # settings_.local_settings.active_monitor
+        settings_.local_settings.activeBookmarkChanged.connect(
             b.model().sourceModel().modelDataResetRequested)
-        self.active_monitor.activeAssetChanged.connect(
+        settings_.local_settings.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
         #####################################################
         b.activated.connect(
@@ -1072,10 +1063,10 @@ class BrowserWidget(QtWidgets.QWidget):
         """Saves the position and size of thew widget to the local settings."""
         cls = self.__class__.__name__
         geo = self.geometry()
-        local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
-        local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
-        local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
-        local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
+        settings_.local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
+        settings_.local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
+        settings_.local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
+        settings_.local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
     def sizeHint(self):
         """The widget's default size."""

@@ -20,7 +20,8 @@ import gwbrowser.common as common
 import gwbrowser.editors as editors
 from gwbrowser.basecontextmenu import BaseContextMenu
 import gwbrowser.delegate as delegate
-from gwbrowser.settings import local_settings, AssetSettings
+import gwbrowser.settings as settings_
+from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 
 
@@ -232,15 +233,15 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         model = self.sourceModel()
         data_key = model.data_key()
         cls = model.__class__.__name__
-        self._filter_text = local_settings.value(
+        self._filter_text = settings_.local_settings.value(
             u'widget/{}/{}/filtertext'.format(cls, data_key))
 
         self._filterflags = {
-            common.MarkedAsActive: local_settings.value(
+            common.MarkedAsActive: settings_.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)),
-            common.MarkedAsArchived: local_settings.value(
+            common.MarkedAsArchived: settings_.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsArchived)),
-            common.MarkedAsFavourite: local_settings.value(
+            common.MarkedAsFavourite: settings_.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsFavourite)),
         }
 
@@ -264,12 +265,12 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         k = u'widget/{}/{}/filtertext'.format(cls, data_key)
 
         # We're in sync and there's nothing to do
-        local_val = local_settings.value(k)
+        local_val = settings_.local_settings.value(k)
         if val == self._filter_text == local_val:
             return
 
         self._filter_text = val
-        local_settings.setValue(k, val)
+        settings_.local_settings.setValue(k, val)
 
     def filterFlag(self, flag):
         """Returns the current flag-filter."""
@@ -283,7 +284,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._filterflags[flag] = val
 
         cls = self.sourceModel().__class__.__name__
-        local_settings.setValue(
+        settings_.local_settings.setValue(
             u'widget/{}/filterflag{}'.format(cls, flag), val)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
@@ -430,7 +431,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
         # Generate thumbnails
         cls = self.__class__.__name__
-        _generate_thumbnails = local_settings.value(
+        _generate_thumbnails = settings_.local_settings.value(
             u'widget/{}/generate_thumbnails'.format(cls))
         self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
 
@@ -441,13 +442,13 @@ class BaseModel(QtCore.QAbstractItemModel):
     def initialize_default_sort_values(self):
         cls = self.__class__.__name__
         k = u'widget/{}/sortrole'.format(cls)
-        val = local_settings.value(k)
+        val = settings_.local_settings.value(k)
         if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
             val = common.SortByName
         self._sortrole = val
 
         k = u'widget/{}/sortorder'.format(cls)
-        val = local_settings.value(k)
+        val = settings_.local_settings.value(k)
         if val not in (True, False):
             val = False
         self._sortorder = val
@@ -471,7 +472,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._sortrole = val
 
         cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/sortrole'.format(cls), val)
+        settings_.local_settings.setValue(u'widget/{}/sortrole'.format(cls), val)
 
     def sortOrder(self):
         return self._sortorder
@@ -485,7 +486,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         self._sortorder = val
 
         cls = self.__class__.__name__
-        local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
+        settings_.local_settings.setValue(u'widget/{}/sortorder'.format(cls), val)
 
     def proxy_idxs(self):
         """Returns the id of the proxy."""
@@ -697,7 +698,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         if data_key not in self._datatype:
             cls = self.__class__.__name__
             key = u'widget/{}/{}/datatype'.format(cls, data_key)
-            val = local_settings.value(key)
+            val = settings_.local_settings.value(key)
             val = val if val else common.SequenceItem
             self._datatype[data_key] = val
         return self._datatype[data_key]
@@ -716,7 +717,7 @@ class BaseModel(QtCore.QAbstractItemModel):
                 u'Invalid value {} ({}) provided for `data_type`'.format(val, type(val)))
         cls = self.__class__.__name__
         key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
-        local_settings.setValue(key, val)
+        settings_.local_settings.setValue(key, val)
         self._datatype[data_key] = val
 
 
@@ -749,8 +750,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.description_editor_widget.setHidden(True)
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
-        self._buttons_hidden = False if local_settings.value(
-            k) is None else local_settings.value(k)
+        self._buttons_hidden = False if settings_.local_settings.value(
+            k) is None else settings_.local_settings.value(k)
 
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
@@ -803,7 +804,7 @@ class BaseListWidget(QtWidgets.QListView):
         """Sets the visibility of the inline icon buttons."""
         cls = self.__class__.__name__
         k = u'widget/{}/buttons_hidden'.format(cls)
-        local_settings.setValue(k, val)
+        settings_.local_settings.setValue(k, val)
         self._buttons_hidden = val
 
     def set_model(self, model):
@@ -893,7 +894,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         Note:
             The method emits the ``activeChanged`` signal but itself does not
-            save the change to the local_settings. That is handled by connections
+            save the change to the settings_.local_settings. That is handled by connections
             to the signal.
 
         """
@@ -967,7 +968,7 @@ class BaseListWidget(QtWidgets.QListView):
             self.model().sourceModel().data_key(),
         )
         v = self._get_path(index.data(QtCore.Qt.StatusTipRole))
-        local_settings.setValue(k, v)
+        settings_.local_settings.setValue(k, v)
 
     @QtCore.Slot()
     def reselect_previous(self):
@@ -978,7 +979,7 @@ class BaseListWidget(QtWidgets.QListView):
             cls,
             self.model().sourceModel().data_key(),
         )
-        val = local_settings.value(k)
+        val = settings_.local_settings.value(k)
 
         if not val:
             return
@@ -1049,7 +1050,7 @@ class BaseListWidget(QtWidgets.QListView):
             key = key.expand(ur'\1\3').lower() if key else key
 
         if flag == common.MarkedAsFavourite:
-            favourites = local_settings.value(u'favourites')
+            favourites = settings_.local_settings.value(u'favourites')
             favourites = [f.lower() for f in favourites] if favourites else []
             sfavourites = set(favourites)
 
@@ -1063,7 +1064,7 @@ class BaseListWidget(QtWidgets.QListView):
         # For non-sequence items there nothing else to do.
         if not data[common.SequenceRole]:
             if flag == common.MarkedAsFavourite:
-                local_settings.setValue(u'favourites', sorted(favourites))
+                settings_.local_settings.setValue(u'favourites', sorted(favourites))
             return
 
         # Update the data[SequenceItem] model if currently browsing data[FileItems]
@@ -1109,7 +1110,7 @@ class BaseListWidget(QtWidgets.QListView):
                         favourites.remove(path)
 
         if flag == common.MarkedAsFavourite:
-            local_settings.setValue(u'favourites', sorted(favourites))
+            settings_.local_settings.setValue(u'favourites', sorted(favourites))
 
         self.update(index)
 
@@ -1133,7 +1134,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         settings = AssetSettings(index)
 
-        favourites = local_settings.value(u'favourites')
+        favourites = settings_.local_settings.value(u'favourites')
         favourites = [f.lower() for f in favourites] if favourites else []
         sfavourites = set(favourites)
 
@@ -1245,7 +1246,7 @@ class BaseListWidget(QtWidgets.QListView):
                 self.progress_widget.hide()
 
         # Let's save the favourites list
-        local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
 
     def key_down(self):
         """Custom action on  `down` arrow key-press.
@@ -2098,6 +2099,6 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
         if idx <= 3:
             k = u'widget/mode'
-            local_settings.setValue(k, idx)
+            settings_.local_settings.setValue(k, idx)
 
         super(StackedWidget, self).setCurrentIndex(idx)

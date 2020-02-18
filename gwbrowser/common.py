@@ -84,7 +84,7 @@ def get_favourite_parent_paths():
 def save_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
     import uuid
-    from gwbrowser.settings import local_settings
+    import gwbrowser.settings as settings_
     from gwbrowser.settings import AssetSettings
 
     res = QtWidgets.QFileDialog.getSaveFileName(
@@ -98,7 +98,7 @@ def save_favourites():
     if not destination:
         return
 
-    favourites = local_settings.value(u'favourites')
+    favourites = settings_.local_settings.value(u'favourites')
     favourites = [f.lower() for f in favourites] if favourites else []
 
     server, job, root = get_favourite_parent_paths()
@@ -142,7 +142,7 @@ def save_favourites():
 
 
 def import_favourites():
-    from gwbrowser.settings import local_settings
+    import gwbrowser.settings as settings_
     from gwbrowser.settings import AssetSettings
 
     res = QtWidgets.QFileDialog.getOpenFileName(
@@ -154,7 +154,7 @@ def import_favourites():
     if not source:
         return
 
-    current_favourites = local_settings.value(u'favourites')
+    current_favourites = settings_.local_settings.value(u'favourites')
     current_favourites = [f.lower()
                           for f in current_favourites] if current_favourites else []
 
@@ -199,11 +199,11 @@ def import_favourites():
                 current_favourites.append(favourite)
 
         current_favourites = sorted(list(set(current_favourites)))
-        local_settings.setValue(u'favourites', current_favourites)
+        settings_.local_settings.setValue(u'favourites', current_favourites)
 
 
 def clear_favourites():
-    from gwbrowser.settings import local_settings
+    import gwbrowser.settings as settings_
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'Clear favourites')
     mbox.setText(
@@ -220,7 +220,7 @@ def clear_favourites():
     if mbox.result() == QtWidgets.QMessageBox.Cancel:
         return
 
-    local_settings.setValue(u'favourites', [])
+    settings_.local_settings.setValue(u'favourites', [])
 
 
 def get_platform():
@@ -1249,8 +1249,8 @@ AssetTypes = {
 def push_to_rv(path):
     """Pushes the given given path to RV."""
     import subprocess
-    from gwbrowser.settings import local_settings
-    def get_preference(k): return local_settings.value(
+    import gwbrowser.settings as settings_
+    def get_preference(k): return settings_.local_settings.value(
         u'preferences/IntegrationSettings/{}'.format(k))
 
     def alert():

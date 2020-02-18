@@ -180,7 +180,7 @@ QComboBox QListView::item:hover {{
 }}
 
 QComboBox:hover {{
-		color: rgb({TEXT_SELECTED});
+		color: rgba({TEXT_SELECTED});
 		background-color: rgba(150, 150, 150, 255);
 }}
 QComboBox:disabled {{
