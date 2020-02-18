@@ -17,7 +17,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
-
 TINT_THUMBNAIL_BACKGROUND = False
 ROW_HEIGHT = common.ROW_HEIGHT
 BOOKMARK_ROW_HEIGHT = common.BOOKMARK_ROW_HEIGHT
@@ -28,6 +27,9 @@ LARGE_FONT_SIZE = common.LARGE_FONT_SIZE
 
 regex_remove_version = re.compile(
     ur'(.*)(v)([\[0-9\-\]]+.*)', flags=re.IGNORECASE | re.UNICODE)
+regex_remove_bracket = re.compile(
+    ur'[\[\]]*', flags=re.IGNORECASE | re.UNICODE)
+
 
 BackgroundRect = 0
 IndicatorRect = 1
@@ -1224,10 +1226,13 @@ class FilesWidgetDelegate(BaseDelegate):
 
             # Frame-range without the "[]" characters
             s = match.group(2)
-            s = re.sub(ur'[\[\]]*', u'', s)
+            s = regex_remove_bracket.sub(u'', s)
             if len(s) > 17:
                 s = s[0:8] + u'...' + s[-8:]
-            d[len(d)] = (s, common.SECONDARY_TEXT)
+            if index.data(common.FramesRole) > 1:
+                d[len(d)] = (s, common.REMOVE)
+            else:
+                d[len(d)] = (s, common.TEXT)
 
             # Filename
             d[len(d)] = (
