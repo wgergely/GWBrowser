@@ -4,8 +4,6 @@ bookmarks. This includes the utility classes for getting bookmark status and to
 allow dropping files and urls on the view.
 
 """
-import re
-
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -141,7 +139,7 @@ class BookmarksModel(BaseModel):
 
             filepath = file_info.filePath().lower()
 
-            # Check if this bookmark is active
+            # Flags
             if all((
                 v[u'server'] == active_paths[u'server'],
                 v[u'job'] == active_paths[u'job'],
@@ -149,13 +147,13 @@ class BookmarksModel(BaseModel):
             )):
                 flags = flags | common.MarkedAsActive
 
-            if filepath.lower() in favourites:
+            if filepath in favourites:
                 flags = flags | common.MarkedAsFavourite
 
             data = self.model_data()
             idx = len(data)
 
-            text = u'{}  |  {}'.format(v['job'], v['bookmark_folder'])
+            text = u'{}  |  {}'.format(v[u'job'], v[u'bookmark_folder'])
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
@@ -166,7 +164,7 @@ class BookmarksModel(BaseModel):
                 #
                 common.EntryRole: [],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (v['server'], v['job'], v['bookmark_folder']),
+                common.ParentPathRole: (v[u'server'], v[u'job'], v[u'bookmark_folder']),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: count,

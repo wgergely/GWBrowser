@@ -17,7 +17,6 @@ from PySide2 import QtWidgets, QtCore, QtGui
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
 
-from gwbrowser.common_ui import PaintedButton, add_row
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 
 

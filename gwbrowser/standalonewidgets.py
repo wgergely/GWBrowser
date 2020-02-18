@@ -66,7 +66,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.initialized.connect(self.tweak_ui)
         self.initialized.connect(self.showNormal)
         self.initialized.connect(self.activateWindow)
-
+        self.shutdown.connect(self.hide)
+        # Quit
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Ctrl+Q'), self)
         shortcut.setAutoRepeat(False)

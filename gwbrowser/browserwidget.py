@@ -317,7 +317,7 @@ class ToggleModeButton(QtWidgets.QWidget):
             self.animation.setCurrentTime(0)
             self.animation.stop()
         self.update()
-        settings_.save_mode_lockfile()
+        settings_.local_settings.save_mode_lockfile()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -537,7 +537,6 @@ class BrowserWidget(QtWidgets.QWidget):
             self.setUpdatesEnabled(False)
             settings_.local_settings.sync_timer.stop()
             settings_.local_settings.server_mount_timer.stop()
-            settings_.local_settings.deleteLater()
 
             self.listcontrolwidget.bookmarks_button.timer.stop()
             self.listcontrolwidget.assets_button.timer.stop()
@@ -549,6 +548,8 @@ class BrowserWidget(QtWidgets.QWidget):
             self.fileswidget.timer.stop()
             self.favouriteswidget.timer.stop()
             settings_.local_settings.sync_timer.stop()
+
+            self.resized.disconnect()
 
             for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
                 widget.timer.stop()

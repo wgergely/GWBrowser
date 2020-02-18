@@ -11,15 +11,14 @@ Methods:
     TodoEditorWidget.add_item(): Main function to add a new todo item.
 
 """
-
-import uuid
-import os
+import json
 import time
 import functools
+import re
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import re
-from gwbrowser.imagecache import oiio_make_thumbnail
+import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
 from gwbrowser.settings import AssetSettings
@@ -842,7 +841,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         row.layout().addWidget(label, 1)
         row.layout().addStretch(1)
 
-        self.add_button.clicked.connect(self.add_new_item)
+        self.add_button.clicked.connect(lambda: self.add_item(idx=0))
 
         self.refresh_button = ClickableIconButton(
             u'refresh',
@@ -1076,21 +1075,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
         """Saves the current list of todo items to the assets configuration file."""
         if not self.index.isValid():
             return
-        data = self._collect_data()
-        settings = AssetSettings(self.index)
-        settings.setValue(u'config/todos', data)
 
-        data = [k for k in data if not data[k]['checked']]
-        model = self.index.model()
-        model.setData(self.index, len(data), role=common.TodoCountRole)
-
-    @QtCore.Slot()
-    def add_new_item(self, html=u'', idx=0):
-        """Adds a new item with some default styling."""
-        self.add_item(text=html, idx=idx)
-
-    def _collect_data(self):
-        """Returns all the items found in the todo widget."""
         data = {}
         for n in xrange(len(self.todoeditors_widget.items)):
             item = self.todoeditors_widget.items[n]
@@ -1102,7 +1087,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 u'checked': not checkbox.checked,
                 u'text': editor.document().toHtml(),
             }
-        return data
+
+        db = bookmark_db.get_db(self.index)
+        db.setValue(
+            self.index.data(QtCore.Qt.StatusTipeRole),
+            u'notes',
+            json.dumps(data, ensure_ascii=False, encoding='utf-8')
+        )
+
+        todo_count = len([k for k in data if not data[k][u'checked']])
+        model = self.index.model()
+        model.setData(self.index, todo_count, role=common.TodoCountRole)
 
     def create_lockfile(self):
         """Creates a lock on the current file so it can't be edited by other users.
@@ -1156,5 +1151,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = TodoEditorWidget(QtCore.QModelIndex())
+    widget.add_item(idx=0, text=u'!@#$%^&{Saját tyúkól készítése{;:::hello world!', checked=False)
+    widget.add_item(idx=0, text='file://test.com', checked=False)
     widget.show()
+    # widget.collect_data()
     app.exec_()

@@ -604,7 +604,7 @@ DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
-SettingsRole = 1044
+BookmarkDBRole = 1044
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -624,8 +624,8 @@ SORT_WITH_BASENAME = False
 def namekey(s):
     """Key function used to sort alphanumeric filenames."""
     if SORT_WITH_BASENAME:
-        return [int(f) if f.isdigit() else f for f in s.split('/').pop().lower()]
-    return [int(f) if f.isdigit() else f for f in s.strip('/').lower()]
+        return [int(f) if f.isdigit() else f for f in s.split(u'/').pop().lower()]
+    return [int(f) if f.isdigit() else f for f in s.strip(u'/').lower()]
 
 
 def move_widget_to_available_geo(widget):

@@ -21,11 +21,14 @@ addittional data. The model will also try to generate thumbnails for any
 ``OpenImageIO`` readable file-format via its workers.
 
 """
+import json
 import sys
 import time
 import traceback
 
 from PySide2 import QtWidgets, QtCore, QtGui
+
+import gwbrowser.bookmark_db as bookmark_db
 
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import ThreadedBaseWidget
@@ -83,26 +86,39 @@ class FileInfoWorker(BaseWorker):
 
         if not index.data(common.ParentPathRole):
             return
-        settings = AssetSettings(index)
 
-        # Item description
-        description = settings.value(u'config/description')
-        if description:
-            data[common.DescriptionRole] = description
+        db = bookmark_db.get_db(index)
+        if not db:
+            return
 
-        # Todos
-        todos = settings.value(u'config/todos')
-        todocount = 0
-        if todos:
-            todocount = [k for k in todos if todos[k][u'text'] and not todos[k][u'checked']]
-            todocount = len(todocount)
-        else:
-            todocount = 0
-        data[common.TodoCountRole] = todocount
+        # DATABASE --BEGIN--
+        with db.transaction_contextmanager():
+            # Item description
+            k = data[QtCore.Qt.StatusTipRole]
+
+            # Description
+            v = db.value(k, u'description')
+            if v:
+                data[common.DescriptionRole] = v
+
+            # Todos - We'll only load the the count here
+            v = db.value(k, u'notes')
+            count = 0
+            if v:
+                v = json.loads(v)
+                count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
+                count = len(count)
+            data[common.TodoCountRole] = count
+
+            # Item flags
+            flags = data[common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
+            v = db.value(k, u'flags')
+            if v:
+                flags = flags | v
+            data[common.FlagsRole] = flags
 
         # For sequence items we will work out the name of the sequence based on
-        # the frames contained in the sequence This seems like a moderately
-        # costly operation, hence we're doing this here in the thread...
+        # the frames.
         if data[common.TypeRole] == common.SequenceItem:
             intframes = [int(f) for f in data[common.FramesRole]]
             padding = len(data[common.FramesRole][0])
@@ -146,22 +162,6 @@ class FileInfoWorker(BaseWorker):
                 info_string = mtime.toString(u'dd') + u'/' + mtime.toString(u'MM') + u'/' + mtime.toString(u'yyyy') + u' ' + mtime.toString(u'hh') + u':' + mtime.toString(u'mm') + u';' + common.byte_to_string(data[common.SortBySize])
                 data[common.FileDetailsRole] = info_string
 
-        # Item flags
-        flags = index.flags() | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
-
-        if settings.value(u'config/archived'):
-            flags = flags | common.MarkedAsArchived
-        data[common.FlagsRole] = flags
-
-        # We can ask the worker specifically to check if the file exists
-        # We're using this for the favourites to remove stale items from our list
-        if exists:
-            _path = common.get_sequence_endpath(data[QtCore.Qt.StatusTipRole])
-            file_info = QtCore.QFileInfo(_path)
-            if not file_info.exists():
-                flags = QtCore.Qt.ItemIsEditable | common.MarkedAsArchived
-                data[common.FlagsRole] = flags
-
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
@@ -170,10 +170,11 @@ class FileInfoWorker(BaseWorker):
         try:
             for n, _ in enumerate(data[common.EntryRole]):
                 del data[common.EntryRole][n]
+            del data[common.EntryRole]
         except:
             pass
-        data[common.EntryRole] = []
-        index.model().updateIndex.emit(index)
+        finally:
+            index.model().updateIndex.emit(index)
 
 
 class SecondaryFileInfoWorker(FileInfoWorker):
@@ -238,7 +239,7 @@ class FileThumbnailWorker(BaseWorker):
     @staticmethod
     @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, update=True, make=True):
+    def process_index(index, make=True):
         """The static method responsible for querrying the file item's thumbnail.
 
         We will get the thumbnail's path, check if a cached thumbnail exists already,
@@ -246,7 +247,6 @@ class FileThumbnailWorker(BaseWorker):
         using OpenImageIO.
 
         Args:
-            update (bool): Repaints the associated view if the index is visible
             make (bool): Will generate a thumbnail image if there isn't one already
 
         """
@@ -264,13 +264,16 @@ class FileThumbnailWorker(BaseWorker):
             data = index.model().model_data()[index.row()]
         except KeyError:
             return
-        settings = AssetSettings(index)
 
-        data[common.ThumbnailPathRole] = settings.thumbnail_path()
+        db = bookmark_db.get_db(index)
+        if not db:
+            return
 
-        # This is a less than elegant solution for making sure the thumbnail size
-        # of the AssetsWidget does not get overriden. There's a fair amount of
-        # criss-cross importing here which makes it less then elegant.
+        data[common.ThumbnailPathRole] = db.thumbnail_path(
+            data[QtCore.Qt.StatusTipRole])
+
+        # This is a less than elegant solution for making the thumbnail size
+        # of the AssetsWidget are not sceled
         import gwbrowser.assetswidget as assetswidget
         if isinstance(index.model(), assetswidget.AssetModel):
             height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
@@ -307,7 +310,7 @@ class FileThumbnailWorker(BaseWorker):
             data[common.FileThumbnailLoaded] = False
             index.model().updateIndex.emit(index)
 
-            oiio_make_thumbnail(index, update=update)
+            oiio_make_thumbnail(index)
 
 
 class FileInfoThread(BaseThread):
