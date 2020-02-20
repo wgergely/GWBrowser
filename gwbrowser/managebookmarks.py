@@ -152,7 +152,7 @@ class TemplateListDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class TemplateListWidget(QtWidgets.QListWidget):
-    ROW_SIZE = 28
+
 
     def __init__(self, mode, parent=None):
         super(TemplateListWidget, self).__init__(parent=parent)
@@ -201,11 +201,11 @@ class TemplateListWidget(QtWidgets.QListWidget):
         dir_ = QtCore.QDir(self.templates_dir_path())
         dir_.setNameFilters([u'*.zip', ])
 
-        size = QtCore.QSize(1, self.ROW_SIZE)
+        size = QtCore.QSize(1, ROW_HEIGHT)
         off_pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', common.SECONDARY_BACKGROUND, self.ROW_SIZE)
+            u'custom', common.SECONDARY_BACKGROUND, ROW_HEIGHT)
         on_pixmap = ImageCache.get_rsc_pixmap(
-            u'custom', common.ADD, self.ROW_SIZE)
+            u'custom', common.ADD, ROW_HEIGHT)
         icon = QtGui.QIcon()
         icon.addPixmap(off_pixmap, QtGui.QIcon.Normal)
         icon.addPixmap(on_pixmap, QtGui.QIcon.Selected)
@@ -261,7 +261,6 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
 
 class TemplatesWidget(QtWidgets.QGroupBox):
     templateCreated = QtCore.Signal(unicode)
-    ROW_SIZE = 24
 
     def __init__(self, mode, parent=None):
         super(TemplatesWidget, self).__init__(parent=parent)
@@ -317,21 +316,10 @@ class TemplatesWidget(QtWidgets.QGroupBox):
                                 padding=None, parent=self)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
-        label = common_ui.PaintedLabel(
-            u'Create New {}'.format(self.mode().title()),
-            color=common.SECONDARY_TEXT,
-            size=common.MEDIUM_FONT_SIZE
-        )
-        row.layout().addWidget(label)
-
-        row = common_ui.add_row(None, height=ROW_HEIGHT,
-                                padding=None, parent=self)
-        row.layout().setContentsMargins(0, 0, 0, 0)
-        row.layout().setSpacing(0)
 
         # Label
         label = common_ui.PaintedLabel(
-            u'{} templates'.format(self.mode()),
+            u'{} templates'.format(self.mode().title()),
             color=common.SECONDARY_TEXT,
             size=common.MEDIUM_FONT_SIZE
         )
@@ -341,7 +329,8 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.name_widget = NameBase(parent=self)
         self.name_widget.set_transparent()
         self.name_widget.setFont(common.PrimaryFont)
-        self.name_widget.setPlaceholderText(u'eg. MYJOB_000')
+        self.name_widget.setPlaceholderText(
+            u'eg. MY_NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
         validator = QtGui.QRegExpValidator(regex, parent=self)
         self.name_widget.setValidator(validator)
@@ -353,6 +342,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             parent=row
         )
         row.layout().addWidget(self.add_button, 0)
+        row.layout().addSpacing(common.MARGIN)
         row.layout().addWidget(self.name_widget, 1)
 
         # Template Header
@@ -394,10 +384,10 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         mbox.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
 
         if not self.path():
-            s = u'Unable to add {} because no server is selected'
+            s = u'Unable to add {}: destination not set.'
             mbox.setText(s.format(self.mode().lower()))
             mbox.setInformativeText(
-                u'Add/select a server above to continue.')
+                u'Select the destination before continue.')
             return mbox.exec_()
 
         file_info = QtCore.QFileInfo(self.path())
@@ -501,7 +491,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         if not index.isValid():
             return
 
-        size = QtCore.QSize(0, self.ROW_SIZE)
+        size = QtCore.QSize(0, ROW_HEIGHT)
         folder_pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         folder_icon = QtGui.QIcon()
@@ -673,7 +663,6 @@ class BookmarksWidget(QtWidgets.QListWidget):
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.MinimumExpanding,
         )
-        # self.setStyleSheet(u'background-color: transparent;')
         self.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.itemClicked.connect(self.toggle_state)
 
@@ -738,7 +727,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred,
         )
-        self.setAutoFillBackground(True)
         self._createUI()
         self.hide()
 
@@ -1291,16 +1279,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         return QtCore.QSize(360, 250)
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.BACKGROUND)
-
-        painter.setOpacity(1.0)
-        painter.drawRect(self.rect())
-        painter.end()
 
 
 if __name__ == '__main__':
