@@ -39,7 +39,7 @@ def get_width_height(bound, width, height):
 
 def oiio(func):
     """Decorator to wrap the oiio process"""
-    def func_wrapper(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True):
+    def func_wrapper(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE):
         """This wrapper will make sure the passed parameters are ok to pass onto
         OpenImageIO. We will also update the index value here."""
 
@@ -65,7 +65,7 @@ def oiio(func):
             data = model.model_data()[index.row()]
         try:
             return func(index, source=source,
-                 dest=dest, dest_size=dest_size, update=update)
+                 dest=dest, dest_size=dest_size)
         except Exception as err:
             sys.stderr.write(traceback.format_exc())
             if index.isValid():
@@ -79,7 +79,7 @@ def oiio(func):
 
 @QtCore.Slot(QtCore.QModelIndex)
 @oiio
-def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, update=True, nthreads=3):
+def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAIL_IMAGE_SIZE, nthreads=3):
     """Main function for generating thumbnails using the python bindings of
     OpenImageIO.
 

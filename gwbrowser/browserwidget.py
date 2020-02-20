@@ -7,7 +7,7 @@ import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from gwbrowser.addassetwidget import AddAssetWidget
+import gwbrowser.bookmark_db as bookmark_db
 from gwbrowser.assetswidget import AssetsWidget
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
@@ -446,7 +446,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
         self.stackedwidget.addWidget(self.preferences_widget)
         self.stackedwidget.addWidget(self.slack_widget)
-        self.stackedwidget.addWidget(AddAssetWidget(parent=self.stackedwidget))
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         self.layout().addWidget(self.headerwidget)
@@ -480,10 +479,10 @@ class BrowserWidget(QtWidgets.QWidget):
             return
 
         def emit_saved_state(flag):
-            b.filterFlagChanged.emit(flag, b.filterFlag(flag))
-            a.filterFlagChanged.emit(flag, a.filterFlag(flag))
-            f.filterFlagChanged.emit(flag, f.filterFlag(flag))
-            ff.filterFlagChanged.emit(flag, ff.filterFlag(flag))
+            b.filterFlagChanged.emit(flag, b.filter_flag(flag))
+            a.filterFlagChanged.emit(flag, a.filter_flag(flag))
+            f.filterFlagChanged.emit(flag, f.filter_flag(flag))
+            ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
 
         settings_.local_settings.touch_mode_lockfile()
         settings_.local_settings.save_mode_lockfile()
@@ -581,6 +580,14 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.statusbar.showMessage(u'Closing down...')
 
+        try:
+            for k in bookmark_db._DB_CONNECTIONS.keys():
+                bookmark_db._DB_CONNECTIONS[k].connection().close()
+                bookmark_db._DB_CONNECTIONS[k].deleteLater()
+                del bookmark_db._DB_CONNECTIONS[k]
+        except Exception as e:
+            print e
+
         threadpool = self.get_all_threads()
         for thread in threadpool:
             if thread.isRunning():
@@ -600,7 +607,7 @@ class BrowserWidget(QtWidgets.QWidget):
                     thread.terminate()
                 break
 
-        # self.hide()
+
         ui_teardown()
 
         keys = sys.modules.keys()
@@ -709,7 +716,7 @@ class BrowserWidget(QtWidgets.QWidget):
             view = self.stackedwidget.widget(n)
             model = view.model().sourceModel()
             model.reset_thumbnails()
-            self.stackedwidget.widget(2).reset()
+            self.stackedwidget.widget(n).reset()
             view.restart_timer()
 
     def increase_row_size(self):
@@ -720,11 +727,12 @@ class BrowserWidget(QtWidgets.QWidget):
         delegate.ROW_HEIGHT += 12
         delegate.SMALL_FONT_SIZE += 0.3
 
-        view = self.stackedwidget.widget(2)
-        model = view.model().sourceModel()
-        model.reset_thumbnails()
-        self.stackedwidget.widget(2).reset()
-        view.restart_timer()
+        for n in (2, 3):
+            view = self.stackedwidget.widget(n)
+            model = view.model().sourceModel()
+            model.reset_thumbnails()
+            self.stackedwidget.widget(n).reset()
+            view.restart_timer()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.

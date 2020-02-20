@@ -25,10 +25,12 @@ Example:
 
 
 """
+import functools
 import re
 import uuid
 from PySide2 import QtCore, QtWidgets, QtGui
 
+import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
 import gwbrowser.gwscandir as gwscandir
@@ -162,9 +164,9 @@ class SelectButton(QtWidgets.QLabel):
             # the source model is loading. This is to prevent it from emiting
             # changed signals as the model is being populated.
             self.view().model().sourceModel().modelAboutToBeReset.connect(
-                lambda: self.view().blockSignals(True))
+                functools.partial(self.view().blockSignals, True))
             self.view().model().sourceModel().modelReset.connect(
-                lambda: self.view().blockSignals(False))
+                functools.partial(self.view().blockSignals, False))
             self.view().model().sourceModel().modelReset.connect(self.select_active)
 
         self.update_timer.timeout.connect(self.update_text)
@@ -1787,14 +1789,13 @@ class AddFileWidget(QtWidgets.QDialog):
             self.name_mode_widget.folder_changed)
 
         # Version label
-        self.folder_widget.view().clicked.connect(
-            lambda x: self.name_version_widget.check_version())
+        self.folder_widget.view().clicked.connect(self.name_version_widget.check_version)
         self.folder_widget.view().model().directoryLoaded.connect(
             self.name_version_widget.check_version)
 
-        self.name_mode_widget.activated.connect(lambda x: self.name_version_widget.check_version())
-        self.name_prefix_widget.textChanged.connect(lambda x: self.name_version_widget.check_version())
-        self.name_user_widget.textChanged.connect(lambda x: self.name_version_widget.check_version())
+        self.name_mode_widget.activated.connect(self.name_version_widget.check_version)
+        self.name_prefix_widget.textChanged.connect(self.name_version_widget.check_version)
+        self.name_user_widget.textChanged.connect(self.name_version_widget.check_version)
 
         # Buttons
         self.cancel_button.clicked.connect(self.reject)
@@ -1805,7 +1806,8 @@ class AddFileWidget(QtWidgets.QDialog):
         t.toggled.connect(self.name_version_widget.setHidden)
         t.toggled.connect(self.name_prefix_widget.setHidden)
         t.toggled.connect(self.name_user_widget.setHidden)
-        t.toggled.connect(lambda x: self.name_custom_widget.setHidden(not x))
+        t.toggled.connect(
+            functools.partial(self.name_custom_widget.setHidden, not x))
         t.toggled.connect(self.name_custom_widget.shown)
 
     def showEvent(self, event):
@@ -1824,7 +1826,7 @@ class AddFileWidget(QtWidgets.QDialog):
 
     def message_box(self, informative_text, text=u'A required information is missing:', icon=QtWidgets.QMessageBox.Warning):
         """Convenience function to show a popup message."""
-        mbox = QtWidgets.QMessageBox()
+        mbox = QtWidgets.QMessageBox(parent=self)
         mbox.setWindowTitle(u'File could not be saved')
         mbox.setIcon(icon)
         mbox.setStandardButtons(
@@ -1846,23 +1848,20 @@ class AddFileWidget(QtWidgets.QDialog):
         # We don't have a QModelIndex to use but we can initiate a settings
         # instance using a tuple of bookmark and path variables
         server, job, root = index.data(common.ParentPathRole)[0:3]
-        settings = AssetSettings(
+        db = bookmark_db.get_db(
             server=server,
             job=job,
-            root=root,
-            filepath=self.get_file_path()
-        )
+            root=root)
 
         # Saving the thumbnail
+        file_path = self.get_file_path()
         if not self.thumbnail_widget.image.isNull():
-            self.thumbnail_widget.image.save(settings.thumbnail_path())
+            self.thumbnail_widget.image.save(db.thumbnail_path(file_path))
 
         # Saving the description
         description = self.description_editor_widget.text()
         if description:
-            settings.setValue(u'config/description', description)
-
-        settings.setValue(u'config/description', description)
+            db.setValue(file_path, u'description', description)
 
     @QtCore.Slot()
     def accept(self):
@@ -1933,7 +1932,7 @@ class AddFileWidget(QtWidgets.QDialog):
             version = u'{}'.format(version).zfill(4)
             version = u'v{}'.format(version)
 
-            mbox = QtWidgets.QMessageBox()
+            mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setWindowTitle(u'Couldn\'t save file')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
             mbox.setText(u'A file named "{}" exists already!'.format(
@@ -1961,7 +1960,7 @@ class AddFileWidget(QtWidgets.QDialog):
                 return
             new_version = u'v' + match.group(5)
 
-            mbox = QtWidgets.QMessageBox()
+            mbox = QtWidgets.QMessageBox(parent=self)
             mbox.setWindowTitle(u'Version changed')
             mbox.setIcon(QtWidgets.QMessageBox.Warning)
             mbox.setText(u'Version incremented from "{}" to "{}"'.format(

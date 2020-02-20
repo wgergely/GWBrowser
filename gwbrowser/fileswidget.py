@@ -22,6 +22,7 @@ addittional data. The model will also try to generate thumbnails for any
 
 """
 import json
+import base64
 import sys
 import time
 import traceback
@@ -92,22 +93,32 @@ class FileInfoWorker(BaseWorker):
             return
 
         # DATABASE --BEGIN--
-        with db.transaction_contextmanager():
+        with db.transactions():
             # Item description
-            k = data[QtCore.Qt.StatusTipRole]
+            if data[common.SequenceRole]:
+                k = data[common.SequenceRole]
+                k = k.group(1) + u'[0]' + k.group(3) + u'.' + k.group(4)
+            else:
+                k = data[QtCore.Qt.StatusTipRole]
 
             # Description
             v = db.value(k, u'description')
             if v:
                 data[common.DescriptionRole] = v
 
-            # Todos - We'll only load the the count here
+            # Todos - We'll have to load the data to count the items.
+            # Hope fully this won't end up as a super costly operation
             v = db.value(k, u'notes')
             count = 0
             if v:
-                v = json.loads(v)
-                count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
-                count = len(count)
+                try:
+                    v = base64.b64decode(v)
+                    v = json.loads(v)
+                except:
+                    pass
+                else:
+                    count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
+                    count = len(count)
             data[common.TodoCountRole] = count
 
             # Item flags
@@ -165,16 +176,7 @@ class FileInfoWorker(BaseWorker):
         # Finally, we set the FileInfoLoaded flag to indicate this item
         # has loaded the file data successfully
         data[common.FileInfoLoaded] = True
-
-        # Let's discard the DirEntries we no longer need
-        try:
-            for n, _ in enumerate(data[common.EntryRole]):
-                del data[common.EntryRole][n]
-            del data[common.EntryRole]
-        except:
-            pass
-        finally:
-            index.model().updateIndex.emit(index)
+        index.model().updateIndex.emit(index)
 
 
 class SecondaryFileInfoWorker(FileInfoWorker):
@@ -521,8 +523,7 @@ class FilesModel(BaseModel):
         _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
         thumbnails = self.get_default_thumbnails()
 
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
+        favourites = settings_.local_settings.favourites()
         sfavourites = set(favourites)
         activefile = settings_.local_settings.value(u'activepath/file')
 
@@ -574,8 +575,14 @@ class FilesModel(BaseModel):
 
             flags = dflags()
 
-            if filepath.lower() in sfavourites:
-                flags = flags | common.MarkedAsFavourite
+            if seq:
+                seqpath = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
+                seqpath = seqpath.lower()
+                if seqpath in sfavourites:
+                    flags = flags | common.MarkedAsFavourite
+            else:
+                if filepath in sfavourites:
+                    flags = flags | common.MarkedAsFavourite
 
             if activefile:
                 if activefile in filepath:
@@ -610,7 +617,7 @@ class FilesModel(BaseModel):
                 #
                 common.TypeRole: common.FileItem,
                 #
-                common.SortByName: filepath,
+                common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
             }
@@ -618,17 +625,13 @@ class FilesModel(BaseModel):
             # If the file in question is a sequence, we will also save a reference
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
-                seqpath = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
-                seqpath = seqpath.lower()
                 # If the sequence has not yet been added to our dictionary
                 # of seqeunces we add it here
                 if seqpath not in seqs:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
                     flags = dflags()
-                    key = seq.group(1) + seq.group(3) + u'.' + seq.group(4)
-                    key = key.lower()
 
-                    if key in sfavourites:
+                    if seqpath in sfavourites:
                         flags = flags | common.MarkedAsFavourite
 
                     seqs[seqpath] = {
@@ -657,7 +660,7 @@ class FilesModel(BaseModel):
                         common.ThumbnailBackgroundRole: default_background_color,
                         #
                         common.TypeRole: common.SequenceItem,
-                        common.SortByName: seqpath,
+                        common.SortByName: common.namekey(seqpath),
                         common.SortByLastModified: 0,
                         common.SortBySize: 0,  # Initializing with null-size
                     }
@@ -941,8 +944,6 @@ class FilesWidget(ThreadedBaseWidget):
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
         # self.setAutoScroll(True)
-        self.setMouseTracking(True)
-        self.entered.connect(self.update)
 
         # I'm not sure why but the proxy is not updated properly after refresh
         self.model().sourceModel().dataSorted.connect(self.model().invalidate)

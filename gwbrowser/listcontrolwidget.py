@@ -159,14 +159,14 @@ class ToggleArchivedButton(BaseControlButton):
     def state(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filterFlag(common.MarkedAsArchived)
+        val = self.current_widget().model().filter_flag(common.MarkedAsArchived)
         return val
 
     @QtCore.Slot()
     def action(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filterFlag(common.MarkedAsArchived)
+        val = self.current_widget().model().filter_flag(common.MarkedAsArchived)
         self.current_widget().model().filterFlagChanged.emit(
             common.MarkedAsArchived, not val)
 
@@ -244,14 +244,14 @@ class ToggleFavouriteButton(BaseControlButton):
     def state(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filterFlag(common.MarkedAsFavourite)
+        val = self.current_widget().model().filter_flag(common.MarkedAsFavourite)
         return val
 
     @QtCore.Slot()
     def action(self):
         if not self.current_widget():
             return
-        val = self.current_widget().model().filterFlag(common.MarkedAsFavourite)
+        val = self.current_widget().model().filter_flag(common.MarkedAsFavourite)
         self.current_widget().model().filterFlagChanged.emit(
             common.MarkedAsFavourite, not val)
 

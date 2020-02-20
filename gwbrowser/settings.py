@@ -114,7 +114,7 @@ class LocalSettings(QtCore.QSettings):
             parent=parent
         )
 
-        self._data = {} # Internal data storage
+        self._data = {}  # Internal data storage
         self._current_mode = self.get_mode()
         self._active_paths = self.verify_paths()
 
@@ -130,7 +130,6 @@ class LocalSettings(QtCore.QSettings):
         self.sync_timer.setSingleShot(False)
         self.sync_timer.setTimerType(QtCore.Qt.CoarseTimer)
         self.sync_timer.timeout.connect(self.check_active_path_state)
-
 
     def value(self, k):
         """An override for the default get value method.
@@ -285,6 +284,12 @@ class LocalSettings(QtCore.QSettings):
     def set_mode(self, val):
         self._current_mode = val
 
+    def favourites(self):
+        v = self.value(u'favourites')
+        if isinstance(v, (str, unicode)):
+            v = [v, ]
+        v = [f.lower() for f in v] if v else []
+        return v
 
 
 class AssetSettings(QtCore.QSettings):

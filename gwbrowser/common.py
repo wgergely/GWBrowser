@@ -189,8 +189,8 @@ def save_favourites():
     if not destination:
         return
 
-    favourites = settings_.local_settings.value(u'favourites')
-    favourites = [f.lower() for f in favourites] if favourites else []
+    favourites = settings_.local_settings.favourites()
+    sfavourites = set(favourites)
 
     server, job, root = get_favourite_parent_paths()
     zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
@@ -245,10 +245,7 @@ def import_favourites():
     if not source:
         return
 
-    current_favourites = settings_.local_settings.value(u'favourites')
-    current_favourites = [f.lower()
-                          for f in current_favourites] if current_favourites else []
-
+    current_favourites = settings_.local_settings.favourites()
     create_temp_dir()
 
     with zipfile.ZipFile(source) as zip:

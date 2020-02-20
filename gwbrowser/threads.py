@@ -81,7 +81,10 @@ class BaseWorker(QtCore.QObject):
         if cls.queue.empty():
             return
         while not cls.queue.empty():
-            cls.queue.get(False)
+            try:
+                cls.queue.get(False)
+            except:
+                break
 
     @QtCore.Slot()
     def begin_processing(self):

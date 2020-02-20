@@ -7,6 +7,7 @@ import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache, oiio_make_thumbnail
 from gwbrowser.settings import AssetSettings
@@ -178,8 +179,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on_icon = ImageCache.get_rsc_pixmap(
             u'check', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        sortorder = self.parent().model().sourceModel().sortOrder()
-        sortrole = self.parent().model().sourceModel().sortRole()
+        sortorder = self.parent().model().sourceModel().sort_order()
+        sortrole = self.parent().model().sourceModel().sort_role()
 
         sort_by_name = sortrole == common.SortByName
         sort_modified = sortrole == common.SortByLastModified
@@ -193,7 +194,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'ckeckable': True,
             u'checked': not sortorder,
             u'icon': arrow_down_icon if not sortorder else arrow_up_icon,
-            u'action': lambda: m.sortingChanged.emit(m.sortRole(), not m.sortOrder())
+            u'action': lambda: m.sortingChanged.emit(m.sort_role(), not m.sort_order())
         }
 
         menu_set[u'Sort'][u'separator'] = {}
@@ -202,19 +203,19 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': item_on_icon if sort_by_name else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_by_name else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByName, m.sortOrder())
+            u'action': lambda: m.sortingChanged.emit(common.SortByName, m.sort_order())
         }
         menu_set[u'Sort'][u'Date modified'] = {
             u'icon': item_on_icon if sort_modified else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_modified else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, m.sortOrder())
+            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, m.sort_order())
         }
         menu_set[u'Sort'][u'Size'] = {
             u'icon': item_on_icon if sort_size else item_off_icon,
             u'ckeckable': True,
             u'checked': True if sort_size else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortBySize, m.sortOrder())
+            u'action': lambda: m.sortingChanged.emit(common.SortBySize, m.sort_order())
         }
         return menu_set
 
@@ -316,20 +317,28 @@ class BaseContextMenu(QtWidgets.QMenu):
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             text = u'Remove bookmark'
         else:
-            text = u'Enable' if archived else 'Disable'
+            text = u'Enable' if archived else u'Disable'
         menu_set[u'archived'] = {
             u'text': text,
             u'icon': archived_off_icon if archived else archived_on_icon,
             u'checkable': False,
-            # u'checked': archived,
-            u'action': functools.partial(self.parent().toggle_archived, self.index, state=not archived)
+            u'action': functools.partial(
+                self.parent().toggle_item_flag,
+                self.index,
+                common.MarkedAsArchived,
+                state=not archived
+            )
         }
         menu_set[u'favourite'] = {
-            u'text': 'Remove from favourites' if favourite else 'Favourite',
+            u'text': u'Remove from favourites' if favourite else u'Favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
             u'checkable': False,
-            # u'checked': favourite,
-            u'action': functools.partial(self.parent().toggle_favourite, self.index, state=not favourite)
+            u'action': functools.partial(
+                self.parent().toggle_item_flag,
+                self.index,
+                common.MarkedAsFavourite,
+                state=not favourite
+            )
         }
         return menu_set
 
@@ -340,9 +349,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         item_off = QtGui.QPixmap()
 
-        favourite = self.parent().model().filterFlag(common.MarkedAsFavourite)
-        archived = self.parent().model().filterFlag(common.MarkedAsArchived)
-        active = self.parent().model().filterFlag(common.MarkedAsActive)
+        favourite = self.parent().model().filter_flag(common.MarkedAsFavourite)
+        archived = self.parent().model().filter_flag(common.MarkedAsArchived)
+        active = self.parent().model().filter_flag(common.MarkedAsActive)
 
         menu_set[u'toggle_active'] = {
             u'text': 'Show active only',
@@ -352,7 +361,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'disabled': favourite,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsActive, not active),
         }
-        menu_set[u'toggle_favourites'] = {
+        menu_set[u'toggle_item_flags'] = {
             u'text': 'Show favourites only',
             u'icon': item_on if favourite else item_off,
             u'checkable': False,
@@ -360,7 +369,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'disabled': active,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
         }
-        menu_set[u'toggle_archived'] = {
+        menu_set[u'toggle_item_flag'] = {
             u'text': 'Show disabled',
             u'icon': item_on if archived else item_off,
             u'checkable': False,
@@ -411,10 +420,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         addpixmap = ImageCache.get_rsc_pixmap(
             'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-
         source_index = self.index.model().mapToSource(self.index)
-        settings = AssetSettings(source_index)
-        thumbnail_info = QtCore.QFileInfo(settings.thumbnail_path())
+        db = bookmark_db.get_db(source_index)
+        thumbnail_path = db.thumbnail_path(
+            source_index.data(QtCore.Qt.StatusTipRole))
+        thumbnail_info = QtCore.QFileInfo(thumbnail_path)
         exists = thumbnail_info.exists()
 
         if exists:
@@ -476,7 +486,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Reveal thumbnail cache'] = {
             u'action': functools.partial(
                 common.reveal,
-                settings.thumbnail_path(),
+                thumbnail_path,
             )
         }
         return menu_set
@@ -569,11 +579,15 @@ class BaseContextMenu(QtWidgets.QMenu):
         favourite = self.index.flags() & common.MarkedAsFavourite
 
         menu_set[u'favourite'] = {
-            u'text': 'Remove favourite',
+            u'text': u'Remove favourite',
             u'icon': remove_icon,
             u'checkable': False,
             u'action': functools.partial(
-                self.parent().toggle_favourite, self.index, state=not favourite)
+                self.parent().toggle_item_flag,
+                self.index,
+                common.MarkedAsFavourite,
+                state=not favourite
+            )
         }
         return menu_set
 

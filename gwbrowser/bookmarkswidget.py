@@ -4,8 +4,11 @@ bookmarks. This includes the utility classes for getting bookmark status and to
 allow dropping files and urls on the view.
 
 """
+import json
+import base64
 from PySide2 import QtWidgets, QtGui, QtCore
 
+import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
@@ -101,6 +104,13 @@ class BookmarksModel(BaseModel):
             necessary data is relatively inexpensive.
 
         """
+        def dflags():
+            """The default flags to apply to the item."""
+            return (
+                QtCore.Qt.ItemNeverHasChildren |
+                QtCore.Qt.ItemIsEnabled |
+                QtCore.Qt.ItemIsSelectable)
+
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
@@ -108,19 +118,19 @@ class BookmarksModel(BaseModel):
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
         active_paths = settings_.local_settings.verify_paths()
 
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-        favourites = set(favourites)
+        favourites = settings_.local_settings.favourites()
+        sfavourites = set(favourites)
 
         bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
+
         for k, v in bookmarks.iteritems():
             file_info = QtCore.QFileInfo(k)
-
             exists = file_info.exists()
+
             if exists:
-                flags = QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable
+                flags = dflags()
                 count = count_assets(k)
                 placeholder_image = ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
@@ -129,7 +139,7 @@ class BookmarksModel(BaseModel):
                 default_background_color = common.SEPARATOR
             else:
                 count = 0
-                flags = QtCore.Qt.NoItemFlags | common.MarkedAsArchived
+                flags = dflags() | common.MarkedAsArchived
 
                 placeholder_image = ImageCache.get_rsc_pixmap(
                     u'remove', common.REMOVE, _height)
@@ -139,21 +149,21 @@ class BookmarksModel(BaseModel):
 
             filepath = file_info.filePath().lower()
 
-            # Flags
+            # Active Flag
             if all((
                 v[u'server'] == active_paths[u'server'],
                 v[u'job'] == active_paths[u'job'],
                 v[u'bookmark_folder'] == active_paths[u'root']
             )):
                 flags = flags | common.MarkedAsActive
-
+            # Favourite Flag
             if filepath in favourites:
                 flags = flags | common.MarkedAsFavourite
 
             data = self.model_data()
             idx = len(data)
 
-            text = u'{}  |  {}'.format(v[u'job'], v[u'bookmark_folder'])
+            text = u'{} | {}'.format(v[u'job'], v[u'bookmark_folder'])
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
@@ -184,40 +194,49 @@ class BookmarksModel(BaseModel):
                 common.TypeRole: common.FileItem,
                 common.FileInfoLoaded: True,
                 #
-                common.SortByName: filepath,
-                common.SortByLastModified: filepath,
+                common.SortByName: common.namekey(filepath),
+                common.SortByLastModified: common.namekey(filepath),
                 common.SortBySize: count,
             }
 
-            if not file_info.exists():
-                continue
-
-            # Thumbnail
             index = self.index(idx, 0)
-            settings = AssetSettings(index)
-            data[idx][common.ThumbnailPathRole] = settings.thumbnail_path()
+            db = bookmark_db.get_db(index)
+            with db.transactions():
+                # Item flags
+                flags = data[idx][common.FlagsRole]
+                v = db.value(data[idx][QtCore.Qt.StatusTipRole], u'flags')
+                flags = flags | v if v is not None else flags
+                data[idx][common.FlagsRole] = flags
 
-            image = ImageCache.get(
-                data[idx][common.ThumbnailPathRole], _height, overwrite=True)
+                # Thumbnail
+                data[idx][common.ThumbnailPathRole] = db.thumbnail_path(data[idx][QtCore.Qt.StatusTipRole])
+                image = ImageCache.get(
+                    data[idx][common.ThumbnailPathRole], _height, overwrite=False)
+                if image:
+                    if not image.isNull():
+                        color = ImageCache.get(
+                            data[idx][common.ThumbnailPathRole],
+                            u'BackgroundColor')
+                        data[idx][common.ThumbnailRole] = image
+                        data[idx][common.ThumbnailBackgroundRole] = color
 
-            if image:
-                if not image.isNull():
-                    color = ImageCache.get(
-                        data[idx][common.ThumbnailPathRole],
-                        u'BackgroundColor')
+                # Todos are a little more convoluted - the todo count refers to
+                # all the current outstanding todos af all assets, including
+                # the bookmark itself
+                n = 0
+                for v in db.values(u'notes').itervalues():
+                    if not v:
+                        continue
+                    if not v['notes']:
+                        continue
+                    try:
+                        v = base64.b64decode(v['notes'])
+                        d = json.loads(v)
+                        n += len([k for k in d if not d[k][u'checked'] and d[k][u'text']])
+                    except (ValueError, TypeError):
+                        continue
 
-                    data[idx][common.ThumbnailRole] = image
-                    data[idx][common.ThumbnailBackgroundRole] = color
-
-            # Todos
-            todos = settings.value(u'config/todos')
-            todocount = 0
-            if todos:
-                todocount = len([k for k in todos if not todos[k]
-                                 [u'checked'] and todos[k][u'text']])
-            else:
-                todocount = 0
-            data[idx][common.TodoCountRole] = todocount
+                data[idx][common.TodoCountRole] = n
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -302,6 +321,8 @@ class BookmarksWidget(BaseInlineIconWidget):
         return 5
 
     def add_asset(self):
+        import gwbrowser.addassetwidget as addassetwidget
+
         index = self.selectionModel().currentIndex()
         if not index.isValid():
             return
@@ -309,35 +330,33 @@ class BookmarksWidget(BaseInlineIconWidget):
         bookmark = index.data(common.ParentPathRole)
         bookmark = u'/'.join(bookmark)
 
-        from gwbrowser.addassetwidget import AddAssetWidget
-        widget = AddAssetWidget(bookmark, parent=self)
-        pos = self.rect().center()
-        pos = self.mapToGlobal(pos)
-        widget.move(
-            pos.x() - (widget.width() / 2.0),
-            self.mapToGlobal(self.rect().topLeft()).y() + common.MARGIN
-        )
-
-        self.disabled_overlay_widget.show()
-        try:
-            widget.exec_()
-            if not widget.last_asset_added:
-                self.disabled_overlay_widget.hide()
-                return
-
+        @QtCore.Slot(unicode)
+        def select(name):
             self.parent().parent().listcontrolwidget.listChanged.emit(1)
             view = self.parent().widget(1)
             view.model().sourceModel().modelDataResetRequested.emit()
             for n in xrange(view.model().rowCount()):
                 index = view.model().index(n, 0)
                 file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-                if file_info.fileName().lower() == widget.last_asset_added.lower():
+                if file_info.fileName().lower() == name.lower():
                     view.selectionModel().setCurrentIndex(
                         index, QtCore.QItemSelectionModel.ClearAndSelect)
                     view.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
                     break
-        finally:
-            self.disabled_overlay_widget.hide()
+
+        widget = addassetwidget.AddAssetWidget(bookmark, parent=self)
+        widget.templates_widget.templateCreated.connect(select)
+        widget.setGeometry(self.viewport().geometry())
+        pos = self.geometry().topLeft()
+        pos = self.mapToGlobal(pos)
+        widget.move(pos)
+        widget.exec_()
+
+
+        # except:
+        #     raise
+        # finally:
+        #     self.disabled_overlay_widget.hide()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -356,46 +375,46 @@ class BookmarksWidget(BaseInlineIconWidget):
         settings_.local_settings.setValue(u'activepath/root', root)
         settings_.local_settings.verify_paths()  # Resetting invalid paths
 
-    def toggle_archived(self, index=None, state=None):
-        """Bookmarks cannot be archived but they're automatically removed from
-        from the ``local_settings``."""
-
-        self.reset_multitoggle()
-        res = QtWidgets.QMessageBox(
-            QtWidgets.QMessageBox.NoIcon,
-            u'Remove bookmark?',
-            u'Do you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
-            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-            parent=self
-        ).exec_()
-
-        if res == QtWidgets.QMessageBox.Cancel:
-            return
-
-        if not index:
-            index = self.selectionModel().currentIndex()
-            index = self.model().mapToSource(index)
-        if not index.isValid():
-            return
-
-        # Removing the bookmark
-        k = index.data(QtCore.Qt.StatusTipRole)
-        d = settings_.local_settings.value(u'bookmarks')
-        if k.lower() in d:
-            del d[k.lower()]
-
-        settings_.local_settings.setValue(u'bookmarks', d)
-        settings_.local_settings.sync()
-
-        if index == self.model().sourceModel().active_index():
-            self.unset_activated()
-            self.model().sourceModel().modelDataResetRequested.emit()
-            return
-
-        self.model().sourceModel().blockSignals(True)
-        self.model().sourceModel().__initdata__()
-        self.model().invalidate()
-        self.model().sourceModel().blockSignals(False)
+    # def toggle_item_flag(self, index, flag, state=None):
+    #     """Bookmarks cannot be archived but they're automatically removed from
+    #     from the ``local_settings``."""
+    #
+    #     self.reset_multitoggle()
+    #     res = QtWidgets.QMessageBox(
+    #         QtWidgets.QMessageBox.NoIcon,
+    #         u'Remove bookmark?',
+    #         u'Do you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
+    #         QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
+    #         parent=self
+    #     ).exec_()
+    #
+    #     if res == QtWidgets.QMessageBox.Cancel:
+    #         return
+    #
+    #     if not index:
+    #         index = self.selectionModel().currentIndex()
+    #         index = self.model().mapToSource(index)
+    #     if not index.isValid():
+    #         return
+    #
+    #     # Removing the bookmark
+    #     k = index.data(QtCore.Qt.StatusTipRole)
+    #     d = settings_.local_settings.value(u'bookmarks')
+    #     if k.lower() in d:
+    #         del d[k.lower()]
+    #
+    #     settings_.local_settings.setValue(u'bookmarks', d)
+    #     settings_.local_settings.sync()
+    #
+    #     if index == self.model().sourceModel().active_index():
+    #         self.unset_activated()
+    #         self.model().sourceModel().modelDataResetRequested.emit()
+    #         return
+    #
+    #     self.model().sourceModel().blockSignals(True)
+    #     self.model().sourceModel().__initdata__()
+    #     self.model().invalidate()
+    #     self.model().sourceModel().blockSignals(False)
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
