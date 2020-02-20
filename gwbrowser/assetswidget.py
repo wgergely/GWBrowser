@@ -79,10 +79,6 @@ class AssetsWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
-        self.add_add_asset_menu()
-
-        self.add_separator()
-
         if index.isValid():
             self.add_mode_toggles_menu()
 
@@ -166,9 +162,9 @@ class AssetModel(BaseModel):
         self._data[self.data_key()] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
+        favourites = settings_.local_settings.favourites()
         sfavourites = set(favourites)
+
         activeasset = settings_.local_settings.value(u'activepath/asset')
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
@@ -236,7 +232,7 @@ class AssetModel(BaseModel):
                 #
                 common.TypeRole: common.FileItem,
                 #
-                common.SortByName: filepath,
+                common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
             }
