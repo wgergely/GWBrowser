@@ -11,9 +11,11 @@ from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 import gwbrowser.settings as settings_
 
+import gwbrowser.delegate as delegate
+from gwbrowser.gwscandir import scandir as scandir_it
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import initdata
-from gwbrowser.delegate import FavouritesWidgetDelegate
+from gwbrowser.delegate import FilesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.baselistwidget import validate_index
@@ -41,8 +43,8 @@ class FavouriteInfoWorker(FileInfoWorker):
     @staticmethod
     @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, update=True, exists=True):
-        FileInfoWorker.process_index(index, update=update, exists=exists)
+    def process_index(index, exists=True):
+        FileInfoWorker.process_index(index, exists=exists)
 
 
 class SecondaryFavouriteInfoWorker(SecondaryFileInfoWorker):
@@ -99,7 +101,6 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         self.add_refresh_menu()
 
 
-
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
     InfoThread = FavouriteInfoThread
@@ -109,213 +110,38 @@ class FavouritesModel(FilesModel):
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(parent=parent)
         common.create_temp_dir()
+        self.parent_path = common.get_favourite_parent_paths() + (u'.',)
 
     def data_key(self):
         return u'.'
 
-    @initdata
-    def __initdata__(self):
-        """The model-data is simply based on the saved favourites - but
-        we're only displaying the items that are associated with the current
-        bookmark.
+    def _entry_iterator(self, path):
+        """We're using the saved keys to find and return the DirEntries
+        corresponding to the saved favourites.
 
         """
-        def dflags(): return (
-            QtCore.Qt.ItemNeverHasChildren |
-            QtCore.Qt.ItemIsEnabled |
-            QtCore.Qt.ItemIsSelectable |
-            common.MarkedAsFavourite
-        )
-
-        dkey = self.data_key()
-        rowsize = QtCore.QSize(0, common.ROW_HEIGHT)
-
-        # It is quicker to cache these here...
-        default_thumbnail_image = ImageCache.get(
-            common.rsc_path(__file__, u'favourite_sm'),
-            rowsize.height() - common.ROW_SEPARATOR)
-        folder_thumbnail_image = ImageCache.get(
-            common.rsc_path(__file__, u'folder_sm2'),
-            rowsize.height() - common.ROW_SEPARATOR)
-        default_background_color = QtGui.QColor(0, 0, 0, 0)
-
-        thumbnails = {}
-        defined_thumbnails = set(
-            common.creative_cloud_formats +
-            common.exports_formats +
-            common.scene_formats +
-            common.misc_formats
-        )
-        for ext in defined_thumbnails:
-            thumbnails[ext] = ImageCache.get(
-                common.rsc_path(__file__, ext), rowsize.height())
-
-        self._data[dkey] = {
-            common.FileItem: {}, common.SequenceItem: {}}
-
-        seqs = {}
-
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-
-        # When a favourite is saved there's a superflous key saved for sequence items
-        # we don't want to display. Removing these here:
-        if favourites:
-            superfluous = set()
-            for f in favourites:
-                seq = common.get_sequence(f)
-                if seq:
-                    _seq = seq.group(1) + seq.group(3) + u'.' + seq.group(4)
-                    _seq = _seq.lower()
-                    superfluous.add(_seq)
-            favourites = [f for f in favourites if f.lower() not in superfluous]
+        favourites = settings_.local_settings.favourites()
         sfavourites = set(favourites)
 
-        # A suitable substitue for `self.parent_path`
-        server, job, root = common.get_favourite_parent_paths()
+        d = []
 
-        for filepath in sfavourites:
-            fileroot = filepath
-
-            seq = common.get_sequence(filepath)
-            filename = filepath.split(u'/')[-1]
-
-            _, ext = os.path.splitext(filename)
-            ext = ext.strip(u'.')
-
-            if not ext:
-                placeholder_image = folder_thumbnail_image
-                sortbyname = u'~{}'.format(filename)
-            else:
-                if ext in defined_thumbnails:
-                    placeholder_image = thumbnails[ext]
+        for k in favourites:
+            file_info = QtCore.QFileInfo(k)
+            for entry in scandir_it(file_info.path()):
+                path = entry.path.replace(u'\\', u'/').lower()
+                if path == k:
+                    d.append(entry)
+                    continue
+                seq = common.get_sequence(path)
+                if seq:
+                    _k = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
                 else:
-                    placeholder_image = default_thumbnail_image
-                sortbyname = filename
-
-            flags = dflags()
-
-            idx = len(self._data[dkey][common.FileItem])
-
-            self._data[dkey][common.FileItem][idx] = {
-                QtCore.Qt.DisplayRole: filename if ext else filepath,
-                QtCore.Qt.EditRole: filename,
-                QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.ToolTipRole: filepath,
-                QtCore.Qt.SizeHintRole: rowsize,
-                common.EntryRole: [],
-                common.FlagsRole: flags,
-                common.ParentPathRole: (server, job, root, fileroot),
-                common.DescriptionRole: u'',
-                common.TodoCountRole: 0,
-                common.FileDetailsRole: u'',
-                common.SequenceRole: seq,
-                common.FramesRole: [],
-                common.FileInfoLoaded: False,
-                common.StartpathRole: None,
-                common.EndpathRole: None,
-                #
-                common.FileThumbnailLoaded: False,
-                common.DefaultThumbnailRole: default_thumbnail_image,
-                common.DefaultThumbnailBackgroundRole: default_background_color,
-                common.ThumbnailPathRole: None,
-                common.ThumbnailRole: placeholder_image,
-                common.ThumbnailBackgroundRole: default_background_color,
-                #
-                common.TypeRole: common.FileItem,
-                common.SortByName: sortbyname,
-                # Favourites don't have modified and size attributes
-                common.SortByLastModified: len(sortbyname),
-                common.SortBySize: len(sortbyname),
-            }
-
-            # If the file in question is a sequence, we will also save a reference
-            # to it in `self._model_data[location][True]` dictionary.
-            if seq:
-                try:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        unicode(seq.group(1), 'utf-8'),
-                        unicode(seq.group(3), 'utf-8'),
-                        unicode(seq.group(4), 'utf-8'))
-                except TypeError:
-                    seqpath = u'{}[0]{}.{}'.format(
-                        seq.group(1),
-                        seq.group(3),
-                        seq.group(4))
-
-                if seqpath not in seqs:  # ... and create it if it doesn't exist
-                    seqname = seqpath.split(u'/')[-1]
-                    flags = dflags()
-                    try:
-                        key = u'{}{}.{}'.format(
-                            unicode(seq.group(1), 'utf-8'),
-                            unicode(seq.group(3), 'utf-8'),
-                            unicode(seq.group(4), 'utf-8'))
-                    except TypeError:
-                        key = u'{}{}.{}'.format(
-                            seq.group(1),
-                            seq.group(3),
-                            seq.group(4))
-
-                    flags = dflags()
-                    key = u'{}{}.{}'.format(
-                        seq.group(1), seq.group(3), seq.group(4))
-
-                    seqs[seqpath] = {
-                        QtCore.Qt.DisplayRole: seqname,
-                        QtCore.Qt.EditRole: seqname,
-                        QtCore.Qt.StatusTipRole: seqpath,
-                        QtCore.Qt.ToolTipRole: seqpath,
-                        QtCore.Qt.SizeHintRole: rowsize,
-                        common.EntryRole: [],
-                        common.FlagsRole: flags,
-                        common.ParentPathRole: (server, job, root, fileroot, ),
-                        common.DescriptionRole: u'',
-                        common.TodoCountRole: 0,
-                        common.FileDetailsRole: u'',
-                        common.SequenceRole: seq,
-                        common.FramesRole: [],
-                        common.FileInfoLoaded: False,
-                        #
-                        common.FileThumbnailLoaded: False,
-                        common.DefaultThumbnailRole: default_thumbnail_image,
-                        common.DefaultThumbnailBackgroundRole: default_background_color,
-                        common.ThumbnailPathRole: None,
-                        common.ThumbnailRole: placeholder_image,
-                        common.ThumbnailBackgroundRole: default_background_color,
-                        #
-                        common.TypeRole: common.SequenceItem,
-                        common.SortByName: seqpath,
-                        common.SortByLastModified: len(seqpath),
-                        common.SortBySize: len(seqpath)
-                    }
-                seqs[seqpath][common.FramesRole].append(seq.group(2))
-            else:
-                seqs[filepath] = self._data[dkey][common.FileItem][idx]
-
-        # Casting the sequence data onto the model
-        for v in seqs.itervalues():
-            idx = len(self._data[dkey][common.SequenceItem])
-            # A sequence with only one element is not a sequence!
-            if len(v[common.FramesRole]) == 1:
-                _seq = v[common.SequenceRole]
-                filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
-                filename = filepath.split(u'/')[-1]
-                v[QtCore.Qt.DisplayRole] = filename
-                v[QtCore.Qt.EditRole] = filename
-                v[QtCore.Qt.StatusTipRole] = filepath
-                v[QtCore.Qt.ToolTipRole] = filepath
-                v[common.TypeRole] = common.FileItem
-                v[common.SortByName] = filepath
-                v[common.SortByLastModified] = len(filepath)
-                v[common.SortBySize] = len(filepath)
-
-                flags = dflags()
-                v[common.FlagsRole] = flags
-
-            elif len(v[common.FramesRole]) == 0:
-                v[common.TypeRole] = common.FileItem
-            self._data[dkey][common.SequenceItem][idx] = v
+                    _k = path
+                _k = _k.lower()
+                if k == _k:
+                    d.append(entry)
+        for entry in d:
+            yield entry
 
 
 class DropIndicatorWidget(QtWidgets.QWidget):
@@ -351,105 +177,30 @@ class DropIndicatorWidget(QtWidgets.QWidget):
 class FavouritesWidget(FilesWidget):
     """The widget responsible for showing all the items marked as favourites."""
     SourceModel = FavouritesModel
-    Delegate = FavouritesWidgetDelegate
+    Delegate = FilesWidgetDelegate
     ContextMenu = FavouritesWidgetContextMenu
 
     def __init__(self, parent=None):
         super(FavouritesWidget, self).__init__(parent=parent)
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()
-
+        self.setStyleSheet('margin: 4px;padding: 4px;border:solid 1px black;')
         self.setWindowTitle(u'Favourites')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
-    def toggle_archived(self, *args, **kwargs):
-        self.toggle_favourite(*args, **kwargs)
-
-    def toggle_favourite(self, *args, **kwargs):
-        """On the FavouritesWidget it only make sense to map the toggle
-        method to 'removing' items.
-
-        We will iterate through the sequence and file models and remove
-        each sequence and file item.
-
-        """
-        index = self.selectionModel().currentIndex()
-        path = index.data(QtCore.Qt.StatusTipRole).lower()
-        ref_path = self._get_path(index.data(QtCore.Qt.StatusTipRole))
-
-        index = self.model().mapToSource(index)
-        model = self.model().sourceModel()
-
-        data_type = self.model().sourceModel().data_type()
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
-        new_favourites = []
-
-        if data_type == common.FileItem:
-            for favourite in favourites:
-                if path == favourite.lower():
-                    continue
-                new_favourites.append(favourite)
-        elif data_type == common.SequenceItem:
-            for favourite in favourites:
-                if ref_path.lower() == self._get_path(favourite).lower():
-                    continue
-                if ref_path.lower() == favourite.lower():
-                    continue
-                if path.lower() == self._get_path(favourite).lower():
-                    continue
-                if path.lower() == favourite.lower():
-                    continue
-                new_favourites.append(favourite)
-        settings_.local_settings.setValue(u'favourites', new_favourites)
-
-        data = self.model().sourceModel()._data[model.data_key()]
-        file_data = {}
-        sequence_data = {}
-
-        if data_type == common.FileItem:
-            for k, v in data[common.FileItem].iteritems():
-                if path.lower() == v[QtCore.Qt.StatusTipRole]:
-                    continue
-                file_data[len(file_data)] = v
-            for k, v in data[common.SequenceItem].iteritems():
-                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
-                    continue
-                sequence_data[len(sequence_data)] = v
-        elif data_type == common.SequenceItem:
-            for k, v in data[common.FileItem].iteritems():
-                if ref_path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
-                    continue
-                if ref_path.lower() == v[QtCore.Qt.StatusTipRole].lower():
-                    continue
-                if path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
-                    continue
-                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
-                    continue
-                file_data[len(file_data)] = v
-            for k, v in data[common.SequenceItem].iteritems():
-                if ref_path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
-                    continue
-                if ref_path.lower() == v[QtCore.Qt.StatusTipRole].lower():
-                    continue
-                if path.lower() == self._get_path(v[QtCore.Qt.StatusTipRole]).lower():
-                    continue
-                if path.lower() == v[QtCore.Qt.StatusTipRole].lower():
-                    continue
-                sequence_data[len(sequence_data)] = v
-
-        data[common.FileItem] = file_data
-        data[common.SequenceItem] = sequence_data
-        self.model().invalidate()
+    def set_model(self, *args):
+        print '!'
+        super(FavouritesWidget, self).set_model(*args)
+        self.favouritesChanged.connect(self.model().sourceModel().modelDataResetRequested)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
         return True
-
+    #
     def inline_icons_count(self):
-        return 0
+        return 3
 
     def dragEnterEvent(self, event):
         if event.source() == self:
@@ -479,12 +230,11 @@ class FavouritesWidget(FilesWidget):
             return
 
         event.accept()
-        favourites = settings_.local_settings.value(u'favourites')
-        favourites = [f.lower() for f in favourites] if favourites else []
+        favourites = settings_.local_settings.favourites()
 
         for url in mime.urls():
             file_info = QtCore.QFileInfo(url.toLocalFile())
-            path = file_info.filePath()
+            path = file_info.filePath().lower()
 
             if file_info.suffix().lower() == u'gwb':
                 with open(path, 'r') as f:
@@ -497,18 +247,15 @@ class FavouritesWidget(FilesWidget):
                             continue
                         if saved_path.lower() not in favourites:
                             favourites.append(saved_path.lower())
-                continue
 
-            if path.lower() not in favourites:
-                favourites.append(path.lower())
+            seq = common.get_sequence(path)
+            if seq:
+                k = seq.group(1) + u'[0]' + seq.group(3) + '.' + seq.group(4)
+            else:
+                k = path
+            favourites.append(k)
         settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
-
-    def mouseReleaseEvent(self, event):
-        """Inline-button methods are triggered here."""
-        if not isinstance(event, QtGui.QMouseEvent):
-            return None
-        return super(QtWidgets.QListView, self).mouseReleaseEvent(event)
 
     def eventFilter(self, widget, event):
         """Custom event filter used to paint the background icon."""

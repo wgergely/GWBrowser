@@ -48,7 +48,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.alembic_preview_widget = None
 
         # We're showing the contents of the alembic file
-        if path.lower().endswith('.abc'):
+        if path.lower().endswith(u'.abc'):
             self.clear()
 
             file_info = QtCore.QFileInfo(path)
