@@ -55,7 +55,10 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(BookmarksWidgetContextMenu, self).__init__(index, parent=parent)
         # Adding persistent actions
-        self.add_add_bookmark_menu()
+
+        self.add_manage_bookmarks_menu()
+        self.add_separator()
+
         if index.isValid():
             self.add_mode_toggles_menu()
             self.add_separator()

@@ -663,8 +663,30 @@ class BookmarksWidget(QtWidgets.QListWidget):
             QtWidgets.QSizePolicy.MinimumExpanding,
             QtWidgets.QSizePolicy.MinimumExpanding,
         )
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.itemClicked.connect(self.toggle_state)
+        self.installEventFilter(self)
+
+    def eventFilter(self, widget, event):
+        if event.type() == QtCore.QEvent.Paint:
+            if self.count():
+                return False
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setFont(common.SecondaryFont)
+            painter.setBrush(common.ADD)
+            painter.setPen(common.TEXT_DISABLED)
+            # painter.drawRect(self.rect())
+            painter.drawText(
+                self.rect(),
+                QtCore.Qt.AlignCenter,
+                'No bookmarks found.'
+            )
+            painter.end()
+            return True
+        return False
 
     @QtCore.Slot(QtWidgets.QListWidgetItem)
     def toggle_state(self, item):
@@ -717,9 +739,12 @@ class BookmarksWidget(QtWidgets.QListWidget):
         return QtCore.QSize(80, 40)
 
 
+
 class ManageBookmarksWidget(QtWidgets.QWidget):
     BOOKMARK_KEY = u'bookmarks'
     SERVER_KEY = u'servers'
+
+    progressUpdate = QtCore.Signal(unicode)
 
     def __init__(self, parent=None):
         super(ManageBookmarksWidget, self).__init__(parent=parent)
@@ -727,11 +752,20 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred,
         )
+
+        self.init_timer = QtCore.QTimer(parent=self)
+        self.init_timer.setInterval(1000)
+        self.init_timer.setSingleShot(True)
+        self.init_timer.timeout.connect(self.init_server_combobox)
+
         self._createUI()
-        self.hide()
+
+        self.progressUpdate.connect(self.progress_widget.setText)
+        self.progressUpdate.connect(self.progress_widget.repaint)
+
 
     def showEvent(self, event):
-        self.init_server_combobox()
+        self.init_timer.start()
 
     def _createUI(self):
         @QtCore.Slot()
@@ -830,7 +864,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
-            u' Bookmarks', size=common.LARGE_FONT_SIZE, parent=self)
+            u' Manage Bookmarks', size=common.LARGE_FONT_SIZE, parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
 
@@ -846,12 +880,22 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel(parent=self)
         label.setText(
-            u'Here you can select, or add, the servers, jobs, and bookmarks to be browsed with {}.'.format(common.PRODUCT))
+            u'Add and remove servers, jobs and bookmarks.'.format(common.PRODUCT))
         label.setStyleSheet(u'color: rgba({});'.format(
             common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
         row.layout().addWidget(label, 1)
-        self.layout().addSpacing(common.MARGIN)
+
+        self.progress_widget = QtWidgets.QLabel(parent=self)
+        self.progress_widget.setMaximumWidth(360)
+        # self.progress_widget.setTextFormat(QtCore.Qt.RichText)
+        self.progress_widget.setAlignment(QtCore.Qt.AlignLeft)
+        self.progress_widget.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
+        self.progress_widget.setStyleSheet(
+            u'color: rgba({});font-size: 7pt;'.format(
+                common.rgb(common.FAVOURITE)))
+        self.layout().addWidget(self.progress_widget, 0)
+        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
         # Server row
         # Label
@@ -927,6 +971,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         _row.layout().addWidget(self.reveal_job_button, 0)
 
         self.templates_widget = TemplatesWidget(u'job', parent=self)
+        self.templates_widget.adjustSize()
         self.templates_widget.setHidden(True)
         row.layout().addWidget(self.templates_widget)
 
@@ -1105,15 +1150,16 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 self.server_combobox.setCurrentIndex(n)
                 break
 
+        # We don't want to emit `currentIndexChanged` signals whilst loading
+        self.server_combobox.blockSignals(True)
+
         n = 0
+        current_text = self.server_combobox.currentText()
         idx = self.server_combobox.currentIndex()
 
-        self.server_combobox.blockSignals(True)
         self.server_combobox.clear()
 
-        # We don't want to emit a `currentIndexChanged` signals when first populating the widget.
-        # Rather, we will get the last selection from the preferences and
-        # emit that change instead
+
         for k in self.get_saved_servers():
             pixmap = ImageCache.get_rsc_pixmap(
                 u'server', common.TEXT, ROW_HEIGHT)
@@ -1144,7 +1190,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             n += 1
 
         self.server_combobox.setCurrentIndex(-1)
-        self.server_combobox.blockSignals(False)
 
         # Restoring the server selection from the saved value
         idx = settings_.local_settings.value(
@@ -1154,11 +1199,17 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         idx = idx if idx >= 0 else 0
         self.server_combobox.setCurrentIndex(idx)
 
+        # We wont signal chages unless the selection has actually changed
+        self.server_combobox.blockSignals(False)
+        if self.server_combobox.currentText() != current_text:
+            self.server_combobox.currentIndexChanged.emit(idx)
+
     @QtCore.Slot(int)
     def init_job_combobox(self, idx):
+        current_text = self.job_combobox.currentText()
+
         self.job_combobox.blockSignals(True)
         self.job_combobox.clear()
-        self.job_combobox.blockSignals(False)
 
         if idx < 0:
             return
@@ -1168,14 +1219,15 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         file_info = QtCore.QFileInfo(server)
         if not file_info.exists():
+            self.job_combobox.blockSignals(False)
             self.show_warning('"{}" does not exist'.format(server))
             return
         if not file_info.isReadable():
+            self.job_combobox.blockSignals(False)
             self.show_warning('"{}" is not readable'.format(server))
             return
 
         n = 0
-        self.job_combobox.blockSignals(True)
         for entry in scandir_it(server):
             if not entry.is_dir():
                 continue
@@ -1204,7 +1256,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             icon.addPixmap(pixmap_off, QtGui.QIcon.Disabled)
 
             self.job_combobox.addItem(
-                icon, entry.name.upper(), userData=entry.path.replace(u'\\', '/'))
+                icon, entry.name.upper(), userData=entry.path.replace(u'\\', u'/'))
             item = self.job_combobox.model().item(n)
             self.job_combobox.setItemData(n, QtCore.QSize(
                 0, ROW_HEIGHT), QtCore.Qt.SizeHintRole)
@@ -1217,14 +1269,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                              role=QtCore.Qt.TextColorRole)
                 item.setData(common.SECONDARY_BACKGROUND,
                              role=QtCore.Qt.BackgroundColorRole)
-                # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
                 _pixmap = ImageCache.get_rsc_pixmap(
                     u'close', common.REMOVE, ROW_HEIGHT)
                 self.job_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
             n += 1
 
         self.job_combobox.setCurrentIndex(-1)
-        self.job_combobox.blockSignals(False)
 
         # Restoring the server selection from the saved value
         idx = settings_.local_settings.value(
@@ -1234,38 +1284,58 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         idx = idx if idx >= 0 else 0
         self.job_combobox.setCurrentIndex(idx)
 
+        self.job_combobox.blockSignals(False)
+        if self.job_combobox.currentText() != current_text:
+            self.job_combobox.currentIndexChanged.emit(idx)
+
+    def get_bookmark_dirs(self, path, count, limit, arr):
+        """Recursive scanning function for finding the bookmark folders
+        inside the given path.
+
+        """
+        count += 1
+        if count > limit:
+            return arr
+
+        try:
+            it = scandir_it(path)
+        except:
+            return
+
+        self.progressUpdate.emit(u'<span>Scanning for bookmarks, please wait...</span><br><span>{}</span>'.format(path))
+        QtWidgets.QApplication.instance().processEvents(
+            QtCore.QEventLoop.ExcludeUserInputEvents)
+
+        for entry in it:
+            if not entry.is_dir():
+                continue
+            path = entry.path.replace(u'\\', u'/')
+            if [f for f in arr if f in path]:
+                continue
+
+            if entry.name.lower() == u'.bookmark':
+                arr.append(u'/'.join(path.split(u'/')[:-1]))
+            self.get_bookmark_dirs(path, count, limit, arr)
+
+        self.progressUpdate.emit(u'')
+        return sorted(arr)
+
     @QtCore.Slot(int)
     def init_bookmark_list(self, idx):
-        def _scan(path, count, limit, arr):
-            count += 1
-            if count > limit:
-                return arr
 
-            try:
-                it = scandir_it(path)
-            except:
-                return
-
-            for entry in it:
-                if not entry.is_dir():
-                    continue
-                path = entry.path.replace(u'\\', u'/')
-                if entry.name.lower() == u'.bookmark':
-                    arr.append(u'/'.join(path.split(u'/')[:-1]))
-                _scan(path, count, limit, arr)
-            return sorted(arr)
+        self.bookmark_list.blockSignals(True)
 
         self.bookmark_list.clear()
         path = self.job_combobox.itemData(idx, role=QtCore.Qt.UserRole)
-        dirs = _scan(path, -1, 4, [])
+        dirs = self.get_bookmark_dirs(path, -1, 4, [])
         self.bookmark_list.add_bookmark_items(dirs)
 
         saved_bookmarks = self.get_saved_bookmarks()
-        self.bookmark_list.blockSignals(True)
         for n in xrange(self.bookmark_list.count()):
             item = self.bookmark_list.item(n)
             if item.data(QtCore.Qt.UserRole).lower() in saved_bookmarks:
                 item.setCheckState(QtCore.Qt.Checked)
+
         self.bookmark_list.blockSignals(False)
 
     def show_warning(self, text):
@@ -1288,7 +1358,6 @@ if __name__ == '__main__':
     common.set_custom_stylesheet(widget)
     widget.setWidget(ManageBookmarksWidget(parent=widget))
     widget.show()
-    widget.widget().init_server_combobox()
 
     # for entry in _entry_iterator(ur'C:/temp'):
     #     print entry

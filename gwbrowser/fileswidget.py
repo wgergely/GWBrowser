@@ -554,7 +554,7 @@ class FilesModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                self.messageChanged.emit(u'Found' + unicode(c) + u'files...')
+                self.messageChanged.emit(u'Found ' + unicode(c) + u' files...')
                 QtWidgets.QApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 

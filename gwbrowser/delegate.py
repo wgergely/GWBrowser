@@ -373,12 +373,22 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = rectangles[BookmarkCountRect]
         asset_count = index.data(common.AssetCountRole)
         if rect and not archived:
-            painter.setOpacity(1.0) if hover else painter.setOpacity(0.9)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            if hover:
+                pen = QtGui.QPen(common.ADD)
+                pen.setWidthF(2.5)
+                painter.setPen(pen)
+                painter.setBrush(QtCore.Qt.NoBrush)
+                painter.setOpacity(0.5)
+                painter.drawRoundedRect(rect.marginsAdded(QtCore.QMargins(1,1,1,1)), rect.height(), rect.height())
+
             if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
                 pixmap = ImageCache.get_rsc_pixmap(
-                    u'CopyAction', common.ADD, rect.height())
+                    u'add', common.ADD, rect.height())
                 painter.drawPixmap(rect, pixmap)
             else:
+                painter.setOpacity(0.666)
                 pixmap = ImageCache.get_rsc_pixmap(
                     u'add', common.ADD, rect.height())
                 painter.drawPixmap(rect, pixmap)

@@ -346,14 +346,15 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = ImageCache.get_rsc_pixmap(
-            u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        item_off = QtGui.QPixmap()
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
+        item_off = ImageCache.get_rsc_pixmap(
+            u'active', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
 
         favourite = self.parent().model().filter_flag(common.MarkedAsFavourite)
         archived = self.parent().model().filter_flag(common.MarkedAsArchived)
         active = self.parent().model().filter_flag(common.MarkedAsActive)
 
-        menu_set[u'toggle_active'] = {
+        menu_set[u'active'] = {
             u'text': 'Show active only',
             u'icon': item_on if active else item_off,
             u'checkable': False,
@@ -361,16 +362,16 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'disabled': favourite,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsActive, not active),
         }
-        menu_set[u'toggle_item_flags'] = {
-            u'text': 'Show favourites only',
+        menu_set[u'favourite'] = {
+            u'text': 'Show favourites',
             u'icon': item_on if favourite else item_off,
             u'checkable': False,
             # u'checked': favourite,
             u'disabled': active,
             u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
         }
-        menu_set[u'toggle_item_flag'] = {
-            u'text': 'Show disabled',
+        menu_set[u'archived'] = {
+            u'text': 'Show archived',
             u'icon': item_on if archived else item_off,
             u'checkable': False,
             # u'setChecked': archived,
@@ -492,11 +493,11 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_add_bookmark_menu(self, menu_set):
+    def add_manage_bookmarks_menu(self, menu_set):
         pixmap = ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.INLINE_ICON_SIZE)
-        menu_set[u'Add bookmark'] = {
-            u'text': 'Add bookmark...',
+            u'bookmark2', common.ADD, common.INLINE_ICON_SIZE)
+        menu_set[u'Manage bookmarks'] = {
+            u'text': u'Manage bookmarks',
             u'icon': pixmap,
             u'action': lambda: self.parent().manage_bookmarks.show()
         }
