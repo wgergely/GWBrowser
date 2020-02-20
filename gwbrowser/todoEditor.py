@@ -12,6 +12,7 @@ Methods:
 
 """
 import json
+import base64
 import time
 import functools
 import re
@@ -21,7 +22,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
-from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 
 
@@ -31,6 +31,7 @@ QuoteHighlight = 0b000010
 ItalicsHighlight = 0b001000
 BoldHighlight = 0b010000
 PathHighlight = 0b100000
+
 
 HIGHLIGHT_RULES = {
     u'url': {
@@ -77,6 +78,18 @@ HIGHLIGHT_RULES = {
         u'flag': BoldHighlight
     },
 }
+
+
+class Lockfile(QtCore.QSettings):
+    def __init__(self, index, parent=None):
+        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+        self.config_path = file_info.path() + u'/.bookmark/' + file_info.baseName() + u'.lock'
+
+        super(Lockfile, self).__init__(
+            self.config_path,
+            QtCore.QSettings.IniFormat,
+            parent=parent
+        )
 
 
 class Highlighter(QtGui.QSyntaxHighlighter):
@@ -370,7 +383,6 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
     #         text = mimedata.text()
     #         self.insertHtml(u'{}<br>'.format(text))
 
-
     def open_url(self, url):
         """We're handling the clicking of anchors here manually."""
         if not url.isValid():
@@ -388,7 +400,7 @@ class RemoveNoteButton(ClickableIconButton):
         super(RemoveNoteButton, self).__init__(
             u'remove',
             (common.REMOVE, common.REMOVE),
-            common.INLINE_ICON_SIZE,
+            common.INLINE_ICON_SIZE * 0.66,
             description=u'Click to remove this note',
             parent=parent
         )
@@ -441,10 +453,10 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """Custom disabled function."""
         if b:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.TEXT_SELECTED, common.INLINE_ICON_SIZE * 0.66)
         else:
             pixmap = ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT, common.INLINE_ICON_SIZE)
+                u'drag_indicator', common.TEXT, common.INLINE_ICON_SIZE * 0.66)
 
         self.setPixmap(pixmap)
 
@@ -526,7 +538,6 @@ class CheckBoxButton(QtWidgets.QLabel):
         self._checked_pixmap = None
         self._unchecked_pixmap = None
 
-        self.setAttribute(QtCore.Qt.WA_Hover, True)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -630,7 +641,7 @@ class TodoEditors(QtWidgets.QWidget):
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
-        self.layout().setSpacing(common.INDICATOR_WIDTH)
+        self.layout().setSpacing(common.INDICATOR_WIDTH * 2)
 
         self.setAcceptDrops(True)
 
@@ -780,61 +791,64 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.todoeditors_widget = None
         self._index = index
         self.read_only = False
+        self.lock = Lockfile(self.index, parent=self)
+        self.destroyed.connect(self.unlock)
 
         self.lockstamp = int(round(time.time() * 1000))
         self.save_timer = QtCore.QTimer(parent=self)
-        self.save_timer.setInterval(2000)
+        self.save_timer.setInterval(5000)
         self.save_timer.setSingleShot(False)
         self.save_timer.timeout.connect(self.save_settings)
 
-        self.setWindowTitle(u'Notes and Tasks')
+        self.refresh_timer = QtCore.QTimer(parent=self)
+        self.refresh_timer.setInterval(30000) # refresh every 30 seconds
+        self.refresh_timer.setSingleShot(False)
+        self.refresh_timer.timeout.connect(self.refresh)
+
+        self.setWindowTitle(u'Notes & Tasks')
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self._createUI()
         self.installEventFilter(self)
 
-        self.create_lockfile()
+        self.init_lock()
         self.refresh()
-
-    def _updateGeometry(self, *args, **kwargs):
-        geo = self.parent().viewport().rect()
-        self.resize(geo.width(), geo.height())
 
     def _createUI(self):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
-        o = common.MARGIN
-        self.layout().setSpacing(4.0)
+        o = common.MARGIN * 1.5
+        self.layout().setSpacing(12.0)
         self.layout().setContentsMargins(o, o, o, o)
 
         # Top row
-        height = common.ROW_BUTTONS_HEIGHT
+        height = 20
         row = add_row(None, height=height, parent=self)
 
         def paintEvent(event):
             painter = QtGui.QPainter()
             painter.begin(row)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setBrush(QtGui.QColor(0,0,0,255))
+            painter.setBrush(QtGui.QColor(0, 0, 0, 255))
             rect = row.rect()
-            rect.setTop(rect.bottom() - 1)
+            rect.setTop(rect.bottom())
             painter.drawRect(rect)
             painter.end()
 
-        row.paintEvent = paintEvent
+        # row.paintEvent = paintEvent
         # Thumbnail
         self.add_button = ClickableIconButton(
-            u'add',
+            u'todo',
             (common.ADD, common.ADD),
-            height * 0.8,
+            height,
             description=u'Click to add a new Todo item...',
             parent=self
         )
 
         # Name label
-        text = u'Notes and Tasks'.upper()
-        label = PaintedLabel(text, color=common.SEPARATOR,
-                             size=common.LARGE_FONT_SIZE, parent=self)
+        text = u'Edit Notes and Tasks'
+        label = PaintedLabel(text, color=common.BACKGROUND,
+                             size=common.MEDIUM_FONT_SIZE, parent=self)
 
         row.layout().addWidget(self.add_button, 0)
         row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
@@ -845,8 +859,8 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         self.refresh_button = ClickableIconButton(
             u'refresh',
-            (QtGui.QColor(0,0,0,255), QtGui.QColor(0,0,0,255)),
-            height * 0.66,
+            (QtGui.QColor(0, 0, 0, 255), QtGui.QColor(0, 0, 0, 255)),
+            height,
             description=u'Refresh...',
             parent=self
         )
@@ -855,18 +869,17 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         self.remove_button = ClickableIconButton(
             u'close',
-            (QtGui.QColor(0,0,0,255), QtGui.QColor(0,0,0,255)),
-            height * 0.66,
+            (QtGui.QColor(0, 0, 0, 255), QtGui.QColor(0, 0, 0, 255)),
+            height,
             description=u'Refresh...',
             parent=self
         )
         self.remove_button.clicked.connect(self.close)
         row.layout().addWidget(self.remove_button, 0)
 
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
+        # self.layout().addSpacing(common.INDICATOR_WIDTH)
 
         self.todoeditors_widget = TodoEditors(parent=self)
-        self.setMinimumWidth(self.todoeditors_widget.minimumWidth() + 6)
         self.setMinimumHeight(100)
 
         self.scrollarea = QtWidgets.QScrollArea(parent=self)
@@ -880,28 +893,50 @@ class TodoEditorWidget(QtWidgets.QWidget):
 
         common.set_custom_stylesheet(self)
 
-    def refresh(self):
-        """Populates the list based on the saved configuration file."""
-        if not self.index.isValid():
-            return
-
-        # First we will delete the existing items and re-populate the list
-        # from the configuration file.
+    def clear(self):
         for idx in reversed(xrange(len(list(self.todoeditors_widget.items)))):
             row = self.todoeditors_widget.items.pop(idx)
+            for c in row.children():
+                c.deleteLater()
             self.todoeditors_widget.layout().removeWidget(row)
             row.deleteLater()
+            del row
 
-        settings = AssetSettings(self.index)
-        items = settings.value(u'config/todos')
-        if not items:
+    def refresh(self):
+        """Populates the list from the database."""
+        if not self.parent():
+            return
+        if not self.index.isValid():
+            return
+        if not self.read_only:
             return
 
-        for k in items:
-            self.add_item(
-                text=items[k][u'text'],
-                checked=items[k][u'checked']
-            )
+        db = bookmark_db.get_db(self.index)
+        if self.index.data(common.SequenceRole):
+            k = self.index.data(common.SequenceRole)
+            k = k.group(1) + u'[0]' + k.group(3) + u'.' + k.group(4)
+        else:
+            k = self.index.data(QtCore.Qt.StatusTipRole)
+
+        # Description
+        v = db.value(k, u'notes')
+        try:
+            v = base64.b64decode(v)
+            d = json.loads(v)
+        except:
+            return
+        if not v:
+            return
+
+        self.clear()
+        try:
+            for k, _ in enumerate(d):
+                self.add_item(
+                    text=d[unicode(k)][u'text'],
+                    checked=d[unicode(k)][u'checked']
+                )
+        except:
+            return
 
     @property
     def index(self):
@@ -916,12 +951,12 @@ class TodoEditorWidget(QtWidgets.QWidget):
             font = QtGui.QFont(common.SecondaryFont)
             font.setPointSizeF(common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
+            painter.setRenderHints(QtGui.QPainter.Antialiasing)
 
-            rect = QtCore.QRect(self.rect())
-
+            rect = self.rect().marginsRemoved(QtCore.QMargins(4,4,4,4))
             painter.setBrush(common.TEXT)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRect(rect)
+            painter.drawRoundedRect(rect, 8,8)
 
             center = rect.center()
             rect.setWidth(rect.width() - common.MARGIN)
@@ -1088,70 +1123,113 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 u'text': editor.document().toHtml(),
             }
 
-        db = bookmark_db.get_db(self.index)
-        db.setValue(
-            self.index.data(QtCore.Qt.StatusTipeRole),
-            u'notes',
-            json.dumps(data, ensure_ascii=False, encoding='utf-8')
-        )
+        seq = self.index.data(common.SequenceRole)
+        if seq:
+            k = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
+        else:
+            k = self.index.data(QtCore.Qt.StatusTipRole)
 
-        todo_count = len([k for k in data if not data[k][u'checked']])
-        model = self.index.model()
-        model.setData(self.index, todo_count, role=common.TodoCountRole)
+        try:
+            db = bookmark_db.get_db(self.index)
+            v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
+            v = base64.b64encode(v.encode('utf-8'))
+            db.setValue(k, u'notes', v)
+        except:
+            raise
+        finally:
+            todo_count = len([k for k in data if not data[k][u'checked']])
+            self.index.model().setData(
+                self.index,
+                todo_count,
+                role=common.TodoCountRole
+            )
 
-    def create_lockfile(self):
+    def init_lock(self):
         """Creates a lock on the current file so it can't be edited by other users.
         It will also start the auto-save timer.
         """
         if not self.parent():
             return
-
         if not self.index.isValid():
             return
 
-        settings = AssetSettings(self.index)
+        v = self.lock.value(u'open')
+        v = False if v is None else v
+        v = v if isinstance(v, bool) else (False if v.lower() == 'false' else True)
+        is_open = v
 
-        if settings.value(u'config/todo_open'):
-            self.read_only = True
-            self.add_button.hide()
+        stamp = self.lock.value(u'stamp')
+        if stamp is not None:
+            stamp = int(stamp)
+
+        if not is_open:
+            self.read_only = False
+            self.add_button.show()
+            self.refresh_button.hide()
+            self.save_timer.start()
+            self.refresh_timer.stop()
+
+            self.lock.setValue(u'open', True)
+            self.lock.setValue(u'stamp', self.lockstamp)
             return
 
-        settings.setValue(u'config/todo_open', True)
-        settings.setValue(u'config/todo_lockstamp', int(self.lockstamp))
-        self.refresh_button.hide()
-        self.save_timer.start()
+        if stamp == self.lockstamp:
+            self.read_only = False
+            self.add_button.show()
+            self.refresh_button.hide()
+            self.save_timer.start()
+            self.refresh_timer.stop()
 
-    def remove_lockfile(self):
-        """Saving the contents on close/hide."""
-        if self.index.isValid():
-            settings = AssetSettings(self.index)
-            if not settings.value(u'config/todo_open'):
-                return
-            val = settings.value(u'config/todo_lockstamp')
-            if val is None:
-                return
-            if int(val) != self.lockstamp:
-                return
-            settings.setValue(u'config/todo_lockstamp', None)
-            settings.setValue(u'config/todo_open', False)
+            self.lock.setValue(u'stamp', self.lockstamp)
+            return
+
+        if stamp != self.lockstamp:
+            self.read_only = True
+            self.refresh_button.show()
+            self.add_button.hide()
+            self.save_timer.stop()
+            self.refresh_timer.start()
+
+    @QtCore.Slot()
+    def unlock(self):
+        """Removes the temporary lockfile on close"""
+        if not self.parent():
+            return
+        if not self.index.isValid():
+            return
+
+        v = self.lock.value(u'open')
+        v = False if v is None else v
+        v = v if isinstance(v, bool) else (False if v.lower() == 'false' else True)
+        is_open = v
+
+        stamp = self.lock.value(u'stamp')
+        if stamp is not None:
+            stamp = int(stamp)
+
+        if is_open and stamp == self.lockstamp:
+            self.lock.setValue(u'stamp', None)
+            self.lock.setValue(u'open', False)
 
     def showEvent(self, event):
+        if self.parent():
+            geo = self.parent().viewport().rect()
+            self.resize(geo.width(), geo.height())
         self.setFocus(QtCore.Qt.OtherFocusReason)
 
     def hideEvent(self, event):
-        self.remove_lockfile()
+        self.unlock()
 
     def sizeHint(self):
         """Custom size."""
-        if not self.parent():
-            return QtCore.QSize(800, 600)
-        return self.parent().viewport().rect().size()
+        return QtCore.QSize(460, 460)
 
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = TodoEditorWidget(QtCore.QModelIndex())
-    widget.add_item(idx=0, text=u'!@#$%^&{Saját tyúkól készítése{;:::hello world!', checked=False)
+    widget.add_item(
+        idx=0, text=u'!@#$%^&{Saját tyúkól készítése{;:::hello world!', checked=False)
     widget.add_item(idx=0, text='file://test.com', checked=False)
     widget.show()
     # widget.collect_data()
