@@ -35,9 +35,9 @@ QStackedWidget:focus {{
 }}
 
 QGroupBox {{
-		border: 1px solid rgba({SECONDARY_BACKGROUND});
+		border: 1px solid rgba(0,0,0,50);
 		border-radius: 6px;
-		background-color: rgba(0,0,0,20);
+		background-color: rgba(0,0,0,10);
 }}
 QGroupBox::title {{
 		font-size: {SMALL_FONT_SIZE}pt;
@@ -437,7 +437,7 @@ TodoItemWidget,
 TodoItemEditor {{
 	alignment: center;
 	text-align: center;
-	font-size: 11pt;
+	font-size: 10pt;
 	color: rgba({SECONDARY_BACKGROUND});
 	background-color: transparent;
 }}
@@ -447,7 +447,8 @@ TodoItemEditor:disabled {{
 	color: rgba({TEXT_DISABLED});
 }}
 TodoItemEditor:focus {{
-	border: 1px solid rgba(0,0,0,30) ;
+	border-top: 1px solid rgba(255,255,255,20) ;
+	border-bottom: 1px solid rgba(0,0,0,20) ;
 }}
 
 /* TodoItemWidget QScrollBar {{
