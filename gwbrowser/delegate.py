@@ -373,44 +373,15 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = rectangles[BookmarkCountRect]
         asset_count = index.data(common.AssetCountRole)
         if rect and not archived:
+            painter.setOpacity(1.0) if hover else painter.setOpacity(0.9)
             if rect.contains(cursor_position):
                 pixmap = ImageCache.get_rsc_pixmap(
-                    u'add', common.TEXT_SELECTED, rect.height())
+                    u'CopyAction', common.ADD, rect.height())
                 painter.drawPixmap(rect, pixmap)
             else:
-                if asset_count:
-                    color = common.TEXT_SELECTED if selected else common.FAVOURITE
-                    color = color if asset_count else common.SEPARATOR
-
-                    pen = QtGui.QPen(color)
-                    pen.setWidthF(2.0)
-                    painter.setPen(pen)
-                    painter.setBrush(QtCore.Qt.NoBrush)
-
-                    c = rect.height() / 2.0
-                    painter.drawRoundedRect(rect, c, c)
-
-                    color = common.TEXT if asset_count else common.SECONDARY_TEXT
-                    color = common.TEXT_SELECTED if selected else color
-
-                    text = unicode(asset_count)
-                    _font = QtGui.QFont(common.PrimaryFont)
-                    _font.setPointSizeF(common.SMALL_FONT_SIZE)
-                    _metrics = QtGui.QFontMetricsF(_font)
-                    x = rect.center().x() - (_metrics.width(text) / 2.0) + 0.666
-                    y = rect.center().y() + (_metrics.ascent() / 2.0)
-
-                    painter.setBrush(color)
-                    painter.setPen(QtCore.Qt.NoPen)
-
-                    path = QtGui.QPainterPath()
-                    path.addText(x, y, _font, text)
-                    painter.drawPath(path)
-                else:
-                    pixmap = ImageCache.get_rsc_pixmap(
-                        u'add', common.SEPARATOR, rect.height())
-                    painter.drawPixmap(rect, pixmap)
-            painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
+                pixmap = ImageCache.get_rsc_pixmap(
+                    u'add', common.ADD, rect.height())
+                painter.drawPixmap(rect, pixmap)
 
     @paintmethod
     def paint_selection_indicator(self, *args):

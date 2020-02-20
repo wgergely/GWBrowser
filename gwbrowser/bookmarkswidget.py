@@ -163,7 +163,7 @@ class BookmarksModel(BaseModel):
             data = self.model_data()
             idx = len(data)
 
-            text = u'{} | {}'.format(v[u'job'], v[u'bookmark_folder'])
+            text = u'{}  |  {} ({})'.format(v[u'job'], v[u'bookmark_folder'], count)
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
@@ -183,7 +183,7 @@ class BookmarksModel(BaseModel):
                 common.FileInfoLoaded: True,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
-                common.AssetCountRole: file_info.size(),
+                common.AssetCountRole: count,
                 #
                 common.DefaultThumbnailRole: placeholder_image,
                 common.DefaultThumbnailBackgroundRole: default_background_color,
@@ -195,7 +195,7 @@ class BookmarksModel(BaseModel):
                 common.FileInfoLoaded: True,
                 #
                 common.SortByName: common.namekey(filepath),
-                common.SortByLastModified: common.namekey(filepath),
+                common.SortByLastModified: count,
                 common.SortBySize: count,
             }
 

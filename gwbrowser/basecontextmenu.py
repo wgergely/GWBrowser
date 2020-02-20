@@ -503,17 +503,6 @@ class BaseContextMenu(QtWidgets.QMenu):
         return menu_set
 
     @contextmenu
-    def add_add_asset_menu(self, menu_set):
-        pixmap = ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.INLINE_ICON_SIZE)
-        menu_set[u'Add bookmark'] = {
-            u'text': 'Add asset...',
-            u'icon': pixmap,
-            u'action': lambda: self.parent().parent().parent().listcontrolwidget.listChanged.emit(7)
-        }
-        return menu_set
-
-    @contextmenu
     def add_collapse_sequence_menu(self, menu_set):
         """Adds the menu needed to change context"""
         expand_pixmap = ImageCache.get_rsc_pixmap(
