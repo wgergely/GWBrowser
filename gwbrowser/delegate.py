@@ -71,8 +71,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         """
         if antialiasing:
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, on=True)
+        else:
+            painter.setRenderHint(QtGui.QPainter.Antialiasing, on=False)
+            painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, on=False)
+
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(QtCore.Qt.NoBrush)
 
@@ -188,8 +192,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         if not self.parent().description_editor_widget.isVisible():
             return
 
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
         painter.setBrush(common.BACKGROUND_SELECTED)
         rect = QtCore.QRect(option.rect)
         rect.setLeft(rectangles[ThumbnailRect].right())
@@ -199,22 +201,18 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
     def paint_thumbnail(self, *args):
         """Paints the thumbnails of asset and file-items.``"""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
-
         image = index.data(common.ThumbnailRole)
         if image is None:
             return
 
         rect = QtCore.QRect(rectangles[ThumbnailRect])
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
-
         # Background
+
         color = index.data(
             common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
         color = color if color else common.THUMBNAIL_BACKGROUND
         painter.setBrush(color)
-        painter.setOpacity(0.8)
+        painter.setOpacity(0.66)
         painter.drawRect(rect)
 
         # If this is the last item, there's not need painting this
@@ -225,8 +223,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 rectangles[ThumbnailRect].bottom() + common.ROW_SEPARATOR)
             painter.drawRect(bottom_row_rect)
 
-        o = 0.7 if selected else 0.6
-        o = 0.75 if hover else o
+        o = 1.0 if selected else 0.85
+        # o = 1.0 if hover else o
         painter.setOpacity(o)
 
         # Image
@@ -253,9 +251,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         """Paints the background for all list items."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
         rect = rectangles[BackgroundRect]
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
 
         # Setting the opacity of the separator
         if index.row() != (self.parent().model().rowCount() - 1):
@@ -350,6 +345,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             count_rect.moveCenter(rect.bottomRight())
 
             if index.data(common.TodoCountRole):
+                painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
                 if rect.contains(cursor_position):
                     color = common.TEXT_SELECTED
                     pixmap = ImageCache.get_rsc_pixmap(
@@ -467,7 +463,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
 
     def paint(self, painter, option, index):
         """Defines how the ``BookmarksWidgetItems`` should be painted."""
-        args = self.get_paint_arguments(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index, antialiasing=False)
         self.paint_background(*args)
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
@@ -509,6 +505,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints name of the ``BookmarkWidget``'s items."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         painter.setOpacity(0.9)
         if hover:
             painter.setOpacity(1.0)
@@ -586,7 +583,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         # The index might still be populated...
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
-        args = self.get_paint_arguments(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index, antialiasing=False)
         self.paint_background(*args)
         self.paint_thumbnail(*args)
         self.paint_thumbnail_shadow(*args)
@@ -627,6 +624,7 @@ class AssetsWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints the item names inside the ``AssetsWidget``."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + common.MARGIN)
 
@@ -707,7 +705,7 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint(self, painter, option, index):
         """Defines how the ``FilesWidget``'s' items should be painted."""
 
-        args = self.get_paint_arguments(painter, option, index)
+        args = self.get_paint_arguments(painter, option, index, antialiasing=False)
         if index.data(QtCore.Qt.DisplayRole) is None:
             return
         self.paint_background(*args)
@@ -868,6 +866,7 @@ class FilesWidgetDelegate(BaseDelegate):
     def paint_name(self, *args):
         """Paints the subfolders and the filename of the current file inside the ``FilesWidget``."""
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
 
         def draw_separator_line():
             _rect = QtCore.QRect(rectangles[DataRect])
@@ -897,14 +896,16 @@ class FilesWidgetDelegate(BaseDelegate):
                 width = metrics.width(text)
                 rect.setLeft(rect.right() - width)
 
-                if rect.left() < rectangles[DataRect].left():
+                if (rectangles[DataRect].left()) >= rect.left():
                     rect.setLeft(
-                        rectangles[DataRect].left() + (common.INDICATOR_WIDTH))
+                        rectangles[DataRect].left())
                     text = metrics.elidedText(
                         text,
                         QtCore.Qt.ElideLeft,
-                        rect.width() - 6
+                        rect.width()
                     )
+                    width = metrics.width(text)
+                    rect.setLeft(rect.right() - width)
 
                 x = rect.center().x() - (width / 2.0) + 1
                 y = rect.center().y() + offset
@@ -996,8 +997,6 @@ class FilesWidgetDelegate(BaseDelegate):
             metrics = QtGui.QFontMetricsF(font)
 
             color = common.TEXT_SELECTED if selected else common.ADD
-            # color = common.SECONDARY_TEXT if not index.data(
-            #     common.DescriptionRole) else color
 
             text = index.data(common.DescriptionRole)
             text = metrics.elidedText(
@@ -1030,6 +1029,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         draw_separator_line()
 
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
         font = QtGui.QFont(common.PrimaryFont)
         font.setPointSizeF(SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
@@ -1051,6 +1051,8 @@ class FilesWidgetDelegate(BaseDelegate):
 
         """
         rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
+
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH * 2))
 
@@ -1335,8 +1337,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if index != self.parent().drag_source_index:
             return
-        painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, False)
         painter.setBrush(common.SEPARATOR)
         painter.setPen(common.BACKGROUND)
         painter.setOpacity(1.0)
@@ -1357,32 +1357,6 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def sizeHint(self, option, index):
         return QtCore.QSize(1, ROW_HEIGHT)
-
-
-class FavouritesWidgetDelegate(FilesWidgetDelegate):
-
-    def paint(self, painter, option, index):
-        """Defines how the ``FilesWidget``'s' items should be painted."""
-        # The index might still be populated...
-        if index.data(QtCore.Qt.DisplayRole) is None:
-            return
-        args = self.get_paint_arguments(painter, option, index)
-        self.paint_background(*args)
-        self.paint_thumbnail(*args)
-        self.paint_thumbnail_shadow(*args)
-
-        if index.data(common.ParentPathRole):
-            self.paint_simple_name(*args)
-
-        self.paint_archived(*args)
-        self.paint_description_editor_background(*args)
-        self.paint_inline_icons(*args)
-        self.paint_selection_indicator(*args)
-
-        if index.data(common.FileInfoLoaded):
-            self.paint_archived(*args)
-        if self.parent().drag_source_index.isValid():
-            self.paint_drag_source(*args)
 
 
 if __name__ == '__main__':
