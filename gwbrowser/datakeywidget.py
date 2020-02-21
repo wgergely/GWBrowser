@@ -334,9 +334,12 @@ class DataKeyModel(BaseModel):
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         DataKeyWorker.reset_queue()
-
-        self._data[self.data_key()] = {
-            common.FileItem: {}, common.SequenceItem: {}}
+        dkey = self.data_key()
+        
+        self.INTERNAL_MODEL_DATA[dkey] = {
+            common.FileItem: {},
+            common.SequenceItem: {}
+        }
 
         rowsize = QtCore.QSize(0, 30)
 

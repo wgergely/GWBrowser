@@ -36,6 +36,7 @@ import os
 import sys
 import re
 import zipfile
+import traceback
 import ConfigParser
 
 from PySide2 import QtGui, QtCore, QtWidgets
@@ -127,6 +128,19 @@ LARGE_FONT_SIZE = 12.0
 pscale = 1.0
 """The global font scale value. Not implemeted yet."""
 
+
+def log_exception():
+    from gwbrowser.threads import mutex
+    mutex.lock()
+    sys.stderr.write(u'# {} Exception\n{}\n'.format(PRODUCT, traceback.format_exc()))
+    mutex.unlock()
+
+
+def log_warning(v):
+    from gwbrowser.threads import mutex
+    mutex.lock()
+    sys.stderr.write(u'# {} Warning\n{}\n'.format(PRODUCT, v))
+    mutex.unlock()
 
 def psize(n):
     """On macosx the font size seem to be smaller given the same point size....

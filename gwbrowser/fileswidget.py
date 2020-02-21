@@ -26,6 +26,7 @@ import base64
 import sys
 import time
 import traceback
+import Queue
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.bookmark_db as bookmark_db
@@ -49,6 +50,7 @@ from gwbrowser.imagecache import oiio_make_thumbnail
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
+from gwbrowser.threads import mutex
 
 
 class FileInfoWorker(BaseWorker):
@@ -69,11 +71,16 @@ class FileInfoWorker(BaseWorker):
     @staticmethod
     @validate_index
     @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, exists=False):
+    def process_index(index):
         """The main processing function called by the worker.
         Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
 
         """
+        import time
+        time.sleep(1)
+        mutex.lock()
+        print index, index.row()
+        mutex.unlock()
         if index.data(common.FileInfoLoaded):
             return
         if not index.data(common.ParentPathRole):
@@ -83,7 +90,6 @@ class FileInfoWorker(BaseWorker):
             data = index.model().model_data()[index.row()]
         except:
             return
-
         if not index.data(common.ParentPathRole):
             return
 
@@ -114,7 +120,7 @@ class FileInfoWorker(BaseWorker):
                     v = base64.b64decode(v)
                     v = json.loads(v)
                 except:
-                    pass
+                    common.log_exception()
                 else:
                     count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
                     count = len(count)
@@ -171,7 +177,14 @@ class FileInfoWorker(BaseWorker):
                 data[common.SortByLastModified] = mtime
                 mtime = common.qlast_modified(mtime)
                 data[common.SortBySize] = stat.st_size
-                info_string = mtime.toString(u'dd') + u'/' + mtime.toString(u'MM') + u'/' + mtime.toString(u'yyyy') + u' ' + mtime.toString(u'hh') + u':' + mtime.toString(u'mm') + u';' + common.byte_to_string(data[common.SortBySize])
+                info_string = \
+                    mtime.toString(u'dd') + u'/' + \
+                    mtime.toString(u'MM') + u'/' + \
+                    mtime.toString(u'yyyy') + u' ' + \
+                    mtime.toString(u'hh') + u':' + \
+                    mtime.toString(u'mm') + u';' + \
+                    common.byte_to_string(data[common.SortBySize])
+
                 data[common.FileDetailsRole] = info_string
 
         # Finally, we set the FileInfoLoaded flag to indicate this item
@@ -198,39 +211,44 @@ class SecondaryFileInfoWorker(FileInfoWorker):
 
         """
         try:
-            while not self.shutdown_requested:
-                time.sleep(1.5)  # Will wait n secs between each runs
-
-                model = self.model
-                if not model:
+            while not self._shutdown_requested:
+                if not self.model:
                     continue
-                if model.file_info_loaded:
+
+                time.sleep(0.5)  # Will wait n secs between each run
+
+                k = self.model.data_key()
+                t = self.model.data_type()
+                data = self.model.INTERNAL_MODEL_DATA[k][t]
+                print data['timestamp'], self.model
+                if not data:
+                    continue
+                if self.model.file_info_loaded:
                     continue
 
                 all_loaded = True
-                data = model.model_data()
-                for n in xrange(model.rowCount()):
-                    index = model.index(n, 0)
-
+                for n in xrange(len(data)):
                     if not data[n][common.FileInfoLoaded]:
-                        model.InfoThread.Worker.process_index(index)
                         all_loaded = False
+                        self.model.InfoThread.Worker.process_index(
+                            self.model.index(n, 0))
 
                 if all_loaded:
-                    model.file_info_loaded = True
-                    sorted_by_name = model.sort_role() in (common.SortBySize, common.SortByLastModified)
-                    if not sorted_by_name or not model.sort_order():
-                        model.sortingChanged.emit(model.sort_role(), model.sort_order())
+                    self.model.file_info_loaded = True
+                    sort_role = self.model.sort_role()
+                    sort_order = self.model.sort_order()
+                    sorted_by_name = sort_role in (common.SortBySize, common.SortByLastModified)
+                    if not sorted_by_name or not sort_order:
+                        self.model.sortingChanged.emit(sort_role, sort_order)
 
         except Queue.Empty:
             pass
         except:
-            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
+            common.log_exception()
         finally:
-            if self.shutdown_requested:
-                self.finished.emit()
-            else:
-                self.begin_processing()
+            if self._shutdown_requested:
+                return
+            self.begin_processing()
 
 
 class FileThumbnailWorker(BaseWorker):
@@ -385,9 +403,9 @@ class FilesModel(BaseModel):
 
     .. code-block:: python
 
-       self._data = {}
-       self._data['scenes'] = {} # 'scenes' is a data-key
-       self._data['textures'] = {} # 'textures' is a data-key
+       self.INTERNAL_MODEL_DATA = {}
+       self.INTERNAL_MODEL_DATA['scenes'] = {} # 'scenes' is a data-key
+       self.INTERNAL_MODEL_DATA['textures'] = {} # 'textures' is a data-key
 
     To reiterate, the name of the asset subfolders will become our *data keys*.
     Switching between data keys is done by emitting the ``dataKeyChanged``
@@ -424,7 +442,7 @@ class FilesModel(BaseModel):
 
         dkey = self.data_key()
         for k in (common.FileItem, common.SequenceItem):
-            for item in self._data[dkey][k].itervalues():
+            for item in self.INTERNAL_MODEL_DATA[dkey][k].itervalues():
                 ext = item[QtCore.Qt.StatusTipRole].split(u'.')[-1]
                 if not ext:
                     continue
@@ -470,7 +488,7 @@ class FilesModel(BaseModel):
             )
             k = _ext_path + u':backgroundcolor'
             k = k.lower()
-            d[ext + u':backgroundcolor'] = ImageCache._data[k]
+            d[ext + u':backgroundcolor'] = ImageCache.INTERNAL_IMAGE_DATA[k]
 
         d[u'placeholder'] = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
@@ -524,9 +542,9 @@ class FilesModel(BaseModel):
             return
         dkey = dkey.lower()
 
-        self._data[dkey] = {
+        self.INTERNAL_MODEL_DATA[dkey] = {
             common.FileItem: {},
-            common.SequenceItem: {}
+            common.SequenceItem: {},
         }
         seqs = {}
 
@@ -599,9 +617,9 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            idx = len(self._data[dkey][common.FileItem])
+            idx = len(self.INTERNAL_MODEL_DATA[dkey][common.FileItem])
 
-            self._data[dkey][common.FileItem][idx] = {
+            self.INTERNAL_MODEL_DATA[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
@@ -680,11 +698,11 @@ class FilesModel(BaseModel):
                 seqs[seqpath][common.FramesRole].append(seq.group(2))
                 seqs[seqpath][common.EntryRole].append(entry)
             else:
-                seqs[filepath] = self._data[dkey][common.FileItem][idx]
+                seqs[filepath] = self.INTERNAL_MODEL_DATA[dkey][common.FileItem][idx]
 
         # Casting the sequence data onto the model
         for v in seqs.itervalues():
-            idx = len(self._data[dkey][common.SequenceItem])
+            idx = len(self.INTERNAL_MODEL_DATA[dkey][common.SequenceItem])
 
             # A sequence with only one element is not a sequence!
             if len(v[common.FramesRole]) == 1:
@@ -717,7 +735,7 @@ class FilesModel(BaseModel):
                     _firsframe = _seq.group(1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
-            self._data[dkey][common.SequenceItem][idx] = v
+            self.INTERNAL_MODEL_DATA[dkey][common.SequenceItem][idx] = v
 
     def data_key(self):
         """Current key to the data dictionary."""

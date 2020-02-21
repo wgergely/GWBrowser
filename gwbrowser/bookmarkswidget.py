@@ -114,8 +114,11 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        self._data[self.data_key()] = {
-            common.FileItem: {}, common.SequenceItem: {}}
+        dkey = self.data_key()
+        self.INTERNAL_MODEL_DATA[dkey] = {
+            common.FileItem: {},
+            common.SequenceItem: {}
+        }
 
         rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR

@@ -936,7 +936,7 @@ class MayaBrowserButton(ClickableIconButton):
             self.adjustSize()
             self.update()
         else:
-            sys.stderr.write(
+            common.log_warning(
                 '# GWBrowser: Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.\n')
 
         # Unlocking showing widget

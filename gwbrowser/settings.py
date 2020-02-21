@@ -114,7 +114,7 @@ class LocalSettings(QtCore.QSettings):
             parent=parent
         )
 
-        self._data = {}  # Internal data storage
+        self.INTERNAL_SETTINGS_DATA = {}  # Internal data storage
         self._current_mode = self.get_mode()
         self._active_paths = self.verify_paths()
 
@@ -140,10 +140,10 @@ class LocalSettings(QtCore.QSettings):
 
         """
         if self.current_mode() and k.lower().startswith(u'activepath'):
-            if k not in self._data:
+            if k not in self.INTERNAL_SETTINGS_DATA:
                 v = super(LocalSettings, self).value(k)
-                self._data[k] = _bool(v)
-            return self._data[k]
+                self.INTERNAL_SETTINGS_DATA[k] = _bool(v)
+            return self.INTERNAL_SETTINGS_DATA[k]
         return _bool(super(LocalSettings, self).value(k))
 
     def setValue(self, k, v):
@@ -152,7 +152,7 @@ class LocalSettings(QtCore.QSettings):
 
         """
         if self.current_mode() and k.lower().startswith(u'activepath'):
-            self._data[k] = v
+            self.INTERNAL_SETTINGS_DATA[k] = v
             return
         super(LocalSettings, self).setValue(k, v)
 

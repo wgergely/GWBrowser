@@ -9,6 +9,7 @@ the widget used to switch between the lists.
 
 """
 import re
+import time
 import sys
 import traceback
 from functools import wraps
@@ -23,6 +24,7 @@ import gwbrowser.delegate as delegate
 import gwbrowser.settings as settings_
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
+from gwbrowser.threads import mutex
 
 
 def validate_index(func):
@@ -51,8 +53,8 @@ def validate_index(func):
 
 
 def initdata(func):
-    """Decorator function to make sure ``endResetModel()`` is always called
-    after the function finished running.
+    """Wraps the `__initdata__` and terminating it with an ``endResetModel()``
+    signal.
 
     """
     @wraps(func)
@@ -61,15 +63,20 @@ def initdata(func):
             res = func(self, *args, **kwargs)
         except:
             res = None
-            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
-        finally:
-            self.endResetModel()
-
+            common.log_exception()
+        else:
             # We won't be able to sort our model before the size and modified
             # dates are loaded by the Worker threads
+            k = self.data_key()
+            self.model_data()
+            self.INTERNAL_MODEL_DATA[k][common.FileItem]['timestamp'] = time.time()
+            self.INTERNAL_MODEL_DATA[k][common.SequenceItem]['timestamp'] = time.time()
             if self.sort_role() == common.SortByName:
                 self.sort_data()
 
+
+        finally:
+            self.endResetModel()
         return res
     return func_wrapper
 
@@ -366,7 +373,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 class BaseModel(QtCore.QAbstractItemModel):
     """The base model for storing bookmarks, assets and files.
 
-    The model stores its data in the **self._data** private dictionary.
+    The model stores its data in the **self.INTERNAL_MODEL_DATA** private dictionary.
     The structure of the data is uniform accross all BaseModel instances but it
     really is built around storing file-data.
 
@@ -375,10 +382,10 @@ class BaseModel(QtCore.QAbstractItemModel):
     A data-key example:
         .. code-block:: python
 
-            self._data = {}
+            self.INTERNAL_MODEL_DATA = {}
             # will most of the time return a name of a folder, eg. 'scenes'
             datakey = self.data_key()
-            self._data[datakey] = {
+            self.INTERNAL_MODEL_DATA[datakey] = {
                 common.FileItem: {}, common.SequenceItem: {}}
 
     Each data-key can simultaniously hold information about single files (**FileItems**), and
@@ -418,17 +425,13 @@ class BaseModel(QtCore.QAbstractItemModel):
         self.threads = {}
         self.file_info_loaded = False
 
-        self._data = {}
+        self.INTERNAL_MODEL_DATA = {}
         self._datakey = None
         self._datatype = {}
         self.parent_path = None
 
         self._sortrole = None
         self._sortorder = None
-
-        # File-system monitor
-        self._last_refreshed = {}
-        self._last_changed = {}  # a dict of path/timestamp values
 
         # Generate thumbnails
         cls = self.__class__.__name__
@@ -504,32 +507,37 @@ class BaseModel(QtCore.QAbstractItemModel):
         Emits the `dataSorted` signal when finished.
 
         """
-        data = self.model_data()
-        if not data:
-            return
-
-        sortrole = self.sort_role()
-        if sortrole not in (common.SortByName, common.SortBySize, common.SortByLastModified):
-            sortrole = common.SortByName
-        sortorder = self.sort_order()
-
-        def key(idx):
-            return data[idx][sortrole]
-
-        sorted_idxs = sorted(
-            data,
-            key=key,
-            reverse=sortorder
-        )
-
-        # Copy
-        __data = {}
-        for n, idx in enumerate(sorted_idxs):
-            __data[n] = data[idx]
 
         k = self.data_key()
         t = self.data_type()
-        self._data[k][t] = __data
+        data = self.INTERNAL_MODEL_DATA[k][t]
+        if not data:
+            return
+
+        sortorder = self.sort_order()
+        sortrole = self.sort_role()
+        if sortrole not in (
+            common.SortByName,
+            common.SortBySize,
+            common.SortByLastModified
+        ):
+            sortrole = common.SortByName            
+        sorted_idxs = sorted(
+            data,
+            key=lambda idx: data[idx][sortrole],
+            reverse=sortorder
+        )
+
+        sorted_dict = {}
+        for n, idx in enumerate(sorted_idxs):
+            sorted_dict[n] = data[idx]
+
+        sorted_dict['timestamp'] = time.time()
+
+        k = self.data_key()
+        t = self.data_type()
+        self.INTERNAL_MODEL_DATA[k][t] = sorted_dict
+
         self.dataSorted.emit()
 
     @QtCore.Slot()
@@ -559,7 +567,7 @@ class BaseModel(QtCore.QAbstractItemModel):
 
     def __resetdata__(self):
         """Resets the internal data."""
-        self._data = {}
+        self.INTERNAL_MODEL_DATA = {}
         self.__initdata__()
 
     def __initdata__(self):
@@ -617,9 +625,13 @@ class BaseModel(QtCore.QAbstractItemModel):
         """A pointer to the model's currently set internal data."""
         k = self.data_key()
         t = self.data_type()
-        if not k in self._data:
-            self._data[k] = {common.FileItem: {}, common.SequenceItem: {}}
-        return self._data[k][t]
+        if not k in self.INTERNAL_MODEL_DATA:
+            self.INTERNAL_MODEL_DATA[k] = {
+                common.FileItem: {},
+                common.SequenceItem: {},
+                'timestamp': time.time()
+            }
+        return self.INTERNAL_MODEL_DATA[k][t]
 
     def active_index(self):
         """The model's active_index."""
@@ -1085,8 +1097,8 @@ class BaseListWidget(QtWidgets.QListView):
         dkey = source_model.data_key()
         data = source_model.model_data()[source_index.row()]
 
-        FILE_DATA = source_model._data[dkey][common.FileItem]
-        SEQ_DATA = source_model._data[dkey][common.SequenceItem]
+        FILE_DATA = source_model.INTERNAL_MODEL_DATA[dkey][common.FileItem]
+        SEQ_DATA = source_model.INTERNAL_MODEL_DATA[dkey][common.SequenceItem]
 
         applied = data[common.FlagsRole] & flag
 

@@ -12,8 +12,11 @@ import sys
 import traceback
 import Queue
 from PySide2 import QtCore
-
 import gwbrowser.common as common
+
+
+mutex = QtCore.QMutex()
+_indexes_in_progress = []
 
 
 class Unique(Queue.Queue):
@@ -37,28 +40,19 @@ class BaseWorker(QtCore.QObject):
 
     """
     queue = Unique(999999)
-    shutdown_requested = False
-    indexes_in_progress = []
-
-    queueFinished = QtCore.Signal()
-    finished = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(BaseWorker, self).__init__(parent=parent)
         self.model = None
+        self._shutdown_requested = False
 
     @QtCore.Slot()
-    def shutdown(self):
-        """Quits the index-processing block. We're using the built-in python
-        Queue.get(True) method ehich blocks the executing thread until there's
-        an available worker to fetch the next queued item.
-
-        To break the lock, it is necessary to add an invalid `QModelIndex` to
-        the queue.
-
-        """
+    def request_showdown(self):
+        """Tells the blocking `process_index` function to break."""
+        mutex.lock()
+        self._shutdown_requested = True
+        mutex.unlock()
         self.queue.put(QtCore.QModelIndex())
-        self.shutdown_requested = True
 
     @QtCore.Slot(tuple)
     @classmethod
@@ -84,7 +78,7 @@ class BaseWorker(QtCore.QObject):
         except Queue.Empty:
             return
         except Exception:
-            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
+            common.log_exception()
 
     @QtCore.Slot()
     def begin_processing(self):
@@ -99,40 +93,30 @@ class BaseWorker(QtCore.QObject):
 
         """
         try:
-            # We will keep taking items from the queue until shutdown had been requested
-            while not self.shutdown_requested:
-                # Take the next available index from the queue
-                # It is possible however, that the index has been added back into
-                # the queue after a thread has taken it.
-                # Let's check if this is the case and take the next index instead
+            # Run until shutdown is requested
+            while not self._shutdown_requested:
                 index = self.queue.get(True)
+                # Index might be processed by another worker
                 mutex.lock()
-                while index in self.indexes_in_progress:
+                while index in _indexes_in_progress:
                     index = self.queue.get(True)
-                mutex.unlock()
-
-                # This thread is the first to take the item, we will add the index
-                # to the list
-                mutex.lock()
-                if index not in self.indexes_in_progress:
-                    self.indexes_in_progress.append(index)
+                _indexes_in_progress.append(index)
                 mutex.unlock()
 
                 # Finally, we process the index
                 self.process_index(index)
 
-                # We'll remove the index from the currently processing items
+                # Index no longer processed
                 mutex.lock()
-                if index in self.indexes_in_progress:
-                    self.indexes_in_progress.remove(index)
+                if index in _indexes_in_progress:
+                    _indexes_in_progress.remove(index)
                 mutex.unlock()
         except Queue.Empty:
             return
         finally:
-            if self.shutdown_requested:
-                self.finished.emit()
-            else:
-                self.begin_processing()
+            if self._shutdown_requested:
+                return
+            self.begin_processing()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def process_index(self, index, update=True, make=True):
@@ -177,6 +161,6 @@ class BaseThread(QtCore.QThread):
         I opted
         """
         self.worker = self.Worker()
-        self.worker.finished.connect(self.quit)
         self.started.emit()
-        self.worker.begin_processing()
+        self.worker.begin_processing() # re-entrant blocking function
+        self.finished.emit()

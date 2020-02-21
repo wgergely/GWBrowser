@@ -62,12 +62,12 @@ def oiio(func):
             if hasattr(index, 'sourceModel'):
                 index = index.model().mapToSource(index)
             model = index.model()
-            data = model.model_data()[index.row()]
+            data = model.modelINTERNAL_IMAGE_DATA()[index.row()]
         try:
             return func(index, source=source,
                  dest=dest, dest_size=dest_size)
         except Exception as err:
-            sys.stderr.write(traceback.format_exc())
+            common.log_exception()
             if index.isValid():
                 data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
                 data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
@@ -120,7 +120,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
         if not index.isValid():
             return
         model = index.model()
-        data = model.model_data()[index.row()]
+        data = model.modelINTERNAL_IMAGE_DATA()[index.row()]
 
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
@@ -284,7 +284,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
 
     model = index.model()
     try:
-        data = model.model_data()[index.row()]
+        data = model.modelINTERNAL_IMAGE_DATA()[index.row()]
     except KeyError:
         cache.invalidate(source, force=True)
         cache.invalidate(dest, force=True)
@@ -315,13 +315,13 @@ class ImageCache(QtCore.QObject):
     """Utility class for setting, capturing and editing thumbnail and resource
     images.
 
-    All cached images are stored in ``ImageCache._data`` `(dict)` object.
+    All cached images are stored in ``ImageCache.INTERNAL_IMAGE_DATA`` `(dict)` object.
     To add an image to the cache you can use the ``ImageCache.get()`` method.
     Loading and caching ui resource items is done by ``ImageCache.get_rsc_pixmap()``.
 
     """
     # Data and instance container
-    _data = {}
+    INTERNAL_IMAGE_DATA = {}
 
     @classmethod
     def get(cls, path, height, overwrite=False):
@@ -348,10 +348,10 @@ class ImageCache(QtCore.QObject):
         k = k.lower()
 
         # Return cached item if exsits
-        if k in cls._data and not overwrite:
-            return cls._data[k]
-        if k in cls._data and overwrite:
-            del cls._data[k]
+        if k in cls.INTERNAL_IMAGE_DATA and not overwrite:
+            return cls.INTERNAL_IMAGE_DATA[k]
+        if k in cls.INTERNAL_IMAGE_DATA and overwrite:
+            del cls.INTERNAL_IMAGE_DATA[k]
 
         # Checking if the file can be opened
         i = OpenImageIO.ImageInput.open(path)
@@ -365,11 +365,11 @@ class ImageCache(QtCore.QObject):
 
         image = cls.resize_image(image, height)
         bg_k = path + u':backgroundcolor'
-        cls._data[bg_k] = cls.get_color_average(path)
+        cls.INTERNAL_IMAGE_DATA[bg_k] = cls.get_color_average(path)
         if k != bg_k:
-            cls._data[k] = image
+            cls.INTERNAL_IMAGE_DATA[k] = image
 
-        return cls._data[k]
+        return cls.INTERNAL_IMAGE_DATA[k]
 
     @staticmethod
     def resize_image(image, size):
@@ -445,7 +445,7 @@ class ImageCache(QtCore.QObject):
             u'backgroundcolor',
             overwrite=False)
 
-        data = index.model().model_data()
+        data = index.model().modelINTERNAL_IMAGE_DATA()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
         index.model().updateIndex.emit(index)
@@ -463,7 +463,7 @@ class ImageCache(QtCore.QObject):
         if hasattr(index, 'sourceModel'):
             source_index = index.model().mapToSource(index)
 
-        data = source_index.model().model_data()
+        data = source_index.model().modelINTERNAL_IMAGE_DATA()
         data = data[source_index.row()]
         file_ = QtCore.QFile(data[common.ThumbnailPathRole])
 
@@ -472,10 +472,10 @@ class ImageCache(QtCore.QObject):
                 print '# Failed to remove thumbnail: {}'.format(
                     data[common.ThumbnailPathRole])
 
-        keys = [k for k in cls._data if data[common.ThumbnailPathRole].lower()
+        keys = [k for k in cls.INTERNAL_IMAGE_DATA if data[common.ThumbnailPathRole].lower()
                 in k.lower()]
         for key in keys:
-            del cls._data[key]
+            del cls.INTERNAL_IMAGE_DATA[key]
 
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
@@ -542,8 +542,8 @@ class ImageCache(QtCore.QObject):
         k = u'rsc:{name}:{size}:{color}'.format(
             name=name, size=size, color=u'null' if not color else color.name())
 
-        if k in cls._data:
-            return cls._data[k]
+        if k in cls.INTERNAL_IMAGE_DATA:
+            return cls.INTERNAL_IMAGE_DATA[k]
 
         if not file_info.exists():
             return QtGui.QPixmap(size, size)
@@ -579,15 +579,13 @@ class ImageCache(QtCore.QObject):
 
             image = _image
 
-        cls._data[k] = image
-        return cls._data[k]
+        cls.INTERNAL_IMAGE_DATA[k] = image
+        return cls.INTERNAL_IMAGE_DATA[k]
 
     @classmethod
     @QtCore.Slot()
     def reset_cache(cls):
         """Clears the image-cache."""
-        data = {}
-        for k, v in cls._data.iteritems():
-            if u'rsc:' in k:
-                data[k] = v
-        cls._data = data
+        for k in cls.INTERNAL_IMAGE_DATA.keys():
+            if u'rsc:' not in k:
+                del cls.INTERNAL_IMAGE_DATA[k]

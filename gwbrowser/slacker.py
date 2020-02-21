@@ -114,7 +114,7 @@ class ImageDownloader(QtCore.QObject):
         # icon = QtGui.QIcon(pixmap)
 
 
-        self.parent()._data[idx][QtCore.Qt.DecorationRole] = image
+        self.parent().INTERNAL_USER_DATA[idx][QtCore.Qt.DecorationRole] = image
         index = self.parent().index(idx, 0)
         self.parent().dataChanged.emit(index, index)
 
@@ -124,7 +124,7 @@ class UsersModel(QtCore.QAbstractItemModel):
 
     def __init__(self, parent=None):
         super(UsersModel, self).__init__(parent=parent)
-        self._data = {}
+        self.INTERNAL_USER_DATA = {}
         self.slacker = Slacker(
             settings_.local_settings.value(u'preferences/IntegrationSettings/slack_token'),
             settings_.local_settings.value(u'preferences/IntegrationSettings/slack_member_id'),
@@ -138,15 +138,15 @@ class UsersModel(QtCore.QAbstractItemModel):
     def __initdata__(self):
         self.beginResetModel()
         profiles = self.slacker.profiles()
-        self._data = {}
+        self.INTERNAL_USER_DATA = {}
 
         row_size = QtCore.QSize(1, 28.0)
         for profile in sorted(profiles, key=lambda x: self.get_name(x)):
             if u'email' not in profile:
                 continue
 
-            idx = len(self._data)
-            self._data[idx] = {
+            idx = len(self.INTERNAL_USER_DATA)
+            self.INTERNAL_USER_DATA[idx] = {
                 QtCore.Qt.DisplayRole: self.get_name(profile),
                 QtCore.Qt.DecorationRole: QtGui.QIcon(),
                 QtCore.Qt.SizeHintRole: row_size,
@@ -166,12 +166,12 @@ class UsersModel(QtCore.QAbstractItemModel):
         return 2
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        return len(self._data)
+        return len(self.INTERNAL_USER_DATA)
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
-        if role not in self._data[index.row()]:
+        if role not in self.INTERNAL_USER_DATA[index.row()]:
             return None
-        return self._data[index.row()][role]
+        return self.INTERNAL_USER_DATA[index.row()][role]
 
     def index(self, row, column, parent=QtCore.QModelIndex()):
         """Bog-standard index creator."""
@@ -353,8 +353,8 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         source_model = self.users_widget.model().sourceModel()
         self.users_widget.selectionModel().blockSignals(True)
         source_model.modelDataResetRequested.emit()
-        for n in source_model._data:
-            source_model._data[n][ImageDownloaderRole].get()
+        for n in source_model.INTERNAL_USER_DATA:
+            source_model.INTERNAL_USER_DATA[n][ImageDownloaderRole].get()
         self.users_widget.selectionModel().blockSignals(False)
 
         self.__initialized = True

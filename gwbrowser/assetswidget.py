@@ -159,7 +159,7 @@ class AssetModel(BaseModel):
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
 
-        self._data[self.data_key()] = {
+        self.INTERNAL_MODEL_DATA[dkey] = {
             common.FileItem: {}, common.SequenceItem: {}}
 
         favourites = settings_.local_settings.favourites()
@@ -169,7 +169,7 @@ class AssetModel(BaseModel):
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
-        nth = 3
+        nth = 1
         c = 0
         for entry in gwscandir.scandir(bookmark_path):
             if entry.name.startswith(u'.'):
@@ -177,10 +177,9 @@ class AssetModel(BaseModel):
             if not entry.is_dir():
                 continue
 
-            filepath = entry.path
-
-            identifier_file = u'{}/{}'.format(filepath,
-                                              common.ASSET_IDENTIFIER)
+            filepath = entry.path.replace(u'\\', u'/')
+            identifier_file = u'{}/{}'.format(
+                filepath, common.ASSET_IDENTIFIER)
             if not QtCore.QFileInfo(identifier_file).exists():
                 continue
 
@@ -192,7 +191,6 @@ class AssetModel(BaseModel):
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 
             filename = entry.name
-
             flags = dflags()
 
             if filepath.lower() in sfavourites:
@@ -202,9 +200,9 @@ class AssetModel(BaseModel):
                 if activeasset.lower() == filename.lower():
                     flags = flags | common.MarkedAsActive
 
-            idx = len(self._data[dkey][dtype])
+            idx = len(self.INTERNAL_MODEL_DATA[dkey][dtype])
             name = re.sub(ur'[_]{1,}', u' ', filename).strip(u'_')
-            self._data[dkey][dtype][idx] = {
+            self.INTERNAL_MODEL_DATA[dkey][dtype][idx] = {
                 QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,

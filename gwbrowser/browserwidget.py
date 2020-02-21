@@ -578,43 +578,52 @@ class BrowserWidget(QtWidgets.QWidget):
                 child.deleteLater()
             self.deleteLater()
 
+        def close_database_connections():
+            try:
+                for k in bookmark_db._DB_CONNECTIONS.keys():
+                    bookmark_db._DB_CONNECTIONS[k].connection().close()
+                    bookmark_db._DB_CONNECTIONS[k].deleteLater()
+                    del bookmark_db._DB_CONNECTIONS[k]
+            except Exception as e:
+                print e
+
+        def terminate_threads():
+            from gwbrowser.threads import mutex
+            threads = BaseThread._instances.values()
+            for thread in threads:
+                if thread.isRunning():
+                    thread.worker.request_showdown()
+            n = 0
+            while any([f.isRunning() for f in threads]):
+                if n >= 20:
+                    for thread in threads:
+                        thread.terminate()
+                        
+                        mutex.lock()
+                        print '#', thread, 'terminated'
+                        mutex.unlock()
+
+                    break
+                n += 1
+                time.sleep(0.3)
+
+        def python_module_cleanup():
+            keys = sys.modules.keys()
+            for k in keys:
+                if 'gwbrowser' in k:
+                    del sys.modules[k]
+
+
         self.statusbar.showMessage(u'Closing down...')
+        terminate_threads()
+        close_database_connections()
+        ui_teardown()
+        python_module_cleanup()
 
         try:
-            for k in bookmark_db._DB_CONNECTIONS.keys():
-                bookmark_db._DB_CONNECTIONS[k].connection().close()
-                bookmark_db._DB_CONNECTIONS[k].deleteLater()
-                del bookmark_db._DB_CONNECTIONS[k]
-        except Exception as e:
-            print e
-
-        ui_teardown()
-        
-        threadpool = BaseThread._instances.values()
-        for thread in threadpool:
-            if thread.isRunning():
-                thread.worker.shutdown()
-                thread.quit()
-        
-        n = 0
-        while any([f.isRunning() for f in threadpool]):
-            if n >= 20:
-                for thread in threadpool:
-                    thread.terminate()
-                break
-                
-            for thread in threadpool:
-                if thread.isRunning():
-                    thread.quit()
-            n += 1
-            time.sleep(0.3)
-
-        keys = sys.modules.keys()
-        for k in keys:
-            if 'gwbrowser' in k:
-                del sys.modules[k]
-
-        self.terminated.emit()
+            self.terminated.emit()
+        except:
+            pass
 
     def show_preferences(self):
         self.stackedwidget.setCurrentIndex(4)
