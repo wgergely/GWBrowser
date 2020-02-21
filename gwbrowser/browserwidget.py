@@ -588,34 +588,32 @@ class BrowserWidget(QtWidgets.QWidget):
         except Exception as e:
             print e
 
-        threadpool = self.get_all_threads()
+        ui_teardown()
+        
+        threadpool = BaseThread._instances.values()
         for thread in threadpool:
             if thread.isRunning():
                 thread.worker.shutdown()
-                thread.exit(0)
-
+                thread.quit()
+        
         n = 0
         while any([f.isRunning() for f in threadpool]):
-            for thread in threadpool:
-                if thread.isRunning():
-                    thread.worker.shutdown()
-                    thread.quit()
-            n += 1
-            time.sleep(0.4)
-            if n > 20:
+            if n >= 20:
                 for thread in threadpool:
                     thread.terminate()
                 break
-
-
-        ui_teardown()
+                
+            for thread in threadpool:
+                if thread.isRunning():
+                    thread.quit()
+            n += 1
+            time.sleep(0.3)
 
         keys = sys.modules.keys()
         for k in keys:
             if 'gwbrowser' in k:
                 del sys.modules[k]
 
-        sys.stdout.write(u'# GWBrowser terminated.\n')
         self.terminated.emit()
 
     def show_preferences(self):
@@ -733,11 +731,6 @@ class BrowserWidget(QtWidgets.QWidget):
             model.reset_thumbnails()
             self.stackedwidget.widget(n).reset()
             view.restart_scrollbar_timer()
-
-    def get_all_threads(self):
-        """Returns all running threads associated with GWBrowser.
-        The ``BaseThread`` will keep track of all instances so we can use it to querry."""
-        return BaseThread._instances.values()
 
     @QtCore.Slot(unicode)
     def show_progress_message(self, message):

@@ -191,7 +191,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
             u'text': u'Ascending' if not sortorder else u'Descending',
-            u'ckeckable': True,
+            u'checkable': True,
             u'checked': not sortorder,
             u'icon': arrow_down_icon if not sortorder else arrow_up_icon,
             u'action': lambda: m.sortingChanged.emit(m.sort_role(), not m.sort_order())

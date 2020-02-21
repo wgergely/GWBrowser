@@ -571,11 +571,11 @@ class BaseModel(QtCore.QAbstractItemModel):
         if not self.thread_count:
             return
         for n in xrange(self.thread_count):
-            self.threads[n] = self.InfoThread(self)
+            self.threads[n] = self.InfoThread(parent=self)
             self.threads[n].thread_id = n
             self.threads[n].start()
 
-            self.threads[n * 2] = self.ThumbnailThread(self)
+            self.threads[n * 2] = self.ThumbnailThread(parent=self)
             self.threads[n * 2].thread_id = n * 2
             self.threads[n * 2].start()
 
@@ -585,7 +585,7 @@ class BaseModel(QtCore.QAbstractItemModel):
         def set_model():
             self.threads[idx].worker.model = self
             self.threads[idx].setPriority(QtCore.QThread.LowPriority)
-        self.threads[idx] = self.SecondaryInfoThread()
+        self.threads[idx] = self.SecondaryInfoThread(parent=self)
         self.threads[idx].thread_id = idx
         self.threads[idx].started.connect(set_model)
         self.threads[idx].start()

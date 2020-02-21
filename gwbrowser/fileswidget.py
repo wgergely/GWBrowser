@@ -218,8 +218,12 @@ class SecondaryFileInfoWorker(FileInfoWorker):
 
                 if all_loaded:
                     model.file_info_loaded = True
-                    model.sort_data() # Let's re-sort the data
+                    sorted_by_name = model.sort_role() in (common.SortBySize, common.SortByLastModified)
+                    if not sorted_by_name or not model.sort_order():
+                        model.sortingChanged.emit(model.sort_role(), model.sort_order())
 
+        except Queue.Empty:
+            pass
         except:
             sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
         finally:
