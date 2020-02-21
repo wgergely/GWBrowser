@@ -32,7 +32,7 @@ class Unique(Queue.Queue):
 
 class BaseWorker(QtCore.QObject):
     """The base for all workers associated with a QThread.
-    `begin_processing` is a blocking function and will take any QModelIndexes in
+    `exec_` is a blocking function and will take any QModelIndexes in
     in `BaseWorker.Unique` queue.
 
     """
@@ -49,15 +49,15 @@ class BaseWorker(QtCore.QObject):
 
     @QtCore.Slot()
     def shutdown(self):
-        """Quits the index-processing block.
-        We're using the built-in python Queue.get(True) method - it blocks the
-        executing thread until there's an available worker to fetch the queued item.
+        """Quits the index-processing block. We're using the built-in python
+        Queue.get(True) method ehich blocks the executing thread until there's
+        an available worker to fetch the next queued item.
 
-        To break the lock it is necessary to add a dummy-item to the queue.
+        To break the lock, it is necessary to add an invalid `QModelIndex` to
+        the queue.
 
         """
-        # Adding a dummy object should clear the get() block
-        self.queue.put(QtCore.QPersistentModelIndex())
+        self.queue.put(QtCore.QModelIndex())
         self.shutdown_requested = True
 
     @QtCore.Slot(tuple)
@@ -78,13 +78,13 @@ class BaseWorker(QtCore.QObject):
     @classmethod
     def reset_queue(cls):
         """Empties the queue"""
-        if cls.queue.empty():
-            return
-        while not cls.queue.empty():
-            try:
+        try:
+            while cls.queue.qsize() > 0:
                 cls.queue.get(False)
-            except:
-                break
+        except Queue.Empty:
+            return
+        except Exception:
+            sys.stderr.write(u'{}\n'.format(traceback.format_exc()))
 
     @QtCore.Slot()
     def begin_processing(self):
@@ -101,28 +101,33 @@ class BaseWorker(QtCore.QObject):
         try:
             # We will keep taking items from the queue until shutdown had been requested
             while not self.shutdown_requested:
-                # We'll take the item from the queue
-                # It is possible however, that the item has been added back into
-                # the queue after a thread has taken it already
+                # Take the next available index from the queue
+                # It is possible however, that the index has been added back into
+                # the queue after a thread has taken it.
+                # Let's check if this is the case and take the next index instead
                 index = self.queue.get(True)
-
-                # Let's check if this is the case and take the first available
+                mutex.lock()
                 while index in self.indexes_in_progress:
                     index = self.queue.get(True)
+                mutex.unlock()
 
                 # This thread is the first to take the item, we will add the index
                 # to the list
+                mutex.lock()
                 if index not in self.indexes_in_progress:
                     self.indexes_in_progress.append(index)
+                mutex.unlock()
 
                 # Finally, we process the index
                 self.process_index(index)
 
                 # We'll remove the index from the currently processing items
+                mutex.lock()
                 if index in self.indexes_in_progress:
                     self.indexes_in_progress.remove(index)
-        except Exception:
-            sys.stderr.write('{}\n'.format(traceback.format_exc()))
+                mutex.unlock()
+        except Queue.Empty:
+            return
         finally:
             if self.shutdown_requested:
                 self.finished.emit()
@@ -135,7 +140,7 @@ class BaseWorker(QtCore.QObject):
         Make sure this overriden in the subclass.
 
         """
-        raise NotImplementedError('process_index must to be subclassed.')
+        raise NotImplementedError('Abstract method.')
 
 
 class BaseThread(QtCore.QThread):
@@ -166,10 +171,12 @@ class BaseThread(QtCore.QThread):
         self.worker = None
 
     def run(self):
-        """Start the thread, initializes the worker and shuts the worker when
-        the worker finished processing."""
+        """Run() is guaranteed to be executed in the thread controlled by QThread instances.
+
+        To guarantee thread affinity, we're initiating the thread's worker here.
+        I opted
+        """
         self.worker = self.Worker()
-        self.worker.finished.connect(lambda: self.exit(0))
+        self.worker.finished.connect(self.quit)
         self.started.emit()
         self.worker.begin_processing()
-        self.exec_()

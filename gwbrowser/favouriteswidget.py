@@ -18,6 +18,7 @@ from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FilesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
+from gwbrowser.fileswidget import FileInfoThread
 from gwbrowser.baselistwidget import validate_index
 
 from gwbrowser.threads import BaseThread
@@ -27,6 +28,9 @@ from gwbrowser.fileswidget import validate_index
 from gwbrowser.fileswidget import FileInfoWorker
 from gwbrowser.fileswidget import SecondaryFileInfoWorker
 from gwbrowser.fileswidget import FileThumbnailWorker
+from gwbrowser.fileswidget import FileInfoThread
+from gwbrowser.fileswidget import SecondaryFileInfoThread
+from gwbrowser.fileswidget import FileThumbnailThread
 
 
 def rsc_path(f, n):
@@ -34,44 +38,6 @@ def rsc_path(f, n):
     path = os.path.normpath(os.path.abspath(path))
     return path
 
-
-class FavouriteInfoWorker(FileInfoWorker):
-    """We will check if the favou."""
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-    @staticmethod
-    @validate_index
-    @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, exists=True):
-        FileInfoWorker.process_index(index, exists=exists)
-
-
-class SecondaryFavouriteInfoWorker(SecondaryFileInfoWorker):
-    """Worker associated with the ``FavouritesModel``."""
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-
-class FavouriteThumbnailWorker(FileThumbnailWorker):
-    """Worker associated with the ``FavouritesModel``."""
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-
-class FavouriteInfoThread(BaseThread):
-    """Thread controller associated with the ``FavouritesModel``."""
-    Worker = FavouriteInfoWorker
-
-
-class SecondaryFavouriteInfoThread(BaseThread):
-    """Thread controller associated with the ``FavouritesModel``."""
-    Worker = SecondaryFavouriteInfoWorker
-
-
-class FavouriteThumbnailThread(BaseThread):
-    """Thread controller associated with the ``FavouritesModel``."""
-    Worker = FavouriteThumbnailWorker
 
 
 class FavouritesWidgetContextMenu(BaseContextMenu):
@@ -103,9 +69,9 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
 
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
-    InfoThread = FavouriteInfoThread
-    SecondaryInfoThread = SecondaryFavouriteInfoThread
-    ThumbnailThread = FavouriteThumbnailThread
+    InfoThread = FileInfoThread
+    SecondaryInfoThread = SecondaryFileInfoThread
+    ThumbnailThread = FileThumbnailThread
 
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(parent=parent)
@@ -191,7 +157,6 @@ class FavouritesWidget(FilesWidget):
         self.setDropIndicatorShown(True)
 
     def set_model(self, *args):
-        print '!'
         super(FavouritesWidget, self).set_model(*args)
         self.favouritesChanged.connect(self.model().sourceModel().modelDataResetRequested)
 
