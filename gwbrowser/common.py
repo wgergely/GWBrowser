@@ -93,11 +93,13 @@ DataFolder = u'data'
 ReferenceFolder = u'references'
 RendersFolder = u'renders'
 ScenesFolder = u'scenes'
+CompsFolder = u'comps'
 ScriptsFolder = u'scripts'
 TexturesFolder = u'textures'
 
 ASSET_FOLDERS = {
     ExportsFolder: u'User exported animation, object and simulation cache files',
+    CompsFolder: u'Final comp renders',
     DataFolder: u'System exported caches files',
     ReferenceFolder: u'Files used for research, reference',
     RendersFolder: u'Images rendered by the scene files',
@@ -177,6 +179,7 @@ def save_favourites():
     import uuid
     import gwbrowser.settings as settings_
     from gwbrowser.settings import AssetSettings
+    import gwbrowser.bookmark_db as bookmark_db
 
     res = QtWidgets.QFileDialog.getSaveFileName(
         caption=u'Select where to save your favourites items',
@@ -190,7 +193,6 @@ def save_favourites():
         return
 
     favourites = settings_.local_settings.favourites()
-    sfavourites = set(favourites)
 
     server, job, root = get_favourite_parent_paths()
     zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
@@ -200,23 +202,18 @@ def save_favourites():
 
     with zipfile.ZipFile(zip_path, 'a') as z:
         for favourite in favourites:
-            settings = AssetSettings(
+            db = bookmark_db.get_db(
                 QtCore.QModelIndex(),
                 server=server,
                 job=job,
-                root=root,
-                filepath=favourite
+                root=root
             )
 
             # Adding thumbnail to zip
-            file_info = QtCore.QFileInfo(settings.thumbnail_path())
+            file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
             if not file_info.exists():
                 continue
 
-            z.write(file_info.filePath(), file_info.fileName())
-            file_info = QtCore.QFileInfo(settings.config_path())
-            if not file_info.exists():
-                continue
             z.write(file_info.filePath(), file_info.fileName())
         z.writestr(u'favourites', u'\n'.join(favourites))
 
@@ -264,20 +261,14 @@ def import_favourites():
 
         for favourite in favourites:
             server, job, root = get_favourite_parent_paths()
-            settings = AssetSettings(
+            db = bookmark_db.get_db(
+                QtCore.QModelIndex(),
                 server=server,
                 job=job,
-                root=root,
-                filepath=favourite
+                root=root
             )
 
-            file_info = QtCore.QFileInfo(settings.thumbnail_path())
-            if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.bookmark'.format(server,
-                                                    job, root, file_info.fileName())
-                zip.extract(file_info.fileName(), dest)
-
-            file_info = QtCore.QFileInfo(settings.config_path())
+            file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
             if file_info.fileName() in namelist:
                 dest = u'{}/{}/{}/.bookmark'.format(server,
                                                     job, root, file_info.fileName())
@@ -295,16 +286,13 @@ def clear_favourites():
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'Clear favourites')
     mbox.setText(
-        u'Are you sure you want to reset your favourites?'.format(
-            Server.primary())
+        u'Are you sure you want to remove all of your favourites?'
     )
-    mbox.setInformativeText(
-        u'The action is not undoable.')
     mbox.setStandardButtons(
         QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
     mbox.setDefaultButton(QtWidgets.QMessageBox.Cancel)
 
-    res = mbox.exec_()
+    mbox.exec_()
     if mbox.result() == QtWidgets.QMessageBox.Cancel:
         return
 
@@ -455,7 +443,8 @@ all_formats = frozenset(
 NameFilters = {
     ExportsFolder: all_formats,
     ScenesFolder: all_formats,
-    RendersFolder: all_formats,
+    CompsFolder: oiio_formats,
+    RendersFolder: oiio_formats,
     TexturesFolder: all_formats,
 }
 """A list of expected file - formats associated with the location."""
@@ -485,7 +474,7 @@ DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
-BookmarkDBRole = 1044
+bookmark_dbRole = 1044
 
 SortByName = 2048
 SortByLastModified = 2049

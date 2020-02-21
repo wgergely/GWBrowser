@@ -17,7 +17,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
-TINT_THUMBNAIL_BACKGROUND = False
+TINT_THUMBNAIL_BACKGROUND = True
 ROW_HEIGHT = common.ROW_HEIGHT
 BOOKMARK_ROW_HEIGHT = common.BOOKMARK_ROW_HEIGHT
 ASSET_ROW_HEIGHT = common.ASSET_ROW_HEIGHT
@@ -206,10 +206,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             return
 
         rect = QtCore.QRect(rectangles[ThumbnailRect])
-        # Background
 
-        color = index.data(
-            common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
+        # Background
+        color = index.data(common.ThumbnailBackgroundRole) if TINT_THUMBNAIL_BACKGROUND else common.THUMBNAIL_BACKGROUND
         color = color if color else common.THUMBNAIL_BACKGROUND
         painter.setBrush(color)
         painter.setOpacity(0.66)

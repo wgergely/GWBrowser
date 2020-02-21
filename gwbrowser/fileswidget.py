@@ -26,7 +26,6 @@ import base64
 import sys
 import time
 import traceback
-
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.bookmark_db as bookmark_db
@@ -119,6 +118,7 @@ class FileInfoWorker(BaseWorker):
                 else:
                     count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
                     count = len(count)
+
             data[common.TodoCountRole] = count
 
             # Item flags
@@ -126,6 +126,7 @@ class FileInfoWorker(BaseWorker):
             v = db.value(k, u'flags')
             if v:
                 flags = flags | v
+
             data[common.FlagsRole] = flags
 
         # For sequence items we will work out the name of the sequence based on
@@ -179,6 +180,7 @@ class FileInfoWorker(BaseWorker):
         index.model().updateIndex.emit(index)
 
 
+
 class SecondaryFileInfoWorker(FileInfoWorker):
     """The worker associated with the ``SecondaryFileInfoThread``.
 
@@ -197,7 +199,7 @@ class SecondaryFileInfoWorker(FileInfoWorker):
         """
         try:
             while not self.shutdown_requested:
-                time.sleep(1.5)  # Will wait n secs between each tries
+                time.sleep(1.5)  # Will wait n secs between each runs
 
                 model = self.model
                 if not model:
@@ -267,6 +269,8 @@ class FileThumbnailWorker(BaseWorker):
         except KeyError:
             return
 
+        # Let's create a
+
         db = bookmark_db.get_db(index)
         if not db:
             return
@@ -292,10 +296,12 @@ class FileThumbnailWorker(BaseWorker):
             if image:
                 color = ImageCache.get(
                     data[common.ThumbnailPathRole], u'backgroundcolor')
+
                 data[common.ThumbnailRole] = image
                 data[common.ThumbnailBackgroundRole] = color
                 data[common.FileThumbnailLoaded] = True
                 index.model().updateIndex.emit(index)
+
                 return
 
         # If the item doesn't have a saved thumbnail we will check if
@@ -306,6 +312,7 @@ class FileThumbnailWorker(BaseWorker):
             spinner_pixmap = ImageCache.get(
                 common.rsc_path(__file__, u'spinner'),
                 data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
+
             data[common.ThumbnailRole] = spinner_pixmap
             data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
 
@@ -589,6 +596,7 @@ class FilesModel(BaseModel):
                     flags = flags | common.MarkedAsActive
 
             idx = len(self._data[dkey][common.FileItem])
+
             self._data[dkey][common.FileItem][idx] = {
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,

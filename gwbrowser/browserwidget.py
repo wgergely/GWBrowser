@@ -717,7 +717,7 @@ class BrowserWidget(QtWidgets.QWidget):
             model = view.model().sourceModel()
             model.reset_thumbnails()
             self.stackedwidget.widget(n).reset()
-            view.restart_timer()
+            view.restart_scrollbar_timer()
 
     def increase_row_size(self):
         """Increases the FilesWidget's row size."""
@@ -732,7 +732,7 @@ class BrowserWidget(QtWidgets.QWidget):
             model = view.model().sourceModel()
             model.reset_thumbnails()
             self.stackedwidget.widget(n).reset()
-            view.restart_timer()
+            view.restart_scrollbar_timer()
 
     def get_all_threads(self):
         """Returns all running threads associated with GWBrowser.

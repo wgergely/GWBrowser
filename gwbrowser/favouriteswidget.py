@@ -241,12 +241,9 @@ class FavouritesWidget(FilesWidget):
                     paths = f.readlines()
                     paths = [f.rstrip() for f in paths]
 
-                    for saved_path in paths:
-                        saved_info = QtCore.QFileInfo(saved_path)
-                        if not saved_info.exists():
-                            continue
-                        if saved_path.lower() not in favourites:
-                            favourites.append(saved_path.lower())
+                    for v in paths:
+                        if v.lower() not in favourites:
+                            favourites.append(v.lower())
 
             seq = common.get_sequence(path)
             if seq:

@@ -8,7 +8,6 @@ The *BaseListWidget* subclasses are then added to the layout of **StackedWidget*
 the widget used to switch between the lists.
 
 """
-import functools
 import re
 import sys
 import traceback
@@ -27,22 +26,26 @@ from gwbrowser.imagecache import ImageCache
 
 
 def validate_index(func):
-    """Decorator to validate an index"""
+    """Decorator function to ensure `QModelIndexes` passed to worker threads
+    are in a valid state.
+    """
     @wraps(func)
     def func_wrapper(*args, **kwargs):
-        """This wrapper will make sure the passed parameters are ok to pass onto
-        OpenImageIO. We will also update the index value here."""
+        # Checking validity
         if not args[0].isValid():
             return None
         if not args[0].data(QtCore.Qt.StatusTipRole):
             return None
         if not args[0].data(common.ParentPathRole):
             return None
-        if isinstance(args[0].model(), FilterProxyModel):
+
+        # Converting the FilterProxyModel indexes to source indexes
+        if hasattr(args[0].model(), 'sourceModel'):
             args = [f for f in args]
             index = args.pop(0)
             args.insert(0, index.model().mapToSource(index))
             args = tuple(args)
+
         return func(*args, **kwargs)
     return func_wrapper
 
@@ -527,7 +530,6 @@ class BaseModel(QtCore.QAbstractItemModel):
         k = self.data_key()
         t = self.data_type()
         self._data[k][t] = __data
-
         self.dataSorted.emit()
 
     @QtCore.Slot()
@@ -663,7 +665,9 @@ class BaseModel(QtCore.QAbstractItemModel):
         """Data setter method."""
         if not index.isValid():
             return
+
         self.model_data()[index.row()][role] = data
+
         self.dataChanged.emit(index, index)
 
     def data_key(self):
@@ -899,6 +903,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         data = source_index.model().model_data()
         idx = source_index.row()
+
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] | common.MarkedAsActive
 
         source_index.model().activeChanged.emit(source_index)
@@ -916,6 +921,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         data = source_index.model().model_data()
         idx = source_index.row()
+
         data[idx][common.FlagsRole] = data[idx][common.FlagsRole] & ~common.MarkedAsActive
 
         self.update(index)
@@ -1027,7 +1033,7 @@ class BaseListWidget(QtWidgets.QListView):
             if mode:
                 favourites.append(k)
             else:
-                if k in sfavourites:
+                if k.lower() in sfavourites:
                     favourites.remove(k)
 
             v = sorted(list(set(favourites)))
@@ -1066,7 +1072,6 @@ class BaseListWidget(QtWidgets.QListView):
                     continue
                 _set_flag(k, mode, data, flag, commit=False)
 
-
         if not index.isValid():
             return
 
@@ -1075,9 +1080,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         if not index.data(common.FileInfoLoaded):
             return
-
-        favourites = settings_.local_settings.favourites()
-        sfavourites = set(favourites)
 
         source_model = self.model().sourceModel()
         dkey = source_model.data_key()
@@ -1335,6 +1337,7 @@ class BaseListWidget(QtWidgets.QListView):
                     index,
                     common.MarkedAsArchived
                 )
+                self.update(index)
                 self.model().invalidateFilter()
                 return
 
@@ -1731,6 +1734,7 @@ class BaseInlineIconWidget(BaseListWidget):
                     common.MarkedAsFavourite,
                     state=self.multi_toggle_state
                 )
+                self.update(index)
 
             if self.multi_toggle_idx == delegate.ArchiveRect:
                 self.multi_toggle_items[idx] = archived
@@ -1739,7 +1743,7 @@ class BaseInlineIconWidget(BaseListWidget):
                     common.MarkedAsArchived,
                     state=self.multi_toggle_state
                 )
-
+                self.update(index)
             return
 
         if index == initial_index:
@@ -1751,19 +1755,22 @@ class BaseInlineIconWidget(BaseListWidget):
                 common.MarkedAsFavourite,
                 state=self.multi_toggle_items.pop(idx)
             )
+            self.update(index)
         elif self.multi_toggle_idx == delegate.FavouriteRect:
             self.toggle_item_flag(
                 index,
                 common.MarkedAsArchived,
                 state=self.multi_toggle_items.pop(idx)
             )
+            self.update(index)
 
     def show_todos(self, index):
         """Shows the ``TodoEditorWidget`` for the current item."""
         from gwbrowser.todoEditor import TodoEditorWidget
 
         # Let's check if other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(f, TodoEditorWidget)]
+        editors = [f for f in self.children() if isinstance(f,
+                                                            TodoEditorWidget)]
         if editors:
             for editor in editors:
                 editor.close()
@@ -1811,23 +1818,23 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.model().sourceModel().dataTypeChanged.connect(
             self.model().sourceModel().reset_file_info_loaded)
         self.model().sourceModel().modelReset.connect(
-            self.restart_timer)
+            self.restart_scrollbar_timer)
 
+        self.model().sourceModel().dataSorted.connect(
+            self.restart_scrollbar_timer)
         self.model().sourceModel().dataSorted.connect(
             self.hide_archived_items_timer.start)
-        self.model().sourceModel().dataSorted.connect(
-            self.restart_timer)
 
         # Initializing the indexes
-        self.model().sourceModel().dataSorted.connect(self.restart_timer)
-        self.model().sourceModel().dataTypeChanged.connect(self.restart_timer)
-        self.model().sourceModel().dataKeyChanged.connect(self.restart_timer)
-        self.verticalScrollBar().valueChanged.connect(self.restart_timer)
+        self.model().sourceModel().dataSorted.connect(self.restart_scrollbar_timer)
+        self.model().sourceModel().dataTypeChanged.connect(self.restart_scrollbar_timer)
+        self.model().sourceModel().dataKeyChanged.connect(self.restart_scrollbar_timer)
+        self.verticalScrollBar().valueChanged.connect(self.restart_scrollbar_timer)
         self.scrollbar_changed_timer.timeout.connect(
             self.initialize_visible_indexes)
 
     @QtCore.Slot()
-    def restart_timer(self):
+    def restart_scrollbar_timer(self):
         """Fires the timer responsible for updating the visible model indexes on
         a threaded viewer.
 
@@ -1935,13 +1942,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def showEvent(self, event):
         self.hide_archived_items_timer.start()
-
         self.parent().parent().resized.emit(self.viewport().geometry())
-
-        # self.progress_widget.setGeometry(self.viewport().geometry())
-        # self.disabled_overlay_widget.setGeometry(self.viewport().geometry())
-        # self.filter_active_widget.setGeometry(self.viewport().geometry())
-
         super(ThreadedBaseWidget, self).showEvent(event)
 
     def hideEvent(self, event):

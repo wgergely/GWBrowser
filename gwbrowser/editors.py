@@ -7,6 +7,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import OpenImageIO
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
+import gwbrowser.bookmark_db as bookmark_db
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
 from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
@@ -47,7 +48,7 @@ class ThumbnailViewer(QtWidgets.QLabel):
             self.alembic_preview_widget.deleteLater()
             self.alembic_preview_widget = None
 
-        # We're showing the contents of the alembic file
+        # Contents of an alembic file
         if path.lower().endswith(u'.abc'):
             self.clear()
 
@@ -70,31 +71,28 @@ class ThumbnailViewer(QtWidgets.QLabel):
             alembicwidget.show()
             return
 
-        settings = AssetSettings(index)
-        file_info = QtCore.QFileInfo(settings.thumbnail_path())
+        db = bookmark_db.get_db(index)
+        thumbnail_path = db.thumbnail_path(index.data(QtCore.Qt.StatusTipRole))
+        file_info = QtCore.QFileInfo(thumbnail_path)
 
         if not index.isValid():
             self.clear()
-            self.setText(u'Invalid selection.')
             return
-
-        # The item does not have a discreet thumbnail
         if not file_info.exists():
             self.clear()
-            if index.data(common.ThumbnailRole):
-                self.setPixmap(index.data(common.ThumbnailRole))
+            pixmap = ImageCache.get_rsc_pixmap(u'placeholder', common.TEXT, common.THUMBNAIL_IMAGE_SIZE)
+            self.setPixmap(pixmap)
             return
 
-        pixmap = QtGui.QPixmap(settings.thumbnail_path())
+        pixmap = ImageCache.get(thumbnail_path, common.THUMBNAIL_IMAGE_SIZE)
         if pixmap.isNull():
             self.clear()
+            pixmap = ImageCache.get_rsc_pixmap(u'placeholder', common.TEXT, common.THUMBNAIL_IMAGE_SIZE)
             self.setText(u'Unable to load pixmap.')
+            self.setPixmap(pixmap)
             return
 
         self.clear()
-        if pixmap.width() > common.THUMBNAIL_IMAGE_SIZE or pixmap.height() > common.THUMBNAIL_IMAGE_SIZE:
-            pixmap = ImageCache.resize_image(
-                pixmap.toImage(), common.THUMBNAIL_IMAGE_SIZE)
         self.setPixmap(pixmap)
 
     def paintEvent(self, event):
@@ -265,7 +263,9 @@ QLineEdit {{
 
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
+
         data[common.DescriptionRole] = self.text()
+
         self.parent().update(source_index)
         self.hide()
 

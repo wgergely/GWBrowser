@@ -121,6 +121,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
             return
         model = index.model()
         data = model.model_data()[index.row()]
+
         data[common.ThumbnailRole] = data[common.DefaultThumbnailRole]
         data[common.ThumbnailBackgroundRole] = data[common.DefaultThumbnailBackgroundRole]
         data[common.FileThumbnailLoaded] = True
@@ -191,6 +192,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     spec = OpenImageIO.ImageSpec(_width, _height, 4, u'uint8')
     spec.channelnames = (u'R', u'G', u'B', u'A')
     spec.alpha_channel = 3
+
     spec.attribute(u'oiio:ColorSpace', u'Linear')
     spec.attribute(u'oiio:Gamma', u'0.454545')
 
@@ -301,6 +303,7 @@ def oiio_make_thumbnail(index, source=None, dest=None, dest_size=common.THUMBNAI
     data[common.ThumbnailRole] = image
     data[common.ThumbnailBackgroundRole] = color
     data[common.FileThumbnailLoaded] = True
+
     index.model().updateIndex.emit(index)
 
     cache.invalidate(source, force=True)
@@ -361,7 +364,6 @@ class ImageCache(QtCore.QObject):
             return None
 
         image = cls.resize_image(image, height)
-
         bg_k = path + u':backgroundcolor'
         cls._data[bg_k] = cls.get_color_average(path)
         if k != bg_k:
@@ -385,24 +387,17 @@ class ImageCache(QtCore.QObject):
         if not isinstance(size, (int, float)):
             return image
 
-        longer = float(max(image.width(), image.height()))
-        factor = float(float(size) / float(longer))
-
         if isinstance(image, QtGui.QPixmap):
             image = image.toImage()
 
-        if image.width() < image.height():
-            _size = QtCore.QSize(
-                int(float(image.width()) * factor),
-                int(size)
-            )
-        else:
-            _size = QtCore.QSize(
-                size,
-                float(image.width()) * factor
-            )
-        image = image.smoothScaled(_size.width(), _size.height())
-        p = QtGui.QPixmap(_size.width(), _size.height())
+        w = image.width()
+        h = image.height()
+        factor = float(size) / max(float(w), float(h))
+        w *= factor
+        h *= factor
+
+        image = image.smoothScaled(w, h)
+        p = QtGui.QPixmap(w, h)
         p.convertFromImage(image)
         return p
 
