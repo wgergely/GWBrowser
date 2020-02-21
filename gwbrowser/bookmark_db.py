@@ -24,7 +24,7 @@ _DB_CONNECTIONS = {}
 """We will store our db connection instances here. They will be created per thread."""
 
 
-def get_db(index, server=None, job=None, asset=None):
+def get_db(index, server=None, job=None, root=None):
     """Helper function to return the bookmark database connection associated
     with an index. We will create the connection if it doesn't exists yet.
     Connection instances cannot be shared between threads hence we will
@@ -113,6 +113,7 @@ class BookmarkDB(QtCore.QObject):
         """
         k = k.lower().encode(u'utf-8')
         k = k.replace(u'\\'.encode(u'utf-8'), u'/'.encode(u'utf-8'))
+        k = k.replace(u'\''.encode(u'utf-8'), u'_'.encode(u'utf-8'))
         if self._server in k:
             k = k[len(self._server):len(k)]
         k = k.strip(u'/'.encode(u'utf-8'))
@@ -303,9 +304,11 @@ if __name__ == '__main__':
         performaing quicker.
 
         """
-
-        # bookmark_db.setValue(ur'job/root/testfolder/testfile.ma', u'description', u'test')
-        return
+        bookmark_db = BookmarkDB(
+            server=u'C:/temp',
+            job=u'dir1',
+            root=u'added_bookmark',
+        )
         x = 100000
         # #####################
         t = time.time()
@@ -332,15 +335,3 @@ if __name__ == '__main__':
             id = bookmark_db._row_id(ur'job/root/testfolder/testfile.ma' + unicode(n))
             v = data[id]['description']
         print '`values()` took', time.time() - t, '\n'
-
-
-    db = BookmarkDB(
-        server=u'C:/temp',
-        job=u'dir1',
-        root=u'added_bookmark',
-    )
-    print db.values()
-    print db.values('notes')
-
-    # run_benchmark()
-    # bookmark_db.setValue(ur'job/root/testfolder/testfile.ma', u'description', u'test')
