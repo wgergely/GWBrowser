@@ -330,7 +330,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[u'favourite'] = {
-            u'text': u'Remove from favourites' if favourite else u'Favourite',
+            u'text': u'Remove favourite' if favourite else u'Favourite',
             u'icon': favourite_off_icon if favourite else favourite_on_icon,
             u'checkable': False,
             u'action': functools.partial(
@@ -568,16 +568,19 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         favourite = self.index.flags() & common.MarkedAsFavourite
 
+        toggle = functools.partial(
+            self.parent().toggle_item_flag,
+            self.index,
+            common.MarkedAsFavourite,
+            state=not favourite
+        )
+        refresh = self.parent().model().sourceModel().modelDataResetRequested.emit
+
         menu_set[u'favourite'] = {
             u'text': u'Remove favourite',
             u'icon': remove_icon,
             u'checkable': False,
-            u'action': functools.partial(
-                self.parent().toggle_item_flag,
-                self.index,
-                common.MarkedAsFavourite,
-                state=not favourite
-            )
+            u'action': (toggle, self.parent().favouritesChanged.emit)
         }
         return menu_set
 
@@ -594,13 +597,13 @@ class BaseContextMenu(QtWidgets.QMenu):
         favourite = self.index.flags() & common.MarkedAsFavourite
 
         menu_set[u'save_favourites'] = {
-            u'text': u'Save favourites as *.gwb',
+            u'text': u'Export favourites',
             u'icon': save_icon,
             u'checkable': False,
             u'action': common.save_favourites
         }
         menu_set[u'import_favourites'] = {
-            u'text': u'Import favourites from *.gwb',
+            u'text': u'Import favourites',
             u'icon': add_icon,
             u'checkable': False,
             u'action': (common.import_favourites, self.parent().favouritesChanged.emit)
