@@ -9,7 +9,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache, oiio_make_thumbnail
+from gwbrowser.imagecache import ImageCache
 from gwbrowser.settings import AssetSettings
 
 
@@ -393,11 +393,12 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': refresh_pixmap
         }
 
-        menu_set[u'separator'] = None
-        menu_set[u'Preferences...'] = {
-            u'action': self.parent().parent().parent().show_preferences,
-            u'icon': preferences_pixmap,
-        }
+        if self.parent().parent():
+            menu_set[u'separator'] = None
+            menu_set[u'Preferences...'] = {
+                u'action': self.parent().parent().parent().show_preferences,
+                u'icon': preferences_pixmap,
+            }
 
         return menu_set
 
@@ -449,7 +450,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             current item."""
             data = source_index.model().model_data()[source_index.row()]
             data[common.FileThumbnailLoaded] = False
-            oiio_make_thumbnail(source_index, source=path)
+            ImageCache.openimageio_thumbnail(
+                path, thumbnail_path, common.THUMBNAIL_IMAGE_SIZE)
+
 
         def show_thumbnail_picker():
             """Creates and shows the thumbnail picker widget."""

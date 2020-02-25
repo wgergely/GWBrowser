@@ -2,15 +2,14 @@
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
 import time
+import uuid
 import re
-import traceback
 import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
-from gwbrowser.imagecache import oiio_make_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import ThreadedBaseWidget
@@ -23,55 +22,12 @@ from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.settings import AssetSettings
 import gwbrowser.settings as settings_
 
-from gwbrowser.fileswidget import FileInfoWorker
+from gwbrowser.fileswidget import InfoWorker
 from gwbrowser.fileswidget import SecondaryFileInfoWorker
 from gwbrowser.fileswidget import FileThumbnailWorker
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
 from gwbrowser.threads import Unique
-
-
-class AssetInfoWorker(FileInfoWorker):
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-
-class SecondaryAssetInfoWorker(AssetInfoWorker):
-    """The worker associated with the ``SecondaryAssetInfoWorker``.
-
-    The worker performs  the same function as ``FileInfoWorker`` but
-    it has it own queue and is concerned with iterating over all file-items.
-
-    """
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-
-class AssetThumbnailWorker(FileThumbnailWorker):
-    """The worker associated with the ``AssetThumbnailThread``.
-
-    The worker is responsible for loading the existing thumbnail images from
-    the cache folder, and if needed and possible, generating new thumbnails from
-    the source file.
-
-    """
-    queue = Unique(999)
-    indexes_in_progress = []
-
-
-class AssetInfoThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = AssetInfoWorker
-
-
-class SecondaryAssetInfoThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = SecondaryAssetInfoWorker
-
-
-class AssetThumbnailThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = AssetThumbnailWorker
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -118,13 +74,8 @@ class AssetModel(BaseModel):
            model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
 
     """
-    InfoThread = AssetInfoThread
-    SecondaryInfoThread = SecondaryAssetInfoThread
-    ThumbnailThread = AssetThumbnailThread
-
-    def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
-        super(AssetModel, self).__init__(
-            thread_count=thread_count, parent=parent)
+    def __init__(self, parent=None):
+        super(AssetModel, self).__init__(parent=parent)
 
     @initdata
     def __initdata__(self):
@@ -143,8 +94,6 @@ class AssetModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        self.reset_thread_worker_queues()
-
         if not self.parent_path:
             return
         if not all(self.parent_path):
@@ -159,8 +108,10 @@ class AssetModel(BaseModel):
             rowsize.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
 
-        self.INTERNAL_MODEL_DATA[dkey] = {
-            common.FileItem: {}, common.SequenceItem: {}}
+        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
 
         favourites = settings_.local_settings.favourites()
         sfavourites = set(favourites)
@@ -233,6 +184,8 @@ class AssetModel(BaseModel):
                 common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
+                #
+                common.IdRole: idx
             }
 
     def data_key(self):
@@ -254,7 +207,7 @@ class AssetsWidget(ThreadedBaseWidget):
         self.setWindowTitle(u'Assets')
 
         # I'm not sure why but the proxy is not updated properly after refresh
-        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
+        # self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons. There's no need to
@@ -311,3 +264,16 @@ class AssetsWidget(ThreadedBaseWidget):
         self.selectionModel().setCurrentIndex(
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    from gwbrowser._thread_retake import LogView
+    l = LogView()
+    l.show()
+    widget = AssetsWidget()
+    widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')
+    widget.model().sourceModel().modelDataResetRequested.emit()
+    widget.resize(460,640)
+    widget.show()
+    app.exec_()

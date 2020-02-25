@@ -198,7 +198,7 @@ class SimpleModeButton(BaseControlButton):
         if not self.current_widget():
             return
         cls = self.current_widget().__class__.__name__
-        k = 'widget/{}/sort_with_basename'.format(cls)
+        k = u'widget/{}/sort_with_basename'.format(cls)
         val = settings_.local_settings.value(k)
         if val is None:
             settings_.local_settings.setValue(k, self.state())

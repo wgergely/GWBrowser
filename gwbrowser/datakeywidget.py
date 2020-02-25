@@ -22,7 +22,6 @@ from gwbrowser.delegate import BaseDelegate
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.threads import BaseThread
 from gwbrowser.threads import BaseWorker
-from gwbrowser.threads import Unique
 from gwbrowser.basecontextmenu import BaseContextMenu
 
 
@@ -298,16 +297,14 @@ class DataKeyModel(BaseModel):
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
 
-    def __init__(self, thread_count=common.LTHREAD_COUNT, parent=None):
+    def __init__(self, parent=None):
         self._parent = parent
-        super(DataKeyModel, self).__init__(thread_count=thread_count, parent=parent)
+        super(DataKeyModel, self).__init__(parent=parent)
+
         self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __init_threads__(self):
-        self.threads = {}
-        for n in xrange(common.LTHREAD_COUNT):
-            self.threads[n] = DataKeyThread(self._parent)
-            self.threads[n].start()
+        self.threads[common.InfoThread]
 
     @property
     def parent_path(self):
@@ -335,11 +332,11 @@ class DataKeyModel(BaseModel):
         """Bookmarks and assets are static. But files will be any number of """
         DataKeyWorker.reset_queue()
         dkey = self.data_key()
-        
-        self.INTERNAL_MODEL_DATA[dkey] = {
-            common.FileItem: {},
-            common.SequenceItem: {}
-        }
+
+        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
 
         rowsize = QtCore.QSize(0, 30)
 

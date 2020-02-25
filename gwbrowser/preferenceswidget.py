@@ -408,7 +408,7 @@ class IntegrationSettingsWidget(BaseSettingsWidget):
         try:
             client = slacker.Slacker(self.slack_token.text(), self.slack_member_id.text())
             profiles = client.profiles()
-            if not self.slack_member_id.text().lower() in [f[u'id'].lower() for f in profiles if f[u'id']]:
+            if not self.slack_member_id.text().lower() in [f[ucommon.IdRole].lower() for f in profiles if f[ucommon.IdRole]]:
                 raise RuntimeError(u'Member ID not found in the profiles.')
 
             self.slack_member_id.setStyleSheet(u'color: rgba({})'.format(common.rgb(common.ADD)))

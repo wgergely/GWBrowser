@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""The ``common.py`` module is used to define variables and methods used
+"""The ``py`` module is used to define variables and methods used
 across the GWBrowser project.
 
 GWBrowser is intended to be used in a networked environment.
@@ -35,17 +35,18 @@ Sequences are recognised via **regex** functions defined here. See
 import os
 import sys
 import re
+import time
 import zipfile
 import traceback
 import ConfigParser
+import cStringIO
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
 
-
 import gwbrowser.gwscandir as gwscandir
 
-
+DEBUG_ON = False
 COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
 ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
@@ -74,16 +75,9 @@ as an asset. We're using the maya project structure as our asset-base so this is
 a **workspace.mel** file in our case. The file resides in the root of the asset
 directory."""
 
-
-FTHREAD_COUNT = 1
-"""The number of threads used by the ``FilesWidget`` to get file - information."""
-
-LTHREAD_COUNT = 1
-"""The number of threads used by the ``DataKeyModel`` to count files."""
-
-FTIMER_INTERVAL = 800  # 1.0 sec
-"""The frequency of querrying lists to load file and thumbnail info"""
-
+InfoThread = 0
+BackgroundInfoThread = 1
+ThumbnailThread = 2
 
 ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
 CAPTURE_PATH = u'viewport_captures/animation'
@@ -129,18 +123,301 @@ pscale = 1.0
 """The global font scale value. Not implemeted yet."""
 
 
-def log_exception():
-    from gwbrowser.threads import mutex
-    mutex.lock()
-    sys.stderr.write(u'# {} Exception\n{}\n'.format(PRODUCT, traceback.format_exc()))
-    mutex.unlock()
+class DataDict(dict):
+    """Subclassed dict type for weakref compatibility."""
+    pass
 
 
-def log_warning(v):
-    from gwbrowser.threads import mutex
-    mutex.lock()
-    sys.stderr.write(u'# {} Warning\n{}\n'.format(PRODUCT, v))
-    mutex.unlock()
+class Log:
+    stdout = cStringIO.StringIO()
+
+    HEADER = u'\033[95m'
+    OKBLUE = u'\033[94m'
+    OKGREEN = u'\033[92m'
+    WARNING = u'\033[93m'
+    FAIL = u'\033[91m'
+    ENDC = u'\033[0m'
+    BOLD = u'\033[1m'
+    UNDERLINE = u'\033[4m'
+
+    @classmethod
+    def success(cls, s):
+        if not DEBUG_ON:
+            return
+        t = '{color}{ts} [Ok]:  {default}{message}'.format(
+            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            color=cls.OKGREEN,
+            default=cls.ENDC,
+            message=s
+        )
+        print >> cls.stdout, t
+
+    @classmethod
+    def debug(cls, s, source=u''):
+        if not DEBUG_ON:
+            return
+        t = u'{color}{ts} [Debug]:    {default}{source}.{message}'.format(
+            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            color=cls.OKBLUE,
+            default=cls.ENDC,
+            message=s,
+            source=source.__class__.__name__
+        )
+        print t
+        print >> cls.stdout, t
+
+    @classmethod
+    def info(cls, s):
+        if not DEBUG_ON:
+            return
+        t = u'{color}{ts} [Info]:    {default}{message}'.format(
+            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            color=cls.OKBLUE,
+            default=cls.ENDC,
+            message=s
+        )
+        print t
+        print >> cls.stdout, t
+
+    @classmethod
+    def error(cls, s):
+        if not DEBUG_ON:
+            return
+        t = u'{fail}{underline}{ts} [Error]:     {default}{message}\n{fail}{traceback}'.format(
+            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            fail=cls.FAIL,
+            underline=cls.UNDERLINE,
+            default=cls.ENDC,
+            message=s,
+            traceback=u'\n\033[91m'.join(
+                traceback.format_exc().strip('\n').split(u'\n'))
+        )
+        print t
+        print >> cls.stdout, t
+
+
+class LogViewHighlighter(QtGui.QSyntaxHighlighter):
+    """Class responsible for highlighting urls"""
+
+    HEADER = 0b000000001
+    OKBLUE = 0b000000010
+    OKGREEN = 0b000000100
+    WARNING = 0b000001000
+    FAIL = 0b000010000
+    FAIL_SUB = 0b000100000
+    ENDC = 0b001000000
+    BOLD = 0b010000000
+    UNDERLINE = 0b100000000
+
+    def k(s):
+        return getattr(Log, s).replace(u'[', '\\[')
+
+    HIGHLIGHT_RULES = {
+        u'OKBLUE': {
+            u're': re.compile(
+                u'{}(.+?)(?:{})(.+)'.format(k('OKBLUE'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': OKBLUE
+        },
+        u'OKGREEN': {
+            u're': re.compile(
+                u'{}(.+?)(?:{})(.+)'.format(k('OKGREEN'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': OKGREEN
+        },
+        u'FAIL': {
+            u're': re.compile(
+                u'{}{}(.+?)(?:{})(.+)'.format(
+                    k('FAIL'), k('UNDERLINE'), k('ENDC')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': FAIL
+        },
+        u'FAIL_SUB': {
+            u're': re.compile(
+                u'{}(.*)'.format(k('FAIL')),
+                flags=re.IGNORECASE | re.UNICODE),
+            u'flag': FAIL_SUB
+        },
+    }
+
+    def highlightBlock(self, text):
+        font = QtGui.QFont('Monospace')
+        font.setStyleHint(QtGui.QFont.Monospace)
+
+        char_format = QtGui.QTextCharFormat()
+        char_format.setFont(font)
+        char_format.setForeground(QtGui.QColor(0, 0, 0, 0))
+        char_format.setFontPointSize(1)
+
+        block_format = QtGui.QTextBlockFormat()
+        block_format.setLineHeight(
+            120, QtGui.QTextBlockFormat.ProportionalHeight)
+        self.setFormat(0, len(text), char_format)
+
+        _font = char_format.font()
+        _foreground = char_format.foreground()
+        _weight = char_format.fontWeight()
+        _psize = char_format.font().pointSizeF()
+
+        flag = 0
+
+        position = self.currentBlock().position()
+        cursor = QtGui.QTextCursor(self.currentBlock())
+        cursor.mergeBlockFormat(block_format)
+        cursor = QtGui.QTextCursor(self.document())
+
+        for case in self.HIGHLIGHT_RULES.itervalues():
+            if case[u'flag'] == self.OKGREEN:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    flag = flag | case['flag']
+                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+
+                    char_format.setForeground(QtGui.QColor(80, 230, 80, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.OKBLUE:
+                it = case[u're'].finditer(text)
+                for match in it:
+                    flag = flag | case['flag']
+                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    char_format.setForeground(QtGui.QColor(80, 80, 200, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.FAIL:
+                match = case[u're'].match(text)
+                if match:
+                    flag = flag | case['flag']
+                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
+                    char_format.setFontUnderline(True)
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+                    char_format.setForeground(QtGui.QColor(170, 170, 170, 255))
+
+                    self.setFormat(match.start(2), len(
+                        match.group(2)), char_format)
+                    cursor = self.document().find(match.group(2), position)
+                    cursor.mergeCharFormat(char_format)
+
+            if case[u'flag'] == self.FAIL_SUB:
+                # continue
+                it = case[u're'].finditer(text)
+                for match in it:
+                    if flag & self.FAIL:
+                        print '!'
+                        continue
+                    char_format.setFontUnderline(False)
+                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
+
+                    self.setFormat(match.start(1), len(
+                        match.group(1)), char_format)
+                    cursor = self.document().find(match.group(1), position)
+                    cursor.mergeCharFormat(char_format)
+
+            char_format.setFont(_font)
+            char_format.setForeground(_foreground)
+            char_format.setFontWeight(_weight)
+
+
+class LogView(QtWidgets.QTextBrowser):
+
+    format_regex = u'({h})|({b})|({g})|({w})|({f})|({e})|({o})|({u})'
+    format_regex = format_regex.format(
+        h=Log.HEADER,
+        b=Log.OKBLUE,
+        g=Log.OKGREEN,
+        w=Log.WARNING,
+        f=Log.FAIL,
+        e=Log.ENDC,
+        o=Log.BOLD,
+        u=Log.UNDERLINE
+    )
+    format_regex = re.compile(format_regex.replace(u'[', '\\['))
+
+
+    def __init__(self, parent=None):
+        super(LogView, self).__init__(parent=parent)
+        set_custom_stylesheet(self)
+        self.setMinimumWidth(640)
+        self.setUndoRedoEnabled(False)
+        self._cached = u''
+        self.highlighter = LogViewHighlighter(self.document(), parent=self)
+        self.timer = QtCore.QTimer(parent=self)
+        self.timer.setSingleShot(False)
+        self.timer.setInterval(1)
+        self.timer.timeout.connect(self.load_log)
+        self.timer.start()
+        self.setStyleSheet(
+            """
+* {{
+    padding: 20px;
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 8pt;
+    background-color: rgba({});
+}}
+""".format(rgb(SEPARATOR))
+        )
+
+    def showEvent(self, event):
+        self.timer.start()
+
+    def hideEvent(self, event):
+        self.timer.stop()
+
+    def load_log(self):
+        app = QtWidgets.QApplication.instance()
+        if app.mouseButtons() != QtCore.Qt.NoButton:
+            return
+
+        self.document().blockSignals(True)
+        v = Log.stdout.getvalue()
+        if self._cached == v:
+            return
+
+        self._cached = v
+        self.setText(v[-10000:])
+        self.highlighter.rehighlight()
+        v = self.format_regex.sub(u'', self.document().toHtml())
+        self.setHtml(v)
+        self.document().blockSignals(False)
+
+        m = self.verticalScrollBar().maximum()
+        self.verticalScrollBar().setValue(m)
+
+    def sizeHint(self):
+        return QtCore.QSize(460, 460)
+
+
+
 
 def psize(n):
     """On macosx the font size seem to be smaller given the same point size....
@@ -488,7 +765,7 @@ DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
 AssetCountRole = 1042
 EntryRole = 1043
-bookmark_dbRole = 1044
+IdRole = 1044
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -529,8 +806,11 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 def namekey(s):
     """Key function used to sort alphanumeric filenames."""
     if SORT_WITH_BASENAME:
-        return [int(f) if f.isdigit() else f for f in s.split(u'/').pop().lower()]
-    return [int(f) if f.isdigit() else f for f in s.strip(u'/').lower()]
+        s = s.split(u'/').pop() # order by filename
+    else:
+        n = len(s.split(u'/'))
+        s = ((u'Ω' * n) + s) # order by number of subfolders, then name
+    return [int(f) if f.isdigit() else f for f in s]
 
 
 def move_widget_to_available_geo(widget):
@@ -719,7 +999,7 @@ def is_valid_filename(text):
     .. code-block:: python
 
        f = u'000_pr_000_layout_gw_v0006.ma'
-       match = common.get_valid_filename(f)
+       match = get_valid_filename(f)
        match.groups()
 
     Args:
@@ -760,7 +1040,7 @@ def get_sequence(text):
     .. code-block:: python
 
        filename = 'job_sh010_animation_v002_wgergely.c4d'
-       match = common.get_sequence(filename)
+       match = get_sequence(filename)
        if match:
            prefix = match.group(1) # 'job_sh010_animation_v'
            sequence_number = match.group(2) # '002'
@@ -788,7 +1068,7 @@ def is_collapsed(text):
     .. code-block:: python
 
        filename = 'job_sh010_animation_[001-299]_wgergely.png'
-       match = common.get_sequence(filename)
+       match = get_sequence(filename)
        if match:
            prefix = match.group(1) # 'job_sh010_animation_'
            sequence_string = match.group(2) # '[001-299]'
@@ -967,13 +1247,15 @@ def copy_path(index, mode=WindowsPath, first=True):
     if mode == WindowsPath:
         if server.lower() in path.lower():
             path = path.replace(server, win_server)
-        path = re.sub(ur'[\/\\]', ur'\\', path, flags=re.IGNORECASE | re.UNICODE)
+        path = re.sub(ur'[\/\\]', ur'\\', path,
+                      flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return
 
     if mode == UnixPath:
-        path = re.sub(ur'[\/\\]', ur'/', path, flags=re.IGNORECASE | re.UNICODE)
+        path = re.sub(ur'[\/\\]', ur'/', path,
+                      flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return path
@@ -987,7 +1269,8 @@ def copy_path(index, mode=WindowsPath, first=True):
     if mode == MacOSPath:
         if server.lower() in path.lower():
             path = path.replace(server, mac_server)
-        path = re.sub(ur'[\/\\]', ur'/', path, flags=re.IGNORECASE | re.UNICODE)
+        path = re.sub(ur'[\/\\]', ur'/', path,
+                      flags=re.IGNORECASE | re.UNICODE)
         QtGui.QClipboard().setText(path)
         print '# Copied {}'.format(path)
         return path

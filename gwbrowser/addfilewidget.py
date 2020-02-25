@@ -46,7 +46,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
 from gwbrowser.capture import ScreenGrabber
-from gwbrowser.imagecache import ImageCache, oiio_make_thumbnail
+from gwbrowser.imagecache import ImageCache
 
 from gwbrowser.settings import AssetSettings
 
@@ -439,8 +439,10 @@ class BookmarksListView(BaseListView):
 
 class ThreadlessAssetModel(AssetModel):
     def __init__(self, parent=None):
-        super(ThreadlessAssetModel, self).__init__(thread_count=0, parent=parent)
+        super(ThreadlessAssetModel, self).__init__(parent=parent)
 
+    def __init_threads__(self):
+        pass
 
 class AssetsWidgetDelegate2(AssetsWidgetDelegate):
 
@@ -998,11 +1000,13 @@ class ThumbnailButton(ClickableIconButton):
         temp_path = u'{}/browser_temp_thumbnail_{}.{}'.format(
             QtCore.QDir.tempPath(), uuid.uuid1(), common.THUMBNAIL_FORMAT)
 
-        oiio_make_thumbnail(
-            QtCore.QModelIndex(),
-            source=next(f for f in dialog.selectedFiles()),
-            dest=temp_path
+        res = ImageCache.openimageio_thumbnail(
+            next(f for f in dialog.selectedFiles()),
+            temp_path,
+            common.THUMBNAIL_IMAGE_SIZE
         )
+        if not res:
+            return
 
         image = QtGui.QPixmap()
         image.load(temp_path)
@@ -1814,15 +1818,6 @@ class AddFileWidget(QtWidgets.QDialog):
         """Custom show event."""
         if not self._file_to_increment:
             self.initialize_timer.start()
-
-        if self.parent():
-            if hasattr(self.parent(), u'stackedwidget'):
-                self.parent().stackedwidget.currentWidget().disabled_overlay_widget.show()
-
-    def hideEvent(self, event):
-        if self.parent():
-            if hasattr(self.parent(), u'stackedwidget'):
-                self.parent().stackedwidget.currentWidget().disabled_overlay_widget.hide()
 
     def message_box(self, informative_text, text=u'A required information is missing:', icon=QtWidgets.QMessageBox.Warning):
         """Convenience function to show a popup message."""

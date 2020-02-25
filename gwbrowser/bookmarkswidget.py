@@ -6,6 +6,7 @@ allow dropping files and urls on the view.
 """
 import json
 import base64
+import uuid
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
@@ -90,8 +91,9 @@ class BookmarksModel(BaseModel):
 
     """
 
-    def __init__(self, thread_count=0, parent=None):
-        super(BookmarksModel, self).__init__(thread_count=thread_count, parent=parent)
+    def __init__(self, parent=None):
+        super(BookmarksModel, self).__init__(parent=parent)
+        self.parent_path = ('.',)
 
     @initdata
     def __initdata__(self):
@@ -115,10 +117,10 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ItemIsSelectable)
 
         dkey = self.data_key()
-        self.INTERNAL_MODEL_DATA[dkey] = {
-            common.FileItem: {},
-            common.SequenceItem: {}
-        }
+        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
 
         rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
@@ -129,7 +131,6 @@ class BookmarksModel(BaseModel):
 
         bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
-
 
         for k, v in bookmarks.iteritems():
             file_info = QtCore.QFileInfo(k)
@@ -169,7 +170,8 @@ class BookmarksModel(BaseModel):
             data = self.model_data()
             idx = len(data)
 
-            text = u'{}  |  {} ({})'.format(v[u'job'], v[u'bookmark_folder'], count)
+            text = u'{}  |  {} ({})'.format(
+                v[u'job'], v[u'bookmark_folder'], count)
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
@@ -203,6 +205,8 @@ class BookmarksModel(BaseModel):
                 common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: count,
                 common.SortBySize: count,
+                #
+                common.IdRole: idx
             }
 
             index = self.index(idx, 0)
@@ -215,7 +219,8 @@ class BookmarksModel(BaseModel):
                 data[idx][common.FlagsRole] = flags
 
                 # Thumbnail
-                data[idx][common.ThumbnailPathRole] = db.thumbnail_path(data[idx][QtCore.Qt.StatusTipRole])
+                data[idx][common.ThumbnailPathRole] = db.thumbnail_path(
+                    data[idx][QtCore.Qt.StatusTipRole])
                 image = ImageCache.get(
                     data[idx][common.ThumbnailPathRole], _height, overwrite=False)
                 if image:
@@ -238,7 +243,8 @@ class BookmarksModel(BaseModel):
                     try:
                         v = base64.b64decode(v['notes'])
                         d = json.loads(v)
-                        n += len([k for k in d if not d[k][u'checked'] and d[k][u'text']])
+                        n += len([k for k in d if not d[k]
+                                  [u'checked'] and d[k][u'text']])
                     except (ValueError, TypeError):
                         continue
 
@@ -271,13 +277,10 @@ class BookmarksWidget(BaseInlineIconWidget):
         # Adding the bookmark manager widget
         widget = QtWidgets.QScrollArea(parent=self)
         widget.setWidgetResizable(True)
-        manage_widget = managebookmarks.ManageBookmarksWidget(parent=self)
-        widget.setWidget(manage_widget)
+        widget.setWidget(
+            managebookmarks.ManageBookmarksWidget(parent=self))
         self.manage_bookmarks = widget
         self.manage_bookmarks.hide()
-        self.parent().resized.connect(
-            lambda x: self.manage_bookmarks.setGeometry(self.viewport().geometry()))
-        widget.widget().hide_button.clicked.connect(self.manage_bookmarks.hide)
 
         @QtCore.Slot(unicode)
         def _update(bookmark):
@@ -285,12 +288,13 @@ class BookmarksWidget(BaseInlineIconWidget):
             self.model().sourceModel().__initdata__()
             self.model().invalidate()
             self.model().sourceModel().blockSignals(False)
-        manage_widget.bookmark_list.bookmarkAdded.connect(_update)
-        manage_widget.bookmark_list.bookmarkRemoved.connect(_update)
 
+        self.manage_bookmarks.widget().bookmark_list.bookmarkAdded.connect(_update)
+        self.manage_bookmarks.widget().bookmark_list.bookmarkRemoved.connect(_update)
 
-        # I'm not sure why but the proxy is not updated properly after refresh
-        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
+        self.resized.connect(self.manage_bookmarks.setGeometry)
+        self.manage_bookmarks.widget().hide_button.clicked.connect(
+            self.manage_bookmarks.hide)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -343,11 +347,13 @@ class BookmarksWidget(BaseInlineIconWidget):
             view.model().sourceModel().modelDataResetRequested.emit()
             for n in xrange(view.model().rowCount()):
                 index = view.model().index(n, 0)
-                file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+                file_info = QtCore.QFileInfo(
+                    index.data(QtCore.Qt.StatusTipRole))
                 if file_info.fileName().lower() == name.lower():
                     view.selectionModel().setCurrentIndex(
                         index, QtCore.QItemSelectionModel.ClearAndSelect)
-                    view.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+                    view.scrollTo(
+                        index, QtWidgets.QAbstractItemView.PositionAtCenter)
                     break
 
         widget = addassetwidget.AddAssetWidget(bookmark, parent=self)
@@ -357,12 +363,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         pos = self.mapToGlobal(pos)
         widget.move(pos)
         widget.exec_()
-
-
-        # except:
-        #     raise
-        # finally:
-        #     self.disabled_overlay_widget.hide()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -380,47 +380,6 @@ class BookmarksWidget(BaseInlineIconWidget):
         settings_.local_settings.setValue(u'activepath/job', job)
         settings_.local_settings.setValue(u'activepath/root', root)
         settings_.local_settings.verify_paths()  # Resetting invalid paths
-
-    # def toggle_item_flag(self, index, flag, state=None):
-    #     """Bookmarks cannot be archived but they're automatically removed from
-    #     from the ``local_settings``."""
-    #
-    #     self.reset_multitoggle()
-    #     res = QtWidgets.QMessageBox(
-    #         QtWidgets.QMessageBox.NoIcon,
-    #         u'Remove bookmark?',
-    #         u'Do you want to remove this bookmark?\nDon\'t worry, files won\'t be affected.',
-    #         QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel,
-    #         parent=self
-    #     ).exec_()
-    #
-    #     if res == QtWidgets.QMessageBox.Cancel:
-    #         return
-    #
-    #     if not index:
-    #         index = self.selectionModel().currentIndex()
-    #         index = self.model().mapToSource(index)
-    #     if not index.isValid():
-    #         return
-    #
-    #     # Removing the bookmark
-    #     k = index.data(QtCore.Qt.StatusTipRole)
-    #     d = settings_.local_settings.value(u'bookmarks')
-    #     if k.lower() in d:
-    #         del d[k.lower()]
-    #
-    #     settings_.local_settings.setValue(u'bookmarks', d)
-    #     settings_.local_settings.sync()
-    #
-    #     if index == self.model().sourceModel().active_index():
-    #         self.unset_activated()
-    #         self.model().sourceModel().modelDataResetRequested.emit()
-    #         return
-    #
-    #     self.model().sourceModel().blockSignals(True)
-    #     self.model().sourceModel().__initdata__()
-    #     self.model().invalidate()
-    #     self.model().sourceModel().blockSignals(False)
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -440,3 +399,16 @@ class BookmarksWidget(BaseInlineIconWidget):
             self.add_asset()
             return
         super(BookmarksWidget, self).mouseReleaseEvent(event)
+
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    from gwbrowser._thread_retake import LogView
+    l = LogView()
+    l.show()
+    widget = BookmarksWidget()
+    # widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')
+    widget.model().sourceModel().modelDataResetRequested.emit()
+    widget.resize(460, 640)
+    widget.show()
+    app.exec_()

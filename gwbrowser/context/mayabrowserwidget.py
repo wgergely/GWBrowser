@@ -1155,7 +1155,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self._callbacks = []  # Maya api callbacks
         self.browserwidget = None
 
-        self.setAutoFillBackground(True)
         self.setWindowTitle(u'GWBrowser')
 
         self._createUI()

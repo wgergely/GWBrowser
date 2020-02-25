@@ -226,15 +226,16 @@ class DescriptionEditorWidget(QtWidgets.QLineEdit):
         self.setPlaceholderText(u'Edit description...')
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setTextMargins(2, 2, 2, 2)
-        self.setStyleSheet(
-            """
+        self.setStyleSheet(\
+"""
 QLineEdit {{
 	font-family: "{FONT}";
 	font-size: {SIZE}pt;
     margin: 0px;
     padding: 0px;
 }}
-        """.format(
+"""\
+        .format(
                 FONT=common.SecondaryFont.family(),
                 SIZE=common.SMALL_FONT_SIZE + 1.0
             )
@@ -244,7 +245,8 @@ QLineEdit {{
         """Connects signals."""
         self.editingFinished.connect(self.action)
         self.parent().verticalScrollBar().valueChanged.connect(self.hide)
-        self.parent().parent().resized.connect(self.update_editor)
+        if self.parent().parent():
+            self.parent().parent().resized.connect(self.update_editor)
 
     def action(self):
         """Main actions to run when the return key is pressed."""

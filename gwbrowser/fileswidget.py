@@ -22,11 +22,14 @@ addittional data. The model will also try to generate thumbnails for any
 
 """
 import json
+import uuid
 import base64
 import sys
 import time
 import traceback
+import weakref
 import Queue
+from functools import partial
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.bookmark_db as bookmark_db
@@ -39,324 +42,19 @@ from gwbrowser.baselistwidget import validate_index
 
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
+from gwbrowser.common import Log
 from gwbrowser.settings import AssetSettings
 import gwbrowser.settings as settings_
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.imagecache import oiio_make_thumbnail
 
-from gwbrowser.threads import BaseThread
-from gwbrowser.threads import BaseWorker
-from gwbrowser.threads import Unique
-from gwbrowser.threads import mutex
+import gwbrowser.threads as threads
 
 
-class FileInfoWorker(BaseWorker):
-    """The worker associated with the ``FileInfoThread``.
+DEBUG = True
 
-    The worker is responsible for loading the file-size, last modified
-    timestamps, saved flags and descriptions. These loads involve the
-    file-system and can be expensive to perform.
-
-    The worker performs  the same function as ``SecondaryFileInfoWorker`` but it
-    has it own queue and is concerned with iterating over **only** the visible
-    file-items.
-
-    """
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-    @staticmethod
-    @validate_index
-    @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index):
-        """The main processing function called by the worker.
-        Upon loading all the information ``FileInfoLoaded`` is set to ``True``.
-
-        """
-        import time
-        time.sleep(1)
-        mutex.lock()
-        print index, index.row()
-        mutex.unlock()
-        if index.data(common.FileInfoLoaded):
-            return
-        if not index.data(common.ParentPathRole):
-            return
-
-        try:
-            data = index.model().model_data()[index.row()]
-        except:
-            return
-        if not index.data(common.ParentPathRole):
-            return
-
-        db = bookmark_db.get_db(index)
-        if not db:
-            return
-
-        # DATABASE --BEGIN--
-        with db.transactions():
-            # Item description
-            if data[common.SequenceRole]:
-                k = data[common.SequenceRole]
-                k = k.group(1) + u'[0]' + k.group(3) + u'.' + k.group(4)
-            else:
-                k = data[QtCore.Qt.StatusTipRole]
-
-            # Description
-            v = db.value(k, u'description')
-            if v:
-                data[common.DescriptionRole] = v
-
-            # Todos - We'll have to load the data to count the items.
-            # Hope fully this won't end up as a super costly operation
-            v = db.value(k, u'notes')
-            count = 0
-            if v:
-                try:
-                    v = base64.b64decode(v)
-                    v = json.loads(v)
-                except:
-                    common.log_exception()
-                else:
-                    count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
-                    count = len(count)
-
-            data[common.TodoCountRole] = count
-
-            # Item flags
-            flags = data[common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
-            v = db.value(k, u'flags')
-            if v:
-                flags = flags | v
-
-            data[common.FlagsRole] = flags
-
-        # For sequence items we will work out the name of the sequence based on
-        # the frames.
-        if data[common.TypeRole] == common.SequenceItem:
-            intframes = [int(f) for f in data[common.FramesRole]]
-            padding = len(data[common.FramesRole][0])
-            rangestring = common.get_ranges(intframes, padding)
-
-            seq = data[common.SequenceRole]
-            startpath = seq.group(1) + unicode(min(intframes)).zfill(padding) + seq.group(3) + u'.' + seq.group(4)
-            endpath = seq.group(1) + unicode(max(intframes)).zfill(padding) + seq.group(3) + u'.' + seq.group(4)
-            seqpath = seq.group(1) + u'[' + rangestring + u']' + seq.group(3) + u'.' + seq.group(4)
-            seqname = seqpath.split(u'/')[-1]
-
-            # Setting the path names
-            data[common.StartpathRole] = startpath
-            data[common.EndpathRole] = endpath
-            data[QtCore.Qt.StatusTipRole] = seqpath
-            data[QtCore.Qt.ToolTipRole] = seqpath
-            data[QtCore.Qt.DisplayRole] = seqname
-            data[QtCore.Qt.EditRole] = seqname
-
-            # We saved the DirEntry instances previously in `__initdata__` but
-            # only for the thread to extract the information from it.
-            if data[common.EntryRole]:
-                mtime = 0
-                for entry in data[common.EntryRole]:
-                    stat = entry.stat()
-                    mtime = stat.st_mtime if stat.st_mtime > mtime else mtime
-                    data[common.SortBySize] += stat.st_size
-                data[common.SortByLastModified] = mtime
-                mtime = common.qlast_modified(mtime)
-
-                info_string = unicode(len(intframes)) + u'files;' + mtime.toString(u'dd') + u'/' + mtime.toString(u'MM') + u'/' + mtime.toString(u'yyyy') + u' ' + mtime.toString(u'hh') + u':' + mtime.toString(u'mm') + u';' + common.byte_to_string(data[common.SortBySize])
-                data[common.FileDetailsRole] = info_string
-
-        if data[common.TypeRole] == common.FileItem:
-            if data[common.EntryRole]:
-                stat = data[common.EntryRole][0].stat()
-                mtime = stat.st_mtime
-                data[common.SortByLastModified] = mtime
-                mtime = common.qlast_modified(mtime)
-                data[common.SortBySize] = stat.st_size
-                info_string = \
-                    mtime.toString(u'dd') + u'/' + \
-                    mtime.toString(u'MM') + u'/' + \
-                    mtime.toString(u'yyyy') + u' ' + \
-                    mtime.toString(u'hh') + u':' + \
-                    mtime.toString(u'mm') + u';' + \
-                    common.byte_to_string(data[common.SortBySize])
-
-                data[common.FileDetailsRole] = info_string
-
-        # Finally, we set the FileInfoLoaded flag to indicate this item
-        # has loaded the file data successfully
-        data[common.FileInfoLoaded] = True
-        index.model().updateIndex.emit(index)
-
-
-
-class SecondaryFileInfoWorker(FileInfoWorker):
-    """The worker associated with the ``SecondaryFileInfoThread``.
-
-    The worker performs  the same function as ``FileInfoWorker`` but
-    it has it own queue and is concerned with iterating over all file-items.
-
-    """
-    queue = Unique(999999)
-    indexes_in_progress = []
-
-    @QtCore.Slot()
-    def begin_processing(self):
-        """Instead of relying on a queue, we will use this to set all file information
-        data on the source-model. There's only one thread for this worker.
-
-        """
-        try:
-            while not self._shutdown_requested:
-                if not self.model:
-                    continue
-
-                time.sleep(0.5)  # Will wait n secs between each run
-
-                k = self.model.data_key()
-                t = self.model.data_type()
-                data = self.model.INTERNAL_MODEL_DATA[k][t]
-                print data['timestamp'], self.model
-                if not data:
-                    continue
-                if self.model.file_info_loaded:
-                    continue
-
-                all_loaded = True
-                for n in xrange(len(data)):
-                    if not data[n][common.FileInfoLoaded]:
-                        all_loaded = False
-                        self.model.InfoThread.Worker.process_index(
-                            self.model.index(n, 0))
-
-                if all_loaded:
-                    self.model.file_info_loaded = True
-                    sort_role = self.model.sort_role()
-                    sort_order = self.model.sort_order()
-                    sorted_by_name = sort_role in (common.SortBySize, common.SortByLastModified)
-                    if not sorted_by_name or not sort_order:
-                        self.model.sortingChanged.emit(sort_role, sort_order)
-
-        except Queue.Empty:
-            pass
-        except:
-            common.log_exception()
-        finally:
-            if self._shutdown_requested:
-                return
-            self.begin_processing()
-
-
-class FileThumbnailWorker(BaseWorker):
-    """The worker associated with the ``FileThumbnailThread``.
-
-    The worker is responsible for loading the existing thumbnail images from
-    the cache folder, and if needed and possible, generating new thumbnails from
-    the source file.
-
-    """
-    queue = Unique(999)
-    indexes_in_progress = []
-
-    @staticmethod
-    @validate_index
-    @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index, make=True):
-        """The static method responsible for querrying the file item's thumbnail.
-
-        We will get the thumbnail's path, check if a cached thumbnail exists already,
-        then load it. If there's no thumbnail, we will try to generate a thumbnail
-        using OpenImageIO.
-
-        Args:
-            make (bool): Will generate a thumbnail image if there isn't one already
-
-        """
-        if index.flags() & common.MarkedAsArchived:
-            return
-
-        # The model might be loading...
-        if not index.model():
-            return
-        data = index.model().model_data()
-        if not data:
-            return
-
-        try:
-            data = index.model().model_data()[index.row()]
-        except KeyError:
-            return
-
-        # Let's create a
-
-        db = bookmark_db.get_db(index)
-        if not db:
-            return
-
-        data[common.ThumbnailPathRole] = db.thumbnail_path(
-            data[QtCore.Qt.StatusTipRole])
-
-        # This is a less than elegant solution for making the thumbnail size
-        # of the AssetsWidget are not sceled
-        import gwbrowser.assetswidget as assetswidget
-        if isinstance(index.model(), assetswidget.AssetModel):
-            height = data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
-        else:
-            height = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
-
-        ext = data[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
-        image = None
-
-        # Checking if we can load an existing image
-        if QtCore.QFileInfo(data[common.ThumbnailPathRole]).exists():
-            image = ImageCache.get(
-                data[common.ThumbnailPathRole], height, overwrite=True)
-            if image:
-                color = ImageCache.get(
-                    data[common.ThumbnailPathRole], u'backgroundcolor')
-
-                data[common.ThumbnailRole] = image
-                data[common.ThumbnailBackgroundRole] = color
-                data[common.FileThumbnailLoaded] = True
-                index.model().updateIndex.emit(index)
-
-                return
-
-        # If the item doesn't have a saved thumbnail we will check if
-        # OpenImageIO is able to make a thumbnail for it:
-        if index.model().generate_thumbnails and make and ext in common.oiio_formats:
-            model = index.model()
-            data = model.model_data()[index.row()]
-            spinner_pixmap = ImageCache.get(
-                common.rsc_path(__file__, u'spinner'),
-                data[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR)
-
-            data[common.ThumbnailRole] = spinner_pixmap
-            data[common.ThumbnailBackgroundRole] = common.THUMBNAIL_BACKGROUND
-
-            data[common.FileThumbnailLoaded] = False
-            index.model().updateIndex.emit(index)
-
-            oiio_make_thumbnail(index)
-
-
-class FileInfoThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = FileInfoWorker
-
-
-class SecondaryFileInfoThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = SecondaryFileInfoWorker
-
-
-class FileThumbnailThread(BaseThread):
-    """Thread controller associated with the ``FilesModel``."""
-    Worker = FileThumbnailWorker
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -399,29 +97,22 @@ class FilesModel(BaseModel):
 
     Every asset contains subfolders, eg. the ``scenes``, ``textures``, ``cache``
     folders. The model will load file-data associated with each of those
-    subfolders and save it in ``self._data`` using a **data key**.
+    subfolders and save it in ``self.INTERNAL_MODEL_DATA`` using a **data key**,
+    and **data_type** keys. The latter refers to expanded and collapsed sequences.
 
     .. code-block:: python
 
-       self.INTERNAL_MODEL_DATA = {}
+       self.INTERNAL_MODEL_DATA = common.DataDict()
        self.INTERNAL_MODEL_DATA['scenes'] = {} # 'scenes' is a data-key
        self.INTERNAL_MODEL_DATA['textures'] = {} # 'textures' is a data-key
 
-    To reiterate, the name of the asset subfolders will become our *data keys*.
-    Switching between data keys is done by emitting the ``dataKeyChanged``
+    The name of the asset subfolders will become our *data keys*.
+    Switching between data keys should be done by emitting the ``dataKeyChanged``
     signal.
 
-    Note:
-        ``datakeywidget.py`` defines the widget and model used to control then
-        current data-key.
-
     """
-    InfoThread = FileInfoThread
-    SecondaryInfoThread = SecondaryFileInfoThread
-    ThumbnailThread = FileThumbnailThread
-
-    def __init__(self, thread_count=common.FTHREAD_COUNT, parent=None):
-        super(FilesModel, self).__init__(thread_count=thread_count, parent=parent)
+    def __init__(self, parent=None):
+        super(FilesModel, self).__init__(parent=parent)
         # Only used to cache the thumbnails
         self._extension_thumbnails = {}
         self._extension_thumbnail_backgrounds = {}
@@ -529,24 +220,13 @@ class FilesModel(BaseModel):
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
 
-        self.reset_thread_worker_queues()
+        dkey = self.data_key().lower()
 
-        # Invalid asset, we'll do nothing.
-        if not self.parent_path:
-            return
-        if not all(self.parent_path):
-            return
-
-        dkey = self.data_key()
-        if not dkey:
-            return
-        dkey = dkey.lower()
-
-        self.INTERNAL_MODEL_DATA[dkey] = {
-            common.FileItem: {},
-            common.SequenceItem: {},
-        }
-        seqs = {}
+        SEQUENCE_DATA = common.DataDict()
+        MODEL_DATA = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict(),
+        })
 
         rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
         _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
@@ -617,9 +297,9 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            idx = len(self.INTERNAL_MODEL_DATA[dkey][common.FileItem])
+            idx = len(MODEL_DATA[common.FileItem])
 
-            self.INTERNAL_MODEL_DATA[dkey][common.FileItem][idx] = {
+            MODEL_DATA[common.FileItem][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
@@ -650,21 +330,23 @@ class FilesModel(BaseModel):
                 common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
-            }
+                #
+                common.IdRole: idx # non-mutable
+            })
 
             # If the file in question is a sequence, we will also save a reference
             # to it in `self._model_data[location][True]` dictionary.
             if seq:
                 # If the sequence has not yet been added to our dictionary
                 # of seqeunces we add it here
-                if seqpath not in seqs:  # ... and create it if it doesn't exist
+                if seqpath not in SEQUENCE_DATA:  # ... and create it if it doesn't exist
                     seqname = seqpath.split(u'/')[-1]
                     flags = dflags()
 
                     if seqpath in sfavourites:
                         flags = flags | common.MarkedAsFavourite
 
-                    seqs[seqpath] = {
+                    SEQUENCE_DATA[seqpath] = common.DataDict({
                         QtCore.Qt.DisplayRole: seqname,
                         QtCore.Qt.EditRole: seqname,
                         QtCore.Qt.StatusTipRole: seqpath,
@@ -693,21 +375,23 @@ class FilesModel(BaseModel):
                         common.SortByName: common.namekey(seqpath),
                         common.SortByLastModified: 0,
                         common.SortBySize: 0,  # Initializing with null-size
-                    }
+                        #
+                        common.IdRole: 0
+                    })
 
-                seqs[seqpath][common.FramesRole].append(seq.group(2))
-                seqs[seqpath][common.EntryRole].append(entry)
+                SEQUENCE_DATA[seqpath][common.FramesRole].append(seq.group(2))
+                SEQUENCE_DATA[seqpath][common.EntryRole].append(entry)
             else:
-                seqs[filepath] = self.INTERNAL_MODEL_DATA[dkey][common.FileItem][idx]
+                SEQUENCE_DATA[filepath] = MODEL_DATA[common.FileItem][idx]
 
-        # Casting the sequence data onto the model
-        for v in seqs.itervalues():
-            idx = len(self.INTERNAL_MODEL_DATA[dkey][common.SequenceItem])
-
-            # A sequence with only one element is not a sequence!
+        # Casting the sequence data back onto the model
+        for v in SEQUENCE_DATA.itervalues():
+            idx = len(MODEL_DATA[common.SequenceItem])
             if len(v[common.FramesRole]) == 1:
+                # A sequence with only one element is not a sequence
                 _seq = v[common.SequenceRole]
                 filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
+                k = _seq.group(1) + u'[0]' + _seq.group(3) + u'.' + _seq.group(4)
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename
@@ -735,7 +419,12 @@ class FilesModel(BaseModel):
                     _firsframe = _seq.group(1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
-            self.INTERNAL_MODEL_DATA[dkey][common.SequenceItem][idx] = v
+            MODEL_DATA[common.SequenceItem][idx] = v
+            MODEL_DATA[common.SequenceItem][idx][common.IdRole] = idx
+
+        self.INTERNAL_MODEL_DATA[dkey] = MODEL_DATA
+        del MODEL_DATA
+
 
     def data_key(self):
         """Current key to the data dictionary."""
@@ -755,73 +444,85 @@ class FilesModel(BaseModel):
         corresponds to a `key`. We use these keys to save model data associated
         with these folders.
 
-        It's important to make sure the key we're about to be set corresponds to
-        an existing folder. We will use a reasonable default if the folder does
-        not exist.
+        It's important to make sure the key we're about to set corresponds to an
+        existing folder. We will use a reasonable default if the folder does not
+        exist.
 
         """
-        k = u'activepath/location'
-        stored_value = settings_.local_settings.value(k)
-        stored_value = stored_value.lower() if stored_value else stored_value
-        self._datakey = self._datakey.lower() if self._datakey else self._datakey
-        val = val.lower() if val else val
+        try:
+            k = u'activepath/location'
+            stored_value = settings_.local_settings.value(k)
+            stored_value = stored_value.lower() if stored_value else stored_value
+            self._datakey = self._datakey.lower() if self._datakey else self._datakey
+            val = val.lower() if val else val
 
-        # Nothing to do for us when the parent is not set
-        if not self.parent_path:
-            return
+            # Nothing to do for us when the parent is not set
+            if not self.parent_path:
+                return
 
-        if self._datakey is None and stored_value:
-            self._datakey = stored_value
+            if self._datakey is None and stored_value:
+                self._datakey = stored_value.lower()
 
-        # We are in sync with a valid value set already
-        if stored_value is not None and self._datakey == val == stored_value:
-            return
+            # We are in sync with a valid value set already
+            if stored_value is not None and self._datakey == val == stored_value:
+                val = None
+                return
 
-        # Update the local_settings
-        if self._datakey == val and val != stored_value:
-            settings_.local_settings.setValue(k, val)
-            return
 
-        if val is not None and val == self._datakey:
-            return
+            # We only have to update the local settings, the model is
+            # already set
+            if self._datakey == val and val != stored_value:
+                settings_.local_settings.setValue(k, val)
+                return
 
-        # About to set a new value. We can accept or reject this...
-        entries = self.can_accept_datakey(val)
-        if not entries:
-            self._datakey = None
-            return
+            if val is not None and val == self._datakey:
+                val = None
+                return
 
-        if val.lower() in entries:
+            # Let's check the asset folder before setting
+            # the key to make sure we're pointing at a valid folder
+            path = u'/'.join(self.parent_path)
+            entries = [f.name.lower() for f in gwscandir.scandir(path)]
+            if not entries:
+                val = None
+                self._datakey = val
+                return
+
+            # The key is valid
+            if val in entries:
+                self._datakey = val
+                settings_.local_settings.setValue(k, val)
+                return
+
+            # The new proposed datakey does not exist but the old one is
+            # valid. We'll just stick with the old value instead...
+            if val not in entries and self._datakey in entries:
+                val = self._datakey.lower()
+                settings_.local_settings.setValue(k, self._datakey)
+                return
+
+            # And finally, let's try to revert to a fall-back...
+            if val not in entries and u'scenes' in entries:
+                val = u'scenes'
+                self._datakey = val
+                settings_.local_settings.setValue(k, val)
+                return
+
+            # All else... let's select the first folder
+            val = entries[0].lower()
             self._datakey = val
             settings_.local_settings.setValue(k, val)
-            return
-        elif val not in entries and self._datakey in entries:
-            val = self._datakey.lower()
-            settings_.local_settings.setValue(k, self._datakey)
-            return
-        # This is a default fallback...
-        elif val not in entries and u'scenes' in entries:
-                val = u'scenes'
 
-        val = entries[0]
-        self._datakey = val
-        settings_.local_settings.setValue(k, val)
-
-    def can_accept_datakey(self, val):
-        """Checks if the key about to be set corresponds to a real
-        folder. If not, we will try to pick a default value, u'scenes', or
-        the first folder if the default does not exist.
-
-        """
-        if not self.parent_path:
-            return False
-        path = u'/'.join(self.parent_path)
-        entries = [f.name.lower() for f in gwscandir.scandir(path)]
-        if not entries:
-            return False
-        if val.lower() not in entries:
-            return False
-        return entries
+        except:
+            Log.error('Could not set data key')
+        finally:
+            if val is None:
+                return
+            if not self.model_data():
+                self.__initdata__()
+                return
+            self.sort_data()
+            Log.success('set_data_key()')
 
     def canDropMimeData(self, data, action, row, column):
         return False
@@ -887,10 +588,8 @@ class FilesModel(BaseModel):
         return mime
 
 
-
 class DragPixmap(QtWidgets.QWidget):
-    """The widget used to drag the dragged items pixmap and name."""
-
+    """Widget used to define the appearance of an item being dragged."""
     def __init__(self, pixmap, text, parent=None):
         super(DragPixmap, self).__init__(parent=parent)
         self._pixmap = pixmap
@@ -910,7 +609,6 @@ class DragPixmap(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAutoFillBackground(True)
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window)
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.adjustSize()
@@ -973,10 +671,11 @@ class FilesWidget(ThreadedBaseWidget):
         self.setDragEnabled(True)
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
+
         # self.setAutoScroll(True)
 
         # I'm not sure why but the proxy is not updated properly after refresh
-        self.model().sourceModel().dataSorted.connect(self.model().invalidate)
+        # self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
@@ -1005,6 +704,25 @@ class FilesWidget(ThreadedBaseWidget):
                     index,
                     QtCore.QItemSelectionModel.ClearAndSelect)
                 break
+
+    def set_model(self, *args, **kwargs):
+        super(FilesWidget, self).set_model(*args, **kwargs)
+        self.model().sourceModel().modelReset.connect(self.load_saved_filter_text)
+
+    @QtCore.Slot(unicode)
+    def load_saved_filter_text(self):
+        model = self.model().sourceModel()
+        data_key = model.data_key()
+        if not data_key:
+            Log.error('load_saved_filter_text(): Data key not yet set')
+            return
+
+        cls = model.__class__.__name__
+        k = u'widget/{}/{}/filtertext'.format(cls, data_key)
+        v = settings_.local_settings.value(k)
+        v = v if v else u''
+        self.model().set_filter_text(v)
+        Log.success('load_saved_filter_text()')
 
     def eventFilter(self, widget, event):
         """Custom event filter to drawm the background pixmap."""
@@ -1078,7 +796,7 @@ class FilesWidget(ThreadedBaseWidget):
             return self.description_editor_widget.show()
 
         for item in clickable_rectangles:
-            rect, text = item
+            rect, tewxt = item
 
             if not text:
                 continue
@@ -1162,10 +880,14 @@ class FilesWidget(ThreadedBaseWidget):
         pixmap = DragPixmap.pixmap(pixmap, path)
         drag.setPixmap(pixmap)
 
-        lc = self.parent().parent().listcontrolwidget
-        lc.drop_overlay.show()
+        if self.parent():
+            lc = self.parent().parent().listcontrolwidget
+            lc.drop_overlay.show()
+
         drag.exec_(supported_actions)
-        lc.drop_overlay.hide()
+
+        if self.parent():
+            lc.drop_overlay.hide()
         self.drag_source_index = QtCore.QModelIndex()
 
     def mouseReleaseEvent(self, event):
@@ -1244,7 +966,18 @@ class FilesWidget(ThreadedBaseWidget):
 
 
 if __name__ == '__main__':
+    common.DEBUG_ON = False
     app = QtWidgets.QApplication([])
+    l = common.LogView()
+    l.show()
     widget = FilesWidget()
+    widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark', 'asset1')
+    widget.model().sourceModel().modelDataResetRequested.emit()
+    # widget.model().sourceModel().dataKeyChanged.emit('dir2')
+    widget.resize(460,640)
     widget.show()
+    # widget.model().sourceModel().dataKeyChanged.emit('dir2')
+    # widget.model().sourceModel().dataKeyChanged.emit('dir3')
+    # widget.model().sourceModel().dataKeyChanged.emit('dir4')
+    # widget.model().sourceModel().dataKeyChanged.emit(None)
     app.exec_()

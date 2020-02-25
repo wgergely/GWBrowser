@@ -26,13 +26,13 @@ import gwbrowser.settings as Settings
 import gwbrowser.slacker as slacker
 
 
-DEBUG = False
+DEBUG = True
 
 
 @QtCore.Slot(unicode)
 def debug_signals(label, *args, **kwargs):
-    print u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
-        time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs)
+    common.Log.info(u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
+        time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs))
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -490,8 +490,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shortcuts = []
 
         self._createUI()
-        if DEBUG:
-            self._connectDebugSignals()
         self._connectSignals()
         self._add_shortcuts()
 
@@ -598,11 +596,6 @@ class BrowserWidget(QtWidgets.QWidget):
                 if n >= 20:
                     for thread in threads:
                         thread.terminate()
-                        
-                        mutex.lock()
-                        print '#', thread, 'terminated'
-                        mutex.unlock()
-
                     break
                 n += 1
                 time.sleep(0.3)
@@ -610,7 +603,7 @@ class BrowserWidget(QtWidgets.QWidget):
         def python_module_cleanup():
             keys = sys.modules.keys()
             for k in keys:
-                if 'gwbrowser' in k:
+                if 'gwbrowser' in k.lower():
                     del sys.modules[k]
 
 
@@ -805,8 +798,6 @@ class BrowserWidget(QtWidgets.QWidget):
             lambda x: settings_.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
         a.activated.connect(
             lambda x: settings_.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda x: settings_.local_settings.save_state(u'location', x))
         #####################################################
         # Linkage between the different tabs are established here
         # Fist, the parent paths are set
@@ -843,25 +834,7 @@ class BrowserWidget(QtWidgets.QWidget):
         a.activated.connect(lambda: lc.listChanged.emit(2))
         b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
         a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
-        #####################################################
-        @QtCore.Slot(unicode)
-        def set_filter_text(data_key):
-            model = f.model().sourceModel()
-            cls = model.__class__.__name__
-            k = u'widget/{}/{}/filtertext'.format(cls, data_key)
-            f.model().set_filter_text(settings_.local_settings.value(k))
 
-        f.model().sourceModel().dataKeyChanged.connect(
-            f.model().sourceModel().set_data_key)
-        f.model().sourceModel().dataKeyChanged.connect(
-            f.model().sourceModel().reset_thread_worker_queues)
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda *a: f.model().sourceModel().set_data_type(f.model().sourceModel().data_type()))
-        f.model().sourceModel().dataKeyChanged.connect(
-            f.model().sourceModel().check_data)
-        f.model().sourceModel().dataKeyChanged.connect(set_filter_text)
-        f.model().sourceModel().dataKeyChanged.connect(f.model().invalidate)
-        f.model().sourceModel().dataKeyChanged.connect(f.reselect_previous)
 
         # Control bar connections
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
@@ -954,61 +927,6 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.favourite_button.message.connect(self.entered2)
         lc.slack_button.message.connect(self.entered2)
 
-    def _connectDebugSignals(self):
-        b = self.bookmarkswidget
-        a = self.assetswidget
-        f = self.fileswidget
-        ff = self.favouriteswidget
-        lc = self.listcontrolwidget
-        l = lc.control_view()
-        lb = lc.control_button()
-
-        ###############################################
-        b.model().sourceModel().dataSorted.connect(
-            lambda *a, **kw: debug_signals('bookmarks:source   dataSorted', *a, **kw))
-        b.model().sourceModel().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('bookmarks:source   modelAboutToBeReset', *a, **kw))
-        b.model().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('bookmarks:proxy    modelAboutToBeReset', *a, **kw))
-        b.model().sourceModel().modelReset.connect(
-            lambda *a, **kw: debug_signals('bookmarks:source   modelReset', *a, **kw))
-        b.model().modelReset.connect(
-            lambda *a, **kw: debug_signals('bookmarks:proxy    modelReset', *a, **kw))
-        ################################################
-        a.model().sourceModel().dataSorted.connect(
-            lambda *a, **kw: debug_signals('assets:source      dataSorted', *a, **kw))
-        a.model().sourceModel().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('assets:source      modelAboutToBeReset', *a, **kw))
-        a.model().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('assets:proxy       modelAboutToBeReset', *a, **kw))
-        a.model().sourceModel().modelReset.connect(
-            lambda *a, **kw: debug_signals('assets:source      modelReset', *a, **kw))
-        a.model().modelReset.connect(
-            lambda *a, **kw: debug_signals('assets:proxy       modelReset', *a, **kw))
-        ###############################################
-        f.model().sourceModel().dataSorted.connect(
-            lambda *a, **kw: debug_signals('files:source       dataSorted', *a, **kw))
-        f.model().sourceModel().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('files:source       modelAboutToBeReset', *a, **kw))
-        f.model().modelAboutToBeReset.connect(
-            lambda *a, **kw: debug_signals('files:proxy        modelAboutToBeReset', *a, **kw))
-        f.model().sourceModel().modelReset.connect(
-            lambda *a, **kw: debug_signals('files:source       modelReset', *a, **kw))
-        f.model().modelReset.connect(
-            lambda *a, **kw: debug_signals('files:proxy        modelReset', *a, **kw))
-        ################################################
-        f.model().sourceModel().dataKeyChanged.connect(
-            lambda *a, **kw: debug_signals('files:source       dataKeyChanged', *a, **kw))
-        f.model().sourceModel().dataTypeChanged.connect(
-            lambda *a, **kw: debug_signals('files:source       dataTypeChanged', *a, **kw))
-        f.model().sourceModel().sortingChanged.connect(
-            lambda *a, **kw: debug_signals('files:source       sortingChanged', *a, **kw))
-        f.model().filterFlagChanged.connect(
-            lambda *a, **kw: debug_signals('files:source       filterFlagChanged', *a, **kw))
-        f.model().filterTextChanged.connect(
-            lambda *a, **kw: debug_signals('files:source       filterTextChanged', *a, **kw))
-        ################################################
-
     def paintEvent(self, event):
         """Drawing a rounded background help to identify that the widget
         is in standalone mode."""
@@ -1096,10 +1014,3 @@ class BrowserWidget(QtWidgets.QWidget):
     def resizeEvent(self, event):
         """Custom resize event."""
         self.resized.emit(self.geometry())
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    widget = BrowserWidget()
-    widget.show()
-    app.exec_()

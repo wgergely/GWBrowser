@@ -153,7 +153,6 @@ class TemplateListDelegate(QtWidgets.QStyledItemDelegate):
 
 class TemplateListWidget(QtWidgets.QListWidget):
 
-
     def __init__(self, mode, parent=None):
         super(TemplateListWidget, self).__init__(parent=parent)
         self._mode = mode
@@ -739,7 +738,6 @@ class BookmarksWidget(QtWidgets.QListWidget):
         return QtCore.QSize(80, 40)
 
 
-
 class ManageBookmarksWidget(QtWidgets.QWidget):
     BOOKMARK_KEY = u'bookmarks'
     SERVER_KEY = u'servers'
@@ -752,6 +750,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred,
         )
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         self.init_timer = QtCore.QTimer(parent=self)
         self.init_timer.setInterval(1000)
@@ -762,10 +761,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.progressUpdate.connect(self.progress_widget.setText)
         self.progressUpdate.connect(self.progress_widget.repaint)
-
-
-    def showEvent(self, event):
-        self.init_timer.start()
 
     def _createUI(self):
         @QtCore.Slot()
@@ -890,7 +885,8 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.progress_widget.setMaximumWidth(360)
         # self.progress_widget.setTextFormat(QtCore.Qt.RichText)
         self.progress_widget.setAlignment(QtCore.Qt.AlignLeft)
-        self.progress_widget.setTextInteractionFlags(QtCore.Qt.NoTextInteraction)
+        self.progress_widget.setTextInteractionFlags(
+            QtCore.Qt.NoTextInteraction)
         self.progress_widget.setStyleSheet(
             u'color: rgba({});font-size: 7pt;'.format(
                 common.rgb(common.FAVOURITE)))
@@ -1159,7 +1155,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.server_combobox.clear()
 
-
         for k in self.get_saved_servers():
             pixmap = ImageCache.get_rsc_pixmap(
                 u'server', common.TEXT, ROW_HEIGHT)
@@ -1302,7 +1297,8 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         except:
             return
 
-        self.progressUpdate.emit(u'<span>Scanning for bookmarks, please wait...</span><br><span>{}</span>'.format(path))
+        self.progressUpdate.emit(
+            u'<span>Scanning for bookmarks, please wait...</span><br><span>{}</span>'.format(path))
         QtWidgets.QApplication.instance().processEvents(
             QtCore.QEventLoop.ExcludeUserInputEvents)
 
@@ -1349,6 +1345,10 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
     def sizeHint(self):
         return QtCore.QSize(360, 250)
+
+    def showEvent(self, event):
+        self.setFocus(QtCore.Qt.PopupFocusReason)
+        self.init_timer.start()
 
 
 if __name__ == '__main__':
