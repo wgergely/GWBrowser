@@ -1016,7 +1016,7 @@ class FilesWidgetDelegate(BaseDelegate):
         def draw_description(left_limit, right_limit):
             left_limit += common.INDICATOR_WIDTH * 2
             font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
+            font.setPointSizeF(SMALL_FONT_SIZE + 1)
             metrics = QtGui.QFontMetricsF(font)
 
             color = common.TEXT_SELECTED if selected else common.ADD
@@ -1057,7 +1057,6 @@ class FilesWidgetDelegate(BaseDelegate):
         font.setPointSizeF(SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
         it = self.get_text_segments(index).itervalues()
-        # offset = -metrics.descent()
         offset = 0
 
         left = draw_segments(it, font, metrics, offset)
@@ -1065,6 +1064,9 @@ class FilesWidgetDelegate(BaseDelegate):
 
         it = self.get_filedetail_text_segments(index).itervalues()
         offset = metrics.ascent()
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(SMALL_FONT_SIZE - 1)
+        metrics = QtGui.QFontMetricsF(font)
         right_limit = draw_segments(it, font, metrics, offset)
         draw_description(left_limit, right_limit)
 
@@ -1374,7 +1376,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
     def sizeHint(self, option, index):
-        return QtCore.QSize(1, ROW_HEIGHT)
+        return self.parent().model().sourceModel().ROW_SIZE
 
 
 if __name__ == '__main__':

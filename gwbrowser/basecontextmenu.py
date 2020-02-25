@@ -175,47 +175,48 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'arrow_up', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         arrow_down_icon = ImageCache.get_rsc_pixmap(
             u'arrow_down', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        item_off_icon = QtGui.QPixmap()
-        item_on_icon = ImageCache.get_rsc_pixmap(
-            u'check', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
-        sortorder = self.parent().model().sourceModel().sort_order()
-        sortrole = self.parent().model().sourceModel().sort_role()
+        item_on_icon = ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
+
+        m = self.parent().model().sourceModel()
+        sortorder = m.sort_order()
+        sortrole = m.sort_role()
 
         sort_by_name = sortrole == common.SortByName
         sort_modified = sortrole == common.SortByLastModified
         sort_size = sortrole == common.SortBySize
 
-        m = self.parent().model().sourceModel()
         menu_set[u'Sort'] = collections.OrderedDict()
+
         menu_set[u'Sort:icon'] = sort_menu_icon
         menu_set[u'Sort'][u'Order'] = {
             u'text': u'Ascending' if not sortorder else u'Descending',
-            u'checkable': True,
-            u'checked': not sortorder,
+            u'checkable': False,
+            # u'checked': not sortorder,
             u'icon': arrow_down_icon if not sortorder else arrow_up_icon,
-            u'action': lambda: m.sortingChanged.emit(m.sort_role(), not m.sort_order())
+            u'action': lambda: m.sortingChanged.emit(sortrole, not sortorder)
         }
 
         menu_set[u'Sort'][u'separator'] = {}
 
         menu_set[u'Sort'][u'Name'] = {
-            u'icon': item_on_icon if sort_by_name else item_off_icon,
-            u'ckeckable': True,
-            u'checked': True if sort_by_name else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByName, m.sort_order())
+            u'icon': item_on_icon if sort_by_name else QtGui.QPixmap(),
+            # u'ckeckable': True,
+            # u'checked': True if sort_by_name else False,
+            u'action': lambda: m.sortingChanged.emit(common.SortByName, sortorder)
         }
         menu_set[u'Sort'][u'Date modified'] = {
-            u'icon': item_on_icon if sort_modified else item_off_icon,
-            u'ckeckable': True,
-            u'checked': True if sort_modified else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, m.sort_order())
+            u'icon': item_on_icon if sort_modified else QtGui.QPixmap(),
+            # u'ckeckable': True,
+            # u'checked': True if sort_modified else False,
+            u'action': lambda: m.sortingChanged.emit(common.SortByLastModified, sortorder)
         }
         menu_set[u'Sort'][u'Size'] = {
-            u'icon': item_on_icon if sort_size else item_off_icon,
-            u'ckeckable': True,
-            u'checked': True if sort_size else False,
-            u'action': lambda: m.sortingChanged.emit(common.SortBySize, m.sort_order())
+            u'icon': item_on_icon if sort_size else QtGui.QPixmap(),
+            # u'ckeckable': True,
+            # u'checked': True if sort_size else False,
+            u'action': lambda: m.sortingChanged.emit(common.SortBySize, sortorder)
         }
         return menu_set
 
@@ -303,11 +304,11 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_mode_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = ImageCache.get_rsc_pixmap(
-            u'favourite', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'favourite', common.ADD, common.INLINE_ICON_SIZE)
         favourite_off_icon = ImageCache.get_rsc_pixmap(
             u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         archived_on_icon = ImageCache.get_rsc_pixmap(
-            u'archived', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'archived', common.ADD, common.INLINE_ICON_SIZE)
         archived_off_icon = ImageCache.get_rsc_pixmap(
             u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
@@ -348,37 +349,51 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_on = ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.INLINE_ICON_SIZE)
         item_off = ImageCache.get_rsc_pixmap(
-            u'active', common.SECONDARY_BACKGROUND, common.INLINE_ICON_SIZE)
+            u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        favourite = self.parent().model().filter_flag(common.MarkedAsFavourite)
-        archived = self.parent().model().filter_flag(common.MarkedAsArchived)
-        active = self.parent().model().filter_flag(common.MarkedAsActive)
+        proxy = self.parent().model()
+        favourite = proxy.filter_flag(common.MarkedAsFavourite)
+        archived = proxy.filter_flag(common.MarkedAsArchived)
+        active = proxy.filter_flag(common.MarkedAsActive)
 
-        menu_set[u'active'] = {
-            u'text': 'Show active only',
-            u'icon': item_on if active else item_off,
-            u'checkable': False,
-            # u'checked': active,
-            u'disabled': favourite,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsActive, not active),
+        s = (favourite, archived, active)
+        all_off = all([not f for f in s])
+
+        if active or all_off:
+            menu_set[u'active'] = {
+                u'text': 'Show active only',
+                u'icon': item_on if active else item_off,
+                u'disabled': favourite,
+                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsActive, not active),
+            }
+        if favourite or all_off:
+            menu_set[u'favourite'] = {
+                u'text': 'Show favourites',
+                u'icon': item_on if favourite else item_off,
+                u'disabled': active,
+                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
+            }
+        if archived or all_off:
+            menu_set[u'archived'] = {
+                u'text': 'Show archived',
+                u'icon': item_on if archived else item_off,
+                u'disabled': active if active else favourite,
+                u'action': lambda: proxy.filterFlagChanged.emit(common.MarkedAsArchived, not archived),
+            }
+        return menu_set
+
+    @contextmenu
+    def add_row_size_menu(self, menu_set):
+        menu_set['increase_row_size'] = {
+            'text': u'Increase row height',
+            'action': self.parent().increase_row_size,
         }
-        menu_set[u'favourite'] = {
-            u'text': 'Show favourites',
-            u'icon': item_on if favourite else item_off,
-            u'checkable': False,
-            # u'checked': favourite,
-            u'disabled': active,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsFavourite, not favourite),
-        }
-        menu_set[u'archived'] = {
-            u'text': 'Show archived',
-            u'icon': item_on if archived else item_off,
-            u'checkable': False,
-            # u'setChecked': archived,
-            u'disabled': active if active else favourite,
-            u'action': lambda: self.parent().model().filterFlagChanged.emit(common.MarkedAsArchived, not archived),
+        menu_set['decrease_row_size'] = {
+            'text': u'Decrease row height',
+            'action': self.parent().decrease_row_size,
         }
         return menu_set
+
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
@@ -401,6 +416,22 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
 
         return menu_set
+
+    @contextmenu
+    def add_set_generate_thumbnails_menu(self, menu_set):
+        item_on_icon = ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
+        item_off_icon = ImageCache.get_rsc_pixmap(
+            u'spinner_btn', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+
+        enabled = self.parent().generate_thumbnails_enabled()
+        menu_set['generate'] = {
+            'text': 'Generate thumbnails',
+            'icon': item_on_icon if enabled else item_off_icon,
+            'action': lambda: self.parent().set_generate_thumbnails_enabled(not enabled)
+        }
+        return menu_set
+
 
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
@@ -512,7 +543,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         expand_pixmap = ImageCache.get_rsc_pixmap(
             u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         collapse_pixmap = ImageCache.get_rsc_pixmap(
-            u'collapse', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'collapse', common.ADD, common.INLINE_ICON_SIZE)
 
         currenttype = self.parent().model().sourceModel().data_type()
         newtype = common.SequenceItem if currenttype == common.FileItem else common.FileItem

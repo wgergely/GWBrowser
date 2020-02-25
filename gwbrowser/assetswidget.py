@@ -157,7 +157,6 @@ class AssetModel(BaseModel):
                 QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.ToolTipRole: filepath,
                 QtCore.Qt.SizeHintRole: rowsize,
                 #
                 common.EntryRole: [entry, ],

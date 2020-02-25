@@ -9,20 +9,16 @@ Each thread is assigned a single Worker - usually responsible for taking
 
 """
 from PySide2 import QtCore, QtGui, QtWidgets
-import time
+import base64
+import json
 import Queue
 import functools
-import re
 import weakref
-import sys
 import traceback
 import collections
-import Queue
-from PySide2 import QtCore
 
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.bookmark_db as bookmark_db
-import gwbrowser.delegate as delegate
 import gwbrowser.common as common
 import OpenImageIO
 
@@ -56,16 +52,14 @@ def process(func):
         try:
             result = func(self, self.data_queue.get(False))
             if not result:
-                common.Log.info(u'process_data() was interrupted')
                 return
             common.Log.success('dataReady.emit()')
             self.dataReady.emit(result)
             self.data_queue.task_done()
         except Queue.Empty:
-            common.Log.info(u'Thread is waiting for data...')
             return
         except:
-            common.Log.error(u'process_data() failed')
+            common.Log.error(u'Failed whilst processing data')
         finally:
             self.interrupt = False
 
@@ -95,12 +89,11 @@ class BaseWorker(QtCore.QObject):
         except Exception:
             common.Log.error('Error resetting the queue')
         finally:
-            common.Log.success('Queue reset')
+            common.Log.success('Queue reset successfully')
 
     @process
     @QtCore.Slot()
     def process_data(self, ref):
-        common.Log.info(u'Begin processing {}'.format(repr(ref)))
         if self.interrupt:
             return None
         return ref
@@ -164,9 +157,8 @@ class BaseThread(QtCore.QThread):
             if ref in self.worker.data_queue.queue:
                 return
             self.worker.data_queue.put(ref)
-            common.Log.info(u'Data queued: {}'.format(ref()[QtCore.Qt.DisplayRole]))
         except Queue.Full:
-            common.Log.error(u'Queue is full')
+            pass
 
 
 class InfoWorker(BaseWorker):
@@ -183,6 +175,7 @@ class InfoWorker(BaseWorker):
     def process_file_information(cls, ref):
         if ref()[common.FileInfoLoaded]:
             return ref
+
         db = bookmark_db.get_db(
             QtCore.QModelIndex(),
             server=ref()[common.ParentPathRole][0],
@@ -191,6 +184,7 @@ class InfoWorker(BaseWorker):
         )
         if not db:
             return None
+
         # DATABASE --BEGIN--
         with db.transactions():
             # Item description
@@ -257,6 +251,12 @@ class InfoWorker(BaseWorker):
                 seq.group(3) + \
                 u'.' + \
                 seq.group(4)
+            thumb_k = \
+                seq.group(1) + \
+                u'[0]' + \
+                seq.group(3) + \
+                u'.' + \
+                seq.group(4)
             seqname = seqpath.split(u'/')[-1]
 
             # Setting the path names
@@ -266,6 +266,7 @@ class InfoWorker(BaseWorker):
             ref()[QtCore.Qt.ToolTipRole] = seqpath
             ref()[QtCore.Qt.DisplayRole] = seqname
             ref()[QtCore.Qt.EditRole] = seqname
+            ref()[common.ThumbnailPathRole] = db.thumbnail_path(thumb_k)
 
             # We saved the DirEntry instances previously in `__initdata__` but
             # only for the thread to extract the information from it.
@@ -279,7 +280,7 @@ class InfoWorker(BaseWorker):
                 mtime = common.qlast_modified(mtime)
 
                 info_string = \
-                    unicode(len(intframes)) + u' files;' + \
+                    unicode(len(intframes)) + u'f;' + \
                     mtime.toString(u'dd') + u'/' + \
                     mtime.toString(u'MM') + u'/' + \
                     mtime.toString(u'yyyy') + u' ' + \
@@ -307,6 +308,8 @@ class InfoWorker(BaseWorker):
                     common.byte_to_string(ref()[common.SortBySize])
 
                 ref()[common.FileDetailsRole] = info_string
+            ref()[common.ThumbnailPathRole] = db.thumbnail_path(ref()[QtCore.Qt.StatusTipRole])
+
 
         if not ref():
             return None
@@ -344,9 +347,6 @@ class ThumbnailWorker(BaseWorker):
         then load it. If there's no thumbnail, we will try to generate a thumbnail
         using OpenImageIO.
 
-        Args:
-            make (bool): Will generate a thumbnail image if there isn't one already
-
         """
         if not ref() or self.interrupt:
             return None
@@ -354,21 +354,16 @@ class ThumbnailWorker(BaseWorker):
         if ref()[common.FlagsRole] & common.MarkedAsArchived:
             return None
 
-        db = bookmark_db.get_db(
-            QtCore.QModelIndex(),
-            server=ref()[common.ParentPathRole][0],
-            job=ref()[common.ParentPathRole][1],
-            root=ref()[common.ParentPathRole][2]
-        )
-        if not db:
+        # The fileinfo thread has set the thumbnail path first
+        if not ref()[common.FileInfoLoaded]:
+            return None
+        if ref()[common.FileThumbnailLoaded]:
             return None
 
         if not ref():
             return None
 
-        thumbnail_path = db.thumbnail_path(ref()[QtCore.Qt.StatusTipRole])
-        ref()[common.ThumbnailPathRole] = thumbnail_path
-
+        thumbnail_path = ref()[common.ThumbnailPathRole]
         height = ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR
         ext = ref()[QtCore.Qt.StatusTipRole].split(u'.')[-1].lower()
         image = None
@@ -376,15 +371,17 @@ class ThumbnailWorker(BaseWorker):
         # Checking if we can load an existing image
         if QtCore.QFileInfo(thumbnail_path).exists():
             image = ImageCache.get(
-                thumbnail_path, height, overwrite=True)
-            if image:
-                color = ImageCache.get(
-                    thumbnail_path, u'backgroundcolor')
+                thumbnail_path, int(height), overwrite=True)
+            if not image:
+                return None
 
-                ref()[common.ThumbnailRole] = image
-                ref()[common.ThumbnailBackgroundRole] = color
-                ref()[common.FileThumbnailLoaded] = True
-                return ref
+            color = ImageCache.get(
+                thumbnail_path, u'backgroundcolor')
+
+            ref()[common.ThumbnailRole] = image
+            ref()[common.ThumbnailBackgroundRole] = color
+            ref()[common.FileThumbnailLoaded] = True
+            return ref
 
         # If the item doesn't have a saved thumbnail we will check if
         # OpenImageIO is able to make a thumbnail for it:
@@ -392,15 +389,15 @@ class ThumbnailWorker(BaseWorker):
             return None
 
         ref()[common.FileThumbnailLoaded] = False
-
         if not ref() or self.interrupt:
             return None
 
         if not self.process_thumbnail(ref):
             return None
+        ref()[common.FileThumbnailLoaded] = True
         return ref
 
-    QtCore.Slot(weakref.ref)
+    @QtCore.Slot(weakref.ref)
     @staticmethod
     def process_thumbnail(ref):
         """Wraps the `openimageio_thumbnail()` call when the source data is
@@ -420,7 +417,7 @@ class ThumbnailWorker(BaseWorker):
             source = ref()[QtCore.Qt.StatusTipRole]
             if common.is_collapsed(source):
                 source = common.get_sequence_startpath(source)
-            dest = ref()[common.ThumbnailPathRole] 
+            dest = ref()[common.ThumbnailPathRole]
 
             # Make sure we're not trying to generate a thumbnail for
             # an enournmous file...

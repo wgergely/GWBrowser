@@ -21,36 +21,21 @@ addittional data. The model will also try to generate thumbnails for any
 ``OpenImageIO`` readable file-format via its workers.
 
 """
-import json
-import uuid
-import base64
-import sys
-import time
-import traceback
-import weakref
-import Queue
-from functools import partial
 from PySide2 import QtWidgets, QtCore, QtGui
-
-import gwbrowser.bookmark_db as bookmark_db
 
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import ThreadedBaseWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
-from gwbrowser.baselistwidget import validate_index
 
 import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 from gwbrowser.common import Log
-from gwbrowser.settings import AssetSettings
 import gwbrowser.settings as settings_
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import FilesWidgetDelegate
 
 from gwbrowser.imagecache import ImageCache
-
-import gwbrowser.threads as threads
 
 
 DEBUG = True
@@ -69,6 +54,12 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
         if index.isValid():
             self.add_mode_toggles_menu()
+
+        self.add_separator()
+
+        self.add_row_size_menu()
+        self.add_separator()
+        self.add_set_generate_thumbnails_menu()
 
         self.add_separator()
 
@@ -111,6 +102,9 @@ class FilesModel(BaseModel):
     signal.
 
     """
+    ROW_SIZE = QtCore.QSize(0, common.ROW_HEIGHT)
+
+
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         # Only used to cache the thumbnails
@@ -128,7 +122,6 @@ class FilesModel(BaseModel):
         This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
 
         """
-        _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
         thumbnails = self.get_default_thumbnails(overwrite=True)
 
         dkey = self.data_key()
@@ -150,7 +143,6 @@ class FilesModel(BaseModel):
                 item[common.FileThumbnailLoaded] = False
                 item[common.DefaultThumbnailRole] = default_thumbnail_image
                 item[common.DefaultThumbnailBackgroundRole] = default_background_color
-                item[common.ThumbnailPathRole] = None
                 item[common.ThumbnailRole] = placeholder_image
                 item[common.ThumbnailBackgroundRole] = default_background_color
 
@@ -174,7 +166,7 @@ class FilesModel(BaseModel):
             _ext_path = common.rsc_path(__file__, ext)
             d[ext] = ImageCache.get(
                 _ext_path,
-                delegate.ROW_HEIGHT - common.ROW_SEPARATOR,
+                self.ROW_SIZE.height() - common.ROW_SEPARATOR,
                 overwrite=overwrite
             )
             k = _ext_path + u':backgroundcolor'
@@ -228,8 +220,6 @@ class FilesModel(BaseModel):
             common.SequenceItem: common.DataDict(),
         })
 
-        rowsize = QtCore.QSize(0, delegate.ROW_HEIGHT)
-        _rowsize = delegate.ROW_HEIGHT - common.ROW_SEPARATOR
         thumbnails = self.get_default_thumbnails()
 
         favourites = settings_.local_settings.favourites()
@@ -297,18 +287,18 @@ class FilesModel(BaseModel):
                 if activefile in filepath:
                     flags = flags | common.MarkedAsActive
 
-            idx = len(MODEL_DATA[common.FileItem])
+            parent_path_role = (server, job, root, asset, dkey, fileroot)
 
+            idx = len(MODEL_DATA[common.FileItem])
             MODEL_DATA[common.FileItem][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: filename,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.ToolTipRole: filepath,
-                QtCore.Qt.SizeHintRole: rowsize,
+                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (server, job, root, asset, dkey, fileroot),
+                common.ParentPathRole: parent_path_role,
                 common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: u'',
@@ -350,11 +340,10 @@ class FilesModel(BaseModel):
                         QtCore.Qt.DisplayRole: seqname,
                         QtCore.Qt.EditRole: seqname,
                         QtCore.Qt.StatusTipRole: seqpath,
-                        QtCore.Qt.ToolTipRole: seqpath,
-                        QtCore.Qt.SizeHintRole: rowsize,
+                        QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                         common.EntryRole: [],
                         common.FlagsRole: flags,
-                        common.ParentPathRole: (server, job, root, asset, dkey, fileroot),
+                        common.ParentPathRole: parent_path_role,
                         common.DescriptionRole: u'',
                         common.TodoCountRole: 0,
                         common.FileDetailsRole: u'',
@@ -396,7 +385,6 @@ class FilesModel(BaseModel):
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename
                 v[QtCore.Qt.StatusTipRole] = filepath
-                v[QtCore.Qt.ToolTipRole] = filepath
                 v[common.TypeRole] = common.FileItem
                 v[common.SortByName] = filepath
                 v[common.SortByLastModified] = 0
@@ -424,7 +412,6 @@ class FilesModel(BaseModel):
 
         self.INTERNAL_MODEL_DATA[dkey] = MODEL_DATA
         del MODEL_DATA
-
 
     def data_key(self):
         """Current key to the data dictionary."""
@@ -672,11 +659,6 @@ class FilesWidget(ThreadedBaseWidget):
         self.setAcceptDrops(False)
         self.setDropIndicatorShown(False)
 
-        # self.setAutoScroll(True)
-
-        # I'm not sure why but the proxy is not updated properly after refresh
-        # self.model().sourceModel().dataSorted.connect(self.model().invalidate)
-
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)
     def new_file_added(self, data_key, file_path):
@@ -723,27 +705,6 @@ class FilesWidget(ThreadedBaseWidget):
         v = v if v else u''
         self.model().set_filter_text(v)
         Log.success('load_saved_filter_text()')
-
-    def eventFilter(self, widget, event):
-        """Custom event filter to drawm the background pixmap."""
-        super(FilesWidget, self).eventFilter(widget, event)
-
-        if widget is not self:
-            return False
-
-        if event.type() == QtCore.QEvent.Paint:
-            # Let's paint the icon of the current mode
-            painter = QtGui.QPainter()
-            painter.begin(self)
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'files', QtGui.QColor(0, 0, 0, 20), 180)
-            rect = pixmap.rect()
-            rect.moveCenter(self.rect().center())
-            painter.drawPixmap(rect, pixmap, pixmap.rect())
-            painter.end()
-            return True
-
-        return False
 
     def inline_icons_count(self):
         if self.buttons_hidden():
@@ -796,14 +757,14 @@ class FilesWidget(ThreadedBaseWidget):
             return self.description_editor_widget.show()
 
         for item in clickable_rectangles:
-            rect, tewxt = item
+            rect, text = item
 
             if not text:
                 continue
 
             root_dir.append(text)
             if rect.contains(cursor_position):
-                path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip('/')
+                path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip(u'/')
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = path + u'/' + root_path
                 return common.reveal(path)
@@ -964,14 +925,79 @@ class FilesWidget(ThreadedBaseWidget):
 
         super(FilesWidget, self).mouseReleaseEvent(event)
 
+    def eventFilter(self, widget, event):
+        """Custom event filter to drawm the background pixmap."""
+        super(FilesWidget, self).eventFilter(widget, event)
+
+        if widget is not self:
+            return False
+
+        if event.type() == QtCore.QEvent.Paint:
+            # Let's paint the icon of the current mode
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'files', QtGui.QColor(0, 0, 0, 20), 180)
+            rect = pixmap.rect()
+            rect.moveCenter(self.rect().center())
+            painter.drawPixmap(rect, pixmap, pixmap.rect())
+            painter.end()
+            return True
+
+        return False
+
+    def increase_row_size(self):
+        proxy = self.model()
+        model = proxy.sourceModel()
+        v = model.ROW_SIZE.height() + 20
+        if v > common.ROW_HEIGHT * 10:
+            return
+        model.ROW_SIZE.setHeight(int(v))
+
+        # Save selection
+        row = self.selectionModel().currentIndex().row()
+
+        model.reset_thumbnails()
+        self.reset()
+        self.restart_scrollbar_timer()
+
+        # Reset selection
+        index = proxy.index(row, 0)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(
+            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
+    def decrease_row_size(self):
+        proxy = self.model()
+        model = proxy.sourceModel()
+        v = model.ROW_SIZE.height() - 20
+        if v < common.ROW_HEIGHT:
+            return
+        model.ROW_SIZE.setHeight(int(v))
+
+        # Save selection
+        row = self.selectionModel().currentIndex().row()
+
+        model.reset_thumbnails()
+        self.reset()
+        self.restart_scrollbar_timer()
+
+        # Reset selection
+        index = proxy.index(row, 0)
+        self.selectionModel().setCurrentIndex(
+            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        self.scrollTo(
+            index, QtWidgets.QAbstractItemView.PositionAtCenter)
+
 
 if __name__ == '__main__':
-    common.DEBUG_ON = False
+    common.DEBUG_ON = True
     app = QtWidgets.QApplication([])
     l = common.LogView()
     l.show()
     widget = FilesWidget()
-    widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark', 'asset1')
+    widget.model().sourceModel().parent_path = (u'//sloth/jobs', u'vodd_9069', u'films/prologue/shots', u'pr_0010')
     widget.model().sourceModel().modelDataResetRequested.emit()
     # widget.model().sourceModel().dataKeyChanged.emit('dir2')
     widget.resize(460,640)

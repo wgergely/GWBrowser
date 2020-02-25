@@ -424,15 +424,9 @@ class BaseModel(QtCore.QAbstractListModel):
         self._sortrole = None
         self._sortorder = None
 
-        # Generate thumbnails
-        cls = self.__class__.__name__
-        _generate_thumbnails = settings_.local_settings.value(
-            u'widget/{}/generate_thumbnails'.format(cls))
-        self.generate_thumbnails = True if _generate_thumbnails is None else _generate_thumbnails
-
         @QtCore.Slot(bool)
         @QtCore.Slot(int)
-        def set_sorting(order, role):
+        def set_sorting(role, order):
             self.set_sort_role(role)
             self.set_sort_order(order)
             self.sort_data()
@@ -980,10 +974,9 @@ class BaseListWidget(QtWidgets.QListView):
         is_sequence = common.get_sequence(v)
 
         if is_collapsed:
-            v = is_collapsed.group(1) + is_collapsed.group(3)
+            v = is_collapsed.group(1) + u'[0]' + is_collapsed.group(3)
         elif is_sequence:
-            v = is_sequence.group(1) + is_sequence.group(3) + \
-                u'.' + is_sequence.group(4)
+            v = is_sequence.group(1) + u'[0]' + is_sequence.group(3) + u'.' + is_sequence.group(4)
         return v
 
     @QtCore.Slot()
@@ -1015,8 +1008,10 @@ class BaseListWidget(QtWidgets.QListView):
         if not val:
             return
 
-        for n in xrange(self.model().rowCount()):
-            index = self.model().index(n, 0)
+
+        proxy = self.model()
+        for n in xrange(proxy.rowCount()):
+            index = proxy.index(n, 0)
             path = self._get_path(index.data(QtCore.Qt.StatusTipRole))
             if val.lower() == path.lower():
                 self.selectionModel().setCurrentIndex(
@@ -1025,17 +1020,17 @@ class BaseListWidget(QtWidgets.QListView):
                     index, QtWidgets.QAbstractItemView.PositionAtCenter)
                 return
 
-        index = self.model().sourceModel().active_index()
+        index = proxy.sourceModel().active_index()
         if index.isValid():
             self.selectionModel().setCurrentIndex(
                 index, QtCore.QItemSelectionModel.ClearAndSelect)
             self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
             return
 
-        if not self.model().rowCount():
+        if not proxy.rowCount():
             return
 
-        index = self.model().index(0, 0)
+        index = proxy.index(0, 0)
         self.selectionModel().setCurrentIndex(
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
@@ -1124,12 +1119,12 @@ class BaseListWidget(QtWidgets.QListView):
         if not index.data(common.FileInfoLoaded):
             return
 
-        source_model = self.model().sourceModel()
-        dkey = source_model.data_key()
-        data = source_model.model_data()[source_index.row()]
+        model = self.model().sourceModel()
+        dkey = model.data_key()
+        data = model.model_data()[source_index.row()]
 
-        FILE_DATA = source_model.INTERNAL_MODEL_DATA[dkey][common.FileItem]
-        SEQ_DATA = source_model.INTERNAL_MODEL_DATA[dkey][common.SequenceItem]
+        FILE_DATA = model.INTERNAL_MODEL_DATA[dkey][common.FileItem]
+        SEQ_DATA = model.INTERNAL_MODEL_DATA[dkey][common.SequenceItem]
 
         applied = data[common.FlagsRole] & flag
 
@@ -1479,9 +1474,9 @@ class BaseListWidget(QtWidgets.QListView):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        model = self.model()
-        source_model = model.sourceModel()
-        filter_text = model.filter_text()
+        proxy = self.model()
+        model = proxy.sourceModel()
+        filter_text = proxy.filter_text()
 
         sizehint = self.itemDelegate().sizeHint(
             self.viewOptions(), QtCore.QModelIndex())
@@ -1491,8 +1486,8 @@ class BaseListWidget(QtWidgets.QListView):
         rect.setWidth(rect.width() - common.MARGIN)
         rect.moveCenter(center)
 
-        favourite_mode = model.filter_flag(common.MarkedAsFavourite)
-        active_mode = model.filter_flag(common.MarkedAsActive)
+        favourite_mode = proxy.filter_flag(common.MarkedAsFavourite)
+        active_mode = proxy.filter_flag(common.MarkedAsActive)
 
         text_rect = QtCore.QRect(rect)
         text_rect.setHeight(sizehint.height())
@@ -1506,9 +1501,9 @@ class BaseListWidget(QtWidgets.QListView):
         align = QtCore.Qt.AlignCenter
 
         text = u''
-        if not source_model.parent_path and self.parent():
+        if not model.parent_path and self.parent():
             if self.parent().currentIndex() == 0:
-                if self.model().sourceModel().rowCount() == 0:
+                if model.rowCount() == 0:
                     text = u'No bookmarks added yet. Click the plus icon above to get started.'
             elif self.parent().currentIndex() == 1:
                 text = u'Assets will be shown here once a bookmark is activated.'
@@ -1521,14 +1516,14 @@ class BaseListWidget(QtWidgets.QListView):
                 painter, font, rect, text, align, common.TEXT_DISABLED)
             return True
 
-        if not source_model.data_key() and self.parent():
+        if not model.data_key() and self.parent():
             if self.parent().currentIndex() == 2:
                 text = u'No task folder selected.'
                 common.draw_aliased_text(
                     painter, font, text_rect, text, align, common.TEXT_DISABLED)
                 return True
 
-        if source_model.rowCount() == 0:
+        if model.rowCount() == 0:
             text = u'No items to show.'
             common.draw_aliased_text(
                 painter, font, text_rect, text, align, common.TEXT_DISABLED)
@@ -1540,7 +1535,7 @@ class BaseListWidget(QtWidgets.QListView):
                 rect_.setWidth(sizehint.height() - 2)
 
             if n == model.rowCount():  # filter mode
-                hidden_count = source_model.rowCount() - model.rowCount()
+                hidden_count = model.rowCount() - model.rowCount()
                 filtext = u''
                 favtext = u''
                 acttext = u''
@@ -1727,6 +1722,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
         rectangles = self.itemDelegate().get_rectangles(self.visualRect(index))
         for k in (delegate.BookmarkCountRect,
+            delegate.DataRect,
             delegate.TodoRect,
             delegate.RevealRect,
             delegate.ArchiveRect,
@@ -1822,6 +1818,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def __init__(self, parent=None):
         super(ThreadedBaseWidget, self).__init__(parent=parent)
+        self._generate_thumbnails_enabled = True
 
         self.scrollbar_changed_timer = QtCore.QTimer(parent=self)
         self.scrollbar_changed_timer.setSingleShot(True)
@@ -1905,6 +1902,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         model.modelReset.connect(self.queue_model_data)
 
+        self.init_generate_thumbnails_enabled()
 
     def __init_threads__(self):
         """Starts and connects the threads."""
@@ -1930,6 +1928,23 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.threads[common.ThumbnailThread].append(thread)
         thread.started.connect(partial(thread_started, thread))
         thread.start()
+
+    def init_generate_thumbnails_enabled(self):
+        cls = self.__class__.__name__
+        k = u'widget/{}/generate_thumbnails'.format(cls)
+        v = settings_.local_settings.value(k)
+        v = True if v is None else v
+        self._generate_thumbnails_enabled = v
+
+    def generate_thumbnails_enabled(self):
+        return self._generate_thumbnails_enabled
+
+    @QtCore.Slot(bool)
+    def set_generate_thumbnails_enabled(self, val):
+        cls = self.__class__.__name__
+        k = u'widget/{}/generate_thumbnails'.format(cls)
+        settings_.local_settings.setValue(k, val)
+        self._generate_thumbnails_enabled = val
 
     @QtCore.Slot()
     def restart_scrollbar_timer(self):
@@ -1966,20 +1981,20 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         app = QtWidgets.QApplication.instance()
         if app.mouseButtons() != QtCore.Qt.NoButton:
             return
-        proxy_model = self.model()
-        if not proxy_model.rowCount():
+        proxy = self.model()
+        if not proxy.rowCount():
             return
 
         index = self.indexAt(self.rect().topLeft())
         if not index.isValid():
             return
 
-        show_archived = proxy_model.filter_flag(common.MarkedAsArchived)
+        show_archived = proxy.filter_flag(common.MarkedAsArchived)
         rect = self.visualRect(index)
         while self.viewport().rect().intersects(rect):
             is_archived = index.flags() & common.MarkedAsArchived
             if not show_archived and is_archived:
-                proxy_model.invalidateFilter()
+                proxy.invalidateFilter()
                 return
 
             rect.moveTop(rect.top() + rect.height())
@@ -2009,10 +2024,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             return
 
         try:
-            proxy_model = self.model()
-            source_model = proxy_model.sourceModel()
-            data = source_model.model_data()
-            if not proxy_model.rowCount():
+            proxy = self.model()
+            model = proxy.sourceModel()
+            data = model.model_data()
+            if not proxy.rowCount():
                 return
 
             r = self.viewport().rect()
@@ -2020,25 +2035,23 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             if not index.isValid():
                 return
 
-            needs_thumbnail = []
-            visible = []
-
             # Starting from the top left we'll get all visible indexes
             rect = self.visualRect(index)
             i = 0
             t = 0
-            icount = len(source_model.threads[common.InfoThread])
-            tcount = len(source_model.threads[common.ThumbnailThread])
+            icount = len(model.threads[common.InfoThread])
+            tcount = len(model.threads[common.ThumbnailThread])
             while r.intersects(rect):
-                source_index = proxy_model.mapToSource(index)
+                source_index = proxy.mapToSource(index)
                 ref = weakref.ref(data[source_index.row()])
 
                 if icount and not index.data(common.FileInfoLoaded):
-                    source_model.threads[common.InfoThread][i % icount].put(ref)
+                    model.threads[common.InfoThread][i % icount].put(ref)
                     i += 1
-                if tcount and source_model.generate_thumbnails and not index.data(common.FileThumbnailLoaded):
-                    source_model.threads[common.ThumbnailThread][t % tcount].put(ref)
-                    t += 1
+                if self.generate_thumbnails_enabled():
+                    if tcount and not index.data(common.FileThumbnailLoaded):
+                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
+                        t += 1
 
                 rect.moveTop(rect.top() + rect.height())
 
@@ -2049,12 +2062,13 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             # Here we add the last index of the window
             index = self.indexAt(self.rect().bottomLeft())
             if index.isValid():
-                source_index = proxy_model.mapToSource(index)
+                source_index = proxy.mapToSource(index)
                 ref = weakref.ref(data[source_index.row()])
                 if icount and not index.data(common.FileInfoLoaded):
-                    source_model.threads[common.InfoThread][0].put(ref)
-                if tcount and source_model.generate_thumbnails and not index.data(common.FileThumbnailLoaded):
-                    source_model.threads[common.ThumbnailThread][t % tcount].put(ref)
+                    model.threads[common.InfoThread][0].put(ref)
+                if self.generate_thumbnails_enabled():
+                    if tcount and not index.data(common.FileThumbnailLoaded):
+                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
         except:
             Log.error('initialize_visible_indexes failed')
         finally:
