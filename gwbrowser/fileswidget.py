@@ -44,38 +44,25 @@ class FilesWidgetContextMenu(BaseContextMenu):
 
     def __init__(self, index, parent=None):
         super(FilesWidgetContextMenu, self).__init__(index, parent=parent)
-        # Adding persistent actions
         self.add_location_toggles_menu()
-
         self.add_separator()
-
         if index.isValid():
             self.add_mode_toggles_menu()
-
         self.add_separator()
-
         self.add_row_size_menu()
         self.add_separator()
         self.add_set_generate_thumbnails_menu()
-
         self.add_separator()
-
         if index.isValid():
+            self.add_copy_menu()
             self.add_reveal_item_menu()
             self.add_rv_menu()
-            self.add_copy_menu()
-
         self.add_separator()
-        #
         self.add_sort_menu()
         self.add_collapse_sequence_menu()
-        #
         self.add_separator()
-        #
         self.add_display_toggles_menu()
-
         self.add_separator()
-
         self.add_refresh_menu()
 
 
@@ -943,60 +930,16 @@ class FilesWidget(ThreadedBaseWidget):
 
         return False
 
-    def increase_row_size(self):
-        proxy = self.model()
-        model = proxy.sourceModel()
-        v = model.ROW_SIZE.height() + 20
-        if v > common.ROW_HEIGHT * 10:
-            return
-        model.ROW_SIZE.setHeight(int(v))
-
-        # Save selection
-        row = self.selectionModel().currentIndex().row()
-
-        model.reset_thumbnails()
-        self.reset()
-        self.restart_scrollbar_timer()
-
-        # Reset selection
-        index = proxy.index(row, 0)
-        self.selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
-        self.scrollTo(
-            index, QtWidgets.QAbstractItemView.PositionAtCenter)
-
-    def decrease_row_size(self):
-        proxy = self.model()
-        model = proxy.sourceModel()
-        v = model.ROW_SIZE.height() - 20
-        if v < common.ROW_HEIGHT:
-            return
-        model.ROW_SIZE.setHeight(int(v))
-
-        # Save selection
-        row = self.selectionModel().currentIndex().row()
-
-        model.reset_thumbnails()
-        self.reset()
-        self.restart_scrollbar_timer()
-
-        # Reset selection
-        index = proxy.index(row, 0)
-        self.selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
-        self.scrollTo(
-            index, QtWidgets.QAbstractItemView.PositionAtCenter)
-
 
 if __name__ == '__main__':
-    common.DEBUG_ON = True
+    common.DEBUG_ON = False
     app = QtWidgets.QApplication([])
     l = common.LogView()
     l.show()
     widget = FilesWidget()
     widget.model().sourceModel().parent_path = (u'//sloth/jobs', u'vodd_9069', u'films/prologue/shots', u'pr_0010')
     widget.model().sourceModel().modelDataResetRequested.emit()
-    # widget.model().sourceModel().dataKeyChanged.emit('dir2')
+    widget.model().sourceModel().dataKeyChanged.emit('exports')
     widget.resize(460,640)
     widget.show()
     # widget.model().sourceModel().dataKeyChanged.emit('dir2')

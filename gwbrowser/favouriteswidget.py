@@ -98,12 +98,7 @@ class FavouritesModel(FilesModel):
                 if path == k:
                     d.append(entry)
                     continue
-                seq = common.get_sequence(path)
-                if seq:
-                    _k = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
-                else:
-                    _k = path
-                _k = _k.lower()
+                _k = common.proxy_path(path).lower()
                 if k == _k:
                     d.append(entry)
         for entry in d:
@@ -209,12 +204,8 @@ class FavouritesWidget(FilesWidget):
                     for v in paths:
                         if v.lower() not in favourites:
                             favourites.append(v.lower())
-
-            seq = common.get_sequence(path)
-            if seq:
-                k = seq.group(1) + u'[0]' + seq.group(3) + '.' + seq.group(4)
             else:
-                k = path
+                k = common.proxy_path(path).lower()
             favourites.append(k)
         settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()

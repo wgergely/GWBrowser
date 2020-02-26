@@ -783,14 +783,16 @@ class TodoItemWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class TodoEditorWidget(QtWidgets.QWidget):
+class TodoEditorWidget(QtWidgets.QDialog):
     """Main widget used to view and edit and add Notes and Tasks."""
 
     def __init__(self, index, parent=None):
         super(TodoEditorWidget, self).__init__(parent=parent)
         self.todoeditors_widget = None
         self._index = index
+
         self.read_only = False
+
         self.lock = Lockfile(self.index, parent=self)
         self.destroyed.connect(self.unlock)
 
@@ -806,13 +808,13 @@ class TodoEditorWidget(QtWidgets.QWidget):
         self.refresh_timer.timeout.connect(self.refresh)
 
         self.setWindowTitle(u'Notes & Tasks')
+        self.setWindowFlags(QtCore.Qt.Widget)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
         self._createUI()
         self.installEventFilter(self)
 
         self.init_lock()
-        self.refresh()
 
     def _createUI(self):
         """Creates the ui layout."""
@@ -908,27 +910,32 @@ class TodoEditorWidget(QtWidgets.QWidget):
             return
         if not self.index.isValid():
             return
-        if not self.read_only:
+        if not self.index.data(common.FileInfoLoaded):
             return
 
-        db = bookmark_db.get_db(self.index)
-        if self.index.data(common.SequenceRole):
-            k = self.index.data(common.SequenceRole)
-            k = k.group(1) + u'[0]' + k.group(3) + u'.' + k.group(4)
-        else:
-            k = self.index.data(QtCore.Qt.StatusTipRole)
+        try:
+            db = bookmark_db.get_db(self.index)
+            k = common.proxy_path(self.index)
+            v = db.value(k, u'notes')
+        except:
+            common.Log.error('Error getting notes')
+            return
 
-        # Description
-        v = db.value(k, u'notes')
+        if not v:
+            return
+
         try:
             v = base64.b64decode(v)
             d = json.loads(v)
         except:
+            common.Log.error(u'Error decoding notes from JSON')
             return
+
         if not v:
             return
 
         self.clear()
+
         try:
             for k, _ in enumerate(d):
                 self.add_item(
@@ -936,6 +943,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
                     checked=d[unicode(k)][u'checked']
                 )
         except:
+            common.Log.error(u'Error adding notes')
             return
 
     @property
@@ -1123,12 +1131,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
                 u'text': editor.document().toHtml(),
             }
 
-        seq = self.index.data(common.SequenceRole)
-        if seq:
-            k = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
-        else:
-            k = self.index.data(QtCore.Qt.StatusTipRole)
-
+        k = common.proxy_path(self.index)
         try:
             db = bookmark_db.get_db(self.index)
             v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
@@ -1216,6 +1219,7 @@ class TodoEditorWidget(QtWidgets.QWidget):
             geo = self.parent().viewport().rect()
             self.resize(geo.width(), geo.height())
         self.setFocus(QtCore.Qt.OtherFocusReason)
+        self.refresh()
 
     def hideEvent(self, event):
         self.unlock()

@@ -40,6 +40,7 @@ import zipfile
 import traceback
 import ConfigParser
 import cStringIO
+import threading
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
@@ -123,6 +124,40 @@ pscale = 1.0
 """The global font scale value. Not implemeted yet."""
 
 
+def proxy_path(v):
+    """Returns a path where the original sequence element has been
+    replaced with `[0]`.
+
+    Accepts a data dict, index or filepath string.
+
+    """
+    if isinstance(v, dict):
+        m = v[SequenceRole]
+        k = v[QtCore.Qt.StatusTipRole]
+        if m:
+            k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
+        return k
+
+    if isinstance(v, QtCore.QModelIndex):
+        m = v.data(SequenceRole)
+        k = v.data(QtCore.Qt.StatusTipRole)
+        if m:
+            k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
+        return k
+
+    if not (isinstance, unicode):
+        raise ValueError('Invalid type. Expected <type \'QModelIndex\'> or `<type \'unicode\'>')
+
+    m = is_collapsed(v)
+    if m:
+        k = m.group(1) + u'[0]' + m.group(3)
+        return k
+    m = get_sequence(v)
+    if m:
+        k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
+    return v
+
+
 class DataDict(dict):
     """Subclassed dict type for weakref compatibility."""
     pass
@@ -150,13 +185,14 @@ class Log:
             default=cls.ENDC,
             message=s
         )
+        print t
         print >> cls.stdout, t
 
     @classmethod
     def debug(cls, s, source=u''):
         if not DEBUG_ON:
             return
-        t = u'{color}{ts} [Debug]:    {default}{source}.{message}'.format(
+        t = u'{color}{ts} [Debug]:{default}    {source}.{message}'.format(
             ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
             color=cls.OKBLUE,
             default=cls.ENDC,
@@ -170,7 +206,7 @@ class Log:
     def info(cls, s):
         if not DEBUG_ON:
             return
-        t = u'{color}{ts} [Info]:    {default}{message}'.format(
+        t = u'{color}{ts} [Info]:{default}    {message}'.format(
             ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
             color=cls.OKBLUE,
             default=cls.ENDC,
@@ -183,7 +219,7 @@ class Log:
     def error(cls, s):
         if not DEBUG_ON:
             return
-        t = u'{fail}{underline}{ts} [Error]:     {default}{message}\n{fail}{traceback}'.format(
+        t = u'{fail}{underline}{ts} [Error]:{default}    {message}\n{fail}{traceback}'.format(
             ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
             fail=cls.FAIL,
             underline=cls.UNDERLINE,
@@ -469,7 +505,6 @@ def save_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
     import uuid
     import gwbrowser.settings as settings_
-    from gwbrowser.settings import AssetSettings
     import gwbrowser.bookmark_db as bookmark_db
 
     res = QtWidgets.QFileDialog.getSaveFileName(
@@ -479,7 +514,7 @@ def save_favourites():
             QtCore.QStandardPaths.HomeLocation),
         options=QtWidgets.QFileDialog.ShowDirsOnly
     )
-    destination, ext = res
+    destination, _ = res
     if not destination:
         return
 
@@ -522,7 +557,6 @@ def save_favourites():
 
 def import_favourites():
     import gwbrowser.settings as settings_
-    from gwbrowser.settings import AssetSettings
 
     res = QtWidgets.QFileDialog.getOpenFileName(
         caption=u'Select the favourites file to import',

@@ -9,6 +9,7 @@ Each thread is assigned a single Worker - usually responsible for taking
 
 """
 from PySide2 import QtCore, QtGui, QtWidgets
+import time
 import base64
 import json
 import Queue
@@ -16,6 +17,7 @@ import functools
 import weakref
 import traceback
 import collections
+import threading
 
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.bookmark_db as bookmark_db
@@ -33,8 +35,42 @@ class UniqueQueue(Queue.Queue):
     def _init(self, maxsize):
         self.queue = collections.deque()
 
-    def _put(self, item):
-        self.queue.appendleft(item)
+    def put(self, item, block=True, timeout=None, force=False):
+        '''Put an item into the queue.
+        If optional args 'block' is true and 'timeout' is None (the default),
+        block if necessary until a free slot is available. If 'timeout' is
+        a non-negative number, it blocks at most 'timeout' seconds and raises
+        the Full exception if no free slot was available within that time.
+        Otherwise ('block' is false), put an item on the queue if a free slot
+        is immediately available, else raise the Full exception ('timeout'
+        is ignored in that case).
+        '''
+        with self.not_full:
+            if self.maxsize > 0:
+                if not block:
+                    if self._qsize() >= self.maxsize:
+                        raise Queue.Full
+                elif timeout is None:
+                    while self._qsize() >= self.maxsize:
+                        self.not_full.wait()
+                elif timeout < 0:
+                    raise ValueError("'timeout' must be a non-negative number")
+                else:
+                    endtime = time.time() + timeout
+                    while self._qsize() >= self.maxsize:
+                        remaining = endtime - time.time()
+                        if remaining <= 0.0:
+                            raise Queue.Full
+                        self.not_full.wait(remaining)
+            self._put(item, force=force)
+            self.unfinished_tasks += 1
+            self.not_empty.notify()
+
+    def _put(self, item, force=False):
+        if force: # Force the item to the beginning of the queue
+            self.queue.append(item)
+        else: # otherwise append to the end
+            self.queue.appendleft(item)
 
     def _get(self):
         return self.queue.pop()
@@ -105,7 +141,6 @@ class BaseThread(QtCore.QThread):
     information and generating thumbnails.
 
     """
-    mutex = QtCore.QMutex()
     startTimer = QtCore.Signal()
     stopTimer = QtCore.Signal()
 
@@ -142,7 +177,7 @@ class BaseThread(QtCore.QThread):
         self.timer.timeout.connect(
             self.worker.dataRequested, QtCore.Qt.DirectConnection)
 
-    def put(self, ref):
+    def put(self, ref, force=False):
         """Main method to add an item to the thread's worker queue.
 
         Because the underlying data structure wil be destroyed by sorting and
@@ -154,9 +189,11 @@ class BaseThread(QtCore.QThread):
             raise TypeError(u'Invalid data type. Must be <type \'weakref\'>')
         try:
             self.worker.interrupt = False
-            if ref in self.worker.data_queue.queue:
-                return
-            self.worker.data_queue.put(ref)
+            if force:
+                self.worker.data_queue.put(ref)
+            else:
+                if ref not in self.worker.data_queue.queue:
+                    self.worker.data_queue.put(ref)
         except Queue.Full:
             pass
 
@@ -176,6 +213,7 @@ class InfoWorker(BaseWorker):
         if ref()[common.FileInfoLoaded]:
             return ref
 
+        # The call should already be thread-safe guarded by a lock
         db = bookmark_db.get_db(
             QtCore.QModelIndex(),
             server=ref()[common.ParentPathRole][0],
@@ -188,11 +226,7 @@ class InfoWorker(BaseWorker):
         # DATABASE --BEGIN--
         with db.transactions():
             # Item description
-            k = ref()[common.SequenceRole]
-            if k:
-                k = k.group(1) + u'[0]' + k.group(3) + u'.' + k.group(4)
-            else:
-                k = ref()[QtCore.Qt.StatusTipRole]
+            k = common.proxy_path(ref())
 
             # Description
             v = db.value(k, u'description')

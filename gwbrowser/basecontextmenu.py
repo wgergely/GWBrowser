@@ -10,7 +10,6 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.settings import AssetSettings
 
 
 def contextmenu(func):
@@ -424,11 +423,13 @@ class BaseContextMenu(QtWidgets.QMenu):
         item_off_icon = ImageCache.get_rsc_pixmap(
             u'spinner_btn', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        enabled = self.parent().generate_thumbnails_enabled()
+        model = self.parent().model().sourceModel()
+
+        enabled = model.generate_thumbnails_enabled()
         menu_set['generate'] = {
             'text': 'Generate thumbnails',
             'icon': item_on_icon if enabled else item_off_icon,
-            'action': lambda: self.parent().set_generate_thumbnails_enabled(not enabled)
+            'action': lambda: model.set_generate_thumbnails_enabled(not enabled)
         }
         return menu_set
 
@@ -478,24 +479,16 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.capture, source_index)}
 
-        # Submenu for picking a thumbnail from our internal thumbnail library
-        @QtCore.Slot(unicode)
-        def add_thumbnail_from_library(path):
-            """When a selection is made, adds the selected thumbnail to the
-            current item."""
-            data = source_index.model().model_data()[source_index.row()]
-            data[common.FileThumbnailLoaded] = False
-            ImageCache.openimageio_thumbnail(
-                path, thumbnail_path, common.THUMBNAIL_IMAGE_SIZE)
-
 
         def show_thumbnail_picker():
-            """Creates and shows the thumbnail picker widget."""
+            @QtCore.Slot(unicode)
+            def add_thumbnail_from_library(path):
+                ImageCache.pick(source_index, source=path)
+
             widget = editors.ThumbnailsWidget(parent=self.parent())
             widget.thumbnailSelected.connect(add_thumbnail_from_library)
-
-            widget.show()
-            widget.setFocus(QtCore.Qt.PopupFocusReason)
+            self.parent().resized.connect(widget.setGeometry)
+            widget.open()
 
         menu_set[u'From library...'] = {
             u'text': u'Add from library...',
@@ -505,13 +498,16 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         menu_set[u'Add from file...'] = {
             u'icon': pick_thumbnail_pixmap,
-            u'action': functools.partial(ImageCache.pick, source_index)}
+            u'action': functools.partial(ImageCache.pick, source_index)
+        }
 
         menu_set[u'separator.'] = {}
         ext = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix().lower()
         valid = ext in [f.lower() for f in common.get_oiio_extensions()]
-        if exists and self.parent().generate_thumbnails_enabled() and valid:
+
+        model = self.parent().model().sourceModel()
+        if exists and model.generate_thumbnails_enabled() and valid:
             menu_set[u'Remove'] = {
                 u'action': lambda: ImageCache.remove(source_index),
                 u'text': u'Update thumbnail',

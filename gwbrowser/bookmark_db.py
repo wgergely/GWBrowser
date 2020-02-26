@@ -14,7 +14,9 @@ import time
 import platform
 import sqlite3
 from sqlite3 import Error
+import threading
 
+mutex = threading.Lock()
 
 SERVER_TABLE_KEYS = (u'server', u'job', u'root', u'user', u'host')
 DATA_TABLE_KEYS = (u'description', u'notes', u'flags',
@@ -37,23 +39,24 @@ def get_db(index, server=None, job=None, root=None):
         BookmarkDB: A BookmarkDB instance that lives in the current thread.
 
     """
-    global _DB_CONNECTIONS
-    thread_id = unicode(QtCore.QThread.currentThread())
+    try:
+        global _DB_CONNECTIONS
+        thread_id = repr(QtCore.QThread.currentThread())
 
-    if not index.isValid():
-        if not all((server, job, root)):
-            raise ValueError(u'Must provide valid server, job, and root')
-        args = (server, job, root)
-    else:
-        args = index.data(common.ParentPathRole)[0:3]
+        if not index.isValid():
+            if not all((server, job, root)):
+                raise ValueError(u'Must provide valid server, job, and root')
+            args = (server, job, root)
+        else:
+            args = index.data(common.ParentPathRole)[0:3]
 
-    k = u'/'.join(args).lower() + thread_id
-    if k not in _DB_CONNECTIONS:
-        try:
+        k = u'/'.join(args).lower() + thread_id
+        if k not in _DB_CONNECTIONS:
             _DB_CONNECTIONS[k] = BookmarkDB(*args)
-        except RuntimeError:
-            return None
-    return _DB_CONNECTIONS[k]
+
+        return _DB_CONNECTIONS[k]
+    except:
+        common.Log.error('Failed to get BookmarkDB')
 
 
 def reset():
@@ -64,6 +67,10 @@ def reset():
 
 
 class BookmarkDB(QtCore.QObject):
+    """Database connector for storing file and asset settings in SQLite
+    database.
+
+    """
     def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
         self._connection = None

@@ -15,13 +15,29 @@ All generated thumbnails and ui resources are cached in ``ImageCache``.
 """
 
 import os
-import sys
 import traceback
 from xml.etree import ElementTree
 from PySide2 import QtWidgets, QtGui, QtCore
 import OpenImageIO
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
+from functools import wraps
+
+
+def verify_index(func):
+    """Decorator to create a menu set."""
+    @wraps(func)
+    def func_wrapper(cls, index, **kwargs):
+        """Wrapper for function."""
+        if not index.isValid():
+            return
+        if not index.data(common.FileInfoLoaded):
+            return
+        if hasattr(index, 'sourceModel'):
+            index = index.model().mapToSource(index)
+
+        return func(cls, index, **kwargs)
+    return func_wrapper
 
 
 class ImageCache(QtCore.QObject):
@@ -126,13 +142,10 @@ class ImageCache(QtCore.QObject):
         return QtGui.QColor()
 
     @classmethod
+    @verify_index
     def capture(cls, index):
         """Uses ``ScreenGrabber`` to save a custom screen-grab."""
-        if not index.isValid():
-            return
-
-        if hasattr(index, 'sourceModel'):
-            index = index.model().mapToSource(index)
+        thumbnail_path = index.data(common.ThumbnailPathRole)
 
         pixmap = ScreenGrabber.capture()
         if not pixmap:
@@ -144,41 +157,34 @@ class ImageCache(QtCore.QObject):
         if image.isNull():
             return
 
-        f = QtCore.QFile(index.data(common.ThumbnailPathRole))
+        f = QtCore.QFile(thumbnail_path)
         if f.exists():
             f.remove()
-        if not image.save(index.data(common.ThumbnailPathRole)):
+        if not image.save(thumbnail_path):
             return
 
         image = cls.get(
-            index.data(common.ThumbnailPathRole),
-            index.data(QtCore.Qt.SizeHintRole).height() - 2,
+            thumbnail_path,
+            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR,
             overwrite=True)
         color = cls.get(
-            index.data(common.ThumbnailPathRole),
+            thumbnail_path,
             u'backgroundcolor',
             overwrite=False)
 
-        data = index.model().modelINTERNAL_IMAGE_DATA()
+        data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
         data[index.row()][common.ThumbnailBackgroundRole] = color
         index.model().updateIndex.emit(index)
 
     @classmethod
+    @verify_index
     def remove(cls, index):
         """Deletes the thumbnail file and the cached entries associated
         with it.
 
         """
-        if not index.isValid():
-            return
-
-        source_index = index
-        if hasattr(index, 'sourceModel'):
-            source_index = index.model().mapToSource(index)
-
-        data = source_index.model().modelINTERNAL_IMAGE_DATA()
-        data = data[source_index.row()]
+        data = index.model().model_data()[index.row()]
         file_ = QtCore.QFile(data[common.ThumbnailPathRole])
 
         if file_.exists():
@@ -196,41 +202,52 @@ class ImageCache(QtCore.QObject):
         data[common.FileThumbnailLoaded] = False
         index.model().updateIndex.emit(index)
 
-        model = source_index.model()
-        if not model.generate_thumbnails:
-            return
-
-        if not hasattr(source_index.model(), u'ThumbnailThread'):
-            return
-        if not source_index.model().ThumbnailThread:
-            return
-        source_index.model().ThumbnailThread.Worker.add_to_queue([index, ])
-
     @classmethod
-    def pick(cls, index):
-        """Opens a file-dialog to select an OpenImageIO compliant file# to use as a thumbnail."""
-        if hasattr(index.model(), 'sourceModel'):
-            index = index.model().mapToSource(index)
+    @verify_index
+    def pick(cls, index, source=None):
+        """Opens a file-dialog to select an OpenImageIO compliant file.
 
-        dialog = QtWidgets.QFileDialog()
-        common.set_custom_stylesheet(dialog)
-        dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        dialog.setViewMode(QtWidgets.QFileDialog.List)
-        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
-        dialog.setNameFilter(common.get_oiio_namefilters(as_array=False))
-        dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-        dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
-        dialog.setDirectory(QtCore.QFileInfo(
-            index.data(QtCore.Qt.StatusTipRole)).filePath())
+        """
+        if not source:
+            dialog = QtWidgets.QFileDialog()
+            common.set_custom_stylesheet(dialog)
+            dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+            dialog.setViewMode(QtWidgets.QFileDialog.List)
+            dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
+            dialog.setNameFilter(common.get_oiio_namefilters(as_array=False))
+            dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
+            dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
+            dialog.setDirectory(QtCore.QFileInfo(
+                index.data(QtCore.Qt.StatusTipRole)).filePath())
 
-        if not dialog.exec_():
-            return
-        if not dialog.selectedFiles():
-            return
+            if not dialog.exec_():
+                return
+            if not dialog.selectedFiles():
+                return
+            source = dialog.selectedFiles()[0]
 
-        # Saving the thumbnail
+        thumbnail_path = index.data(common.ThumbnailPathRole)
+
         cls.remove(index)
-        process_thumbnail(index, source=dialog.selectedFiles()[0])
+        cls.openimageio_thumbnail(
+            source,
+            thumbnail_path,
+            common.THUMBNAIL_IMAGE_SIZE,
+            nthreads=4
+        )
+        image = cls.get(
+            thumbnail_path,
+            index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR,
+            overwrite=True)
+        color = cls.get(
+            thumbnail_path,
+            u'backgroundcolor',
+            overwrite=False)
+
+        data = index.model().model_data()
+        data[index.row()][common.ThumbnailRole] = image
+        data[index.row()][common.ThumbnailBackgroundRole] = color
+        index.model().updateIndex.emit(index)
 
     @classmethod
     def get_rsc_pixmap(cls, name, color, size, opacity=1.0, get_path=False):
@@ -310,6 +327,7 @@ class ImageCache(QtCore.QObject):
 
     @classmethod
     def openimageio_thumbnail(cls, source, dest, dest_size, nthreads=4):
+        """Generates a thumbnail using OpenImageIO."""
         # First let's check if the file is readable by OpenImageIO
         i = OpenImageIO.ImageInput.open(source)
         if not i:  # the file is not understood by OpenImageIO

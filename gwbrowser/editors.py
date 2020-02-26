@@ -9,7 +9,6 @@ import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.bookmark_db as bookmark_db
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
-from gwbrowser.settings import AssetSettings
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -71,20 +70,23 @@ class ThumbnailViewer(QtWidgets.QLabel):
             alembicwidget.show()
             return
 
-        db = bookmark_db.get_db(index)
-        thumbnail_path = db.thumbnail_path(index.data(QtCore.Qt.StatusTipRole))
-        file_info = QtCore.QFileInfo(thumbnail_path)
-
+        if not index.data(common.FileInfoLoaded):
+            self.clear()
+            return
         if not index.isValid():
             self.clear()
             return
+
+        thumbnail_path = index.data(common.ThumbnailPathRole)
+        file_info = QtCore.QFileInfo(thumbnail_path)
         if not file_info.exists():
             self.clear()
             pixmap = ImageCache.get_rsc_pixmap(u'placeholder', common.TEXT, common.THUMBNAIL_IMAGE_SIZE)
             self.setPixmap(pixmap)
             return
 
-        pixmap = ImageCache.get(thumbnail_path, common.THUMBNAIL_IMAGE_SIZE)
+        # pixmap = ImageCache.get(thumbnail_path, common.THUMBNAIL_IMAGE_SIZE)
+        pixmap = QtGui.QPixmap(thumbnail_path)
         if pixmap.isNull():
             self.clear()
             pixmap = ImageCache.get_rsc_pixmap(u'placeholder', common.TEXT, common.THUMBNAIL_IMAGE_SIZE)
@@ -249,7 +251,7 @@ QLineEdit {{
             self.parent().parent().resized.connect(self.update_editor)
 
     def action(self):
-        """Main actions to run when the return key is pressed."""
+        """Save the entered text to the BookmarkDB."""
         index = self.parent().selectionModel().currentIndex()
         text = u'{}'.format(index.data(common.DescriptionRole))
         if text.lower() == self.text().lower():
@@ -260,14 +262,11 @@ QLineEdit {{
             self.hide()
             return
 
-        settings = AssetSettings(index)
-        settings.setValue(u'config/description', self.text())
-
+        db = bookmark_db.get_db(index)
+        db.setValue(common.proxy_path(index), u'description', self.text())
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
-
         data[common.DescriptionRole] = self.text()
-
         self.parent().update(source_index)
         self.hide()
 
@@ -569,38 +568,37 @@ class ThumbnailLabel(QtWidgets.QLabel):
         painter.end()
 
 
-class ThumbnailsWidget(QtWidgets.QScrollArea):
+class ThumbnailsWidget(QtWidgets.QDialog):
     """The widget used to let the end-user pick a new thumbnail."""
     thumbnailSelected = QtCore.Signal(unicode)
+    thumbnail_size = 64.0
 
     def __init__(self, parent=None):
         super(ThumbnailsWidget, self).__init__(parent=parent)
-        self.thumbnail_size = 128
-
         self.columns = 5
-        rows = 4
-
+        common.set_custom_stylesheet(self)
         self._createUI()
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
-        self.setFixedHeight(
-            (self.thumbnail_size + common.INDICATOR_WIDTH) * rows + (common.INDICATOR_WIDTH * 2))
-        self.setFixedWidth(
-            (self.thumbnail_size + common.INDICATOR_WIDTH) * self.columns + (common.INDICATOR_WIDTH * 2))
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(QtCore.Qt.Widget)
+        self.setWindowTitle(u'Select thumbnail')
 
     def _createUI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""
-        common.set_custom_stylesheet(self)
-        self.setWindowFlags(QtCore.Qt.Window)
-        self.setWindowTitle(u'Select thumbnail')
         QtWidgets.QVBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
+        o = 16
+        self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
 
+
         widget = QtWidgets.QWidget()
+        widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        widget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
         QtWidgets.QGridLayout(widget)
-        widget.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
+        widget.layout().setAlignment(QtCore.Qt.AlignCenter)
         widget.layout().setContentsMargins(
             common.INDICATOR_WIDTH,
             common.INDICATOR_WIDTH,
@@ -608,8 +606,12 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
             common.INDICATOR_WIDTH)
         widget.layout().setSpacing(common.INDICATOR_WIDTH)
 
-        self.setWidgetResizable(True)
-        self.setWidget(widget)
+        scrollarea = QtWidgets.QScrollArea(parent=self)
+        scrollarea.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        scrollarea.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        scrollarea.setWidgetResizable(True)
+        scrollarea.setWidget(widget)
+        self.layout().addWidget(scrollarea, 1)
 
         row = 0
         path = u'{}/../rsc'.format(__file__)
@@ -617,15 +619,21 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
 
         idx = 0
         for entry in gwscandir.scandir(path):
-            if not entry.name.startswith('thumb_'):
+            if not entry.name.startswith(u'thumb_'):
                 continue
 
+            name = entry.name.replace(u'.png', u'')
             pixmap = ImageCache.get_rsc_pixmap(
-                entry.name.replace(u'.png', u''), None, self.thumbnail_size)
+                name, None, self.thumbnail_size)
             if pixmap.isNull():
                 continue
+
             label = ThumbnailLabel(
-                entry.path, self.thumbnail_size, parent=self)
+                entry.path.replace(u'\\', u'/'),
+                self.thumbnail_size,
+                parent=self
+            )
+
             label.setPixmap(pixmap)
 
             column = idx % self.columns
@@ -637,30 +645,36 @@ class ThumbnailsWidget(QtWidgets.QScrollArea):
 
             idx += 1
 
-    def _connectSignals(self):
-        pass
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setBrush(common.SECONDARY_BACKGROUND)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        o = 8
+        painter.drawRoundedRect(
+            self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o)),
+            o, o
+        )
+        painter.end()
 
-    def focusOutEvent(self, event):
-        """Closes the editor on focus loss."""
-        if event.lostFocus():
-            self.hide()
+    # def focusOutEvent(self, event):
+    #     """Closes the editor on focus loss."""
+    #     if event.lostFocus():
+    #         self.done(0)
 
     def keyPressEvent(self, event):
         """Closes the widget on any key-press."""
-        self.close()
+        self.done(0)
 
     def showEvent(self, event):
-        if self.parent():
-            center = self.parent().mapToGlobal(self.parent().geometry().center())
-            self.move(QtCore.QPoint(
-                center.x() - (self.rect().width() / 2),
-                center.y() - (self.rect().height() / 2),
-            ))
-            common.move_widget_to_available_geo(self)
-
+        p = self.parent().viewport()
+        self.setGeometry(p.geometry())
+        self.move(p.geometry().topLeft())
+        self.setFocus(QtCore.Qt.PopupFocusReason)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    widget = FilterEditor('')
-    widget.show()
+    widget = ThumbnailsWidget()
+    widget.open()
     app.exec_()

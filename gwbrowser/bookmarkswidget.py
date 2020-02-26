@@ -18,7 +18,6 @@ from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 import gwbrowser.settings as settings_
-from gwbrowser.settings import AssetSettings
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
 

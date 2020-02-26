@@ -1,29 +1,21 @@
 # -*- coding: utf-8 -*-
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
-import time
-import uuid
 import re
 from functools import partial
-import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.baselistwidget import ThreadedBaseWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
-from gwbrowser.baselistwidget import validate_index
-import gwbrowser.delegate as delegate
 from gwbrowser.delegate import AssetsWidgetDelegate
 
-from gwbrowser.settings import AssetSettings
 import gwbrowser.settings as settings_
 
-import gwbrowser.threads as threads
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -33,22 +25,19 @@ class AssetsWidgetContextMenu(BaseContextMenu):
         super(AssetsWidgetContextMenu, self).__init__(index, parent=parent)
         if index.isValid():
             self.add_mode_toggles_menu()
-
         self.add_separator()
-
+        self.add_row_size_menu()
+        self.add_separator()
+        self.add_set_generate_thumbnails_menu()
+        self.add_separator()
         if index.isValid():
-            self.add_reveal_item_menu()
             self.add_copy_menu()
-
+            self.add_reveal_item_menu()
         self.add_separator()
-
         self.add_sort_menu()
-
         self.add_separator()
         self.add_display_toggles_menu()
-
         self.add_separator()
-
         self.add_refresh_menu()
 
 
@@ -70,6 +59,8 @@ class AssetModel(BaseModel):
            model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
 
     """
+    ROW_SIZE = QtCore.QSize(0, common.ASSET_ROW_HEIGHT)
+
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
 
@@ -97,11 +88,10 @@ class AssetModel(BaseModel):
 
         dkey = self.data_key()
         dtype = self.data_type()
-        rowsize = QtCore.QSize(0, common.ASSET_ROW_HEIGHT)
 
         default_thumbnail_image = ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
-            rowsize.height() - common.ROW_SEPARATOR)
+            self.ROW_SIZE.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND
 
         self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
@@ -149,11 +139,11 @@ class AssetModel(BaseModel):
 
             idx = len(self.INTERNAL_MODEL_DATA[dkey][dtype])
             name = re.sub(ur'[_]{1,}', u' ', filename).strip(u'_')
-            self.INTERNAL_MODEL_DATA[dkey][dtype][idx] = {
+            self.INTERNAL_MODEL_DATA[dkey][dtype][idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: name,
                 QtCore.Qt.EditRole: filename,
                 QtCore.Qt.StatusTipRole: filepath,
-                QtCore.Qt.SizeHintRole: rowsize,
+                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
                 common.EntryRole: [entry, ],
                 common.FlagsRole: flags,
@@ -181,32 +171,7 @@ class AssetModel(BaseModel):
                 common.SortBySize: 0,
                 #
                 common.IdRole: idx
-            }
-
-    def __init_threads__(self):
-        """Starts and connects the threads."""
-        @QtCore.Slot(QtCore.QThread)
-        def thread_started(thread):
-            """Signals the model an item has been updated."""
-            thread.worker.dataReady.connect(self.updateRow, QtCore.Qt.QueuedConnection)
-
-        worker = threads.InfoWorker()
-        thread = threads.BaseThread(worker, interval=40)
-        self.threads[common.InfoThread].append(thread)
-        thread.started.connect(partial(thread_started, thread))
-        thread.start()
-
-        worker = threads.BackgroundInfoWorker()
-        thread = threads.BaseThread(worker, interval=260)
-        self.threads[common.BackgroundInfoThread].append(thread)
-        thread.started.connect(partial(thread_started, thread))
-        thread.start()
-
-        worker = threads.ThumbnailWorker()
-        thread = threads.BaseThread(worker, interval=40)
-        self.threads[common.ThumbnailThread].append(thread)
-        thread.started.connect(partial(thread_started, thread))
-        thread.start()
+            })
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -282,15 +247,20 @@ class AssetsWidget(ThreadedBaseWidget):
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
 
+    def increase_row_size(self):
+        pass
+
+    def decrease_row_size(self):
+        pass
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    from gwbrowser.common import LogView
-    l = LogView()
+    common.DEBUG_ON = True
+    l = common.LogView()
     l.show()
     widget = AssetsWidget()
-    widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')
+    widget.model().sourceModel().parent_path = (u'//sloth/jobs', u'vodd_9069', u'films/prologue/shots',)
     widget.model().sourceModel().modelDataResetRequested.emit()
-    widget.resize(460,640)
     widget.show()
     app.exec_()

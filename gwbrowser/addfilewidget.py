@@ -48,8 +48,6 @@ from gwbrowser.baselistwidget import BaseInlineIconWidget
 from gwbrowser.capture import ScreenGrabber
 from gwbrowser.imagecache import ImageCache
 
-from gwbrowser.settings import AssetSettings
-
 
 POPDOWN_HEIGHT = 480.0
 SCENE_FILE_MODES = {
@@ -1810,8 +1808,7 @@ class AddFileWidget(QtWidgets.QDialog):
         t.toggled.connect(self.name_version_widget.setHidden)
         t.toggled.connect(self.name_prefix_widget.setHidden)
         t.toggled.connect(self.name_user_widget.setHidden)
-        t.toggled.connect(
-            functools.partial(self.name_custom_widget.setHidden, not x))
+        t.toggled.connect(lambda x: self.name_custom_widget.setHidden(not x))
         t.toggled.connect(self.name_custom_widget.shown)
 
     def showEvent(self, event):
