@@ -436,7 +436,13 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu item resposible for general thumbnail operations."""
-        import gwbrowser.editors as editors  # local import to aviod circular imports
+        index = self.index
+        if not index.isValid() or not index.data(common.FileInfoLoaded):
+            menu_set['off'] = {
+                'text': 'File not loaded',
+                'disabled': True
+            }
+            return menu_set
 
         capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
@@ -450,13 +456,11 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'refresh', common.ADD, common.INLINE_ICON_SIZE)
         show_thumbnail = ImageCache.get_rsc_pixmap(
             u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        addpixmap = ImageCache.get_rsc_pixmap(
-            'add', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
-        source_index = self.index.model().mapToSource(self.index)
-        db = bookmark_db.get_db(source_index)
-        thumbnail_path = db.thumbnail_path(
-            source_index.data(QtCore.Qt.StatusTipRole))
+        import gwbrowser.editors as editors
+
+        source_index = index.model().mapToSource(index)
+        thumbnail_path = index.data(common.ThumbnailPathRole)
         thumbnail_info = QtCore.QFileInfo(thumbnail_path)
         exists = thumbnail_info.exists()
 
@@ -507,7 +511,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         ext = QtCore.QFileInfo(source_index.data(
             QtCore.Qt.StatusTipRole)).suffix().lower()
         valid = ext in [f.lower() for f in common.get_oiio_extensions()]
-        if exists and source_index.model().generate_thumbnails and valid:
+        if exists and self.parent().generate_thumbnails_enabled() and valid:
             menu_set[u'Remove'] = {
                 u'action': lambda: ImageCache.remove(source_index),
                 u'text': u'Update thumbnail',

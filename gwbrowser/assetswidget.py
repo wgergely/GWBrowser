@@ -4,6 +4,7 @@
 import time
 import uuid
 import re
+from functools import partial
 import sys
 from PySide2 import QtCore, QtGui, QtWidgets
 
@@ -22,12 +23,7 @@ from gwbrowser.delegate import AssetsWidgetDelegate
 from gwbrowser.settings import AssetSettings
 import gwbrowser.settings as settings_
 
-from gwbrowser.fileswidget import InfoWorker
-from gwbrowser.fileswidget import SecondaryFileInfoWorker
-from gwbrowser.fileswidget import FileThumbnailWorker
-from gwbrowser.threads import BaseThread
-from gwbrowser.threads import BaseWorker
-from gwbrowser.threads import Unique
+import gwbrowser.threads as threads
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -187,6 +183,31 @@ class AssetModel(BaseModel):
                 common.IdRole: idx
             }
 
+    def __init_threads__(self):
+        """Starts and connects the threads."""
+        @QtCore.Slot(QtCore.QThread)
+        def thread_started(thread):
+            """Signals the model an item has been updated."""
+            thread.worker.dataReady.connect(self.updateRow, QtCore.Qt.QueuedConnection)
+
+        worker = threads.InfoWorker()
+        thread = threads.BaseThread(worker, interval=40)
+        self.threads[common.InfoThread].append(thread)
+        thread.started.connect(partial(thread_started, thread))
+        thread.start()
+
+        worker = threads.BackgroundInfoWorker()
+        thread = threads.BaseThread(worker, interval=260)
+        self.threads[common.BackgroundInfoThread].append(thread)
+        thread.started.connect(partial(thread_started, thread))
+        thread.start()
+
+        worker = threads.ThumbnailWorker()
+        thread = threads.BaseThread(worker, interval=40)
+        self.threads[common.ThumbnailThread].append(thread)
+        thread.started.connect(partial(thread_started, thread))
+        thread.start()
+
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
         value for compatibility other functions.
@@ -204,9 +225,6 @@ class AssetsWidget(ThreadedBaseWidget):
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
-
-        # I'm not sure why but the proxy is not updated properly after refresh
-        # self.model().sourceModel().dataSorted.connect(self.model().invalidate)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons. There's no need to
@@ -267,7 +285,7 @@ class AssetsWidget(ThreadedBaseWidget):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    from gwbrowser._thread_retake import LogView
+    from gwbrowser.common import LogView
     l = LogView()
     l.show()
     widget = AssetsWidget()

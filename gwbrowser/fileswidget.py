@@ -38,9 +38,6 @@ from gwbrowser.delegate import FilesWidgetDelegate
 from gwbrowser.imagecache import ImageCache
 
 
-DEBUG = True
-
-
 
 class FilesWidgetContextMenu(BaseContextMenu):
     """Context menu associated with the `FilesWidget`."""
@@ -117,7 +114,7 @@ class FilesModel(BaseModel):
             common.misc_formats
         )
 
-    def reset_thumbnails(self, force=True):
+    def reset_thumbnails(self):
         """Resets all thumbnail-data to its initial state.
         This in turn allows the `FileThumbnailWorker` to reload all the thumbnails.
 
@@ -380,7 +377,6 @@ class FilesModel(BaseModel):
                 # A sequence with only one element is not a sequence
                 _seq = v[common.SequenceRole]
                 filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
-                k = _seq.group(1) + u'[0]' + _seq.group(3) + u'.' + _seq.group(4)
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename
@@ -503,12 +499,10 @@ class FilesModel(BaseModel):
         except:
             Log.error('Could not set data key')
         finally:
-            if val is None:
-                return
             if not self.model_data():
                 self.__initdata__()
-                return
-            self.sort_data()
+            else:
+                self.sort_data()
             Log.success('set_data_key()')
 
     def canDropMimeData(self, data, action, row, column):
@@ -750,11 +744,13 @@ class FilesWidget(ThreadedBaseWidget):
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
         if not clickable_rectangles:
-            return super(FilesWidget, self).mouseDoubleClickEvent(event)
+            super(FilesWidget, self).mouseDoubleClickEvent(event)
+            return
 
         root_dir = []
         if clickable_rectangles[0][0].contains(cursor_position):
-            return self.description_editor_widget.show()
+            self.description_editor_widget.show()
+            return
 
         for item in clickable_rectangles:
             rect, text = item
@@ -767,9 +763,11 @@ class FilesWidget(ThreadedBaseWidget):
                 path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip(u'/')
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = path + u'/' + root_path
-                return common.reveal(path)
+                common.reveal(path)
+                return
 
-        return super(FilesWidget, self).mouseDoubleClickEvent(event)
+        super(FilesWidget, self).mouseDoubleClickEvent(event)
+        return
 
     def startDrag(self, supported_actions):
         """Creating a custom drag object here for displaying setting hotspots."""
@@ -869,7 +867,6 @@ class FilesWidget(ThreadedBaseWidget):
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
-        no_modifier = modifiers == QtCore.Qt.NoModifier
         alt_modifier = modifiers & QtCore.Qt.AltModifier
         shift_modifier = modifiers & QtCore.Qt.ShiftModifier
         control_modifier = modifiers & QtCore.Qt.ControlModifier
