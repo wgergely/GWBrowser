@@ -33,7 +33,7 @@ def verify_index(func):
             return
         if not index.data(common.FileInfoLoaded):
             return
-        if hasattr(index, 'sourceModel'):
+        if hasattr(index.model(), 'sourceModel'):
             index = index.model().mapToSource(index)
 
         return func(cls, index, **kwargs)
@@ -160,17 +160,26 @@ class ImageCache(QtCore.QObject):
         f = QtCore.QFile(thumbnail_path)
         if f.exists():
             f.remove()
+
+        # Check if the folder is indeed writable
+        dirpath = QtCore.QFileInfo(thumbnail_path).path()
+        if not QtCore.QFileInfo(dirpath).isWritable():
+            common.Log.error('The output path is not writable.')
+            return
+
         if not image.save(thumbnail_path):
             return
 
         image = cls.get(
             thumbnail_path,
             index.data(QtCore.Qt.SizeHintRole).height() - common.ROW_SEPARATOR,
-            overwrite=True)
+            overwrite=True
+        )
         color = cls.get(
             thumbnail_path,
             u'backgroundcolor',
-            overwrite=False)
+            overwrite=False
+        )
 
         data = index.model().model_data()
         data[index.row()][common.ThumbnailRole] = image
@@ -227,8 +236,12 @@ class ImageCache(QtCore.QObject):
             source = dialog.selectedFiles()[0]
 
         thumbnail_path = index.data(common.ThumbnailPathRole)
-
         cls.remove(index)
+
+        if not QtCore.QFileInfo(QtCore.QFileInfo(thumbnail_path).path()).isWritable():
+            common.Log.error('Destination path is not writable.')
+            return
+
         cls.openimageio_thumbnail(
             source,
             thumbnail_path,
@@ -447,6 +460,10 @@ class ImageCache(QtCore.QObject):
         if not i:  # the file is not understood by OpenImageIO
             return False
         i.close()
+
+        if not QtCore.QFileInfo(QtCore.QFileInfo(dest).path()).isWritable():
+            common.Log.error(u'Destination path is not writable')
+            return
 
         success = _b.write(dest, dtype=OpenImageIO.UINT8)
         if not success:

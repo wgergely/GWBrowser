@@ -12,7 +12,6 @@ each users.
 
 """
 import re
-import sys
 import zipfile
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -531,25 +530,25 @@ class ServerEditor(QtWidgets.QWidget):
         self._rows = []
         self.add_server_button = None
 
-        effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(effect)
-
-        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0)
-        self.fade_in.setEndValue(1)
-        self.fade_in.setDuration(500)
-
-        self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_out.setStartValue(1)
-        self.fade_out.setEndValue(0)
-        self.fade_out.setDuration(200)
-        self.fade_out.finished.connect(self.hide)
+        # effect = QtWidgets.QGraphicsOpacityEffect(self)
+        # self.setGraphicsEffect(effect)
 
         self.createUI()
         self.add_rows()
 
-    def showEvent(self, event):
-        self.fade_in.start()
+        # self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
+        # self.fade_in.setStartValue(0)
+        # self.fade_in.setEndValue(1)
+        # self.fade_in.setDuration(500)
+        #
+        # self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
+        # self.fade_out.setStartValue(1)
+        # self.fade_out.setEndValue(0)
+        # self.fade_out.setDuration(200)
+        # self.fade_out.finished.connect(self.hide)
+
+    # def showEvent(self, event):
+    #     self.fade_in.start()
 
     def createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -774,7 +773,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                     self.add_template_button.clicked.emit()
                 return
 
-            self.server_editor.fade_out.start()
+            self.server_editor.hide()
             self.init_server_combobox()
 
         @QtCore.Slot()
@@ -809,7 +808,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                     self.edit_servers_button.clicked.emit()
                 return
 
-            self.templates_widget.fade_out.start()
+            self.templates_widget.hide()
             self.init_job_combobox(self.server_combobox.currentIndex())
 
         @QtCore.Slot()
@@ -1369,35 +1368,16 @@ class Bookmarks(QtWidgets.QScrollArea):
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum,
         )
-        effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(effect)
-
-        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0)
-        self.fade_in.setEndValue(1)
-        self.fade_in.setDuration(300)
-
-        self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_out.setStartValue(1)
-        self.fade_out.setEndValue(0)
-        self.fade_out.setDuration(200)
-        self.fade_out.finished.connect(self.hide)
 
         self.setWindowTitle(u'Manage Bookmarks')
-        self.widget().hide_button.clicked.connect(self.fade_out.start)
+        self.widget().hide_button.clicked.connect(self.hide)
 
     def showEvent(self, event):
-        self.fade_in.start()
         self.setFocus(QtCore.Qt.PopupFocusReason)
 
-    def hideEvent(self, event):
-        self.fade_out.start()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = Bookmarks()
     widget.show()
-
-    # for entry in _entry_iterator(ur'C:/temp'):
-    #     print entry
     app.exec_()

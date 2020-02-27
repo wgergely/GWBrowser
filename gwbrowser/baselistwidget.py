@@ -1096,7 +1096,7 @@ class BaseListWidget(QtWidgets.QListView):
                 favourites.append(k)
             else:
                 if k.lower() in sfavourites:
-                    favourites.remove(k)
+                    favourites.remove(k.lower())
 
             v = sorted(list(set(favourites)))
             settings_.local_settings.setValue(u'favourites', v)

@@ -8,8 +8,6 @@ visual indicators.
 ``BookmarksWidgetDelegate``, ``AssetsWidgetDelegate``, ``FilesWidgetDelegate``
 
 """
-
-
 import re
 from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore

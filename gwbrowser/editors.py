@@ -568,7 +568,7 @@ class ThumbnailLabel(QtWidgets.QLabel):
         painter.end()
 
 
-class ThumbnailsWidget(QtWidgets.QDialog):
+class ThumbnailsWidget(QtWidgets.QWidget):
     """The widget used to let the end-user pick a new thumbnail."""
     thumbnailSelected = QtCore.Signal(unicode)
     thumbnail_size = 64.0
@@ -657,24 +657,20 @@ class ThumbnailsWidget(QtWidgets.QDialog):
             o, o
         )
         painter.end()
-
-    # def focusOutEvent(self, event):
-    #     """Closes the editor on focus loss."""
-    #     if event.lostFocus():
-    #         self.done(0)
-
+        
     def keyPressEvent(self, event):
         """Closes the widget on any key-press."""
-        self.done(0)
+        self.close()
 
     def showEvent(self, event):
-        p = self.parent().viewport()
-        self.setGeometry(p.geometry())
-        self.move(p.geometry().topLeft())
+        if self.parent():
+            p = self.parent().viewport()
+            self.setGeometry(p.geometry())
+            self.move(p.geometry().topLeft())
         self.setFocus(QtCore.Qt.PopupFocusReason)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     widget = ThumbnailsWidget()
-    widget.open()
+    widget.show()
     app.exec_()

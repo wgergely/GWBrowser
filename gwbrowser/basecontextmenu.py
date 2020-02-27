@@ -303,24 +303,27 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_mode_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = ImageCache.get_rsc_pixmap(
-            u'favourite', common.ADD, common.INLINE_ICON_SIZE)
+            u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         favourite_off_icon = ImageCache.get_rsc_pixmap(
             u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         archived_on_icon = ImageCache.get_rsc_pixmap(
-            u'archived', common.ADD, common.INLINE_ICON_SIZE)
+            u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         archived_off_icon = ImageCache.get_rsc_pixmap(
             u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         favourite = self.index.flags() & common.MarkedAsFavourite
         archived = self.index.flags() & common.MarkedAsArchived
 
+        pixmap = archived_off_icon if archived else archived_on_icon
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
-            text = u'Remove bookmark'
+            pixmap = ImageCache.get_rsc_pixmap(
+                u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+            text = u'Remove'
         else:
-            text = u'Enable' if archived else u'Disable'
+            text = u'Restore' if archived else u'Archive'
         menu_set[u'archived'] = {
             u'text': text,
-            u'icon': archived_off_icon if archived else archived_on_icon,
+            u'icon': pixmap,
             u'checkable': False,
             u'action': functools.partial(
                 self.parent().toggle_item_flag,
@@ -465,8 +468,14 @@ class BaseContextMenu(QtWidgets.QMenu):
         thumbnail_info = QtCore.QFileInfo(thumbnail_path)
         exists = thumbnail_info.exists()
 
+        menu_set[u'header'] = {
+            u'text': 'Thumbnails',
+            u'disabled': True,
+        }
+        menu_set[u'separator'] = {}
+
         if exists:
-            menu_set[u'Preview'] = {
+            menu_set[u'Show'] = {
                 u'icon': show_thumbnail,
                 u'action': functools.partial(
                     editors.ThumbnailViewer,
@@ -475,28 +484,34 @@ class BaseContextMenu(QtWidgets.QMenu):
             }
             menu_set[u'separator'] = {}
 
-        menu_set[u'Capture screen'] = {
+        menu_set[u'capture'] = {
+            u'text': 'Capture',
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.capture, source_index)}
 
 
         def show_thumbnail_picker():
+            widget = editors.ThumbnailsWidget(parent=self.parent())
+
             @QtCore.Slot(unicode)
             def add_thumbnail_from_library(path):
                 ImageCache.pick(source_index, source=path)
+                widget.thumbnailSelected.disconnect()
+                widget.close()
+                widget.deleteLater()
 
-            widget = editors.ThumbnailsWidget(parent=self.parent())
             widget.thumbnailSelected.connect(add_thumbnail_from_library)
             self.parent().resized.connect(widget.setGeometry)
-            widget.open()
+            widget.show()
 
-        menu_set[u'From library...'] = {
-            u'text': u'Add from library...',
+        menu_set[u'library'] = {
+            u'text': u'Pick from library...',
             u'icon': pick_thumbnail_pixmap,
             u'action': show_thumbnail_picker
         }
 
-        menu_set[u'Add from file...'] = {
+        menu_set[u'file'] = {
+            u'text': u'Pick',
             u'icon': pick_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.pick, source_index)
         }
@@ -508,17 +523,21 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         model = self.parent().model().sourceModel()
         if exists and model.generate_thumbnails_enabled() and valid:
-            menu_set[u'Remove'] = {
+            menu_set[u'remove'] = {
+                u'text': u'Delete',
                 u'action': lambda: ImageCache.remove(source_index),
                 u'text': u'Update thumbnail',
                 u'icon': refresh_thumbnail_pixmap
             }
         elif exists:
-            menu_set[u'Remove'] = {
+            menu_set[u'remove'] = {
+                u'text': u'Remove',
                 u'action': lambda: ImageCache.remove(source_index),
                 u'icon': remove_thumbnail_pixmap
             }
-        menu_set[u'Reveal thumbnail cache'] = {
+        menu_set[u'separator_'] = {}
+        menu_set[u'reveal'] = {
+            u'text': u'Show cache...',
             u'action': functools.partial(
                 common.reveal,
                 thumbnail_path,

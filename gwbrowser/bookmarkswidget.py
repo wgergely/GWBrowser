@@ -431,7 +431,7 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def toggle_item_flag(self, index, flag, state=None):
         if flag == common.MarkedAsArchived:
-            self.manage_bookmarks.remove_saved_bookmark(
+            self.manage_bookmarks.widget().remove_saved_bookmark(
                 *index.data(common.ParentPathRole))
 
             settings_.local_settings.verify_paths()
