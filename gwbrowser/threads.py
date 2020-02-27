@@ -8,7 +8,7 @@ Each thread is assigned a single Worker - usually responsible for taking
 *QModelIndexes* from the thread's python Queue.
 
 """
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide2 import QtCore, QtGui
 import time
 import base64
 import json
@@ -17,7 +17,6 @@ import functools
 import weakref
 import traceback
 import collections
-import threading
 
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.bookmark_db as bookmark_db
@@ -487,3 +486,25 @@ class ThumbnailWorker(BaseWorker):
             ref()[common.FileThumbnailLoaded] = True
             cache.invalidate(source, force=True)
             cache.invalidate(dest, force=True)
+
+
+
+class DataKeyWorker(BaseWorker):
+    @process
+    @QtCore.Slot()
+    def process_data(self, ref):
+        """"""
+        if not ref() or self.interrupt:
+            return None
+        count = 0
+        for _ in common.walk(ref()[QtCore.Qt.StatusTipRole]):
+            count += 1
+            if count > 999:
+                break
+
+        # The underlying data can change whilst walking...
+        if not ref():
+            return None
+        # ..hence it is better to wrap this in a try block
+        ref()[common.TodoCountRole] = count
+        return ref

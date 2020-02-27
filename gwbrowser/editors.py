@@ -247,8 +247,8 @@ QLineEdit {{
         """Connects signals."""
         self.editingFinished.connect(self.action)
         self.parent().verticalScrollBar().valueChanged.connect(self.hide)
-        if self.parent().parent():
-            self.parent().parent().resized.connect(self.update_editor)
+        if self.parent():
+            self.parent().resized.connect(self.update_editor)
 
     def action(self):
         """Save the entered text to the BookmarkDB."""
@@ -404,11 +404,11 @@ class FilterEditor(QtWidgets.QWidget):
         super(FilterEditor, self).__init__(parent=parent)
         self.editor_widget = None
         self.context_menu_open = False
-
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.Maximum
-        )
+        #
+        # self.setSizePolicy(
+        #     QtWidgets.QSizePolicy.MinimumExpanding,
+        #     QtWidgets.QSizePolicy.Maximum
+        # )
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self._createUI()

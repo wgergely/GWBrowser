@@ -7,6 +7,7 @@ allow dropping files and urls on the view.
 import json
 import base64
 import uuid
+import time
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
@@ -90,11 +91,14 @@ class BookmarksModel(BaseModel):
 
     """
 
+    ROW_SIZE = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
+
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
+
         self.parent_path = ('.',)
 
-    @initdata
+    # @initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -116,22 +120,18 @@ class BookmarksModel(BaseModel):
                 QtCore.Qt.ItemIsSelectable)
 
         dkey = self.data_key()
-        self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
-            common.FileItem: common.DataDict(),
-            common.SequenceItem: common.DataDict()
-        })
 
-        rowsize = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
+
         active_paths = settings_.local_settings.verify_paths()
-
         favourites = settings_.local_settings.favourites()
-        sfavourites = set(favourites)
-
         bookmarks = settings_.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         for k, v in bookmarks.iteritems():
+            if not all(v.values()):
+                continue
+
             file_info = QtCore.QFileInfo(k)
             exists = file_info.exists()
 
@@ -159,29 +159,29 @@ class BookmarksModel(BaseModel):
             if all((
                 v[u'server'] == active_paths[u'server'],
                 v[u'job'] == active_paths[u'job'],
-                v[u'bookmark_folder'] == active_paths[u'root']
+                v[u'root'] == active_paths[u'root']
             )):
                 flags = flags | common.MarkedAsActive
             # Favourite Flag
             if filepath in favourites:
                 flags = flags | common.MarkedAsFavourite
 
-            data = self.model_data()
-            idx = len(data)
+            text = u'{}  |  {}'.format(
+                v[u'job'], v[u'root'])
 
-            text = u'{}  |  {} ({})'.format(
-                v[u'job'], v[u'bookmark_folder'], count)
+            data = self.INTERNAL_MODEL_DATA[dkey][common.FileItem]
+            idx = len(data)
 
             data[idx] = {
                 QtCore.Qt.DisplayRole: text,
                 QtCore.Qt.EditRole: text,
                 QtCore.Qt.StatusTipRole: filepath,
                 QtCore.Qt.ToolTipRole: filepath,
-                QtCore.Qt.SizeHintRole: rowsize,
+                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
                 common.EntryRole: [],
                 common.FlagsRole: flags,
-                common.ParentPathRole: (v[u'server'], v[u'job'], v[u'bookmark_folder']),
+                common.ParentPathRole: (v[u'server'], v[u'job'], v[u'root']),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: count,
@@ -208,8 +208,26 @@ class BookmarksModel(BaseModel):
                 common.IdRole: idx
             }
 
-            index = self.index(idx, 0)
-            db = bookmark_db.get_db(index)
+
+            db = None
+            n = 0
+            while db is None:
+                db = bookmark_db.get_db(
+                    QtCore.QModelIndex(),
+                    server=v['server'],
+                    job=v['job'],
+                    root=v['root'],
+                )
+                if db is None:
+                    n += 1
+                    time.sleep(0.1)
+                if n > 10:
+                    break
+
+            if db is None:
+                common.Log.error('Error getting the database')
+                continue
+
             with db.transactions():
                 # Item flags
                 flags = data[idx][common.FlagsRole]
@@ -237,17 +255,24 @@ class BookmarksModel(BaseModel):
                 for v in db.values(u'notes').itervalues():
                     if not v:
                         continue
-                    if not v['notes']:
-                        continue
-                    try:
-                        v = base64.b64decode(v['notes'])
-                        d = json.loads(v)
-                        n += len([k for k in d if not d[k]
-                                  [u'checked'] and d[k][u'text']])
-                    except (ValueError, TypeError):
-                        continue
+                    if v['notes']:
+                        try:
+                            v = base64.b64decode(v['notes'])
+                            d = json.loads(v)
+                            n += len([k for k in d if not d[k]
+                                      [u'checked'] and d[k][u'text']])
+                        except (ValueError, TypeError):
+                            common.Log.error('Error decoding JSON notes')
 
                 data[idx][common.TodoCountRole] = n
+
+    def __resetdata__(self):
+        self.INTERNAL_MODEL_DATA[self.data_key()] = common.DataDict({
+            common.FileItem: common.DataDict(),
+            common.SequenceItem: common.DataDict()
+        })
+        self.__initdata__()
+        self.endResetModel()
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -255,6 +280,19 @@ class BookmarksModel(BaseModel):
 
         """
         return u'.'
+
+    def data_type(self):
+        """Data keys are only implemented on the FilesModel but need to return a
+        value for compatibility other functions.
+
+        """
+        return common.FileItem
+
+    def reset_thumbnails(self):
+        pass
+
+    def __init_threads__(self):
+        pass
 
 
 class BookmarksWidget(BaseInlineIconWidget):
@@ -273,27 +311,17 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         import gwbrowser.managebookmarks as managebookmarks
 
-        # Adding the bookmark manager widget
-        widget = QtWidgets.QScrollArea(parent=self)
-        widget.setWidgetResizable(True)
-        widget.setWidget(
-            managebookmarks.ManageBookmarksWidget(parent=self))
-        self.manage_bookmarks = widget
+        self.manage_bookmarks = managebookmarks.Bookmarks(parent=self)
         self.manage_bookmarks.hide()
 
         @QtCore.Slot(unicode)
         def _update(bookmark):
-            self.model().sourceModel().blockSignals(True)
-            self.model().sourceModel().__initdata__()
-            self.model().invalidate()
-            self.model().sourceModel().blockSignals(False)
+            self.model().sourceModel().__resetdata__()
 
         self.manage_bookmarks.widget().bookmark_list.bookmarkAdded.connect(_update)
         self.manage_bookmarks.widget().bookmark_list.bookmarkRemoved.connect(_update)
 
         self.resized.connect(self.manage_bookmarks.setGeometry)
-        self.manage_bookmarks.widget().hide_button.clicked.connect(
-            self.manage_bookmarks.hide)
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -357,11 +385,12 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         widget = addassetwidget.AddAssetWidget(bookmark, parent=self)
         widget.templates_widget.templateCreated.connect(select)
+        self.resized.connect(widget.setGeometry)
         widget.setGeometry(self.viewport().geometry())
-        pos = self.geometry().topLeft()
-        pos = self.mapToGlobal(pos)
-        widget.move(pos)
-        widget.exec_()
+        # pos = self.geometry().topLeft()
+        # pos = self.mapToGlobal(pos)
+        # widget.move(pos)
+        widget.open()
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
@@ -383,8 +412,10 @@ class BookmarksWidget(BaseInlineIconWidget):
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
             return
+
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
         index = self.indexAt(cursor_position)
+
         if not index.isValid():
             return
         if index.flags() & common.MarkedAsArchived:
@@ -392,18 +423,32 @@ class BookmarksWidget(BaseInlineIconWidget):
 
         rect = self.visualRect(index)
         rectangles = self.itemDelegate().get_rectangles(rect)
-        cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
         if rectangles[delegate.BookmarkCountRect].contains(cursor_position):
             self.add_asset()
-            return
-        super(BookmarksWidget, self).mouseReleaseEvent(event)
+        else:
+            super(BookmarksWidget, self).mouseReleaseEvent(event)
+
+    def toggle_item_flag(self, index, flag, state=None):
+        if flag == common.MarkedAsArchived:
+            self.manage_bookmarks.remove_saved_bookmark(
+                *index.data(common.ParentPathRole))
+
+            settings_.local_settings.verify_paths()
+            # bookmark_db.remove_db(index)
+
+            if self.model().sourceModel().active_index() == self.model().mapToSource(index):
+                self.unset_activated()
+            self.model().sourceModel().modelDataResetRequested.emit()
+
+        if flag == common.MarkedAsFavourite:
+            super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
 
 
 if __name__ == '__main__':
+    common.DEBUG_ON = True
     app = QtWidgets.QApplication([])
-    from gwbrowser._thread_retake import LogView
-    l = LogView()
+    l = common.LogView()
     l.show()
     widget = BookmarksWidget()
     # widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')

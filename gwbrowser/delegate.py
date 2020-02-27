@@ -268,13 +268,13 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         # Active indicator
         if active:
-            painter.setOpacity(0.5)
+            painter.setOpacity(0.7)
             painter.setBrush(common.FAVOURITE)
             painter.drawRect(rect)
             painter.setOpacity(1.0)
             painter.setPen(common.FAVOURITE)
             painter.setBrush(QtCore.Qt.NoBrush)
-            painter.drawRect(rect.marginsRemoved(QtCore.QMargins(1, 1, 1, 1)))
+            painter.drawRect(rect.marginsRemoved(QtCore.QMargins(1, 0, 1, 1)))
 
         # Hover indicator
         if hover:
@@ -486,15 +486,21 @@ class BookmarksWidgetDelegate(BaseDelegate):
         d = {}
         job = text.split(u'|')[0]
 
-        d[len(d)] = (job.upper(), common.TEXT)
-        d[len(d)] = (u'|', common.SECONDARY_BACKGROUND)
+        d[len(d)] = (u'{}/{}'.format(
+            index.data(common.ParentPathRole)[0],
+            index.data(common.ParentPathRole)[1],
+        ).upper().strip(), common.TEXT)
+        d[len(d)] = (u'  |  ', common.FAVOURITE.darker(150))
 
         root_dirs = text.split(u'|')[-1].split(u'/')
         for idx, root_dir in enumerate(root_dirs):
-            d[len(d)] = (root_dir.upper(), common.TEXT)
+            root_dir = root_dir.upper().strip()
             if idx == (len(root_dirs) - 1):
-                continue
-            d[len(d)] = (u'/', common.SECONDARY_BACKGROUND)
+                d[len(d)] = (root_dir, common.TEXT)
+                break
+            else:
+                d[len(d)] = (root_dir, common.TEXT)
+            d[len(d)] = (u' / ', common.FAVOURITE.darker(150))
         return d
 
     @paintmethod
@@ -521,13 +527,13 @@ class BookmarksWidgetDelegate(BaseDelegate):
         r.setHeight(metrics.ascent())
         r.moveCenter(center)
 
-        r = r.marginsAdded(QtCore.QMargins(o + 4, o, o + 4, o))
+        r = r.marginsAdded(QtCore.QMargins(o *2, o, o *2, o))
         if (r.right() + o) > rect.right():
             r.setRight(rect.right() - o)
         painter.setBrush(common.FAVOURITE)
 
         pcolor = QtGui.QColor(
-            255, 255, 255, 255) if active else QtGui.QColor(0, 0, 0, 100)
+            255, 255, 255, 255) if active else common.FAVOURITE.darker(175)
         pen = QtGui.QPen(pcolor)
         pen.setWidthF(1.0)
         painter.setPen(pen)
@@ -855,7 +861,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 painter.setOpacity(0.6)
                 painter.drawRoundedRect(__r, o, o)
 
-            o = 1.0
+            o = 0.6
             if not hover:
                 o += -0.2
             painter.setOpacity(o)

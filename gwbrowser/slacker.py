@@ -36,7 +36,7 @@ class Slacker(QtCore.QObject):
             if member[u'is_bot']:
                 continue
             profile = member[u'profile']
-            profile[ucommon.IdRole] = member[ucommon.IdRole]
+            profile[common.IdRole] = member[common.IdRole]
             profiles.append(profile)
         return profiles
 
@@ -152,7 +152,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                 QtCore.Qt.ForegroundRole: QtGui.QBrush(common.SECONDARY_TEXT),
                 QtCore.Qt.BackgroundRole: QtGui.QBrush(common.BACKGROUND),
                 QtCore.Qt.FontRole: common.SecondaryFont,
-                IdRole: profile[ucommon.IdRole],
+                IdRole: profile[common.IdRole],
                 EmailRole: profile[u'email'],
                 TeamRole: profile[u'team'],
                 ImageDownloaderRole: ImageDownloader(profile[u'image_32'], idx, parent=self),

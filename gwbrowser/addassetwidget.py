@@ -23,7 +23,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
         self.setWindowTitle(u'Add asset: {}'.format(path))
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(QtCore.Qt.Widget)
 
         self.templates_widget.templateCreated.connect(self.popup)
 

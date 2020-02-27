@@ -703,6 +703,8 @@ class PreferencesWidget(QtWidgets.QSplitter):
             return
         self.sections_stack_widget.setCurrentIndex(index.row())
 
+    def sizeHint(self):
+        return QtCore.QSize(260, 360)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

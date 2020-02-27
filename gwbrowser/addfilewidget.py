@@ -428,7 +428,7 @@ class BookmarksListView(BaseListView):
         select the active index."""
         index = self.model().sourceModel().active_index()
         if not index.isValid():
-            return super(AssetsListView, self).reselect_previous()
+            return super(BookmarksListView, self).reselect_previous()
         index = self.model().mapFromSource(index)
         self.selectionModel().setCurrentIndex(
             index, QtCore.QItemSelectionModel.ClearAndSelect)

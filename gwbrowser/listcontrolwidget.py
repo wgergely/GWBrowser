@@ -6,10 +6,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
 from gwbrowser.common_ui import ClickableIconButton
-from gwbrowser.common_ui import PaintedLabel
 from gwbrowser.datakeywidget import DataKeyView
-from gwbrowser.editors import FilterEditor
-from gwbrowser.fileswidget import FileThumbnailWorker
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
@@ -299,29 +296,17 @@ class GenerateThumbnailsButton(BaseControlButton):
         if self.current_index() < 2:
             return False
         model = self.current_widget().model().sourceModel()
-        return model.generate_thumbnails
+        return model.generate_thumbnails_enabled()
 
     @QtCore.Slot()
     def action(self):
         """Toggles thumbnail generation."""
         if not self.current_widget():
             return
+
         model = self.current_widget().model().sourceModel()
-
-        val = model.generate_thumbnails
-        cls = model.__class__.__name__
-        k = u'widget/{}/generate_thumbnails'.format(cls)
-
-        settings_.local_settings.setValue(k, not val)
-        model.generate_thumbnails = not val
+        model.set_generate_thumbnails_enabled(not model.generate_thumbnails_enabled())
         self.update()
-
-        if not val == False:
-            model.ThumbnailThread.Worker.reset_queue()
-            FileThumbnailWorker.reset_queue()
-        if val == True:
-            self.current_widget().initialize_visible_indexes()
-
     def update(self):
         """Will only show for favourite and file items."""
         super(GenerateThumbnailsButton, self).update()

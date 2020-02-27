@@ -630,11 +630,11 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         favourite = self.index.flags() & common.MarkedAsFavourite
 
-        menu_set[u'save_favourites'] = {
+        menu_set[u'export_favourites'] = {
             u'text': u'Export favourites',
             u'icon': save_icon,
             u'checkable': False,
-            u'action': common.save_favourites
+            u'action': common.export_favourites
         }
         menu_set[u'import_favourites'] = {
             u'text': u'Import favourites',

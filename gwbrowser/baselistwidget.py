@@ -110,11 +110,11 @@ class ProgressWidget(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWindowFlags(QtCore.Qt.Widget)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding,
-            QtWidgets.QSizePolicy.Expanding
-        )
-        self._message = u'!!!Loading...'
+        # self.setSizePolicy(
+        #     QtWidgets.QSizePolicy.,
+        #     QtWidgets.QSizePolicy.Expanding
+        # )
+        self._message = u'Loading...'
 
     def showEvent(self, event):
         self.setGeometry(self.parent().geometry())
@@ -269,8 +269,8 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if val == self._filter_text == local_val:
             return
 
-        self._filter_text = val
-        settings_.local_settings.setValue(k, val)
+        self._filter_text = val.strip()
+        settings_.local_settings.setValue(k, val.strip())
 
     def filter_flag(self, flag):
         """Returns the current flag-filter."""
@@ -306,10 +306,10 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
 
         filtertext = self.filter_text()
         if filtertext:
-            filtertext = filtertext.lower()
-            searchable = data[QtCore.Qt.StatusTipRole] + u' ' + \
-                data[common.DescriptionRole] + u' ' + \
-                data[common.FileDetailsRole]
+            filtertext = filtertext.strip().lower()
+            searchable = data[QtCore.Qt.StatusTipRole].lower() + u'\n' + \
+                data[common.DescriptionRole].strip().lower() + u'\n' + \
+                data[common.FileDetailsRole].strip().lower()
 
             if not self.filter_includes_row(filtertext, searchable):
                 return False
@@ -327,7 +327,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         return True
 
     def filter_includes_row(self, filtertext, searchable):
-        _filtertext = unicode(filtertext)
+        _filtertext = filtertext
         it = re.finditer(ur'(--[^\"\'\[\]\*\s]+)',
                          filtertext, flags=re.IGNORECASE | re.MULTILINE)
         it_quoted = re.finditer(ur'(--".*?")', filtertext,
@@ -795,8 +795,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.setTextElideMode(QtCore.Qt.ElideNone)
 
         self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding
+            QtWidgets.QSizePolicy.Preferred,
+            QtWidgets.QSizePolicy.Preferred
         )
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -812,6 +812,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
         self.set_model(self.SourceModel(parent=self))
         self.setItemDelegate(self.Delegate(parent=self))
@@ -1644,6 +1645,9 @@ class BaseListWidget(QtWidgets.QListView):
     def sizeHint(self):
         return QtCore.QSize(460, 640)
 
+    def showEvent(self, event):
+        self.reset()
+
 
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""
@@ -1888,6 +1892,22 @@ class BaseInlineIconWidget(BaseListWidget):
         widget.finished.connect(widget.deleteLater)
         widget.open()
 
+    @QtCore.Slot()
+    def restart_requestinfo_timers(self):
+        pass
+
+    @QtCore.Slot()
+    def queue_model_data(self):
+        pass
+
+    @QtCore.Slot()
+    def request_visible_fileinfo_load(self):
+        pass
+
+    @QtCore.Slot()
+    def request_visible_thumbnail_load(self):
+        pass
+
 
 class ThreadedBaseWidget(BaseInlineIconWidget):
     """Adds the methods needed to push the indexes to the thread-workers."""
@@ -2123,10 +2143,10 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding
-        )
+        # self.setSizePolicy(
+        #     QtWidgets.QSizePolicy.Expanding,
+        #     QtWidgets.QSizePolicy.Expanding
+        # )
         self.setObjectName(u'BrowserStackedWidget')
 
     def setCurrentIndex(self, idx):

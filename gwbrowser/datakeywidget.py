@@ -9,7 +9,8 @@ To describe the function of each folder we can define the folder and a descripti
 in the common module.
 
 """
-
+import weakref
+from functools import partial
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.gwscandir as gwscandir
@@ -20,9 +21,8 @@ from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import BaseDelegate
 from gwbrowser.imagecache import ImageCache
-from gwbrowser.threads import BaseThread
-from gwbrowser.threads import BaseWorker
 from gwbrowser.basecontextmenu import BaseContextMenu
+import gwbrowser.threads as threads
 
 
 class DataKeyContextMenu(BaseContextMenu):
@@ -31,45 +31,6 @@ class DataKeyContextMenu(BaseContextMenu):
     def __init__(self, index, parent=None):
         super(DataKeyContextMenu, self).__init__(index, parent=parent)
         self.add_reveal_item_menu()
-
-
-class DataKeyWorker(BaseWorker):
-    """Note: This thread worker is a duplicate implementation of the FileInfoWorker."""
-    queue = Unique(999)
-    indexes_in_progress = []
-
-    @staticmethod
-    @QtCore.Slot(QtCore.QModelIndex)
-    def process_index(index):
-        """Walks the path using ``gwscandir`` set in the StatusTipRole.
-        Used to count the number of existing files in each task-folder.
-
-        """
-        if not index.isValid():
-            return
-        if not index.data(QtCore.Qt.StatusTipRole):
-            return
-
-        count = 0
-        for _ in common.walk(index.data(QtCore.Qt.StatusTipRole)):
-            count += 1
-            if count > 999:
-                break
-
-        # The underlying data can change whilst walking...
-        if not index.isValid():
-            return
-        # ..hence it is better to wrap this in a try block
-        try:
-            data = index.model().model_data()
-            data[index.row()][common.TodoCountRole] = count
-            index.model().dataChanged.emit(index, index)
-        except:
-            pass
-
-
-class DataKeyThread(BaseThread):
-    Worker = DataKeyWorker
 
 
 class DataKeyViewDelegate(BaseDelegate):
@@ -194,12 +155,12 @@ class DataKeyView(QtWidgets.QListView):
         @QtCore.Slot(QtCore.QRect)
         def set_width(rect):
             """Resizes the view to the size of the"""
-            rect = browser_widget.stackedwidget.geometry()
+            rect = browser_widget.stackedwidget.widget(2).viewport().geometry()
             rect.setLeft(0)
             rect.setTop(0)
             self.setGeometry(rect)
 
-        browser_widget.resized.connect(set_width)
+        browser_widget.stackedwidget.widget(2).resized.connect(set_width)
 
         model = DataKeyModel()
         model.view = self
@@ -296,6 +257,7 @@ class DataKeyModel(BaseModel):
 
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
+    ROW_SIZE = QtCore.QSize(0, 30)
 
     def __init__(self, parent=None):
         self._parent = parent
@@ -304,7 +266,18 @@ class DataKeyModel(BaseModel):
         self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __init_threads__(self):
-        self.threads[common.InfoThread]
+        """Starts and connects the threads."""
+        @QtCore.Slot(QtCore.QThread)
+        def thread_started(thread):
+            """Signals the model an item has been updated."""
+            thread.worker.dataReady.connect(self.updateRow, QtCore.Qt.QueuedConnection)
+            thread.startTimer.emit()
+
+        info_worker = threads.DataKeyWorker()
+        info_thread = threads.BaseThread(info_worker, interval=500)
+        self.threads[common.InfoThread].append(info_thread)
+        info_thread.started.connect(partial(thread_started, info_thread))
+        info_thread.start()
 
     @property
     def parent_path(self):
@@ -314,7 +287,6 @@ class DataKeyModel(BaseModel):
 
     @parent_path.setter
     def parent_path(self, val):
-        """Setting the parent makes no difference..."""
         pass
 
     def data_key(self):
@@ -330,15 +302,13 @@ class DataKeyModel(BaseModel):
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        DataKeyWorker.reset_queue()
+        self.threads[common.InfoThread][0].worker.resetQueue.emit()
         dkey = self.data_key()
 
         self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
         })
-
-        rowsize = QtCore.QSize(0, 30)
 
         flags = (
             QtCore.Qt.ItemIsSelectable |
@@ -355,11 +325,10 @@ class DataKeyModel(BaseModel):
         default_thumbnail = ImageCache.get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
-            rowsize)
+            self.ROW_SIZE.height())
         default_thumbnail = default_thumbnail.toImage()
 
         parent_path = u'/'.join(self.parent_path)
-        indexes = []
         entries = sorted(
             ([f for f in gwscandir.scandir(parent_path)]), key=lambda x: x.name)
 
@@ -370,12 +339,12 @@ class DataKeyModel(BaseModel):
                 continue
 
             idx = len(data)
-            data[idx] = {
+            data[idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: entry.name,
                 QtCore.Qt.EditRole: entry.name,
-                QtCore.Qt.StatusTipRole: entry.path,
+                QtCore.Qt.StatusTipRole: entry.path.replace(u'\\', u'/'),
                 QtCore.Qt.ToolTipRole: u'',
-                QtCore.Qt.SizeHintRole: rowsize,
+                QtCore.Qt.SizeHintRole: self.ROW_SIZE,
                 #
                 common.DefaultThumbnailRole: default_thumbnail,
                 common.DefaultThumbnailBackgroundRole: QtGui.QColor(0, 0, 0, 0),
@@ -388,6 +357,5 @@ class DataKeyModel(BaseModel):
                 common.FileInfoLoaded: False,
                 common.FileThumbnailLoaded: True,
                 common.TodoCountRole: 0,
-            }
-            indexes.append(idx)
-        DataKeyWorker.add_to_queue([self.index(f, 0) for f in indexes])
+            })
+            self.threads[common.InfoThread][0].put(weakref.ref(data[idx]))

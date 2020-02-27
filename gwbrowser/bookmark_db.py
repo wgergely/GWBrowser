@@ -59,6 +59,39 @@ def get_db(index, server=None, job=None, root=None):
         common.Log.error('Failed to get BookmarkDB')
 
 
+def remove_db(index, server=None, job=None, root=None):
+    """Helper function to return the bookmark database connection associated
+    with an index. We will create the connection if it doesn't exists yet.
+    Connection instances cannot be shared between threads hence we will
+    create each instance _per thread_.
+
+    Args:
+        index (QModelIndex): A valid QModelIndex()
+
+    Returns:
+        BookmarkDB: A BookmarkDB instance that lives in the current thread.
+
+    """
+    try:
+        global _DB_CONNECTIONS
+        thread_id = repr(QtCore.QThread.currentThread())
+
+        if not index.isValid():
+            if not all((server, job, root)):
+                raise ValueError(u'Must provide valid server, job, and root')
+            args = (server, job, root)
+        else:
+            args = index.data(common.ParentPathRole)[0:3]
+
+        k = u'/'.join(args).lower() + thread_id
+        if k in _DB_CONNECTIONS:
+            _DB_CONNECTIONS[k].connection().close()
+            _DB_CONNECTIONS[k].deleteLater()
+            del _DB_CONNECTIONS[k]
+    except:
+        common.Log.error('Failed to remove BookmarkDB')
+
+
 def reset():
     global _DB_CONNECTIONS
     for v in _DB_CONNECTIONS.itervalues():

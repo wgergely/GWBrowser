@@ -752,6 +752,8 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         )
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
+        self.setWindowFlags(QtCore.Qt.Widget)
+
         self.init_timer = QtCore.QTimer(parent=self)
         self.init_timer.setInterval(1000)
         self.init_timer.setSingleShot(True)
@@ -1042,7 +1044,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.add_bookmark_button.clicked.connect(add_new_bookmark)
 
         # Add/remove bookmarks
-        def _toggle_bookmark(bookmark_folder, mode):
+        def _toggle_bookmark(root, mode):
             idx = self.server_combobox.currentIndex()
             server = self.server_combobox.itemData(
                 idx, role=QtCore.Qt.DisplayRole)
@@ -1051,16 +1053,18 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
             if not all((server, job)):
                 return
-            bookmark_folder = bookmark_folder.lower().replace(
+            root = root.lower().replace(
                 u'{}/{}'.format(server, job).lower(),
                 u''
             ).strip(u'/')
+            if not all((server, job, root)):
+                return
 
             if mode == AddMode:
                 self.save_bookmark(
-                    server, job, bookmark_folder, add_config_dir=True)
+                    server, job, root, add_config_dir=True)
             if mode == RemoveMode:
-                self.remove_saved_bookmark(server, job, bookmark_folder)
+                self.remove_saved_bookmark(server, job, root)
 
         self.bookmark_list.bookmarkAdded.connect(
             lambda s: _toggle_bookmark(s, AddMode))
@@ -1115,8 +1119,11 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 d[k.encode(u'utf-8')][_k] = r(_v.encode(u'utf-8'))
         return d
 
-    def save_bookmark(self, server, job, bookmark_folder, add_config_dir=True):
-        k = self.key(server, job, bookmark_folder)
+    def save_bookmark(self, server, job, root, add_config_dir=True):
+        if not all((server, job, root)):
+            return
+
+        k = self.key(server, job, root)
         if add_config_dir:
             if not QtCore.QDir(k).mkpath(u'.bookmark'):
                 print u'# Error: Could not add "{}/.bookmark"'.format(k)
@@ -1125,12 +1132,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         d[k] = {
             u'server': unicode(server).encode(u'utf-8'),
             u'job':  unicode(job).encode(u'utf-8'),
-            u'bookmark_folder':  unicode(bookmark_folder).encode(u'utf-8')
+            u'root':  unicode(root).encode(u'utf-8')
         }
         settings_.local_settings.setValue(self.BOOKMARK_KEY, d)
 
-    def remove_saved_bookmark(self, server, job, bookmark_folder):
-        k = self.key(server, job, bookmark_folder)
+    def remove_saved_bookmark(self, server, job, root):
+        k = self.key(server, job, root)
         d = self._get_saved_bookmarks()
         if k in d:
             del d[k]
@@ -1347,16 +1354,48 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         return QtCore.QSize(360, 250)
 
     def showEvent(self, event):
-        self.setFocus(QtCore.Qt.PopupFocusReason)
         self.init_timer.start()
 
 
+class Bookmarks(QtWidgets.QScrollArea):
+    def __init__(self, parent=None):
+        super(Bookmarks, self).__init__(parent=parent)
+        common.set_custom_stylesheet(self)
+        self.setWidget(ManageBookmarksWidget(parent=self))
+        self.setWidgetResizable(True)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Minimum,
+            QtWidgets.QSizePolicy.Minimum,
+        )
+        effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(effect)
+
+        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
+        self.fade_in.setStartValue(0)
+        self.fade_in.setEndValue(1)
+        self.fade_in.setDuration(300)
+
+        self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
+        self.fade_out.setStartValue(1)
+        self.fade_out.setEndValue(0)
+        self.fade_out.setDuration(200)
+        self.fade_out.finished.connect(self.hide)
+
+        self.setWindowTitle(u'Manage Bookmarks')
+        self.widget().hide_button.clicked.connect(self.fade_out.start)
+
+    def showEvent(self, event):
+        self.fade_in.start()
+        self.setFocus(QtCore.Qt.PopupFocusReason)
+
+    def hideEvent(self, event):
+        self.fade_out.start()
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    widget = QtWidgets.QScrollArea()
-    widget.setWidgetResizable(True)
-    common.set_custom_stylesheet(widget)
-    widget.setWidget(ManageBookmarksWidget(parent=widget))
+    widget = Bookmarks()
     widget.show()
 
     # for entry in _entry_iterator(ur'C:/temp'):

@@ -501,7 +501,7 @@ def get_favourite_parent_paths():
     return server, job, root
 
 
-def save_favourites():
+def export_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
     import uuid
     import gwbrowser.settings as settings_
@@ -555,17 +555,20 @@ def save_favourites():
     reveal(destination)
 
 
-def import_favourites():
+def import_favourites(source=None):
     import gwbrowser.settings as settings_
+    import gwbrowser.bookmark_db as bookmark_db
 
-    res = QtWidgets.QFileDialog.getOpenFileName(
-        caption=u'Select the favourites file to import',
-        filter='*.gwb',
-        options=QtWidgets.QFileDialog.ShowDirsOnly
-    )
-    source, ext = res
-    if not source:
-        return
+    if source is None:
+        res = QtWidgets.QFileDialog.getOpenFileName(
+            caption=u'Select the favourites file to import',
+            filter='*.gwb',
+            options=QtWidgets.QFileDialog.ShowDirsOnly
+        )
+        source, _ = res
+        if not source:
+            return
+
 
     current_favourites = settings_.local_settings.favourites()
     create_temp_dir()

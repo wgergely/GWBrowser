@@ -20,7 +20,7 @@ from gwbrowser.imagecache import ImageCache
 from gwbrowser.listcontrolwidget import ListControlWidget
 from gwbrowser.preferenceswidget import PreferencesWidget
 import gwbrowser.settings as settings_
-from gwbrowser.threads import BaseThread
+import gwbrowser.threads as threads
 import gwbrowser.common as common
 import gwbrowser.settings as Settings
 import gwbrowser.slacker as slacker
@@ -546,12 +546,16 @@ class BrowserWidget(QtWidgets.QWidget):
             self.favouriteswidget.timer.stop()
             settings_.local_settings.sync_timer.stop()
 
-            self.resized.disconnect()
-
             for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
+
+
                 widget.timer.stop()
-                widget.scrollbar_changed_timer.stop()
-                widget.hide_archived_items_timer.stop()
+                try:
+                    widget.request_visible_fileinfo_timer.stop()
+                    widget.request_visible_thumbnail_timer.stop()
+                    widget.queue_model_timer.stop()
+                except:
+                    pass
 
                 for child in widget.model().sourceModel().children():
                     child.deleteLater()
@@ -578,23 +582,23 @@ class BrowserWidget(QtWidgets.QWidget):
 
         def close_database_connections():
             try:
-                for k in bookmark_db._DB_CONNECTIONS.keys():
+                for k in bookmark_db._DB_CONNECTIONS:
                     bookmark_db._DB_CONNECTIONS[k].connection().close()
                     bookmark_db._DB_CONNECTIONS[k].deleteLater()
-                    del bookmark_db._DB_CONNECTIONS[k]
             except Exception as e:
-                print e
+                common.Log.error('Error closing the database')
 
         def terminate_threads():
-            from gwbrowser.threads import mutex
-            threads = BaseThread._instances.values()
-            for thread in threads:
+            values = threads.THREADS.values()
+            for thread in values:
                 if thread.isRunning():
-                    thread.worker.request_showdown()
+                    thread.stopTimer.emit()
+                    thread.worker.resetQueue.emit()
+                    thread.quit()
             n = 0
-            while any([f.isRunning() for f in threads]):
+            while any([f.isRunning() for f in values]):
                 if n >= 20:
-                    for thread in threads:
+                    for thread in values:
                         thread.terminate()
                     break
                 n += 1
@@ -687,11 +691,6 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Alt+Left', (self.previous_tab, ), repeat=True)
         #
         self.add_shortcut(
-            u'Ctrl++', (self.increase_row_size, ), repeat=True)
-        self.add_shortcut(
-            u'Ctrl+-', (self.decrease_row_size, ), repeat=True)
-        #
-        self.add_shortcut(
             u'Ctrl+P', (self.push_to_rv, ), repeat=False)
 
     def push_to_rv(self):
@@ -703,36 +702,6 @@ class BrowserWidget(QtWidgets.QWidget):
         path = common.get_sequence_startpath(
             index.data(QtCore.Qt.StatusTipRole))
         common.push_to_rv(path)
-
-    def decrease_row_size(self):
-        """Increases the FilesWidget's row size."""
-        import gwbrowser.delegate as delegate
-        if (delegate.ROW_HEIGHT - 12) < common.ROW_HEIGHT:
-            return
-        delegate.ROW_HEIGHT -= 12
-        delegate.SMALL_FONT_SIZE -= 0.3
-
-        for n in (2, 3):
-            view = self.stackedwidget.widget(n)
-            model = view.model().sourceModel()
-            model.reset_thumbnails()
-            self.stackedwidget.widget(n).reset()
-            view.restart_scrollbar_timer()
-
-    def increase_row_size(self):
-        """Increases the FilesWidget's row size."""
-        import gwbrowser.delegate as delegate
-        if (delegate.ROW_HEIGHT + 12) > common.ASSET_ROW_HEIGHT:
-            return
-        delegate.ROW_HEIGHT += 12
-        delegate.SMALL_FONT_SIZE += 0.3
-
-        for n in (2, 3):
-            view = self.stackedwidget.widget(n)
-            model = view.model().sourceModel()
-            model.reset_thumbnails()
-            self.stackedwidget.widget(n).reset()
-            view.restart_scrollbar_timer()
 
     @QtCore.Slot(unicode)
     def show_progress_message(self, message):

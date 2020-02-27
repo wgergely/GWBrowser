@@ -11,26 +11,12 @@ from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 import gwbrowser.settings as settings_
 
-import gwbrowser.delegate as delegate
-from gwbrowser.gwscandir import scandir as scandir_it
-from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
+from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FilesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
-from gwbrowser.fileswidget import FileInfoThread
-from gwbrowser.baselistwidget import validate_index
-
-from gwbrowser.threads import BaseThread
-from gwbrowser.threads import Unique
-
-from gwbrowser.fileswidget import validate_index
-from gwbrowser.fileswidget import FileInfoWorker
-from gwbrowser.fileswidget import SecondaryFileInfoWorker
-from gwbrowser.fileswidget import FileThumbnailWorker
-from gwbrowser.fileswidget import FileInfoThread
-from gwbrowser.fileswidget import SecondaryFileInfoThread
-from gwbrowser.fileswidget import FileThumbnailThread
+import gwbrowser.gwscandir as gwscandir
 
 
 def rsc_path(f, n):
@@ -69,9 +55,6 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
 
 class FavouritesModel(FilesModel):
     """The model responsible for displaying the saved favourites."""
-    InfoThread = FileInfoThread
-    SecondaryInfoThread = SecondaryFileInfoThread
-    ThumbnailThread = FileThumbnailThread
 
     def __init__(self, parent=None):
         super(FavouritesModel, self).__init__(parent=parent)
@@ -87,13 +70,12 @@ class FavouritesModel(FilesModel):
 
         """
         favourites = settings_.local_settings.favourites()
-        sfavourites = set(favourites)
 
         d = []
 
         for k in favourites:
             file_info = QtCore.QFileInfo(k)
-            for entry in scandir_it(file_info.path()):
+            for entry in gwscandir.scandir(file_info.path()):
                 path = entry.path.replace(u'\\', u'/').lower()
                 if path == k:
                     d.append(entry)
@@ -162,6 +144,12 @@ class FavouritesWidget(FilesWidget):
     def inline_icons_count(self):
         return 3
 
+    def toggle_item_flag(self, index, flag, state=None):
+        if flag == common.MarkedAsArchived:
+            flag = common.MarkedAsFavourite
+        super(FavouritesWidget, self).toggle_item_flag(index, flag, state=state)
+        self.model().sourceModel().modelDataResetRequested.emit()
+
     def dragEnterEvent(self, event):
         if event.source() == self:
             return
@@ -197,13 +185,7 @@ class FavouritesWidget(FilesWidget):
             path = file_info.filePath().lower()
 
             if file_info.suffix().lower() == u'gwb':
-                with open(path, 'r') as f:
-                    paths = f.readlines()
-                    paths = [f.rstrip() for f in paths]
-
-                    for v in paths:
-                        if v.lower() not in favourites:
-                            favourites.append(v.lower())
+                common.import_favourites(source=path)
             else:
                 k = common.proxy_path(path).lower()
             favourites.append(k)
@@ -233,7 +215,10 @@ class FavouritesWidget(FilesWidget):
         self.model().sourceModel().modelDataResetRequested.emit()
 
 if __name__ == '__main__':
+    common.DEBUG_ON = True
     a = QtWidgets.QApplication([])
+    l = common.LogView()
+    l.show()
     w = FavouritesWidget()
     w.show()
     a.exec_()
