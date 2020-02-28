@@ -15,13 +15,13 @@ All generated thumbnails and ui resources are cached in ``ImageCache``.
 """
 
 import os
-import traceback
-from xml.etree import ElementTree
+import functools
+import tempfile
+
 from PySide2 import QtWidgets, QtGui, QtCore
+
 import OpenImageIO
-from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
-from functools import wraps
 
 
 oiio_cache = OpenImageIO.ImageCache(shared=True)
@@ -33,7 +33,7 @@ oiio_cache.attribute('trust_file_extensions', 1)
 
 def verify_index(func):
     """Decorator to create a menu set."""
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(cls, index, **kwargs):
         """Wrapper for function."""
         if not index.isValid():
@@ -45,6 +45,242 @@ def verify_index(func):
 
         return func(cls, index, **kwargs)
     return func_wrapper
+
+
+
+class CaptureScreen(QtWidgets.QDialog):
+    """A modal screen capture widget.
+
+    Inspired by Shotgun's screen capture tool.
+
+    Example:
+
+    .. code-block:: python
+        :linenos:
+
+        w = CaptureScreen()
+        pixmap = w.exec_()
+
+    """
+    pixmapCaptured = QtCore.Signal(QtGui.QPixmap)
+
+    def __init__(self, parent=None):
+        super(CaptureScreen, self).__init__(parent=parent)
+        self._pixmap = None
+
+        effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(effect)
+
+        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
+        self.fade_in.setStartValue(0.0)
+        self.fade_in.setEndValue(0.5)
+        self.fade_in.setDuration(500)
+        self.fade_in.setEasingCurve(QtCore.QEasingCurve.InOutQuad)
+
+        self._mouse_pos = None
+        self._click_pos = None
+        self._offset_pos = None
+
+        self._capture_rect = QtCore.QRect()
+
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
+        self.setCursor(QtCore.Qt.CrossCursor)
+
+        self.setMouseTracking(True)
+        self.installEventFilter(self)
+
+        self.accepted.connect(self.capture)
+
+    def pixmap(self):
+        """The captured rectangle."""
+        return self._pixmap
+
+    def _fit_screen_geometry(self):
+        # Compute the union of all screen geometries, and resize to fit.
+        app = QtWidgets.QApplication.instance()
+        workspace_rect = QtCore.QRect()
+        for screen in app.screens():
+            workspace_rect = workspace_rect.united(screen.availableGeometry())
+        self.setGeometry(workspace_rect)
+
+    @classmethod
+    def _get_desktop_pixmap(cls, rect):
+        app = QtWidgets.QApplication.instance()
+        screen = app.screenAt(rect.center())
+        if not screen:
+            common.Log.error(u'Unable to find screen.')
+            return None
+        return screen.grabWindow(
+            app.screens().index(screen),
+            rect.x(),
+            rect.y(),
+            rect.width(),
+            rect.height()
+        )
+
+    @QtCore.Slot()
+    def capture(self):
+        """Slot called by the dialog's accepted signal.
+        Performs the capture operation and saves the resulting pixmap
+        to self.pixmap()
+
+        """
+        if common.get_platform() == u'mac':
+            # On macosx we're using the built-in capture-tool because the
+            # os doesn't allow capturing pixels from outside the application.
+            temppath = tempfile.NamedTemporaryFile(
+                suffix=u'.'.format(common.THUMBNAIL_FORMAT),
+                prefix=u'screencapture_',
+                delete=False
+            ).name
+            res = os.system(u'screencapture -m -i -s {}'.format(temppath))
+            if res == 0:
+                self._pixmap = QtGui.QPixmap(temppath)
+        else:
+            self._pixmap = self._get_desktop_pixmap(self._capture_rect)
+
+        self.pixmapCaptured.emit(self._pixmap)
+
+    def paintEvent(self, event):
+        """Paint the capture window."""
+        # Convert click and current mouse positions to local space.
+        if not self._mouse_pos:
+            mouse_pos = self.mapFromGlobal(QtGui.QCursor.pos())
+        else:
+            mouse_pos = self.mapFromGlobal(self._mouse_pos)
+
+        click_pos = None
+        if self._click_pos is not None:
+            click_pos = self.mapFromGlobal(self._click_pos)
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+
+        # Draw background. Aside from aesthetics, this makes the full
+        # tool region accept mouse events.
+        painter.setBrush(QtGui.QColor(0, 0, 0, 255))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(event.rect())
+
+        # Clear the capture area
+        if click_pos is not None:
+            capture_rect = QtCore.QRect(click_pos, mouse_pos)
+            painter.setCompositionMode(QtGui.QPainter.CompositionMode_Clear)
+            painter.drawRect(capture_rect)
+            painter.setCompositionMode(
+                QtGui.QPainter.CompositionMode_SourceOver)
+
+        pen = QtGui.QPen(QtGui.QColor(255, 255, 255, 64), 1, QtCore.Qt.DotLine)
+        painter.setPen(pen)
+
+        # Draw cropping markers at click position
+        if click_pos is not None:
+            painter.drawLine(event.rect().left(), click_pos.y(),
+                             event.rect().right(), click_pos.y())
+            painter.drawLine(click_pos.x(), event.rect().top(),
+                             click_pos.x(), event.rect().bottom())
+
+        # Draw cropping markers at current mouse position
+        painter.drawLine(event.rect().left(), mouse_pos.y(),
+                         event.rect().right(), mouse_pos.y())
+        painter.drawLine(mouse_pos.x(), event.rect().top(),
+                         mouse_pos.x(), event.rect().bottom())
+
+        painter.end()
+
+    def keyPressEvent(self, event):
+        """Cancel the capture on keypress."""
+        if event.key() == QtCore.Qt.Key_Escape:
+            self.reject()
+
+    def mousePressEvent(self, event):
+        """Start the capture"""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+        if event.button() == QtCore.Qt.LeftButton:
+            self._click_pos = event.globalPos()
+        if event.button() == QtCore.Qt.RightButton:
+            self.reject()
+
+    def mouseReleaseEvent(self, event):
+        """Finalise the caputre"""
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        if event.button() == QtCore.Qt.LeftButton and self._click_pos is not None:
+            # End click drag operation and commit the current capture rect
+            self._capture_rect = QtCore.QRect(
+                self._click_pos,
+                self._mouse_pos
+            ).normalized()
+            self._click_pos = None
+            self._offset_pos = None
+            self._mouse_pos = None
+
+        self.accept()
+
+    def mouseMoveEvent(self, event):
+        """Constrain and resize the capture window."""
+        self.update()
+
+        if not isinstance(event, QtGui.QMouseEvent):
+            return
+
+        if not self._click_pos:
+            return
+
+        self._mouse_pos = event.globalPos()
+
+        app = QtWidgets.QApplication.instance()
+        modifiers = app.queryKeyboardModifiers()
+
+        no_modifier = modifiers == QtCore.Qt.NoModifier
+
+        control_modifier = modifiers & QtCore.Qt.ControlModifier
+        alt_modifier = modifiers & QtCore.Qt.AltModifier
+
+        const_mod = modifiers & QtCore.Qt.ShiftModifier
+        move_mod = (not not control_modifier) or (not not alt_modifier)
+
+        if no_modifier:
+            self.__click_pos = None
+            self._offset_pos = None
+            self.update()
+            return
+
+        # Allowing the shifting of the rectagle with the modifier keys
+        if move_mod:
+            if not self._offset_pos:
+                self.__click_pos = QtCore.QPoint(self._click_pos)
+                self._offset_pos = QtCore.QPoint(event.globalPos())
+
+            self._click_pos = QtCore.QPoint(
+                self.__click_pos.x() - (self._offset_pos.x() - event.globalPos().x()),
+                self.__click_pos.y() - (self._offset_pos.y() - event.globalPos().y())
+            )
+
+        # Shift constrains the rectangle to a square
+        if const_mod:
+            rect = QtCore.QRect()
+            rect.setTopLeft(self._click_pos)
+            rect.setBottomRight(event.globalPos())
+            rect.setHeight(rect.width())
+            self._mouse_pos = rect.bottomRight()
+
+        self.update()
+
+    def showEvent(self, event):
+        self._fit_screen_geometry()
+        self.fade_in.start()
+
+    def exec_(self):
+        super(CaptureScreen, self).exec_()
+        return self._pixmap
 
 
 class ImageCache(QtCore.QObject):
@@ -151,15 +387,14 @@ class ImageCache(QtCore.QObject):
     @classmethod
     @verify_index
     def capture(cls, index):
-        """Uses ``ScreenGrabber`` to save a custom screen-grab."""
+        """Save a custom screen-grab."""
         thumbnail_path = index.data(common.ThumbnailPathRole)
 
-        pixmap = ScreenGrabber.capture()
-        if not pixmap:
+        w = CaptureScreen()
+        image = w.exec_()
+
+        if not image:
             return
-        if pixmap.isNull():
-            return
-        image = pixmap.toImage()
         image = cls.resize_image(image, common.THUMBNAIL_IMAGE_SIZE)
         if image.isNull():
             return
@@ -480,4 +715,3 @@ class ImageCache(QtCore.QObject):
             QtCore.QFile(dest).remove()
             return False
         return True
-    
