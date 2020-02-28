@@ -499,15 +499,22 @@ class DataKeyWorker(BaseWorker):
         """"""
         if not ref() or self.interrupt:
             return None
-        count = 0
-        for _ in common.walk(ref()[QtCore.Qt.StatusTipRole]):
-            count += 1
-            if count > 999:
-                break
 
-        # The underlying data can change whilst walking...
-        if not ref():
-            return None
-        # ..hence it is better to wrap this in a try block
-        ref()[common.TodoCountRole] = count
-        return ref
+        for _ref in [weakref.ref(f) for f in ref().values()]:
+            # The underlying data can change whilst walking...
+            if not ref():
+                return None
+
+            count = 0
+            for _ in common.walk(_ref()[QtCore.Qt.StatusTipRole]):
+                count += 1
+                if count > 999:
+                    break
+
+            if not ref():
+                return None
+            if not _ref():
+                return None
+            _ref()[common.TodoCountRole] = count
+            self.dataReady.emit(_ref)
+        return None
