@@ -259,43 +259,80 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = copy_icon
 
-        first = self.parent().model().sourceModel().data_key() == common.RendersFolder
-
+        path = self.index.data(QtCore.Qt.StatusTipRole)
         menu_set[key][u'windows1'] = {
-            u'text': ur'Windows  -  \\back\slashes',
+            u'text': u'Windows:  {}'.format(common.copy_path(path, mode=common.WindowsPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
-                self.index,
-                mode=common.WindowsPath,
-                first=first)
+                path,
+                mode=common.WindowsPath)
         }
         menu_set[key][u'unix'] = {
-            u'text': u'Unix  -  //forward/slashes',
+            u'text': u'Unix:  {}'.format(common.copy_path(path, mode=common.UnixPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
-                self.index,
-                mode=common.UnixPath,
-                first=first)
+                path,
+                mode=common.UnixPath
+            )
         }
         menu_set[key][u'slack'] = {
-            u'text': u'URL  -  file://Slack/friendly',
+            u'text': u'URL:  {}'.format(common.copy_path(path, mode=common.SlackPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
-                self.index,
-                mode=common.SlackPath,
-                first=first)
+                path,
+                mode=common.SlackPath
+            )
         }
         menu_set[key][u'macos'] = {
-            u'text': u'MacOS  -  /MacOS/path',
+            u'text': u'SMB:  {}'.format(common.copy_path(path, mode=common.MacOSPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
-                self.index,
-                mode=common.MacOSPath,
-                first=first)
+                path,
+                mode=common.MacOSPath
+            )
+        }
+
+        menu_set[key][u'separator+'] = {}
+
+        path = QtCore.QFileInfo(path).dir().path()
+        menu_set[key][u'parent_windows1'] = {
+            u'text': u'Windows:  {}'.format(common.copy_path(path, mode=common.WindowsPath, copy=False)),
+            u'icon': copy_icon2,
+            u'action': functools.partial(
+                common.copy_path,
+                path,
+                mode=common.WindowsPath)
+        }
+        menu_set[key][u'parent_unix'] = {
+            u'text': u'Unix:  {}'.format(common.copy_path(path, mode=common.UnixPath, copy=False)),
+            u'icon': copy_icon2,
+            u'action': functools.partial(
+                common.copy_path,
+                path,
+                mode=common.UnixPath
+            )
+        }
+        menu_set[key][u'parent_slack'] = {
+            u'text': u'URL:  {}'.format(common.copy_path(path, mode=common.SlackPath, copy=False)),
+            u'icon': copy_icon2,
+            u'action': functools.partial(
+                common.copy_path,
+                path,
+                mode=common.SlackPath
+            )
+        }
+        menu_set[key][u'parent_macos'] = {
+            u'text': u'SMB:  {}'.format(common.copy_path(path, mode=common.MacOSPath, copy=False)),
+            u'icon': copy_icon2,
+            u'action': functools.partial(
+                common.copy_path,
+                path,
+                mode=common.MacOSPath
+            )
         }
         return menu_set
 

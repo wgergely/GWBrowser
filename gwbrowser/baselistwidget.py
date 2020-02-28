@@ -439,6 +439,33 @@ class BaseModel(QtCore.QAbstractListModel):
         self.init_generate_thumbnails_enabled()
         self.__init_threads__()
 
+    def supportedDropActions(self):
+        return QtCore.Qt.CopyAction
+
+    def canDropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
+        if not self.supportedDropActions() & action:
+            return False
+        if row == -1:
+            return False
+        if not data.hasUrls():
+            return False
+        data = self.model_data()
+        if row not in data:
+            return False
+        if not data[row][common.FileInfoLoaded]:
+            return False
+        if data[row][common.FlagsRole] & common.MarkedAsArchived:
+            return False
+        return True
+
+    def dropMimeData(self, data, action, row, column, parent=QtCore.QModelIndex()):
+        for url in data.urls():
+            file_info = QtCore.QFileInfo(url.toLocalFile())
+            source = file_info.filePath()
+            ImageCache.pick(self.index(row, 0), source=source)
+            return True
+        return False
+
     def initialize_default_sort_values(self):
         """Loads the saved sorting values from the local preferences.
 
@@ -765,6 +792,12 @@ class BaseListWidget(QtWidgets.QListView):
 
     def __init__(self, parent=None):
         super(BaseListWidget, self).__init__(parent=parent)
+        self.setDragDropOverwriteMode(False)
+        # self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.viewport().setAcceptDrops(True)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
+
         self._generate_thumbnails_enabled = True
 
         self.progress_widget = ProgressWidget(parent=self)
@@ -1354,9 +1387,10 @@ class BaseListWidget(QtWidgets.QListView):
                         mode = common.WindowsPath
                     else:
                         mode = common.UnixPath
+                    path = index.data(QtCore.Qt.StatusTipRole)
                     if event.modifiers() & QtCore.Qt.ShiftModifier:
-                        return common.copy_path(index, mode=common.UnixPath, first=True)
-                    return common.copy_path(index, mode=mode, first=False)
+                        return common.copy_path(path, mode=common.UnixPath, first=True)
+                    return common.copy_path(path, mode=mode, first=False)
 
             if event.key() == QtCore.Qt.Key_Plus:
                 self.increase_row_size()
@@ -1654,6 +1688,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def __init__(self, parent=None):
         super(BaseInlineIconWidget, self).__init__(parent=parent)
+        self._thumbnail_drop = (-1, False) # row, accepted
         self.multi_toggle_pos = None
         self.multi_toggle_state = None
         self.multi_toggle_idx = None
@@ -1662,8 +1697,7 @@ class BaseInlineIconWidget(BaseListWidget):
 
     def inline_icons_count(self):
         """The numberof inline icons."""
-        raise NotImplementedError(
-            u'inline_icons_count is abstract and must be overriden')
+        return 0
 
     def reset_multitoggle(self):
         self.multi_toggle_pos = None
@@ -1711,8 +1745,8 @@ class BaseInlineIconWidget(BaseListWidget):
         super(BaseInlineIconWidget, self).mousePressEvent(event)
 
     def enterEvent(self, event):
-        app = QtWidgets.QApplication.instance()
-        app.restoreOverrideCursor()
+        QtWidgets.QApplication.instance().restoreOverrideCursor()
+        super(BaseInlineIconWidget, self).enterEvent(event)
 
     def leaveEvent(self, event):
         app = QtWidgets.QApplication.instance()
@@ -1891,6 +1925,69 @@ class BaseInlineIconWidget(BaseListWidget):
         self.resized.connect(widget.setGeometry)
         widget.finished.connect(widget.deleteLater)
         widget.open()
+
+    def dragEnterEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        self.repaint(self.rect())
+        if event.source() == self:
+            event.ignore()
+            return
+        if not event.mimeData().hasUrls():
+            event.ignore()
+            return
+        event.accept()
+
+    def dragLeaveEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        self.repaint(self.rect())
+
+    def dragMoveEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+        pos = QtGui.QCursor().pos()
+        pos = self.mapFromGlobal(pos)
+
+        index = self.indexAt(pos)
+        row = index.row()
+
+        if not index.isValid():
+            self._thumbnail_drop = (-1, False)
+            self.repaint(self.rect())
+            event.ignore()
+            return
+
+        proxy = self.model()
+        model = proxy.sourceModel()
+        index = proxy.mapToSource(index)
+
+        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
+            self._thumbnail_drop = (-1, False)
+            self.repaint(self.rect())
+            event.ignore()
+            return
+
+        event.accept()
+        self._thumbnail_drop = (row, True)
+        self.repaint(self.rect())
+
+    def dropEvent(self, event):
+        self._thumbnail_drop = (-1, False)
+
+        pos = QtGui.QCursor().pos()
+        pos = self.mapFromGlobal(pos)
+
+        index = self.indexAt(pos)
+        if not index.isValid():
+            event.ignore()
+            return
+        proxy = self.model()
+        model = proxy.sourceModel()
+        index = proxy.mapToSource(index)
+
+        if not model.canDropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0):
+            event.ignore()
+            return
+        model.dropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0)
+
 
     @QtCore.Slot()
     def restart_requestinfo_timers(self):

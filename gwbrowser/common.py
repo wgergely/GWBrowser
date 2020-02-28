@@ -148,13 +148,14 @@ def proxy_path(v):
     if not (isinstance, unicode):
         raise ValueError('Invalid type. Expected <type \'QModelIndex\'> or `<type \'unicode\'>')
 
+    m = get_sequence(v)
+    if m:
+        k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
+        return k
     m = is_collapsed(v)
     if m:
         k = m.group(1) + u'[0]' + m.group(3)
         return k
-    m = get_sequence(v)
-    if m:
-        k = m.group(1) + u'[0]' + m.group(3) + u'.' + m.group(4)
     return v
 
 
@@ -1238,79 +1239,40 @@ def draw_aliased_text(painter, font, rect, text, align, color):
     return width
 
 
-def copy_path(index, mode=WindowsPath, first=True):
-    """Copies the given path to the clipboard. We have to do some magic here
-    for the copied paths to be fully qualified."""
-    server = index.data(ParentPathRole)[0]
-    path = index.data(QtCore.Qt.StatusTipRole)
+def copy_path(path, mode=WindowsPath, first=True, copy=True):
+    """Copies a path to the clipboard after converting it to `mode`.
+
+    """
     if first:
         path = get_sequence_startpath(path)
     else:
         path = get_sequence_endpath(path)
 
-    win_server = Server.get_server_platform_name(server, u'win')
-    mac_server = Server.get_server_platform_name(server, u'mac')
-
-    if not win_server:
-        file_path = index.data(QtCore.Qt.StatusTipRole)
-        for server in Server.servers(get_all=True):
-            if server[u'platform'] != 'win':
-                continue
-            if file_path.startswith(server['path']):
-                win_server = Server.get_server_platform_name(
-                    server[u'path'], u'win')
-                server = server[u'path']
-                break
-
-    if not mac_server:
-        file_path = index.data(QtCore.Qt.StatusTipRole)
-        for server in Server.servers(get_all=True):
-            if server[u'platform'] != 'win':
-                continue
-            if file_path.startswith(server['path']):
-                mac_server = Server.get_server_platform_name(
-                    server[u'path'], u'mac')
-                server = server[u'path']
-                break
-
-    if not any((win_server, mac_server)):
-        QtGui.QClipboard().setText(path)
-        print '# Copied {}'.format(path)
-        return path
-
-    win_server = win_server.rstrip('/')
-    mac_server = mac_server.rstrip('/')
+    # Normalise path
+    path = re.sub(ur'[\/\\]', ur'/', path,
+        flags=re.IGNORECASE | re.UNICODE).strip(u'/')
 
     if mode == WindowsPath:
-        if server.lower() in path.lower():
-            path = path.replace(server, win_server)
+        prefix = u'//' if u':' not in path else u''
+    elif mode == UnixPath:
+        prefix = u'//' if u':' not in path else u''
+    elif mode == SlackPath:
+        prefix = u'file://'
+    elif mode == MacOSPath:
+        prefix = u'smb://'
+        path = path.replace(u':', u'')
+    else:
+        prefix = u''
+    path = prefix + path
+    if mode == WindowsPath:
         path = re.sub(ur'[\/\\]', ur'\\', path,
-                      flags=re.IGNORECASE | re.UNICODE)
-        QtGui.QClipboard().setText(path)
-        print '# Copied {}'.format(path)
-        return
+            flags=re.IGNORECASE | re.UNICODE)
 
-    if mode == UnixPath:
-        path = re.sub(ur'[\/\\]', ur'/', path,
-                      flags=re.IGNORECASE | re.UNICODE)
+    if copy:
         QtGui.QClipboard().setText(path)
-        print '# Copied {}'.format(path)
-        return path
+        Log.info(u'Copied {}'.format(path))
 
-    if mode == SlackPath:
-        path = QtCore.QUrl().fromLocalFile(path).toString()
-        QtGui.QClipboard().setText(path)
-        print '# Copied {}'.format(path)
-        return path
-
-    if mode == MacOSPath:
-        if server.lower() in path.lower():
-            path = path.replace(server, mac_server)
-        path = re.sub(ur'[\/\\]', ur'/', path,
-                      flags=re.IGNORECASE | re.UNICODE)
-        QtGui.QClipboard().setText(path)
-        print '# Copied {}'.format(path)
-        return path
+    return path
 
 
 @QtCore.Slot(QtCore.QModelIndex)

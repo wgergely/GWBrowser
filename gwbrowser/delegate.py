@@ -244,7 +244,43 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         irect.moveCenter(rect.center())
         painter.drawPixmap(irect, image, image.rect())
 
-        color = index.data(common.ThumbnailBackgroundRole)
+    def paint_thumbnail_drop_indicator(self, *args):
+        rectangles, painter, option, index, selected, focused, active, archived, favourite, hover, font, metrics, cursor_position = args
+        drop = self.parent()._thumbnail_drop
+        if drop[1] and drop[0] == index.row():
+            painter.setOpacity(0.6)
+            painter.setBrush(common.SEPARATOR)
+            painter.drawRect(option.rect)
+
+            painter.setPen(common.ADD)
+            font = QtGui.QFont(common.SecondaryFont)
+            font.setPointSizeF(common.SMALL_FONT_SIZE)
+            painter.setFont(font)
+
+            text = u'Drop image to add as thumbnail'
+            painter.drawText(
+                option.rect.marginsRemoved(QtCore.QMargins(18, 0, 18, 0)),
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
+                text,
+                boundingRect=option.rect,
+            )
+
+            o = 2
+            rect = rectangles[ThumbnailRect].marginsRemoved(QtCore.QMargins(o,o,o,o))
+            painter.drawRect(rect)
+
+            pen = QtGui.QPen(common.ADD)
+            pen.setWidthF(o)
+            painter.setPen(pen)
+            painter.setBrush(common.ADD)
+            painter.setOpacity(0.5)
+            pixmap = ImageCache.get_rsc_pixmap(u'add', common.ADD, rect.height() * 0.5)
+            painter.drawRect(rect)
+            irect = pixmap.rect()
+            irect.moveCenter(rect.center())
+            painter.drawPixmap(irect, pixmap, pixmap.rect())
+
+
 
     @paintmethod
     def paint_background(self, *args):
@@ -466,6 +502,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_inline_icons(*args)
         self.paint_description_editor_background(*args)
         self.paint_selection_indicator(*args)
+        self.paint_thumbnail_drop_indicator(*args)
 
     def get_description_rect(self, *args):
         """We don't have descriptions for bookmark items."""
@@ -593,6 +630,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         self.paint_description_editor_background(*args)
         self.paint_inline_icons(*args)
         self.paint_selection_indicator(*args)
+        self.paint_thumbnail_drop_indicator(*args)
 
     def get_description_rect(self, rectangles, index):
         """Returns the description area of an ``AssetsWidget`` item."""
@@ -736,6 +774,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         if self.parent().drag_source_index.isValid():
             self.paint_drag_source(*args)
+        self.paint_thumbnail_drop_indicator(*args)
 
     def get_description_rect(self, rectangles, index):
         """The description rectangle of a file item."""
@@ -1290,8 +1329,11 @@ class FilesWidgetDelegate(BaseDelegate):
 
 
 if __name__ == '__main__':
-    import gwbrowser.browserwidget as b
     app = QtWidgets.QApplication([])
+    common.DEBUG_ON = True
+    l = common.LogView()
+    l.show()
+    import gwbrowser.browserwidget as b
     w = b.BrowserWidget()
     w.show()
     app.exec_()

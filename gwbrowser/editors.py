@@ -2,7 +2,6 @@
 """Widgets used to edit data in the list widgets."""
 
 import os
-import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 import OpenImageIO
 import gwbrowser.gwscandir as gwscandir
@@ -11,8 +10,6 @@ import gwbrowser.bookmark_db as bookmark_db
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.alembicpreview import get_alembic_thumbnail
-from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.basecontextmenu import contextmenu
 import gwbrowser.delegate as delegate
 
 
@@ -262,8 +259,13 @@ QLineEdit {{
             self.hide()
             return
 
+        if index.data(common.TypeRole) == common.FileItem:
+            k = index.data(QtCore.Qt.StatusTipRole)
+        elif index.data(common.TypeRole) == common.SequenceItem:
+            k = common.proxy_path(index)
+
         db = bookmark_db.get_db(index)
-        db.setValue(common.proxy_path(index), u'description', self.text())
+        db.setValue(k, u'description', self.text())
         source_index = index.model().mapToSource(index)
         data = source_index.model().model_data()[source_index.row()]
         data[common.DescriptionRole] = self.text()
@@ -578,8 +580,8 @@ class ThumbnailsWidget(QtWidgets.QWidget):
         self.columns = 5
         common.set_custom_stylesheet(self)
         self._createUI()
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         self.setWindowFlags(QtCore.Qt.Widget)
         self.setWindowTitle(u'Select thumbnail')
@@ -594,8 +596,9 @@ class ThumbnailsWidget(QtWidgets.QWidget):
 
 
         widget = QtWidgets.QWidget()
-        widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        widget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        widget.setStyleSheet('background-color: rgba({})'.format(common.rgb(common.SECONDARY_BACKGROUND)))
+        # widget.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        # widget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         QtWidgets.QGridLayout(widget)
         widget.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -657,7 +660,7 @@ class ThumbnailsWidget(QtWidgets.QWidget):
             o, o
         )
         painter.end()
-        
+
     def keyPressEvent(self, event):
         """Closes the widget on any key-press."""
         self.close()

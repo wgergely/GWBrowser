@@ -104,7 +104,7 @@ class ImageDownloader(QtCore.QObject):
         _file.close()
 
         dest = u'{}/{}.png'.format(temp, file_name.replace(u'.', u''))
-        ImageCache.openimageio_thumbnail(cache_file_path, dest, 32.0)
+        ImageCache.oiio_make_thumbnail(cache_file_path, dest, 32.0)
         image = QtGui.QPixmap(dest, format=u'png')
         image = ImageCache.resize_image(image, 24.0)
         # icon = QtGui.QIcon(pixmap)

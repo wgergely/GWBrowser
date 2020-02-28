@@ -492,15 +492,6 @@ class FilesModel(BaseModel):
                 self.sort_data()
             Log.success('set_data_key()')
 
-    def canDropMimeData(self, data, action, row, column):
-        return False
-
-    def supportedDropActions(self):
-        return QtCore.Qt.IgnoreAction
-
-    def supportedDragActions(self):
-        return QtCore.Qt.CopyAction
-
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
         constructed here.
@@ -635,10 +626,9 @@ class FilesWidget(ThreadedBaseWidget):
         self.drag_source_index = QtCore.QModelIndex()
 
         self.setWindowTitle(u'Files')
-        self.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
         self.setDragEnabled(True)
-        self.setAcceptDrops(False)
-        self.setDropIndicatorShown(False)
+        self.viewport().setAcceptDrops(True)
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(unicode)

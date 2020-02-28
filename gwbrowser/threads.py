@@ -225,7 +225,10 @@ class InfoWorker(BaseWorker):
         # DATABASE --BEGIN--
         with db.transactions():
             # Item description
-            k = common.proxy_path(ref())
+            if ref()[common.TypeRole] == common.FileItem:
+                k = ref()[QtCore.Qt.StatusTipRole]
+            elif ref()[common.TypeRole] == common.SequenceItem:
+                k = common.proxy_path(ref())
 
             # Description
             v = db.value(k, u'description')
@@ -433,7 +436,7 @@ class ThumbnailWorker(BaseWorker):
     @QtCore.Slot(weakref.ref)
     @staticmethod
     def process_thumbnail(ref):
-        """Wraps the `openimageio_thumbnail()` call when the source data is
+        """Wraps the `oiio_make_thumbnail()` call when the source data is
         a weak dict reference.
 
         Args:
@@ -457,7 +460,7 @@ class ThumbnailWorker(BaseWorker):
             if QtCore.QFileInfo(source).size() >= 836870912:
                 return False
 
-            if not ImageCache.openimageio_thumbnail(source, dest, common.THUMBNAIL_IMAGE_SIZE):
+            if not ImageCache.oiio_make_thumbnail(source, dest, common.THUMBNAIL_IMAGE_SIZE):
                 return False
 
             if not ref():

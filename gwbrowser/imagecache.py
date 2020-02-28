@@ -8,7 +8,7 @@ Thumbnails
     the *FilesModel* (we only generate thumbnails from file OpenImageIO
     understands.
 
-    To generate a thumbnail use ``ImageCache.openimageio_thumbnail()``.
+    To generate a thumbnail use ``ImageCache.oiio_make_thumbnail()``.
 
 All generated thumbnails and ui resources are cached in ``ImageCache``.
 
@@ -22,6 +22,13 @@ import OpenImageIO
 from gwbrowser.capture import ScreenGrabber
 import gwbrowser.common as common
 from functools import wraps
+
+
+oiio_cache = OpenImageIO.ImageCache(shared=True)
+oiio_cache.attribute('max_memory_MB', 2048.0)
+oiio_cache.attribute('max_open_files', 0)
+oiio_cache.attribute('trust_file_extensions', 1)
+
 
 
 def verify_index(func):
@@ -242,7 +249,7 @@ class ImageCache(QtCore.QObject):
             common.Log.error('Destination path is not writable.')
             return
 
-        cls.openimageio_thumbnail(
+        cls.oiio_make_thumbnail(
             source,
             thumbnail_path,
             common.THUMBNAIL_IMAGE_SIZE,
@@ -339,134 +346,138 @@ class ImageCache(QtCore.QObject):
                 del cls.INTERNAL_IMAGE_DATA[k]
 
     @classmethod
-    def openimageio_thumbnail(cls, source, dest, dest_size, nthreads=4):
-        """Generates a thumbnail using OpenImageIO."""
-        # First let's check if the file is readable by OpenImageIO
+    def oiio_make_thumbnail(cls, source, dest, dest_size, nthreads=4):
+        def get_scaled_spec(source_spec):
+            w = source_spec.width
+            h = source_spec.height
+            factor = float(dest_size) / max(float(w), float(h))
+            w *= factor
+            h *= factor
+
+            s = OpenImageIO.ImageSpec(int(w), int(h), 4, OpenImageIO.UINT8)
+            s.channelnames = (u'R', u'G', u'B', u'A')
+            s.alpha_channel = 3
+            s.attribute(u'oiio:ColorSpace', u'sRGB')
+            s.attribute(u'oiio:Gamma', u'0.454545')
+            return s
+
+        def shuffle_channels(buf, source_spec):
+            if int(source_spec.nchannels) < 3:
+                buf = OpenImageIO.ImageBufAlgo.channels(
+                    buf,
+                    (source_spec.channelnames[0], source_spec.channelnames[0], source_spec.channelnames[0]),
+                    (u'R', u'G', u'B')
+                )
+            elif int(source_spec.nchannels) > 4:
+                if source_spec.channelindex(u'A') > -1:
+                    buf = OpenImageIO.ImageBufAlgo.channels(
+                        buf, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
+                else:
+                    buf = OpenImageIO.ImageBufAlgo.channels(
+                        buf, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
+            return buf
+
+        def resize(buf, source_spec):
+            buf = OpenImageIO.ImageBufAlgo.resample(
+                buf, roi=dest_spec.roi, interpolate=True, nthreads=nthreads)
+            return buf
+
+        def flatten(buf, source_spec):
+            if source_spec.deep:
+                buf = OpenImageIO.ImageBufAlgo.flatten(buf, nthreads=nthreads)
+            return buf
+
+        def convert_color(buf, source_spec):
+            colorspace = source_spec.get_string_attribute(u'oiio:ColorSpace')
+            try:
+                if colorspace != 'sRGB':
+                    buf = OpenImageIO.ImageBufAlgo.colorconvert(buf, colorspace, 'sRGB')
+            except:
+                common.Log.error('Could not conver tthe color profile')
+            return buf
+
+
         i = OpenImageIO.ImageInput.open(source)
-        if not i:  # the file is not understood by OpenImageIO
+        if not i:
+            common.Log.error(OpenImageIO.geterror())
             return False
-        i.close()
 
         try:
-            img = OpenImageIO.ImageBuf(source)
+            buf = OpenImageIO.ImageBuf()
+            o_spec = i.spec_dimensions(0, miplevel=0)
+            buf.reset(source, 0, 0, o_spec)
         except:
-            print traceback.format_exc()
+            common.Log.error(buf.geterror())
             return False
-        s = img.spec()
-        if source.split('.').pop().lower() in ('tif', 'tiff') and s.format == 'uint16':
+        finally:
+            i.close()
+
+        if buf.has_error:
+            common.Log.error(buf.geterror())
+            return
+
+        source_spec = buf.spec()
+        ext = source.split(u'.').pop().lower()
+        accepted_codecs = (u'h.264', u'mpeg-4')
+        codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
+
+        if ext in (u'tif', u'tiff', 'gif') and source_spec.format == 'uint16':
             return False
 
-        # Let's check if the loaded item is a movie and let's pick the middle
-        # of the timeline as the thumbnail image
-        if s.get_int_attribute(u'oiio:Movie') == 1:
+        if source_spec.get_int_attribute(u'oiio:Movie') == 1:
             # [BUG] Not all codec formats are supported by ffmpeg. There does
             # not seem to be (?) error handling and an unsupported codec will
             # crash ffmpeg and the rest of the app.
-            accepted_codecs = (u'h.264', u'mpeg-4')
             for codec in accepted_codecs:
-                codec_name = s.get_string_attribute(u'ffmpeg:codec_name')
                 if codec.lower() not in codec_name.lower():
+                    common.Log.error('Unsupported movie format: {}'.format(codec_name))
                     return False
 
-            # http://lists.openimageio.org/pipermail/oiio-dev-openimageio.org/2017-December/001104.html
-            frame = int(img.nsubimages / 2)
-            img.reset(source, subimage=frame)
 
-        if img.has_error:
-            return False
+        dest_spec = get_scaled_spec(source_spec)
+        buf = shuffle_channels(buf, source_spec)
+        buf = flatten(buf, source_spec)
+        buf = convert_color(buf, source_spec)
+        buf = resize(buf, source_spec)
 
-        # Deep
-        if s.deep:
-            img = OpenImageIO.ImageBufAlgo.flatten(img, nthreads=nthreads)
+        if buf.nchannels > 3:
+            background_buf = OpenImageIO.ImageBuf(dest_spec)
+            OpenImageIO.ImageBufAlgo.checker(
+                background_buf,
+                12,12,1,
+                (0.3,0.3,0.3),
+                (0.2,0.2,0.2)
+            )
+            buf = OpenImageIO.ImageBufAlgo.over(buf, background_buf)
 
-
-        w = s.width
-        h = s.height
-        factor = float(dest_size) / max(float(w), float(h))
-        w *= factor
-        h *= factor
-
-        spec = OpenImageIO.ImageSpec(int(w), int(h), 4, OpenImageIO.FLOAT)
-        spec.channelnames = (u'R', u'G', u'B', u'A')
-        spec.alpha_channel = 3
-        spec.attribute(u'oiio:ColorSpace', u'Linear')
-        spec.attribute(u'oiio:Gamma', u'0.454545')
-
-        # Resizing the image
-        b = OpenImageIO.ImageBufAlgo.resample(
-            img, roi=spec.roi, interpolate=True, nthreads=nthreads * 2)
-        b.set_write_format(OpenImageIO.UINT8)
-
-        spec = b.spec()
-        if spec.get_string_attribute(u'oiio:ColorSpace') == u'Linear':
-            roi = OpenImageIO.get_roi(b.spec())
-            roi.chbegin = 0
-            roi.chend = 3
-            OpenImageIO.ImageBufAlgo.pow(
-                b, b, 1.0 / 2.2, roi, nthreads=nthreads)
-
-        # On some dpx images I'm getting "GammaCorrectedinf" - trying to pretend here it is linear
-        if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
-            spec.attribute(u'oiio:ColorSpace', u'Linear')
-            spec.attribute(u'oiio:Gamma', u'0.454545')
-
-        if int(spec.nchannels) < 3:
-            b = OpenImageIO.ImageBufAlgo.channels(
-                b, (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]), (u'R', u'G', u'B'))
-        elif int(spec.nchannels) > 4:
-            if spec.channelindex(u'A') > -1:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, (u'R', u'G', u'B', u'A'), (u'R', u'G', u'B', u'A'))
-            else:
-                b = OpenImageIO.ImageBufAlgo.channels(
-                    b, (u'R', u'G', u'B'), (u'R', u'G', u'B'))
+        spec = buf.spec()
+        buf.set_write_format(OpenImageIO.UINT8)
 
         # There seems to be a problem with the ICC profile exported from Adobe
         # applications and the PNG library. The sRGB profile seems to be out of date
         # and pnglib crashes when encounters an invalid profile.
         # Removing the ICC profile seems to fix the issue. Annoying!
+        if spec.getattribute('ICCProfile'):
+            spec['ICCProfile'] = None
+        # On some dpx images I'm getting "GammaCorrectedinf"
+        if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
+            spec['oiio:ColorSpace'] = 'sRGB'
+            spec['oiio:Gamma'] = u'0.454545'
 
-        # First, rebuilding the attributes as a modified xml tree
-        modified = False
-
-        # On a few dpx images, I encoutered odd character-data that the xml
-        # parser wouldn't take
-        xml = b.spec().to_xml()
-        xml = ''.join([i if ord(i) < 128 else ' ' for i in xml])
-        root = ElementTree.fromstring(
-            xml, ElementTree.XMLParser(encoding=u'utf-8'))
-        for attrib in root.findall(u'attrib'):
-            if attrib.attrib[u'name'] == u'ICCProfile':
-                root.remove(attrib)
-                modified = True
-                break
-
-        if modified:
-            xml = ElementTree.tostring(root)
-            # Initiating a new spec with the modified xml
-            spec = OpenImageIO.ImageSpec()
-            spec.from_xml(xml)
-
-            # Lastly, copying the pixels over from the old to the new buffer.
-            _b = OpenImageIO.ImageBuf(spec)
-            pixels = b.get_pixels()
-            _b.set_write_format(OpenImageIO.UINT8)
-            _b.set_pixels(OpenImageIO.get_roi(spec), pixels)
-        else:
-            _b = b
-
-        # Saving the processed thumbnail
-        i = OpenImageIO.ImageInput.open(source)
-        if not i:  # the file is not understood by OpenImageIO
-            return False
-        i.close()
+        # Initiating a new spec with the modified xml
+        _buf = OpenImageIO.ImageBuf(spec)
+        _buf.copy_pixels(buf)
+        _buf.set_write_format(OpenImageIO.UINT8)
 
         if not QtCore.QFileInfo(QtCore.QFileInfo(dest).path()).isWritable():
             common.Log.error(u'Destination path is not writable')
             return
 
-        success = _b.write(dest, dtype=OpenImageIO.UINT8)
+        success = buf.write(dest, dtype=OpenImageIO.UINT8)
         if not success:
+            common.Log.error(buf.geterror())
+            common.Log.error(OpenImageIO.geterror())
             QtCore.QFile(dest).remove()
             return False
         return True
+    

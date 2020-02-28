@@ -262,7 +262,6 @@ class DataKeyModel(BaseModel):
     def __init__(self, parent=None):
         self._parent = parent
         super(DataKeyModel, self).__init__(parent=parent)
-
         self.modelDataResetRequested.connect(self.__resetdata__)
 
     def __init_threads__(self):
@@ -274,7 +273,7 @@ class DataKeyModel(BaseModel):
             thread.startTimer.emit()
 
         info_worker = threads.DataKeyWorker()
-        info_thread = threads.BaseThread(info_worker, interval=500)
+        info_thread = threads.BaseThread(info_worker, interval=250)
         self.threads[common.InfoThread].append(info_thread)
         info_thread.started.connect(partial(thread_started, info_thread))
         info_thread.start()
@@ -303,8 +302,8 @@ class DataKeyModel(BaseModel):
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
         self.threads[common.InfoThread][0].worker.resetQueue.emit()
-        dkey = self.data_key()
 
+        dkey = self.data_key()
         self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
             common.FileItem: common.DataDict(),
             common.SequenceItem: common.DataDict()
@@ -358,4 +357,7 @@ class DataKeyModel(BaseModel):
                 common.FileThumbnailLoaded: True,
                 common.TodoCountRole: 0,
             })
-            self.threads[common.InfoThread][0].put(weakref.ref(data[idx]))
+
+            thread = self.threads[common.InfoThread][0]
+            thread.put(weakref.ref(data[idx]))
+            thread.worker.dataRequested.emit()

@@ -998,7 +998,7 @@ class ThumbnailButton(ClickableIconButton):
         temp_path = u'{}/browser_temp_thumbnail_{}.{}'.format(
             QtCore.QDir.tempPath(), uuid.uuid1(), common.THUMBNAIL_FORMAT)
 
-        res = ImageCache.openimageio_thumbnail(
+        res = ImageCache.oiio_make_thumbnail(
             next(f for f in dialog.selectedFiles()),
             temp_path,
             common.THUMBNAIL_IMAGE_SIZE

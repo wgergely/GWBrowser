@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-"""``bookmarkswidget.py`` defines the main objects needed for interacting with
-bookmarks. This includes the utility classes for getting bookmark status and to
-allow dropping files and urls on the view.
+"""``bookmarkswidget.py``
 
 """
 import json
@@ -85,10 +83,6 @@ class BookmarksWidgetContextMenu(BaseContextMenu):
 
 class BookmarksModel(BaseModel):
     """The model used store the data necessary to display bookmarks.
-
-    The model is drop-enabled, and accepts file are urls. The dropped items will
-    be copied to the root of the bookmark folder.
-
     """
 
     ROW_SIZE = QtCore.QSize(0, common.BOOKMARK_ROW_HEIGHT)
@@ -115,6 +109,7 @@ class BookmarksModel(BaseModel):
         def dflags():
             """The default flags to apply to the item."""
             return (
+                QtCore.Qt.ItemIsDropEnabled |
                 QtCore.Qt.ItemNeverHasChildren |
                 QtCore.Qt.ItemIsEnabled |
                 QtCore.Qt.ItemIsSelectable)
@@ -303,10 +298,6 @@ class BookmarksWidget(BaseInlineIconWidget):
 
     def __init__(self, parent=None):
         super(BookmarksWidget, self).__init__(parent=parent)
-        self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
-        self.setDragDropOverwriteMode(False)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
         self.setWindowTitle(u'Bookmarks')
 
         import gwbrowser.managebookmarks as managebookmarks

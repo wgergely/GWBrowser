@@ -884,6 +884,7 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         ff.entered.connect(self.entered)
         l.entered.connect(self.entered)
+        
         lc.bookmarks_button.message.connect(self.entered2)
         lc.assets_button.message.connect(self.entered2)
         lc.files_button.message.connect(self.entered2)

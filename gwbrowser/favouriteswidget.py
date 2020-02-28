@@ -80,7 +80,7 @@ class FavouritesModel(FilesModel):
                 if path == k:
                     d.append(entry)
                     continue
-                _k = common.proxy_path(path).lower()
+                _k = common.proxy_path(path)
                 if k == _k:
                     d.append(entry)
         for entry in d:
@@ -136,6 +136,8 @@ class FavouritesWidget(FilesWidget):
     def set_model(self, *args):
         super(FavouritesWidget, self).set_model(*args)
         self.favouritesChanged.connect(self.model().sourceModel().modelDataResetRequested)
+        self.favouritesChanged.connect(
+            lambda: common.Log.debug('favouritesChanged -> modelDataResetRequested', self))
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons."""
@@ -148,7 +150,6 @@ class FavouritesWidget(FilesWidget):
         if flag == common.MarkedAsArchived:
             flag = common.MarkedAsFavourite
         super(FavouritesWidget, self).toggle_item_flag(index, flag, state=state)
-        self.model().sourceModel().modelDataResetRequested.emit()
 
     def dragEnterEvent(self, event):
         if event.source() == self:
