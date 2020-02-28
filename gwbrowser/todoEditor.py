@@ -1222,6 +1222,8 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.refresh()
 
     def hideEvent(self, event):
+        if not self.read_only:
+            self.save_settings()
         self.unlock()
 
     def sizeHint(self):

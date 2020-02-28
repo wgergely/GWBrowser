@@ -338,7 +338,10 @@ class PaintedTextButton(QtWidgets.QLabel):
 
         self.setStatusTip(description)
         self.setToolTip(description)
-
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Fixed,
+            QtWidgets.QSizePolicy.MinimumExpanding,
+        )
         self.timer = QtCore.QTimer(parent=self)
         self.timer.setSingleShot(False)
         self.timer.setInterval(400)
@@ -406,16 +409,15 @@ class PaintedTextButton(QtWidgets.QLabel):
             text = self.default_label
         return text
 
-    def get_size(self):
+    def get_width(self):
         o = common.INDICATOR_WIDTH * 3
         width = QtGui.QFontMetricsF(self.font).width(self.text()) + (o * 2)
-        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
-        return QtCore.QSize(width, height)
+        return width
 
     @QtCore.Slot()
     def adjust_size(self):
         """Slot responsible for setting the size of the widget to match the text."""
-        self.setFixedSize(self.get_size())
+        self.setFixedWidth(self.get_width())
         self.update()
 
     def showEvent(self, event):
@@ -586,6 +588,7 @@ class FilesTabButton(PaintedTextButton):
                 data_key = u'{}...{}'.format(data_key[0:10], data_key[-12:])
         else:
             data_key = self.default_label
+        data_key = data_key + u'  ▼'
         return data_key
 
     def paintEvent(self, event):
@@ -837,17 +840,12 @@ class ListControlWidget(QtWidgets.QWidget):
         """`ListControlWidget`' paint event."""
         painter=QtGui.QPainter()
         painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+
         pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
         t = QtGui.QTransform()
-
         t.rotate(90)
         pixmap = pixmap.transformed(t)
-        painter.setOpacity(0.5)
+        painter.setOpacity(0.8)
         painter.drawPixmap(self.rect(), pixmap, pixmap.rect())
-
-        rect = self.rect()
-        rect.setTop(rect.bottom() - common.ROW_SEPARATOR)
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(QtGui.QColor(0,0,0,30))
-        painter.drawRect(rect)
         painter.end()

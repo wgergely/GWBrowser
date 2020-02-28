@@ -9,9 +9,6 @@ the widget used to switch between the lists.
 
 """
 import re
-import time
-import sys
-import traceback
 import weakref
 from functools import wraps, partial
 
@@ -112,10 +109,6 @@ class ProgressWidget(QtWidgets.QWidget):
         self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setWindowFlags(QtCore.Qt.Widget)
-        # self.setSizePolicy(
-        #     QtWidgets.QSizePolicy.,
-        #     QtWidgets.QSizePolicy.Expanding
-        # )
         self._message = u'Loading...'
 
     def showEvent(self, event):
@@ -309,9 +302,13 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         filtertext = self.filter_text()
         if filtertext:
             filtertext = filtertext.strip().lower()
+            d = data[common.DescriptionRole]
+            d = d.strip().lower() if d else u''
+            f = data[common.FileDetailsRole]
+            f = f.strip().lower() if f else ''
             searchable = data[QtCore.Qt.StatusTipRole].lower() + u'\n' + \
-                data[common.DescriptionRole].strip().lower() + u'\n' + \
-                data[common.FileDetailsRole].strip().lower()
+                d.strip().lower() + u'\n' + \
+                f.strip().lower()
 
             if not self.filter_includes_row(filtertext, searchable):
                 return False
@@ -808,6 +805,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.viewport().setAcceptDrops(True)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
 
+        self._background_icon = u'custom_bw'
         self._generate_thumbnails_enabled = True
 
         self.progress_widget = ProgressWidget(parent=self)
@@ -835,12 +833,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
         self.setUniformItemSizes(True)
-        self.setTextElideMode(QtCore.Qt.ElideNone)
 
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.Preferred,
-            QtWidgets.QSizePolicy.Preferred
-        )
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
@@ -1548,98 +1541,95 @@ class BaseListWidget(QtWidgets.QListView):
         if rectangles[delegate.ThumbnailRect].contains(cursor_position):
             return ImageCache.pick(index)
 
-    def paint_status_message(self, widget, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-
+    def _get_status_string(self):
         proxy = self.model()
         model = proxy.sourceModel()
-        filter_text = proxy.filter_text()
 
-        sizehint = self.itemDelegate().sizeHint(
-            self.viewOptions(), QtCore.QModelIndex())
+        # Model is empty
+        if not model.rowCount():
+            return u'No items to display'
 
-        rect = self.rect()
-        center = rect.center()
-        rect.setWidth(rect.width() - common.MARGIN)
-        rect.moveCenter(center)
+        # All items are visible
+        if proxy.rowCount() == model.rowCount():
+            return u''
 
-        favourite_mode = proxy.filter_flag(common.MarkedAsFavourite)
-        active_mode = proxy.filter_flag(common.MarkedAsActive)
+        # Because...
+        if proxy.filter_text():
+            reason = u'a search filter is applied'
+        elif proxy.filter_flag(common.MarkedAsFavourite):
+            reason = u'showing favourites only'
+        elif proxy.filter_flag(common.MarkedAsActive):
+            reason = u'showing active item only'
+        elif not proxy.filter_flag(common.MarkedAsArchived):
+            reason = u'archived items are hidden'
 
-        text_rect = QtCore.QRect(rect)
-        text_rect.setHeight(sizehint.height())
+        # Items are hidden...
+        count = model.rowCount() - proxy.rowCount()
+        if count == 1:
+            return u'{} item is hidden ({})'.format(count, reason)
+        else:
+            return u'{} items are hidden ({})'.format(count, reason)
+
+    def paint_status_message(self, widget, event):
+        proxy = self.model()
+        model = proxy.sourceModel()
+
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+
+        font = QtGui.QFont(common.PrimaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+
+        n = 0
+        rect = QtCore.QRect(
+            0,0,
+            self.viewport().rect().width(),
+            model.ROW_SIZE.height()
+             )
+
+        while self.rect().intersects(rect):
+            if n == proxy.rowCount():
+                if n == 0:
+                    rect.moveCenter(self.rect().center())
+                break
+            rect.moveTop(rect.top() + rect.height())
+            n += 1
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
+        o = 4
 
+        rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
         painter.setPen(QtCore.Qt.NoPen)
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 1)
-        align = QtCore.Qt.AlignCenter
+        painter.setBrush(common.SEPARATOR)
+        painter.setOpacity(0.3)
+        painter.drawRoundedRect(rect, o, o)
+        painter.setOpacity(1.0)
 
-        text = u''
-        if not model.parent_path and self.parent():
-            if self.parent().currentIndex() == 0:
-                if model.rowCount() == 0:
-                    text = u'No bookmarks added yet. Click the plus icon above to get started.'
-            elif self.parent().currentIndex() == 1:
-                text = u'Assets will be shown here once a bookmark is activated.'
-            elif self.parent().currentIndex() == 2:
-                text = u'Files will be shown here once an asset is activated.'
-            elif self.parent().currentIndex() == 3:
-                text = u'You don\'t have any favourites yet.'
+        painter.setPen(common.TEXT_DISABLED)
+        painter.drawText(
+            rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o)),
+            QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
+            self._get_status_string(),
+            boundingRect=rect,
+        )
+        painter.end()
 
-            common.draw_aliased_text(
-                painter, font, rect, text, align, common.TEXT_DISABLED)
-            return True
-
-        if not model.data_key() and self.parent():
-            if self.parent().currentIndex() == 2:
-                text = u'No task folder selected.'
-                common.draw_aliased_text(
-                    painter, font, text_rect, text, align, common.TEXT_DISABLED)
-                return True
-
-        if model.rowCount() == 0:
-            text = u'No items to show.'
-            common.draw_aliased_text(
-                painter, font, text_rect, text, align, common.TEXT_DISABLED)
-            return True
-
-        for n in xrange((self.height() / sizehint.height()) + 1):
-            if n >= model.rowCount():  # Empty items
-                rect_ = QtCore.QRect(rect)
-                rect_.setWidth(sizehint.height() - 2)
-
-            if n == model.rowCount():  # filter mode
-                hidden_count = model.rowCount() - model.rowCount()
-                filtext = u''
-                favtext = u''
-                acttext = u''
-                hidtext = u''
-
-                if filter_text:
-                    filtext = filter_text.upper()
-                if favourite_mode:
-                    favtext = u'Showing favourites only'
-                if active_mode:
-                    acttext = u'Showing active item only'
-                if hidden_count:
-                    hidtext = u'{} items are hidden'.format(hidden_count)
-                text = [f for f in (
-                    filtext, favtext, acttext, hidtext) if f]
-                text = u'  |  '.join(text)
-                common.draw_aliased_text(
-                    painter, font, text_rect, text, align, common.SECONDARY_TEXT)
-
-            text_rect.moveTop(text_rect.top() + sizehint.height())
-            rect.moveTop(rect.top() + sizehint.height())
+    def paint_background_icon(self, widget, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        o = 12
+        pixmap = ImageCache.get_rsc_pixmap(self._background_icon, QtGui.QColor(0,0,0,30), common.ROW_HEIGHT * 3)
+        rect = pixmap.rect()
+        rect.moveCenter(self.rect().center())
+        painter.drawPixmap(rect, pixmap, pixmap.rect())
+        painter.end()
 
     def eventFilter(self, widget, event):
         if widget is not self:
             return False
         if event.type() == QtCore.QEvent.Paint:
+            self.paint_background_icon(widget, event)
             self.paint_status_message(widget, event)
             return True
         return False
@@ -1655,9 +1645,8 @@ class BaseListWidget(QtWidgets.QListView):
             return
         model.ROW_SIZE.setHeight(int(v))
 
-        cls = model.__class__.__name__
-        settings_.local_settings.value(
-        u'widget/{}/rowheight'.format(cls, int(v)))
+        settings_.local_settings.setValue(
+            u'widget/rowheight', int(v))
 
         # Save selection
         row = self.selectionModel().currentIndex().row()
@@ -1681,9 +1670,8 @@ class BaseListWidget(QtWidgets.QListView):
             return
         model.ROW_SIZE.setHeight(int(v))
 
-        cls = model.__class__.__name__
-        settings_.local_settings.value(
-        u'widget/{}/rowheight'.format(cls, int(v)))
+        settings_.local_settings.setValue(
+            u'widget/rowheight', int(v))
 
         # Save selection
         row = self.selectionModel().currentIndex().row()
@@ -1700,10 +1688,7 @@ class BaseListWidget(QtWidgets.QListView):
             index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
     def sizeHint(self):
-        return QtCore.QSize(460, 640)
-
-    def showEvent(self, event):
-        self.reset()
+        return QtCore.QSize(120, 180)
 
 
 class BaseInlineIconWidget(BaseListWidget):
@@ -2011,7 +1996,6 @@ class BaseInlineIconWidget(BaseListWidget):
             return
         model.dropMimeData(event.mimeData(), event.proposedAction(), index.row(), 0)
 
-
     @QtCore.Slot()
     def restart_requestinfo_timers(self):
         pass
@@ -2258,7 +2242,16 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                         thread.startTimer.emit()
                         common.Log.info('thread.startTimer.emit()')
 
-
+    def showEvent(self, event):
+        super(ThreadedBaseWidget, self).showEvent(event)
+        index = self.indexAt(self.rect().topLeft())
+        if not index.isValid():
+            return
+        needs_info = not index.data(common.FileInfoLoaded)
+        needs_thumbnail = not index.data(common.FileThumbnailLoaded)
+        if needs_info or needs_thumbnail:
+            self.model().sourceModel().reset_thread_worker_queues()
+            self.restart_requestinfo_timers()
 
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the

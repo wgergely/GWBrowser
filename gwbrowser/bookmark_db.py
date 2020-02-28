@@ -22,7 +22,7 @@ SERVER_TABLE_KEYS = (u'server', u'job', u'root', u'user', u'host')
 DATA_TABLE_KEYS = (u'description', u'notes', u'flags',
                    u'thumbnail_stamp', u'user')
 
-_DB_CONNECTIONS = {}
+DB_CONNECTIONS = {}
 """We will store our db connection instances here. They will be created per thread."""
 
 
@@ -40,7 +40,7 @@ def get_db(index, server=None, job=None, root=None):
 
     """
     try:
-        global _DB_CONNECTIONS
+        global DB_CONNECTIONS
         thread_id = repr(QtCore.QThread.currentThread())
 
         if not index.isValid():
@@ -51,10 +51,10 @@ def get_db(index, server=None, job=None, root=None):
             args = index.data(common.ParentPathRole)[0:3]
 
         k = u'/'.join(args).lower() + thread_id
-        if k not in _DB_CONNECTIONS:
-            _DB_CONNECTIONS[k] = BookmarkDB(*args)
+        if k not in DB_CONNECTIONS:
+            DB_CONNECTIONS[k] = BookmarkDB(*args)
 
-        return _DB_CONNECTIONS[k]
+        return DB_CONNECTIONS[k]
     except:
         common.Log.error('Failed to get BookmarkDB')
 
@@ -73,7 +73,7 @@ def remove_db(index, server=None, job=None, root=None):
 
     """
     try:
-        global _DB_CONNECTIONS
+        global DB_CONNECTIONS
         thread_id = repr(QtCore.QThread.currentThread())
 
         if not index.isValid():
@@ -84,19 +84,19 @@ def remove_db(index, server=None, job=None, root=None):
             args = index.data(common.ParentPathRole)[0:3]
 
         k = u'/'.join(args).lower() + thread_id
-        if k in _DB_CONNECTIONS:
-            _DB_CONNECTIONS[k].connection().close()
-            _DB_CONNECTIONS[k].deleteLater()
-            del _DB_CONNECTIONS[k]
+        if k in DB_CONNECTIONS:
+            DB_CONNECTIONS[k].connection().close()
+            DB_CONNECTIONS[k].deleteLater()
+            del DB_CONNECTIONS[k]
     except:
         common.Log.error('Failed to remove BookmarkDB')
 
 
 def reset():
-    global _DB_CONNECTIONS
-    for v in _DB_CONNECTIONS.itervalues():
+    global DB_CONNECTIONS
+    for v in DB_CONNECTIONS.itervalues():
         v.deleteLater()
-    _DB_CONNECTIONS = {}
+    DB_CONNECTIONS = {}
 
 
 class BookmarkDB(QtCore.QObject):

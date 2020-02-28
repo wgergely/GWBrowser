@@ -3,7 +3,6 @@
 """
 import sys
 import time
-import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -13,7 +12,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
 from gwbrowser.baselistwidget import StackedWidget
 from gwbrowser.bookmarkswidget import BookmarksWidget
-from gwbrowser.common_ui import ClickableIconButton, PaintedLabel, add_row
+from gwbrowser.common_ui import ClickableIconButton, add_row
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.imagecache import ImageCache
@@ -22,17 +21,8 @@ from gwbrowser.preferenceswidget import PreferencesWidget
 import gwbrowser.settings as settings_
 import gwbrowser.threads as threads
 import gwbrowser.common as common
-import gwbrowser.settings as Settings
 import gwbrowser.slacker as slacker
 
-
-DEBUG = True
-
-
-@QtCore.Slot(unicode)
-def debug_signals(label, *args, **kwargs):
-    common.Log.info(u'{time}:{label}     -->     {args}  |  {kwargs}'.format(
-        time='{}'.format(time.time())[:-3], label=label, args=args, kwargs=kwargs))
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -46,9 +36,6 @@ class StatusBar(QtWidgets.QStatusBar):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(self.rect())
 
         font = QtGui.QFont(common.SecondaryFont)
         font.setPointSizeF(font.pointSizeF())
@@ -61,10 +48,6 @@ class StatusBar(QtWidgets.QStatusBar):
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
             common.TEXT
         )
-        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
-        rect = self.rect()
-        rect.setHeight(common.ROW_SEPARATOR)
-        painter.drawRect(rect)
         painter.end()
 
 
@@ -79,7 +62,6 @@ class TrayMenu(BaseContextMenu):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, False)
 
         self.add_show_menu()
-        self.add_toolbar_menu()
         self.add_visibility_menu()
 
     def show_window(self):
@@ -105,9 +87,11 @@ class TrayMenu(BaseContextMenu):
             self.parent().showNormal()
             self.parent().activateWindow()
 
+        active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
+        on_pixmap = ImageCache.get_rsc_pixmap(u'check', common.ADD, common.INLINE_ICON_SIZE)
+
         menu_set[u'Keep on top of other windows'] = {
-            u'checkable': True,
-            u'checked': self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint,
+            u'pixmap': on_pixmap if active else None,
             u'action': toggle_window_flag
         }
         menu_set[u'Restore window...'] = {
@@ -128,38 +112,6 @@ class TrayMenu(BaseContextMenu):
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
-        return menu_set
-
-    @contextmenu
-    def add_toolbar_menu(self, menu_set):
-        active_paths = settings_.local_settings.verify_paths()
-        bookmark = (active_paths[u'server'],
-                    active_paths[u'job'], active_paths[u'root'])
-        asset = bookmark + (active_paths[u'asset'],)
-        location = asset + (active_paths[u'location'],)
-
-        if all(bookmark):
-            menu_set[u'bookmark'] = {
-                u'icon': ImageCache.get_rsc_pixmap('bookmark', common.TEXT, common.INLINE_ICON_SIZE),
-                u'disabled': not all(bookmark),
-                u'text': u'Show active bookmark in the file manager...',
-                u'action': lambda: common.reveal(u'/'.join(bookmark))
-            }
-            if all(asset):
-                menu_set[u'asset'] = {
-                    u'icon': ImageCache.get_rsc_pixmap(u'assets', common.TEXT, common.INLINE_ICON_SIZE),
-                    u'disabled': not all(asset),
-                    u'text': u'Show active asset in the file manager...',
-                    u'action': lambda: common.reveal(u'/'.join(asset))
-                }
-                if all(location):
-                    menu_set[u'location'] = {
-                        u'icon': ImageCache.get_rsc_pixmap(u'location', common.TEXT, common.INLINE_ICON_SIZE),
-                        u'disabled': not all(location),
-                        u'text': u'Show current task folder in the file manager...',
-                        u'action': lambda: common.reveal(u'/'.join(location))
-                    }
-
         return menu_set
 
 
@@ -206,14 +158,6 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
 
         self._createUI()
-
-    def paintEvent(self, event):
-        painter = QtGui.QPainter()
-        painter.begin(self)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 60))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(self.rect())
-        painter.end()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -332,22 +276,13 @@ class ToggleModeButton(QtWidgets.QWidget):
         painter.begin(self)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
-        painter.setPen(QtCore.Qt.NoPen)
-        painter.drawRect(self.rect())
-
-        painter.setBrush(QtGui.QColor(0, 0, 0, 30))
-        rect = self.rect()
-        rect.setHeight(common.ROW_SEPARATOR)
-        painter.drawRect(rect)
-
         painter.setBrush(QtCore.Qt.NoBrush)
 
         color = common.REMOVE if settings_.local_settings.current_mode() else common.ADD
         pen = QtGui.QPen(color)
 
-        o = 5.0
-        pen.setWidthF(3)
+        o = 6.0
+        pen.setWidthF(3.0)
         painter.setPen(pen)
         painter.setOpacity(self.animation.currentValue())
         rect = QtCore.QRectF(self.rect())
@@ -393,15 +328,21 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-        self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint)
+        k = u'preferences/ApplicationSettings/frameless_window'
+        self._frameless = settings_.local_settings.value(k)
+        if self._frameless is True:
+            self.setWindowFlags(
+                QtCore.Qt.Window |
+                QtCore.Qt.FramelessWindowHint
+            )
+
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self._contextMenu = None
         self._initialized = False
+        self.shortcuts = []
 
         self.headerwidget = None
         self.stackedwidget = None
@@ -425,9 +366,12 @@ class BrowserWidget(QtWidgets.QWidget):
     def _createUI(self):
         common.set_custom_stylesheet(self)
 
-        # Main layout
+        if self._frameless is True:
+            o = common.INDICATOR_WIDTH  # offset around the widget
+        else:
+            o = 0
+
         QtWidgets.QVBoxLayout(self)
-        o = common.INDICATOR_WIDTH  # offset around the widget
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
@@ -455,7 +399,8 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.slack_widget)
         self.listcontrolwidget = ListControlWidget(parent=self)
 
-        self.layout().addWidget(self.headerwidget)
+        if self._frameless:
+            self.layout().addWidget(self.headerwidget)
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 
@@ -589,10 +534,10 @@ class BrowserWidget(QtWidgets.QWidget):
 
         def close_database_connections():
             try:
-                for k in bookmark_db._DB_CONNECTIONS:
-                    bookmark_db._DB_CONNECTIONS[k].connection().close()
-                    bookmark_db._DB_CONNECTIONS[k].deleteLater()
-            except Exception as e:
+                for k in bookmark_db.DB_CONNECTIONS:
+                    bookmark_db.DB_CONNECTIONS[k].connection().close()
+                    bookmark_db.DB_CONNECTIONS[k].deleteLater()
+            except Exception:
                 common.Log.error('Error closing the database')
 
         def terminate_threads():
@@ -910,18 +855,20 @@ class BrowserWidget(QtWidgets.QWidget):
         is in standalone mode."""
         painter = QtGui.QPainter()
         painter.begin(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         rect = QtCore.QRect(self.rect())
-        o = 3
-        rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
-
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
         pen = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
         pen.setWidth(1.0)
         painter.setPen(pen)
-        painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 12, 12)
+        painter.setBrush(common.SEPARATOR.darker(110))
+
+        if self._frameless is True:
+            o = 4
+            rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
+            painter.drawRoundedRect(rect, 12, 12)
+        else:
+            painter.drawRect(rect)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)

@@ -159,19 +159,48 @@ class TemplateListWidget(QtWidgets.QListWidget):
             QtWidgets.QAbstractItemView.DoubleClicked |
             QtWidgets.QAbstractItemView.EditKeyPressed
         )
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+
+        self.installEventFilter(self)
+
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Maximum,
             QtWidgets.QSizePolicy.Maximum,
         )
-        self.model().dataChanged.connect(self.dataChanged)
         self.setItemDelegate(TemplateListDelegate(parent=self))
-        color = common.rgb(common.BACKGROUND)
-        self.setStyleSheet(u'background-color: rgba({})'.format(color))
 
         path = self.templates_dir_path()
         _dir = QtCore.QDir(path)
         if not _dir.exists():
             _dir.mkpath(u'.')
+
+        self.model().dataChanged.connect(self.dataChanged)
+
+    def eventFilter(self, widget, event):
+        if widget is not self:
+            return False
+
+        if event.type() is QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setBrush(common.BACKGROUND)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setFont(common.SecondaryFont)
+            painter.drawRect(self.rect())
+            rect = self.rect().marginsRemoved(QtCore.QMargins(10,10,10,10))
+            painter.setPen(QtGui.QColor(255,255,255,50))
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
+                u'Available templates (right-click to add a new one)',
+                boundingRect=self.rect(),
+            )
+            painter.end()
+            return True
+        return False
 
     def mode(self):
         return self._mode
@@ -252,6 +281,31 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             QtWidgets.QSizePolicy.Maximum,
             QtWidgets.QSizePolicy.Minimum,
         )
+        self.installEventFilter(self)
+
+    def eventFilter(self, widget, event):
+        if widget is not self:
+            return False
+        if event.type() is QtCore.QEvent.Paint:
+            if self.model().rowCount():
+                return False
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setBrush(common.SECONDARY_BACKGROUND)
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setFont(common.SecondaryFont)
+            painter.drawRect(self.rect())
+            rect = self.rect().marginsRemoved(QtCore.QMargins(10,10,10,10))
+            painter.setPen(QtGui.QColor(255,255,255,50))
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
+                u'Template preview',
+                boundingRect=self.rect(),
+            )
+            painter.end()
+            return True
+        return False
 
     def sizeHint(self):
         return QtCore.QSize(100, 120)
@@ -317,7 +371,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
 
         # Label
         label = common_ui.PaintedLabel(
-            u'{} templates'.format(self.mode().title()),
+            u'Select {} template:'.format(self.mode().title()),
             color=common.SECONDARY_TEXT,
             size=common.MEDIUM_FONT_SIZE
         )
@@ -328,7 +382,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.name_widget.set_transparent()
         self.name_widget.setFont(common.PrimaryFont)
         self.name_widget.setPlaceholderText(
-            u'eg. MY_NEW_{}_000'.format(self.mode().upper()))
+            u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
         validator = QtGui.QRegExpValidator(regex, parent=self)
         self.name_widget.setValidator(validator)

@@ -409,15 +409,6 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         asset_count = index.data(common.AssetCountRole)
         if rect and not archived:
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            if hover:
-                pen = QtGui.QPen(common.ADD)
-                pen.setWidthF(2.5)
-                painter.setPen(pen)
-                painter.setBrush(QtCore.Qt.NoBrush)
-                painter.setOpacity(0.5)
-                painter.drawRoundedRect(rect.marginsAdded(
-                    QtCore.QMargins(1, 1, 1, 1)), rect.height(), rect.height())
-
             if rect.contains(cursor_position):
                 painter.setOpacity(1.0)
                 pixmap = ImageCache.get_rsc_pixmap(
@@ -426,7 +417,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             else:
                 painter.setOpacity(0.666)
                 pixmap = ImageCache.get_rsc_pixmap(
-                    u'add', common.ADD, rect.height())
+                    u'add', common.SECONDARY_BACKGROUND, rect.height())
                 painter.drawPixmap(rect, pixmap)
 
     @paintmethod
@@ -464,7 +455,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.setWidth(common.MARGIN)
         rect.moveRight(rectangles[ThumbnailRect].right())
         pixmap = ImageCache.get_rsc_pixmap(u'gradient3', None, rect.height())
-        painter.setOpacity(1.0)
+        painter.setOpacity(0.5)
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         rect.setWidth(common.MARGIN * 0.5)

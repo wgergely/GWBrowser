@@ -33,7 +33,6 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         """
         super(StandaloneBrowserWidget, self).__init__(parent=parent)
-        self.setMouseTracking(True)
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
@@ -55,7 +54,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
-        self.tray.setToolTip(u'GWBrowser')
+        self.tray.setToolTip(common.PRODUCT)
         self.tray.show()
 
         self.tray.activated.connect(self.trayActivated)
@@ -63,18 +62,20 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.installEventFilter(self)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
 
-        self.initialized.connect(self.tweak_ui)
+        self.initialized.connect(self.connect_extra_signals)
         self.initialized.connect(self.showNormal)
         self.initialized.connect(self.activateWindow)
         self.shutdown.connect(self.hide)
-        # Quit
+
         shortcut = QtWidgets.QShortcut(
             QtGui.QKeySequence(u'Ctrl+Q'), self)
         shortcut.setAutoRepeat(False)
         shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         shortcut.activated.connect(
             self.shutdown, type=QtCore.Qt.QueuedConnection)
+
         self.adjustSize()
 
     def _get_offset_rect(self, offset):
@@ -156,7 +157,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         return min(edge_hotspots, key=lambda k: (p - edge_hotspots[k]).manhattanLength())
 
     @QtCore.Slot()
-    def tweak_ui(self):
+    def connect_extra_signals(self):
         """Modifies layout for display in standalone-mode."""
         self.fileswidget.activated.connect(common.execute)
         self.favouriteswidget.activated.connect(common.execute)
@@ -282,7 +283,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.setGeometry(geo)
         if self.geometry().width() > geo.width():
             self.setGeometry(original_geo)
-            return
+            
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""

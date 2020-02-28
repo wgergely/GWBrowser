@@ -59,7 +59,7 @@ class AssetModel(BaseModel):
            model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
 
     """
-    ROW_SIZE = QtCore.QSize(0, common.ASSET_ROW_HEIGHT)
+    ROW_SIZE = QtCore.QSize(120, common.ASSET_ROW_HEIGHT)
 
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
@@ -190,6 +190,7 @@ class AssetsWidget(ThreadedBaseWidget):
     def __init__(self, parent=None):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setWindowTitle(u'Assets')
+        self._background_icon = u'assets'
 
     def buttons_hidden(self):
         """Returns the visibility of the inline icon buttons. There's no need to
@@ -197,26 +198,6 @@ class AssetsWidget(ThreadedBaseWidget):
         False.
 
         """
-        return False
-
-    def eventFilter(self, widget, event):
-        """Custom event filter used to paint the background icon."""
-        super(AssetsWidget, self).eventFilter(widget, event)
-
-        if widget is not self:
-            return False
-
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(self)
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'assets', QtGui.QColor(0, 0, 0, 20), 180)
-            rect = pixmap.rect()
-            rect.moveCenter(self.rect().center())
-            painter.drawPixmap(rect, pixmap, pixmap.rect())
-            painter.end()
-            return True
-
         return False
 
     def inline_icons_count(self):

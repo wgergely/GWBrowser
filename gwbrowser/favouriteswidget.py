@@ -4,7 +4,6 @@ user.
 
 """
 
-import os
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from gwbrowser.imagecache import ImageCache
@@ -12,18 +11,10 @@ import gwbrowser.common as common
 import gwbrowser.settings as settings_
 
 from gwbrowser.basecontextmenu import BaseContextMenu
-from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import FilesWidgetDelegate
 from gwbrowser.fileswidget import FilesModel
 from gwbrowser.fileswidget import FilesWidget
 import gwbrowser.gwscandir as gwscandir
-
-
-def rsc_path(f, n):
-    path = u'{}/../rsc/{}.png'.format(f, n)
-    path = os.path.normpath(os.path.abspath(path))
-    return path
-
 
 
 class FavouritesWidgetContextMenu(BaseContextMenu):
@@ -127,10 +118,9 @@ class FavouritesWidget(FilesWidget):
         super(FavouritesWidget, self).__init__(parent=parent)
         self.indicatorwidget = DropIndicatorWidget(parent=self)
         self.indicatorwidget.hide()
-        self.setStyleSheet('margin: 4px;padding: 4px;border:solid 1px black;')
         self.setWindowTitle(u'Favourites')
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
-        self.setAcceptDrops(True)
+        self.viewport().setAcceptDrops(True)
         self.setDropIndicatorShown(True)
 
     def set_model(self, *args):
@@ -192,24 +182,6 @@ class FavouritesWidget(FilesWidget):
             favourites.append(k)
         settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
-
-    def eventFilter(self, widget, event):
-        """Custom event filter used to paint the background icon."""
-        if widget is not self:
-            return False
-
-        if event.type() == QtCore.QEvent.Paint:
-            painter = QtGui.QPainter()
-            painter.begin(self)
-            pixmap = ImageCache.get_rsc_pixmap(
-                u'favourite', QtGui.QColor(0, 0, 0, 20), 180)
-            rect = pixmap.rect()
-            rect.moveCenter(self.rect().center())
-            painter.drawPixmap(rect, pixmap, pixmap.rect())
-            painter.end()
-            return True
-
-        return super(FavouritesWidget, self).eventFilter(widget, event)
 
     def showEvent(self, event):
         super(FavouritesWidget, self).showEvent(event)

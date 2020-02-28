@@ -257,7 +257,7 @@ class DataKeyModel(BaseModel):
 
     The model keeps track of the selections internally and is updated
     via the signals and slots."""
-    ROW_SIZE = QtCore.QSize(0, 30)
+    ROW_SIZE = QtCore.QSize(120, 30)
 
     def __init__(self, parent=None):
         self._parent = parent

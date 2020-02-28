@@ -363,9 +363,9 @@ QMenu {{
 }}
 QMenu::separator {{
   height: 1px;
-	margin: 6px 0px 6px 0px;
+	margin: 0px 0px 0px 0px;
 	padding: 0px 0px 0px 0px;
-  background-color: rgba(0,0,0,20);
+  background-color: rgba(0,0,0,100);
   color: rgba(0,0,0,0);
 }}
 QMenu::indicator,
@@ -376,7 +376,7 @@ QMenu::icon {{
 	height: 30px; */
 	alignment: center;
 	text-align: center;
-	background-color: rgba(0,0,0,20);
+	background-color: rgba(0,0,0,30);
 }}
 QMenu::icon:selected,
 QMenu::indicator:selected {{
@@ -386,7 +386,7 @@ QMenu::item {{
 	color: rgba({TEXT});
 	padding: 0px 32px 0px 18px;
 	margin: 0px 0px 0px 0px;
-	height: 30px;
+	height: 28px;
   background-color: transparent;
 }}
 QMenu::item:selected {{

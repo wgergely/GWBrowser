@@ -675,9 +675,11 @@ FAVOURITE = QtGui.QColor(107, 126, 180)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 
-PrimaryFont = QtGui.QFont(u'Roboto Black')
+# PrimaryFont = QtGui.QFont(u'Roboto Black')
+PrimaryFont = QtGui.QFont(u'Open Sans')
 PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
-SecondaryFont = QtGui.QFont(u'Roboto Medium')
+# SecondaryFont = QtGui.QFont(u'Roboto Medium')
+SecondaryFont = QtGui.QFont(u'Open Sans Light')
 SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
 

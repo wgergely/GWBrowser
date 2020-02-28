@@ -672,7 +672,7 @@ class ImageCache(QtCore.QObject):
         dest_spec = get_scaled_spec(source_spec)
         buf = shuffle_channels(buf, source_spec)
         buf = flatten(buf, source_spec)
-        buf = convert_color(buf, source_spec)
+        # buf = convert_color(buf, source_spec)
         buf = resize(buf, source_spec)
 
         if buf.nchannels > 3:

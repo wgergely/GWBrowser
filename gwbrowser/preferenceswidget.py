@@ -477,108 +477,108 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):
         super(ApplicationSettingsWidget, self).__init__(
-            u'General Settings', parent=parent)
-        self.reveal_asset_template = None
+            u'Settings', parent=parent)
         self.show_help = None
         self.check_updates = None
+        self.frameless_window = None
 
     def _createUI(self):
-        label = QtWidgets.QLabel()
-        pixmap = ImageCache.get_rsc_pixmap('custom', None, 64)
-        label.setPixmap(pixmap)
-        self.layout().addWidget(label)
-
-
         import gwbrowser
-        add_label(u'You\'re running GWBrowser v{}'.format(
-            gwbrowser.__version__), parent=self)
 
-        row = add_row(u'Update', parent=self)
+        grp = QtWidgets.QGroupBox()
+        QtWidgets.QVBoxLayout(grp)
+        self.layout().addWidget(grp)
+
+        row = add_row(None, parent=grp, height=None)
+        label = QtWidgets.QLabel()
+        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 48)
+        label.setPixmap(pixmap)
+        row.layout().addWidget(label)
+        add_label(u'{} v{}'.format(
+            common.PRODUCT, gwbrowser.__version__), parent=row)
+
+        row = add_row(u'Update', parent=grp)
         self.check_updates = PaintedButton(
-            u'Check for updates', width=200, parent=row)
+            u'Check Updates', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.check_updates)
 
-        row = add_row(u'Documentation', parent=self)
+        row = add_row(u'Documentation', parent=grp)
         self.show_help = PaintedButton(
-            u'Show online documentation', width=200, parent=row)
+            u'Visit Website', width=200, parent=row)
         row.layout().addStretch(1)
         row.layout().addWidget(self.show_help)
 
-        add_label(u'Asset & Job Folder Templates', parent=self)
-        row = add_row(u'Reveal files', parent=self)
-        self.reveal_asset_template = PaintedButton(
-            u'Show in explorer', width=200, parent=row)
+        self.layout().addSpacing(common.MARGIN)
+
+        grp = QtWidgets.QGroupBox()
+        QtWidgets.QVBoxLayout(grp)
+        self.layout().addWidget(grp)
+
+        add_label(u'Application settings', parent=grp)
+        row = add_row(u'Frameless window', parent=grp)
+        self.frameless_window = QtWidgets.QCheckBox(
+            u'Use frameless window', parent=self)
         row.layout().addStretch(1)
-        row.layout().addWidget(self.reveal_asset_template, 1)
+        row.layout().addWidget(self.frameless_window)
+        self.layout().addSpacing(common.MARGIN)
 
-        add_label(u'Company Name', parent=self)
-        row = add_row(u'Company', parent=self)
-        self.company_name = add_line_edit(
-            u'eg. My Studio', parent=row)
+        grp = QtWidgets.QGroupBox()
+        QtWidgets.QVBoxLayout(grp)
+        self.layout().addWidget(grp)
 
-        add_label(u'Shortcuts', parent=self)
+        add_label(u'Shortcuts', parent=grp)
         label = QtWidgets.QLabel(parent=self)
         label.setText(
 """
-'Ctrl+C': Copy local path
-'Ctrl+Shift+C': Copy Unix path
-'Ctrl+R': Reload
-'Ctrl+F': Search/Filter
-'Ctrl+O': Show in File Explorer
-'Ctrl+S': Set/unset favourite
-'Ctrl+A': Archive/unarchive select
-'Ctrl+T': Show Notes & Comments
-'Ctrl+H': Show simple(r) file-list
-'Ctrl+M': Stop/Start generating thumbnails
+<span style="color:rgba({f});">Ctrl + C</span> Copy local path<br>
+<span style="color:rgba({f});">Ctrl + Shift + C</span> Copy Unix path<br>
+<span style="color:rgba({f});">Ctrl + R</span> Reload<br>
+<span style="color:rgba({f});">Ctrl + F</span> Search/Filter<br>
+<span style="color:rgba({f});">Ctrl + O</span> Show in File Explorer<br>
+<span style="color:rgba({f});">Ctrl + S</span> Set/unset favourite<br>
+<span style="color:rgba({f});">Ctrl + A</span> Archive/unarchive select<br>
+<span style="color:rgba({f});">Ctrl + T</span> Show Notes & Comments<br>
+<span style="color:rgba({f});">Ctrl + H</span> Show simple(r) file-list<br>
+<span style="color:rgba({f});">Ctrl + M</span> Stop/Start generating thumbnails<br>
 
-'Ctrl+Shift+A': Show/Hide archived items
-'Ctrl+Shift+F': Show/Hide non-favourites
+<span style="color:rgba({f});">Ctrl + Shift + A</span> Show/Hide archived items<br>
+<span style="color:rgba({f});">Ctrl + Shift + F</span> Show/Hide non-favourites<br>
 
-'Shift+Tab': Edit next description
-'Shift+Backtab': Edit previous description
-'Enter': Activate item
+<span style="color:rgba({f});">Shift + Tab</span> Edit next description<br>
+<span style="color:rgba({f});">Shift + Backtab</span> Edit previous description<br>
+<span style="color:rgba({f});">Enter</span> Activate item<br>
 
-'Alt+Left': Show previous panel
-'Alt+Right': Show next PaintedLabel
+<span style="color:rgba({f});">Alt + Left</span> Show previous panel<br>
+<span style="color:rgba({f});">Alt + Right</span> Show next PaintedLabel<br>
 
-'Space': Preview thumbnail
+<span style="color:rgba({f});">Space</span> Preview thumbnail<br>
 
-'Ctrl+1': Show Bookmarks tab0
-'Ctrl+2': Show Assets tab
-'Ctrl+3': Show Files tab
-'Ctrl+4': Show Favourites tab
-"""
+<span style="color:rgba({f});">Ctrl + 1</span> Show Bookmarks tab0<br>
+<span style="color:rgba({f});">Ctrl + 2</span> Show Assets tab<br>
+<span style="color:rgba({f});">Ctrl + 3</span> Show Files tab<br>
+<span style="color:rgba({f});">Ctrl + 4</span> Show Favourites tab<br>
+""".format(f=common.rgb(common.ADD))
         )
         label.setWordWrap(True)
-        label.setStyleSheet(u'color: rgba({});'.format(
-            common.rgb(common.TEXT),
-        ))
-        self.layout().addWidget(label)
+        grp.layout().addWidget(label)
+
+
         self.layout().addStretch(1)
-
-
-    def _init_values(self):
-        company_name = settings_.local_settings.value(self.get_preference(u'company'))
-        val = company_name if company_name else common.COMPANY
-        self.company_name .setText(val)
 
     def _connectSignals(self):
         import gwbrowser.versioncontrol.versioncontrol as vc
         self.check_updates.clicked.connect(vc.check)
         self.show_help.clicked.connect(
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
-        self.reveal_asset_template.clicked.connect(self.show_asset_template)
-        self.company_name.textChanged.connect(
-            lambda x: settings_.local_settings.setValue(self.get_preference(u'company'), x))
 
+        self.frameless_window.toggled.connect(
+            lambda x: settings_.local_settings.setValue(self.get_preference(u'frameless_window'), x))
 
-    @QtCore.Slot()
-    def show_asset_template(self):
-        home = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.DocumentsLocation)
-        path = u'{}/GWBrowser/Asset.zip'.format(home)
-        common.reveal(path)
+    def _init_values(self):
+        val = settings_.local_settings.value(self.get_preference(u'frameless_window'))
+        if val is not None:
+            self.frameless_window.setChecked(val)
 
 
 class TemplateSettingsWidget(BaseSettingsWidget):
