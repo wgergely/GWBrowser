@@ -217,6 +217,9 @@ class FilesModel(BaseModel):
         nth = 987
         c = 0
         for entry in self._entry_iterator(location_path):
+            if self._interrupt_requested:
+                break
+
             # skipping directories
             if entry.is_dir():
                 continue
@@ -237,9 +240,8 @@ class FilesModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                self.messageChanged.emit(u'Found ' + unicode(c) + u' files...')
-                QtWidgets.QApplication.instance().processEvents(
-                    QtCore.QEventLoop.ExcludeUserInputEvents)
+                self.progressMessage.emit(u'Loading files (found ' + unicode(c) + u' items)...')
+                QtWidgets.QApplication.instance().processEvents()
 
 
             # Getting the fileroot

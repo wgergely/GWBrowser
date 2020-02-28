@@ -7,7 +7,6 @@ import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
 
@@ -222,6 +221,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_reveal_item_menu(self, menu_set):
         """Creates a menu containing"""
+        if not self.index.isValid():
+            return menu_set
+            
         pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
@@ -236,6 +238,8 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_rv_menu(self, menu_set):
         """Creates a menu containing"""
+        if not self.index.isValid():
+            return menu_set
         pixmap = ImageCache.get_rsc_pixmap(
             u'shotgun', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
@@ -250,6 +254,10 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_copy_menu(self, menu_set):
         """Menu containing the subfolders of the selected item."""
+
+        if not self.index.isValid():
+            return menu_set
+
         copy_icon = ImageCache.get_rsc_pixmap(
             u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         copy_icon2 = ImageCache.get_rsc_pixmap(

@@ -123,7 +123,7 @@ class AssetModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                self.messageChanged.emit(u'Found {} assets...'.format(c))
+                self.progressMessage.emit(u'Found {} assets...'.format(c))
                 QtWidgets.QApplication.instance().processEvents(
                     QtCore.QEventLoop.ExcludeUserInputEvents)
 

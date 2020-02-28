@@ -286,7 +286,7 @@ class BookmarksModel(BaseModel):
     def reset_thumbnails(self):
         pass
 
-    def __init_threads__(self):
+    def initialise_threads(self):
         pass
 
 

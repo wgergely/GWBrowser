@@ -203,9 +203,17 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE)
+        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
 
         self._createUI()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 60))
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.drawRect(self.rect())
+        painter.end()
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
@@ -411,7 +419,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.initializer.setSingleShot(True)
         self.initializer.setInterval(1000)
         self.initializer.timeout.connect(self.initialize)
-        self.initializer.timeout.connect(self.initializer.deleteLater)
 
         self.init_progress = u'Loading...'
 
@@ -478,11 +485,12 @@ class BrowserWidget(QtWidgets.QWidget):
         if self._initialized:
             return
 
-        def emit_saved_state(flag):
-            b.filterFlagChanged.emit(flag, b.filter_flag(flag))
-            a.filterFlagChanged.emit(flag, a.filter_flag(flag))
-            f.filterFlagChanged.emit(flag, f.filter_flag(flag))
-            ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
+        def emit_saved_states():
+            for flag in (common.MarkedAsActive, common.MarkedAsActive, common.MarkedAsFavourite):
+                b.filterFlagChanged.emit(flag, b.filter_flag(flag))
+                a.filterFlagChanged.emit(flag, a.filter_flag(flag))
+                f.filterFlagChanged.emit(flag, f.filter_flag(flag))
+                ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
 
         settings_.local_settings.touch_mode_lockfile()
         settings_.local_settings.save_mode_lockfile()
@@ -509,17 +517,16 @@ class BrowserWidget(QtWidgets.QWidget):
         f.filterTextChanged.emit(f.filter_text())
         ff.filterTextChanged.emit(ff.filter_text())
 
-        for flag in (common.MarkedAsActive, common.MarkedAsActive, common.MarkedAsFavourite):
-            emit_saved_state(flag)
+        emit_saved_states()
 
         b.sourceModel().modelDataResetRequested.emit()
         settings_.local_settings.sync_timer.start()
-        idx = settings_.local_settings.value(u'widget/mode')
-        self.listcontrolwidget.listChanged.emit(idx)
-        self.stackedwidget.currentWidget().setFocus()
 
         if settings_.local_settings.value(u'firstrun') is None:
             settings_.local_settings.setValue(u'firstrun', False)
+
+        idx = settings_.local_settings.value(u'widget/mode')
+        self.listcontrolwidget.listChanged.emit(idx)
 
         self._initialized = True
         self.initialized.emit()
@@ -853,29 +860,30 @@ class BrowserWidget(QtWidgets.QWidget):
         ########################################################################
         # Messages
         b.model().modelAboutToBeReset.connect(
-            lambda: self.statusbar.showMessage(u'Getting bookmarks...', 99999))
+            lambda: self.statusbar.showMessage(u'Loading bookmarks...', 99999))
         b.model().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
         b.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
 
         a.model().modelAboutToBeReset.connect(
-            lambda: self.statusbar.showMessage(u'Getting assets...', 99999))
+            lambda: self.statusbar.showMessage(u'Loading assets...', 99999))
         a.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
         a.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
         f.model().modelAboutToBeReset.connect(
-            lambda: self.statusbar.showMessage(u'Getting files...', 99999))
+            lambda: self.statusbar.showMessage(u'Loading files...', 99999))
         f.model().modelReset.connect(lambda: self.statusbar.showMessage(u'', 99999))
+
         f.model().sourceModel().modelReset.connect(
             lambda: self.statusbar.showMessage(u'', 99999))
-        b.model().sourceModel().messageChanged.connect(
+        b.model().sourceModel().progressMessage.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
-        a.model().sourceModel().messageChanged.connect(
+        a.model().sourceModel().progressMessage.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
-        f.model().sourceModel().messageChanged.connect(
+        f.model().sourceModel().progressMessage.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
-        ff.model().sourceModel().messageChanged.connect(
+        ff.model().sourceModel().progressMessage.connect(
             lambda m: self.statusbar.showMessage(m, 99999))
 
         # Statusbar
@@ -884,7 +892,7 @@ class BrowserWidget(QtWidgets.QWidget):
         f.entered.connect(self.entered)
         ff.entered.connect(self.entered)
         l.entered.connect(self.entered)
-        
+
         lc.bookmarks_button.message.connect(self.entered2)
         lc.assets_button.message.connect(self.entered2)
         lc.files_button.message.connect(self.entered2)
@@ -913,7 +921,7 @@ class BrowserWidget(QtWidgets.QWidget):
         pen.setWidth(1.0)
         painter.setPen(pen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(rect, 3, 3)
+        painter.drawRoundedRect(rect, 12, 12)
 
         if not self._initialized:
             font = QtGui.QFont(common.PrimaryFont)
@@ -978,8 +986,6 @@ class BrowserWidget(QtWidgets.QWidget):
         """
         if not self._initialized:
             self.initializer.start()
-            return
-        self.stackedwidget.currentWidget().setFocus()
 
     def resizeEvent(self, event):
         """Custom resize event."""

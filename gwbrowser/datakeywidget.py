@@ -264,7 +264,7 @@ class DataKeyModel(BaseModel):
         super(DataKeyModel, self).__init__(parent=parent)
         self.modelDataResetRequested.connect(self.__resetdata__)
 
-    def __init_threads__(self):
+    def initialise_threads(self):
         """Starts and connects the threads."""
         @QtCore.Slot(QtCore.QThread)
         def thread_started(thread):
@@ -301,8 +301,6 @@ class DataKeyModel(BaseModel):
     @initdata
     def __initdata__(self):
         """Bookmarks and assets are static. But files will be any number of """
-        self.threads[common.InfoThread][0].worker.resetQueue.emit()
-
         dkey = self.data_key()
         self.INTERNAL_MODEL_DATA[dkey] = common.DataDict({
             common.FileItem: common.DataDict(),
@@ -357,7 +355,6 @@ class DataKeyModel(BaseModel):
                 common.FileThumbnailLoaded: True,
                 common.TodoCountRole: 0,
             })
-
             thread = self.threads[common.InfoThread][0]
-            thread.put(weakref.ref(data[idx]))
-            thread.worker.dataRequested.emit()
+            thread.put(weakref.ref(data))
+            # thread.worker.dataRequested.emit()

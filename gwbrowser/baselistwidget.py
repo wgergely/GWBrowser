@@ -71,11 +71,13 @@ def initdata(func):
 
         try:
             self.beginResetModel()
+            self._interrupt_requested = False
             func(self, *args, **kwargs)
             # sort_data emits the reset signals already
             self.blockSignals(True)
             self.sort_data()
             self.blockSignals(False)
+            self._interrupt_requested = False
             self.endResetModel()
             Log.success('__initdata__ finished')
         except:
@@ -399,7 +401,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
     sortingChanged = QtCore.Signal(int, bool)  # (SortRole, SortOrder)
 
-    messageChanged = QtCore.Signal(unicode)
+    progressMessage = QtCore.Signal(unicode)
     updateIndex = QtCore.Signal(QtCore.QModelIndex)
     updateRow = QtCore.Signal(weakref.ref)
 
@@ -415,6 +417,7 @@ class BaseModel(QtCore.QAbstractListModel):
             common.BackgroundInfoThread: [],  # Thread for iterating the whole model
             common.ThumbnailThread: [],  # Thread for generating thumbnails
         }
+        self._interrupt_requested = False
         self.file_info_loaded = False
 
         self._datakey = None
@@ -437,7 +440,7 @@ class BaseModel(QtCore.QAbstractListModel):
 
         self.initialize_default_sort_values()
         self.init_generate_thumbnails_enabled()
-        self.__init_threads__()
+        self.initialise_threads()
 
     def supportedDropActions(self):
         return QtCore.Qt.CopyAction
@@ -583,11 +586,16 @@ class BaseModel(QtCore.QAbstractListModel):
         Log.success('__resetdata__')
         self.__initdata__()
 
+    @QtCore.Slot()
+    def set_interrupt_requested(self):
+        self._interrupt_requested = True
+
+    @initdata
     def __initdata__(self):
         raise NotImplementedError(
             u'__initdata__ is abstract and must be overriden')
 
-    def __init_threads__(self):
+    def initialise_threads(self):
         """Starts and connects the threads."""
         @QtCore.Slot(QtCore.QThread)
         def thread_started(thread):
@@ -784,6 +792,8 @@ class BaseListWidget(QtWidgets.QListView):
     customContextMenuRequested = QtCore.Signal(
         QtCore.QModelIndex, QtCore.QObject)
     favouritesChanged = QtCore.Signal()
+    interruptRequested = QtCore.Signal()
+
     resized = QtCore.Signal(QtCore.QRect)
     SourceModel = None
 
@@ -882,6 +892,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.blockSignals(True)
         self.setModel(proxy)
         self.blockSignals(False)
+
+        self.interruptRequested.connect(model.set_interrupt_requested)
 
         model.modelAboutToBeReset.connect(
             lambda: Log.debug('<<< modelAboutToBeReset >>>', model))
@@ -1291,6 +1303,9 @@ class BaseListWidget(QtWidgets.QListView):
         numpad_modifier = event.modifiers() & QtCore.Qt.KeypadModifier
         no_modifier = event.modifiers() == QtCore.Qt.NoModifier
         index = self.selectionModel().currentIndex()
+        if no_modifier:
+            if event.key() == QtCore.Qt.Key_Escape:
+                self.interruptRequested.emit()
 
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
@@ -1640,6 +1655,10 @@ class BaseListWidget(QtWidgets.QListView):
             return
         model.ROW_SIZE.setHeight(int(v))
 
+        cls = model.__class__.__name__
+        settings_.local_settings.value(
+        u'widget/{}/rowheight'.format(cls, int(v)))
+
         # Save selection
         row = self.selectionModel().currentIndex().row()
 
@@ -1661,6 +1680,10 @@ class BaseListWidget(QtWidgets.QListView):
         if v < common.ROW_HEIGHT:
             return
         model.ROW_SIZE.setHeight(int(v))
+
+        cls = model.__class__.__name__
+        settings_.local_settings.value(
+        u'widget/{}/rowheight'.format(cls, int(v)))
 
         # Save selection
         row = self.selectionModel().currentIndex().row()
@@ -2024,6 +2047,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         self.queue_model_timer.setSingleShot(True)
         self.queue_model_timer.setInterval(2000)
 
+        self.connect_thread_signals()
+
+    def connect_thread_signals(self):
         # Connect signals
         proxy = self.model()
         model = proxy.sourceModel()
@@ -2240,10 +2266,6 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
     def __init__(self, parent=None):
         super(StackedWidget, self).__init__(parent=parent)
-        # self.setSizePolicy(
-        #     QtWidgets.QSizePolicy.Expanding,
-        #     QtWidgets.QSizePolicy.Expanding
-        # )
         self.setObjectName(u'BrowserStackedWidget')
 
     def setCurrentIndex(self, idx):

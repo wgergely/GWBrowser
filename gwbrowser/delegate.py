@@ -519,8 +519,6 @@ class BookmarksWidgetDelegate(BaseDelegate):
             return {}
 
         d = {}
-        job = text.split(u'|')[0]
-
         d[len(d)] = (u'{}/{}'.format(
             index.data(common.ParentPathRole)[0],
             index.data(common.ParentPathRole)[1],
@@ -878,7 +876,7 @@ class FilesWidgetDelegate(BaseDelegate):
                     y = (option.rect.height() - common.ROW_HEIGHT) / 2
                     __r =_r.marginsRemoved(QtCore.QMargins(o, o + y, o, o + y))
 
-                if not hover and not selected:
+                if not hover and not selected and not active:
                     painter.setOpacity(0.3)
                     _r.setRight(text_edge + (common.INDICATOR_WIDTH * 2))
                     if (_r.right() - 64) > rectangles[DataRect].left():
@@ -886,7 +884,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
 
                 painter.setOpacity(1.0)
-                if not hover and not selected:
+                if not hover and not selected and not active:
                     _r.setLeft(_r.right() - 64)
                     if _r.left() > rectangles[DataRect].left():
                         pixmap = ImageCache.get_rsc_pixmap(

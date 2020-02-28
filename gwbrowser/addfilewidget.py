@@ -45,7 +45,6 @@ from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
-from gwbrowser.capture import ScreenGrabber
 from gwbrowser.imagecache import ImageCache
 
 
@@ -439,7 +438,7 @@ class ThreadlessAssetModel(AssetModel):
     def __init__(self, parent=None):
         super(ThreadlessAssetModel, self).__init__(parent=parent)
 
-    def __init_threads__(self):
+    def initialise_threads(self):
         pass
 
 class AssetsWidgetDelegate2(AssetsWidgetDelegate):
@@ -1023,8 +1022,8 @@ class ThumbnailButton(ClickableIconButton):
             left = []
             width = []
             height = []
-            for n in xrange(app.desktop().screenCount()):
-                rect = app.desktop().screenGeometry(n)
+            for screen in app.screens():
+                rect = screen.availableGeometry()
                 top.append(rect.top())
                 left.append(rect.left())
                 width.append(rect.width())
@@ -1038,13 +1037,14 @@ class ThumbnailButton(ClickableIconButton):
         opos = self.window().geometry().topLeft()
         move_widget_offscreen()
         try:
-            pixmap = ScreenGrabber.capture()
+            import gwbrowser.imagecache as imagecache
+            w = imagecache.CaptureScreen()
+            pixmap = w.exec_()
 
             if not pixmap:
                 return
             if pixmap.isNull():
                 return
-
             image = ImageCache.resize_image(pixmap, common.THUMBNAIL_IMAGE_SIZE)
             self.image = image
             self.update()
