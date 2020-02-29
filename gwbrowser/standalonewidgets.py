@@ -9,6 +9,7 @@ import gwbrowser.settings as settings_
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.browserwidget import TrayMenu
 
+QtGui.QGuiApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
 
 class StandaloneBrowserWidget(BrowserWidget):
     """An subclass of ``BrowserWidget`` adapted to run it as a standalone
@@ -233,19 +234,15 @@ class StandaloneBrowserWidget(BrowserWidget):
         if not isinstance(event, QtGui.QMouseEvent):
             return
         if self.accept_resize_event(event):
-            w = self.stackedwidget.currentWidget()
-            #
-            if hasattr(w, u'viewport'):
-                w.viewport().setUpdatesEnabled(False)
-
             self.resize_area = self.set_resize_icon(event, clamp=False)
             self.resize_initial_pos = event.pos()
             self.resize_initial_rect = self.rect()
+            event.accept()
             return
-
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
         self.resize_area = None
+        event.ignore()
 
     def mouseMoveEvent(self, event):
         """Custom mouse move event - responsible for resizing the frameless
@@ -280,22 +277,19 @@ class StandaloneBrowserWidget(BrowserWidget):
             geo.setRight(g_bottomright.x() + o.x())
 
         original_geo = self.geometry()
+        self.move(geo.topLeft())
         self.setGeometry(geo)
         if self.geometry().width() > geo.width():
             self.setGeometry(original_geo)
-            
 
     def mouseReleaseEvent(self, event):
         """Restores the mouse resize properties."""
         if not isinstance(event, QtGui.QMouseEvent):
             return
-        w = self.stackedwidget.currentWidget()
-
-        if hasattr(w, u'viewport'):
-            w.viewport().setUpdatesEnabled(True)
-
         if self.resize_initial_pos != QtCore.QPoint(-1, -1):
             self.save_widget_settings()
+            if hasattr(self.stackedwidget.currentWidget(), 'reset'):
+                self.stackedwidget.currentWidget().reset()
 
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None

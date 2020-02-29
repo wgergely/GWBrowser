@@ -807,7 +807,6 @@ class BaseListWidget(QtWidgets.QListView):
 
         self._background_icon = u'custom_bw'
         self._generate_thumbnails_enabled = True
-
         self.progress_widget = ProgressWidget(parent=self)
         self.progress_widget.setHidden(True)
         self.filter_active_widget = FilterOnOverlayWidget(parent=self)
@@ -1641,7 +1640,7 @@ class BaseListWidget(QtWidgets.QListView):
         proxy = self.model()
         model = proxy.sourceModel()
         v = model.ROW_SIZE.height() + 20
-        if v > common.ROW_HEIGHT * 10:
+        if v >= common.ROW_HEIGHT * 10:
             return
         model.ROW_SIZE.setHeight(int(v))
 
@@ -1667,7 +1666,7 @@ class BaseListWidget(QtWidgets.QListView):
         model = proxy.sourceModel()
         v = model.ROW_SIZE.height() - 20
         if v < common.ROW_HEIGHT:
-            return
+            v = common.ROW_HEIGHT
         model.ROW_SIZE.setHeight(int(v))
 
         settings_.local_settings.setValue(
@@ -1686,9 +1685,6 @@ class BaseListWidget(QtWidgets.QListView):
             index, QtCore.QItemSelectionModel.ClearAndSelect)
         self.scrollTo(
             index, QtWidgets.QAbstractItemView.PositionAtCenter)
-
-    def sizeHint(self):
-        return QtCore.QSize(120, 180)
 
 
 class BaseInlineIconWidget(BaseListWidget):
@@ -2244,6 +2240,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
     def showEvent(self, event):
         super(ThreadedBaseWidget, self).showEvent(event)
+        self.reset()
         index = self.indexAt(self.rect().topLeft())
         if not index.isValid():
             return
@@ -2252,6 +2249,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         if needs_info or needs_thumbnail:
             self.model().sourceModel().reset_thread_worker_queues()
             self.restart_requestinfo_timers()
+
 
 class StackedWidget(QtWidgets.QStackedWidget):
     """Stacked widget used to hold and toggle the list widgets containing the
@@ -2286,4 +2284,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
             k = u'widget/mode'
             settings_.local_settings.setValue(k, idx)
 
+        super(StackedWidget, self).setCurrentIndex(idx)
+
+    def _setCurrentIndex(self, idx):
         super(StackedWidget, self).setCurrentIndex(idx)

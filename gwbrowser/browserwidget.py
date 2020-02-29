@@ -389,7 +389,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.favouriteswidget = FavouritesWidget(parent=self)
         self.preferences_widget = PreferencesWidget(parent=self)
         self.slack_widget = slacker.SlackMessageWidget(parent=self)
-        # self.slack_widget.hide()
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
@@ -397,6 +396,9 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
         self.stackedwidget.addWidget(self.preferences_widget)
         self.stackedwidget.addWidget(self.slack_widget)
+        idx = settings_.local_settings.value(u'widget/mode')
+        self.stackedwidget._setCurrentIndex(idx)
+
         self.listcontrolwidget = ListControlWidget(parent=self)
 
         if self._frameless:
