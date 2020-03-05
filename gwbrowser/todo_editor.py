@@ -21,7 +21,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
-from gwbrowser.common_ui import add_row, add_label, ClickableIconButton, PaintedLabel, PaintedButton
+from gwbrowser.common_ui import add_row, ClickableIconButton, PaintedLabel
 from gwbrowser.imagecache import ImageCache
 
 
@@ -81,9 +81,14 @@ HIGHLIGHT_RULES = {
 
 
 class Lockfile(QtCore.QSettings):
+    """Lockfile to prevent another user from modifying the database whilst
+    an edit is in progress.
+
+    """
     def __init__(self, index, parent=None):
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        self.config_path = file_info.path() + u'/.bookmark/' + file_info.baseName() + u'.lock'
+        p = u'/'.join(index.data(common.ParentPathRole)[0:3])
+        f = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+        self.config_path = p + u'/.bookmark/' + f.baseName() + u'.lock'
 
         super(Lockfile, self).__init__(
             self.config_path,
@@ -107,10 +112,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             tuple: int, int, int
 
         """
-        start = 0
-        end = len(text)
-
-        FORMAT = {}
         font = self.document().defaultFont()
         char_format = QtGui.QTextCharFormat()
         char_format.setFont(font)
@@ -149,8 +150,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                             char_format.setAnchorHref(grp)
                             self.setFormat(match.start(
                                 0), len(grp), char_format)
-                            cursor = self.document().find(grp)
-                            # cursor.mergeCharFormat(char_format)
 
             if case[u'flag'] == QuoteHighlight:
                 it = case[u're'].finditer(text)
@@ -165,8 +164,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
                                 char_format.setAnchorHref(grp)
                                 self.setFormat(match.start(
                                     2), len(grp), char_format)
-                                cursor = self.document().find(grp)
-                                # cursor.mergeCharFormat(char_format)
 
                                 char_format.setForeground(
                                     QtGui.QColor(0, 0, 0, 40))
@@ -234,7 +231,7 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
         self.setDisabled(checked)
         self.document().setDocumentMargin(common.MARGIN)
 
-        self.highlighter = Highlighter(self.document(), parent=self)
+        self.highlighter = Highlighter(self.document())
         self.setOpenExternalLinks(True)
         self.setOpenLinks(False)
         self.setReadOnly(False)
@@ -803,7 +800,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.save_timer.timeout.connect(self.save_settings)
 
         self.refresh_timer = QtCore.QTimer(parent=self)
-        self.refresh_timer.setInterval(30000) # refresh every 30 seconds
+        self.refresh_timer.setInterval(30000)  # refresh every 30 seconds
         self.refresh_timer.setSingleShot(False)
         self.refresh_timer.timeout.connect(self.refresh)
 
@@ -915,10 +912,15 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         try:
             db = bookmark_db.get_db(self.index)
-            k = common.proxy_path(self.index)
+
+            if self.index.data(common.TypeRole) == common.FileItem:
+                k = self.index.data(QtCore.Qt.StatusTipRole)
+            elif self.index.data(common.TypeRole) == common.SequenceItem:
+                k = common.proxy_path(self.index)
+
             v = db.value(k, u'notes')
         except:
-            common.Log.error('Error getting notes')
+            common.Log.error(u'Error getting notes')
             return
 
         if not v:
@@ -961,10 +963,10 @@ class TodoEditorWidget(QtWidgets.QDialog):
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 
-            rect = self.rect().marginsRemoved(QtCore.QMargins(4,4,4,4))
+            rect = self.rect().marginsRemoved(QtCore.QMargins(4, 4, 4, 4))
             painter.setBrush(common.TEXT)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRoundedRect(rect, 8,8)
+            painter.drawRoundedRect(rect, 8, 8)
 
             center = rect.center()
             rect.setWidth(rect.width() - common.MARGIN)
@@ -1131,7 +1133,11 @@ class TodoEditorWidget(QtWidgets.QDialog):
                 u'text': editor.document().toHtml(),
             }
 
-        k = common.proxy_path(self.index)
+        if self.index.data(common.TypeRole) == common.FileItem:
+            k = self.index.data(QtCore.Qt.StatusTipRole)
+        elif self.index.data(common.TypeRole) == common.SequenceItem:
+            k = common.proxy_path(self.index)
+            
         try:
             db = bookmark_db.get_db(self.index)
             v = json.dumps(data, ensure_ascii=False, encoding='utf-8')
@@ -1158,7 +1164,8 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         v = self.lock.value(u'open')
         v = False if v is None else v
-        v = v if isinstance(v, bool) else (False if v.lower() == 'false' else True)
+        v = v if isinstance(v, bool) else (
+            False if v.lower() == 'false' else True)
         is_open = v
 
         stamp = self.lock.value(u'stamp')
@@ -1203,7 +1210,8 @@ class TodoEditorWidget(QtWidgets.QDialog):
 
         v = self.lock.value(u'open')
         v = False if v is None else v
-        v = v if isinstance(v, bool) else (False if v.lower() == 'false' else True)
+        v = v if isinstance(v, bool) else (
+            False if v.lower() == 'false' else True)
         is_open = v
 
         stamp = self.lock.value(u'stamp')
