@@ -7,20 +7,17 @@ Version control is done using GitHub's REST API.
 
 from __future__ import absolute_import, division
 
-import collections
-import itertools
-import re
-import sys
 import os
 import urllib2
 import socket
-import gwbrowser.versioncontrol.version as version
 import json
 
-from PySide2 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore
 
 import gwbrowser
+import gwbrowser.versioncontrol.version as version
 import gwbrowser.common as common
+import gwbrowser.common_ui as common_ui
 
 
 URL = u'https://api.github.com/repos/wgergely/GWBrowser/releases'
@@ -94,6 +91,8 @@ responses = {
 socket.setdefaulttimeout(5)
 
 QtCore.Slot()
+
+
 def check():
     """Checks the latest release tag on Github and compares it with the current
     version number.
@@ -102,44 +101,69 @@ def check():
 
     # First let's check if there's a valid internet connection
     try:
-        r = urllib2.urlopen(u'https://dns.google', timeout=5)
+        r = urllib2.urlopen(u'http://google.com', timeout=5)
     except urllib2.URLError:
-        raise RuntimeError(u'# Internet connection seems to be down.')
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'Internet connection seems to be down.',
+            parent=self
+        ).exec_()
+        common.Log.error(u'Internet connection seems to be down.')
+        return
     except socket.timeout:
-        raise RuntimeError(u'# Internet connection seems to be down.')
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'Connection has timed out.',
+            parent=self
+        ).exec_()
+        common.Log.error(u'Connection has timed out.')
+        return
 
-
-    # Fetching the tag data from Github
-    mbox = QtWidgets.QMessageBox()
-    mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    mbox.setText(u'An error occured connecting to the server.')
-    mbox.setWindowTitle(u'Could not check for updates')
 
     try:
         r = urllib2.urlopen(URL, timeout=5)
         data = r.read()
     except urllib2.URLError as err:
-        mbox.setInformativeText(u'{}'.format(err))
-        mbox.exec_()
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'{}'.format(err)
+        ).exec_()
+        common.Log.error(u'Error checking the version.')
         return
     except socket.timeout as err:
-        mbox.setInformativeText(u'{}'.format(err))
-        mbox.exec_()
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'{}'.format(err)
+        ).exec_()
+        common.Log.error(u'Error checking the version.')
         return
     except RuntimeError as err:
-        mbox.setInformativeText(u'{}'.format(err))
-        mbox.exec_()
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'{}'.format(err)
+        ).exec_()
+        common.Log.error(u'Error checking the version.')
         return
 
     code = r.getcode()
     if not (200 <= code <= 300):
-        raise ConnectionError(u'# Error {}. "{}" {}'.format(code, URL, responses[code]))
+        common_ui.ErrorBox(
+            u'Could not check version',
+            u'# Error {}. "{}" {}'.format(code, URL, responses[code])
+        ).exec_()
+        common.Log.error(u'# Error {}. "{}" {}'.format(code, URL, responses[code]))
+        return
 
     # Convert json to dict
     try:
         data = json.loads(data)
-    except:
-        raise RuntimeError('Could not get the latest version.')
+    except Exception as err:
+        common_ui.ErrorBox(
+            u'Could not check version',
+            'Error occured loading the server response.\n{}'.format(err)
+        ).exec_()
+        common.Log.error(u'# Error {}. "{}" {}'.format(code, URL, responses[code]))
+        return
 
     tags = [(version.parse(f[u'tag_name']).release, f) for f in data]
 
@@ -150,12 +174,10 @@ def check():
 
     # We're good and there's not need to update
     if current_version >= latest_version:
-        mbox = QtWidgets.QMessageBox()
-        mbox.setWindowTitle(u'No update needed')
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Ok)
-        mbox.setText(u'GWBrowser {} is up-to-date.'.format(gwbrowser.__version__))
-        mbox.exec_()
+        common_ui.OkBox(
+            u'Already up-to-date!',
+            u''
+        ).exec_()
         return
 
     mbox = QtWidgets.QMessageBox()
@@ -175,18 +197,22 @@ def check():
     downloads_folder = QtCore.QStandardPaths.writableLocation(
         QtCore.QStandardPaths.DownloadLocation)
 
-    progress_widget = QtWidgets.QProgressDialog(u'Downloading installer...', u'Cancel download', 0, 0)
+    progress_widget = QtWidgets.QProgressDialog(
+        u'Downloading installer...', u'Cancel download', 0, 0)
     progress_widget.setWindowTitle(u'Downloading...')
     progress_widget.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
     # On windows, we will download the asset to the user downloads folder
     if common.get_platform() == u'win':
-        asset = next((f for f in latest[1][u'assets'] if f[u'name'].endswith(u'exe')), None)
+        asset = next(
+            (f for f in latest[1][u'assets'] if f[u'name'].endswith(u'exe')), None)
     if common.get_platform() == u'mac':
-        asset = next((f for f in latest[1][u'assets'] if f[u'name'].endswith(u'zip')), None)
+        asset = next(
+            (f for f in latest[1][u'assets'] if f[u'name'].endswith(u'zip')), None)
 
     # We will check if a file exists already...
-    file_info = QtCore.QFileInfo(u'{}/{}'.format(downloads_folder, asset['name']))
+    file_info = QtCore.QFileInfo(
+        u'{}/{}'.format(downloads_folder, asset['name']))
     _file_info = file_info
 
     # Rename our download if the file exists already
@@ -208,7 +234,7 @@ def check():
         response = urllib2.urlopen(asset[u'browser_download_url'], timeout=5)
         total_length = response.headers['content-length']
 
-        if total_length is None: # no content length header
+        if total_length is None:  # no content length header
             progress_widget.setMaximum(0)
             progress_widget.forceShow()
             QtWidgets.QApplication.instance().processEvents()
@@ -229,7 +255,8 @@ def check():
             if not progress_widget.wasCanceled():
                 current_length += len(data)
                 f.write(data)
-                progress_widget.setValue((float(current_length) / float(total_length)) * 100)
+                progress_widget.setValue(
+                    (float(current_length) / float(total_length)) * 100)
             else:
                 f.close()
                 if os.path.exists(file_path):
@@ -249,3 +276,12 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     check()
     # app.exec_()
+
+
+import sys
+log = open('C:/temp/modules.txt', 'w+')
+for k in sys.modules.values():
+    try:
+        print >> log, k.__file__
+    except:
+        print >> log, k

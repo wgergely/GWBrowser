@@ -1,27 +1,26 @@
 # -*- coding: utf-8 -*-
 """Maya standalone context."""
 
+from maya import cmds as cmds
+import maya.standalone
+from PySide2 import QtWidgets
 from gwbrowser.context.mayabrowserwidget import MayaBrowserButton
 import gwbrowser.context.mayabrowserwidget as mayabrowserwidget
-from maya import cmds as cmds
-import os
-import sys
-import maya.standalone
-from PySide2 import QtWidgets, QtCore, QtGui
 
-# PySide2 needs an app before Maya is initialized:
+
 app = QtWidgets.QApplication([])
 maya.standalone.initialize(name='python')
 from maya import mel
 mel.eval('')
-# cmds and mel modules
-
 cmds.loadPlugin("AbcExport.mll", quiet=True)
 cmds.loadPlugin("AbcImport.mll", quiet=True)
 
 # CUSTOM BLOCK -- START
 
-
+import gwbrowser.common as common
+common.DEBUG_ON = True
+l = common.LogView()
+l.show()
 w = MayaBrowserButton()
 w.show()
 mayabrowserwidget.show()

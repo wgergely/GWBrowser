@@ -8,19 +8,21 @@ The database stores it's values in
 
 import hashlib
 from contextlib import contextmanager
-import gwbrowser.common as common
-from PySide2 import QtCore
 import time
 import platform
 import sqlite3
 from sqlite3 import Error
-import threading
 
-mutex = threading.Lock()
+from PySide2 import QtCore
 
-SERVER_TABLE_KEYS = (u'server', u'job', u'root', u'user', u'host')
-DATA_TABLE_KEYS = (u'description', u'notes', u'flags',
-                   u'thumbnail_stamp', u'user')
+import gwbrowser.common as common
+
+
+KEYS = {
+    'data': (u'description', u'notes', u'flags', u'thumbnail_stamp', u'user'),
+    'info': (u'server', u'job', u'root', u'user', u'host', u'created'),
+    'properties': (u'width', u'height', u'framerate', u'prefix', u'startframe', u'duration', u'identifier', u'slackurl', u'slacktoken'),
+}
 
 DB_CONNECTIONS = {}
 """We will store our db connection instances here. They will be created per thread."""
@@ -104,6 +106,7 @@ class BookmarkDB(QtCore.QObject):
     database.
 
     """
+
     def __init__(self, server, job, root, parent=None):
         super(BookmarkDB, self).__init__(parent=parent)
         self._connection = None
@@ -151,6 +154,9 @@ class BookmarkDB(QtCore.QObject):
             int: The hashed value of `val`.
 
         """
+        if isinstance(k, int):
+            return k
+
         k = k.lower().encode(u'utf-8')
         k = k.replace(u'\\'.encode(u'utf-8'), u'/'.encode(u'utf-8'))
         k = k.replace(u'\''.encode(u'utf-8'), u'_'.encode(u'utf-8'))
@@ -160,7 +166,8 @@ class BookmarkDB(QtCore.QObject):
         return k
 
     def thumbnail_path(self, path):
-        filename = hashlib.md5(self._row_id(path)).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
+        filename = hashlib.md5(self._row_id(
+            path)).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
         p = self._bookmark + u'/.bookmark/' + filename
         return p
 
@@ -195,33 +202,33 @@ class BookmarkDB(QtCore.QObject):
         with self.transactions():
             # Main ``data`` table
             self._connection.cursor().execute("""
-                CREATE TABLE IF NOT EXISTS data (
-                    id TEXT PRIMARY KEY COLLATE NOCASE,
-                    description TEXT,
-                    notes TEXT,
-                    flags INTEGER DEFAULT 0,
-                    thumbnail_stamp REAL,
-                    user TEXT
-                )
+CREATE TABLE IF NOT EXISTS data (
+    id TEXT PRIMARY KEY COLLATE NOCASE,
+    description TEXT,
+    notes TEXT,
+    flags INTEGER DEFAULT 0,
+    thumbnail_stamp REAL,
+    user TEXT
+);
             """)
             # Single-row ``info`` table
             self._connection.cursor().execute("""
-                CREATE TABLE IF NOT EXISTS info (
-                    id TEXT PRIMARY KEY COLLATE NOCASE,
-                    server TEXT NOT NULL,
-                    job TEXT NOT NULL,
-                    root TEXT NOT NULL,
-                    user TEXT NOT NULL,
-                    host TEXT NOT NULL,
-                    created REAL NOT NULL
-                )
+CREATE TABLE IF NOT EXISTS info (
+    id TEXT PRIMARY KEY COLLATE NOCASE,
+    server TEXT NOT NULL,
+    job TEXT NOT NULL,
+    root TEXT NOT NULL,
+    user TEXT NOT NULL,
+    host TEXT NOT NULL,
+    created REAL NOT NULL
+);
             """)
             # Adding info data to the ``info`` table
             self._connection.execute("""
             INSERT OR IGNORE INTO info
                 (id, server, job, root, user, host, created)
             VALUES
-                ('{id}', '{server}', '{job}', '{root}', '{user}', '{host}', '{created}')
+                ('{id}', '{server}', '{job}', '{root}', '{user}', '{host}', '{created}');
             """.format(
                 id=self._bookmark,
                 server=self._server,
@@ -233,10 +240,17 @@ class BookmarkDB(QtCore.QObject):
             ))
             self._connection.cursor().execute("""
                 CREATE TABLE IF NOT EXISTS properties (
-                    width INTEGER,
-                    height INTEGER,
-                    framerate REAL
-                )
+                    id INTEGER PRIMARY KEY,
+                    width REAL,
+                    height REAL,
+                    framerate REAL,
+                    prefix TEXT,
+                    startframe REAL,
+                    duration REAL,
+                    identifier TEXT,
+                    slackurl TEXT,
+                    slacktoken TEXT
+                );
             """)
 
     def value(self, id, key, table=u'data'):
@@ -280,10 +294,10 @@ class BookmarkDB(QtCore.QObject):
             _column = u'id,' + column
         else:
             _column = column
-        _cursor.execute("""SELECT {column} FROM {table}""".format(
-                column=_column,
-                table=table
-            ))
+        _cursor.execute("""SELECT {column} FROM {table};""".format(
+            column=_column,
+            table=table
+        ))
 
         # Let's wrap the retrevied data into a more pythonic directory
         _data = _cursor.fetchall()
@@ -305,7 +319,7 @@ class BookmarkDB(QtCore.QObject):
         return data
 
     def setValue(self, id, key, value, table=u'data'):
-        """Sets a value to the database.
+        """Sets a value in the database.
 
         Pass the full file or folder path including the server, job and root.
         The database uses the relative path as the row id, which is returned by
@@ -325,53 +339,23 @@ class BookmarkDB(QtCore.QObject):
 
         """
         id = self._row_id(id)
-        self._connection.execute("""
-        INSERT INTO {table} (id, {key})
-        VALUES('{id}','{value}')
-        ON CONFLICT(id) DO UPDATE SET {key}=excluded.{key};
-        """.format(
+
+        # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`
+        # A workaround is found here:
+        # https://stackoverflow.com/questions/418898/sqlite-upsert-not-insert-or-replace
+
+        values = []
+        for k in KEYS[table]:
+            if k == key:
+                v = u'\n \'' + unicode(value) + u'\''
+            else:
+                v = u'\n(SELECT ' + k + u' FROM ' + table + u' WHERE id =\'' + unicode(id) + u'\')'
+            values.append(v)
+
+        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(
             id=id,
-            key=key,
-            value=value,
-            table=table
-        ))
+            allkeys=u', '.join(KEYS[table]),
+            values=u','.join(values),
+            table=table)
 
-
-if __name__ == '__main__':
-    def run_benchmark():
-        """The main takeaaway seems to be that `value()` is quicker on smaller
-        databases, but once I have more than 100k+ items values seems to be
-        performaing quicker.
-
-        """
-        bookmark_db = BookmarkDB(
-            server=u'C:/temp',
-            job=u'dir1',
-            root=u'added_bookmark',
-        )
-        x = 100000
-        # #####################
-        t = time.time()
-        with bookmark_db.transactions():
-            for n in xrange(x):
-                id = bookmark_db._row_id(
-                    ur'job/root/testfolder/testfile.ma{}'.format(n))
-                bookmark_db.setValue(id, u'description',
-                                     u'test description' + unicode(n))
-                bookmark_db.setValue(id, u'notes', u'testnote{}' + unicode(n))
-        print '`setValue()` took', time.time() - t, '(x{})'.format(n), '\n'
-        # #####################
-        t = time.time()
-        with bookmark_db.transactions():
-            for n in xrange(x):
-                id = bookmark_db._row_id(
-                    ur'job/root/testfolder/testfile.ma{}' + unicode(n))
-                v = bookmark_db.value(id, u'description')
-        print '`value()` took', time.time() - t, '\n'
-        ######################
-        t = time.time()
-        data = bookmark_db.values()
-        for n in xrange(x):
-            id = bookmark_db._row_id(ur'job/root/testfolder/testfile.ma' + unicode(n))
-            v = data[id]['description']
-        print '`values()` took', time.time() - t, '\n'
+        self._connection.execute(sql)

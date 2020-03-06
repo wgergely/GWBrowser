@@ -4,12 +4,11 @@
 """
 import json
 import base64
-import uuid
+import weakref
 import time
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
-import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
@@ -19,28 +18,6 @@ from gwbrowser.baselistwidget import initdata
 import gwbrowser.settings as settings_
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import BookmarksWidgetDelegate
-
-
-def count_assets(path):
-    """Counts number of assets found inside `path`.
-
-    Args:
-        path (unicode): A path to a directory.
-
-    Returns:
-        int: The number of assets found.
-
-    """
-    count = 0
-    for entry in gwscandir.scandir(path):
-        if not entry.is_dir():
-            continue
-        identifier_path = u'{}/{}'.format(
-            entry.path,
-            common.ASSET_IDENTIFIER)
-        if QtCore.QFileInfo(identifier_path).exists():
-            count += 1
-    return count
 
 
 class BookmarksWidgetContextMenu(BaseContextMenu):
@@ -89,10 +66,9 @@ class BookmarksModel(BaseModel):
 
     def __init__(self, parent=None):
         super(BookmarksModel, self).__init__(parent=parent)
+        self.parent_path = (u'.',)
 
-        self.parent_path = ('.',)
-
-    # @initdata
+    @initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model.
 
@@ -132,14 +108,12 @@ class BookmarksModel(BaseModel):
 
             if exists:
                 flags = dflags()
-                count = count_assets(k)
                 placeholder_image = ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
                 default_thumbnail_image = ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
                 default_background_color = common.SEPARATOR
             else:
-                count = 0
                 flags = dflags() | common.MarkedAsArchived
 
                 placeholder_image = ImageCache.get_rsc_pixmap(
@@ -167,7 +141,7 @@ class BookmarksModel(BaseModel):
             data = self.INTERNAL_MODEL_DATA[dkey][common.FileItem]
             idx = len(data)
 
-            data[idx] = {
+            data[idx] = common.DataDict({
                 QtCore.Qt.DisplayRole: text,
                 QtCore.Qt.EditRole: text,
                 QtCore.Qt.StatusTipRole: filepath,
@@ -179,13 +153,12 @@ class BookmarksModel(BaseModel):
                 common.ParentPathRole: (v[u'server'], v[u'job'], v[u'root']),
                 common.DescriptionRole: None,
                 common.TodoCountRole: 0,
-                common.FileDetailsRole: count,
+                common.FileDetailsRole: None,
                 common.SequenceRole: None,
                 common.EntryRole: [],
                 common.FileInfoLoaded: True,
                 common.StartpathRole: None,
                 common.EndpathRole: None,
-                common.AssetCountRole: count,
                 #
                 common.DefaultThumbnailRole: placeholder_image,
                 common.DefaultThumbnailBackgroundRole: default_background_color,
@@ -197,21 +170,20 @@ class BookmarksModel(BaseModel):
                 common.FileInfoLoaded: True,
                 #
                 common.SortByName: common.namekey(filepath),
-                common.SortByLastModified: count,
-                common.SortBySize: count,
+                common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
+                common.SortBySize: file_info.size(),
                 #
                 common.IdRole: idx
-            }
-
+            })
 
             db = None
             n = 0
             while db is None:
                 db = bookmark_db.get_db(
                     QtCore.QModelIndex(),
-                    server=v['server'],
-                    job=v['job'],
-                    root=v['root'],
+                    server=v[u'server'],
+                    job=v[u'job'],
+                    root=v[u'root'],
                 )
                 if db is None:
                     n += 1
@@ -220,7 +192,7 @@ class BookmarksModel(BaseModel):
                     break
 
             if db is None:
-                common.Log.error('Error getting the database')
+                common.Log.error(u'Error getting the database')
                 continue
 
             with db.transactions():
@@ -250,21 +222,21 @@ class BookmarksModel(BaseModel):
                 for v in db.values(u'notes').itervalues():
                     if not v:
                         continue
-                    if v['notes']:
+                    if v[u'notes']:
                         try:
-                            v = base64.b64decode(v['notes'])
+                            v = base64.b64decode(v[u'notes'])
                             d = json.loads(v)
                             n += len([k for k in d if not d[k]
                                       [u'checked'] and d[k][u'text']])
                         except (ValueError, TypeError):
-                            common.Log.error('Error decoding JSON notes')
+                            common.Log.error(u'Error decoding JSON notes')
 
                 data[idx][common.TodoCountRole] = n
 
     def __resetdata__(self):
         self.INTERNAL_MODEL_DATA[self.data_key()] = common.DataDict({
-            common.FileItem: common.DataDict(),
-            common.SequenceItem: common.DataDict()
+            common.FileItem: common.DataDict({}),
+            common.SequenceItem: common.DataDict({}),
         })
         self.__initdata__()
         self.endResetModel()
@@ -287,6 +259,18 @@ class BookmarksModel(BaseModel):
         pass
 
     def initialise_threads(self):
+        pass
+
+    def init_generate_thumbnails_enabled(self):
+        self._generate_thumbnails_enabled = False
+
+    def generate_thumbnails_enabled(self):
+        return False
+
+    def reset_file_info_loaded(self):
+        pass
+
+    def reset_thread_worker_queues(self):
         pass
 
 
@@ -327,9 +311,21 @@ class BookmarksWidget(BaseInlineIconWidget):
         """The number of row-icons an item has."""
         if self.buttons_hidden():
             return 0
-        return 5
+        return 6
 
-    def add_asset(self):
+    def show_bookmark_properties_widget(self):
+        import gwbrowser.bookmark_properties as bookmark_properties
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+
+        widget = bookmark_properties.BookmarkPropertiesWidget(
+            index, parent=self)
+        self.resized.connect(widget.setGeometry)
+        widget.setGeometry(self.viewport().geometry())
+        widget.open()
+
+    def show_add_asset_widget(self):
         import gwbrowser.addassetwidget as addassetwidget
 
         index = self.selectionModel().currentIndex()
@@ -340,7 +336,7 @@ class BookmarksWidget(BaseInlineIconWidget):
         bookmark = u'/'.join(bookmark)
 
         @QtCore.Slot(unicode)
-        def select(name):
+        def show_and_select_added_asset(name):
             self.parent().parent().listcontrolwidget.listChanged.emit(1)
             view = self.parent().widget(1)
             view.model().sourceModel().modelDataResetRequested.emit()
@@ -356,12 +352,10 @@ class BookmarksWidget(BaseInlineIconWidget):
                     break
 
         widget = addassetwidget.AddAssetWidget(bookmark, parent=self)
-        widget.templates_widget.templateCreated.connect(select)
+        widget.templates_widget.templateCreated.connect(
+            show_and_select_added_asset)
         self.resized.connect(widget.setGeometry)
         widget.setGeometry(self.viewport().geometry())
-        # pos = self.geometry().topLeft()
-        # pos = self.mapToGlobal(pos)
-        # widget.move(pos)
         widget.open()
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -396,25 +390,41 @@ class BookmarksWidget(BaseInlineIconWidget):
         rect = self.visualRect(index)
         rectangles = self.itemDelegate().get_rectangles(rect)
 
-        if rectangles[delegate.BookmarkCountRect].contains(cursor_position):
-            self.add_asset()
+        if rectangles[delegate.AddAssetRect].contains(cursor_position):
+            self.show_add_asset_widget()
+        elif rectangles[delegate.BookmarkPropertiesRect].contains(cursor_position):
+            self.show_bookmark_properties_widget()
         else:
             super(BookmarksWidget, self).mouseReleaseEvent(event)
 
+    def mouseMoveEvent(self, event):
+        self.reset_multitoggle()
+        super(BookmarksWidget, self).mouseMoveEvent(event)
+        self.reset_multitoggle()
+
     def toggle_item_flag(self, index, flag, state=None):
+        if not index.isValid():
+            return
         if flag == common.MarkedAsArchived:
+            if hasattr(index.model(), 'sourceModel'):
+                index = index.model().mapToSource(index)
+            model = index.model()
+            data = model.model_data()[index.row()]
+            data[common.FlagsRole] = index.flags() | common.MarkedAsArchived
+            self.update_row(weakref.ref(data))
+
             self.manage_bookmarks.widget().remove_saved_bookmark(
                 *index.data(common.ParentPathRole))
-
             settings_.local_settings.verify_paths()
-            # bookmark_db.remove_db(index)
+            bookmark_db.remove_db(index)
+
+            self.model().invalidateFilter()
+            self.model().sourceModel().__resetdata__()
 
             if self.model().sourceModel().active_index() == self.model().mapToSource(index):
                 self.unset_activated()
-            self.model().sourceModel().modelDataResetRequested.emit()
-
-        if flag == common.MarkedAsFavourite:
-            super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
+            return
+        super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
 
 
 if __name__ == '__main__':

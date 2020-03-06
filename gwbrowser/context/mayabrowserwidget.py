@@ -20,7 +20,6 @@ import time
 import sys
 import functools
 import traceback
-from functools import wraps
 import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -39,6 +38,10 @@ from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.browserwidget import BrowserWidget
 from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.addfilewidget import AddFileWidget
+
+
+ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
+CAPTURE_PATH = u'viewport_captures/animation'
 
 
 maya_button = None
@@ -102,7 +105,7 @@ def get_framerate(): return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
 
 
 def get_preference(k): return settings_.local_settings.value(
-    u'preferences/MayaSettings/{}'.format(k))
+    u'preferences/{}'.format(k))
 
 
 def instance():
@@ -358,7 +361,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                 # We will try and see if this passes...
                 cmds.listRelatives(basename)
             except ValueError as err:
-                print u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(shape=shape, err=err)
+                print u'"{shape}" does not have a unique name. This is not usually allowed for alembic exports and might cause the export to fail.\nError: {err}'.format(
+                    shape=shape, err=err)
 
             # Camera's don't have mesh nodes but we still want to export them!
             if cmds.nodeType(shape) != u'camera':
@@ -405,7 +409,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                 cmds.connectAttr(
                     u'{}.worldMatrix[0]'.format(shape), u'{}.inputMatrix'.format(decompose_matrix), force=True)
                 #
-                transform = cmds.listRelatives(world_shape, fullPath=True, type='transform', parent=True)[0]
+                transform = cmds.listRelatives(
+                    world_shape, fullPath=True, type='transform', parent=True)[0]
                 world_transforms.append(transform)
                 #
                 cmds.connectAttr(
@@ -416,9 +421,9 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                     u'{}.outputScale'.format(decompose_matrix), u'{}.scale'.format(transform), force=True)
             else:
                 world_shape = shape
-                world_transforms.append(cmds.listRelatives(world_shape, fullPath=True, type='transform', parent=True)[0])
+                world_transforms.append(cmds.listRelatives(
+                    world_shape, fullPath=True, type='transform', parent=True)[0])
             world_shapes.append(world_shape)
-
 
         perframecallback = u'"import gwbrowser.context.mayabrowserwidget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
             startframe, endframe, time.time())
@@ -444,7 +449,8 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         mbox = QtWidgets.QMessageBox()
         mbox.setWindowTitle(u'Export failed')
         mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setText(u'An error occured exporting the Alembic cache\n{}:'.format(err))
+        mbox.setText(
+            u'An error occured exporting the Alembic cache\n{}:'.format(err))
         mbox.exec_()
         raise
     finally:
@@ -495,7 +501,7 @@ def capture_viewport(size=1.0):
     }
 
     capture_folder = get_preference(u'capture_path')
-    capture_folder = capture_folder if capture_folder else common.CAPTURE_PATH
+    capture_folder = capture_folder if capture_folder else CAPTURE_PATH
 
     workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
     scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
@@ -628,7 +634,8 @@ def capture_viewport(size=1.0):
         workspace=workspace,
         capture_folder=capture_folder,
         scene=scene_info.baseName(),
-        frame=u'{}'.format(int(cmds.playbackOptions(q=True, minTime=True))).zfill(4),
+        frame=u'{}'.format(
+            int(cmds.playbackOptions(q=True, minTime=True))).zfill(4),
         ext=ext
     )
 
@@ -688,8 +695,10 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         QtCore.QFile.copy(versioned_path, master_path)
         idx += 1
 
+
 def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
-    ffmpeg_bin_path = settings_.local_settings.value(u'preferences/IntegrationSettings/ffmpeg_path')
+    ffmpeg_bin_path = settings_.local_settings.value(
+        u'preferences/IntegrationSettings/ffmpeg_path')
     ffmpeg_bin_path = ffmpeg_bin_path if ffmpeg_bin_path else None
     if not ffmpeg_bin_path:
         return
@@ -733,7 +742,7 @@ def convert_sequence_with_ffmpeg(workspace, capture_folder, scene_info, ext):
 
 def contextmenu2(func):
     """Decorator to create a menu set."""
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(self, *args, **kwargs):
         menu_set = collections.OrderedDict()
         parent = self.parent().parent().parent().parent()
@@ -1131,13 +1140,14 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
-        self.browserwidget.initialized.connect(lambda: self.browserwidget.layout().setContentsMargins(0, 0, 0, 0))
+        self.browserwidget.initialized.connect(
+            lambda: self.browserwidget.layout().setContentsMargins(0, 0, 0, 0))
         self.browserwidget.initialized.connect(self.connectSignals)
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
         self.browserwidget.initialized.connect(self.workspace_timer.start)
-        self.browserwidget.active_monitor.activeAssetChanged.connect(
-            self.active_changed)
+        # self.browserwidget.active_monitor.activeAssetChanged.connect(
+        #     self.active_changed)
 
         self.browserwidget.initialize()
 
@@ -1145,8 +1155,6 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             maya_button.saveRequested.connect(self.save_scene)
             maya_button.incrementRequested.connect(
                 lambda: self.save_scene(increment=True))
-            maya_button.alembicExportRequested.connect(
-                self.export_set_to_alembic)
 
     @QtCore.Slot()
     def active_changed(self):
@@ -1655,7 +1663,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         set_name = re.sub(ur'[0-9]*$', u'', set_name)
 
         template = get_preference(u'alembic_export_path')
-        template = template if template else common.ALEMBIC_EXPORT_PATH
+        template = template if template else ALEMBIC_EXPORT_PATH
         file_path = unicode(template).format(
             workspace=cmds.workspace(q=True, sn=True),
             exports=common.ExportsFolder,
@@ -1679,7 +1687,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # Last-minute double-check to make sure we're not overwriting anything...
         if file_info.exists():
-            raise RuntimeError(u'# Unable to save alembic: File already exists!')
+            raise RuntimeError(
+                u'# Unable to save alembic: File already exists!')
 
         if frame:
             start = cmds.currentTime(query=True)
@@ -1717,7 +1726,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         mbox.setText(
             u'Current scene has unsaved changes.'
         )
-        mbox.setInformativeText(u'Do you want to save it before continuing?')
+        mbox.setInformativeText(u'Do you want to save before continuing?')
         mbox.setStandardButtons(
             QtWidgets.QMessageBox.Save
             | QtWidgets.QMessageBox.No

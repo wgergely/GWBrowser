@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""The module containing all widgets needed to run GWBrowser in standalone-mode."""
+"""The module containing the widgets needed to run in standalone-mode."""
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -9,7 +9,9 @@ import gwbrowser.settings as settings_
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.browserwidget import TrayMenu
 
+
 QtGui.QGuiApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
+
 
 class StandaloneBrowserWidget(BrowserWidget):
     """An subclass of ``BrowserWidget`` adapted to run it as a standalone
@@ -195,7 +197,8 @@ class StandaloneBrowserWidget(BrowserWidget):
 
         cls = self.__class__.__name__
         width = settings_.local_settings.value(u'widget/{}/width'.format(cls))
-        height = settings_.local_settings.value(u'widget/{}/height'.format(cls))
+        height = settings_.local_settings.value(
+            u'widget/{}/height'.format(cls))
         x = settings_.local_settings.value(u'widget/{}/x'.format(cls))
         y = settings_.local_settings.value(u'widget/{}/y'.format(cls))
 
@@ -308,7 +311,6 @@ class StandaloneApp(QtWidgets.QApplication):
         import gwbrowser
         self.setApplicationVersion(gwbrowser.__version__)
         self.setApplicationName(common.PRODUCT)
-
 
         self.set_model_id()
         pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)

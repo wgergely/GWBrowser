@@ -2,8 +2,7 @@
 """``assetswidget.py`` defines the main objects needed for interacting with assets."""
 
 import re
-from functools import partial
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide2 import QtCore, QtWidgets
 
 import gwbrowser.gwscandir as gwscandir
 from gwbrowser.imagecache import ImageCache
@@ -13,9 +12,9 @@ from gwbrowser.baselistwidget import ThreadedBaseWidget
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import AssetsWidgetDelegate
+import gwbrowser.bookmark_db as bookmark_db
 
 import gwbrowser.settings as settings_
-
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -42,21 +41,14 @@ class AssetsWidgetContextMenu(BaseContextMenu):
 
 
 class AssetModel(BaseModel):
-    """The model used store the data necessary to display assets.
+    """Asset data model.
 
-    Assets themselves are just simple folder stuctures with a special indentier
-    file at their room (see ``common.ASSET_IDENTIFIER``).
+    Assets are  folders with a special indentier
+    file in their root. Queries the current self.parent_path and
+    populates the `INTERNAL_MODEL_DATA` when `self.__initdata__()` is called.
 
-    The model will querry the currently set bookmark folder and will pull all
-    necessary information via the **__initdata__** method. In practice the path
-    used for the querry is extrapolated from ``self.parent_path``.
-
-    Example:
-        .. code-block:: python
-
-           model = AssetModel()
-           model.set_active(index) # Must set the parent item of the model using the index of the active bookmark item
-           model.modelDataResetRequested.emit() # this signal will call __initdata__ and populate the model
+    The model is multithreaded and loads file and thumbnail data using
+    thread workers.
 
     """
     ROW_SIZE = QtCore.QSize(120, common.ASSET_ROW_HEIGHT)
@@ -106,6 +98,18 @@ class AssetModel(BaseModel):
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
+        try:
+            # Let's get the identifier from the bookmark database
+            db = bookmark_db.get_db(
+                QtCore.QModelIndex(),
+                server=server,
+                job=job,
+                root=root
+            )
+            ASSET_IDENTIFIER = db.value(0, u'identifier', table='properties')
+        except:
+            ASSET_IDENTIFIER = None
+
         nth = 1
         c = 0
         for entry in gwscandir.scandir(bookmark_path):
@@ -115,10 +119,12 @@ class AssetModel(BaseModel):
                 continue
 
             filepath = entry.path.replace(u'\\', u'/')
-            identifier_file = u'{}/{}'.format(
-                filepath, common.ASSET_IDENTIFIER)
-            if not QtCore.QFileInfo(identifier_file).exists():
-                continue
+
+            if ASSET_IDENTIFIER:
+                identifier = u'{}/{}'.format(
+                    filepath, ASSET_IDENTIFIER)
+                if not QtCore.QFileInfo(identifier).exists():
+                    continue
 
             # Progress bar
             c += 1
@@ -179,6 +185,13 @@ class AssetModel(BaseModel):
 
         """
         return u'.'
+
+    def data_type(self):
+        """Data keys are only implemented on the FilesModel but need to return a
+        value for compatibility other functions.
+
+        """
+        return common.FileItem
 
 
 class AssetsWidget(ThreadedBaseWidget):
@@ -241,7 +254,8 @@ if __name__ == '__main__':
     l = common.LogView()
     l.show()
     widget = AssetsWidget()
-    widget.model().sourceModel().parent_path = (u'//sloth/jobs', u'vodd_9069', u'films/prologue/shots',)
+    widget.model().sourceModel().parent_path = (
+        u'C:/temp', u'EXAMPLE_JOB_A', u'shots',)
     widget.model().sourceModel().modelDataResetRequested.emit()
     widget.show()
     app.exec_()

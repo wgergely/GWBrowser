@@ -190,8 +190,8 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.SecondaryFont)
             painter.drawRect(self.rect())
-            rect = self.rect().marginsRemoved(QtCore.QMargins(10,10,10,10))
-            painter.setPen(QtGui.QColor(255,255,255,50))
+            rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
+            painter.setPen(QtGui.QColor(255, 255, 255, 50))
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
@@ -295,8 +295,8 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.SecondaryFont)
             painter.drawRect(self.rect())
-            rect = self.rect().marginsRemoved(QtCore.QMargins(10,10,10,10))
-            painter.setPen(QtGui.QColor(255,255,255,50))
+            rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
+            painter.setPen(QtGui.QColor(255, 255, 255, 50))
             painter.drawText(
                 rect,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
@@ -427,50 +427,51 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         currently set `path`.
 
         """
-        mbox = QtWidgets.QMessageBox(parent=self)
-        mbox.setWindowTitle(u'Error')
-        mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        mbox.setFixedWidth(500)
-        mbox.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
-
+        h = u'Unable to create {}.'.format(self.mode().lower())
         if not self.path():
-            s = u'Unable to add {}: destination not set.'
-            mbox.setText(s.format(self.mode().lower()))
-            mbox.setInformativeText(
-                u'Select the destination before continue.')
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'Destination has selected!'
+            ).exec_()
+            return
 
         file_info = QtCore.QFileInfo(self.path())
         if not file_info.exists():
-            mbox.setText(
-                u'Unable to create {}.'.format(self.mode().lower()))
-            mbox.setInformativeText(
-                u'The bookmark folder "{}" does not exist.'.format(file_info.filePath()))
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'Destination folder "{}" does not exist!'.format(file_info.filePath()),
+                parent=self
+            ).exec_()
+            return
+        if not file_info.isWritable():
+            common_ui.ErrorBox(
+                h, u'Destination folder "{}" is not writable!'.format(file_info.filePath()),
+                parent=self
+            ).exec_()
+            return
 
         if not self.name_widget.text():
-            mbox.setText(
-                u'Must enter a name before adding an asset.')
-            self.name_widget.setFocus()
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'Enter a name and try again.',
+                parent=self
+            ).exec_()
+            return
 
         file_info = file_info = QtCore.QFileInfo(
             u'{}/{}'.format(self.path(), self.name_widget.text()))
 
         if file_info.exists():
-            mbox.setText(
-                u'Unable to create {}.'.format(self.mode().lower()))
-            mbox.setInformativeText(
-                u'"{}" already exists.'.format(self.name_widget.text()))
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'"{}" already exists!'.format(self.name_widget.text()),
+                parent=self
+            ).exec_()
+            return
 
         model = self.template_list_widget.selectionModel()
         if not model.hasSelection():
-            mbox.setText(
-                u'Must select a {} folder template before adding'.format(self.mode()))
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'Select {} folder template and try again'.format(self.mode()),
+                parent=self
+            ).exec_()
+            return
 
         index = model.selectedIndexes()[0]
         if not index.isValid():
@@ -484,10 +485,11 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             # common.reveal(file_info.filePath())
             self.templateCreated.emit(self.name_widget.text())
         except Exception as err:
-            mbox.setText(
-                u'An error occured when creating the {}'.format(self.mode()))
-            mbox.setInformativeText('{}'.format(err))
-            return mbox.exec_()
+            common_ui.ErrorBox(
+                h, u'Error occured creating the {}:\n{}'.format(self.mode(), err),
+                parent=self
+            ).exec_()
+            return
         finally:
             self.name_widget.setText(u'')
 
@@ -718,7 +720,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
         self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setLayoutDirection(QtCore.Qt.RightToLeft)
-        self.itemClicked.connect(self.toggle_state)
+        self.itemPressed.connect(self.toggle_state)
         self.installEventFilter(self)
 
     def eventFilter(self, widget, event):
@@ -730,7 +732,6 @@ class BookmarksWidget(QtWidgets.QListWidget):
             painter.setFont(common.SecondaryFont)
             painter.setBrush(common.ADD)
             painter.setPen(common.TEXT_DISABLED)
-            # painter.drawRect(self.rect())
             painter.drawText(
                 self.rect(),
                 QtCore.Qt.AlignCenter,
@@ -789,6 +790,14 @@ class BookmarksWidget(QtWidgets.QListWidget):
 
     def sizeHint(self):
         return QtCore.QSize(80, 40)
+
+    def showEvent(self, event):
+        bookmarks = settings_.local_settings.value(u'bookmarks')
+        for n in xrange(self.count()):
+            item = self.item(n)
+            if item.checkState() == QtCore.Qt.Checked:
+                if item.data(QtCore.Qt.UserRole).lower() not in bookmarks:
+                    self.toggle_state(item)
 
 
 class ManageBookmarksWidget(QtWidgets.QWidget):

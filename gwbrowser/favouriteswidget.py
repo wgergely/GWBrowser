@@ -6,7 +6,6 @@ user.
 
 from PySide2 import QtWidgets, QtCore, QtGui
 
-from gwbrowser.imagecache import ImageCache
 import gwbrowser.common as common
 import gwbrowser.settings as settings_
 
@@ -125,7 +124,8 @@ class FavouritesWidget(FilesWidget):
 
     def set_model(self, *args):
         super(FavouritesWidget, self).set_model(*args)
-        self.favouritesChanged.connect(self.model().sourceModel().modelDataResetRequested)
+        self.favouritesChanged.connect(
+            self.model().sourceModel().modelDataResetRequested)
         self.favouritesChanged.connect(
             lambda: common.Log.debug('favouritesChanged -> modelDataResetRequested', self))
 
@@ -133,13 +133,15 @@ class FavouritesWidget(FilesWidget):
         """Returns the visibility of the inline icon buttons."""
         return True
     #
+
     def inline_icons_count(self):
         return 3
 
     def toggle_item_flag(self, index, flag, state=None):
         if flag == common.MarkedAsArchived:
             flag = common.MarkedAsFavourite
-        super(FavouritesWidget, self).toggle_item_flag(index, flag, state=state)
+        super(FavouritesWidget, self).toggle_item_flag(
+            index, flag, state=state)
 
     def dragEnterEvent(self, event):
         if event.source() == self:
@@ -180,12 +182,14 @@ class FavouritesWidget(FilesWidget):
             else:
                 k = common.proxy_path(path).lower()
             favourites.append(k)
-        settings_.local_settings.setValue(u'favourites', sorted(list(set(favourites))))
+        settings_.local_settings.setValue(
+            u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
 
     def showEvent(self, event):
         super(FavouritesWidget, self).showEvent(event)
         self.model().sourceModel().modelDataResetRequested.emit()
+
 
 if __name__ == '__main__':
     common.DEBUG_ON = True

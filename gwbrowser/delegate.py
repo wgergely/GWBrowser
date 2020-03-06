@@ -34,12 +34,13 @@ IndicatorRect = 1
 ThumbnailRect = 2
 AssetNameRect = 3
 AssetDescriptionRect = 4
-BookmarkCountRect = 5
+AddAssetRect = 5
 TodoRect = 6
 RevealRect = 7
 ArchiveRect = 8
 FavouriteRect = 9
 DataRect = 10
+BookmarkPropertiesRect = 11
 
 
 def paintmethod(func):
@@ -170,7 +171,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             ArchiveRect: inline_icon_rects[1] if num_icons > 1 else null_rect,
             RevealRect: inline_icon_rects[2] if num_icons > 2 else null_rect,
             TodoRect: inline_icon_rects[3] if num_icons > 3 else null_rect,
-            BookmarkCountRect: inline_icon_rects[4] if num_icons > 4 else null_rect,
+            AddAssetRect: inline_icon_rects[4] if num_icons > 4 else null_rect,
+            BookmarkPropertiesRect: inline_icon_rects[5] if num_icons > 5 else null_rect,
             #
             DataRect: data_rect
         }
@@ -405,8 +407,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                     painter.drawPath(path)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
 
-        rect = rectangles[BookmarkCountRect]
-        asset_count = index.data(common.AssetCountRole)
+        rect = rectangles[AddAssetRect]
         if rect and not archived:
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             if rect.contains(cursor_position):
@@ -418,6 +419,20 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 painter.setOpacity(0.666)
                 pixmap = ImageCache.get_rsc_pixmap(
                     u'add', common.SECONDARY_BACKGROUND, rect.height())
+                painter.drawPixmap(rect, pixmap)
+
+        rect = rectangles[BookmarkPropertiesRect]
+        if rect and not archived:
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            if rect.contains(cursor_position):
+                painter.setOpacity(1.0)
+                pixmap = ImageCache.get_rsc_pixmap(
+                    u'settings', common.ADD, rect.height())
+                painter.drawPixmap(rect, pixmap)
+            else:
+                painter.setOpacity(0.666)
+                pixmap = ImageCache.get_rsc_pixmap(
+                    u'settings', common.SECONDARY_BACKGROUND, rect.height())
                 painter.drawPixmap(rect, pixmap)
 
     @paintmethod
@@ -623,6 +638,9 @@ class AssetsWidgetDelegate(BaseDelegate):
 
     def get_description_rect(self, rectangles, index):
         """Returns the description area of an ``AssetsWidget`` item."""
+        if not index.isValid():
+            return
+
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + common.MARGIN)
 
@@ -1116,6 +1134,9 @@ class FilesWidgetDelegate(BaseDelegate):
         painter.drawPath(path)
 
     def get_simple_description_rectangle(self, rectangles, index):
+        if not index.isValid():
+            return
+
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH * 2))
 
@@ -1179,7 +1200,11 @@ class FilesWidgetDelegate(BaseDelegate):
             dict: A dictionary of tuples. (unicode, QtGui.QColor)
 
         """
+        if not index.isValid():
+            return []
         s = index.data(QtCore.Qt.DisplayRole)
+        if not s:
+            return []
         s = regex_remove_version.sub(ur'\1\3', s)
         d = {}
         # Item is a collapsed sequence

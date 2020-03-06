@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from PySide2 import QtWidgets, QtGui, QtCore
-import uuid
-from gwbrowser import common
-from gwbrowser.common_ui import add_row, add_label, add_line_edit, PaintedButton, PaintedLabel
+import urllib2
 from slackclient import SlackClient
+
+from PySide2 import QtWidgets, QtGui, QtCore
+
+from gwbrowser import common
+import gwbrowser.common_ui as common_ui
 import gwbrowser.settings as settings_
-from gwbrowser.imagecache import ImageCache
 
 
 IdRole = 4096
@@ -15,15 +16,23 @@ ImageDownloaderRole = 4099
 
 
 class Slacker(QtCore.QObject):
-
-    def __init__(self, api_token, member_id, parent=None):
+    def __init__(self, api_token, parent=None):
         super(Slacker, self).__init__(parent=parent)
-        self.api_token = api_token
-        self.member_id = member_id
-        self.__connection__ = SlackClient(api_token)
+        self.slack_client = SlackClient(api_token)
+        try:
+            response = self.slack_client.api_call(u'auth.test')
+            if not response['ok']:
+                common.Log.error(response[u'error'])
+            self._is_valid = response[u'ok']
+        except Exception:
+            common.Log.error(u'Slacker failed to connect')
+            self._is_valid = False
+
+    def isValid(self):
+        return self._is_valid
 
     def profiles(self):
-        response = self.__connection__.api_call("users.list")
+        response = self.slack_client.api_call(u'users.list')
         if not response['ok']:
             return []
 
@@ -36,7 +45,7 @@ class Slacker(QtCore.QObject):
             if member[u'is_bot']:
                 continue
             profile = member[u'profile']
-            profile[common.IdRole] = member[common.IdRole]
+            profile[IdRole] = member[u'id']
             profiles.append(profile)
         return profiles
 
@@ -44,89 +53,28 @@ class Slacker(QtCore.QObject):
         text = text.replace(u'&', u'&amp')
         # text = text.replace(u'<', u'&lt')
         # text = text.replace(u'>', u'&gt')
-        response = self.__connection__.api_call(
+        response = self.slack_client.api_call(
             "chat.postMessage",
             channel=channel,
             text=text,
             mrkdwn=True,
             unfurl_media=True,
             unfurl_links=True,
-            as_user=False,
             link_names=True
         )
 
         if not response[u'ok']:
+            # common.Log.
             raise RuntimeError(response[u'error'])
-
-
-class ImageDownloader(QtCore.QObject):
-    """Utility class to download an image from a url. Used by the drag and drop operations."""
-
-    def __init__(self, url, idx, parent=None):
-        super(ImageDownloader, self).__init__(parent=parent)
-        self.url = QtCore.QUrl(url)
-        self.idx = idx
-        self.manager = QtNetwork.QNetworkAccessManager(parent=self)
-        self.request = QtNetwork.QNetworkRequest(self.url)
-        self.request.setAttribute(
-            QtNetwork.QNetworkRequest.FollowRedirectsAttribute, True)
-        self.reply = None
-        self.manager.finished.connect(
-            lambda reply: self.set_image(self.idx, reply.readAll()))
-
-    def get(self):
-        self.reply = self.manager.get(self.request)
-        if self.reply.error() != QtNetwork.QNetworkReply.NoError:
-            print '# Error getting the resource for {}'.format(
-                self.reply.url())
-
-    def set_image(self, idx, data, save_cache=False):
-        """Saves the downloaded data as an image."""
-        if self.reply.error() != QtNetwork.QNetworkReply.NoError:
-            return
-
-        file_name = self.reply.url().fileName()
-        format = file_name.split(u'.').pop()
-
-        # Cache directory
-        temp = QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.GenericDataLocation)
-        temp = u'{}/{}/slack'.format(temp, common.PRODUCT)
-        cache_file_path = u'{}/source_{}'.format(temp, file_name)
-        QtCore.QDir(temp).mkpath('.')
-
-        _file = QtCore.QFile(cache_file_path)
-        _file.open(QtCore.QIODevice.WriteOnly)
-        if not _file.isOpen():
-            print u'Could not open {}'.format(cache_file_path)
-        if _file.write(data) == -1:
-            print u'Could not write image to {}'.format(cache_file_path)
-        _file.close()
-
-        dest = u'{}/{}.png'.format(temp, file_name.replace(u'.', u''))
-        ImageCache.oiio_make_thumbnail(cache_file_path, dest, 32.0)
-        image = QtGui.QPixmap(dest, format=u'png')
-        image = ImageCache.resize_image(image, 24.0)
-        # icon = QtGui.QIcon(pixmap)
-
-        self.parent().INTERNAL_USER_DATA[idx][QtCore.Qt.DecorationRole] = image
-        index = self.parent().index(idx, 0)
-        self.parent().dataChanged.emit(index, index)
 
 
 class UsersModel(QtCore.QAbstractItemModel):
     modelDataResetRequested = QtCore.Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, token, parent=None):
         super(UsersModel, self).__init__(parent=parent)
         self.INTERNAL_USER_DATA = {}
-        self.slacker = Slacker(
-            settings_.local_settings.value(
-                u'preferences/IntegrationSettings/slack_token'),
-            settings_.local_settings.value(
-                u'preferences/IntegrationSettings/slack_member_id'),
-            parent=self
-        )
+        self.slacker = Slacker(token, parent=self)
         self._connectSignals()
 
     def _connectSignals(self):
@@ -152,12 +100,35 @@ class UsersModel(QtCore.QAbstractItemModel):
                 QtCore.Qt.ForegroundRole: QtGui.QBrush(common.SECONDARY_TEXT),
                 QtCore.Qt.BackgroundRole: QtGui.QBrush(common.BACKGROUND),
                 QtCore.Qt.FontRole: common.SecondaryFont,
-                IdRole: profile[common.IdRole],
+                IdRole: profile[IdRole],
                 EmailRole: profile[u'email'],
                 TeamRole: profile[u'team'],
-                ImageDownloaderRole: ImageDownloader(profile[u'image_32'], idx, parent=self),
             }
+            # self.set_icon(profile[u'image_32'], idx)
         self.endResetModel()
+
+    def set_icon(self, url, idx, parent=None):
+        try:
+            response = urllib2.urlopen(url)
+            file_name = QtCore.QUrl(response.geturl()).fileName()
+            format = file_name.split(u'.').pop()
+        except:
+            return
+
+        # Cache directory
+        temp = QtCore.QStandardPaths.writableLocation(
+            QtCore.QStandardPaths.GenericDataLocation)
+        temp = u'{}/{}/slack'.format(temp, common.PRODUCT)
+        cache_file_path = u'{}/source_{}'.format(temp, file_name)
+        QtCore.QDir(temp).mkpath('.')
+
+        with open(cache_file_path, 'wb') as f:
+            f.write(response.read())
+
+        image = QtGui.QPixmap(cache_file_path, format=format)
+        if not image.isNull():
+            icon = QtGui.QIcon(image)
+            self.INTERNAL_USER_DATA[idx][QtCore.Qt.DecorationRole] = icon
 
     def columnCount(self, index, parent=QtCore.QModelIndex()):
         return 2
@@ -201,42 +172,62 @@ class UsersModel(QtCore.QAbstractItemModel):
 
 
 class UsersWidget(QtWidgets.QListView):
-    def __init__(self, parent=None):
+    def __init__(self, token, parent=None):
         super(UsersWidget, self).__init__(parent=parent)
+        self.token = token
+
         self.setResizeMode(QtWidgets.QListView.Adjust)
         self.setViewMode(QtWidgets.QListView.ListMode)
-        self.setMinimumWidth(150)
+        self.setSpacing(0)
+        self.setUniformItemSizes(True)
 
+        self.viewport().setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.installEventFilter(self)
+
+        self.setStyleSheet("""
+QListView {{
+    icon-size: 18px;
+    padding: 1px;
+}}
+QListView::item {{
+    border-left: 4px solid rgba(0,0,0,0);
+    color: rgba({SECONDARY_TEXT});
+    background: rgba(255,255,255,0);
+}}
+QListView::item:hover {{
+    background: rgba(255,255,255,20);
+}}
+QListView::item:selected {{
+    border-left: 4px solid rgba({ADD});
+    color: rgba({ADD});
+    background: rgba(255,255,255,40);
+}}
+        """.format(
+            ADD=common.rgb(common.ADD),
+            SECONDARY_TEXT=common.rgb(common.SECONDARY_TEXT),
+            REMOVE=common.rgb(common.REMOVE)
+        ))
+
+        self.set_model()
+        self._connectSignals()
+
+    def _connectSignals(self):
+        self.clicked.connect(self.save_selection)
+        self.selectionModel().currentChanged.connect(self.save_selection)
+        self.model().modelReset.connect(self.restore_selection)
+
+    def set_model(self):
         proxy_model = QtCore.QSortFilterProxyModel(parent=self)
         proxy_model.setFilterRole(QtCore.Qt.DisplayRole)
         proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.setModel(proxy_model)
-        self.setSpacing(1)
-        self.setUniformItemSizes(True)
-        proxy_model.setSourceModel(UsersModel(parent=self))
 
-        self.clicked.connect(self.save_selection)
-        self.selectionModel().currentChanged.connect(self.save_selection)
-        self.model().modelReset.connect(self.restore_selection)
-        self.setStyleSheet("""
-QListView {{
-    icon-size: 24px;
-    padding: 1px;
-}}
-QListView::item {{
-    background: rgba(150,150,150,30);
-    border-left: 4px solid rgba(0,0,0,0);
-}}
-QListView::item:hover {{
-    color: white;
-    background: gray;
-}}
-QListView::item:selected {{
-    border-left: 4px solid rgba({});
-    color: white;
-    background: gray;
-}}
-        """.format(common.rgb(common.REMOVE)))
+        if self.token:
+            model = UsersModel(self.token, parent=self)
+            proxy_model.setSourceModel(model)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_selection(self, index):
@@ -263,50 +254,61 @@ QListView::item:selected {{
                 self.scrollTo(
                     index, QtWidgets.QAbstractItemView.PositionAtCenter)
 
+    def eventFilter(self, widget, event):
+        if widget != self:
+            return False
+        if event.type() == QtCore.QEvent.Paint:
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.setBrush(QtCore.Qt.NoBrush)
+            painter.setPen(common.SECONDARY_TEXT)
+            o = common.MARGIN * 0.5
+            rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
+            text = u'To send messages add a valid Slack API Token to the bookmark \
+(select the bookmark tab and click the preferences icon).' if not self.token else u''
+            text = u'Invalid Slack API Token' if not self.model(
+            ).sourceModel().slacker.isValid() else text
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignCenter | QtCore.Qt.TextWordWrap,
+                text
+            )
+            painter.end()
+            return True
+        return False
 
-class SlackMessageWidget(QtWidgets.QSplitter):
-    def __init__(self, parent=None):
-        super(SlackMessageWidget, self).__init__(parent=parent)
-        self.__initialized = False
+
+class MessageWidget(QtWidgets.QSplitter):
+    def __init__(self, token, parent=None):
+        super(MessageWidget, self).__init__(parent=parent)
+        self.token = token
 
         self.slack_message = u''
         self.message_widget = None
         self.users_widget = None
         self.send_button = None
 
-        self.initialize_timer = QtCore.QTimer(parent=self)
-        self.initialize_timer.setSingleShot(True)
-        self.initialize_timer.setInterval(800)
-        self.initialize_timer.timeout.connect(self.initialize)
-
-        self.setOrientation(QtCore.Qt.Vertical)
-        self.setWindowTitle(u'Send a message with Slack')
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setOrientation(QtCore.Qt.Horizontal)
+        self.setWindowTitle(u'Send Slack Message')
 
         self._createUI()
         self._connectSignals()
 
     def _createUI(self):
-        common.set_custom_stylesheet(self)
-        o = common.MARGIN / 2.0
-
+        o = 0
         top_widget = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(top_widget)
         top_widget.layout().setContentsMargins(o, o, o, o)
-        top_widget.layout().setSpacing(o)
+        top_widget.layout().setSpacing(0)
+        self.addWidget(top_widget)
 
-        row = add_row(u'', parent=top_widget)
-        label = QtWidgets.QLabel()
-        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.TEXT, 32.0)
-        label.setPixmap(pixmap)
-        row.layout().addWidget(label, 0)
-        label = PaintedLabel(
-            u'Slack Message', size=common.LARGE_FONT_SIZE, parent=self)
-        row.layout().addWidget(label, 0)
-        row.layout().addStretch(1)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.message_widget = QtWidgets.QTextEdit(parent=self)
         self.message_widget.setPlaceholderText(
-            u'Enter the message you want to send via Slack and select the user below...')
+            u'Enter a message to send...')
         self.message_widget.setAcceptRichText(False)
         self.message_widget.moveCursor(QtGui.QTextCursor.End)
 
@@ -316,52 +318,44 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         QtWidgets.QVBoxLayout(bottom_widget)
         bottom_widget.layout().setContentsMargins(o, o, o, o)
         bottom_widget.layout().setSpacing(o)
-        self.addWidget(top_widget)
 
-        row = add_row(u'', parent=bottom_widget)
-        label = PaintedLabel(u'Direct Messages', parent=row)
-        row.layout().addWidget(label, 0)
+        row = common_ui.add_row(u'', parent=bottom_widget)
+        bottom_widget.layout().addSpacing(common.MARGIN)
 
-        self.user_filter = QtWidgets.QLineEdit(parent=self)
+        self.user_filter = common_ui.NameBase(parent=self, transparent=True)
         self.user_filter.setPlaceholderText(u'Search...')
         self.user_filter.setAlignment(
             QtCore.Qt.AlignHCenter | QtCore.Qt.AlignRight)
-        row.layout().addStretch(1)
         row.layout().addWidget(self.user_filter)
 
-        self.users_widget = UsersWidget(parent=self)
+        self.users_widget = UsersWidget(self.token, parent=self)
         bottom_widget.layout().addWidget(self.users_widget)
-
-        bottom_widget.layout().addSpacing(common.MARGIN)
-        row = add_row(u'', parent=bottom_widget)
-        self.send_button = PaintedButton(u'Send')
-        row.layout().addWidget(self.send_button)
 
         self.addWidget(top_widget)
         self.addWidget(bottom_widget)
 
+        if not self.token or not self.users_widget.model().sourceModel().slacker.isValid():
+            self.message_widget.setDisabled(True)
+            self.user_filter.setDisabled(True)
+            self.setSizes([0, 1])
+        else:
+            self.setSizes([100, 50])
+
     def _connectSignals(self):
-        self.send_button.pressed.connect(self.send_message)
         self.user_filter.textChanged.connect(
             self.users_widget.model().setFilterFixedString)
 
     def showEvent(self, event):
-        self.initialize_timer.start()
+        self.initialize()
         self.message_widget.setFocus()
 
     @QtCore.Slot()
     def initialize(self):
-        if self.__initialized:
-            return
-
         source_model = self.users_widget.model().sourceModel()
-        self.users_widget.selectionModel().blockSignals(True)
-        source_model.modelDataResetRequested.emit()
-        for n in source_model.INTERNAL_USER_DATA:
-            source_model.INTERNAL_USER_DATA[n][ImageDownloaderRole].get()
-        self.users_widget.selectionModel().blockSignals(False)
-
-        self.__initialized = True
+        if source_model:
+            self.users_widget.selectionModel().blockSignals(True)
+            source_model.modelDataResetRequested.emit()
+            self.users_widget.selectionModel().blockSignals(False)
 
     def append_message(self, v):
         self.message_widget.setFocus()
@@ -384,41 +378,115 @@ class SlackMessageWidget(QtWidgets.QSplitter):
         try:
             slacker = self.users_widget.model().sourceModel().slacker
             message = self.message_widget.toPlainText()
-            if slacker.member_id:
-                message = u'<@{}>:\n{}'.format(slacker.member_id, message)
-            slacker.message(
-                channel_id,
-                message
-            )
+            slacker.message(channel_id, message)
         except:
             raise
 
-        mbox = QtWidgets.QMessageBox(parent=self)
-        mbox.setWindowTitle(u'Slack: Message sent')
-        username = self.users_widget.selectionModel(
-        ).currentIndex().data(QtCore.Qt.DisplayRole)
-        mbox.setText(
-            u'Successfully messaged {}'.format(username)
+        username = self.users_widget.selectionModel().currentIndex().data(
+            QtCore.Qt.DisplayRole)
+        common_ui.OkBox(
+            u'Message sent',
+            u'Sent to: "{}"'.format(username),
+            parent=self
+        ).exec_()
+
+
+class SlackWidget(QtWidgets.QDialog):
+    def __init__(self, url, token, parent=None):
+        super(SlackWidget, self).__init__(parent=parent)
+        self.message_widget = None
+        self.send_button = None
+        self.token = token
+        self.url = url
+
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setWindowFlags(QtCore.Qt.Widget)
+        self._createUI()
+        self._connectSignals()
+
+    def _createUI(self):
+        common.set_custom_stylesheet(self)
+        QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(common.INDICATOR_WIDTH)
+
+        height = common.ROW_BUTTONS_HEIGHT * 0.7
+        row = common_ui.add_row(None, height=height, padding=None, parent=self)
+
+        self.channel_button = common_ui.ClickableIconButton(
+            u'slack',
+            (common.TEXT, common.TEXT),
+            height,
         )
-        mbox.setInformativeText(
-            u'Do you want to send a message to another user?')
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.No)
+        # label = common_ui.PaintedLabel(
+        #     u'Slack Message', size=common.LARGE_FONT_SIZE, parent=self)
+        # label.setFixedHeight(height)
+        self.hide_button = common_ui.ClickableIconButton(
+            u'close',
+            (common.REMOVE, common.REMOVE),
+            height * 0.7,
+            parent=self
+        )
 
-        res = mbox.exec_()
+        row.layout().addWidget(self.channel_button, 0)
+        # row.layout().addWidget(label, 0)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.hide_button, 0)
 
-        if res == QtWidgets.QMessageBox.Yes:
+        self.message_widget = MessageWidget(self.token, parent=self)
+        self.layout().addWidget(self.message_widget)
+
+        self.send_button = common_ui.PaintedButton(u'Send')
+        self.layout().addSpacing(o)
+        self.layout().addWidget(self.send_button)
+        self.layout().addSpacing(o)
+
+        if not self.token or not self.message_widget.users_widget.model().sourceModel().slacker.isValid():
+            self.send_button.setDisabled(True)
+
+    def _connectSignals(self):
+        self.send_button.clicked.connect(self.message_widget.send_message)
+        self.channel_button.clicked.connect(self.open_url)
+        self.hide_button.clicked.connect(
+            lambda: self.done(QtWidgets.QDialog.Rejected))
+
+    @QtCore.Slot()
+    def open_url(self):
+        if not self.url:
             return
-        self.parent().parent().listcontrolwidget.listChanged.emit(2)
-        self.message_widget.setPlainText(u'')
+        QtGui.QDesktopServices.openUrl(self.url)
 
-    def sizeHint(self):
-        return QtCore.QSize(200, 120)
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        pen = QtGui.QPen(common.SEPARATOR)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setBrush(common.BACKGROUND)
+        o = common.MARGIN * 0.3
+        painter.setOpacity(0.95)
+        painter.drawRoundedRect(
+            self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o)), 4, 4)
+        painter.end()
 
 
 if __name__ == '__main__':
+    common.DEBUG_ON = True
     app = QtWidgets.QApplication([])
-    w = SlackMessageWidget()
+    w = SlackWidget('https://apple.com',
+                    u'xoxb-4397889867-789355634130-sAKdLytI8aql9cQFFNUNScLY')
+    # w = SlackWidget(None, None)
     w.show()
     app.exec_()
+
+    import sys
+    log = open('C:/temp/modules.txt', 'w+')
+    for k in sys.modules.values():
+        try:
+            print >> log, k.__file__
+        except:
+            print >> log, k

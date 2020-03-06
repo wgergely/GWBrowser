@@ -43,6 +43,9 @@ class DataKeyViewDelegate(BaseDelegate):
         self.paint_name(*args)
         self.paint_selection_indicator(*args)
 
+    def get_text_segments(self):
+        return []
+
     @paintmethod
     def paint_background(self, *args):
         """Paints the background."""
@@ -269,7 +272,8 @@ class DataKeyModel(BaseModel):
         @QtCore.Slot(QtCore.QThread)
         def thread_started(thread):
             """Signals the model an item has been updated."""
-            thread.worker.dataReady.connect(self.updateRow, QtCore.Qt.QueuedConnection)
+            thread.worker.dataReady.connect(
+                self.updateRow, QtCore.Qt.QueuedConnection)
             thread.startTimer.emit()
 
         info_worker = threads.DataKeyWorker()

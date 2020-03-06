@@ -10,6 +10,7 @@ from gwbrowser.datakeywidget import DataKeyView
 from gwbrowser.imagecache import ImageCache
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
+import gwbrowser.common_ui as common_ui
 
 
 class BaseControlButton(ClickableIconButton):
@@ -32,6 +33,7 @@ class BaseControlButton(ClickableIconButton):
         try:
             return self.parent().parent().stackedwidget
         except:
+            common.log.Error('Error.')
             return None
 
     def current_widget(self):
@@ -72,9 +74,9 @@ class FilterButton(BaseControlButton):
         if not self.current_widget():
             return
         if self.current_widget().filter_editor.isHidden():
-            self.current_widget().filter_editor.show()
+            self.current_widget().filter_editor.open()
             return
-        self.current_widget().filter_editor.hide()
+        self.current_widget().filter_editor.done(QtWidgets.QDialog.Rejected)
 
     def mouseReleaseEvent(self, event):
         modifiers = QtWidgets.QApplication.instance().keyboardModifiers()
@@ -266,14 +268,18 @@ class SlackButton(BaseControlButton):
     def __init__(self, parent=None):
         super(SlackButton, self).__init__(
             u'slack',
-            u'Open Slack',
+            u'Slacker',
             parent=parent
         )
 
     @QtCore.Slot()
     def action(self):
         """Opens the set slack workspace."""
-        self.parent().listChanged.emit(6)
+        bookmarks_widget = self.stacked_widget().widget(0)
+        index = bookmarks_widget.model().sourceModel().active_index()
+        if not index.isValid():
+            return
+        self.current_widget().show_slacker(index)
 
     def state(self):
         return True
@@ -305,8 +311,10 @@ class GenerateThumbnailsButton(BaseControlButton):
             return
 
         model = self.current_widget().model().sourceModel()
-        model.set_generate_thumbnails_enabled(not model.generate_thumbnails_enabled())
+        model.set_generate_thumbnails_enabled(
+            not model.generate_thumbnails_enabled())
         self.update()
+
     def update(self):
         """Will only show for favourite and file items."""
         super(GenerateThumbnailsButton, self).update()
@@ -356,6 +364,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         try:
             return self.parent().parent().stackedwidget
         except:
+            common.Log.error('Error.')
             return None
 
     def current_widget(self):
@@ -457,7 +466,6 @@ class PaintedTextButton(QtWidgets.QLabel):
         path.addText(x, y, self.font, self.text())
         painter.drawPath(path)
 
-
         rect.setHeight(2.0)
         painter.setPen(QtCore.Qt.NoPen)
         rect.setWidth(self.rect().width())
@@ -500,7 +508,8 @@ class QuickAssetsContextMenu(BaseContextMenu):
     """Quick asset change menu."""
 
     def __init__(self, parent=None):
-        super(QuickAssetsContextMenu, self).__init__(QtCore.QModelIndex(), parent=parent)
+        super(QuickAssetsContextMenu, self).__init__(
+            QtCore.QModelIndex(), parent=parent)
         self.add_assetlist_menu()
 
     @contextmenu
@@ -508,10 +517,13 @@ class QuickAssetsContextMenu(BaseContextMenu):
         widget = self.parent().parent().parent().stackedwidget.widget(1)
         current = widget.model().sourceModel().active_index().data(QtCore.Qt.DisplayRole)
         items = widget.model().sourceModel().model_data().items()
-        items = sorted(items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
+        items = sorted(
+            items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
 
-        off_pixmap = ImageCache.get_rsc_pixmap(u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        on_pixmap = ImageCache.get_rsc_pixmap(u'check', common.ADD, common.INLINE_ICON_SIZE)
+        off_pixmap = ImageCache.get_rsc_pixmap(
+            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        on_pixmap = ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
 
         for idx, item in items:
             active = current.lower() == item[QtCore.Qt.DisplayRole].lower()
@@ -670,9 +682,11 @@ class FavouritesTabButton(PaintedTextButton):
         )
 
 
-class ListControlWidgetDropOverlay(QtWidgets.QWidget):
+class SlackDropOverlayWidget(QtWidgets.QWidget):
+    """Widget used to receive a slack message drop."""
+
     def __init__(self, parent=None):
-        super(ListControlWidgetDropOverlay, self).__init__(parent=parent)
+        super(SlackDropOverlayWidget, self).__init__(parent=parent)
         self.setAcceptDrops(True)
         self.drop_target = True
         self.setWindowFlags(
@@ -694,18 +708,18 @@ class ListControlWidgetDropOverlay(QtWidgets.QWidget):
         painter.setBrush(common.SEPARATOR)
         painter.drawRoundedRect(self.rect(), 4, 4)
 
-        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.ADD, self.rect().height() - 6)
+        pixmap = ImageCache.get_rsc_pixmap(
+            u'slack', common.ADD, self.rect().height() - 6)
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
-        rect = self.rect().marginsRemoved(QtCore.QMargins(1,1,1,1))
+        rect = self.rect().marginsRemoved(QtCore.QMargins(1, 1, 1, 1))
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.ADD)
         pen.setWidthF(2.0)
         painter.setPen(pen)
         painter.drawRoundedRect(rect, 4, 4)
-
         painter.end()
 
     def dragEnterEvent(self, event):
@@ -713,7 +727,17 @@ class ListControlWidgetDropOverlay(QtWidgets.QWidget):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        import gwbrowser.slacker as slacker
+        """Slack drop event"""
+        try:
+            import gwbrowser.slacker as slacker
+        except ImportError as err:
+            common_ui.ErrorBox(
+                u'Could not import SlackClient',
+                u'The Slack API python module was not loaded:\n{}'.format(err),
+            ).exec_()
+            common.Log.error('Slack import error.')
+            return
+
         if event.source() == self:
             return  # Won't allow dropping an item from itself
         mime = event.mimeData()
@@ -730,8 +754,12 @@ class ListControlWidgetDropOverlay(QtWidgets.QWidget):
             message.append(line)
 
         message = u'\n'.join(message)
-        self.parent().parent().slack_widget.append_message(message)
-        self.parent().listChanged.emit(6)
+        parent = self.parent().parent().stackedwidget
+        index = parent.widget(0).model().sourceModel().active_index()
+        if not index.isValid():
+            return
+        widget = parent.currentWidget().show_slacker(index)
+        widget.message_widget.append_message(message)
 
     def showEvent(self, event):
         pos = self.parent().rect().topLeft()
@@ -748,6 +776,8 @@ class ListControlWidget(QtWidgets.QWidget):
     textChanged = QtCore.Signal(unicode)
     listChanged = QtCore.Signal(int)
     dataKeyChanged = QtCore.Signal(unicode)
+    slackDragStarted = QtCore.Signal(QtCore.QModelIndex)
+    slackDropFinished = QtCore.Signal(QtCore.QModelIndex)
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
@@ -804,7 +834,7 @@ class ListControlWidget(QtWidgets.QWidget):
         #
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
-        self.drop_overlay = ListControlWidgetDropOverlay(parent=self)
+        self.drop_overlay = SlackDropOverlayWidget(parent=self)
         self.drop_overlay.setHidden(True)
 
     @QtCore.Slot()
@@ -838,7 +868,7 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def paintEvent(self, event):
         """`ListControlWidget`' paint event."""
-        painter=QtGui.QPainter()
+        painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
 

@@ -3,12 +3,11 @@
 file.
 
 """
-
-
 from PySide2 import QtCore, QtWidgets, QtGui
 import alembic
 import gwbrowser.common as common
 from gwbrowser.imagecache import ImageCache
+
 
 WIDTH = 640.0
 HEIGHT = 1024.0

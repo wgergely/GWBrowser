@@ -15,7 +15,6 @@ import json
 import Queue
 import functools
 import weakref
-import traceback
 import collections
 
 from gwbrowser.imagecache import ImageCache
@@ -66,9 +65,9 @@ class UniqueQueue(Queue.Queue):
             self.not_empty.notify()
 
     def _put(self, item, force=False):
-        if force: # Force the item to the beginning of the queue
+        if force:  # Force the item to the beginning of the queue
             self.queue.append(item)
-        else: # otherwise append to the end
+        else:  # otherwise append to the end
             self.queue.appendleft(item)
 
     def _get(self):
@@ -110,7 +109,8 @@ class BaseWorker(QtCore.QObject):
         super(BaseWorker, self).__init__(parent=parent)
         self.interrupt = False
         self.data_queue = UniqueQueue()
-        self.dataRequested.connect(self.process_data, QtCore.Qt.DirectConnection)
+        self.dataRequested.connect(
+            self.process_data, QtCore.Qt.DirectConnection)
         self.resetQueue.connect(self.reset_queue, QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
@@ -165,8 +165,8 @@ class BaseThread(QtCore.QThread):
         self.timer.setSingleShot(False)
         self.timer.setInterval(self._interval)
         self.timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.startTimer.connect(self.timer.start)
-        self.stopTimer.connect(self.timer.stop)
+        self.startTimer.connect(self.timer.start, QtCore.Qt.QueuedConnection)
+        self.stopTimer.connect(self.timer.stop, QtCore.Qt.QueuedConnection)
 
         self.exec_()
 
@@ -243,7 +243,8 @@ class InfoWorker(BaseWorker):
                 try:
                     v = base64.b64decode(v)
                     v = json.loads(v)
-                    count = [k for k in v if v[k][u'text'] and not v[k][u'checked']]
+                    count = [k for k in v if v[k][u'text']
+                             and not v[k][u'checked']]
                     count = len(count)
                 except:
                     common.Log.error('Could not read notes')
@@ -251,7 +252,8 @@ class InfoWorker(BaseWorker):
             ref()[common.TodoCountRole] = count
 
             # Item flags
-            flags = ref()[common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
+            flags = ref()[
+                common.FlagsRole] | QtCore.Qt.ItemIsEditable | QtCore.Qt.ItemIsDragEnabled
             v = db.value(k, u'flags')
             if v:
                 flags = flags | v
@@ -344,8 +346,8 @@ class InfoWorker(BaseWorker):
                     common.byte_to_string(ref()[common.SortBySize])
 
                 ref()[common.FileDetailsRole] = info_string
-            ref()[common.ThumbnailPathRole] = db.thumbnail_path(ref()[QtCore.Qt.StatusTipRole])
-
+            ref()[common.ThumbnailPathRole] = db.thumbnail_path(
+                ref()[QtCore.Qt.StatusTipRole])
 
         if not ref():
             return None
@@ -356,17 +358,29 @@ class InfoWorker(BaseWorker):
 
 
 class BackgroundInfoWorker(InfoWorker):
+    modelLoaded = QtCore.Signal(weakref.ref)
+
     @process
     @QtCore.Slot()
     def process_data(self, ref):
         if not ref() or self.interrupt:
             return
+
+        changed = False
         for item in ref().itervalues():
             if not ref() or self.interrupt:
                 return None
+            if item[common.FileInfoLoaded]:
+                continue
             self.process_file_information(weakref.ref(item))
+            changed = True
+
         if not ref() or self.interrupt:
             return None
+        if changed:
+            self.modelLoaded.emit(ref)
+
+        common.Log.success('BackgroundInfoWorker: Model finished loaded')
         return None
 
     def reset_queue(self):
@@ -479,17 +493,17 @@ class ThumbnailWorker(BaseWorker):
             ref()[common.ThumbnailBackgroundRole] = color
             return True
         except:
-            print traceback.format_exc()
+            common.Log.error('Failed to process thumbnail')
             if not ref():
                 return
             ref()[common.ThumbnailRole] = ref()[common.DefaultThumbnailRole]
-            ref()[common.ThumbnailBackgroundRole] = ref()[common.DefaultThumbnailBackgroundRole]
+            ref()[common.ThumbnailBackgroundRole] = ref()[
+                common.DefaultThumbnailBackgroundRole]
             common.Log.error('Failed to generate thumbnail')
         finally:
             ref()[common.FileThumbnailLoaded] = True
             cache.invalidate(source, force=True)
             cache.invalidate(dest, force=True)
-
 
 
 class DataKeyWorker(BaseWorker):

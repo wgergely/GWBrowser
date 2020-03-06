@@ -3,8 +3,6 @@
 the application and the asset and file items.
 """
 
-import time
-import hashlib
 import collections
 import os
 import re
@@ -33,8 +31,7 @@ def _bool(v):
             f = float(v)
             if f.is_integer():
                 return int(f)
-            else:
-                return f
+            return f
         except:
             return v
     return v
@@ -203,7 +200,7 @@ class LocalSettings(QtCore.QSettings):
         checks.
 
         """
-        # When active sync is disabled we won't
+        # When active sync is disabled we won't check for config changes
         val = self.value(
             u'preferences/MayaSettings/disable_active_sync')
         if val is True:

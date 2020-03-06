@@ -2,7 +2,6 @@
 """The base-context menu associated with the BaseListWidget subclasses."""
 
 import functools
-from functools import wraps
 import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -13,14 +12,14 @@ from gwbrowser.imagecache import ImageCache
 
 def contextmenu(func):
     """Decorator to create a menu set."""
-    @wraps(func)
+    @functools.wraps(func)
     def func_wrapper(self, *args, **kwargs):
         """Wrapper for function."""
         menu_set = collections.OrderedDict()
         menu_set = func(self, menu_set, *args, **kwargs)
         if not isinstance(menu_set, collections.OrderedDict):
             raise ValueError(
-                'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
+                u'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
         self.create_menu(menu_set)
         return menu_set
     return func_wrapper
@@ -223,7 +222,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         """Creates a menu containing"""
         if not self.index.isValid():
             return menu_set
-            
+
         pixmap = ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
@@ -269,7 +268,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         path = self.index.data(QtCore.Qt.StatusTipRole)
         menu_set[key][u'windows1'] = {
-            u'text': u'Windows:  {}'.format(common.copy_path(path, mode=common.WindowsPath, copy=False)),
+            u'text': u'Windows:  {}'.format(
+                common.copy_path(path, mode=common.WindowsPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -277,7 +277,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                 mode=common.WindowsPath)
         }
         menu_set[key][u'unix'] = {
-            u'text': u'Unix:  {}'.format(common.copy_path(path, mode=common.UnixPath, copy=False)),
+            u'text': u'Unix:  {}'.format(
+                common.copy_path(path, mode=common.UnixPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -286,7 +287,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[key][u'slack'] = {
-            u'text': u'URL:  {}'.format(common.copy_path(path, mode=common.SlackPath, copy=False)),
+            u'text': u'URL:  {}'.format(
+                common.copy_path(path, mode=common.SlackPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -295,7 +297,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[key][u'macos'] = {
-            u'text': u'SMB:  {}'.format(common.copy_path(path, mode=common.MacOSPath, copy=False)),
+            u'text': u'SMB:  {}'.format(
+                common.copy_path(path, mode=common.MacOSPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -308,7 +311,8 @@ class BaseContextMenu(QtWidgets.QMenu):
 
         path = QtCore.QFileInfo(path).dir().path()
         menu_set[key][u'parent_windows1'] = {
-            u'text': u'Windows:  {}'.format(common.copy_path(path, mode=common.WindowsPath, copy=False)),
+            u'text': u'Windows:  {}'.format(
+                common.copy_path(path, mode=common.WindowsPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -316,7 +320,8 @@ class BaseContextMenu(QtWidgets.QMenu):
                 mode=common.WindowsPath)
         }
         menu_set[key][u'parent_unix'] = {
-            u'text': u'Unix:  {}'.format(common.copy_path(path, mode=common.UnixPath, copy=False)),
+            u'text': u'Unix:  {}'.format(
+                common.copy_path(path, mode=common.UnixPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -325,7 +330,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[key][u'parent_slack'] = {
-            u'text': u'URL:  {}'.format(common.copy_path(path, mode=common.SlackPath, copy=False)),
+            u'text': u'URL:  {}'.format(
+                common.copy_path(path, mode=common.SlackPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -334,7 +340,8 @@ class BaseContextMenu(QtWidgets.QMenu):
             )
         }
         menu_set[key][u'parent_macos'] = {
-            u'text': u'SMB:  {}'.format(common.copy_path(path, mode=common.MacOSPath, copy=False)),
+            u'text': u'SMB:  {}'.format(
+                common.copy_path(path, mode=common.MacOSPath, copy=False)),
             u'icon': copy_icon2,
             u'action': functools.partial(
                 common.copy_path,
@@ -441,26 +448,32 @@ class BaseContextMenu(QtWidgets.QMenu):
         }
         return menu_set
 
-
     @contextmenu
     def add_refresh_menu(self, menu_set):
-        source_index = self.parent().model().mapToSource(self.index)
+        parent = self.parent()
         refresh_pixmap = ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         preferences_pixmap = ImageCache.get_rsc_pixmap(
             u'settings', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+        quit_pixmap = ImageCache.get_rsc_pixmap(
+            u'close', common.SEPARATOR, common.INLINE_ICON_SIZE)
 
         menu_set[u'Refresh'] = {
-            u'action': self.parent().model().sourceModel().modelDataResetRequested.emit,
+            u'action': parent.model().sourceModel().modelDataResetRequested.emit,
             u'icon': refresh_pixmap
         }
 
-        if self.parent().parent():
-            menu_set[u'separator'] = None
-            menu_set[u'Preferences...'] = {
-                u'action': self.parent().parent().parent().show_preferences,
-                u'icon': preferences_pixmap,
-            }
+        menu_set[u'separator'] = None
+        menu_set[u'Preferences...'] = {
+            u'action': parent.show_preferences,
+            u'icon': preferences_pixmap,
+        }
+
+        menu_set[u'separator'] = None
+        menu_set[u'Quit...'] = {
+            u'action': parent.parent().parent().shutdown.emit,
+            u'icon': quit_pixmap,
+        }
 
         return menu_set
 
@@ -480,7 +493,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             'action': lambda: model.set_generate_thumbnails_enabled(not enabled)
         }
         return menu_set
-
 
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
@@ -534,7 +546,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': capture_thumbnail_pixmap,
             u'action': functools.partial(ImageCache.capture, source_index)}
 
-
         def show_thumbnail_picker():
             widget = editors.ThumbnailsWidget(parent=self.parent())
 
@@ -547,7 +558,10 @@ class BaseContextMenu(QtWidgets.QMenu):
 
             widget.thumbnailSelected.connect(add_thumbnail_from_library)
             self.parent().resized.connect(widget.setGeometry)
+            p = self.parent().viewport()
             widget.show()
+            widget.setGeometry(p.geometry())
+            widget.move(p.geometry().topLeft())
 
         menu_set[u'library'] = {
             u'text': u'Pick from library...',
@@ -569,9 +583,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         model = self.parent().model().sourceModel()
         if exists and model.generate_thumbnails_enabled() and valid:
             menu_set[u'remove'] = {
-                u'text': u'Delete',
-                u'action': lambda: ImageCache.remove(source_index),
                 u'text': u'Update thumbnail',
+                u'action': lambda: ImageCache.remove(source_index),
                 u'icon': refresh_thumbnail_pixmap
             }
         elif exists:
@@ -597,7 +610,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[u'Manage bookmarks'] = {
             u'text': u'Manage bookmarks',
             u'icon': pixmap,
-            u'action': lambda: self.parent().manage_bookmarks.show()
+            u'action': self.parent().manage_bookmarks.show
         }
         return menu_set
 
@@ -636,7 +649,9 @@ class BaseContextMenu(QtWidgets.QMenu):
         menu_set[key] = collections.OrderedDict()
         menu_set[u'{}:icon'.format(key)] = taskfolder_pixmap
 
-        parent_item = self.parent().model().sourceModel().parent_path
+
+        model = self.parent().model().sourceModel()
+        parent_item = model.parent_path
         if not parent_item:
             return menu_set
         if not all(parent_item):
@@ -645,8 +660,8 @@ class BaseContextMenu(QtWidgets.QMenu):
         dir_ = QtCore.QDir(u'/'.join(parent_item))
         dir_.setFilter(QtCore.QDir.Dirs | QtCore.QDir.NoDotAndDotDot)
         for entry in sorted(dir_.entryList()):
-            if self.parent().model().sourceModel().data_key():
-                checked = self.parent().model().sourceModel().data_key().lower() == entry.lower()
+            if model.data_key():
+                checked = model.data_key().lower() == entry.lower()
             else:
                 checked = False
             menu_set[key][entry] = {
@@ -654,7 +669,7 @@ class BaseContextMenu(QtWidgets.QMenu):
                 u'checkable': False,
                 # u'checked': checked,
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
-                u'action': functools.partial(self.parent().model().sourceModel().dataKeyChanged.emit, entry)
+                u'action': functools.partial(model.dataKeyChanged.emit, entry)
             }
         return menu_set
 
@@ -672,8 +687,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             common.MarkedAsFavourite,
             state=not favourite
         )
-        refresh = self.parent().model().sourceModel().modelDataResetRequested.emit
-
         menu_set[u'favourite'] = {
             u'text': u'Remove favourite',
             u'icon': remove_icon,
@@ -691,8 +704,6 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'favourite', common.ADD, common.INLINE_ICON_SIZE)
         remove_icon = ImageCache.get_rsc_pixmap(
             u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
-
-        favourite = self.index.flags() & common.MarkedAsFavourite
 
         menu_set[u'export_favourites'] = {
             u'text': u'Export favourites',

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-"""``browserwidget.py`` is the main widget of GWBrowser.
+"""Main widget
 """
+import functools
 import sys
 import time
 import subprocess
@@ -17,12 +18,9 @@ from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.fileswidget import FilesWidget
 from gwbrowser.imagecache import ImageCache
 from gwbrowser.listcontrolwidget import ListControlWidget
-from gwbrowser.preferenceswidget import PreferencesWidget
 import gwbrowser.settings as settings_
 import gwbrowser.threads as threads
 import gwbrowser.common as common
-import gwbrowser.slacker as slacker
-
 
 
 class StatusBar(QtWidgets.QStatusBar):
@@ -88,7 +86,8 @@ class TrayMenu(BaseContextMenu):
             self.parent().activateWindow()
 
         active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
-        on_pixmap = ImageCache.get_rsc_pixmap(u'check', common.ADD, common.INLINE_ICON_SIZE)
+        on_pixmap = ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
 
         menu_set[u'Keep on top of other windows'] = {
             u'pixmap': on_pixmap if active else None,
@@ -155,7 +154,8 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2))
+        self.setFixedHeight(common.INLINE_ICON_SIZE +
+                            (common.INDICATOR_WIDTH * 2))
 
         self._createUI()
 
@@ -219,8 +219,6 @@ class HeaderWidget(QtWidgets.QWidget):
 
 
 class ToggleModeButton(QtWidgets.QWidget):
-    """Small version label responsible for displaying information
-    about GWBrowser."""
     clicked = QtCore.Signal()
     message = QtCore.Signal(unicode)
 
@@ -244,9 +242,9 @@ class ToggleModeButton(QtWidgets.QWidget):
 
     def statusTip(self):
         if settings_.local_settings.current_mode() == common.SynchronisedMode:
-            return u'This GWBrowser instance is syncronised with other instances. Click to toggle!'
+            return u'Instance is syncronised. Click to toggle.'
         elif settings_.local_settings.current_mode() == common.SoloMode:
-            return u'This GWBrowser instance is not synronised with other instances. Click to toggle!'
+            return u'Instance not synronised. Click to toggle.'
 
     @QtCore.Slot()
     def reverse_direction(self):
@@ -282,14 +280,14 @@ class ToggleModeButton(QtWidgets.QWidget):
         pen = QtGui.QPen(color)
 
         o = 6.0
-        pen.setWidthF(3.0)
+        pen.setWidth(3.0)
         painter.setPen(pen)
         painter.setOpacity(self.animation.currentValue())
-        rect = QtCore.QRectF(self.rect())
-        rect = rect.marginsRemoved(QtCore.QMarginsF(o, o, o, o))
+        rect = QtCore.QRect(self.rect())
+        rect = rect.marginsRemoved(QtCore.QMargins(o, o, o, o))
         center = self.rect().center()
 
-        size = QtCore.QSizeF(rect.width() - (o), rect.height() - (o))
+        size = QtCore.QSize(rect.width() - (o), rect.height() - (o))
         rect.setSize(size * self.animation.currentValue())
         rect.moveCenter(center)
         c = rect.height() / 2.0
@@ -328,7 +326,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-        k = u'preferences/ApplicationSettings/frameless_window'
+        k = u'preferences/frameless_window'
         self._frameless = settings_.local_settings.value(k)
         if self._frameless is True:
             self.setWindowFlags(
@@ -352,8 +350,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self.fileswidget = None
         self.favouriteswidget = None
         self.statusbar = None
-        self.preferences_widget = None
-        self.slack_widget = None
         self.solo_button = None
 
         self.initializer = QtCore.QTimer(parent=self)
@@ -387,15 +383,11 @@ class BrowserWidget(QtWidgets.QWidget):
         self.assetswidget = AssetsWidget(parent=self)
         self.fileswidget = FilesWidget(parent=self)
         self.favouriteswidget = FavouritesWidget(parent=self)
-        self.preferences_widget = PreferencesWidget(parent=self)
-        self.slack_widget = slacker.SlackMessageWidget(parent=self)
 
         self.stackedwidget.addWidget(self.bookmarkswidget)
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
-        self.stackedwidget.addWidget(self.preferences_widget)
-        self.stackedwidget.addWidget(self.slack_widget)
         idx = settings_.local_settings.value(u'widget/mode')
         self.stackedwidget._setCurrentIndex(idx)
 
@@ -475,6 +467,22 @@ class BrowserWidget(QtWidgets.QWidget):
         idx = settings_.local_settings.value(u'widget/mode')
         self.listcontrolwidget.listChanged.emit(idx)
 
+        @QtCore.Slot(QtCore.QModelIndex)
+        def update_window_title(index):
+            if not index.isValid():
+                return
+            if not index.data(common.ParentPathRole):
+                return
+            p = list(index.data(common.ParentPathRole))
+            s = u'/'.join(p)
+            self.setWindowTitle(s.upper())
+
+        for n in xrange(3):
+            model = self.stackedwidget.widget(n).model().sourceModel()
+            model.activeChanged.connect(update_window_title)
+            model.modelReset.connect(
+                functools.partial(update_window_title, model.active_index()))
+
         self._initialized = True
         self.initialized.emit()
 
@@ -501,15 +509,13 @@ class BrowserWidget(QtWidgets.QWidget):
             settings_.local_settings.sync_timer.stop()
 
             for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
-
-
-                widget.timer.stop()
                 try:
+                    widget.timer.stop()
                     widget.request_visible_fileinfo_timer.stop()
                     widget.request_visible_thumbnail_timer.stop()
                     widget.queue_model_timer.stop()
-                except:
-                    pass
+                except Exception as err:
+                    print err
 
                 for child in widget.model().sourceModel().children():
                     child.deleteLater()
@@ -554,6 +560,7 @@ class BrowserWidget(QtWidgets.QWidget):
                 if n >= 20:
                     for thread in values:
                         thread.terminate()
+                        print thread, 'terminated'
                     break
                 n += 1
                 time.sleep(0.3)
@@ -561,9 +568,8 @@ class BrowserWidget(QtWidgets.QWidget):
         def python_module_cleanup():
             keys = sys.modules.keys()
             for k in keys:
-                if 'gwbrowser' in k.lower():
+                if common.PRODUCT.lower() in k.lower():
                     del sys.modules[k]
-
 
         self.statusbar.showMessage(u'Closing down...')
         terminate_threads()
@@ -575,9 +581,6 @@ class BrowserWidget(QtWidgets.QWidget):
             self.terminated.emit()
         except:
             pass
-
-    def show_preferences(self):
-        self.stackedwidget.setCurrentIndex(4)
 
     def next_tab(self):
         n = self.stackedwidget.currentIndex()
@@ -657,30 +660,6 @@ class BrowserWidget(QtWidgets.QWidget):
             index.data(QtCore.Qt.StatusTipRole))
         common.push_to_rv(path)
 
-    @QtCore.Slot(unicode)
-    def show_progress_message(self, message):
-        b = self.bookmarkswidget.progress_widget
-        a = self.assetswidget.progress_widget
-        f = self.fileswidget.progress_widget
-        ff = self.favouriteswidget.progress_widget
-        progress_widgets = (b, a, f, ff)
-        for widget in progress_widgets:
-            widget.show()
-            widget.set_message(message)
-            # widget.update()
-            widget.repaint()
-
-    @QtCore.Slot()
-    def hide_progress_message(self):
-        b = self.bookmarkswidget.progress_widget
-        a = self.assetswidget.progress_widget
-        f = self.fileswidget.progress_widget
-        ff = self.favouriteswidget.progress_widget
-        progress_widgets = (b, a, f, ff)
-        for widget in progress_widgets:
-            widget.hide()
-            widget.set_message(u'Loading...')
-
     def _connectSignals(self):
         """This is where the bulk of the model, view and control widget
         signals and slots are connected.
@@ -757,7 +736,6 @@ class BrowserWidget(QtWidgets.QWidget):
         a.activated.connect(lambda: lc.listChanged.emit(2))
         b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
         a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
-
 
         # Control bar connections
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
@@ -919,8 +897,10 @@ class BrowserWidget(QtWidgets.QWidget):
         """Saves the position and size of thew widget to the local settings."""
         cls = self.__class__.__name__
         geo = self.geometry()
-        settings_.local_settings.setValue(u'widget/{}/width'.format(cls), geo.width())
-        settings_.local_settings.setValue(u'widget/{}/height'.format(cls), geo.height())
+        settings_.local_settings.setValue(
+            u'widget/{}/width'.format(cls), geo.width())
+        settings_.local_settings.setValue(
+            u'widget/{}/height'.format(cls), geo.height())
         settings_.local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
         settings_.local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
@@ -939,3 +919,5 @@ class BrowserWidget(QtWidgets.QWidget):
     def resizeEvent(self, event):
         """Custom resize event."""
         self.resized.emit(self.geometry())
+        if self.stackedwidget:
+            self.stackedwidget.currentWidget().scheduleDelayedItemsLayout()

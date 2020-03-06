@@ -124,29 +124,35 @@ QRadioButton::indicator:checked  {{
 
 
 QPushButton {{
-		text-align: left;
+		text-align: center;
 		padding-left: 10px;
 		padding-right: 10px;
-		border-style: solid;
-		background-color: rgba({BACKGROUND_SELECTED});
+		color: rgba({TEXT});
+		background-color: rgba({SECONDARY_TEXT});
+		border-radius: 0px;
 		font-family: "{PRIMARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}pt;
-		height: 24px;
+		border: 1px solid rgba({SECONDARY_TEXT});
 }}
 QPushButton:disabled {{
-	color: rgba({TEXT_DISABLED});
+	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
+	border: 1px solid rgba({SECONDARY_BACKGROUND});
 }}
 QPushButton:hover {{
-	padding-left: 8px;
-		color: rgba({TEXT_SELECTED});
-		background-color: rgba(150, 150, 150, 255);
+	color: rgba({TEXT_SELECTED});
+	background-color: rgba({BACKGROUND_SELECTED});
+	border: 1px solid rgba({BACKGROUND_SELECTED});
 }}
 QPushButton:pressed {{
-		padding-left: 7px;
-		color: rgba({TEXT_SELECTED});
-		background-color: rgba(130, 130, 130, 255);
+	color: rgba({TEXT_SELECTED});
+	background-color: rgba({SECONDARY_BACKGROUND});
+	border: 1px solid rgba({SECONDARY_BACKGROUND});
 }}
+QPushButton:focus {{
+	border: 1px solid rgba({FAVOURITE});
+}}
+
+
 
 QComboBox {{
 	color: rgba({TEXT});

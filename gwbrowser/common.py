@@ -38,9 +38,7 @@ import re
 import time
 import zipfile
 import traceback
-import ConfigParser
 import cStringIO
-import threading
 
 from PySide2 import QtGui, QtCore, QtWidgets
 import OpenImageIO
@@ -48,7 +46,6 @@ import OpenImageIO
 import gwbrowser.gwscandir as gwscandir
 
 DEBUG_ON = False
-COMPANY = u'GWBrowser'
 PRODUCT = u'GWBrowser'
 ABOUT_URL = ur'https://gergely-wootsch.com/gwbrowser-about'
 
@@ -65,24 +62,10 @@ MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
 
-AssetTypes = {
-    MayaAssetTemplate: u'Asset',
-    ProjectTemplate: u'Job',
-}
-
-ASSET_IDENTIFIER = u'workspace.mel'
-"""``ASSET_IDENTIFIER`` is the file needed for GWBrowser to understand a folder
-as an asset. We're using the maya project structure as our asset-base so this is
-a **workspace.mel** file in our case. The file resides in the root of the asset
-directory."""
 
 InfoThread = 0
 BackgroundInfoThread = 1
 ThumbnailThread = 2
-
-ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
-CAPTURE_PATH = u'viewport_captures/animation'
-FFMPEG_COMMAND = u'-loglevel info -hide_banner -y -framerate {framerate} -start_number {start} -i "{source}" -c:v libx264 -crf 25 -vf format=yuv420p -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" "{dest}"'
 
 ExportsFolder = u'exports'
 DataFolder = u'data'
@@ -146,7 +129,8 @@ def proxy_path(v):
         return k
 
     if not (isinstance, unicode):
-        raise ValueError('Invalid type. Expected <type \'QModelIndex\'> or `<type \'unicode\'>')
+        raise ValueError(
+            'Invalid type. Expected <type \'QModelIndex\'> or `<type \'unicode\'>')
 
     m = get_sequence(v)
     if m:
@@ -180,8 +164,8 @@ class Log:
     def success(cls, s):
         if not DEBUG_ON:
             return
-        t = '{color}{ts} [Ok]:  {default}{message}'.format(
-            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+        t = u'{color}{ts} [Ok]:  {default}{message}'.format(
+            ts=time.strftime(u'%H:%M:%S'),
             color=cls.OKGREEN,
             default=cls.ENDC,
             message=s
@@ -194,7 +178,7 @@ class Log:
         if not DEBUG_ON:
             return
         t = u'{color}{ts} [Debug]:{default}    {source}.{message}'.format(
-            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            ts=time.strftime(u'%H:%M:%S'),
             color=cls.OKBLUE,
             default=cls.ENDC,
             message=s,
@@ -208,7 +192,7 @@ class Log:
         if not DEBUG_ON:
             return
         t = u'{color}{ts} [Info]:{default}    {message}'.format(
-            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+            ts=time.strftime(u'%H:%M:%S'),
             color=cls.OKBLUE,
             default=cls.ENDC,
             message=s
@@ -220,22 +204,25 @@ class Log:
     def error(cls, s):
         if not DEBUG_ON:
             return
-        t = u'{fail}{underline}{ts} [Error]:{default}    {message}\n{fail}{traceback}'.format(
-            ts=time.strftime("%m/%d/%Y, %H:%M:%S"),
+        t = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
+            ts=time.strftime(u'%H:%M:%S'),
             fail=cls.FAIL,
             underline=cls.UNDERLINE,
             default=cls.ENDC,
             message=s,
             traceback=u'\n\033[91m'.join(
-                traceback.format_exc().strip('\n').split(u'\n'))
+                traceback.format_exc().strip(u'\n').split(u'\n'))
         )
         print t
         print >> cls.stdout, t
 
 
+def k(s):
+    return getattr(Log, s).replace(u'[', u'\\[')
+
+
 class LogViewHighlighter(QtGui.QSyntaxHighlighter):
     """Class responsible for highlighting urls"""
-
     HEADER = 0b000000001
     OKBLUE = 0b000000010
     OKGREEN = 0b000000100
@@ -245,9 +232,6 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
     ENDC = 0b001000000
     BOLD = 0b010000000
     UNDERLINE = 0b100000000
-
-    def k(s):
-        return getattr(Log, s).replace(u'[', '\\[')
 
     HIGHLIGHT_RULES = {
         u'OKBLUE': {
@@ -399,14 +383,13 @@ class LogView(QtWidgets.QTextBrowser):
     )
     format_regex = re.compile(format_regex.replace(u'[', '\\['))
 
-
     def __init__(self, parent=None):
         super(LogView, self).__init__(parent=parent)
         set_custom_stylesheet(self)
         self.setMinimumWidth(640)
         self.setUndoRedoEnabled(False)
         self._cached = u''
-        self.highlighter = LogViewHighlighter(self.document(), parent=self)
+        self.highlighter = LogViewHighlighter(self.document())
         self.timer = QtCore.QTimer(parent=self)
         self.timer.setSingleShot(False)
         self.timer.setInterval(1)
@@ -452,8 +435,6 @@ class LogView(QtWidgets.QTextBrowser):
 
     def sizeHint(self):
         return QtCore.QSize(460, 460)
-
-
 
 
 def psize(n):
@@ -560,7 +541,7 @@ def import_favourites(source=None):
     import gwbrowser.settings as settings_
     import gwbrowser.bookmark_db as bookmark_db
 
-    if source is None:
+    if not isinstance(source, unicode):
         res = QtWidgets.QFileDialog.getOpenFileName(
             caption=u'Select the favourites file to import',
             filter='*.gwb',
@@ -569,7 +550,6 @@ def import_favourites(source=None):
         source, _ = res
         if not source:
             return
-
 
     current_favourites = settings_.local_settings.favourites()
     create_temp_dir()
@@ -599,8 +579,7 @@ def import_favourites(source=None):
 
             file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
             if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.bookmark'.format(server,
-                                                    job, root, file_info.fileName())
+                dest = u'{}/{}/{}/.bookmark'.format(server, job, root)
                 zip.extract(file_info.fileName(), dest)
 
             if favourite not in current_favourites:
@@ -655,8 +634,8 @@ WIDTH = 640.0
 HEIGHT = 480.0
 
 INLINE_ICON_SIZE = 18.0
-THUMBNAIL_IMAGE_SIZE = 840.0
-THUMBNAIL_FORMAT = u'jpg'
+THUMBNAIL_IMAGE_SIZE = 512.0
+THUMBNAIL_FORMAT = u'png'
 
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)
@@ -803,9 +782,8 @@ ThumbnailBackgroundRole = 1038
 DefaultThumbnailRole = 1039
 DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
-AssetCountRole = 1042
-EntryRole = 1043
-IdRole = 1044
+EntryRole = 1042
+IdRole = 1043
 
 SortByName = 2048
 SortByLastModified = 2049
@@ -846,10 +824,10 @@ def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
 def namekey(s):
     """Key function used to sort alphanumeric filenames."""
     if SORT_WITH_BASENAME:
-        s = s.split(u'/').pop() # order by filename
+        s = s.split(u'/').pop()  # order by filename
     else:
         n = len(s.split(u'/'))
-        s = ((u'Ω' * n) + s) # order by number of subfolders, then name
+        s = ((u'Ω' * n) + s)  # order by number of subfolders, then name
     return [int(f) if f.isdigit() else f for f in s]
 
 
@@ -1252,7 +1230,7 @@ def copy_path(path, mode=WindowsPath, first=True, copy=True):
 
     # Normalise path
     path = re.sub(ur'[\/\\]', ur'/', path,
-        flags=re.IGNORECASE | re.UNICODE).strip(u'/')
+                  flags=re.IGNORECASE | re.UNICODE).strip(u'/')
 
     if mode == WindowsPath:
         prefix = u'//' if u':' not in path else u''
@@ -1268,7 +1246,7 @@ def copy_path(path, mode=WindowsPath, first=True, copy=True):
     path = prefix + path
     if mode == WindowsPath:
         path = re.sub(ur'[\/\\]', ur'\\', path,
-            flags=re.IGNORECASE | re.UNICODE)
+                      flags=re.IGNORECASE | re.UNICODE)
 
     if copy:
         QtGui.QClipboard().setText(path)

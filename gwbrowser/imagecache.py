@@ -13,14 +13,14 @@ Thumbnails
 All generated thumbnails and ui resources are cached in ``ImageCache``.
 
 """
-
 import os
 import functools
 import tempfile
+import numpy as np
+import OpenImageIO
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import OpenImageIO
 import gwbrowser.common as common
 
 
@@ -30,22 +30,78 @@ oiio_cache.attribute('max_open_files', 0)
 oiio_cache.attribute('trust_file_extensions', 1)
 
 
-
 def verify_index(func):
     """Decorator to create a menu set."""
     @functools.wraps(func)
     def func_wrapper(cls, index, **kwargs):
         """Wrapper for function."""
         if not index.isValid():
-            return
+            return None
         if not index.data(common.FileInfoLoaded):
-            return
+            return None
         if hasattr(index.model(), 'sourceModel'):
             index = index.model().mapToSource(index)
 
         return func(cls, index, **kwargs)
     return func_wrapper
 
+
+def oiio_get_qimage(path):
+    i = OpenImageIO.ImageInput.open(path)
+    if not i:
+        common.Log.error(OpenImageIO.geterror())
+        return None
+
+    try:
+        buf = OpenImageIO.ImageBuf()
+        o_spec = i.spec_dimensions(0, miplevel=0)
+        buf.reset(path, 0, 0, o_spec)
+    except:
+        common.Log.error(buf.geterror())
+        return None
+    finally:
+        i.close()
+
+    if buf.has_error:
+        common.Log.error(buf.geterror())
+        return None
+
+    spec = buf.spec()
+    if not int(spec.nchannels):
+        return None
+    if int(spec.nchannels) < 3:
+        b = OpenImageIO.ImageBufAlgo.channels(
+            buf,
+            (spec.channelnames[0], spec.channelnames[0], spec.channelnames[0]),
+            ('R', 'G', 'B')
+        )
+    elif int(spec.nchannels) > 4:
+        if spec.channelindex('A') > -1:
+            b = OpenImageIO.ImageBufAlgo.channels(
+                b, ('R', 'G', 'B', 'A'), ('R', 'G', 'B', 'A'))
+        else:
+            b = OpenImageIO.ImageBufAlgo.channels(
+                b, ('R', 'G', 'B'), ('R', 'G', 'B'))
+
+    np_arr = buf.get_pixels()
+    np_arr = (np_arr / (1.0 / 255.0)).astype(np.uint8)
+    if np_arr.shape[2] == 3:
+        format = QtGui.QImage.Format_RGB888
+    elif np_arr.shape[2] == 4:
+        format = QtGui.QImage.Format_RGBA8888
+
+    image = QtGui.QImage(
+        np_arr,
+        spec.width,
+        spec.height,
+        spec.width * spec.nchannels,  # scanlines
+        format
+    )
+
+    # As soon as the numpy array is garbage collected, the QImage becomes
+    # unuseable. By making a copy, the numpy array can safely be GC'd
+    OpenImageIO.ImageCache().invalidate(path)
+    return image.copy()
 
 
 class CaptureScreen(QtWidgets.QDialog):
@@ -196,7 +252,7 @@ class CaptureScreen(QtWidgets.QDialog):
     def keyPressEvent(self, event):
         """Cancel the capture on keypress."""
         if event.key() == QtCore.Qt.Key_Escape:
-            self.reject()
+            self.ignore()
 
     def mousePressEvent(self, event):
         """Start the capture"""
@@ -205,7 +261,7 @@ class CaptureScreen(QtWidgets.QDialog):
         if event.button() == QtCore.Qt.LeftButton:
             self._click_pos = event.globalPos()
         if event.button() == QtCore.Qt.RightButton:
-            self.reject()
+            self.ignore()
 
     def mouseReleaseEvent(self, event):
         """Finalise the caputre"""
@@ -318,6 +374,7 @@ class ImageCache(QtCore.QObject):
         path = path.lower()
         k = path + u':' + unicode(height)
         k = k.lower()
+
 
         # Return cached item if exsits
         if k in cls.INTERNAL_IMAGE_DATA and not overwrite:
@@ -467,7 +524,8 @@ class ImageCache(QtCore.QObject):
             dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptOpen)
             dialog.setNameFilter(common.get_oiio_namefilters(as_array=False))
             dialog.setFilter(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-            dialog.setLabelText(QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
+            dialog.setLabelText(
+                QtWidgets.QFileDialog.Accept, u'Pick thumbnail')
             dialog.setDirectory(QtCore.QFileInfo(
                 index.data(QtCore.Qt.StatusTipRole)).filePath())
 
@@ -600,7 +658,8 @@ class ImageCache(QtCore.QObject):
             if int(source_spec.nchannels) < 3:
                 buf = OpenImageIO.ImageBufAlgo.channels(
                     buf,
-                    (source_spec.channelnames[0], source_spec.channelnames[0], source_spec.channelnames[0]),
+                    (source_spec.channelnames[0], source_spec.channelnames[0],
+                     source_spec.channelnames[0]),
                     (u'R', u'G', u'B')
                 )
             elif int(source_spec.nchannels) > 4:
@@ -626,11 +685,11 @@ class ImageCache(QtCore.QObject):
             colorspace = source_spec.get_string_attribute(u'oiio:ColorSpace')
             try:
                 if colorspace != 'sRGB':
-                    buf = OpenImageIO.ImageBufAlgo.colorconvert(buf, colorspace, 'sRGB')
+                    buf = OpenImageIO.ImageBufAlgo.colorconvert(
+                        buf, colorspace, 'sRGB')
             except:
                 common.Log.error('Could not conver tthe color profile')
             return buf
-
 
         i = OpenImageIO.ImageInput.open(source)
         if not i:
@@ -649,15 +708,16 @@ class ImageCache(QtCore.QObject):
 
         if buf.has_error:
             common.Log.error(buf.geterror())
-            return
+            return False
 
         source_spec = buf.spec()
         ext = source.split(u'.').pop().lower()
         accepted_codecs = (u'h.264', u'mpeg-4')
         codec_name = source_spec.get_string_attribute(u'ffmpeg:codec_name')
 
-        if ext in (u'tif', u'tiff', 'gif') and source_spec.format == 'uint16':
-            return False
+        if ext in (u'tif', u'tiff', u'gif') and source_spec.format == 'uint16':
+            pass
+            # return False
 
         if source_spec.get_int_attribute(u'oiio:Movie') == 1:
             # [BUG] Not all codec formats are supported by ffmpeg. There does
@@ -665,9 +725,9 @@ class ImageCache(QtCore.QObject):
             # crash ffmpeg and the rest of the app.
             for codec in accepted_codecs:
                 if codec.lower() not in codec_name.lower():
-                    common.Log.error('Unsupported movie format: {}'.format(codec_name))
+                    common.Log.error(
+                        'Unsupported movie format: {}'.format(codec_name))
                     return False
-
 
         dest_spec = get_scaled_spec(source_spec)
         buf = shuffle_channels(buf, source_spec)
@@ -679,9 +739,9 @@ class ImageCache(QtCore.QObject):
             background_buf = OpenImageIO.ImageBuf(dest_spec)
             OpenImageIO.ImageBufAlgo.checker(
                 background_buf,
-                12,12,1,
-                (0.3,0.3,0.3),
-                (0.2,0.2,0.2)
+                12, 12, 1,
+                (0.3, 0.3, 0.3),
+                (0.2, 0.2, 0.2)
             )
             buf = OpenImageIO.ImageBufAlgo.over(buf, background_buf)
 
@@ -715,3 +775,216 @@ class ImageCache(QtCore.QObject):
             QtCore.QFile(dest).remove()
             return False
         return True
+
+
+class Viewer(QtWidgets.QGraphicsView):
+    def __init__(self, parent=None):
+        super(Viewer, self).__init__(parent=parent)
+        self._scene = QtWidgets.QGraphicsScene(parent=self)
+        self._track = True
+        self._pos = None
+        self.item = None
+
+        self.setScene(self._scene)
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setBackgroundBrush(QtGui.QColor(0, 0, 0, 0))
+        self.setInteractive(True)
+        self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+
+        self.setRenderHint(QtGui.QPainter.Antialiasing, True)
+        self.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setMouseTracking(True)
+
+    def index(self):
+        return self.parent().index()
+
+    def paintEvent(self, event):
+        """Custom paint event"""
+        super(Viewer, self).paintEvent(event)
+
+        index = self.index()
+        if not index.isValid():
+            return
+
+        painter = QtGui.QPainter()
+        painter.begin(self.viewport())
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        o = common.MARGIN
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
+
+        font = QtGui.QFont(common.PrimaryFont)
+        metrics = QtGui.QFontMetricsF(font)
+        rect.setHeight(metrics.height())
+
+        # Filename
+        text = index.data(QtCore.Qt.StatusTipRole)
+        if text:
+            common.draw_aliased_text(painter, font, QtCore.QRect(
+                rect), text, QtCore.Qt.AlignLeft, common.TEXT)
+            rect.moveTop(rect.center().y() + metrics.lineSpacing())
+
+        text = index.data(common.DescriptionRole)
+        if text:
+            text = text if text else u''
+            common.draw_aliased_text(painter, font, QtCore.QRect(
+                rect), text, QtCore.Qt.AlignLeft, common.FAVOURITE)
+            rect.moveTop(rect.center().y() + metrics.lineSpacing())
+        text = index.data(common.FileDetailsRole)
+        if text:
+            text = u'{}'.format(text)
+            text = u'   |   '.join(text.split(u';')) if text else u'-'
+            common.draw_aliased_text(painter, font, QtCore.QRect(
+                rect), text, QtCore.Qt.AlignLeft, common.TEXT)
+            rect.moveTop(rect.center().y() + metrics.lineSpacing())
+
+        # Image info
+        ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
+        if ext.lower() in common.get_oiio_extensions():
+            metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+
+            path = index.data(QtCore.Qt.StatusTipRole)
+            path = common.get_sequence_endpath(path)
+            img = OpenImageIO.ImageBuf(path)
+            image_info = img.spec().serialize().split('\n')
+            image_info = [f.strip() for f in image_info if f]
+            for n, text in enumerate(image_info):
+                if n > 2:
+                    break
+                common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(
+                    rect), text, QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
+                rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
+        painter.end()
+
+    def set_image(self, path):
+        image = oiio_get_qimage(path)
+        if not image:
+            return None
+
+        if image.isNull():
+            return None
+
+        pixmap = QtGui.QPixmap.fromImage(image)
+        if pixmap.isNull():
+            return None
+
+        self.item = QtWidgets.QGraphicsPixmapItem(pixmap)
+        self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
+        self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
+
+        self.scene().addItem(self.item)
+        self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
+
+        return self.item
+
+    def wheelEvent(self, event):
+        # Zoom Factor
+        zoom_in_factor = 1.25
+        zoom_out_factor = 1.0 / zoom_in_factor
+
+        # Set Anchors
+        self.setTransformationAnchor(QtWidgets.QGraphicsView.NoAnchor)
+        self.setResizeAnchor(QtWidgets.QGraphicsView.NoAnchor)
+
+        # Save the scene pos
+        original_pos = self.mapToScene(event.pos())
+
+        # Zoom
+        if event.angleDelta().y() > 0:
+            zoom_factor = zoom_in_factor
+        else:
+            zoom_factor = zoom_out_factor
+        self.scale(zoom_factor, zoom_factor)
+
+        # Get the new position
+        new_position = self.mapToScene(event.pos())
+
+        # Move scene to old position
+        delta = new_position - original_pos
+        self.translate(delta.x(), delta.y())
+
+    def showEvent(self, event):
+        if self.item:
+            self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
+
+    def keyPressEvent(self, event):
+        event.ignore()
+
+
+class ImageViewer(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super(ImageViewer, self).__init__(parent=parent)
+        common.set_custom_stylesheet(self)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+
+        QtWidgets.QVBoxLayout(self)
+        height = common.ROW_BUTTONS_HEIGHT * 0.6
+        o = 0
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setSpacing(o)
+
+        import gwbrowser.common_ui as common_ui
+        self.hide_button = common_ui.ClickableIconButton(
+            u'close',
+            (common.REMOVE, common.REMOVE),
+            height,
+            parent=self
+        )
+        self.hide_button.clicked.connect(
+            lambda: self.done(QtWidgets.QDialog.Accepted))
+
+        # row = common_ui.add_row(None, height=height, padding=None, parent=self)
+        def get_row(parent=None):
+            row = QtWidgets.QWidget(parent=parent)
+            row.setFixedHeight(height)
+            QtWidgets.QHBoxLayout(row)
+            row.layout().setContentsMargins(0,0,0,0)
+            row.layout().setSpacing(0)
+            parent.layout().addWidget(row)
+            row.setStyleSheet('background-color: rgba(20,20,20,255);')
+            return row
+
+        row = get_row(parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.hide_button, 0)
+
+        self.viewer = Viewer(parent=self)
+        self.layout().addWidget(self.viewer, 1)
+
+        row = get_row(parent=self)
+
+    def index(self):
+        if self.parent():
+            return self.parent().index()
+        else:
+            return QtCore.QModelIndex()
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        pen = QtGui.QPen(common.SEPARATOR)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)
+
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setBrush(QtGui.QColor(10, 10, 10, 250))
+        painter.drawRect(self.rect())
+
+        painter.end()
+
+    def keyPressEvent(self, event):
+        event.ignore()
+
+if __name__ == '__main__':
+    app = QtWidgets.QApplication([])
+    w = ImageViewer()
+    w.viewer.set_image(
+        ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
+    w.exec_()

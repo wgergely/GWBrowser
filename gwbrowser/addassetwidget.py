@@ -1,7 +1,8 @@
 """This modules defines the widget used to add a new asset to a bookmark."""
 
-import gwbrowser.managebookmarks as managebookmarks
 from PySide2 import QtWidgets, QtCore, QtGui
+
+import gwbrowser.managebookmarks as managebookmarks
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
 from gwbrowser.imagecache import ImageCache
@@ -11,7 +12,6 @@ ROW_HEIGHT = 28
 
 
 class AddAssetWidget(QtWidgets.QDialog):
-
     def __init__(self, path, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
         self.templates_widget = None
@@ -29,10 +29,11 @@ class AddAssetWidget(QtWidgets.QDialog):
 
     @QtCore.Slot(unicode)
     def popup(self, v):
-        mbox = QtWidgets.QMessageBox(parent=self)
-        mbox.setWindowTitle(u'Success')
-        mbox.setText(u'Successully added asset "{}" to {}'.format(v, self.templates_widget.path()))
-        mbox.exec_()
+        common_ui.OkBox(
+            u'Successully created "{}"'.format(v),
+            u'',
+            parent=self
+        ).exec_()
 
     def createUI(self):
         common.set_custom_stylesheet(self)
@@ -44,7 +45,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
         pixmap = ImageCache.get_rsc_pixmap(
-            u'assets', common.SECONDARY_BACKGROUND, 32.0)
+            u'assets', common.TEXT, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
@@ -70,15 +71,19 @@ class AddAssetWidget(QtWidgets.QDialog):
         painter = QtGui.QPainter()
         painter.begin(self)
         o = 6
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
-        painter.setPen(QtCore.Qt.NoPen)
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
+        pen = QtGui.QPen(common.SEPARATOR)
+        pen.setWidthF(1.0)
+        painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.drawRoundedRect(rect, o, o)
+        painter.setOpacity(0.9)
+        painter.drawRoundedRect(rect, 4, 4)
         painter.end()
 
     def sizeHint(self):
         return QtCore.QSize(460, 360)
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
