@@ -165,8 +165,6 @@ class BaseThread(QtCore.QThread):
         self.timer.setSingleShot(False)
         self.timer.setInterval(self._interval)
         self.timer.setTimerType(QtCore.Qt.CoarseTimer)
-        self.startTimer.connect(self.timer.start, QtCore.Qt.QueuedConnection)
-        self.stopTimer.connect(self.timer.stop, QtCore.Qt.QueuedConnection)
 
         self.exec_()
 
@@ -175,6 +173,8 @@ class BaseThread(QtCore.QThread):
         self.worker.moveToThread(self)
         self.timer.timeout.connect(
             self.worker.dataRequested, QtCore.Qt.DirectConnection)
+        self.startTimer.connect(self.timer.start, QtCore.Qt.QueuedConnection)
+        self.stopTimer.connect(self.timer.stop, QtCore.Qt.QueuedConnection)
 
     def put(self, ref, force=False):
         """Main method to add an item to the thread's worker queue.
