@@ -166,7 +166,6 @@ warning dialog. Tick to disable (default is "off"):'
             self.capture_path.setText(val)
 
 
-
 class ApplicationSettingsWidget(BaseSettingsWidget):
 
     def __init__(self, parent=None):

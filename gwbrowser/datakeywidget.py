@@ -151,19 +151,21 @@ class DataKeyView(QtWidgets.QListView):
 
         self.clicked.connect(self.activated)
         self.clicked.connect(self.hide)
-        self.clicked.connect(self.altparent.signal_dispatcher)
 
-        browser_widget = self.parent().parent().parent()
+        if self.altparent:
+            self.clicked.connect(self.altparent.signal_dispatcher)
 
-        @QtCore.Slot(QtCore.QRect)
-        def set_width(rect):
-            """Resizes the view to the size of the"""
-            rect = browser_widget.stackedwidget.widget(2).viewport().geometry()
-            rect.setLeft(0)
-            rect.setTop(0)
-            self.setGeometry(rect)
+        if self.parent():
+            @QtCore.Slot(QtCore.QRect)
+            def set_width(rect):
+                """Resizes the view to the size of the"""
+                rect = browser_widget.stackedwidget.widget(2).viewport().geometry()
+                rect.setLeft(0)
+                rect.setTop(0)
+                self.setGeometry(rect)
 
-        browser_widget.stackedwidget.widget(2).resized.connect(set_width)
+            browser_widget = self.parent().parent().parent()
+            browser_widget.stackedwidget.widget(2).resized.connect(set_width)
 
         model = DataKeyModel()
         model.view = self
@@ -173,21 +175,26 @@ class DataKeyView(QtWidgets.QListView):
 
     def sizeHint(self):
         """The default size of the widget."""
-        return QtCore.QSize(self.parent().width(), self.parent().height())
+        if self.parent():
+            return QtCore.QSize(self.parent().width(), self.parent().height())
+        else:
+            return QtCore.QSize(460, 360)
 
     def inline_icons_count(self):
         return 0
 
     def hideEvent(self, event):
         """DataKeyView hide event."""
-        self.parent().verticalScrollBar().setHidden(False)
-        self.parent().removeEventFilter(self)
-        self.altparent.files_button.update()
+        if self.parent():
+            self.parent().verticalScrollBar().setHidden(False)
+            self.parent().removeEventFilter(self)
+            self.altparent.files_button.update()
 
     def showEvent(self, event):
         """DataKeyView show event."""
-        self.parent().verticalScrollBar().setHidden(True)
-        self.parent().installEventFilter(self)
+        if self.parent():
+            self.parent().verticalScrollBar().setHidden(True)
+            self.parent().installEventFilter(self)
 
     def eventFilter(self, widget, event):
         """We're stopping events propagating back to the parent."""
@@ -285,8 +292,10 @@ class DataKeyModel(BaseModel):
     @property
     def parent_path(self):
         """We will use the currently active asset as the parent."""
-        view = self.view.parent().parent().parent().fileswidget
-        return view.model().sourceModel().parent_path
+        if self.view.parent():
+            view = self.view.parent().parent().parent().fileswidget
+            return view.model().sourceModel().parent_path
+        return None
 
     @parent_path.setter
     def parent_path(self, val):

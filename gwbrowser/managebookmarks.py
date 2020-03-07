@@ -586,25 +586,8 @@ class ServerEditor(QtWidgets.QWidget):
         self._rows = []
         self.add_server_button = None
 
-        # effect = QtWidgets.QGraphicsOpacityEffect(self)
-        # self.setGraphicsEffect(effect)
-
         self.createUI()
         self.add_rows()
-
-        # self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        # self.fade_in.setStartValue(0)
-        # self.fade_in.setEndValue(1)
-        # self.fade_in.setDuration(500)
-        #
-        # self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
-        # self.fade_out.setStartValue(1)
-        # self.fade_out.setEndValue(0)
-        # self.fade_out.setDuration(200)
-        # self.fade_out.finished.connect(self.hide)
-
-    # def showEvent(self, event):
-    #     self.fade_in.start()
 
     def createUI(self):
         QtWidgets.QVBoxLayout(self)
@@ -622,18 +605,18 @@ class ServerEditor(QtWidgets.QWidget):
             description=u'Add a new server',
             parent=row
         )
-        self.add_server_label = QtWidgets.QLineEdit(parent=self)
-        self.add_server_label.setPlaceholderText(
+        self.add_server_lineeditor = QtWidgets.QLineEdit(parent=self)
+        self.add_server_lineeditor.setPlaceholderText(
             u'Path to the server, eg. //server/jobs')
-        self.add_server_label.returnPressed.connect(self.add_server)
+        self.add_server_lineeditor.returnPressed.connect(self.add_server)
         self.add_server_button.clicked.connect(self.add_server)
 
         row.layout().addWidget(self.add_server_button)
-        row.layout().addWidget(self.add_server_label, 1)
+        row.layout().addWidget(self.add_server_lineeditor, 1)
 
     @QtCore.Slot()
-    def add_server(self):
-        label = self.add_server_label
+    def add_server(self, allow_invalid=False):
+        label = self.add_server_lineeditor
         if not label.text():
             return
         cservers = [f.findChild(QtWidgets.QLineEdit).text().lower()
@@ -641,7 +624,7 @@ class ServerEditor(QtWidgets.QWidget):
         exists = label.text().lower() in cservers
 
         file_info = QtCore.QFileInfo(label.text())
-        if exists or not file_info.exists():
+        if not allow_invalid and exists or not file_info.exists():
             color = common.REMOVE
             label.setStyleSheet(
                 u'color: rgba({})'.format(common.rgb(color)))
@@ -1141,15 +1124,15 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         return k
 
     def get_saved_servers(self):
-        def r(s):
+        def sep(s):
             return re.sub(
                 ur'[\\]', u'/', s, flags=re.UNICODE | re.IGNORECASE)
         val = settings_.local_settings.value(self.SERVER_KEY)
         if not val:
             return []
-        if isinstance(val, unicode):
-            return [val.encode(u'utf-8').lower(), ]
-        return sorted([r(f).encode(u'utf-8').lower() for f in val])
+        if isinstance(val, (str, unicode)):
+            return [val, ]
+        return sorted([sep(f).lower() for f in val])
 
     def add_server(self, val):
         s = self.get_saved_servers()
@@ -1157,6 +1140,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return False
         s.append(val.lower())
         settings_.local_settings.setValue(self.SERVER_KEY, list(set(s)))
+        settings_.local_settings.sync()
         return True
 
     def remove_server(self, val):
@@ -1422,6 +1406,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 class Bookmarks(QtWidgets.QScrollArea):
     def __init__(self, parent=None):
         super(Bookmarks, self).__init__(parent=parent)
+
         common.set_custom_stylesheet(self)
         self.setWidget(ManageBookmarksWidget(parent=self))
         self.setWidgetResizable(True)

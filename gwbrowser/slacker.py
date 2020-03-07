@@ -225,9 +225,8 @@ QListView::item:selected {{
         proxy_model.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
         self.setModel(proxy_model)
 
-        if self.token:
-            model = UsersModel(self.token, parent=self)
-            proxy_model.setSourceModel(model)
+        model = UsersModel(self.token, parent=self)
+        proxy_model.setSourceModel(model)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def save_selection(self, index):
@@ -379,8 +378,14 @@ class MessageWidget(QtWidgets.QSplitter):
             slacker = self.users_widget.model().sourceModel().slacker
             message = self.message_widget.toPlainText()
             slacker.message(channel_id, message)
-        except:
-            raise
+        except Exception as err:
+            common_ui.ErrorBox(
+                u'Error sending the message.',
+                u'{}'.format(err),
+                parent=self
+            )
+            common.Log.error('Failed to send message.')
+            return
 
         username = self.users_widget.selectionModel().currentIndex().data(
             QtCore.Qt.DisplayRole)
@@ -477,9 +482,9 @@ class SlackWidget(QtWidgets.QDialog):
 if __name__ == '__main__':
     common.DEBUG_ON = True
     app = QtWidgets.QApplication([])
-    w = SlackWidget('https://apple.com',
-                    u'xoxb-4397889867-789355634130-sAKdLytI8aql9cQFFNUNScLY')
-    # w = SlackWidget(None, None)
+    # w = SlackWidget('https://apple.com',
+    #                 u'xoxb-4397889867-789355634130-sAKdLytI8aql9cQFFNUNScLY')
+    w = SlackWidget(None, None)
     w.show()
     app.exec_()
 

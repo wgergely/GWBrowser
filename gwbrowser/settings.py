@@ -94,19 +94,24 @@ class LocalSettings(QtCore.QSettings):
         activepath/file (unicode):      Location-relative file path.
 
     """
-
     activeBookmarkChanged = QtCore.Signal()
     activeAssetChanged = QtCore.Signal()
     activeLocationChanged = QtCore.Signal(unicode)
     activeFileChanged = QtCore.Signal(unicode)
 
+    filename = u'settings.ini'
+
     def __init__(self, parent=None):
-        config_path = QtCore.QStandardPaths.writableLocation(
+        self.config_path = QtCore.QStandardPaths.writableLocation(
             QtCore.QStandardPaths.GenericDataLocation)
-        config_path = u'{}/{}/settings.ini'.format(config_path, common.PRODUCT)
+        self.config_path = u'{}/{}/{}'.format(
+            self.config_path,
+            common.PRODUCT,
+            self.filename
+        )
 
         super(LocalSettings, self).__init__(
-            config_path,
+            self.config_path,
             QtCore.QSettings.IniFormat,
             parent=parent
         )
@@ -202,7 +207,7 @@ class LocalSettings(QtCore.QSettings):
         """
         # When active sync is disabled we won't check for config changes
         val = self.value(
-            u'preferences/MayaSettings/disable_active_sync')
+            u'preferences/disable_active_sync')
         if val is True:
             return
 

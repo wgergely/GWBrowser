@@ -142,7 +142,7 @@ class BookmarkDB(QtCore.QObject):
             raise RuntimeError(u'Unable to connect to the database at "{}"\n-> "{}"'.format(
                 self._database_path, e.message))
 
-    def _row_id(self, k):
+    def row_id(self, k):
         """Pass a valid filepath to retrieve database row number of the given
         file. This should be a path wihtout any dynamic sequence numbers as
         these do change over time, for instance when a sequence range increases.
@@ -156,17 +156,21 @@ class BookmarkDB(QtCore.QObject):
         """
         if isinstance(k, int):
             return k
+        if not isinstance(k, unicode):
+            raise TypeError('expected <type \'unicode\'>, got {}'.format(type(str)))
 
-        k = k.lower().encode(u'utf-8')
-        k = k.replace(u'\\'.encode(u'utf-8'), u'/'.encode(u'utf-8'))
-        k = k.replace(u'\''.encode(u'utf-8'), u'_'.encode(u'utf-8'))
+        k = k.lower()
+        k = k.replace(u'\\', u'/')
+        k = k.replace(u'\'', u'_')
         if self._server in k:
             k = k[len(self._server):len(k)]
-        k = k.strip(u'/'.encode(u'utf-8'))
+        k = k.strip(u'/')
         return k
 
     def thumbnail_path(self, path):
-        filename = hashlib.md5(self._row_id(
+        if not path:
+            raise TypeError('Unable to get the thumbnail, invalid path.')
+        filename = hashlib.md5(self.row_id(
             path)).hexdigest() + u'.' + common.THUMBNAIL_FORMAT
         p = self._bookmark + u'/.bookmark/' + filename
         return p
@@ -266,13 +270,14 @@ CREATE TABLE IF NOT EXISTS info (
             data: The requested value or None.
 
         """
-        id = self._row_id(id)
+        if key not in KEYS[table]:
+            raise ValueError('Key "{}" is invalid. Expected one of "{}"'.format(key, '", "'.join(KEYS[table])))
+
+        id = self.row_id(id)
         _cursor = self._connection.cursor()
-        _cursor.execute(u'SELECT {key} FROM {table} WHERE id=\'{id}\''.encode('utf-8').format(
-            table=table.encode('utf-8'),
-            key=key.encode('utf-8'),
-            id=id
-        ))
+        kw = {'table': table, 'key': key, 'id': id}
+        sql = u'SELECT {key} FROM {table} WHERE id=\'{id}\''.format(**kw)
+        _cursor.execute(sql.encode('utf-8'))
 
         res = _cursor.fetchone()
         if not res:
@@ -323,7 +328,7 @@ CREATE TABLE IF NOT EXISTS info (
 
         Pass the full file or folder path including the server, job and root.
         The database uses the relative path as the row id, which is returned by
-        `_row_id()`. The method will update existing row, or create a new one if the
+        `row_id()`. The method will update existing row, or create a new one if the
         row `id` does not exists yet.
 
         Note:
@@ -338,24 +343,28 @@ CREATE TABLE IF NOT EXISTS info (
             value (unicode or float): The value to set.
 
         """
-        id = self._row_id(id)
+        if key not in KEYS[table]:
+            raise ValueError('Key "{}" is invalid. Expected one of {}'.format(key, ', '.join(KEYS[table])))
+
+        id = self.row_id(id)
+        values = []
 
         # Earlier versions of the SQLITE library lack `UPSERT` or `WITH`
         # A workaround is found here:
         # https://stackoverflow.com/questions/418898/sqlite-upsert-not-insert-or-replace
-
-        values = []
         for k in KEYS[table]:
             if k == key:
-                v = u'\n \'' + unicode(value) + u'\''
+                v = u'\n \'' + value + u'\''
             else:
-                v = u'\n(SELECT ' + k + u' FROM ' + table + u' WHERE id =\'' + unicode(id) + u'\')'
+                v = u'\n(SELECT ' + k + u' FROM ' + table + u' WHERE id =\'' + id + u'\')'
             values.append(v)
 
-        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(
-            id=id,
-            allkeys=u', '.join(KEYS[table]),
-            values=u','.join(values),
-            table=table)
-
-        self._connection.execute(sql)
+        kw = {
+            'id': id,
+            'allkeys': u', '.join(KEYS[table]),
+            'values': u','.join(values),
+            'table': table
+        }
+        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(**kw)
+        _cursor = self._connection.cursor()
+        _cursor.execute(sql.encode('utf-8'))

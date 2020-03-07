@@ -2299,6 +2299,9 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                     return
 
                 source_index = proxy.mapToSource(index)
+                if source_index.row() not in data:
+                    continue
+                    
                 ref = weakref.ref(data[source_index.row()])
 
                 info_loaded = index.data(common.FileInfoLoaded)

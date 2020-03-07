@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Main widget
-"""
+"""Main widget"""
 import functools
 import sys
 import time
@@ -388,7 +387,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.assetswidget)
         self.stackedwidget.addWidget(self.fileswidget)
         self.stackedwidget.addWidget(self.favouriteswidget)
+
+        # Setting the tab now before we do any more initialisation
         idx = settings_.local_settings.value(u'widget/mode')
+        idx = 0 if idx is None or False else idx
+        idx = 0 if idx < 0 else idx
+        idx = 3 if idx > 3 else idx
         self.stackedwidget._setCurrentIndex(idx)
 
         self.listcontrolwidget = ListControlWidget(parent=self)

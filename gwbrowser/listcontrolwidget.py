@@ -714,12 +714,13 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
-        rect = self.rect().marginsRemoved(QtCore.QMargins(1, 1, 1, 1))
+        o = common.INDICATOR_WIDTH
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.ADD)
         pen.setWidthF(2.0)
         painter.setPen(pen)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, o, o)
         painter.end()
 
     def dragEnterEvent(self, event):

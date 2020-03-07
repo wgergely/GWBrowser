@@ -170,7 +170,6 @@ class Log:
             default=cls.ENDC,
             message=s
         )
-        print t
         print >> cls.stdout, t
 
     @classmethod
@@ -184,7 +183,6 @@ class Log:
             message=s,
             source=source.__class__.__name__
         )
-        print t
         print >> cls.stdout, t
 
     @classmethod
@@ -197,13 +195,10 @@ class Log:
             default=cls.ENDC,
             message=s
         )
-        print t
         print >> cls.stdout, t
 
     @classmethod
     def error(cls, s):
-        if not DEBUG_ON:
-            return
         t = u'{fail}{underline}{ts} [Error]:{default}{default}    {message}\n{fail}{traceback}\n'.format(
             ts=time.strftime(u'%H:%M:%S'),
             fail=cls.FAIL,
@@ -213,7 +208,6 @@ class Log:
             traceback=u'\n\033[91m'.join(
                 traceback.format_exc().strip(u'\n').split(u'\n'))
         )
-        print t
         print >> cls.stdout, t
 
 
@@ -392,7 +386,7 @@ class LogView(QtWidgets.QTextBrowser):
         self.highlighter = LogViewHighlighter(self.document())
         self.timer = QtCore.QTimer(parent=self)
         self.timer.setSingleShot(False)
-        self.timer.setInterval(1)
+        self.timer.setInterval(666)
         self.timer.timeout.connect(self.load_log)
         self.timer.start()
         self.setStyleSheet(
@@ -1363,7 +1357,7 @@ def push_to_rv(path):
     import subprocess
     import gwbrowser.settings as settings_
     def get_preference(k): return settings_.local_settings.value(
-        u'preferences/IntegrationSettings/{}'.format(k))
+        u'preferences/{}'.format(k))
 
     def alert():
         mbox = QtWidgets.QMessageBox()

@@ -87,5 +87,5 @@ class AddAssetWidget(QtWidgets.QDialog):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
-    w = AddAssetWidget('C:/tmp')
+    w = AddAssetWidget(None)
     w.exec_()

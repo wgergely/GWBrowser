@@ -334,7 +334,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
         self.prefix_editor.textEdited.emit(self.prefix_editor.text())
 
     def preference_key(self, name):
-        return u'preferences/BookmarkProperties/{}'.format(name)
+        return u'preferences/{}'.format(name)
 
     def init_last_used_values(self):
         def set_saved(k):

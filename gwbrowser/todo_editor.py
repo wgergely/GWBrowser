@@ -86,9 +86,12 @@ class Lockfile(QtCore.QSettings):
 
     """
     def __init__(self, index, parent=None):
-        p = u'/'.join(index.data(common.ParentPathRole)[0:3])
-        f = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        self.config_path = p + u'/.bookmark/' + f.baseName() + u'.lock'
+        if index.isValid():
+            p = u'/'.join(index.data(common.ParentPathRole)[0:3])
+            f = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+            self.config_path = p + u'/.bookmark/' + f.baseName() + u'.lock'
+        else:
+            self.config_path = '/'
 
         super(Lockfile, self).__init__(
             self.config_path,
@@ -1137,7 +1140,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             k = self.index.data(QtCore.Qt.StatusTipRole)
         elif self.index.data(common.TypeRole) == common.SequenceItem:
             k = common.proxy_path(self.index)
-            
+
         try:
             db = bookmark_db.get_db(self.index)
             v = json.dumps(data, ensure_ascii=False, encoding='utf-8')

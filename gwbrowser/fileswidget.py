@@ -218,6 +218,10 @@ class FilesModel(BaseModel):
 
         nth = 987
         c = 0
+
+        if not QtCore.QFileInfo(location_path).exists():
+            return
+            
         for entry in self._entry_iterator(location_path):
             if self._interrupt_requested:
                 break

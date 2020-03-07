@@ -435,6 +435,5 @@ if __name__ == '__main__':
     widget = BookmarksWidget()
     # widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')
     widget.model().sourceModel().modelDataResetRequested.emit()
-    widget.resize(460, 640)
     widget.show()
     app.exec_()
