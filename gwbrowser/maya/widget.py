@@ -101,11 +101,12 @@ MAYA_FPS = {
 }
 
 
-def get_framerate(): return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
+def get_framerate():
+    return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
 
 
-def get_preference(k): return settings_.local_settings.value(
-    u'preferences/{}'.format(k))
+def get_preference(k):
+    return settings_.local_settings.value(u'preferences/{}'.format(k))
 
 
 def instance():
@@ -175,8 +176,6 @@ def show():
                 cmds.workspaceControl('AttributeEditor', e=True, visible=True)
                 cmds.workspaceControl(
                     'AttributeEditor', e=True, collapse=False)
-                # cmds.workspaceControl(
-                #     workspace_control, e=True, collapse=True)
                 return
             if state is True:
                 cmds.workspaceControl(
@@ -834,6 +833,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             description=u'Click to toggle GWBrowser.\nRight-click to see addittional options.',
             parent=parent
         )
+        self.setObjectName('MayaBrowserMainButton')
         self.setAttribute(QtCore.Qt.WA_NoBackground, False)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -877,7 +877,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         cmds.evalDeferred(functools.partial(
             cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):    
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
@@ -1077,9 +1077,10 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
 class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
+    terminated = QtCore.Signal()
 
     def __init__(self, parent=None):
-        global __instance__  # sorry
+        global __instance__
         __instance__ = self
         super(MayaBrowserWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
@@ -1154,6 +1155,103 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         self.browserwidget = BrowserWidget()
         self.layout().addWidget(self.browserwidget)
+
+        self.browserwidget.terminated.connect(self.terminate)
+
+    @QtCore.Slot()
+    def terminate(self):
+        @QtCore.Slot()
+        def delete_module_import_cache():
+            import gc
+            import imp
+            import gwbrowser
+
+            name = common.PRODUCT.lower()
+            name_ext = '{}.'.format(name)
+
+            # prevent changing iterable while iterating over it
+            def compare(loaded):
+                return (loaded == name) or loaded.startswith(name_ext)
+
+            all_mods = tuple(sys.modules)
+            sub_mods = filter(compare, all_mods)
+
+            for pkg in sub_mods:
+                p = pkg.split('.')
+                p.pop(0)
+                if not p:
+                    continue
+
+                # remove sub modules and packages from import cache
+                # but only if submodules of gwbrowser`
+                try:
+                    imp.find_module(p[0], gwbrowser.__path__)
+                    del sys.modules[pkg]
+                except ImportError:
+                    continue
+                except RuntimeError as e:
+                    print e
+                except ValueError as e:
+                    print e
+
+            # del gwbrowser
+            # del sys.modules['gwbrowser']
+            gc.collect()
+
+        @QtCore.Slot()
+        def remove_button():
+            """Removes the workspaceControl, and workspaceControlState objects."""
+            ptr = OpenMayaUI.MQtUtil.findControl(u'ToolBox')
+            if not ptr:
+                widgets = QtWidgets.QApplication.instance().allWidgets()
+                widget = [f for f in widgets if f.objectName() ==
+                          u'MayaBrowserMainButton']
+                if not widget:
+                    return
+                widget = widget[0]
+
+            else:
+                widget = wrapInstance(long(ptr), QtWidgets.QWidget)
+                if not widget:
+                    return
+
+                from gwbrowser.maya.widget import MayaBrowserButton
+                widget = widget.findChild(MayaBrowserButton)
+
+            widget.hide()
+            widget.deleteLater()
+
+        def remove_workspace_control(workspace_control):
+            if cmds.workspaceControl(workspace_control, q=True, exists=True):
+                cmds.deleteUI(workspace_control)
+                if cmds.workspaceControlState(workspace_control, ex=True):
+                    cmds.workspaceControlState(workspace_control, remove=True)
+            try:
+                for k in mixinWorkspaceControls.items():
+                    if u'MayaBrowserWidget' in k:
+                        del mixinWorkspaceControls[k]
+            except:
+                pass
+
+            sys.stdout.write(
+                u'# GWBrowser: UI deleted.\n')
+
+        for widget in QtWidgets.QApplication.instance().allWidgets():
+            if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+                try:
+                    remove_workspace_control(widget.objectName())
+                except:
+                    pass
+
+        self.workspace_timer.stop()
+        self.remove_context_callbacks()
+        remove_button()
+
+        self.hide()
+        self.deleteLater()
+        self.terminated.emit()
+
+        delete_module_import_cache()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -1394,7 +1492,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if result == QtWidgets.QMessageBox.Cancel:
             return
         cmds.file(file_info.filePath(), open=True, force=True)
-        common.Log.success(u'# GWBrowser: Scene opened {}\n'.format(file_info.filePath()))
+        common.Log.success(
+            u'# GWBrowser: Scene opened {}\n'.format(file_info.filePath()))
 
     def import_scene(self, path):
         """Imports the given scene locally."""

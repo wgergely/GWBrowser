@@ -497,7 +497,6 @@ class BrowserWidget(QtWidgets.QWidget):
 
         """
         def ui_teardown():
-            self.setUpdatesEnabled(False)
             settings_.local_settings.sync_timer.stop()
             settings_.local_settings.server_mount_timer.stop()
 
@@ -512,37 +511,57 @@ class BrowserWidget(QtWidgets.QWidget):
             self.favouriteswidget.timer.stop()
             settings_.local_settings.sync_timer.stop()
 
-            for widget in (self.assetswidget, self.fileswidget, self.favouriteswidget):
+            self.hide()
+            self.setUpdatesEnabled(False)
+            self.deleteLater()
+
+            for widget in (
+                self.assetswidget,
+                self.fileswidget,
+                self.favouriteswidget,
+                self.listcontrolwidget.data_key_view
+            ):
                 try:
-                    widget.timer.stop()
-                    widget.request_visible_fileinfo_timer.stop()
-                    widget.request_visible_thumbnail_timer.stop()
-                    widget.queue_model_timer.stop()
+                    widget.removeEventFilter(self)
+                    widget.hide()
+                    widget.setUpdatesEnabled(False)
+                    widget.blockSignals(True)
+
+                    if hasattr(widget, 'timer'):
+                        widget.timer.stop()
+                    if hasattr(widget, 'request_visible_fileinfo_timer'):
+                        widget.request_visible_fileinfo_timer.stop()
+                    if hasattr(widget, 'request_visible_thumbnail_timer'):
+                        widget.request_visible_thumbnail_timer.stop()
+                    if hasattr(widget, 'queue_model_timer'):
+                        widget.queue_model_timer.stop()
+                    if hasattr(widget.model(), 'sourceModel'):
+                        widget.model().sourceModel().deleteLater()
+                    widget.model().deleteLater()
+                    widget.deleteLater()
+
+                    for child in widget.children():
+                        child.deleteLater()
                 except Exception as err:
                     print err
 
-                for child in widget.model().sourceModel().children():
-                    child.deleteLater()
-                widget.model().sourceModel().deleteLater()
-                for child in widget.model().children():
-                    child.deleteLater()
-                widget.model().deleteLater()
+            for widget in (self.listcontrolwidget, self.headerwidget, self.stackedwidget, self.statusbar):
+                widget.setUpdatesEnabled(False)
+                widget.blockSignals(True)
+                widget.hide()
+                widget.deleteLater()
                 for child in widget.children():
                     child.deleteLater()
-                widget.deleteLater()
 
-            for child in self.headerwidget.children():
-                child.deleteLater()
-            self.headerwidget.deleteLater()
-            for child in self.stackedwidget.children():
-                child.deleteLater()
-            self.stackedwidget.deleteLater()
-            for child in self.statusbar.children():
-                child.deleteLater()
-            self.statusbar.deleteLater()
-            for child in self.children():
-                child.deleteLater()
-            self.deleteLater()
+            import gwbrowser.imagecache as imagecache
+            imagecache.ImageCache.INTERNAL_MODEL_DATA = None
+
+            import gwbrowser.settings as settings
+            settings.local_settings.deleteLater()
+            settings.local_settings = None
+            import gc
+            gc.collect()
+
 
         def close_database_connections():
             try:
@@ -553,33 +572,25 @@ class BrowserWidget(QtWidgets.QWidget):
                 common.Log.error('Error closing the database')
 
         def terminate_threads():
-            values = threads.THREADS.values()
-            for thread in values:
-                if thread.isRunning():
-                    thread.stopTimer.emit()
-                    thread.worker.resetQueue.emit()
-                    thread.quit()
+            _threads = threads.THREADS.values()
+            for thread in _threads:
+                thread.worker.resetQueue.emit()
+                thread.stopTimer.emit()
+                thread.quit()
+
             n = 0
-            while any([f.isRunning() for f in values]):
+            while any([thread.isRunning() for thread in _threads]):
                 if n >= 20:
-                    for thread in values:
+                    for thread in _threads:
                         thread.terminate()
-                        print thread, 'terminated'
                     break
                 n += 1
                 time.sleep(0.3)
-
-        def python_module_cleanup():
-            keys = sys.modules.keys()
-            for k in keys:
-                if common.PRODUCT.lower() in k.lower():
-                    del sys.modules[k]
 
         self.statusbar.showMessage(u'Closing down...')
         terminate_threads()
         close_database_connections()
         ui_teardown()
-        python_module_cleanup()
 
         try:
             self.terminated.emit()

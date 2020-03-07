@@ -1,29 +1,28 @@
 # -*- coding: utf-8 -*-
 """Maya standalone context."""
 
+import gwbrowser.common as common
+from maya import mel
 from maya import cmds as cmds
 import maya.standalone
 from PySide2 import QtWidgets
 from gwbrowser.maya.widget import MayaBrowserButton
-import gwbrowser.maya.widget as widget
+import gwbrowser.maya as maya
 
 
 app = QtWidgets.QApplication([])
 maya.standalone.initialize(name='python')
-from maya import mel
 mel.eval('')
 cmds.loadPlugin("AbcExport.mll", quiet=True)
 cmds.loadPlugin("AbcImport.mll", quiet=True)
 
-# CUSTOM BLOCK -- START
-
-import gwbrowser.common as common
 common.DEBUG_ON = True
 l = common.LogView()
 l.show()
+
 w = MayaBrowserButton()
 w.show()
-widget.show()
+maya.widget.show()
 
 meshes = []
 for n in xrange(10):
@@ -31,8 +30,5 @@ for n in xrange(10):
     meshes.append(s[0])
 cmds.sets(meshes, name=u'testCube_geo_set')
 
-
-# CUSTOM BLOCK -- END
-# Shutdown
 app.exec_()
 maya.standalone.uninitialize()
