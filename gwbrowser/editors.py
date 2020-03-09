@@ -7,8 +7,8 @@ import gwbrowser.gwscandir as gwscandir
 import gwbrowser.common as common
 import gwbrowser.bookmark_db as bookmark_db
 from gwbrowser.common_ui import add_row, PaintedLabel, ClickableIconButton
-from gwbrowser.imagecache import ImageCache
-import gwbrowser.imagecache as imagecache
+import gwbrowser.images as images
+import gwbrowser.images as images
 from gwbrowser.alembicpreview import get_alembic_thumbnail
 import gwbrowser.delegate as delegate
 import gwbrowser.common_ui as common_ui
@@ -30,10 +30,10 @@ class ThumbnailViewer(QtWidgets.QWidget):
 
     def _createUI(self):
         QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0,0,0,0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        self.viewer = imagecache.ImageViewer(parent=self)
+        self.viewer = images.ImageViewer(parent=self)
         self.viewer.setWindowFlags(QtCore.Qt.Widget)
         self.layout().addWidget(self.viewer)
 
@@ -95,7 +95,8 @@ class ThumbnailViewer(QtWidgets.QWidget):
         # Let's check the file is oiio compliant
         ext = index.data(QtCore.Qt.StatusTipRole).split(u'.').pop()
         if ext.lower() in common.get_oiio_extensions():
-            thumbnail_path = common.get_sequence_startpath(index.data(QtCore.Qt.StatusTipRole))
+            thumbnail_path = common.get_sequence_startpath(
+                index.data(QtCore.Qt.StatusTipRole))
         else:
             file_info = QtCore.QFileInfo(index.data(common.ThumbnailPathRole))
             if file_info.exists():
@@ -538,7 +539,7 @@ class ThumbnailsWidget(QtWidgets.QWidget):
                 continue
 
             name = entry.name.replace(u'.png', u'')
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 name, None, self.thumbnail_size)
             if pixmap.isNull():
                 continue

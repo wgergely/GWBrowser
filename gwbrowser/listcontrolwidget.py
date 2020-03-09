@@ -7,7 +7,7 @@ from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.basecontextmenu import contextmenu
 from gwbrowser.common_ui import ClickableIconButton
 from gwbrowser.datakeywidget import DataKeyView
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
@@ -107,8 +107,8 @@ class CollapseSequenceButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.INLINE_ICON_SIZE)
-        return ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.INLINE_ICON_SIZE)
+        return images.ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.INLINE_ICON_SIZE)
 
     def state(self):
         if not self.current_widget():
@@ -152,8 +152,8 @@ class ToggleArchivedButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return ImageCache.get_rsc_pixmap(u'active', self._on_color, common.INLINE_ICON_SIZE)
-        return ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(u'active', self._on_color, common.INLINE_ICON_SIZE)
+        return images.ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.INLINE_ICON_SIZE)
 
     def state(self):
         if not self.current_widget():
@@ -520,9 +520,9 @@ class QuickAssetsContextMenu(BaseContextMenu):
         items = sorted(
             items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
 
-        off_pixmap = ImageCache.get_rsc_pixmap(
+        off_pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        on_pixmap = ImageCache.get_rsc_pixmap(
+        on_pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.INLINE_ICON_SIZE)
 
         for idx, item in items:
@@ -708,7 +708,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         painter.setBrush(common.SEPARATOR)
         painter.drawRoundedRect(self.rect(), 4, 4)
 
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'slack', common.ADD, self.rect().height() - 6)
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
@@ -873,7 +873,7 @@ class ListControlWidget(QtWidgets.QWidget):
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
 
-        pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient', None, self.height())
         t = QtGui.QTransform()
         t.rotate(90)
         pixmap = pixmap.transformed(t)

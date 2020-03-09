@@ -35,8 +35,7 @@ import gwbrowser.settings as settings_
 import gwbrowser.delegate as delegate
 from gwbrowser.delegate import FilesWidgetDelegate
 
-from gwbrowser.imagecache import ImageCache
-
+import gwbrowser.images as images
 
 
 class FilesWidgetContextMenu(BaseContextMenu):
@@ -90,7 +89,6 @@ class FilesModel(BaseModel):
     val = val if val else common.ROW_HEIGHT
     ROW_SIZE = QtCore.QSize(120, val)
 
-
     def __init__(self, parent=None):
         super(FilesModel, self).__init__(parent=parent)
         # Only used to cache the thumbnails
@@ -120,7 +118,8 @@ class FilesModel(BaseModel):
                 if ext in thumbnails:
                     placeholder_image = thumbnails[ext]
                     default_thumbnail_image = thumbnails[ext]
-                    default_background_color = thumbnails[ext + u':backgroundcolor']
+                    default_background_color = thumbnails[ext +
+                                                          u':backgroundcolor']
                 else:
                     placeholder_image = thumbnails[u'placeholder']
                     default_thumbnail_image = thumbnails[u'placeholder']
@@ -150,16 +149,16 @@ class FilesModel(BaseModel):
         ):
             ext = ext.lower()
             _ext_path = common.rsc_path(__file__, ext)
-            d[ext] = ImageCache.get(
+            d[ext] = images.ImageCache.get(
                 _ext_path,
                 self.ROW_SIZE.height() - common.ROW_SEPARATOR,
                 overwrite=overwrite
             )
             k = _ext_path + u':backgroundcolor'
             k = k.lower()
-            d[ext + u':backgroundcolor'] = ImageCache.INTERNAL_IMAGE_DATA[k]
+            d[ext + u':backgroundcolor'] = images.ImageCache.INTERNAL_IMAGE_DATA[k]
 
-        d[u'placeholder'] = ImageCache.get(
+        d[u'placeholder'] = images.ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             delegate.ROW_HEIGHT - common.ROW_SEPARATOR)
         d[u'placeholder:backgroundcolor'] = common.THUMBNAIL_BACKGROUND
@@ -221,7 +220,7 @@ class FilesModel(BaseModel):
 
         if not QtCore.QFileInfo(location_path).exists():
             return
-            
+
         for entry in self._entry_iterator(location_path):
             if self._interrupt_requested:
                 break
@@ -246,9 +245,9 @@ class FilesModel(BaseModel):
             # Progress bar
             c += 1
             if not c % nth:
-                self.progressMessage.emit(u'Loading files (found ' + unicode(c) + u' items)...')
+                self.progressMessage.emit(
+                    u'Loading files (found ' + unicode(c) + u' items)...')
                 QtWidgets.QApplication.instance().processEvents()
-
 
             # Getting the fileroot
             fileroot = filepath.replace(location_path, u'')
@@ -258,7 +257,8 @@ class FilesModel(BaseModel):
             if ext in thumbnails:
                 placeholder_image = thumbnails[ext]
                 default_thumbnail_image = thumbnails[ext]
-                default_background_color = thumbnails[ext + u':backgroundcolor']
+                default_background_color = thumbnails[ext +
+                                                      u':backgroundcolor']
             else:
                 placeholder_image = thumbnails[u'placeholder']
                 default_thumbnail_image = thumbnails[u'placeholder']
@@ -267,7 +267,8 @@ class FilesModel(BaseModel):
             flags = dflags()
 
             if seq:
-                seqpath = seq.group(1) + u'[0]' + seq.group(3) + u'.' + seq.group(4)
+                seqpath = seq.group(1) + u'[0]' + \
+                    seq.group(3) + u'.' + seq.group(4)
                 seqpath = seqpath.lower()
                 if seqpath in sfavourites:
                     flags = flags | common.MarkedAsFavourite
@@ -313,7 +314,7 @@ class FilesModel(BaseModel):
                 common.SortByLastModified: 0,
                 common.SortBySize: 0,
                 #
-                common.IdRole: idx # non-mutable
+                common.IdRole: idx  # non-mutable
             })
 
             # If the file in question is a sequence, we will also save a reference
@@ -371,7 +372,8 @@ class FilesModel(BaseModel):
             if len(v[common.FramesRole]) == 1:
                 # A sequence with only one element is not a sequence
                 _seq = v[common.SequenceRole]
-                filepath = _seq.group(1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
+                filepath = _seq.group(
+                    1) + v[common.FramesRole][0] + _seq.group(3) + u'.' + _seq.group(4)
                 filename = filepath.split(u'/')[-1]
                 v[QtCore.Qt.DisplayRole] = filename
                 v[QtCore.Qt.EditRole] = filename
@@ -395,7 +397,8 @@ class FilesModel(BaseModel):
             else:
                 if activefile:
                     _seq = v[common.SequenceRole]
-                    _firsframe = _seq.group(1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
+                    _firsframe = _seq.group(
+                        1) + min(v[common.FramesRole]) + _seq.group(3) + u'.' + _seq.group(4)
                     if activefile in _firsframe:
                         v[common.FlagsRole] = v[common.FlagsRole] | common.MarkedAsActive
             MODEL_DATA[common.SequenceItem][idx] = v
@@ -445,7 +448,6 @@ class FilesModel(BaseModel):
             if stored_value is not None and self._datakey == val == stored_value:
                 val = None
                 return
-
 
             # We only have to update the local settings, the model is
             # already set
@@ -557,6 +559,7 @@ class FilesModel(BaseModel):
 
 class DragPixmap(QtWidgets.QWidget):
     """Widget used to define the appearance of an item being dragged."""
+
     def __init__(self, pixmap, text, parent=None):
         super(DragPixmap, self).__init__(parent=parent)
         self._pixmap = pixmap
@@ -703,7 +706,8 @@ class FilesWidget(ThreadedBaseWidget):
             return
 
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        filepath = parent_role[5] +  u'/' + common.get_sequence_startpath(file_info.fileName())
+        filepath = parent_role[5] + u'/' + \
+            common.get_sequence_startpath(file_info.fileName())
         settings_.local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
@@ -725,7 +729,8 @@ class FilesWidget(ThreadedBaseWidget):
         if self.buttons_hidden():
             return super(FilesWidget, self).mouseDoubleClickEvent(event)
 
-        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
+        clickable_rectangles = self.itemDelegate(
+        ).get_clickable_rectangles(index, rectangles)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
 
         if not clickable_rectangles:
@@ -745,7 +750,8 @@ class FilesWidget(ThreadedBaseWidget):
 
             root_dir.append(text)
             if rect.contains(cursor_position):
-                path = u'/'.join(index.data(common.ParentPathRole)[0:5]).rstrip(u'/')
+                path = u'/'.join(index.data(common.ParentPathRole)
+                                 [0:5]).rstrip(u'/')
                 root_path = u'/'.join(root_dir).strip(u'/')
                 path = path + u'/' + root_path
                 common.reveal(path)
@@ -777,7 +783,7 @@ class FilesWidget(ThreadedBaseWidget):
         height = self.itemDelegate().sizeHint(option, index).height()
 
         def px(s):
-            return ImageCache.get_rsc_pixmap(s, None, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(s, None, common.INLINE_ICON_SIZE)
 
         # Set drag icon
         drag.setDragCursor(px('CopyAction'), QtCore.Qt.CopyAction)
@@ -802,20 +808,20 @@ class FilesWidget(ThreadedBaseWidget):
         if no_modifier:
             pixmap = index.data(common.ThumbnailRole)
             if not pixmap:
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_endpath(path)
         elif alt_modifier and shift_modifier:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'folder', common.SECONDARY_TEXT, height)
             path = QtCore.QFileInfo(path).dir().path()
         elif alt_modifier:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'files', common.SECONDARY_TEXT, height)
             path = common.get_sequence_startpath(path)
         elif shift_modifier:
             path = common.get_sequence_startpath(path) + u', ++'
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'multiples_files', common.SECONDARY_TEXT, height)
         else:
             return
@@ -861,13 +867,14 @@ class FilesWidget(ThreadedBaseWidget):
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
         rectangles = self.itemDelegate().get_rectangles(rect)
-        clickable_rectangles = self.itemDelegate().get_clickable_rectangles(index, rectangles)
+        clickable_rectangles = self.itemDelegate(
+        ).get_clickable_rectangles(index, rectangles)
         cursor_position = self.mapFromGlobal(QtGui.QCursor().pos())
         if not clickable_rectangles:
             return super(FilesWidget, self).mouseReleaseEvent(event)
 
         for idx, item in enumerate(clickable_rectangles):
-            if idx == 0: # First rectanble is always the description editor
+            if idx == 0:  # First rectanble is always the description editor
                 continue
             rect, text = item
             text = text.lower()
@@ -897,7 +904,8 @@ class FilesWidget(ThreadedBaseWidget):
 
                     if filter_text:
                         if _folder_filter in filter_text:
-                            filter_text = filter_text.replace(_folder_filter, u'')
+                            filter_text = filter_text.replace(
+                                _folder_filter, u'')
                         if folder_filter not in filter_text:
                             folder_filter = filter_text + u' ' + folder_filter
 
@@ -914,10 +922,11 @@ if __name__ == '__main__':
     l = common.LogView()
     l.show()
     widget = FilesWidget()
-    widget.model().sourceModel().parent_path = (u'//sloth/jobs', u'vodd_9069', u'films/prologue/shots', u'pr_0010')
+    widget.model().sourceModel().parent_path = (u'//sloth/jobs',
+                                                u'vodd_9069', u'films/prologue/shots', u'pr_0010')
     widget.model().sourceModel().modelDataResetRequested.emit()
     widget.model().sourceModel().dataKeyChanged.emit('exports')
-    widget.resize(460,640)
+    widget.resize(460, 640)
     widget.show()
     # widget.model().sourceModel().dataKeyChanged.emit('dir2')
     # widget.model().sourceModel().dataKeyChanged.emit('dir3')

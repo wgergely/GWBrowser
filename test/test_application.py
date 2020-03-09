@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""Basic test for the app.
+
+The test leave a lot more to be desired but for now they will check bare-bone
+functionality.
+
+"""
 import unittest
 
 
@@ -141,6 +147,18 @@ class TestBookmarkDB(unittest.TestCase):
         self.db.setValue(id2, k, id2)
         v = self.db.value(id2, k)
         self.assertEqual(id2, v)
+
+        self.db.setValue(id2, k, 0)
+        v = self.db.value(id2, k)
+        self.assertEqual(v, unicode(0))
+
+        self.db.setValue(id2, k, 0.5)
+        v = self.db.value(id2, k)
+        self.assertEqual(v, unicode(0.5))
+
+        self.db.setValue(id2, k, 99999.5)
+        v = self.db.value(id2, k)
+        self.assertEqual(v, unicode(99999.5))
 
         with self.assertRaises(TypeError):
             self.db.value(None, k)
@@ -472,7 +490,7 @@ class TestLocalSettings(unittest.TestCase):
 
 class TestImageCache(unittest.TestCase):
     def test_get(self):
-        from gwbrowser.imagecache import ImageCache
+        import gwbrowser.images as images
 
 
 

@@ -7,21 +7,20 @@ The file-name is generated based on the folder selections and the
 try to match the version number against the files already in the target folder.
 
 ``AddFileWidget`` has to be initiated with an **extension**. In most cases, this
-will depend on the context of the widget instance.
+will depend on the context of the widget. Eg. in Maya we're using '.ma'.
 
 ``AddFileWidget`` will not itself perform file-save operations, this has to be
-implemented in the host function, but it will save the set thumbnail and
-description.
+implemented in the host.
 
-The final file-path can be retrieved using ``AddFileWidget().filePath()``.
+The resulting file-path can be retrieved using ``AddFileWidget().filePath()``.
 
 Example:
 
     .. code-block:: python
 
-      widget = AddFileWidget(u'ma')
-      if widget.exec_() == QtWidgets.QDialog.Accepted:
-          file_path = widget.filePath()
+      w = AddFileWidget(u'ma')
+      if w.exec_() == QtWidgets.QDialog.Accepted:
+          file_path = w.filePath()
 
 
 """
@@ -44,7 +43,7 @@ from gwbrowser.delegate import BookmarksWidgetDelegate
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
 
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 
 POPDOWN_HEIGHT = 480.0
@@ -188,7 +187,8 @@ class SelectButton(QtWidgets.QLabel):
             file_path = self.view().model().filePath(index)
             root_path = self.view().model().rootPath()
             if root_path not in file_path:
-                self.view().selectionModel().setCurrentIndex(QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
+                self.view().selectionModel().setCurrentIndex(
+                    QtCore.QModelIndex(), QtCore.QItemSelectionModel.Clear)
                 self.setText(self._label)
                 self.update()
                 return
@@ -471,7 +471,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         if index.data(common.DescriptionRole):
             name_rect.moveCenter(
                 QtCore.QPoint(name_rect.center().x(),
-                name_rect.center().y() - (metrics.lineSpacing() / 2.0))
+                              name_rect.center().y() - (metrics.lineSpacing() / 2.0))
             )
 
         text = index.data(QtCore.Qt.DisplayRole)
@@ -490,7 +490,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         description_rect = QtCore.QRect(name_rect)
         description_rect.moveCenter(
             QtCore.QPoint(name_rect.center().x(),
-            name_rect.center().y() + metrics.lineSpacing())
+                          name_rect.center().y() + metrics.lineSpacing())
         )
         self._description_rect = description_rect
 
@@ -613,10 +613,10 @@ class SelectFolderModelIconProvider(QtWidgets.QFileIconProvider):
     def icon(self, file_info):
         file_info.isDir()
         if file_info.isDir():
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'folder', common.SEPARATOR, 256)
         else:
-            pixmap = ImageCache.get_rsc_pixmap(u'files', common.SEPARATOR, 256)
+            pixmap = images.ImageCache.get_rsc_pixmap(u'files', common.SEPARATOR, 256)
 
         return QtGui.QIcon(pixmap)
 
@@ -721,9 +721,12 @@ class SelectFolderView(QtWidgets.QTreeView):
         folder_basepath = folder_filepath.replace(
             folder_root_path, u'').strip(u'/')
 
-        settings_.local_settings.setValue(u'saver/folder_filepath', folder_filepath)
-        settings_.local_settings.setValue(u'saver/folder_basepath', folder_basepath)
-        settings_.local_settings.setValue(u'saver/folder_rootpath', folder_root_path)
+        settings_.local_settings.setValue(
+            u'saver/folder_filepath', folder_filepath)
+        settings_.local_settings.setValue(
+            u'saver/folder_basepath', folder_basepath)
+        settings_.local_settings.setValue(
+            u'saver/folder_rootpath', folder_root_path)
 
     @QtCore.Slot()
     def restore_previous_selection(self):
@@ -734,7 +737,8 @@ class SelectFolderView(QtWidgets.QTreeView):
         if self._initialized:
             return
 
-        folder_basepath = settings_.local_settings.value(u'saver/folder_basepath')
+        folder_basepath = settings_.local_settings.value(
+            u'saver/folder_basepath')
 
         if not folder_basepath:
             self._initialized = True
@@ -762,7 +766,8 @@ class SelectFolderView(QtWidgets.QTreeView):
     def showEvent(self, event):
         self.adjust_height()
         if self.selectionModel().hasSelection():
-            self.scrollTo(self.selectionModel().currentIndex(), QtWidgets.QAbstractItemView.PositionAtCenter)
+            self.scrollTo(self.selectionModel().currentIndex(),
+                          QtWidgets.QAbstractItemView.PositionAtCenter)
 
     @QtCore.Slot()
     def adjust_height(self, *args, **kwargs):
@@ -877,11 +882,11 @@ class ThumbnailContextMenu(BaseContextMenu):
     @contextmenu
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
-        capture_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+        capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
             u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        pick_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+        pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        remove_thumbnail_pixmap = ImageCache.get_rsc_pixmap(
+        remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
             u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
 
         menu_set[u'Capture thumbnail'] = {
@@ -938,7 +943,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         return True
 
     def reset_thumbnail(self):
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'pick_thumbnail', common.FAVOURITE, self.height())
         self.setStyleSheet(
             u'background-color: rgba({});'.format(common.rgb(common.BACKGROUND)))
@@ -948,7 +953,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
     def pixmap(self):
         if self.image.isNull():
             return super(ThumbnailButton, self).pixmap()
-        pixmap = ImageCache.resize_image(
+        pixmap = images.ImageCache.resize_image(
             self.image, self.height())
         return pixmap
 
@@ -997,7 +1002,7 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         temp_path = u'{}/browser_temp_thumbnail_{}.{}'.format(
             QtCore.QDir.tempPath(), uuid.uuid1(), common.THUMBNAIL_FORMAT)
 
-        res = ImageCache.oiio_make_thumbnail(
+        res = images.ImageCache.oiio_make_thumbnail(
             next(f for f in dialog.selectedFiles()),
             temp_path,
             common.THUMBNAIL_IMAGE_SIZE
@@ -1037,15 +1042,16 @@ class ThumbnailButton(common_ui.ClickableIconButton):
         opos = self.window().geometry().topLeft()
         move_widget_offscreen()
         try:
-            import gwbrowser.imagecache as imagecache
-            w = imagecache.CaptureScreen()
+            import gwbrowser.images as images
+            w = images.CaptureScreen()
             pixmap = w.exec_()
 
             if not pixmap:
                 return
             if pixmap.isNull():
                 return
-            image = ImageCache.resize_image(pixmap, common.THUMBNAIL_IMAGE_SIZE)
+            image = images.ImageCache.resize_image(
+                pixmap, common.THUMBNAIL_IMAGE_SIZE)
             self.image = image
             self.update()
         except:
@@ -1250,7 +1256,6 @@ class NameVersionWidget(NameBase):
         ext = self.window().extension.lower()
         name_prefix = self.window().name_prefix_widget.text().lower()
 
-
         for entry in gwscandir.scandir(file_info.path()):
             path = entry.path.replace(u'\\', u'/').lower()
             basename = path.split(u'/').pop(-1).lower()
@@ -1356,7 +1361,8 @@ class ToggleCustomNameWidget(QtWidgets.QCheckBox):
 
     @QtCore.Slot()
     def save(self):
-        settings_.local_settings.setValue(u'saver/togglecustom', self.isChecked())
+        settings_.local_settings.setValue(
+            u'saver/togglecustom', self.isChecked())
 
     def showEvent(self, event):
         val = settings_.local_settings.value(u'saver/togglecustom')
@@ -1609,13 +1615,13 @@ class AddFileWidget(QtWidgets.QDialog):
                 ext=self.extension)
             return self._file_path
 
-
         asset = self.asset_widget.view().selectionModel().currentIndex()
         # The model might still be loading...
         if asset.data(common.ParentPathRole) is None:
             return
 
-        asset = asset.data(common.ParentPathRole)[-1] if asset.isValid() else u''
+        asset = asset.data(
+            common.ParentPathRole)[-1] if asset.isValid() else u''
         _mode = self.name_mode_widget.currentIndex()
         _mode = self.name_mode_widget.currentData(
             QtCore.Qt.DisplayRole).lower() if _mode != -1 else u''
@@ -1712,7 +1718,6 @@ class AddFileWidget(QtWidgets.QDialog):
             parent=mainrow,
         )
 
-
         row.layout().addWidget(self.bookmark_widget, 1)
         row.layout().addWidget(self.asset_widget, 1)
         row.layout().addWidget(self.folder_widget, 1)
@@ -1789,13 +1794,17 @@ class AddFileWidget(QtWidgets.QDialog):
             self.name_mode_widget.folder_changed)
 
         # Version label
-        self.folder_widget.view().clicked.connect(self.name_version_widget.check_version)
+        self.folder_widget.view().clicked.connect(
+            self.name_version_widget.check_version)
         self.folder_widget.view().model().directoryLoaded.connect(
             self.name_version_widget.check_version)
 
-        self.name_mode_widget.activated.connect(self.name_version_widget.check_version)
-        self.name_prefix_widget.textChanged.connect(self.name_version_widget.check_version)
-        self.name_user_widget.textChanged.connect(self.name_version_widget.check_version)
+        self.name_mode_widget.activated.connect(
+            self.name_version_widget.check_version)
+        self.name_prefix_widget.textChanged.connect(
+            self.name_version_widget.check_version)
+        self.name_user_widget.textChanged.connect(
+            self.name_version_widget.check_version)
 
         # Buttons
         self.cancel_button.clicked.connect(self.reject)
@@ -1842,7 +1851,8 @@ class AddFileWidget(QtWidgets.QDialog):
         painter.setBrush(common.BACKGROUND)
         rect = self.rect()
         o = common.MARGIN * 0.5
-        painter.drawRoundedRect(rect.marginsRemoved(QtCore.QMargins(o,o,o,o)), 8,8)
+        painter.drawRoundedRect(rect.marginsRemoved(
+            QtCore.QMargins(o, o, o, o)), 8, 8)
         painter.end()
 
     def save_thumbnail_and_description(self):

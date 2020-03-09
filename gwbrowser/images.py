@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""The ``imagecache.py`` module defines most image-operation related classes and
+"""The ``images.py`` module defines most image-operation related classes and
 methods including the global image cache.
 
 Thumbnails
@@ -374,7 +374,6 @@ class ImageCache(QtCore.QObject):
         path = path.lower()
         k = path + u':' + unicode(height)
         k = k.lower()
-
 
         # Return cached item if exsits
         if k in cls.INTERNAL_IMAGE_DATA and not overwrite:
@@ -815,7 +814,7 @@ class Viewer(QtWidgets.QGraphicsView):
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         o = common.MARGIN
-        rect = self.rect().marginsRemoved(QtCore.QMargins(o,o,o,o))
+        rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
         font = QtGui.QFont(common.PrimaryFont)
         metrics = QtGui.QFontMetricsF(font)
@@ -945,7 +944,7 @@ class ImageViewer(QtWidgets.QDialog):
             row = QtWidgets.QWidget(parent=parent)
             row.setFixedHeight(height)
             QtWidgets.QHBoxLayout(row)
-            row.layout().setContentsMargins(0,0,0,0)
+            row.layout().setContentsMargins(0, 0, 0, 0)
             row.layout().setSpacing(0)
             parent.layout().addWidget(row)
             row.setStyleSheet('background-color: rgba(20,20,20,255);')
@@ -981,6 +980,7 @@ class ImageViewer(QtWidgets.QDialog):
 
     def keyPressEvent(self, event):
         event.ignore()
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

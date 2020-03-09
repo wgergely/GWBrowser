@@ -4,7 +4,7 @@
 """
 from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 
 def get_group(parent=None):
@@ -265,10 +265,10 @@ class ClickableIconButton(QtWidgets.QLabel):
 
     def pixmap(self):
         if not self.isEnabled():
-            return ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
+            return images.ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
         if self.state():
-            return ImageCache.get_rsc_pixmap(self._pixmap, self._on_color, self._size)
-        return ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
+            return images.ImageCache.get_rsc_pixmap(self._pixmap, self._on_color, self._size)
+        return images.ImageCache.get_rsc_pixmap(self._pixmap, self._off_color, self._size)
 
     def state(self):
         return False
@@ -376,7 +376,7 @@ class MessageBox(QtWidgets.QDialog):
         columns.layout().addWidget(short_text_row, 1)
         long_text_row = get_row(parent=columns)
 
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             self.icon, self.secondary_color.lighter(150), common.ROW_HEIGHT)
         label = QtWidgets.QLabel()
         label.setPixmap(pixmap)
@@ -461,7 +461,7 @@ class ErrorBox(MessageBox):
 
 class OkBox(MessageBox):
     primary_color = QtGui.QColor(70, 160, 100, 255)
-    secondary_color = QtGui.QColor(70, 180, 130, 255) # 90, 200, 155)
+    secondary_color = QtGui.QColor(70, 180, 130, 255)  # 90, 200, 155)
     icon = u'check'
 
     def __init__(self, *args, **kwargs):

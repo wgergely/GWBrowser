@@ -192,31 +192,31 @@ def capture(camera=None,
         cmds.setFocus(panel)
 
         with contextlib.nested(
-             _disabled_inview_messages(),
-             _maintain_camera(panel, camera),
-             _applied_viewport_options(viewport_options, panel),
-             _applied_camera_options(camera_options, panel),
-             _applied_display_options(display_options),
-             _applied_viewport2_options(viewport2_options),
-             _isolated_nodes(isolate, panel),
-             _maintained_time()):
+                _disabled_inview_messages(),
+                _maintain_camera(panel, camera),
+                _applied_viewport_options(viewport_options, panel),
+                _applied_camera_options(camera_options, panel),
+                _applied_display_options(display_options),
+                _applied_viewport2_options(viewport2_options),
+                _isolated_nodes(isolate, panel),
+                _maintained_time()):
 
-                output = cmds.playblast(
-                    compression=compression,
-                    format=format,
-                    percent=100,
-                    quality=quality,
-                    viewer=viewer,
-                    startTime=start_frame,
-                    endTime=end_frame,
-                    offScreen=off_screen,
-                    showOrnaments=show_ornaments,
-                    forceOverwrite=overwrite,
-                    filename=filename,
-                    widthHeight=[width, height],
-                    rawFrameNumbers=raw_frame_numbers,
-                    framePadding=frame_padding,
-                    **playblast_kwargs)
+            output = cmds.playblast(
+                compression=compression,
+                format=format,
+                percent=100,
+                quality=quality,
+                viewer=viewer,
+                startTime=start_frame,
+                endTime=end_frame,
+                offScreen=off_screen,
+                showOrnaments=show_ornaments,
+                forceOverwrite=overwrite,
+                filename=filename,
+                widthHeight=[width, height],
+                rawFrameNumbers=raw_frame_numbers,
+                framePadding=frame_padding,
+                **playblast_kwargs)
 
         return output
 
@@ -518,7 +518,7 @@ def parse_active_scene():
         "off_screen": (True if cmds.optionVar(query="playblastOffscreen")
                        else False),
         "show_ornaments": (True if cmds.optionVar(query="playblastShowOrnaments")
-                       else False),
+                           else False),
         "quality": cmds.optionVar(query="playblastQuality"),
         "sound": cmds.timeControl(time_control, q=True, sound=True) or None
     }
@@ -596,6 +596,7 @@ def get_width_height(bound, width, height):
         _width = bound / aspect
         _height = bound
     return int(_width), int(_height)
+
 
 @contextlib.contextmanager
 def _independent_panel(width, height, off_screen=False):

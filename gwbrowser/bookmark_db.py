@@ -157,7 +157,8 @@ class BookmarkDB(QtCore.QObject):
         if isinstance(k, int):
             return k
         if not isinstance(k, unicode):
-            raise TypeError('expected <type \'unicode\'>, got {}'.format(type(str)))
+            raise TypeError(
+                'expected <type \'unicode\'>, got {}'.format(type(str)))
 
         k = k.lower()
         k = k.replace(u'\\', u'/')
@@ -271,7 +272,8 @@ CREATE TABLE IF NOT EXISTS info (
 
         """
         if key not in KEYS[table]:
-            raise ValueError('Key "{}" is invalid. Expected one of "{}"'.format(key, '", "'.join(KEYS[table])))
+            raise ValueError('Key "{}" is invalid. Expected one of "{}"'.format(
+                key, '", "'.join(KEYS[table])))
 
         id = self.row_id(id)
         _cursor = self._connection.cursor()
@@ -344,7 +346,8 @@ CREATE TABLE IF NOT EXISTS info (
 
         """
         if key not in KEYS[table]:
-            raise ValueError('Key "{}" is invalid. Expected one of {}'.format(key, ', '.join(KEYS[table])))
+            raise ValueError('Key "{}" is invalid. Expected one of {}'.format(
+                key, ', '.join(KEYS[table])))
 
         id = self.row_id(id)
         values = []
@@ -354,9 +357,10 @@ CREATE TABLE IF NOT EXISTS info (
         # https://stackoverflow.com/questions/418898/sqlite-upsert-not-insert-or-replace
         for k in KEYS[table]:
             if k == key:
-                v = u'\n \'' + value + u'\''
+                v = u'\n \'' + unicode(value) + u'\''
             else:
-                v = u'\n(SELECT ' + k + u' FROM ' + table + u' WHERE id =\'' + id + u'\')'
+                v = u'\n(SELECT ' + k + u' FROM ' + table + \
+                    u' WHERE id =\'' + unicode(id) + u'\')'
             values.append(v)
 
         kw = {
@@ -365,6 +369,7 @@ CREATE TABLE IF NOT EXISTS info (
             'values': u','.join(values),
             'table': table
         }
-        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(**kw)
+        sql = u'INSERT OR REPLACE INTO {table} (id, {allkeys}) VALUES (\'{id}\', {values});'.format(
+            **kw)
         _cursor = self._connection.cursor()
         _cursor.execute(sql.encode('utf-8'))

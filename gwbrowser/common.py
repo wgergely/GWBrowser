@@ -902,7 +902,7 @@ def set_custom_stylesheet(widget):
             )
         )
     )
-    from gwbrowser.imagecache import ImageCache
+    import gwbrowser.images as images
     with open(path, 'r') as f:
         f.seek(0)
         qss = f.read()
@@ -926,9 +926,9 @@ def set_custom_stylesheet(widget):
                 REMOVE=rgb(REMOVE),
                 SEPARATOR=rgb(SEPARATOR),
                 FAVOURITE=rgb(FAVOURITE),
-                BRANCH_CLOSED=ImageCache.get_rsc_pixmap(
+                BRANCH_CLOSED=images.ImageCache.get_rsc_pixmap(
                     u'branch_closed', None, None, get_path=True),
-                BRANCH_OPEN=ImageCache.get_rsc_pixmap(
+                BRANCH_OPEN=images.ImageCache.get_rsc_pixmap(
                     u'branch_open', None, None, get_path=True)
             )
         except KeyError as err:

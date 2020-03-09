@@ -26,8 +26,33 @@ def maya_useNewAPI():
 
 
 def initializePlugin(plugin):
-    """Method is called by Maya when initializing the plug-in."""
+    """Loads the Bookmarks plugin.
+
+    Python libraries are found in the `%BOOKMARKS_ROOT%/shared` folder and the
+    binaries are in `%BOOKMARKS_ROOT%/bin`.
+
+    The environment is set by the installer normally and should point to the
+    folder where bookmarks.exe resides.
+
+    """
+    import sys
+    import os
+
+    k = 'BOOKMARKS_ROOT'
+    if k not in os.environ:
+        raise EnvironmentError(
+            u'Is Bookmarks installed?\n(Environment variable `{}` is not set)'.format(k))
+
+    shared = u'{}{}{}'.format(os.environ[k], os.path.sep, u'shared')
+    bin = u'{}{}{}'.format(os.environ[k], os.path.sep, u'bin')
+    sys.path.insert(0, os.path.abspath(os.path.normpath(shared)))
+    path = u'{};{}'.format(
+        os.path.abspath(os.path.normpath(bin)),
+        os.environ['PATH'])
+    os.environ['PATH'] = path
+
     import gwbrowser
+
     pluginFn = OpenMaya.MFnPlugin(
         plugin, vendor=u'Gergely Wootsch', version=gwbrowser.__version__)
 

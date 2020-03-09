@@ -1,11 +1,14 @@
-"""This modules defines the widget used to add a new asset to a bookmark."""
+# -*- coding: utf-8 -*-
+"""The module for defining the AddAssetWidget widget.
+The widget is used to add a new asset (eg. a shot) to a bookmark.
 
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import gwbrowser.managebookmarks as managebookmarks
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 BUTTON_SIZE = 20
 ROW_HEIGHT = 28
@@ -44,7 +47,7 @@ class AddAssetWidget(QtWidgets.QDialog):
 
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'assets', common.TEXT, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)

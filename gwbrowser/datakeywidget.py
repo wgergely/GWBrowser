@@ -20,7 +20,7 @@ from gwbrowser.delegate import paintmethod
 from gwbrowser.baselistwidget import BaseModel
 from gwbrowser.baselistwidget import initdata
 from gwbrowser.delegate import BaseDelegate
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 from gwbrowser.basecontextmenu import BaseContextMenu
 import gwbrowser.threads as threads
 
@@ -159,7 +159,8 @@ class DataKeyView(QtWidgets.QListView):
             @QtCore.Slot(QtCore.QRect)
             def set_width(rect):
                 """Resizes the view to the size of the"""
-                rect = browser_widget.stackedwidget.widget(2).viewport().geometry()
+                rect = browser_widget.stackedwidget.widget(
+                    2).viewport().geometry()
                 rect.setLeft(0)
                 rect.setTop(0)
                 self.setGeometry(rect)
@@ -332,7 +333,7 @@ class DataKeyModel(BaseModel):
             return
 
         # Thumbnail image
-        default_thumbnail = ImageCache.get_rsc_pixmap(
+        default_thumbnail = images.ImageCache.get_rsc_pixmap(
             u'folder_sm',
             common.SECONDARY_TEXT,
             self.ROW_SIZE.height())

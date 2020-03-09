@@ -22,7 +22,7 @@ import gwbrowser.editors as editors
 from gwbrowser.basecontextmenu import BaseContextMenu
 import gwbrowser.delegate as delegate
 import gwbrowser.settings as settings_
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 import gwbrowser.threads as threads
 
@@ -465,7 +465,7 @@ class BaseModel(QtCore.QAbstractListModel):
         for url in data.urls():
             file_info = QtCore.QFileInfo(url.toLocalFile())
             source = file_info.filePath()
-            ImageCache.pick(self.index(row, 0), source=source)
+            images.ImageCache.pick(self.index(row, 0), source=source)
             return True
         return False
 
@@ -1574,7 +1574,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
 
         if rectangles[delegate.ThumbnailRect].contains(cursor_position):
-            ImageCache.pick(index)
+            images.ImageCache.pick(index)
             return
 
     def _get_status_string(self):
@@ -1653,7 +1653,7 @@ class BaseListWidget(QtWidgets.QListView):
     def paint_background_icon(self, widget, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             self._background_icon, QtGui.QColor(0, 0, 0, 30), common.ROW_HEIGHT * 3)
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
@@ -2020,7 +2020,8 @@ class BaseInlineIconWidget(BaseListWidget):
         from gwbrowser.todo_editor import TodoEditorWidget
 
         # Let's check if other editors are open and close them if so
-        editors = [f for f in self.children() if isinstance(f, TodoEditorWidget)]
+        editors = [f for f in self.children() if isinstance(f,
+                                                            TodoEditorWidget)]
         if editors:
             for editor in editors:
                 editor.done(QtWidgets.QDialog.Rejected)
@@ -2301,7 +2302,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
                 source_index = proxy.mapToSource(index)
                 if source_index.row() not in data:
                     continue
-                    
+
                 ref = weakref.ref(data[source_index.row()])
 
                 info_loaded = index.data(common.FileInfoLoaded)

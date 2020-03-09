@@ -2,7 +2,7 @@
 
 from PySide2 import QtCore, QtGui, QtWidgets
 
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
@@ -180,7 +180,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(None, parent=grp, height=None)
         label = QtWidgets.QLabel()
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'custom_bw', None, common.INLINE_ICON_SIZE)
         label.setPixmap(pixmap)
 
@@ -450,6 +450,7 @@ class PreferencesWidget(QtWidgets.QDialog):
     def showEvent(self, event):
         if self.parent():
             self.resize(self.parent().rect().size())
+
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

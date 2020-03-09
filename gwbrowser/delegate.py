@@ -13,7 +13,7 @@ from functools import wraps
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 TINT_THUMBNAIL_BACKGROUND = True
 ROW_HEIGHT = common.ROW_HEIGHT
@@ -268,7 +268,8 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             )
 
             o = 2
-            rect = rectangles[ThumbnailRect].marginsRemoved(QtCore.QMargins(o,o,o,o))
+            rect = rectangles[ThumbnailRect].marginsRemoved(
+                QtCore.QMargins(o, o, o, o))
             painter.drawRect(rect)
 
             pen = QtGui.QPen(common.ADD)
@@ -276,13 +277,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setPen(pen)
             painter.setBrush(common.ADD)
             painter.setOpacity(0.5)
-            pixmap = ImageCache.get_rsc_pixmap(u'add', common.ADD, rect.height() * 0.5)
+            pixmap = images.ImageCache.get_rsc_pixmap(
+                u'add', common.ADD, rect.height() * 0.5)
             painter.drawRect(rect)
             irect = pixmap.rect()
             irect.moveCenter(rect.center())
             painter.drawPixmap(irect, pixmap, pixmap.rect())
-
-
 
     @paintmethod
     def paint_background(self, *args):
@@ -331,7 +331,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 cursor_position) and not favourite else color
             color = common.TEXT_SELECTED if rect.contains(
                 cursor_position) and favourite else color
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'favourite', color, common.INLINE_ICON_SIZE)
             painter.drawPixmap(rect, pixmap)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
@@ -345,10 +345,10 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 cursor_position) else common.SEPARATOR
 
             if archived:
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'check', common.ADD, common.INLINE_ICON_SIZE)
             else:
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'remove', color, common.INLINE_ICON_SIZE)
             painter.drawPixmap(rect, pixmap)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
@@ -359,7 +359,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 painter.setOpacity(1.0)
             color = common.TEXT_SELECTED if rect.contains(
                 cursor_position) else common.SEPARATOR
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'reveal_folder', color, common.INLINE_ICON_SIZE)
             painter.drawPixmap(rect, pixmap)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
@@ -371,7 +371,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
             color = common.TEXT_SELECTED if rect.contains(
                 cursor_position) else common.SEPARATOR
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'todo', color, common.INLINE_ICON_SIZE)
             painter.drawPixmap(rect, pixmap)
             painter.setOpacity(0.85) if hover else painter.setOpacity(0.6667)
@@ -385,7 +385,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                 painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
                 if rect.contains(cursor_position):
                     color = common.TEXT_SELECTED
-                    pixmap = ImageCache.get_rsc_pixmap(
+                    pixmap = images.ImageCache.get_rsc_pixmap(
                         u'add', color, size)
                     painter.drawPixmap(count_rect, pixmap)
                 else:
@@ -412,12 +412,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             if rect.contains(cursor_position):
                 painter.setOpacity(1.0)
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'add', common.ADD, rect.height())
                 painter.drawPixmap(rect, pixmap)
             else:
                 painter.setOpacity(0.666)
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'add', common.SECONDARY_BACKGROUND, rect.height())
                 painter.drawPixmap(rect, pixmap)
 
@@ -426,12 +426,12 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setRenderHint(QtGui.QPainter.Antialiasing)
             if rect.contains(cursor_position):
                 painter.setOpacity(1.0)
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'settings', common.ADD, rect.height())
                 painter.drawPixmap(rect, pixmap)
             else:
                 painter.setOpacity(0.666)
-                pixmap = ImageCache.get_rsc_pixmap(
+                pixmap = images.ImageCache.get_rsc_pixmap(
                     u'settings', common.SECONDARY_BACKGROUND, rect.height())
                 painter.drawPixmap(rect, pixmap)
 
@@ -452,7 +452,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect.moveLeft(rect.left() + rect.width())
         rect.setWidth(common.MARGIN)
 
-        pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
     @paintmethod
@@ -462,20 +462,20 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.right())
         rect.setWidth(common.MARGIN)
-        pixmap = ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient', None, rect.height())
         painter.setOpacity(1.0)
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         rect = QtCore.QRect(rectangles[ThumbnailRect])
         rect.setWidth(common.MARGIN)
         rect.moveRight(rectangles[ThumbnailRect].right())
-        pixmap = ImageCache.get_rsc_pixmap(u'gradient3', None, rect.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient3', None, rect.height())
         painter.setOpacity(0.5)
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
         rect.setWidth(common.MARGIN * 0.5)
         rect.moveRight(rectangles[ThumbnailRect].right())
-        pixmap = ImageCache.get_rsc_pixmap(u'gradient3', None, rect.height())
+        pixmap = images.ImageCache.get_rsc_pixmap(u'gradient3', None, rect.height())
         painter.setOpacity(0.5)
         painter.drawPixmap(rect, pixmap, pixmap.rect())
 
@@ -566,7 +566,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         r.setHeight(metrics.ascent())
         r.moveCenter(center)
 
-        r = r.marginsAdded(QtCore.QMargins(o *2, o, o *2, o))
+        r = r.marginsAdded(QtCore.QMargins(o * 2, o, o * 2, o))
         if (r.right() + o) > rect.right():
             r.setRight(rect.right() - o)
         painter.setBrush(common.FAVOURITE)
@@ -876,14 +876,16 @@ class FilesWidgetDelegate(BaseDelegate):
                 # Inner gray rectangle containing all other subfolder rectangles
                 painter.setBrush(common.SEPARATOR)
                 _r = QtCore.QRect(rectangles[DataRect])
-                _r.setRight(subdir_rectangles[-1][0].right() + (common.INDICATOR_WIDTH * 2))
+                _r.setRight(
+                    subdir_rectangles[-1][0].right() + (common.INDICATOR_WIDTH * 2))
                 _r.setLeft(_r.left() - (common.INDICATOR_WIDTH * 2))
                 if (_r.right() > (text_edge + common.INDICATOR_WIDTH * 2)):
                     _r.setRight(text_edge)
                 if _r.left() < rectangles[DataRect].left():
                     o = 4
                     y = (option.rect.height() - common.ROW_HEIGHT) / 2
-                    __r =_r.marginsRemoved(QtCore.QMargins(o, o + y, o, o + y))
+                    __r = _r.marginsRemoved(
+                        QtCore.QMargins(o, o + y, o, o + y))
 
                 if not hover and not selected and not active:
                     painter.setOpacity(0.3)
@@ -891,16 +893,14 @@ class FilesWidgetDelegate(BaseDelegate):
                     if (_r.right() - 64) > rectangles[DataRect].left():
                         painter.drawRect(_r)
 
-
                 painter.setOpacity(1.0)
                 if not hover and not selected and not active:
                     _r.setLeft(_r.right() - 64)
                     if _r.left() > rectangles[DataRect].left():
-                        pixmap = ImageCache.get_rsc_pixmap(
+                        pixmap = images.ImageCache.get_rsc_pixmap(
                             'gradient4', common.BACKGROUND, 64)
                         painter.drawPixmap(_r, pixmap, pixmap.rect().marginsRemoved(
-                            QtCore.QMargins(1,1,1,1)))
-
+                            QtCore.QMargins(1, 1, 1, 1)))
 
                 painter.setOpacity(0.6)
                 painter.drawRoundedRect(__r, o, o)
@@ -1322,7 +1322,7 @@ class FilesWidgetDelegate(BaseDelegate):
                 QtCore.QMargins(
                     common.INDICATOR_WIDTH, 0,
                     0, common.ROW_SEPARATOR)
-                )
+            )
         )
 
         painter.setPen(common.BACKGROUND)

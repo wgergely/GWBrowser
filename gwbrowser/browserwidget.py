@@ -15,7 +15,7 @@ from gwbrowser.bookmarkswidget import BookmarksWidget
 from gwbrowser.common_ui import ClickableIconButton, add_row
 from gwbrowser.favouriteswidget import FavouritesWidget
 from gwbrowser.fileswidget import FilesWidget
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 from gwbrowser.listcontrolwidget import ListControlWidget
 import gwbrowser.settings as settings_
 import gwbrowser.threads as threads
@@ -85,7 +85,7 @@ class TrayMenu(BaseContextMenu):
             self.parent().activateWindow()
 
         active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
-        on_pixmap = ImageCache.get_rsc_pixmap(
+        on_pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.INLINE_ICON_SIZE)
 
         menu_set[u'Keep on top of other windows'] = {
@@ -106,7 +106,7 @@ class TrayMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -334,7 +334,7 @@ class BrowserWidget(QtWidgets.QWidget):
             )
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 64)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'custom', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self._contextMenu = None
@@ -553,15 +553,13 @@ class BrowserWidget(QtWidgets.QWidget):
                 for child in widget.children():
                     child.deleteLater()
 
-            import gwbrowser.imagecache as imagecache
-            imagecache.ImageCache.INTERNAL_MODEL_DATA = None
+            images.ImageCache.INTERNAL_MODEL_DATA = None
 
             import gwbrowser.settings as settings
             settings.local_settings.deleteLater()
             settings.local_settings = None
             import gc
             gc.collect()
-
 
         def close_database_connections():
             try:
@@ -879,7 +877,7 @@ class BrowserWidget(QtWidgets.QWidget):
             pixmaprect.setHeight(64)
             pixmaprect.moveCenter(center)
 
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 'custom_bw', QtGui.QColor(0, 0, 0, 50), 64)
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             rect.setTop(pixmaprect.bottom() + common.INDICATOR_WIDTH)

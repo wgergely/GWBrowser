@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Module defines the preview widget used to display the contents of an Alembic
+"""Defines `ALembicView`, a QTreeView used to browse the contents of an alembic
 file.
 
 """
 from PySide2 import QtCore, QtWidgets, QtGui
-import alembic
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
-
+import gwbrowser.images as images
 
 WIDTH = 640.0
 HEIGHT = 1024.0
@@ -188,9 +186,9 @@ class AlembicModel(QtCore.QAbstractItemModel):
             return node.name
         if role == QtCore.Qt.DecorationRole:
             if '.geom' in node.name:
-                return ImageCache.get_rsc_pixmap(u'mesh', None, common.INLINE_ICON_SIZE)
+                return images.ImageCache.get_rsc_pixmap(u'mesh', None, common.INLINE_ICON_SIZE)
             if '.xform' in node.name:
-                return ImageCache.get_rsc_pixmap(u'loc', None, common.INLINE_ICON_SIZE)
+                return images.ImageCache.get_rsc_pixmap(u'loc', None, common.INLINE_ICON_SIZE)
 
         if role == QtCore.Qt.SizeHintRole:
             return QtCore.QSize(0, 28)
@@ -231,6 +229,14 @@ class AlembicView(QtWidgets.QTreeView):
         self.setRootIsDecorated(False)
         self.setFixedWidth(WIDTH)
         self.setFixedHeight(HEIGHT)
+
+        self._abc = None
+
+        try:
+            import alembic
+        except ImportError:
+            common.Log.error('Could not import alembic')
+            return
 
         if not QtCore.QFileInfo(path).exists():
             root_node = BaseNode(u'rootNode')

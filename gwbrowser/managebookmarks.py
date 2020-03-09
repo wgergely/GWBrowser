@@ -19,7 +19,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 import gwbrowser.common as common
 import gwbrowser.common_ui as common_ui
 from gwbrowser.gwscandir import scandir as scandir_it
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.addfilewidget import NameBase
 import gwbrowser.settings as settings_
@@ -75,7 +75,7 @@ class TemplateContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_remove_menu(self, menu_set):
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'close', common.REMOVE, common.INLINE_ICON_SIZE)
 
         @QtCore.Slot()
@@ -103,9 +103,9 @@ class TemplateContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_refresh_menu(self, menu_set):
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
-        add_pixmap = ImageCache.get_rsc_pixmap(
+        add_pixmap = images.ImageCache.get_rsc_pixmap(
             u'add', common.ADD, common.INLINE_ICON_SIZE)
 
         parent = self.parent().parent().parent().parent()
@@ -123,7 +123,7 @@ class TemplateContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_new_template_menu(self, menu_set):
-        pixmap = ImageCache.get_rsc_pixmap(
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
 
         def reveal():
@@ -229,9 +229,9 @@ class TemplateListWidget(QtWidgets.QListWidget):
         dir_.setNameFilters([u'*.zip', ])
 
         size = QtCore.QSize(1, ROW_HEIGHT)
-        off_pixmap = ImageCache.get_rsc_pixmap(
+        off_pixmap = images.ImageCache.get_rsc_pixmap(
             u'custom', common.SECONDARY_BACKGROUND, ROW_HEIGHT)
-        on_pixmap = ImageCache.get_rsc_pixmap(
+        on_pixmap = images.ImageCache.get_rsc_pixmap(
             u'custom', common.ADD, ROW_HEIGHT)
         icon = QtGui.QIcon()
         icon.addPixmap(off_pixmap, QtGui.QIcon.Normal)
@@ -546,14 +546,14 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             return
 
         size = QtCore.QSize(0, ROW_HEIGHT)
-        folder_pixmap = ImageCache.get_rsc_pixmap(
+        folder_pixmap = images.ImageCache.get_rsc_pixmap(
             u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
         folder_icon = QtGui.QIcon()
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Normal)
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Selected)
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Disabled)
 
-        file_pixmap = ImageCache.get_rsc_pixmap(
+        file_pixmap = images.ImageCache.get_rsc_pixmap(
             u'files', common.ADD, common.INLINE_ICON_SIZE, opacity=0.5)
         file_icon = QtGui.QIcon()
         file_icon.addPixmap(file_pixmap, QtGui.QIcon.Normal)
@@ -902,7 +902,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
-        pixmap = ImageCache.get_rsc_pixmap(u'bookmark', common.TEXT, 32.0)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'bookmark', common.TEXT, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
@@ -1209,9 +1209,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.server_combobox.clear()
 
         for k in self.get_saved_servers():
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'server', common.TEXT, ROW_HEIGHT)
-            pixmap_selected = ImageCache.get_rsc_pixmap(
+            pixmap_selected = images.ImageCache.get_rsc_pixmap(
                 u'server', common.ADD, ROW_HEIGHT)
             icon = QtGui.QIcon()
             icon.addPixmap(pixmap, QtGui.QIcon.Normal)
@@ -1231,7 +1231,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 item.setData(common.SECONDARY_BACKGROUND,
                              role=QtCore.Qt.BackgroundColorRole)
                 # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
-                _pixmap = ImageCache.get_rsc_pixmap(
+                _pixmap = images.ImageCache.get_rsc_pixmap(
                     u'close', common.REMOVE, ROW_HEIGHT)
                 self.server_combobox.setItemIcon(
                     n, QtGui.QIcon(_pixmap))
@@ -1294,9 +1294,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             if file_info.isHidden():
                 continue
 
-            pixmap_off = ImageCache.get_rsc_pixmap(
+            pixmap_off = images.ImageCache.get_rsc_pixmap(
                 u'folder', common.SECONDARY_TEXT, ROW_HEIGHT)
-            pixmap_on = ImageCache.get_rsc_pixmap(
+            pixmap_on = images.ImageCache.get_rsc_pixmap(
                 u'folder', common.ADD, ROW_HEIGHT)
             icon = QtGui.QIcon()
             icon.addPixmap(pixmap_off, QtGui.QIcon.Normal)
@@ -1317,7 +1317,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                              role=QtCore.Qt.TextColorRole)
                 item.setData(common.SECONDARY_BACKGROUND,
                              role=QtCore.Qt.BackgroundColorRole)
-                _pixmap = ImageCache.get_rsc_pixmap(
+                _pixmap = images.ImageCache.get_rsc_pixmap(
                     u'close', common.REMOVE, ROW_HEIGHT)
                 self.job_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
             n += 1

@@ -7,6 +7,7 @@ Version control is done using GitHub's REST API.
 
 from __future__ import absolute_import, division
 
+import sys
 import os
 import urllib2
 import socket
@@ -119,7 +120,6 @@ def check():
         common.Log.error(u'Connection has timed out.')
         return
 
-
     try:
         r = urllib2.urlopen(URL, timeout=5)
         data = r.read()
@@ -151,7 +151,8 @@ def check():
             u'Could not check version',
             u'# Error {}. "{}" {}'.format(code, URL, responses[code])
         ).exec_()
-        common.Log.error(u'# Error {}. "{}" {}'.format(code, URL, responses[code]))
+        common.Log.error(u'# Error {}. "{}" {}'.format(
+            code, URL, responses[code]))
         return
 
     # Convert json to dict
@@ -162,7 +163,8 @@ def check():
             u'Could not check version',
             'Error occured loading the server response.\n{}'.format(err)
         ).exec_()
-        common.Log.error(u'# Error {}. "{}" {}'.format(code, URL, responses[code]))
+        common.Log.error(u'# Error {}. "{}" {}'.format(
+            code, URL, responses[code]))
         return
 
     tags = [(version.parse(f[u'tag_name']).release, f) for f in data]
@@ -278,7 +280,6 @@ if __name__ == '__main__':
     # app.exec_()
 
 
-import sys
 log = open('C:/temp/modules.txt', 'w+')
 for k in sys.modules.values():
     try:

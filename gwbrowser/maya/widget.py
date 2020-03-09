@@ -33,7 +33,7 @@ import maya.cmds as cmds
 
 import gwbrowser.settings as settings_
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 from gwbrowser.basecontextmenu import BaseContextMenu, contextmenu
 from gwbrowser.browserwidget import BrowserWidget
 import gwbrowser.common_ui as common_ui
@@ -877,7 +877,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         cmds.evalDeferred(functools.partial(
             cmds.optionVar, intValue=(u'workspacesLockDocking', currentval)))
 
-    def paintEvent(self, event):    
+    def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)

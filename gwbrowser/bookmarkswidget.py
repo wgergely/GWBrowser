@@ -9,7 +9,7 @@ import time
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import gwbrowser.bookmark_db as bookmark_db
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import BaseInlineIconWidget
@@ -108,17 +108,17 @@ class BookmarksModel(BaseModel):
 
             if exists:
                 flags = dflags()
-                placeholder_image = ImageCache.get_rsc_pixmap(
+                placeholder_image = images.ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
-                default_thumbnail_image = ImageCache.get_rsc_pixmap(
+                default_thumbnail_image = images.ImageCache.get_rsc_pixmap(
                     u'bookmark_sm', common.ADD, _height)
                 default_background_color = common.SEPARATOR
             else:
                 flags = dflags() | common.MarkedAsArchived
 
-                placeholder_image = ImageCache.get_rsc_pixmap(
+                placeholder_image = images.ImageCache.get_rsc_pixmap(
                     u'remove', common.REMOVE, _height)
-                default_thumbnail_image = ImageCache.get_rsc_pixmap(
+                default_thumbnail_image = images.ImageCache.get_rsc_pixmap(
                     u'remove', common.REMOVE, _height)
                 default_background_color = common.SEPARATOR
 
@@ -205,11 +205,11 @@ class BookmarksModel(BaseModel):
                 # Thumbnail
                 data[idx][common.ThumbnailPathRole] = db.thumbnail_path(
                     data[idx][QtCore.Qt.StatusTipRole])
-                image = ImageCache.get(
+                image = images.ImageCache.get(
                     data[idx][common.ThumbnailPathRole], _height, overwrite=False)
                 if image:
                     if not image.isNull():
-                        color = ImageCache.get(
+                        color = images.ImageCache.get(
                             data[idx][common.ThumbnailPathRole],
                             u'BackgroundColor')
                         data[idx][common.ThumbnailRole] = image

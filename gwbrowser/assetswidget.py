@@ -5,7 +5,7 @@ import re
 from PySide2 import QtCore, QtWidgets
 
 import gwbrowser.gwscandir as gwscandir
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.common as common
 from gwbrowser.basecontextmenu import BaseContextMenu
 from gwbrowser.baselistwidget import ThreadedBaseWidget
@@ -81,7 +81,7 @@ class AssetModel(BaseModel):
         dkey = self.data_key()
         dtype = self.data_type()
 
-        default_thumbnail_image = ImageCache.get(
+        default_thumbnail_image = images.ImageCache.get(
             common.rsc_path(__file__, u'placeholder'),
             self.ROW_SIZE.height() - common.ROW_SEPARATOR)
         default_background_color = common.THUMBNAIL_BACKGROUND

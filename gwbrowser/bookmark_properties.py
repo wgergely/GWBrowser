@@ -9,7 +9,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 
 import gwbrowser.common_ui as common_ui
 import gwbrowser.common as common
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.settings as settings_
 import gwbrowser.bookmark_db as bookmark_db
 
@@ -140,7 +140,7 @@ class ScrollArea(QtWidgets.QScrollArea):
         widget = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(widget)
         widget.layout().setAlignment(QtCore.Qt.AlignCenter)
-        widget.layout().setContentsMargins(0,0,0,0)
+        widget.layout().setContentsMargins(0, 0, 0, 0)
         widget.layout().setSpacing(o * 2)
         self.setWidget(widget)
 
@@ -236,7 +236,7 @@ the asset folder.'.format(common.PRODUCT)
                                 parent=grp, height=height)
 
         label = QtWidgets.QLabel(parent=self)
-        pixmap = ImageCache.get_rsc_pixmap(u'slack', common.TEXT, height)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'slack', common.TEXT, height)
         label.setPixmap(pixmap)
         row.layout().addWidget(label)
 
@@ -406,7 +406,8 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             except Exception as e:
                 common_ui.ErrorBox(
                     u'Could not save the properties.',
-                    u'There seems to be an error with the database:\n{}'.format(e),
+                    u'There seems to be an error with the database:\n{}'.format(
+                        e),
                     parent=self
                 ).exec_()
                 common.Log.error(u'Error saving properties to the database')
@@ -452,7 +453,8 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             except Exception as e:
                 common_ui.ErrorBox(
                     u'Could not save the properties.',
-                    u'There seems to be an error with the database:\n{}'.format(e),
+                    u'There seems to be an error with the database:\n{}'.format(
+                        e),
                     parent=self
                 ).exec_()
                 common.Log.error(u'Error saving properties to the database')
@@ -500,7 +502,6 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             u'',
             parent=self
         ).exec_()
-
 
     @QtCore.Slot(unicode)
     def feedback(self, v, w, type=float):
@@ -565,7 +566,8 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self.layout().addWidget(self.scrollarea)
         self.save_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
-        self.load_last_button.clicked.connect(self.scrollarea.init_last_used_values)
+        self.load_last_button.clicked.connect(
+            self.scrollarea.init_last_used_values)
 
     @QtCore.Slot()
     def done(self, r):

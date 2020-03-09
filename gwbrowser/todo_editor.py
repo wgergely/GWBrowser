@@ -22,7 +22,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 from gwbrowser.common_ui import add_row, ClickableIconButton, PaintedLabel
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 
 
 NoHighlightFlag = 0b000000
@@ -85,6 +85,7 @@ class Lockfile(QtCore.QSettings):
     an edit is in progress.
 
     """
+
     def __init__(self, index, parent=None):
         if index.isValid():
             p = u'/'.join(index.data(common.ParentPathRole)[0:3])
@@ -426,7 +427,7 @@ class RemoveNoteButton(ClickableIconButton):
         row.deleteLater()
 
     def _pixmap(self, type=QtCore.QEvent.Leave):
-        return ImageCache.get_rsc_pixmap(
+        return images.ImageCache.get_rsc_pixmap(
             u'remove', common.REMOVE, self._size, opacity=1.0)
 
 
@@ -452,10 +453,10 @@ class DragIndicatorButton(QtWidgets.QLabel):
     def setDisabled(self, b):
         """Custom disabled function."""
         if b:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'drag_indicator', common.TEXT_SELECTED, common.INLINE_ICON_SIZE * 0.66)
         else:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'drag_indicator', common.TEXT, common.INLINE_ICON_SIZE * 0.66)
 
         self.setPixmap(pixmap)
@@ -575,11 +576,11 @@ class CheckBoxButton(QtWidgets.QLabel):
 
     def set_pixmap(self, checked):
         if checked:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'check', common.BACKGROUND, 24)
             self.setPixmap(pixmap)
         else:
-            pixmap = ImageCache.get_rsc_pixmap(
+            pixmap = images.ImageCache.get_rsc_pixmap(
                 u'check', common.ADD, 24)
             self.setPixmap(pixmap)
 

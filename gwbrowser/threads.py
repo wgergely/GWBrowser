@@ -17,7 +17,7 @@ import functools
 import weakref
 import collections
 
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 import gwbrowser.bookmark_db as bookmark_db
 import gwbrowser.common as common
 import OpenImageIO
@@ -420,12 +420,12 @@ class ThumbnailWorker(BaseWorker):
 
         # Checking if we can load an existing image
         if QtCore.QFileInfo(thumbnail_path).exists():
-            image = ImageCache.get(
+            image = images.ImageCache.get(
                 thumbnail_path, int(height), overwrite=True)
             if not image:
                 return None
 
-            color = ImageCache.get(
+            color = images.ImageCache.get(
                 thumbnail_path, u'backgroundcolor')
 
             ref()[common.ThumbnailRole] = image
@@ -461,7 +461,7 @@ class ThumbnailWorker(BaseWorker):
 
         """
         try:
-            # OpenImageIO ImageCache instance to control file handles
+            # OpenImageIO images.ImageCache instance to control file handles
             cache = OpenImageIO.ImageCache()
 
             source = ref()[QtCore.Qt.StatusTipRole]
@@ -474,18 +474,18 @@ class ThumbnailWorker(BaseWorker):
             if QtCore.QFileInfo(source).size() >= 836870912:
                 return False
 
-            if not ImageCache.oiio_make_thumbnail(source, dest, common.THUMBNAIL_IMAGE_SIZE):
+            if not images.ImageCache.oiio_make_thumbnail(source, dest, common.THUMBNAIL_IMAGE_SIZE):
                 return False
 
             if not ref():
                 return False
 
             # Load the image and the background color
-            image = ImageCache.get(
+            image = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],
                 ref()[QtCore.Qt.SizeHintRole].height() - common.ROW_SEPARATOR,
                 overwrite=True)
-            color = ImageCache.get(
+            color = images.ImageCache.get(
                 ref()[common.ThumbnailPathRole],
                 u'backgroundcolor',
                 overwrite=False)

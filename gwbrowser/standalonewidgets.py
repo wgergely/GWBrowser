@@ -6,7 +6,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 from gwbrowser.browserwidget import BrowserWidget
 import gwbrowser.common as common
 import gwbrowser.settings as settings_
-from gwbrowser.imagecache import ImageCache
+import gwbrowser.images as images
 from gwbrowser.browserwidget import TrayMenu
 
 
@@ -53,7 +53,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = ImageCache.get_rsc_pixmap(u'custom_bw', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'custom_bw', None, 256)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -313,7 +313,7 @@ class StandaloneApp(QtWidgets.QApplication):
         self.setApplicationName(common.PRODUCT)
 
         self.set_model_id()
-        pixmap = ImageCache.get_rsc_pixmap(u'custom', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'custom', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def set_model_id(self):
