@@ -352,7 +352,7 @@ class ImageCache(QtCore.QObject):
     INTERNAL_IMAGE_DATA = {}
 
     @classmethod
-    def get(cls, path, height, overwrite=False):
+    def get(cls, path, height=None, overwrite=False):
         """Returns a previously cached `QPixmap` if the image has already been
         cached, otherwise it will read, resize and cache the image found at `path`.
 
@@ -366,10 +366,12 @@ class ImageCache(QtCore.QObject):
         """
         if not path:
             return None
-        try:
-            height = int(height)
-        except ValueError:
-            pass
+
+        if height is not None:
+            try:
+                height = int(height)
+            except ValueError:
+                pass
 
         path = path.lower()
         k = path + u':' + unicode(height)
@@ -386,6 +388,10 @@ class ImageCache(QtCore.QObject):
         i = OpenImageIO.ImageInput.open(path)
         if not i:
             return None
+
+        if not height:
+            d = i.spec_dimensions(0, miplevel=0)
+            height = max((d.height, d.width))
         i.close()
 
         image = QtGui.QPixmap(path)
@@ -433,11 +439,14 @@ class ImageCache(QtCore.QObject):
     @staticmethod
     def get_color_average(path):
         """Returns the average color of an image."""
-        img = OpenImageIO.ImageBuf(path)
-        stats = OpenImageIO.ImageBufAlgo.computePixelStats(img)
+        buf = OpenImageIO.ImageBuf()
+        buf.reset(path, 0, 0)
+        stats = OpenImageIO.ImageBufAlgo.computePixelStats(buf)
         a = stats.avg
         if len(a) in (3, 4):
-            return QtGui.QColor.fromRgbF(*a)
+            color = QtGui.QColor.fromRgbF(*a[0:3])
+            color.setAlpha(1.0)
+            return color
         return QtGui.QColor()
 
     @classmethod
@@ -593,13 +602,13 @@ class ImageCache(QtCore.QObject):
         path = os.path.normpath(path)
         file_info = QtCore.QFileInfo(path)
         if not file_info.exists():
-            return QtGui.QPixmap(size, size)
+            return QtGui.QPixmap()
 
         image = QtGui.QPixmap()
         image.load(file_info.filePath())
 
         if image.isNull():
-            return QtGui.QPixmap(size, size)
+            return QtGui.QPixmap()
 
         if color is not None:
             painter = QtGui.QPainter()
@@ -634,8 +643,9 @@ class ImageCache(QtCore.QObject):
     def reset_cache(cls):
         """Clears the image-cache."""
         for k in cls.INTERNAL_IMAGE_DATA.keys():
-            if u'rsc:' not in k:
-                del cls.INTERNAL_IMAGE_DATA[k]
+            if u'rsc:' in k:
+                continue
+            del cls.INTERNAL_IMAGE_DATA[k]
 
     @classmethod
     def oiio_make_thumbnail(cls, source, dest, dest_size, nthreads=4):

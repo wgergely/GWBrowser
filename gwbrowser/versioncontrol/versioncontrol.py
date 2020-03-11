@@ -277,12 +277,3 @@ def check():
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     check()
-    # app.exec_()
-
-
-log = open('C:/temp/modules.txt', 'w+')
-for k in sys.modules.values():
-    try:
-        print >> log, k.__file__
-    except:
-        print >> log, k

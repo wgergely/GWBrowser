@@ -482,7 +482,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         )
 
         x = name_rect.left()
-        y = name_rect.center().y() + (metrics.ascent() / 2.0)
+        y = name_rect.center().y() + (metrics.height() / 2.0)
         path = QtGui.QPainterPath()
         path.addText(x, y, font, text)
         painter.drawPath(path)
@@ -507,7 +507,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
             description_rect.width()
         )
         x = description_rect.left()
-        y = description_rect.center().y() + (metrics.ascent() / 2.0)
+        y = description_rect.center().y() + (metrics.height() / 2.0)
         path = QtGui.QPainterPath()
         path.addText(x, y, common.SecondaryFont, text)
         painter.drawPath(path)

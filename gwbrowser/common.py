@@ -648,11 +648,9 @@ FAVOURITE = QtGui.QColor(107, 126, 180)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 
-# PrimaryFont = QtGui.QFont(u'Roboto Black')
-PrimaryFont = QtGui.QFont(u'Open Sans')
+PrimaryFont = QtGui.QFont(u'Roboto Bold')
 PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
-# SecondaryFont = QtGui.QFont(u'Roboto Medium')
-SecondaryFont = QtGui.QFont(u'Open Sans Light')
+SecondaryFont = QtGui.QFont(u'Roboto Medium')
 SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
 
@@ -864,15 +862,8 @@ def move_widget_to_available_geo(widget):
 def _add_custom_fonts():
     """Adds custom fonts to the application."""
     global _families
-    global PrimaryFont
-    global SecondaryFont
     if _families:
         return
-
-    PrimaryFont = QtGui.QFont(u'Roboto Black')
-    PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
-    SecondaryFont = QtGui.QFont(u'Roboto Medium')
-    SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
     path = u'{}/../rsc/fonts'.format(__file__)
     path = os.path.normpath(os.path.abspath(path))

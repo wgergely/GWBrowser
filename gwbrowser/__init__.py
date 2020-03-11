@@ -9,12 +9,9 @@ of writing) Maya, Houdini and Nuke.
 ``mGWBrowser.py`` is the plug-in for launching GWBrowser from inside Maya.
 
 Info:
-    GWBrowser requires ``OpenImageIO``, ``Numpy``, ``GWAlembic`` and ``PySide2``
-    to function.
-
     The standalone version is built against Python 2.7 MSCV1900 and includes the
     above libraries. The library versions are mindful of the *VFX Reference
-    Platform* specifications.
+    Platform 2019* specifications.
 
 """
 

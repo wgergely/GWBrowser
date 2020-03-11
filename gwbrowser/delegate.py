@@ -563,7 +563,7 @@ class BookmarksWidgetDelegate(BaseDelegate):
         r = QtCore.QRect(rect)
         r.setWidth(text_width)
         center = r.center()
-        r.setHeight(metrics.ascent())
+        r.setHeight(metrics.height())
         r.moveCenter(center)
 
         r = r.marginsAdded(QtCore.QMargins(o * 2, o, o * 2, o))

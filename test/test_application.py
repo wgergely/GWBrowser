@@ -9,22 +9,23 @@ import unittest
 
 
 class TestImports(unittest.TestCase):
+
     def setUp(self):
         try:
             import gwbrowser
         except ImportError as err:
             self.fail(
-                'Could not import GWBrowser! Make sure it is installed before testing.')
-
-    def test_scandir_import(self):
-        try:
-            import gwbrowser.gwscandir
-        except ImportError as err:
-            self.fail(err)
+                'Could not import <gwbrowser>. Is the modules available for Python?')
 
     def test_oiio_import(self):
         try:
             import OpenImageIO
+        except ImportError as err:
+            self.fail(err)
+
+    def test_scandir_import(self):
+        try:
+            import gwbrowser.gwscandir
         except ImportError as err:
             self.fail(err)
 
@@ -65,7 +66,7 @@ class TestImports(unittest.TestCase):
             self.fail(err)
 
 
-class TestBookmarkDB(unittest.TestCase):
+class TestSQLite(unittest.TestCase):
     root_dir = None
     server = None
     job = None
@@ -488,11 +489,97 @@ class TestLocalSettings(unittest.TestCase):
         v = self.local_settings.value(k)
         self.assertEqual(val, v)
 
-class TestImageCache(unittest.TestCase):
+
+class TestImages(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from PySide2 import QtWidgets
+        app = QtWidgets.QApplication.instance()
+        if not app:
+            app = QtWidgets.QApplication([])
+
+    def setUp(self):
+        self.source = None
+        import gwbrowser.images as images
+        import os
+
+        test_image = 'custom.png'
+
+        p = os.path.normpath(images.__file__)
+        p = os.path.abspath(p)
+        p = os.path.dirname(p)
+        f = p + os.path.sep + 'rsc' + os.path.sep + test_image
+
+        if not os.path.isfile(f):
+            self.fail('Could not find "{}"'.format(test_image))
+            return
+
+        self.source = f
+
+    def tearDown(self):
+        self.source = None
+
+    def test_oiio_get_qimage(self):
+        import gwbrowser.images as images
+        from PySide2 import QtGui
+        image = images.oiio_get_qimage(self.source)
+
+        self.assertIsInstance(image, QtGui.QImage)
+        self.assertNotEqual(image.isNull(), None)
+
     def test_get(self):
         import gwbrowser.images as images
+        from PySide2 import QtGui
 
+        image = images.ImageCache.get(self.source)
+
+        self.assertIsInstance(image, QtGui.QPixmap)
+        self.assertNotEqual(image.isNull(), None)
+        self.assertEqual(image.width(), 256)
+
+    def test_resize_image(self):
+        import gwbrowser.images as images
+        from PySide2 import QtGui
+
+        height = 1024
+        image = images.ImageCache.get(self.source, 1024)
+        self.assertIsInstance(image, QtGui.QPixmap)
+        self.assertNotEqual(image.isNull(), None)
+        self.assertEqual(image.width(), height)
+
+    def test_get_color_average(self):
+        import gwbrowser.images as images
+        from PySide2 import QtGui
+        color = images.ImageCache.get_color_average(self.source)
+        self.assertIsInstance(color, QtGui.QColor)
+
+
+    def test_get_rsc_pixmap(self):
+        import gwbrowser.images as images
+        from PySide2 import QtGui
+
+        height = 32.0
+        pixmap = images.ImageCache.get_rsc_pixmap('custom', None, height)
+        self.assertNotEqual(pixmap.isNull(), None)
+        self.assertEqual(pixmap.width(), height)
+
+        pixmap = images.ImageCache.get_rsc_pixmap('BOGUSIMAGE', None, height)
+        self.assertEqual(pixmap.isNull(), True)
+
+        path = images.ImageCache.get_rsc_pixmap('custom', None, height, get_path=True)
+        self.assertEqual(path, self.source.replace('\\', '/'))
 
 
 if __name__ == '__main__':
-    unittest.main()
+    loader = unittest.TestLoader()
+    cases = (
+        loader.loadTestsFromTestCase(TestImports),
+        loader.loadTestsFromTestCase(TestSQLite),
+        loader.loadTestsFromTestCase(TestImages),
+        loader.loadTestsFromTestCase(TestLocalSettings),
+        loader.loadTestsFromTestCase(TestBookmarksWidget),
+        loader.loadTestsFromTestCase(TestModules),
+    )
+
+    suite = unittest.TestSuite(cases)
+    unittest.TextTestRunner(verbosity=2, failfast=True).run(suite)
