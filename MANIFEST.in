@@ -1,2 +1,2 @@
-recursive-include gwbrowser *.py *.png *.css *.ttf *.ico *.md
-recursive-include gwbrowser/rsc *.py *.png *.css *.ttf *.ico *.md
+recursive-include bookmarks *.py *.png *.css *.ttf *.ico *.md
+recursive-include bookmarks/rsc *.py *.png *.css *.ttf *.ico *.md

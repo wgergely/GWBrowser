@@ -12,10 +12,10 @@ class TestImports(unittest.TestCase):
 
     def setUp(self):
         try:
-            import gwbrowser
+            import bookmarks
         except ImportError as err:
             self.fail(
-                'Could not import <gwbrowser>. Is the modules available for Python?')
+                'Could not import <bookmarks>. Is the modules available for Python?')
 
     def test_oiio_import(self):
         try:
@@ -25,7 +25,7 @@ class TestImports(unittest.TestCase):
 
     def test_scandir_import(self):
         try:
-            import gwbrowser.gwscandir
+            import bookmarks._scandir
         except ImportError as err:
             self.fail(err)
 
@@ -105,8 +105,8 @@ class TestSQLite(unittest.TestCase):
 
         try:
             from PySide2 import QtCore
-            import gwbrowser.bookmark_db as bookmark_db
-            from gwbrowser.bookmark_db import BookmarkDB
+            import bookmarks.bookmark_db as bookmark_db
+            from bookmarks.bookmark_db import BookmarkDB
 
             self.db = bookmark_db.get_db(
                 QtCore.QModelIndex(),
@@ -202,11 +202,11 @@ class TestBookmarksWidget(unittest.TestCase):
         cls.job = u'testroot_{id}'.format(id=_id)
         _dir.mkpath(u'./bookmark_a')
         ########################################
-        import gwbrowser.common as common
+        import bookmarks.common as common
         common.PRODUCT = '{}_unittest'.format(common.PRODUCT)
 
-        import gwbrowser.settings as settings
-        from gwbrowser.settings import LocalSettings
+        import bookmarks.settings as settings
+        from bookmarks.settings import LocalSettings
         settings.local_settings.deleteLater()
         settings.local_settings = LocalSettings()
         settings.local_settings.setValue(u'servers', None)
@@ -219,7 +219,7 @@ class TestBookmarksWidget(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        import gwbrowser.settings as settings
+        import bookmarks.settings as settings
         from PySide2 import QtCore
         QtCore.QFileInfo(settings.local_settings.fileName()
                          ).dir().removeRecursively()
@@ -229,22 +229,22 @@ class TestBookmarksWidget(unittest.TestCase):
             _dir.removeRecursively()
 
     def setUp(self):
-        import gwbrowser.settings as settings
+        import bookmarks.settings as settings
         settings.local_settings.setValue(u'servers', None)
         settings.local_settings.sync()
 
     def tearDown(self):
-        import gwbrowser.settings as settings
+        import bookmarks.settings as settings
         settings.local_settings.setValue(u'servers', None)
         settings.local_settings.sync()
 
     def test_open_managebookmarks(self):
-        import gwbrowser.managebookmarks as managebookmarks
+        import bookmarks.managebookmarks as managebookmarks
         w = managebookmarks.Bookmarks()
         w.show()
 
     def test_managebookmarks_add_bookmark(self):
-        import gwbrowser.managebookmarks as managebookmarks
+        import bookmarks.managebookmarks as managebookmarks
 
         w = managebookmarks.Bookmarks()
         w.show()
@@ -268,7 +268,7 @@ class TestBookmarksWidget(unittest.TestCase):
         self.assertEqual(v, [val.replace('\\', '/').lower(), ])
 
     def test_read_jobs(self):
-        import gwbrowser.managebookmarks as managebookmarks
+        import bookmarks.managebookmarks as managebookmarks
 
         w = managebookmarks.Bookmarks()
         w.show()
@@ -322,18 +322,18 @@ class TestModules(unittest.TestCase):
             _dir.removeRecursively()
 
     def test_addassetwidget(self):
-        import gwbrowser.addassetwidget as addassetwidget
+        import bookmarks.addassetwidget as addassetwidget
         path = u'/'
         w = addassetwidget.AddAssetWidget(path)
         w.open()
 
     def test_addfilewidget(self):
-        import gwbrowser.addfilewidget as addfilewidget
+        import bookmarks.addfilewidget as addfilewidget
         w = addfilewidget.AddFileWidget(u'ma')
         w.open()
 
     def test_assetwidget(self):
-        import gwbrowser.assetswidget as assetswidget
+        import bookmarks.assetswidget as assetswidget
         widget = assetswidget.AssetsWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, 'bookmark_b',)
@@ -342,13 +342,13 @@ class TestModules(unittest.TestCase):
 
     def test_basecontextmenu(self):
         from PySide2 import QtCore
-        import gwbrowser.basecontextmenu as basecontextmenu
+        import bookmarks.basecontextmenu as basecontextmenu
         widget = basecontextmenu.BaseContextMenu(QtCore.QModelIndex())
         widget.show()
 
     def test_bookmark_properties(self):
         from PySide2 import QtCore
-        import gwbrowser.bookmark_properties as bookmark_properties
+        import bookmarks.bookmark_properties as bookmark_properties
         widget = bookmark_properties.BookmarkPropertiesWidget(
             QtCore.QModelIndex(),
             server=self.server,
@@ -358,47 +358,47 @@ class TestModules(unittest.TestCase):
         widget.show()
 
     def test_baselistwidget(self):
-        import gwbrowser.baselistwidget as baselistwidget
+        import bookmarks.baselistwidget as baselistwidget
 
     def test_bookmarkswidget(self):
-        import gwbrowser.bookmarkswidget as bookmarkswidget
+        import bookmarks.bookmarkswidget as bookmarkswidget
         widget = bookmarkswidget.BookmarksWidget()
         widget.model().sourceModel().modelDataResetRequested.emit()
         widget.show()
 
     def test_datakeywidget(self):
-        import gwbrowser.datakeywidget as datakeywidget
+        import bookmarks.datakeywidget as datakeywidget
         widget = datakeywidget.DataKeyView()
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
     def test_browserwidget(self):
-        import gwbrowser.browserwidget as browserwidget
+        import bookmarks.browserwidget as browserwidget
         widget = browserwidget.BrowserWidget()
         widget.show()
 
     def test_favouriteswidget(self):
-        import gwbrowser.favouriteswidget as favouriteswidget
+        import bookmarks.favouriteswidget as favouriteswidget
         widget = favouriteswidget.FavouritesWidget()
         widget.show()
 
     def test_preferenceswidget(self):
-        import gwbrowser.preferenceswidget as preferenceswidget
+        import bookmarks.preferenceswidget as preferenceswidget
         widget = preferenceswidget.PreferencesWidget()
         widget.show()
 
     def test_slacker(self):
-        import gwbrowser.slacker as slacker
+        import bookmarks.slacker as slacker
         widget = slacker.SlackWidget(None, None)
         widget.show()
 
     def test_standalonewidgets(self):
-        import gwbrowser.standalonewidgets as standalonewidgets
+        import bookmarks.standalonewidgets as standalonewidgets
         widget = standalonewidgets.StandaloneBrowserWidget()
         widget.show()
 
     def test_fileswidget(self):
-        import gwbrowser.fileswidget as fileswidget
+        import bookmarks.fileswidget as fileswidget
         widget = fileswidget.FilesWidget()
         widget.model().sourceModel().parent_path = (
             self.server, self.job, 'bookmark_a', u'asset_a')
@@ -408,7 +408,7 @@ class TestModules(unittest.TestCase):
 
     def test_todo_editor(self):
         from PySide2 import QtCore
-        import gwbrowser.todo_editor as todo_editor
+        import bookmarks.todo_editor as todo_editor
         widget = todo_editor.TodoEditorWidget(QtCore.QModelIndex())
         widget.add_item(
             idx=0, text=u'Hello world', checked=False)
@@ -420,7 +420,7 @@ class TestModules(unittest.TestCase):
 
     def test_versioncontrol(self):
         from PySide2 import QtCore
-        import gwbrowser.versioncontrol.versioncontrol as versioncontrol
+        import bookmarks.versioncontrol.versioncontrol as versioncontrol
         versioncontrol.check()
 
 
@@ -429,7 +429,7 @@ class TestLocalSettings(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from gwbrowser.settings import LocalSettings
+        from bookmarks.settings import LocalSettings
         LocalSettings.filename = 'unittestconfig.ini'
         cls.local_settings = LocalSettings()
         cls.local_settings.sync()
@@ -500,7 +500,7 @@ class TestImages(unittest.TestCase):
 
     def setUp(self):
         self.source = None
-        import gwbrowser.images as images
+        import bookmarks.images as images
         import os
 
         test_image = 'custom.png'
@@ -520,7 +520,7 @@ class TestImages(unittest.TestCase):
         self.source = None
 
     def test_oiio_get_qimage(self):
-        import gwbrowser.images as images
+        import bookmarks.images as images
         from PySide2 import QtGui
         image = images.oiio_get_qimage(self.source)
 
@@ -528,7 +528,7 @@ class TestImages(unittest.TestCase):
         self.assertNotEqual(image.isNull(), None)
 
     def test_get(self):
-        import gwbrowser.images as images
+        import bookmarks.images as images
         from PySide2 import QtGui
 
         image = images.ImageCache.get(self.source)
@@ -538,7 +538,7 @@ class TestImages(unittest.TestCase):
         self.assertEqual(image.width(), 256)
 
     def test_resize_image(self):
-        import gwbrowser.images as images
+        import bookmarks.images as images
         from PySide2 import QtGui
 
         height = 1024
@@ -548,14 +548,14 @@ class TestImages(unittest.TestCase):
         self.assertEqual(image.width(), height)
 
     def test_get_color_average(self):
-        import gwbrowser.images as images
+        import bookmarks.images as images
         from PySide2 import QtGui
         color = images.ImageCache.get_color_average(self.source)
         self.assertIsInstance(color, QtGui.QColor)
 
 
     def test_get_rsc_pixmap(self):
-        import gwbrowser.images as images
+        import bookmarks.images as images
         from PySide2 import QtGui
 
         height = 32.0

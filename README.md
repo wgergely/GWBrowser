@@ -1,8 +1,8 @@
 <p align="center">
-<h3>GWBrowser</h3>
+<h3>Bookmarks</h3>
 </p>
 <p align="center">
- <img src="./gwbrowser/rsc/custom.png" alt="GWBrowser"/>
+ <img src="./bookmarks/rsc/custom.png" alt="Bookmarks"/>
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@ files used in film and animation projects.</h3></center>
 
 
 <p align="center">
- <img src="./gwbrowser/rsc/banner.png" alt="GWBrowser"/>
+ <img src="./bookmarks/rsc/banner.png" alt="Bookmarks"/>
 </p>
 
 
@@ -48,22 +48,22 @@ files used in film and animation projects.</h3></center>
 * Alembic-cache content previews
 * and more...
 
-### mGWBrowser
+### mBookmarks
 
 Dedicated maya plug-in
 
 <p align="center">
- <img src="./gwbrowser/rsc/maya_preview.png" alt="Maya"/>
+ <img src="./bookmarks/rsc/maya_preview.png" alt="Maya"/>
 </p>
 
 ***
-### [Download the latest binary release](https://github.com/wgergely/GWBrowser/releases)
+### [Download the latest binary release](https://github.com/wgergely/Bookmarks/releases)
 
-### [Documentation](https://wgergely.github.io/GWBrowser) (Docs are work in progress!)
+### [Documentation](https://wgergely.github.io/Bookmarks) (Docs are work in progress!)
 ***
 
 <p align="center">
- <img src="./gwbrowser/rsc/draganddrop.gif" alt="Maya"/>
+ <img src="./bookmarks/rsc/draganddrop.gif" alt="Maya"/>
 </p>
 
 

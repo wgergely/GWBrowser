@@ -4,14 +4,14 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='gwbrowser',
+    name='bookmarks',
     version='0.2.11',
     author='Gergely Wootsch',
     author_email='hello@gergely-wootsch.com',
     description='A PySide2 based asset-manager for digital productions',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/wgergely/gwbrowser',
+    url='https://github.com/wgergely/bookmarks',
     packages=setuptools.find_packages(),
         include_package_data=True,
     classifiers=[

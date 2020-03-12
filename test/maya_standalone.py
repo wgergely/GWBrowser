@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """Maya standalone context."""
 
-import gwbrowser.common as common
+import bookmarks.common as common
 from maya import mel
 from maya import cmds as cmds
 import maya.standalone
 from PySide2 import QtWidgets
-from gwbrowser.maya.widget import MayaBrowserButton
-import gwbrowser.maya as maya
+from bookmarks.maya.widget import MayaBrowserButton
+import bookmarks.maya as maya
 
 
 app = QtWidgets.QApplication([])
