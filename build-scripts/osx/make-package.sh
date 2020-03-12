@@ -30,7 +30,7 @@ TOPLIBS=(\
 [8]=$LIB_CRYPTO \
 );
 
-MODULE_ROOT=~/code/gwbrowser/gwbrowser
+MODULE_ROOT=~/code/bookmarks/bookmarks
 PRODUCT=Bookmarks
 ROOT=~/code/$PRODUCT/Contents
 RES=$ROOT/Resources
@@ -176,7 +176,7 @@ test_install() {
 	"$RES/Python" -c "import iex; print 'iex -- \x1B[32mok\x1B[0m'"
 	"$RES/Python" -c "import alembic; print 'alembic -- \x1B[32mok\x1B[0m'"
 	"$RES/Python" -c "import OpenImageIO; print 'OpenImageIO -- \x1B[32mok\x1B[0m'"
-	"$RES/Python" -c "import gwbrowser; print 'gwbrowser -- \x1B[32mok\x1B[0m'"
+	"$RES/Python" -c "import bookmarks; print 'bookmarks -- \x1B[32mok\x1B[0m'"
 	"$RES/Python" -c "import slackclient; print 'slackclient -- \x1B[32mok\x1B[0m'"
 	"$RES/Python" -c "from PySide2 import QtCore, QtWidgets, QtGui; print 'PySide2 -- \x1B[32mok\x1B[0m'"
 	"$RES/Python" $MODULE_ROOT/../test/test_application.py
