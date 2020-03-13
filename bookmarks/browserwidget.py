@@ -566,12 +566,14 @@ class BrowserWidget(QtWidgets.QWidget):
             except Exception:
                 common.Log.error('Error closing the database')
 
-        def terminate_threads():
+        def quit_threads():
             _threads = threads.THREADS.values()
             for thread in _threads:
-                thread.worker.resetQueue.emit()
-                thread.stopTimer.emit()
-                thread.quit()
+                if thread.isRunning():
+                    thread.worker.resetQueue.emit()
+                    thread.timer.deleteLater()
+                    thread.quit()
+                    thread.wait()
 
             n = 0
             while any([thread.isRunning() for thread in _threads]):
@@ -583,7 +585,7 @@ class BrowserWidget(QtWidgets.QWidget):
                 time.sleep(0.3)
 
         self.statusbar.showMessage(u'Closing down...')
-        terminate_threads()
+        quit_threads()
         close_database_connections()
         ui_teardown()
 

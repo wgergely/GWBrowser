@@ -97,10 +97,6 @@ ROW_SEPARATOR = 1.0
 
 INLINE_ICONS_MIN_WIDTH = 320.0
 
-# Font scaling seems at best random given platform differences.
-# Programmatically scaling might fix matters...
-
-
 UI_SCALE = 1.0
 """The global UI scale value."""
 
