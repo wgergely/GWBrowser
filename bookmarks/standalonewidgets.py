@@ -10,9 +10,6 @@ import bookmarks.images as images
 from bookmarks.browserwidget import TrayMenu
 
 
-QtGui.QGuiApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
-
-
 class StandaloneBrowserWidget(BrowserWidget):
     """An subclass of ``BrowserWidget`` adapted to run it as a standalone
     application.

@@ -55,15 +55,16 @@ def exec_():
     bookmarks = importlib.import_module(
         u'{}.standalonewidgets'.format(name))
 
-    from PySide2 import QtWidgets, QtCore
+    from PySide2 import QtWidgets, QtCore, QtGui
+
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
     else:
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
         # High-dpi scaling support
         # os.putenv('QT_SCALE_FACTOR', '1.2')
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
         app = bookmarks.StandaloneApp([])
     widget = bookmarks.StandaloneBrowserWidget()
     widget.show()
-
     app.exec_()

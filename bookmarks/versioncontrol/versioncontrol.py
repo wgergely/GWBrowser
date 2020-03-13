@@ -21,7 +21,8 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 
 
-URL = u'https://api.github.com/repos/wgergely/Bookmarks/releases'
+URL = u'https://api.github.com/repos/wgergely/bookmarks/releases'
+
 responses = {
     100: ('Continue', 'Request received, please continue'),
     101: ('Switching Protocols',
