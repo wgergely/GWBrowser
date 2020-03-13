@@ -7,6 +7,13 @@
 
 clear && printf "\x1B[3J"
 
+
+PRODUCT=bookmarks
+VERSION="0.3.0"
+COPYRIGHT="(c) 2020 Gergely Wootsch"
+DOMAIN="org.bookmarks.com"
+
+
 LIB_SSL=/usr/local/Cellar/openssl@1.1/1.1.1d/lib/libssl.1.1.dylib
 LIB_CRYPTO=/usr/local/Cellar/openssl@1.1/1.1.1d/lib/libcrypto.1.1.dylib
 LIB_ALEMBIC=/usr/local/lib/python2.7/site-packages/alembic.so
@@ -30,19 +37,63 @@ TOPLIBS=(\
 [8]=$LIB_CRYPTO \
 );
 
-MODULE_ROOT=~/code/bookmarks/bookmarks
-PRODUCT=Bookmarks
-ROOT=~/code/$PRODUCT/Contents
-RES=$ROOT/Resources
+_ROOT=~/code
+MODULE_ROOT=$_ROOT/bookmarks/bookmarks
+ROOT=$_ROOT/$PRODUCT.app/Contents
+RES=$ROOT/MacOS
 DEST=$RES/lib
 
 make_dirs() {
-	mkdir "./$PRODUCT" # Top
-	mkdir "$ROOT"
-	touch "$ROOT/Info.plist"
+	mkdir "$_ROOT"
+	mkdir "$_ROOT/$PRODUCT.app"
+	mkdir "$_ROOT/$PRODUCT.app/Contents"
+	# touch "$ROOT/Info.plist"
 	mkdir "$ROOT/MacOS"
-	mkdir "$RES"
-	mkdir "$DEST"
+	mkdir "$ROOT/MacOS/lib"
+	mkdir "$ROOT/Resources"
+
+
+	{ cat << '***'; cat << EOF; } > "$ROOT/Info.plist"
+***
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>$PRODUCT</string>
+	<key>CFBundleGetInfoString</key>
+	<string>$VERSION, $COPYRIGHT</string>
+	<key>CFBundleIconFile</key>
+	<string>icon.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>$DOMAIN</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleLongVersionString</key>
+	<string>$VERSION, $COPYRIGHT</string>
+	<key>CFBundleName</key>
+	<string>$PRODUCT</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$VERSION</string>
+	<key>CFBundleSignature</key>
+	<string>$DOMAIN</string>
+	<key>CFBundleVersion</key>
+	<string>$VERSION</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>$COPYRIGHT</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>
+EOF
+
+	./make-bin.sh
+	cp ./bookmarks "$ROOT/MacOS/bookmarks"
+	cp ./../../bookmarks/rsc/icon.icns "$ROOT/Resources/icon.icns"
 }
 
 

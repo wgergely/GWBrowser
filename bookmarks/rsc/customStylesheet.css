@@ -443,7 +443,7 @@ TodoItemWidget,
 TodoItemEditor {{
 	alignment: center;
 	text-align: center;
-	font-size: 10pt;
+	font-size: {MEDIUM_FONT_SIZE}pt;
 	color: rgba({SECONDARY_BACKGROUND});
 	background-color: transparent;
 }}

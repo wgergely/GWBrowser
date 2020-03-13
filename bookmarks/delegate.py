@@ -297,10 +297,20 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.setBrush(color)
             painter.drawRect(rect)
 
-        painter.setOpacity(1)
         color = common.BACKGROUND_SELECTED if selected else common.BACKGROUND
         painter.setBrush(color)
+
+        if index.row() != (self.parent().model().rowCount() - 1):
+            _rect = QtCore.QRect(rect)
+            _rect.setBottom(_rect.bottom() + common.ROW_SEPARATOR)
+            _rect.setTop(_rect.bottom() - common.ROW_SEPARATOR)
+            _rect.setLeft(rectangles[DataRect].left() - common.MARGIN)
+            painter.setOpacity(0.666)
+            painter.drawRect(_rect)
+
+        painter.setOpacity(1.0)
         painter.drawRect(rect)
+
 
         # Active indicator
         if active:
@@ -714,8 +724,9 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        _metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
+        painter.setFont(font)
+        _metrics = QtGui.QFontMetricsF(font)
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -737,7 +748,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         x = description_rect.left()
         y = description_rect.center().y() + (metrics.ascent() / 2.0)
         path = QtGui.QPainterPath()
-        path.addText(x, y, common.SecondaryFont, text)
+        path.addText(x, y, font, text)
         painter.drawPath(path)
 
     def sizeHint(self, option, index):

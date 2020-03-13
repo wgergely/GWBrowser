@@ -170,7 +170,7 @@ QLineEdit {{
 """
             .format(
                 FONT=common.SecondaryFont.family(),
-                SIZE=common.SMALL_FONT_SIZE + 1.0
+                SIZE=common.psize(common.MEDIUM_FONT_SIZE)
             )
         )
 

@@ -99,12 +99,14 @@ INLINE_ICONS_MIN_WIDTH = 320.0
 
 # Font scaling seems at best random given platform differences.
 # Programmatically scaling might fix matters...
-SMALL_FONT_SIZE = 7.5
-MEDIUM_FONT_SIZE = 8.5
-LARGE_FONT_SIZE = 12.0
 
-pscale = 1.0
-"""The global font scale value. Not implemeted yet."""
+
+UI_SCALE = 1.0
+"""The global UI scale value."""
+
+SMALL_FONT_SIZE = 8.0
+MEDIUM_FONT_SIZE = 9.0
+LARGE_FONT_SIZE = 12.0
 
 
 def proxy_path(v):
@@ -395,11 +397,13 @@ class LogView(QtWidgets.QTextBrowser):
     padding: 20px;
     padding: 20px;
     border-radius: 8px;
-    font-size: 8pt;
+    font-size: {}pt;
     background-color: rgba({});
 }}
-""".format(rgb(SEPARATOR))
-        )
+""".format(
+        psize(MEDIUM_FONT_SIZE),
+        rgb(SEPARATOR)
+    ))
 
     def showEvent(self, event):
         self.timer.start()
@@ -432,13 +436,13 @@ class LogView(QtWidgets.QTextBrowser):
 
 
 def psize(n):
-    """On macosx the font size seem to be smaller given the same point size....
-    Sadly I have to use this function to scale the fonts to an acceptable size.
-    I haven't figured out where the difference comes from or what the differences
-    refers to. Difference of dpi...?
+    """There seems to be a difference between font sizes on different platforms."""
+    n = n * (96.0 / 72.0) if get_platform() == u'mac' else n
+    return n * UI_SCALE
 
-    """
-    return n * (96.0 / 72.0) if get_platform() == u'mac' else n * pscale
+
+def usize(n):
+    return n * UI_SCALE
 
 
 def rgb(color):
@@ -648,9 +652,11 @@ FAVOURITE = QtGui.QColor(107, 126, 180)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 
-PrimaryFont = QtGui.QFont(u'Roboto Bold')
+PrimaryFont = QtGui.QFont(u'Roboto')
+PrimaryFont.setWeight(QtGui.QFont.Bold)
 PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
-SecondaryFont = QtGui.QFont(u'Roboto Medium')
+SecondaryFont = QtGui.QFont(u'Roboto')
+SecondaryFont.setWeight(QtGui.QFont.Medium)
 SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
 
 
@@ -864,7 +870,6 @@ def _add_custom_fonts():
     global _families
     if _families:
         return
-
     path = u'{}/../rsc/fonts'.format(__file__)
     path = os.path.normpath(os.path.abspath(path))
     d = QtCore.QDir(path)
@@ -877,7 +882,6 @@ def _add_custom_fonts():
         family = QtGui.QFontDatabase.applicationFontFamilies(idx)
         if family[0].lower() not in _families:
             _families.append(family[0].lower())
-
 
 def set_custom_stylesheet(widget):
     """Applies the custom stylesheet to the given widget."""

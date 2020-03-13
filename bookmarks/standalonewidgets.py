@@ -53,7 +53,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         }
 
         self.tray = QtWidgets.QSystemTrayIcon(parent=self)
-        pixmap = images.ImageCache.get_rsc_pixmap(u'custom_bw', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon_bw', None, 256)
         icon = QtGui.QIcon(pixmap)
         self.tray.setIcon(icon)
         self.tray.setContextMenu(TrayMenu(parent=self))
@@ -311,9 +311,9 @@ class StandaloneApp(QtWidgets.QApplication):
         import bookmarks
         self.setApplicationVersion(bookmarks.__version__)
         self.setApplicationName(common.PRODUCT)
-
+        common._add_custom_fonts()
         self.set_model_id()
-        pixmap = images.ImageCache.get_rsc_pixmap(u'custom', None, 256)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 256)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
     def set_model_id(self):

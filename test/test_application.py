@@ -503,7 +503,7 @@ class TestImages(unittest.TestCase):
         import bookmarks.images as images
         import os
 
-        test_image = 'custom.png'
+        test_image = 'icon.png'
 
         p = os.path.normpath(images.__file__)
         p = os.path.abspath(p)
@@ -559,14 +559,14 @@ class TestImages(unittest.TestCase):
         from PySide2 import QtGui
 
         height = 32.0
-        pixmap = images.ImageCache.get_rsc_pixmap('custom', None, height)
+        pixmap = images.ImageCache.get_rsc_pixmap('icon', None, height)
         self.assertNotEqual(pixmap.isNull(), None)
         self.assertEqual(pixmap.width(), height)
 
         pixmap = images.ImageCache.get_rsc_pixmap('BOGUSIMAGE', None, height)
         self.assertEqual(pixmap.isNull(), True)
 
-        path = images.ImageCache.get_rsc_pixmap('custom', None, height, get_path=True)
+        path = images.ImageCache.get_rsc_pixmap('icon', None, height, get_path=True)
         self.assertEqual(path, self.source.replace('\\', '/'))
 
 

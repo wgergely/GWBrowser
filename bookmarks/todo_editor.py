@@ -125,7 +125,7 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         _font = char_format.font()
         _foreground = char_format.foreground()
         _weight = char_format.fontWeight()
-        _psize = char_format.font().pointSizeF()
+        _psize = common.psize(char_format.font().pointSizeF())
 
         flag = NoHighlightFlag
         for case in HIGHLIGHT_RULES.itervalues():
@@ -577,11 +577,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.BACKGROUND, 24)
+                u'check', common.BACKGROUND, common.INLINE_ICON_SIZE)
             self.setPixmap(pixmap)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.ADD, 24)
+                u'check', common.ADD, common.INLINE_ICON_SIZE)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -779,7 +779,7 @@ class TodoItemWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.TEXT_SELECTED)
+        painter.setBrush(QtGui.QColor(255,255,255,255))
         painter.drawRoundedRect(self.rect(), 4, 4)
         painter.end()
 
@@ -967,10 +967,11 @@ class TodoEditorWidget(QtWidgets.QDialog):
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 
-            rect = self.rect().marginsRemoved(QtCore.QMargins(4, 4, 4, 4))
-            painter.setBrush(common.TEXT)
+            o = 4
+            rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
+            painter.setBrush(QtGui.QColor(250, 250, 250, 255))
             painter.setPen(QtCore.Qt.NoPen)
-            painter.drawRoundedRect(rect, 8, 8)
+            painter.drawRoundedRect(rect, o * 2, o * 2)
 
             center = rect.center()
             rect.setWidth(rect.width() - common.MARGIN)

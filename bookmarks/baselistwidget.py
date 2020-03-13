@@ -825,7 +825,7 @@ class BaseListWidget(QtWidgets.QListView):
         self.setDragDropMode(QtWidgets.QAbstractItemView.DropOnly)
 
         self._thumbnail_drop = (-1, False)  # row, accepted
-        self._background_icon = u'custom_bw'
+        self._background_icon = u'icon_bw'
         self._generate_thumbnails_enabled = True
         self.progress_widget = ProgressWidget(parent=self)
         self.progress_widget.setHidden(True)
@@ -1590,6 +1590,7 @@ class BaseListWidget(QtWidgets.QListView):
             return u''
 
         # Because...
+        reason = u''
         if proxy.filter_text():
             reason = u'a search filter is applied'
         elif proxy.filter_flag(common.MarkedAsFavourite):

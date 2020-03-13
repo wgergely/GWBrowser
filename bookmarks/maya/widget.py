@@ -787,7 +787,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
+            u'icon': ImageCache.get_rsc_pixmap(u'icon_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Toggle {}'.format(common.PRODUCT),
             u'action': self.parent().clicked.emit
         }
@@ -827,7 +827,7 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
 
     def __init__(self, parent=None):
         super(MayaBrowserButton, self).__init__(
-            u'custom_maya',
+            u'icon_maya',
             (None, None),
             common.ASSET_ROW_HEIGHT,
             description=u'Click to toggle Bookmarks.\nRight-click to see addittional options.',

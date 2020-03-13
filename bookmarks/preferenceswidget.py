@@ -181,7 +181,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row = common_ui.add_row(None, parent=grp, height=None)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'custom_bw', None, common.INLINE_ICON_SIZE)
+            u'icon_bw', None, common.INLINE_ICON_SIZE)
         label.setPixmap(pixmap)
 
         self.check_updates = common_ui.PaintedButton(

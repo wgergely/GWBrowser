@@ -166,6 +166,11 @@ class BaseThread(QtCore.QThread):
         self.timer.setInterval(self._interval)
         self.timer.setTimerType(QtCore.Qt.CoarseTimer)
 
+        QtCore.QCoreApplication.instance().aboutToQuit.connect(self.timer.stop)
+        QtGui.QGuiApplication.instance().lastWindowClosed.connect(self.timer.stop)
+        QtCore.QCoreApplication.instance().aboutToQuit.connect(self.timer.deleteLater)
+        QtGui.QGuiApplication.instance().lastWindowClosed.connect(self.timer.deleteLater)
+
         self.exec_()
 
     @QtCore.Slot()

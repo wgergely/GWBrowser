@@ -230,9 +230,9 @@ class TemplateListWidget(QtWidgets.QListWidget):
 
         size = QtCore.QSize(1, ROW_HEIGHT)
         off_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'custom', common.SECONDARY_BACKGROUND, ROW_HEIGHT)
+            u'icon', common.SECONDARY_BACKGROUND, ROW_HEIGHT)
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'custom', common.ADD, ROW_HEIGHT)
+            u'icon', common.ADD, ROW_HEIGHT)
         icon = QtGui.QIcon()
         icon.addPixmap(off_pixmap, QtGui.QIcon.Normal)
         icon.addPixmap(on_pixmap, QtGui.QIcon.Selected)
@@ -935,8 +935,10 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.progress_widget.setTextInteractionFlags(
             QtCore.Qt.NoTextInteraction)
         self.progress_widget.setStyleSheet(
-            u'color: rgba({});font-size: 7pt;'.format(
-                common.rgb(common.FAVOURITE)))
+            u'color: rgba({});font-size: {}pt;'.format(
+                common.rgb(common.FAVOURITE),
+                common.psize(common.SMALL_FONT_SIZE)
+            ))
         self.layout().addWidget(self.progress_widget, 0)
         self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 

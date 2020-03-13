@@ -106,7 +106,7 @@ class TrayMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'custom_bw', None, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -334,7 +334,7 @@ class BrowserWidget(QtWidgets.QWidget):
             )
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        pixmap = images.ImageCache.get_rsc_pixmap(u'custom', None, 64)
+        pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
         self._contextMenu = None
@@ -443,9 +443,6 @@ class BrowserWidget(QtWidgets.QWidget):
         self._createUI()
         self._connectSignals()
         self._add_shortcuts()
-
-        if common.get_platform() == u'mac':
-            settings_.local_settings.macos_mount_timer.start()
 
         settings_.local_settings.verify_paths()
 
@@ -878,7 +875,7 @@ class BrowserWidget(QtWidgets.QWidget):
             pixmaprect.moveCenter(center)
 
             pixmap = images.ImageCache.get_rsc_pixmap(
-                'custom_bw', QtGui.QColor(0, 0, 0, 50), 64)
+                'icon_bw', QtGui.QColor(0, 0, 0, 50), 64)
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
             rect.setTop(pixmaprect.bottom() + common.INDICATOR_WIDTH)
             common.draw_aliased_text(
