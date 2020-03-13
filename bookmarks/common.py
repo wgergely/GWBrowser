@@ -818,7 +818,7 @@ class FontDatabase(QtGui.QFontDatabase):
         k = u'bmRobotoBold' + unicode(float(point_size))
         if k in self._fonts:
             return self._fonts[k]
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', psize(point_size))
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Regular', psize(point_size))
         if self._fonts[k].family() != u'bmRobotoBold':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
@@ -828,7 +828,7 @@ class FontDatabase(QtGui.QFontDatabase):
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', psize(point_size))
+        self._fonts[k] = self.font(u'bmRobotoMedium', u'Regular', psize(point_size))
         if self._fonts[k].family() != u'bmRobotoMedium':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]

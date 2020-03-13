@@ -42,6 +42,7 @@ class BaseContextMenu(QtWidgets.QMenu):
 
     def __init__(self, index, parent=None):
         super(BaseContextMenu, self).__init__(parent=parent)
+        common.set_custom_stylesheet(self)
         self.index = index
         self.setToolTipsVisible(False)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)

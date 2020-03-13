@@ -394,7 +394,7 @@ class MessageBox(QtWidgets.QDialog):
 
         short_text_row.layout().addWidget(self.short_text_label)
         self.short_text_label.setStyleSheet(
-            u'padding:20px 10px 20px 10px; background-color: rgba({}); font-size:{}pt'.format(
+            u'padding:20px 10px 20px 10px; background-color: rgba({}); font-size: {}pt'.format(
                 common.rgb(self.secondary_color.lighter(125)),
                 common.psize(common.MEDIUM_FONT_SIZE)
             ))

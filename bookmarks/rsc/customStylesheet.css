@@ -131,6 +131,7 @@ QPushButton {{
 		background-color: rgba({SECONDARY_TEXT});
 		border-radius: 0px;
 		font-family: "{PRIMARY_FONT}";
+		font-size: {MEDIUM_FONT_SIZE}pt;
 		border: 1px solid rgba({SECONDARY_TEXT});
 }}
 QPushButton:disabled {{
@@ -359,8 +360,8 @@ QLabel:disabled {{
 
 
 QMenu {{
-    background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
-		font-family: "{SECONDARY_FONT}";
+    background-color: rgba({SECONDARY_BACKGROUND});
+		font-family: "{PRIMARY_FONT}";
 		font-size: {MEDIUM_FONT_SIZE}pt;
 		margin: 0px;
 		padding: 0px;
@@ -415,7 +416,7 @@ QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	color: rgba({TEXT});
 	font-family: "{SECONDARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
+	font-size: {SMALL_FONT_SIZE}pt;
 	outline: none;
 	margin: 3px;
 	border: none;
