@@ -212,8 +212,10 @@ class TestBookmarksWidget(unittest.TestCase):
         settings.local_settings.setValue(u'servers', None)
 
         from PySide2 import QtWidgets
+        import bookmarks.standalonewidgets as standalone
+
         if not QtWidgets.QApplication.instance():
-            cls.app = QtWidgets.QApplication([])
+            cls.app = standalone.StandaloneApp([])
         else:
             cls.app = QtWidgets.QApplication.instance()
 
@@ -309,8 +311,9 @@ class TestModules(unittest.TestCase):
         _dir.mkpath(u'./bookmark_a/taskdir_a')
 
         from PySide2 import QtWidgets
+        import bookmarks.standalonewidgets as standalone
         if not QtWidgets.QApplication.instance():
-            cls.app = QtWidgets.QApplication([])
+            cls.app = standalone.StandaloneApp([])
         else:
             cls.app = QtWidgets.QApplication.instance()
 
@@ -494,9 +497,10 @@ class TestImages(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from PySide2 import QtWidgets
+        import bookmarks.standalonewidgets as standalone
         app = QtWidgets.QApplication.instance()
         if not app:
-            app = QtWidgets.QApplication([])
+            app = standalone.StandaloneApp([])
 
     def setUp(self):
         self.source = None

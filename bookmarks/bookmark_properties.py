@@ -77,7 +77,7 @@ class RectanglesWidget(QtWidgets.QLabel):
         painter.setOpacity(1.0)
 
         painter.setPen(common.TEXT)
-        painter.setFont(common.SecondaryFont)
+        painter.setFont(common.font_db.secondary_font())
         _rect = self.rect()
         _rect.setLeft(rect.left() + 8)
 
@@ -215,12 +215,13 @@ class ScrollArea(QtWidgets.QScrollArea):
             u'Asset identifier, eg. \'workspace.mel\'')
         row.layout().addWidget(self.identifier_editor, 0)
 
-        text = u'An asset identifier is a file used by {} to recognise a folder as an asset.<br>\
-For example, when using the default Maya Workspace folders, use \
-<span style="text-decoration: underline;">workspace.mel</span>.<br><br>\
-Any file can be used as long as it is present in the root of \
-the asset folder.'.format(common.PRODUCT)
-        common_ui.add_description(text, parent=grp)
+        text = u'Only folders containing this file will be treated as assets.<br>\
+Using the default Maya Workspace the identifier normally is \
+<span style="text-decoration: underline;">workspace.mel</span>, but \
+any other file can be used as long it is present in the root of \
+the asset.<br>If not set, all folders inside the Bookmark \
+will be read as assets.'.format(common.PRODUCT)
+        common_ui.add_description(text, label='Hint', parent=grp)
         # ********************************************
         grpA = common_ui.get_group(parent=widget)
 
@@ -479,7 +480,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             client = slacker.Slacker(self.slacktoken_editor.text())
         except Exception as err:
             self.slacktoken_editor.setStyleSheet(
-                u'color: rgba({})'.format(common.rgb(common.REMOVE)))
+                u'color: rgba({});'.format(common.rgb(common.REMOVE)))
             common_ui.ErrorBox(
                 u'An error occured validating the token.',
                 unicode(err),
@@ -496,7 +497,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
             return
 
         self.slacktoken_editor.setStyleSheet(
-            u'color: rgba({})'.format(common.rgb(common.ADD)))
+            u'color: rgba({});'.format(common.rgb(common.ADD)))
         common_ui.OkBox(
             u'Token is valid.',
             u'',

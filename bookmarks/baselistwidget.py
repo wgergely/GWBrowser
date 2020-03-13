@@ -132,7 +132,7 @@ class ProgressWidget(QtWidgets.QWidget):
         painter.drawRect(self.rect())
         common.draw_aliased_text(
             painter,
-            common.PrimaryFont,
+            common.font_db.primary_font(),
             self.rect(),
             self._message,
             QtCore.Qt.AlignCenter,
@@ -1614,8 +1614,7 @@ class BaseListWidget(QtWidgets.QListView):
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+        font = common.font_db.primary_font()
 
         n = 0
         rect = QtCore.QRect(

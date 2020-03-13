@@ -34,8 +34,7 @@ class StatusBar(QtWidgets.QStatusBar):
         painter = QtGui.QPainter()
         painter.begin(self)
 
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(font.pointSizeF())
+        font = common.font_db.secondary_font()
         common.draw_aliased_text(
             painter,
             font,
@@ -863,8 +862,7 @@ class BrowserWidget(QtWidgets.QWidget):
             painter.drawRect(rect)
 
         if not self._initialized:
-            font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+            font = common.font_db.primary_font()
 
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter

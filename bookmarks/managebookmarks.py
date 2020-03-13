@@ -47,7 +47,7 @@ class ComboBox(QtWidgets.QComboBox):
             painter.begin(self)
             common.draw_aliased_text(
                 painter,
-                common.SecondaryFont,
+                common.font_db.secondary_font(),
                 self.rect(),
                 self._warning_string,
                 QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft,
@@ -185,7 +185,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.begin(self)
             painter.setBrush(common.BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setFont(common.SecondaryFont)
+            painter.setFont(common.font_db.secondary_font())
             painter.drawRect(self.rect())
             rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
             painter.setPen(QtGui.QColor(255, 255, 255, 50))
@@ -290,7 +290,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.begin(self)
             painter.setBrush(common.SECONDARY_BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
-            painter.setFont(common.SecondaryFont)
+            painter.setFont(common.font_db.secondary_font())
             painter.drawRect(self.rect())
             rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
             painter.setPen(QtGui.QColor(255, 255, 255, 50))
@@ -366,25 +366,16 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
 
-        # Label
-        label = common_ui.PaintedLabel(
-            u'Select {} template:'.format(self.mode().title()),
-            color=common.SECONDARY_TEXT,
-            size=common.MEDIUM_FONT_SIZE
-        )
-        self.layout().addSpacing(common.INDICATOR_WIDTH)
-        self.layout().addWidget(label)
-
         self.name_widget = NameBase(parent=self)
         self.name_widget.set_transparent()
-        self.name_widget.setFont(common.PrimaryFont)
+        self.name_widget.setFont(common.font_db.primary_font())
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
         regex = QtCore.QRegExp(ur'[a-zA-Z0-9\_\-]+')
         validator = QtGui.QRegExpValidator(regex, parent=self)
         self.name_widget.setValidator(validator)
         self.add_button = common_ui.ClickableIconButton(
-            u'add',
+            u'CopyAction',
             (common.ADD, common.ADD),
             BUTTON_SIZE,
             description=u'Add new {}'.format(self.mode().title()),
@@ -427,20 +418,23 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         h = u'Unable to create {}.'.format(self.mode().lower())
         if not self.path():
             common_ui.ErrorBox(
-                h, u'Destination has selected!'
+                h, u'Destination has selected!',
+                parent=self
             ).exec_()
             return
 
         file_info = QtCore.QFileInfo(self.path())
         if not file_info.exists():
             common_ui.ErrorBox(
-                h, u'Destination folder "{}" does not exist!'.format(file_info.filePath()),
+                h, u'Destination folder "{}" does not exist!'.format(
+                    file_info.filePath()),
                 parent=self
             ).exec_()
             return
         if not file_info.isWritable():
             common_ui.ErrorBox(
-                h, u'Destination folder "{}" is not writable!'.format(file_info.filePath()),
+                h, u'Destination folder "{}" is not writable!'.format(
+                    file_info.filePath()),
                 parent=self
             ).exec_()
             return
@@ -465,7 +459,8 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         model = self.template_list_widget.selectionModel()
         if not model.hasSelection():
             common_ui.ErrorBox(
-                h, u'Select {} folder template and try again'.format(self.mode()),
+                h, u'Select {} folder template and try again'.format(
+                    self.mode()),
                 parent=self
             ).exec_()
             return
@@ -483,7 +478,8 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             self.templateCreated.emit(self.name_widget.text())
         except Exception as err:
             common_ui.ErrorBox(
-                h, u'Error occured creating the {}:\n{}'.format(self.mode(), err),
+                h, u'Error occured creating the {}:\n{}'.format(
+                    self.mode(), err),
                 parent=self
             ).exec_()
             return
@@ -563,7 +559,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             else:
                 icon = folder_icon
             item = QtWidgets.QListWidgetItem(parent=self)
-            item.setData(QtCore.Qt.FontRole, common.SecondaryFont)
+            item.setData(QtCore.Qt.FontRole, common.font_db.secondary_font())
             item.setData(QtCore.Qt.DisplayRole, f)
             item.setData(QtCore.Qt.SizeHintRole, size)
             item.setData(QtCore.Qt.DecorationRole, icon)
@@ -604,7 +600,7 @@ class ServerEditor(QtWidgets.QWidget):
         )
         self.add_server_lineeditor = QtWidgets.QLineEdit(parent=self)
         self.add_server_lineeditor.setPlaceholderText(
-            u'Path to the server, eg. //server/jobs')
+            u'Enter the path to the server (eg. //server/jobs)')
         self.add_server_lineeditor.returnPressed.connect(self.add_server)
         self.add_server_button.clicked.connect(self.add_server)
 
@@ -709,7 +705,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
                 return False
             painter = QtGui.QPainter()
             painter.begin(self)
-            painter.setFont(common.SecondaryFont)
+            painter.setFont(common.font_db.secondary_font())
             painter.setBrush(common.ADD)
             painter.setPen(common.TEXT_DISABLED)
             painter.drawText(
@@ -744,8 +740,8 @@ class BookmarksWidget(QtWidgets.QListWidget):
             return
 
         size = QtCore.QSize(1, ROW_HEIGHT)
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(font.pointSizeF() + 1.0)
+        font = common.font_db.primary_font(
+            point_size=common.MEDIUM_FONT_SIZE + 1.0)
 
         for bookmark in bookmarks:
             file_info = QtCore.QFileInfo(bookmark)
@@ -898,14 +894,16 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
 
         row = common_ui.add_row(u'', parent=self)
-        label = QtWidgets.QLabel()
-        pixmap = images.ImageCache.get_rsc_pixmap(u'bookmark', common.TEXT, 32.0)
+        label = QtWidgets.QLabel(parent=self)
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'bookmark', common.SECONDARY_BACKGROUND, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
             u' Manage Bookmarks', size=common.LARGE_FONT_SIZE, parent=self)
         row.layout().addWidget(label, 0)
         row.layout().addStretch(1)
+        self.layout().addSpacing(common.MARGIN)
 
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
@@ -916,14 +914,24 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         )
         row.layout().addWidget(self.hide_button, 0)
 
-        row = common_ui.add_row(u'', parent=self)
+        grp = QtWidgets.QGroupBox(parent=self)
+        QtWidgets.QVBoxLayout(grp)
+        self.layout().addWidget(grp, 0)
+
+        # row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel(parent=self)
-        label.setText(
-            u'Add and remove servers, jobs and bookmarks.'.format(common.PRODUCT))
+
+        label.setContentsMargins(8, 8, 8, 8)
+
+        s = u'Click the plus icons to add a server, job or a bookmark \
+(to toggle a bookmark simply click it).'.format(
+            common.PRODUCT)
+
+        label.setText(s)
         label.setStyleSheet(u'color: rgba({});'.format(
             common.rgb(common.SECONDARY_TEXT)))
         label.setWordWrap(True)
-        row.layout().addWidget(label, 1)
+        grp.layout().addWidget(label, 1)
 
         self.progress_widget = QtWidgets.QLabel(parent=self)
         self.progress_widget.setMaximumWidth(360)
@@ -936,14 +944,13 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 common.rgb(common.FAVOURITE),
                 common.psize(common.SMALL_FONT_SIZE)
             ))
-        self.layout().addWidget(self.progress_widget, 0)
-        self.layout().addSpacing(common.INDICATOR_WIDTH * 2)
+        grp.layout().addWidget(self.progress_widget, 0)
+        grp.layout().addSpacing(common.INDICATOR_WIDTH * 2)
 
-        # Server row
         # Label
         row = QtWidgets.QGroupBox(parent=self)
         QtWidgets.QVBoxLayout(row)
-        self.layout().addWidget(row, 0)
+        grp.layout().addWidget(row, 0)
 
         self.edit_servers_button = common_ui.ClickableIconButton(
             u'CopyAction',
@@ -960,7 +967,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             parent=row
         )
         self.server_combobox = ComboBox(
-            u'No servers found',
+            u'No servers',
             parent=self)
 
         _row = common_ui.add_row(
@@ -981,10 +988,10 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         # Select Job row
         row = QtWidgets.QGroupBox(parent=self)
         QtWidgets.QVBoxLayout(row)
-        self.layout().addWidget(row, 0)
+        grp.layout().addWidget(row, 0)
 
         self.job_combobox = ComboBox(
-            u'No jobs found',
+            u'No jobs',
             parent=self)
         self.add_template_button = common_ui.ClickableIconButton(
             u'CopyAction',
@@ -1033,7 +1040,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         )
         QtWidgets.QVBoxLayout(row)
-        self.layout().addWidget(row, 0)
+        grp.layout().addWidget(row, 0)
 
         _row = common_ui.add_row(
             None, padding=0, height=None, parent=row)
@@ -1264,14 +1271,23 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         server = self.server_combobox.itemData(
             idx, role=QtCore.Qt.UserRole)
 
+        if not server:
+            return
+
         file_info = QtCore.QFileInfo(server)
         if not file_info.exists():
             self.job_combobox.blockSignals(False)
-            self.show_warning('"{}" does not exist'.format(server))
+            common_ui.ErrorBox(
+                u'Error.', u'"{}" does not exist'.format(server),
+                parent=self
+            ).exec_()
             return
         if not file_info.isReadable():
             self.job_combobox.blockSignals(False)
-            self.show_warning('"{}" is not readable'.format(server))
+            common_ui.ErrorBox(
+                u'Error.', u'"{}" is not readable'.format(server),
+                parent=self
+            ).exec_()
             return
 
         n = 0
@@ -1350,7 +1366,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             return
 
         self.progressUpdate.emit(
-            u'<span>Scanning for bookmarks, please wait...</span><br><span>{}</span>'.format(path))
+            u'<span>Scanning for Bookmarks, please wait...</span><br><span>{}</span>'.format(path))
         QtWidgets.QApplication.instance().processEvents(
             QtCore.QEventLoop.ExcludeUserInputEvents)
 
@@ -1386,15 +1402,6 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         self.bookmark_list.blockSignals(False)
 
-    def show_warning(self, text):
-        mbox = QtWidgets.QMessageBox(parent=self)
-        mbox.setWindowTitle(u'Warning')
-        mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        mbox.setText(text)
-        mbox.exec_()
-
     def sizeHint(self):
         return QtCore.QSize(360, 250)
 
@@ -1424,7 +1431,8 @@ class Bookmarks(QtWidgets.QScrollArea):
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
+    import bookmarks.standalonewidgets as standalone
+    app = standalone.StandaloneApp([])
     widget = Bookmarks()
     widget.show()
     app.exec_()

@@ -91,9 +91,9 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
         active = flags & common.MarkedAsActive
 
         rectangles = self.get_rectangles(option.rect)
-        font = common.PrimaryFont
+        font = common.font_db.primary_font()
         font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        painter.setFont(common.PrimaryFont)
+        painter.setFont(common.font_db.primary_font())
         metrics = QtGui.QFontMetricsF(font)
 
         cursor_position = self.parent().mapFromGlobal(QtGui.QCursor().pos())
@@ -255,8 +255,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
             painter.drawRect(option.rect)
 
             painter.setPen(common.ADD)
-            font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSizeF(common.SMALL_FONT_SIZE)
+            font = common.font_db.secondary_font()
             painter.setFont(font)
 
             text = u'Drop image to add as thumbnail'
@@ -405,8 +404,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
                         count_rect, count_rect.width() / 2.0, count_rect.height() / 2.0)
 
                     text = unicode(index.data(common.TodoCountRole))
-                    _font = QtGui.QFont(common.PrimaryFont)
-                    _font.setPointSizeF(common.SMALL_FONT_SIZE)
+                    _font = common.font_db.primary_font(point_size=common.SMALL_FONT_SIZE)
                     _metrics = QtGui.QFontMetricsF(_font)
                     x = count_rect.center().x() - (_metrics.width(text) / 2.0) + 1
                     y = count_rect.center().y() + (_metrics.ascent() / 2.0)
@@ -654,7 +652,7 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + common.MARGIN)
 
-        font = common.PrimaryFont
+        font = common.font_db.primary_font()
         font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
 
@@ -868,8 +866,7 @@ class FilesWidgetDelegate(BaseDelegate):
             return x
 
         def draw_subdirs(text_edge):
-            font = QtGui.QFont(common.PrimaryFont)
-            font.setPointSizeF(SMALL_FONT_SIZE)
+            font = common.font_db.primary_font(point_size=common.SMALL_FONT_SIZE)
             metrics = QtGui.QFontMetricsF(font)
 
             subdir_rectangles = self.get_subdir_rectangles(
@@ -974,8 +971,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if large_mode:
                 left_limit = rectangles[DataRect].left()
                 right_limit = rectangles[DataRect].right() - common.MARGIN
-                font = QtGui.QFont(common.PrimaryFont)
-                font.setPointSizeF(MEDIUM_FONT_SIZE)
+                font = common.font_db.primary_font()
                 metrics = QtGui.QFontMetricsF(font)
 
             text = index.data(common.DescriptionRole)
@@ -1020,8 +1016,7 @@ class FilesWidgetDelegate(BaseDelegate):
         draw_separator_line()
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing, on=True)
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE)
+        font = common.font_db.primary_font(point_size=SMALL_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
         it = self.get_text_segments(index).itervalues()
         offset = 0
@@ -1031,8 +1026,7 @@ class FilesWidgetDelegate(BaseDelegate):
 
         it = self.get_filedetail_text_segments(index).itervalues()
         offset = metrics.ascent()
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE - 1)
+        font = common.font_db.primary_font(point_size=SMALL_FONT_SIZE - 1)
         metrics = QtGui.QFontMetricsF(font)
         right_limit = draw_segments(it, font, metrics, offset)
         draw_description(font, metrics, left_limit, right_limit, offset)
@@ -1062,8 +1056,7 @@ class FilesWidgetDelegate(BaseDelegate):
         text_segments = self.get_text_segments(index)
         painter.setPen(common.TEXT)
         painter.setBrush(QtCore.Qt.NoBrush)
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
+        font = common.font_db.primary_font(point_size=SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         offset = 0
@@ -1103,8 +1096,7 @@ class FilesWidgetDelegate(BaseDelegate):
         if not index.data(common.DescriptionRole):
             return
 
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
+        font = common.font_db.secondary_font(point_size=SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
 
         description_rect = QtCore.QRect(name_rect)
@@ -1151,8 +1143,7 @@ class FilesWidgetDelegate(BaseDelegate):
         rect = QtCore.QRect(rectangles[DataRect])
         rect.setLeft(rect.left() + (common.INDICATOR_WIDTH * 2))
 
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(MEDIUM_FONT_SIZE)
+        font = common.font_db.primary_font()
         metrics = QtGui.QFontMetricsF(font)
 
         # File-name
@@ -1166,8 +1157,7 @@ class FilesWidgetDelegate(BaseDelegate):
             )
 
         text_segments = self.get_text_segments(index)
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE + 0.5)
+        font = common.font_db.primary_font(point_size=SMALL_FONT_SIZE + 0.5)
         metrics = QtGui.QFontMetricsF(font)
 
         offset = 0
@@ -1184,8 +1174,7 @@ class FilesWidgetDelegate(BaseDelegate):
             if r.right() > rect.right():
                 r.setRight(rect.right() - (common.INDICATOR_WIDTH))
 
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(SMALL_FONT_SIZE + 1.0)
+        font = common.font_db.secondary_font(point_size=SMALL_FONT_SIZE + 1.0)
         metrics = QtGui.QFontMetricsF(font)
 
         description_rect = QtCore.QRect(name_rect)
@@ -1337,8 +1326,7 @@ class FilesWidgetDelegate(BaseDelegate):
         )
 
         painter.setPen(common.BACKGROUND)
-        font = QtGui.QFont(common.SecondaryFont)
-        font.setPointSizeF(common.SMALL_FONT_SIZE)
+        font = common.font_db.secondary_font()
         painter.setFont(font)
 
         text = '"Drag+Shift" grabs all files    |    "Drag+Alt" grabs the first file    |    "Drag+Shift+Alt" grabs the parent folder'
@@ -1351,14 +1339,3 @@ class FilesWidgetDelegate(BaseDelegate):
 
     def sizeHint(self, option, index):
         return self.parent().model().sourceModel().ROW_SIZE
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    common.DEBUG_ON = True
-    l = common.LogView()
-    l.show()
-    import bookmarks.browserwidget as b
-    w = b.BrowserWidget()
-    w.show()
-    app.exec_()

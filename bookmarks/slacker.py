@@ -99,7 +99,7 @@ class UsersModel(QtCore.QAbstractItemModel):
                 QtCore.Qt.ToolTipRole: profile[u'email'],
                 QtCore.Qt.ForegroundRole: QtGui.QBrush(common.SECONDARY_TEXT),
                 QtCore.Qt.BackgroundRole: QtGui.QBrush(common.BACKGROUND),
-                QtCore.Qt.FontRole: common.SecondaryFont,
+                QtCore.Qt.FontRole: common.font_db.secondary_font(),
                 IdRole: profile[IdRole],
                 EmailRole: profile[u'email'],
                 TeamRole: profile[u'team'],

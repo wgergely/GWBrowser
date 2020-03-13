@@ -341,8 +341,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         super(PaintedTextButton, self).__init__(parent=parent)
         self.default_label = label
         self.index = idx
-        self.font = QtGui.QFont(common.PrimaryFont)
-        self.font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+        self.font = common.font_db.primary_font()
 
         self.setStatusTip(description)
         self.setToolTip(description)
@@ -623,7 +622,7 @@ class FilesTabButton(PaintedTextButton):
 
             common.draw_aliased_text(
                 painter,
-                common.PrimaryFont,
+                common.font_db.primary_font(),
                 self.rect(),
                 u'...',
                 QtCore.Qt.AlignCenter,

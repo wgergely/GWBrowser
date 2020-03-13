@@ -262,7 +262,7 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot(unicode)
     def setText(self, text):
         super(SelectButton, self).setText(text)
-        metrics = QtGui.QFontMetricsF(common.PrimaryFont)
+        metrics = QtGui.QFontMetricsF(common.font_db.primary_font())
         width = metrics.width(self.text().upper())
         self.setFixedWidth(width + common.MARGIN)
         self.update()
@@ -288,7 +288,7 @@ class SelectButton(QtWidgets.QLabel):
             painter.setOpacity(0.8)
 
         common.draw_aliased_text(
-            painter, common.PrimaryFont, self.rect(),
+            painter, common.font_db.primary_font(), self.rect(),
             self.text().upper(), QtCore.Qt.AlignCenter, color)
 
         rect = QtCore.QRect(self.rect())
@@ -412,7 +412,7 @@ class BookmarksWidgetDelegate2(BookmarksWidgetDelegate):
         self.paint_selection_indicator(*args)
 
     def sizeHint(self, index, parent):
-        return QtCore.QSize(0, common.CONTROL_HEIGHT)
+        return QtCore.QSize(0, common.ROW_HEIGHT)
 
 
 class BookmarksListView(BaseListView):
@@ -500,7 +500,7 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         text = index.data(common.DescriptionRole)
         text = text if text else u''
         font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        _metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+        _metrics = QtGui.QFontMetricsF(common.font_db.secondary_font())
         text = _metrics.elidedText(
             text,
             QtCore.Qt.ElideRight,
@@ -509,11 +509,11 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
         x = description_rect.left()
         y = description_rect.center().y() + (metrics.height() / 2.0)
         path = QtGui.QPainterPath()
-        path.addText(x, y, common.SecondaryFont, text)
+        path.addText(x, y, common.font_db.secondary_font(), text)
         painter.drawPath(path)
 
     def sizeHint(self, index, parent):
-        return QtCore.QSize(0, common.CONTROL_HEIGHT)
+        return QtCore.QSize(0, common.ROW_HEIGHT)
 
 
 class AssetsListView(BaseListView):
@@ -1086,7 +1086,7 @@ QLineEdit:!read-only:focus{{
     border-bottom: 2px solid rgba({favourite});
 }}
             """.format(
-                font=common.PrimaryFont.family(),
+                font=common.font_db.primary_font().family(),
                 fontSize=common.psize(common.MEDIUM_FONT_SIZE),
                 favourite=common.rgb(common.FAVOURITE),
                 color='255,255,255,255' if not color else color
@@ -1212,7 +1212,7 @@ QComboBox:focus{{
     border-bottom: 2px solid rgba({favourite});
 }}
             """.format(
-                font=common.PrimaryFont.family(),
+                font=common.font_db.primary_font().family(),
                 fontSize=common.psize(common.MEDIUM_FONT_SIZE),
                 favourite=common.rgb(common.FAVOURITE)
             )
@@ -1412,7 +1412,7 @@ class FilePathWidget(QtWidgets.QWidget):
 
         painter = QtGui.QPainter()
         painter.begin(self)
-        font = common.SecondaryFont
+        font = common.font_db.secondary_font()
 
         rect = self.rect()
         center = self.rect().center()

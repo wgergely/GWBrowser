@@ -169,7 +169,7 @@ QLineEdit {{
 }}
 """
             .format(
-                FONT=common.SecondaryFont.family(),
+                FONT=common.font_db.secondary_font().family(),
                 SIZE=common.psize(common.MEDIUM_FONT_SIZE)
             )
         )
@@ -327,7 +327,7 @@ QLineEdit:focus {{
 }}
         """.format(
             common.rgb(common.TEXT_SELECTED),
-            common.PrimaryFont.family(),
+            common.font_db.primary_font().family(),
             common.psize(common.LARGE_FONT_SIZE)
         ))
         self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
@@ -467,7 +467,7 @@ class ThumbnailLabel(QtWidgets.QLabel):
             painter.setPen(common.TEXT)
             common.draw_aliased_text(
                 painter,
-                common.PrimaryFont,
+                common.font_db.primary_font(),
                 self.rect(),
                 self._path.split(
                     u'/').pop().replace(u'thumb_', u'').split(u'_')[0],

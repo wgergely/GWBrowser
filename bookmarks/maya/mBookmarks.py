@@ -57,7 +57,9 @@ def initializePlugin(plugin):
         plugin, vendor=u'Gergely Wootsch', version=bookmarks.__version__)
 
     try:
-
+        import bookmarks.common as common
+        common.font_db = common.FontDatabase()
+        
         import bookmarks.maya.widget as widget
         widget.maya_button = widget.MayaBrowserButton()
         cmds.evalDeferred(widget.maya_button.initialize)

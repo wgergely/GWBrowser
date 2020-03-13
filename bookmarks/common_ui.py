@@ -28,7 +28,7 @@ class NameBase(QtWidgets.QLineEdit):
             """
 QLineEdit{{
     background-color: rgba(0,0,0,0);
-    font-family: "{font}";
+    font-family: "{fontFamily}";
     font-size: {fontSize}pt;
     border-bottom: 2px solid rgba(0,0,0,50);
     border-radius: 0px;
@@ -38,7 +38,7 @@ QLineEdit:!read-only:focus{{
     border-bottom: 2px solid rgba({favourite});
 }}
             """.format(
-                font=common.PrimaryFont.family(),
+                fontFamily=common.font_db.secondary_font().family(),
                 fontSize=common.psize(common.MEDIUM_FONT_SIZE),
                 favourite=common.rgb(common.FAVOURITE),
                 color='255,255,255,255' if not color else color
@@ -56,6 +56,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
         QtWidgets.QVBoxLayout(w)
     else:
         QtWidgets.QHBoxLayout(w)
+    common.set_custom_stylesheet(w)
     w.layout().setContentsMargins(0, 0, 0, 0)
     w.layout().setSpacing(common.INDICATOR_WIDTH)
     w.layout().setAlignment(QtCore.Qt.AlignCenter)
@@ -72,6 +73,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
     if label:
         l = PaintedLabel(label, size=common.SMALL_FONT_SIZE,
                          color=common.SECONDARY_TEXT, parent=parent)
+        common.set_custom_stylesheet(l)
         l.setFixedWidth(120)
         l.setDisabled(True)
         if padding:
@@ -86,6 +88,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
 
 def add_label(text, parent=None):
     label = QtWidgets.QLabel(text, parent=parent)
+    common.set_custom_stylesheet(label)
     label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
     label.setSizePolicy(
         QtWidgets.QSizePolicy.Expanding,
@@ -97,6 +100,7 @@ def add_label(text, parent=None):
 
 def add_line_edit(label, parent=None):
     w = NameBase(transparent=True, parent=parent)
+    common.set_custom_stylesheet(w)
     w.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight)
     w.setPlaceholderText(label)
     parent.layout().addWidget(w, 1)
@@ -105,13 +109,13 @@ def add_line_edit(label, parent=None):
 
 def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
     row = add_row(label, padding=padding, height=None, parent=parent)
-    label = QtWidgets.QLabel(text)
-    label.setAlignment(QtCore.Qt.AlignVCenter |
-                       QtCore.Qt.AlignLeft | QtCore.Qt.AlignJustify)
+    label = QtWidgets.QLabel(text, parent=parent)
+    common.set_custom_stylesheet(label)
+    label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
     label.setStyleSheet(
-        u'color: rgba({}); font-family: {}'.format(
+        u'color: rgba({}); font-family: "{}";'.format(
             common.rgb(common.SECONDARY_TEXT),
-            common.SecondaryFont.family()
+            common.font_db.secondary_font().family()
         )
     )
     label.setWordWrap(True)
@@ -165,7 +169,7 @@ class PaintedButton(QtWidgets.QPushButton):
         rect.moveCenter(center)
         common.draw_aliased_text(
             painter,
-            common.PrimaryFont,
+            common.font_db.primary_font(),
             rect,
             self.text(),
             QtCore.Qt.AlignCenter,
@@ -180,8 +184,7 @@ class PaintedLabel(QtWidgets.QLabel):
 
     def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE, parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
-        self._font = QtGui.QFont(common.PrimaryFont)
-        self._font.setPointSizeF(size)
+        self._font = common.font_db.primary_font(point_size=size)
         self._color = color
         metrics = QtGui.QFontMetricsF(self._font)
         self.setFixedHeight(metrics.height())
@@ -331,11 +334,11 @@ class MessageBox(QtWidgets.QDialog):
             QWidget {{
                 color: rgba({TEXT});
                 background-color: rgba({BG});
-                font-family: {FAMILY};
+                font-family: "{FAMILY}";
             }}
             """.format(
             SIZE=common.LARGE_FONT_SIZE,
-            FAMILY=common.PrimaryFont.family(),
+            FAMILY=common.font_db.primary_font().family(),
             TEXT=common.rgb(self.secondary_color.darker(150)),
             BG=common.rgb(self.secondary_color)))
 
@@ -378,7 +381,7 @@ class MessageBox(QtWidgets.QDialog):
 
         pixmap = images.ImageCache.get_rsc_pixmap(
             self.icon, self.secondary_color.lighter(150), common.ROW_HEIGHT)
-        label = QtWidgets.QLabel()
+        label = QtWidgets.QLabel(parent=self)
         label.setPixmap(pixmap)
         label.setSizePolicy(
             QtWidgets.QSizePolicy.Minimum,

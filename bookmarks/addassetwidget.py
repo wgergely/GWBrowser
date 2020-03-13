@@ -48,7 +48,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'assets', common.TEXT, 32.0)
+            u'assets', common.SECONDARY_BACKGROUND, 32.0)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(

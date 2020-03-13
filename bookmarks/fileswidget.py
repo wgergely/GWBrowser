@@ -565,7 +565,7 @@ class DragPixmap(QtWidgets.QWidget):
         self._pixmap = pixmap
         self._text = text
 
-        font = common.PrimaryFont
+        font = common.font_db.primary_font()
         metrics = QtGui.QFontMetricsF(font)
         self._text_width = metrics.width(text)
 
@@ -616,7 +616,7 @@ class DragPixmap(QtWidgets.QWidget):
         )
         common.draw_aliased_text(
             painter,
-            common.PrimaryFont,
+            common.font_db.primary_font(),
             rect,
             self._text,
             QtCore.Qt.AlignCenter,

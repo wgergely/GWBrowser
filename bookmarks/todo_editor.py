@@ -273,16 +273,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(11.0)
+        font = common.font_db.primary_font(point_size=11.0)
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = QtGui.QFont(common.PrimaryFont)
-        font.setPointSizeF(11.0)
+        font = common.font_db.primary_font(point_size=11.0)
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
@@ -841,7 +839,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         # row.paintEvent = paintEvent
         # Thumbnail
         self.add_button = ClickableIconButton(
-            u'todo',
+            u'add',
             (common.ADD, common.ADD),
             height,
             description=u'Click to add a new Todo item...',
@@ -849,9 +847,9 @@ class TodoEditorWidget(QtWidgets.QDialog):
         )
 
         # Name label
-        text = u'Edit Notes and Tasks'
-        label = PaintedLabel(text, color=common.BACKGROUND,
-                             size=common.MEDIUM_FONT_SIZE, parent=self)
+        text = u'Notes and Tasks'
+        label = PaintedLabel(text, color=common.SECONDARY_TEXT,
+                             size=common.LARGE_FONT_SIZE, parent=self)
 
         row.layout().addWidget(self.add_button, 0)
         row.layout().addSpacing(common.INDICATOR_WIDTH * 2)
@@ -962,8 +960,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
-            font = QtGui.QFont(common.SecondaryFont)
-            font.setPointSizeF(common.MEDIUM_FONT_SIZE)
+            font = common.font_db.secondary_font(point_size=common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 
@@ -978,7 +975,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
             rect.setHeight(rect.height() - common.MARGIN)
             rect.moveCenter(center)
 
-            text = u'You can add a new note by clicking the add icon on the top.'
+            text = u'Click the plus icon on the top to add a note'
             text = text if not len(self.todoeditors_widget.items) else u''
             common.draw_aliased_text(
                 painter, font, rect, text, QtCore.Qt.AlignCenter, common.SECONDARY_BACKGROUND)

@@ -1,34 +1,9 @@
 # -*- coding: utf-8 -*-
-"""The ``py`` module is used to define variables and methods used
-across the Bookmarks project.
+"""``common.py`` defines common methods and settings used across the project.
 
-Bookmarks is intended to be used in a networked environment.
-Users users have the ability to define a **primary**, **backup** and
-a **local** paths to store assets and bookmarks.
-
-Access to the saved paths are provided by the :class:`.Server` object. The actual
-configuration values are stored in the ``templates/server.conf`` configuration
-file.
-
-Job and assets templates
-########################
-
-*Assets* are directory structures used to compartmentalize files and folders.
-The template files used to generate jobs and assets are stored in
-``bookmarks/templates`` folder.
-
-The asset folder definitions should correspond to the folders stored in the
-template file - including the folder descriptions. See ``ASSET_FOLDERS``.
-
-Sequences
-#########
-
-A core aspect of Bookmarks is the ability to group sequentially numbered
-files into a single item (eg. image sequences).
-
-Sequences are recognised via **regex** functions defined here. See
-:func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
-:func:`.get_sequence_startpath`,  :func:`.get_ranges` for the wrapper functions.
+File-sequences are recognised using regexes defined in the module.
+See :func:`.get_valid_filename`, :func:`.get_sequence`, :func:`.is_collapsed`,
+:func:`.get_sequence_startpath`,  :func:`.get_ranges`.
 
 """
 
@@ -52,20 +27,20 @@ ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks-about'
 
 SynchronisedMode = 0
 SoloMode = 1
+"""Enum used to indicate the mode. When syncronised mode is on, the active path
+selections will be syncronised across DCCs and desktop instances."""
 
-
-MayaAssetTemplate = 1024
-ProjectTemplate = 2048
 
 # Flags
 MarkedAsArchived = 0b1000000000
 MarkedAsFavourite = 0b10000000000
 MarkedAsActive = 0b100000000000
-
+"""Item flags."""
 
 InfoThread = 0
 BackgroundInfoThread = 1
 ThumbnailThread = 2
+"""Thread types."""
 
 ExportsFolder = u'exports'
 DataFolder = u'data'
@@ -75,6 +50,7 @@ ScenesFolder = u'scenes'
 CompsFolder = u'comps'
 ScriptsFolder = u'scripts'
 TexturesFolder = u'textures'
+"""Predefined folder names."""
 
 ASSET_FOLDERS = {
     ExportsFolder: u'User exported animation, object and simulation cache files',
@@ -87,8 +63,8 @@ ASSET_FOLDERS = {
     TexturesFolder: u'Textures used by the 2D/3D projects',
     u'misc': u'',
 }
+"""Folder descriptions."""
 
-# Sizes
 ROW_HEIGHT = 34.0
 BOOKMARK_ROW_HEIGHT = 42.0
 ASSET_ROW_HEIGHT = 78.0
@@ -344,7 +320,6 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
                 it = case[u're'].finditer(text)
                 for match in it:
                     if flag & self.FAIL:
-                        print '!'
                         continue
                     char_format.setFontUnderline(False)
                     char_format.setFontPointSize(MEDIUM_FONT_SIZE)
@@ -648,13 +623,6 @@ FAVOURITE = QtGui.QColor(107, 126, 180)
 REMOVE = QtGui.QColor(219, 114, 114)
 ADD = QtGui.QColor(90, 200, 155)
 
-PrimaryFont = QtGui.QFont(u'Roboto')
-PrimaryFont.setWeight(QtGui.QFont.Bold)
-PrimaryFont.setPointSizeF(MEDIUM_FONT_SIZE)
-SecondaryFont = QtGui.QFont(u'Roboto')
-SecondaryFont.setWeight(QtGui.QFont.Medium)
-SecondaryFont.setPointSizeF(SMALL_FONT_SIZE)
-
 
 def get_oiio_extensions():
     """Returns a list of extension OpenImageIO is capable of reading."""
@@ -809,7 +777,71 @@ UnixPath = 1
 SlackPath = 2
 MacOSPath = 3
 
-_families = []
+
+
+
+class FontDatabase(QtGui.QFontDatabase):
+
+    def __init__(self, parent=None):
+        if not QtWidgets.QApplication.instance():
+            raise RuntimeError('FontDatabase must be created after a QApplication was initiated.')
+        super(FontDatabase, self).__init__(parent=parent)
+
+        self._fonts = {}
+        self.add_custom_fonts()
+
+    def add_custom_fonts(self):
+        """Adds our custom fonts to the QApplication.
+        """
+        if u'bmRobotoMedium' in self.families():
+            return
+
+        p = u'{}/../rsc/fonts'.format(__file__)
+        p = os.path.normpath(os.path.abspath(p))
+
+        if not os.path.isdir(p):
+            raise OSError('{} could not be found'.format(p))
+
+        import bookmarks._scandir as scandir
+        for entry in _scandir.scandir(p):
+            if not entry.name.endswith(u'ttf'):
+                continue
+            idx = self.addApplicationFont(entry.path)
+            if idx < 0:
+                raise RuntimeError(u'Failed to add required font to the application')
+            family = self.applicationFontFamilies(idx)
+            if not family:
+                raise RuntimeError(u'Failed to add required font to the application')
+            family = family[0]
+
+    def primary_font(self, point_size=MEDIUM_FONT_SIZE):
+        k = u'bmRobotoBold' + unicode(float(point_size))
+        if k in self._fonts:
+            return self._fonts[k]
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', point_size)
+        if self._fonts[k].family() != u'bmRobotoBold':
+            raise RuntimeError(u'Failed to add required font to the application')
+        return self._fonts[k]
+
+    def secondary_font(self, point_size=SMALL_FONT_SIZE):
+        k = u'bmRobotoMedium' + unicode(float(point_size))
+        if k in self._fonts:
+            return self._fonts[k]
+
+        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', point_size)
+        if self._fonts[k].family() != u'bmRobotoMedium':
+            raise RuntimeError(u'Failed to add required font to the application')
+        return self._fonts[k]
+
+    def header_font(self, point_size=MEDIUM_FONT_SIZE + 2.0):
+        k = u'bmRobotoBlack' + unicode(float(point_size))
+        if k in self._fonts:
+            return self._fonts[k]
+
+        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', point_size)
+        if self._fonts[k].family() != u'bmRobotoBlack':
+            raise RuntimeError(u'Failed to add required font to the application')
+        return self._fonts[k]
 
 
 def qlast_modified(n): return QtCore.QDateTime.fromMSecsSinceEpoch(n * 1000)
@@ -861,28 +893,8 @@ def move_widget_to_available_geo(widget):
     widget.move(x, y)
 
 
-def _add_custom_fonts():
-    """Adds custom fonts to the application."""
-    global _families
-    if _families:
-        return
-    path = u'{}/../rsc/fonts'.format(__file__)
-    path = os.path.normpath(os.path.abspath(path))
-    d = QtCore.QDir(path)
-    d.setNameFilters((u'*.ttf',))
-
-    entries = d.entryInfoList(QtCore.QDir.Files | QtCore.QDir.NoDotAndDotDot)
-
-    for f in entries:
-        idx = QtGui.QFontDatabase.addApplicationFont(f.absoluteFilePath())
-        family = QtGui.QFontDatabase.applicationFontFamilies(idx)
-        if family[0].lower() not in _families:
-            _families.append(family[0].lower())
-
 def set_custom_stylesheet(widget):
     """Applies the custom stylesheet to the given widget."""
-    _add_custom_fonts()
-
     path = os.path.normpath(
         os.path.abspath(
             os.path.join(
@@ -901,8 +913,8 @@ def set_custom_stylesheet(widget):
 
         try:
             qss = qss.format(
-                PRIMARY_FONT=PrimaryFont.family(),
-                SECONDARY_FONT=SecondaryFont.family(),
+                PRIMARY_FONT=font_db.primary_font().family(),
+                SECONDARY_FONT=font_db.secondary_font().family(),
                 SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
                 MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
                 LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
@@ -1377,3 +1389,6 @@ def push_to_rv(path):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             subprocess.Popen(cmd, startupinfo=startupinfo)
+
+
+font_db = None

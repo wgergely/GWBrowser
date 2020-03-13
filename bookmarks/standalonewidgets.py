@@ -67,6 +67,17 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.initialized.connect(self.connect_extra_signals)
         self.initialized.connect(self.showNormal)
         self.initialized.connect(self.activateWindow)
+
+        def say_hello():
+            import bookmarks.common_ui as common_ui
+            if self.stackedwidget.widget(0).model().sourceModel().rowCount() == 0:
+                common_ui.MessageBox(
+                    u'Bookmarks is not set up (yet!).',
+                    'To add a server, create new jobs and bookmark folders, right-click on the main window and select "Manage Bookmarks".',
+                    parent=self.stackedwidget.widget(0)
+                ).open()
+
+        self.initialized.connect(say_hello)
         self.shutdown.connect(self.hide)
 
         shortcut = QtWidgets.QShortcut(
@@ -306,12 +317,14 @@ class StandaloneApp(QtWidgets.QApplication):
     def __init__(self, args):
         super(StandaloneApp, self).__init__(args)
         import bookmarks
+
         self.setApplicationVersion(bookmarks.__version__)
         self.setApplicationName(common.PRODUCT)
-        common._add_custom_fonts()
         self.set_model_id()
+        common.font_db = common.FontDatabase()
         pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 256)
-        self.setWindowIcon(QtGui.QIcon(pixmap))
+        icon = QtGui.QIcon(pixmap)
+        self.setWindowIcon(icon)
 
     def set_model_id(self):
         """Setting this is needed to add custom window icons on windows.

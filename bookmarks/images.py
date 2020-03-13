@@ -826,7 +826,7 @@ class Viewer(QtWidgets.QGraphicsView):
         o = common.MARGIN
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
 
-        font = QtGui.QFont(common.PrimaryFont)
+        font = common.font_db.primary_font()
         metrics = QtGui.QFontMetricsF(font)
         rect.setHeight(metrics.height())
 
@@ -854,7 +854,7 @@ class Viewer(QtWidgets.QGraphicsView):
         # Image info
         ext = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole)).suffix()
         if ext.lower() in common.get_oiio_extensions():
-            metrics = QtGui.QFontMetricsF(common.SecondaryFont)
+            metrics = QtGui.QFontMetricsF(common.font_db.secondary_font())
 
             path = index.data(QtCore.Qt.StatusTipRole)
             path = common.get_sequence_endpath(path)
@@ -864,7 +864,7 @@ class Viewer(QtWidgets.QGraphicsView):
             for n, text in enumerate(image_info):
                 if n > 2:
                     break
-                common.draw_aliased_text(painter, common.SecondaryFont, QtCore.QRect(
+                common.draw_aliased_text(painter, common.font_db.secondary_font(), QtCore.QRect(
                     rect), text, QtCore.Qt.AlignLeft, common.SECONDARY_TEXT)
                 rect.moveTop(rect.center().y() + int(metrics.lineSpacing()))
         painter.end()
