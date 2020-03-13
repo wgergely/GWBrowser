@@ -92,8 +92,7 @@ class BaseDelegate(QtWidgets.QAbstractItemDelegate):
 
         rectangles = self.get_rectangles(option.rect)
         font = common.font_db.primary_font()
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
-        painter.setFont(common.font_db.primary_font())
+        painter.setFont(font)
         metrics = QtGui.QFontMetricsF(font)
 
         cursor_position = self.parent().mapFromGlobal(QtGui.QCursor().pos())
@@ -653,7 +652,6 @@ class AssetsWidgetDelegate(BaseDelegate):
         rect.setLeft(rect.left() + common.MARGIN)
 
         font = common.font_db.primary_font()
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         metrics = QtGui.QFontMetricsF(font)
 
         name_rect = QtCore.QRect(rect)
@@ -722,7 +720,7 @@ class AssetsWidgetDelegate(BaseDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE - 0.5)
+        font = common.font_db.primary_font(point_size=common.MEDIUM_FONT_SIZE - 0.5)
         painter.setFont(font)
         _metrics = QtGui.QFontMetricsF(font)
         text = _metrics.elidedText(

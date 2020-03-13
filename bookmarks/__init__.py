@@ -61,9 +61,7 @@ def exec_():
         app = QtWidgets.QApplication.instance()
     else:
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-        # High-dpi scaling support
-        # os.putenv('QT_SCALE_FACTOR', '1.2')
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, False)
         app = bookmarks.StandaloneApp([])
     widget = bookmarks.StandaloneBrowserWidget()
     widget.show()

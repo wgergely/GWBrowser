@@ -499,7 +499,6 @@ class AssetsWidgetDelegate2(AssetsWidgetDelegate):
 
         text = index.data(common.DescriptionRole)
         text = text if text else u''
-        font.setPointSizeF(common.MEDIUM_FONT_SIZE)
         _metrics = QtGui.QFontMetricsF(common.font_db.secondary_font())
         text = _metrics.elidedText(
             text,

@@ -76,7 +76,7 @@ INLINE_ICONS_MIN_WIDTH = 320.0
 UI_SCALE = 1.0
 """The global UI scale value."""
 
-SMALL_FONT_SIZE = 8.0
+SMALL_FONT_SIZE = 8.5
 MEDIUM_FONT_SIZE = 9.0
 LARGE_FONT_SIZE = 12.0
 
@@ -810,15 +810,15 @@ class FontDatabase(QtGui.QFontDatabase):
             if idx < 0:
                 raise RuntimeError(u'Failed to add required font to the application')
             family = self.applicationFontFamilies(idx)
+            print family
             if not family:
                 raise RuntimeError(u'Failed to add required font to the application')
-            family = family[0]
 
     def primary_font(self, point_size=MEDIUM_FONT_SIZE):
         k = u'bmRobotoBold' + unicode(float(point_size))
         if k in self._fonts:
             return self._fonts[k]
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', point_size)
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Bold', psize(point_size))
         if self._fonts[k].family() != u'bmRobotoBold':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
@@ -828,7 +828,7 @@ class FontDatabase(QtGui.QFontDatabase):
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', point_size)
+        self._fonts[k] = self.font(u'bmRobotoMedium', u'Medium', psize(point_size))
         if self._fonts[k].family() != u'bmRobotoMedium':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
