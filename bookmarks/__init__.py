@@ -2,17 +2,6 @@
 """**Bookmarks is a simple asset browser used to create and navigate
 the files and folders of animation or film productions.**
 
-Predominantly intended to be run as a standalone PySide2 application, Bookmarks
-can, however, be embedded in PySide2 contexts. This should include (at the time
-of writing) Maya, Houdini and Nuke.
-
-``mBookmarks.py`` is the plug-in for launching Bookmarks from inside Maya.
-
-Info:
-    The standalone version is built against Python 2.7 MSCV1900 and includes the
-    above libraries. The library versions are mindful of the *VFX Reference
-    Platform 2019* specifications.
-
 """
 
 import sys

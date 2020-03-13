@@ -2,13 +2,10 @@
 """**managebookmarks.py** defines ``ManageBookmarksWidget`` and the supplemetary
 widgets needed to add, create and select **servers**, **jobs** and **bookmark** folders.
 
-These three choices togethermake up a **bookmark** - the entrypoint for Bookmarks
+These three choices togethermake up a **bookmark** - an entrypoint for Bookmarks
 to start browsing the contents of a job.
 The path of a bookmark, unsurprisingly, is a composite of the above elements:
 *server/job/bookmark folder*. Eg.: **//network_server/my_job/shots.**
-
-The actual bookmarks are stored, on Windows, in the *Registry* and are unique to
-each users.
 
 """
 import re
@@ -393,9 +390,9 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             description=u'Add new {}'.format(self.mode().title()),
             parent=row
         )
-        row.layout().addWidget(self.add_button, 0)
-        row.layout().addSpacing(common.MARGIN)
         row.layout().addWidget(self.name_widget, 1)
+        row.layout().addSpacing(common.MARGIN)
+        row.layout().addWidget(self.add_button, 0)
 
         # Template Header
         row = common_ui.add_row(None, height=None, padding=None, parent=self)
