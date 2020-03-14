@@ -566,7 +566,7 @@ def import_favourites(source=None):
 
             current_favourites = sorted(list(set(current_favourites)))
             settings_.local_settings.setValue(u'favourites', current_favourites)
-            
+
     except Exception as e:
         import bookmarks.common_ui as common_ui
         common_ui.ErrorBox(
@@ -829,7 +829,6 @@ class FontDatabase(QtGui.QFontDatabase):
             if idx < 0:
                 raise RuntimeError(u'Failed to add required font to the application')
             family = self.applicationFontFamilies(idx)
-            print family
             if not family:
                 raise RuntimeError(u'Failed to add required font to the application')
 
