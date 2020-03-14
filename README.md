@@ -1,11 +1,7 @@
-<p align="center">
-
-</p>
-
 <center>
   <img src="./bookmarks/rsc/icon.png" alt="Bookmarks" height=128/>
   <h1>Bookmarks</h1>
-  <h4>A simple shot manager for CG productions</h4><br>
+  <h4>A simple file and asset manager for CG productions</h4><br>
 
   <p align="center">
     <a href="http://gergely-wootsch.com">
@@ -26,36 +22,30 @@
 
 <h6>
 
--   <img src="./bookmarks/rsc/icon.png" height=24> Run on Mac OS X or Windows 7
--   <img src="./bookmarks/rsc/todo.png" height=24> Annotate with ToDos, tags and descriptions
--   <img src="./bookmarks/rsc/archived.png" height=24> Archive superflous assets and files non-destructively
--   <img src="./bookmarks/rsc/active.png" height=24> Preview images of most media formats (using OpenImageIO)
--   <img src="./bookmarks/rsc/folder.png" height=24> Quick access to the file-system and file paths
--   <img src="./bookmarks/rsc/rv.png" height=24> Push footage to `Shotgun RV` directly from Bookmarks
--   <img src="./bookmarks/rsc/slack_color.png" height=24> Send messegases to `Slack`
--   <img src="./bookmarks/rsc/maya.png" height=24> Maya plugin (see below)
--   <img src="./bookmarks/rsc/icon.png" height=24> Bookmarks is written in Python, hence can be integrated with most _Qt for Python_ capable DCCs
--   <img src="./bookmarks/rsc/icon_bw.png" height=24> and more...!
+<img src="./bookmarks/rsc/icon_bw.png" height=20> Mac OS X and Windows desktop versions<br>
+<img src="./bookmarks/rsc/todo.png" height=20> Annotate files with thumbnails, To-dos, tags and descriptions<br>
+<img src="./bookmarks/rsc/archived.png" height=20> Archive superflous items non-destructively<br>
+<img src="./bookmarks/rsc/active.png" height=20> Preview images of common media formats using `OpenImageIO`<br>
+<img src="./bookmarks/rsc/folder.png" height=20> Reveal files in Finder & Explorer<br>
+<img src="./bookmarks/rsc/rv.png" height=20> Push footage to `Shotgun RV` directly from Bookmarks<br>
+<img src="./bookmarks/rsc/slack_color.png" height=20> Send paths and messages using `Slack`<br>
+<img src="./bookmarks/rsc/maya.png" height=20> Maya integration<br>
+<img src="./bookmarks/rsc/icon_bw.png" height=20> Can be potentially integrated with most _Qt for Python_ capable DCCs
 
 </h6>
 
 * * *
 
-<h3>Introduction</h3>
+<h3>Files</h3>
 
-Bookmarks can associate files with thumbnails and descriptions. It also provides the
-filters needed to find and mark important items. It is however, a file manager at heart.
+Most file managers need you to click-through subfolders to find a file. Bookmarks instead traverses all subfolders.
 
-Most file managers require traversing through subfolder-upon-subfolders to locate an item. Bookmarks implements an alternative (although more resource intense) approach: it lists all files from every subfolder when a selection is made. This is sometimes very useful, eg. when we don't know _exactly_
-the location of a footage, or when we want to compare footage versions.
+This is sometimes useful, for instance, when the _exact_ location of a footage is unknown, or when we want to compare footage versions and files residing at different places. This does however come
+with a performance tradeoff as files have to be loaded before seeing them.
 
-To make things manageble, Bookmarks separates jobs into, well, _**Bookmarks**_. These are distinct parts of any job, eg. the shots, assets or edit folders, where normally CGI content resides. Each bookmark can have their own framerate and resolution settings, as well as their
-own Slack workspace.
+To make things manageble, Bookmarks separates jobs into **Bookmarks**. These are arbitary folders inside a job, eg. the _shots_, _assets_ or _edit_ folder where CG content is normally kept. Each bookmark has its own framerate, resolution and Slack integration.
 
-Each _**Bookmark**_ contains _**Assets**_, eg. the main shot folders, which in turn contain
-_**Task Folders**_, eg. scenes, renders, references and comps subfolders.
-To put simply, Bookmarks kind-of expects folder hierarchies similar to the standard Maya project structure to work as intended.
-
+The Bookmark folders contain a series of **Assets**. An Asset is simply a pre-defined folder structure with a series of **Task Folders** inside, eg. _scenes_, _renders_,or _comps_. To put simply, Bookmarks expects to find a folder hierarchy not dissimilar to a standard Maya project.
 
 * * *
 

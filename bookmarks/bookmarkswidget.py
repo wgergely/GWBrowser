@@ -405,25 +405,29 @@ class BookmarksWidget(BaseInlineIconWidget):
     def toggle_item_flag(self, index, flag, state=None):
         if not index.isValid():
             return
+
         if flag == common.MarkedAsArchived:
             if hasattr(index.model(), 'sourceModel'):
-                index = index.model().mapToSource(index)
-            model = index.model()
-            data = model.model_data()[index.row()]
-            data[common.FlagsRole] = index.flags() | common.MarkedAsArchived
-            self.update_row(weakref.ref(data))
+                source_index = self.model().mapToSource(index)
 
+            model = self.model()
+            data = model.sourceModel().model_data()[source_index.row()]
+            data[common.FlagsRole] = data[common.FlagsRole] | common.MarkedAsArchived
+
+            # There's no reason to do this but for consistency' sake
+            self.update_row(weakref.ref(data))
+            #
             self.manage_bookmarks.widget().remove_saved_bookmark(
                 *index.data(common.ParentPathRole))
-            settings_.local_settings.verify_paths()
             bookmark_db.remove_db(index)
 
-            self.model().invalidateFilter()
-            self.model().sourceModel().__resetdata__()
-
-            if self.model().sourceModel().active_index() == self.model().mapToSource(index):
+            if self.model().sourceModel().active_index() == source_index:
                 self.unset_activated()
+
+            settings_.local_settings.verify_paths()
+
             return
+
         super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
 
 

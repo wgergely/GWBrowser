@@ -1155,10 +1155,10 @@ class BaseListWidget(QtWidgets.QListView):
             favourites = settings_.local_settings.favourites()
             sfavourites = set(favourites)
             if mode:
-                favourites.append(k)
+                favourites.append(k.strip().lower())
             else:
                 if k.lower() in sfavourites:
-                    favourites.remove(k.lower())
+                    favourites.remove(k.strip().lower())
 
             v = sorted(list(set(favourites)))
             settings_.local_settings.setValue(u'favourites', v)

@@ -706,13 +706,13 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
 
         menu_set[u'export_favourites'] = {
-            u'text': u'Export favourites',
+            u'text': u'Save favourites...',
             u'icon': save_icon,
             u'checkable': False,
             u'action': common.export_favourites
         }
         menu_set[u'import_favourites'] = {
-            u'text': u'Import favourites',
+            u'text': u'Import favourites...',
             u'icon': add_icon,
             u'checkable': False,
             u'action': (common.import_favourites, self.parent().favouritesChanged.emit)

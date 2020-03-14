@@ -22,12 +22,9 @@ class FavouritesWidgetContextMenu(BaseContextMenu):
         self.index = index
 
         self.add_control_favourites_menu()
-        self.add_separator()
 
         if index.isValid():
             self.add_remove_favourite_menu()
-            self.add_separator()
-            #
             self.add_separator()
             #
             self.add_reveal_item_menu()
@@ -138,10 +135,10 @@ class FavouritesWidget(FilesWidget):
         return 3
 
     def toggle_item_flag(self, index, flag, state=None):
-        if flag == common.MarkedAsArchived:
-            flag = common.MarkedAsFavourite
         super(FavouritesWidget, self).toggle_item_flag(
-            index, flag, state=state)
+            index, common.MarkedAsFavourite, state=False)
+        super(FavouritesWidget, self).toggle_item_flag(
+            index, common.MarkedAsArchived, state=True)
 
     def dragEnterEvent(self, event):
         if event.source() == self:

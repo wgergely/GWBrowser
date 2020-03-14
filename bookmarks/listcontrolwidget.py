@@ -674,7 +674,7 @@ class FavouritesTabButton(PaintedTextButton):
 
     def __init__(self, parent=None):
         super(FavouritesTabButton, self).__init__(
-            u'Favourites',
+            u'My Files',
             3,
             u'Click to see your saved favourites',
             parent=parent

@@ -454,90 +454,99 @@ def get_favourite_parent_paths():
 
 def export_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
-    import uuid
-    import bookmarks.settings as settings_
-    import bookmarks.bookmark_db as bookmark_db
+    try:
+        import uuid
+        import bookmarks.settings as settings_
+        import bookmarks.bookmark_db as bookmark_db
 
-    res = QtWidgets.QFileDialog.getSaveFileName(
-        caption=u'Select where to save your favourites items',
-        filter=u'*.gwb',
-        dir=QtCore.QStandardPaths.writableLocation(
-            QtCore.QStandardPaths.HomeLocation),
-        options=QtWidgets.QFileDialog.ShowDirsOnly
-    )
-    destination, _ = res
-    if not destination:
-        return
+        res = QtWidgets.QFileDialog.getSaveFileName(
+            caption=u'Select where to save your favourites',
+            filter=u'*.gwb',
+            dir=QtCore.QStandardPaths.writableLocation(
+                QtCore.QStandardPaths.HomeLocation),
+        )
+        destination, _ = res
+        if not destination:
+            return
 
-    favourites = settings_.local_settings.favourites()
+        favourites = settings_.local_settings.favourites()
+        server, job, root = get_favourite_parent_paths()
+        db = bookmark_db.get_db(
+            QtCore.QModelIndex(),
+            server=server,
+            job=job,
+            root=root
+        )
 
-    server, job, root = get_favourite_parent_paths()
-    zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
+        zip_path = u'{}/{}/{}/{}.zip'.format(server, job, root, uuid.uuid4())
 
-    # Make sure the temp folder exists
-    QtCore.QFileInfo(zip_path).dir().mkpath(u'.')
+        # Make sure the temp folder exists
+        QtCore.QFileInfo(zip_path).dir().mkpath(u'.')
 
-    with zipfile.ZipFile(zip_path, 'a') as z:
-        for favourite in favourites:
-            db = bookmark_db.get_db(
-                QtCore.QModelIndex(),
-                server=server,
-                job=job,
-                root=root
-            )
-
+        with zipfile.ZipFile(zip_path, 'a') as z:
             # Adding thumbnail to zip
-            file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
-            if not file_info.exists():
-                continue
+            for favourite in favourites:
+                file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
+                if not file_info.exists():
+                    continue
+                z.write(file_info.filePath(), file_info.fileName())
+            z.writestr(u'favourites', u'\n'.join(favourites))
 
-            z.write(file_info.filePath(), file_info.fileName())
-        z.writestr(u'favourites', u'\n'.join(favourites))
+        file_info = QtCore.QFileInfo(zip_path)
+        if not file_info.exists():
+            raise RuntimeError(
+                u'Unexpected error occured: could not find the favourites file')
 
-    file_info = QtCore.QFileInfo(zip_path)
-    if not file_info.exists():
-        raise RuntimeError(
-            u'Unexpected error occured: could not find the favourites file')
+        QtCore.QDir().rename(file_info.filePath(), destination)
+        if not QtCore.QFileInfo(destination).exists():
+            raise RuntimeError(
+                u'Unexpected error occured: could not find the favourites file')
+        reveal(destination)
 
-    QtCore.QDir().rename(file_info.filePath(), destination)
-    if not QtCore.QFileInfo(destination).exists():
-        raise RuntimeError(
-            u'Unexpected error occured: could not find the favourites file')
-    reveal(destination)
+    except Exception as e:
+        import bookmarks.common_ui as common_ui
+        common_ui.ErrorBox(
+            u'Could not save the favourites.',
+            u'{}'.format(e)
+        ).exec_()
+        Log.error(u'Exporting favourites failed.')
+        raise
 
 
 def import_favourites(source=None):
-    import bookmarks.settings as settings_
-    import bookmarks.bookmark_db as bookmark_db
+    try:
+        import bookmarks.settings as settings_
+        import bookmarks.bookmark_db as bookmark_db
 
-    if not isinstance(source, unicode):
-        res = QtWidgets.QFileDialog.getOpenFileName(
-            caption=u'Select the favourites file to import',
-            filter='*.gwb',
-            options=QtWidgets.QFileDialog.ShowDirsOnly
-        )
-        source, _ = res
-        if not source:
-            return
+        if not isinstance(source, unicode):
+            res = QtWidgets.QFileDialog.getOpenFileName(
+                caption=u'Select the favourites file to import',
+                filter=u'*.gwb'
+                # options=QtWidgets.QFileDialog.ShowDirsOnly
+            )
+            source, _ = res
+            if not source:
+                return
 
-    current_favourites = settings_.local_settings.favourites()
-    create_temp_dir()
+        current_favourites = settings_.local_settings.favourites()
+        create_temp_dir()
 
-    with zipfile.ZipFile(source) as zip:
-        namelist = zip.namelist()
-        if u'favourites' not in namelist:
-            mbox = QtWidgets.QMessageBox()
-            mbox.setWindowTitle(u'Invalid ".gwb" file')
-            mbox.setText(u'This file does not seem to be valid, sorry!')
-            mbox.setInformativeText(
-                u'The favourites list is missing from the archive.')
-            return mbox.exec_()
+        with zipfile.ZipFile(source) as zip:
+            namelist = zip.namelist()
+            namelist = [f.lower() for f in namelist]
 
-        with zip.open(u'favourites') as f:
-            favourites = f.readlines()
-            favourites = [f.strip() for f in favourites]
+            if u'favourites' not in namelist:
+                mbox = QtWidgets.QMessageBox()
+                mbox.setWindowTitle(u'Invalid ".gwb" file')
+                mbox.setText(u'This file does not seem to be valid, sorry!')
+                mbox.setInformativeText(
+                    u'The favourites list is missing from the archive.')
+                return mbox.exec_()
 
-        for favourite in favourites:
+            with zip.open(u'favourites') as f:
+                favourites = f.readlines()
+                favourites = [unicode(f).strip().lower() for f in favourites]
+
             server, job, root = get_favourite_parent_paths()
             db = bookmark_db.get_db(
                 QtCore.QModelIndex(),
@@ -546,16 +555,26 @@ def import_favourites(source=None):
                 root=root
             )
 
-            file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
-            if file_info.fileName() in namelist:
-                dest = u'{}/{}/{}/.bookmark'.format(server, job, root)
-                zip.extract(file_info.fileName(), dest)
+            for favourite in favourites:
+                file_info = QtCore.QFileInfo(db.thumbnail_path(favourite))
+                if file_info.fileName().lower() in namelist:
+                    dest = u'{}/{}/{}/.bookmark'.format(server, job, root)
+                    zip.extract(file_info.fileName(), dest)
 
-            if favourite not in current_favourites:
-                current_favourites.append(favourite)
+                if favourite not in current_favourites:
+                    current_favourites.append(favourite)
 
-        current_favourites = sorted(list(set(current_favourites)))
-        settings_.local_settings.setValue(u'favourites', current_favourites)
+            current_favourites = sorted(list(set(current_favourites)))
+            settings_.local_settings.setValue(u'favourites', current_favourites)
+            
+    except Exception as e:
+        import bookmarks.common_ui as common_ui
+        common_ui.ErrorBox(
+            u'Could not import the favourites.',
+            u'{}'.format(e)
+        ).exec_()
+        Log.error(u'Import favourites failed.')
+        raise
 
 
 def clear_favourites():

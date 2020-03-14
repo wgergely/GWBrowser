@@ -152,6 +152,7 @@ class CaptureScreen(QtWidgets.QDialog):
 
         self.accepted.connect(self.capture)
 
+
     def pixmap(self):
         """The captured rectangle."""
         return self._pixmap
@@ -183,24 +184,12 @@ class CaptureScreen(QtWidgets.QDialog):
     def capture(self):
         """Slot called by the dialog's accepted signal.
         Performs the capture operation and saves the resulting pixmap
-        to self.pixmap()
+        to self._pixmap
 
         """
-        if common.get_platform() == u'mac':
-            # On macosx we're using the built-in capture-tool because the
-            # os doesn't allow capturing pixels from outside the application.
-            temppath = tempfile.NamedTemporaryFile(
-                suffix=u'.'.format(common.THUMBNAIL_FORMAT),
-                prefix=u'screencapture_',
-                delete=False
-            ).name
-            res = os.system(u'screencapture -m -i -s {}'.format(temppath))
-            if res == 0:
-                self._pixmap = QtGui.QPixmap(temppath)
-        else:
-            self._pixmap = self._get_desktop_pixmap(self._capture_rect)
-
+        self._pixmap = self._get_desktop_pixmap(self._capture_rect)
         self.pixmapCaptured.emit(self._pixmap)
+
 
     def paintEvent(self, event):
         """Paint the capture window."""
@@ -882,11 +871,14 @@ class Viewer(QtWidgets.QGraphicsView):
             return None
 
         self.item = QtWidgets.QGraphicsPixmapItem(pixmap)
+        size = self.item.pixmap().size()
         self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
         self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
 
         self.scene().addItem(self.item)
-        self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
+
+        if size.height() > self.height() or size.width() > self.width():
+            self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
 
         return self.item
 

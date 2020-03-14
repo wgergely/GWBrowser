@@ -289,8 +289,8 @@ class LocalSettings(QtCore.QSettings):
     def favourites(self):
         v = self.value(u'favourites')
         if isinstance(v, (str, unicode)):
-            v = [v, ]
-        v = [f.lower() for f in v] if v else []
+            v = [v.lower(), ]
+        v = [f.strip().lower() for f in v] if v else []
         return v
 
 
