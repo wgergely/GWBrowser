@@ -2,9 +2,8 @@
 """Maya plugin."""
 
 import sys
-import re
+import os
 
-from shiboken2 import wrapInstance
 from PySide2 import QtWidgets, QtCore
 
 from maya.app.general.mayaMixin import mixinWorkspaceControls
@@ -12,6 +11,7 @@ import maya.api.OpenMaya as OpenMaya
 import maya.OpenMayaUI as OpenMayaUI
 
 import maya.cmds as cmds
+
 
 __version__ = u'0.3.0'
 
@@ -35,13 +35,11 @@ def initializePlugin(plugin):
     folder where bookmarks.exe resides.
 
     """
-    import sys
-    import os
 
     k = 'BOOKMARKS_ROOT'
     if k not in os.environ:
         raise EnvironmentError(
-            u'Is Bookmarks installed?\n(Environment variable `{}` is not set)'.format(k))
+            u'Is Bookmarks installed?\n(Environment variable `{}` is not set.)'.format(k))
 
     shared = u'{}{}{}'.format(os.environ[k], os.path.sep, u'shared')
     bin = u'{}{}{}'.format(os.environ[k], os.path.sep, u'bin')
@@ -59,7 +57,8 @@ def initializePlugin(plugin):
     try:
         import bookmarks.common as common
         common.font_db = common.FontDatabase()
-        
+        common.STANDALONE = False
+
         import bookmarks.maya.widget as widget
         widget.maya_button = widget.MayaBrowserButton()
         cmds.evalDeferred(widget.maya_button.initialize)
