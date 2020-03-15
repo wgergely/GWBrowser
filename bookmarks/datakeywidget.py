@@ -77,9 +77,23 @@ class DataKeyViewDelegate(BaseDelegate):
         color = common.TEXT_SELECTED if selected else color
 
         font = common.font_db.primary_font()
+
+        o = common.MARGIN
         rect = QtCore.QRect(option.rect)
-        rect.setLeft(common.MARGIN)
-        rect.setRight(rect.right() - common.MARGIN)
+        if selected:
+            pixmap = images.ImageCache.get_rsc_pixmap(u'check', common.ADD, o)
+            _rect = QtCore.QRect(option.rect)
+            _rect.setSize(pixmap.size())
+            _rect.moveCenter(option.rect.center())
+            _rect.moveLeft(option.rect.left() + ((o + common.INDICATOR_WIDTH) * 0.5))
+            painter.drawPixmap(_rect, pixmap, pixmap.rect())
+            rect = rect.marginsRemoved(QtCore.QMargins(o * 2, 0, o, 0))
+        else:
+            rect = rect.marginsRemoved(QtCore.QMargins(o, 0, o, 0))
+        # rect.setLeft(common.MARGIN)
+        # rect.setRight(rect.right() - common.MARGIN)
+
+
 
         text = index.data(QtCore.Qt.DisplayRole).upper()
         width = 0
