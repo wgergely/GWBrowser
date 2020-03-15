@@ -208,13 +208,18 @@ class LocalSettings(QtCore.QSettings):
         # When active sync is disabled we won't check for config changes
         val = self.value(
             u'preferences/disable_active_sync')
-        if val is True:
+        if val is True and common.STANDALONE is False:
             return
 
         active_paths = self.verify_paths()
+        common.Log.debug(active_paths, self)
+        common.Log.debug(self._active_paths, self)
+
+        self.sync()
 
         if self._active_paths == active_paths:
             return
+
 
         serverChanged = self._active_paths[u'server'] != active_paths[u'server']
         jobChanged = self._active_paths[u'job'] != active_paths[u'job']
@@ -224,19 +229,23 @@ class LocalSettings(QtCore.QSettings):
         fileChanged = self._active_paths[u'file'] != active_paths[u'file']
 
         if serverChanged or jobChanged or rootChanged:
+            common.Log.debug('activeBookmarkChanged', self)
             self.activeBookmarkChanged.emit()
             self._active_paths = active_paths
             return
 
         if assetChanged:
+            common.Log.debug('activeAssetChanged', self)
             self.activeAssetChanged.emit()
             self._active_paths = active_paths
             return
 
         if locationChanged:
+            common.Log.debug('activeLocationChanged', self)
             self.activeLocationChanged.emit(active_paths[u'location'])
 
         if fileChanged:
+            common.Log.debug('activeFileChanged', self)
             self.activeFileChanged.emit(active_paths[u'file'])
 
         self._active_paths = active_paths
