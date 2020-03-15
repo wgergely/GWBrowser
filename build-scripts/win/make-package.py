@@ -144,7 +144,7 @@ def get_dependencies():
         'USERENV',
         'UxTheme',
         'VCOMP140',
-        'VCRUNTIME',
+        # 'VCRUNTIME',
         'VERSION',
         'WINMM',
         'WS2_32',
@@ -237,6 +237,8 @@ def make_folders():
     root = PACKAGE_ROOT + os.path.sep + u'bookmarks'
     if not os.path.isdir(root):
         os.mkdir(root)
+    else:
+        shutil.rmtree(root)
 
     if not os.path.isdir(root + os.path.sep + u'bin'):
         os.mkdir(root + os.path.sep + u'bin')
@@ -341,6 +343,11 @@ def build_bin():
         PACKAGE_ROOT + os.path.sep + u'bookmarks' +
         os.path.sep + 'bin' + os.path.sep + 'python27.dll',
         PACKAGE_ROOT + os.path.sep + u'bookmarks' + os.path.sep + 'python27.dll',
+    )
+    shutil.move(
+        PACKAGE_ROOT + os.path.sep + u'bookmarks' +
+        os.path.sep + 'bin' + os.path.sep + 'vcruntime140.dll',
+        PACKAGE_ROOT + os.path.sep + u'bookmarks' + os.path.sep + 'vcruntime140.dll',
     )
 
 
