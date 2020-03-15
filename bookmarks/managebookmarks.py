@@ -183,6 +183,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
         if event.type() is QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
+
             painter.setBrush(common.BACKGROUND)
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font())
@@ -197,6 +198,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
             )
             painter.end()
             return True
+
         return False
 
     def mode(self):
@@ -323,27 +325,11 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Maximum,
         )
-        effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(effect)
-
-        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0)
-        self.fade_in.setEndValue(1)
-        self.fade_in.setDuration(500)
-
-        self.fade_out = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_out.setStartValue(1)
-        self.fade_out.setEndValue(0)
-        self.fade_out.setDuration(200)
-        self.fade_out.finished.connect(self.hide)
 
         self.setWindowTitle(u'Template Browser')
 
         self._createUI()
         self._connectSignals()
-
-    def showEvent(self, event):
-        self.fade_in.start()
 
     def mode(self):
         return self._mode
