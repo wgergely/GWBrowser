@@ -462,7 +462,7 @@ def export_favourites():
 
         res = QtWidgets.QFileDialog.getSaveFileName(
             caption=u'Select where to save your favourites',
-            filter=u'*.gwb',
+            filter=u'*.favourites',
             dir=QtCore.QStandardPaths.writableLocation(
                 QtCore.QStandardPaths.HomeLocation),
         )
@@ -522,7 +522,7 @@ def import_favourites(source=None):
         if not isinstance(source, unicode):
             res = QtWidgets.QFileDialog.getOpenFileName(
                 caption=u'Select the favourites file to import',
-                filter=u'*.gwb'
+                filter=u'*.favourites'
                 # options=QtWidgets.QFileDialog.ShowDirsOnly
             )
             source, _ = res
@@ -538,7 +538,7 @@ def import_favourites(source=None):
 
             if u'favourites' not in namelist:
                 mbox = QtWidgets.QMessageBox()
-                mbox.setWindowTitle(u'Invalid ".gwb" file')
+                mbox.setWindowTitle(u'Invalid ".favourites" file')
                 mbox.setText(u'This file does not seem to be valid, sorry!')
                 mbox.setInformativeText(
                     u'The favourites list is missing from the archive.')

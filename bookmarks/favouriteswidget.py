@@ -174,7 +174,7 @@ class FavouritesWidget(FilesWidget):
             file_info = QtCore.QFileInfo(url.toLocalFile())
             path = file_info.filePath().lower()
 
-            if file_info.suffix().lower() == u'gwb':
+            if file_info.suffix().lower() == u'favourites':
                 common.import_favourites(source=path)
             else:
                 k = common.proxy_path(path).lower()
