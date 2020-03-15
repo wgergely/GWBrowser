@@ -65,7 +65,7 @@ QSplitter:handle {{
 QStatusBar {{
 	color: rgba({TEXT});
 	background-color: rgba({SEPARATOR});
-	font-family: "{SECONDARY_FONT}";
+	font-family: "{PRIMARY_FONT}";
 	font-size: {SMALL_FONT_SIZE}pt;
 	padding: 8px;
 	margin: 8px;
@@ -415,7 +415,7 @@ QMenu::right-arrow {{
 QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	color: rgba({TEXT});
-	font-family: "{SECONDARY_FONT}";
+	font-family: "{PRIMARY_FONT}";
 	font-size: {SMALL_FONT_SIZE}pt;
 	outline: none;
 	margin: 3px;
