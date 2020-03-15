@@ -13,7 +13,6 @@ building ALembic and OpenImageIO.
 """
 
 import os
-import sys
 import shutil
 import zipfile
 from distutils.dir_util import copy_tree
@@ -392,9 +391,9 @@ def inno_setup():
     os.system(cmd)
 
 if __name__ == '__main__':
-    # make_folders()
-    # libs = get_dependencies()
-    # copy_libs(libs)
-    # build_bin()
-    # install_python_modules()
+    make_folders()
+    libs = get_dependencies()
+    copy_libs(libs)
+    build_bin()
+    install_python_modules()
     inno_setup()
