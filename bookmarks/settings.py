@@ -212,8 +212,6 @@ class LocalSettings(QtCore.QSettings):
             return
 
         active_paths = self.verify_paths()
-        common.Log.debug(active_paths, self)
-        common.Log.debug(self._active_paths, self)
 
         self.sync()
 
