@@ -39,8 +39,9 @@ class StandaloneBrowserWidget(BrowserWidget):
         if self._frameless is True:
             self.setWindowFlags(
                 QtCore.Qt.Window |
-                QtCore.Qt.FramelessWindowHint
-            )
+                QtCore.Qt.FramelessWindowHint)
+            self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+            self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
 
         self.resize_initial_pos = QtCore.QPoint(-1, -1)
         self.resize_initial_rect = None
@@ -69,17 +70,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.tray.activated.connect(self.trayActivated)
 
         self.installEventFilter(self)
-        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setMouseTracking(True)
-
-        effect = QtWidgets.QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(effect)
-
-        self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0.5)
-        self.fade_in.setEndValue(1.0)
-        self.fade_in.setDuration(500)
 
         self.initialized.connect(self.connect_extra_signals)
         self.initialized.connect(self.showNormal)
@@ -240,8 +231,6 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.resize(size)
         self.move(pos)
         common.move_widget_to_available_geo(self)
-
-        self.fade_in.start()
 
     def closeEvent(self, event):
         """Custom close event will minimize the widget to the tray."""
