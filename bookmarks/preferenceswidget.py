@@ -178,25 +178,30 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
     def _createUI(self):
         import bookmarks
         grp = common_ui.get_group(parent=self)
-        row = common_ui.add_row(None, parent=grp, height=None)
+        row = common_ui.add_row(u'Version', parent=grp, height=None)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'icon_bw', None, common.INLINE_ICON_SIZE)
         label.setPixmap(pixmap)
 
-        self.check_updates = common_ui.PaintedButton(
-            u'Update', parent=row)
-        self.show_help = common_ui.PaintedButton(
-            u'Documentation', parent=row)
+        self.check_updates = common_ui.PaintedButton(u'Update', parent=row)
+        self.show_help = common_ui.PaintedButton(u'Documentation', parent=row)
         row.layout().addWidget(label)
-        common_ui.add_label(
-            u'{} v{}'.format(common.PRODUCT, bookmarks.__version__),
-            parent=row
-        )
+        common_ui.add_label(u'v{}'.format(bookmarks.__version__), parent=row)
         row.layout().addWidget(self.check_updates)
         row.layout().addWidget(self.show_help)
         #######################################################
         grp = common_ui.get_group(parent=self)
+        row = common_ui.add_row(None, parent=grp)
+
+        pixmap = images.ImageCache.get_rsc_pixmap(u'rv', None, common.ROW_HEIGHT)
+        icon = QtWidgets.QLabel(parent=self)
+        icon.setPixmap(pixmap)
+        label = common_ui.PaintedLabel(u'Shotgun RV Integration', parent=row)
+        row.layout().addWidget(icon)
+        row.layout().addWidget(label)
+        row.layout().addStretch(1)
+
         row = common_ui.add_row(u'Path to RV', parent=grp)
         self.rv_path = common_ui.add_line_edit(
             u'eg. c:/rv/bin/rv.exe', parent=row)
@@ -208,9 +213,10 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         button.clicked.connect(lambda: common.reveal(self.rv_path.text()))
         row.layout().addWidget(button)
 
+        grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Frameless window', parent=grp)
         self.frameless_window = QtWidgets.QCheckBox(
-            u'Use frameless window', parent=self)
+            u'Use frameless window (restart required)', parent=self)
         row.layout().addStretch(1)
         row.layout().addWidget(self.frameless_window)
         #######################################################
