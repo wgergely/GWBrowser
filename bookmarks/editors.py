@@ -169,7 +169,7 @@ QLineEdit {{
 }}
 """
             .format(
-                FONT=common.font_db.secondary_font().family(),
+                FONT=common.font_db.primary_font().family(),
                 SIZE=common.psize(common.MEDIUM_FONT_SIZE)
             )
         )

@@ -38,7 +38,7 @@ QLineEdit:!read-only:focus{{
     border-bottom: 2px solid rgba({favourite});
 }}
             """.format(
-                fontFamily=common.font_db.secondary_font().family(),
+                fontFamily=common.font_db.primary_font().family(),
                 fontSize=common.psize(common.MEDIUM_FONT_SIZE),
                 favourite=common.rgb(common.FAVOURITE),
                 color='255,255,255,255' if not color else color
@@ -115,7 +115,6 @@ def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
     label.setStyleSheet(
         u'color: rgba({}); font-size: {}pt'.format(
             common.rgb(common.SECONDARY_TEXT),
-    #         common.font_db.secondary_font().family(),
             common.psize(common.SMALL_FONT_SIZE)
         )
     )
