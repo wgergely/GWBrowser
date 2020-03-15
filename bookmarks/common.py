@@ -21,6 +21,7 @@ import OpenImageIO
 import bookmarks._scandir as _scandir
 
 DEBUG_ON = False
+STANDALONE = True # Standalone
 PRODUCT = u'Bookmarks'
 ABOUT_URL = ur'https://gergely-wootsch.com/bookmarks-about'
 
@@ -601,7 +602,8 @@ def get_platform():
     Returns:
         unicode: *mac* or *win*, depending on the platform.
 
-    Raises:        NotImplementedError: If the current platform is not supported.
+    Raises:
+        NotImplementedError: If the current platform is not supported.
 
     """
     ptype = QtCore.QSysInfo().productType().lower()
@@ -846,8 +848,8 @@ class FontDatabase(QtGui.QFontDatabase):
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoMedium', u'Regular', psize(point_size))
-        if self._fonts[k].family() != u'bmRobotoMedium':
+        self._fonts[k] = self.font(u'bmRobotoRegular', u'Regular', psize(point_size))
+        if self._fonts[k].family() != u'bmRobotoRegular':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
 
@@ -1377,32 +1379,32 @@ def push_to_rv(path):
     """Pushes the given given path to RV."""
     import subprocess
     import bookmarks.settings as settings_
+    import bookmarks.common_ui as common_ui
     def get_preference(k): return settings_.local_settings.value(
         u'preferences/{}'.format(k))
 
-    def alert():
-        mbox = QtWidgets.QMessageBox()
-        mbox.setWindowTitle(u'RV not set')
-        mbox.setText(u'Could not push to RV:\nRV was not found.')
-        mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        mbox.exec_()
-
     rv_path = get_preference(u'rv_path')
     if not rv_path:
-        alert()
+        common_ui.ErrorBox(
+            u'Shotgun RV not yet set.',
+            u'Set the RV executable path to Push to RV.'
+        ).exec_()
+        Log.error('RV not set')
         return
 
     rv_info = QtCore.QFileInfo(rv_path)
     if not rv_info.exists():
-        alert()
+        common_ui.ErrorBox(
+            u'Invalid Shotgun RV path set.',
+            u'Make sure the currently set RV path is valid and try again!'
+        ).exec_()
+        Log.error('Invalid RV path set')
         return
 
     if get_platform() == u'win':
         rv_push_path = u'{}/rvpush.exe'.format(rv_info.path())
         if QtCore.QFileInfo(rv_push_path).exists():
-            cmd = u'"{}" -tag Bookmarks set "{}"'.format(rv_push_path, path)
+            cmd = u'"{}" -tag {} set "{}"'.format(rv_push_path, PRODUCT, path)
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
