@@ -75,9 +75,9 @@ class UsersModel(QtCore.QAbstractItemModel):
         super(UsersModel, self).__init__(parent=parent)
         self.INTERNAL_USER_DATA = {}
         self.slacker = Slacker(token, parent=self)
-        self._connectSignals()
+        self._connect_signals()
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.modelDataResetRequested.connect(self.__initdata__)
 
     def __initdata__(self):
@@ -212,9 +212,9 @@ QListView::item:selected {{
         ))
 
         self.set_model()
-        self._connectSignals()
+        self._connect_signals()
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.clicked.connect(self.save_selection)
         self.selectionModel().currentChanged.connect(self.save_selection)
         self.model().modelReset.connect(self.restore_selection)
@@ -291,10 +291,10 @@ class MessageWidget(QtWidgets.QSplitter):
         self.setOrientation(QtCore.Qt.Horizontal)
         self.setWindowTitle(u'Send Slack Message')
 
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
-    def _createUI(self):
+    def _create_UI(self):
         o = 0
         top_widget = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(top_widget)
@@ -340,7 +340,7 @@ class MessageWidget(QtWidgets.QSplitter):
         else:
             self.setSizes([100, 50])
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.user_filter.textChanged.connect(
             self.users_widget.model().setFilterFixedString)
 
@@ -408,10 +408,10 @@ class SlackWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(QtCore.Qt.Widget)
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
@@ -452,7 +452,7 @@ class SlackWidget(QtWidgets.QDialog):
         if not self.token or not self.message_widget.users_widget.model().sourceModel().slacker.isValid():
             self.send_button.setDisabled(True)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.send_button.clicked.connect(self.message_widget.send_message)
         self.channel_button.clicked.connect(self.open_url)
         self.hide_button.clicked.connect(

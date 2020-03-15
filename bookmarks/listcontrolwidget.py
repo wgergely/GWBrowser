@@ -781,12 +781,12 @@ class ListControlWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(ListControlWidget, self).__init__(parent=parent)
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground, True)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-    def _createUI(self):
+    def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -857,7 +857,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.textChanged.emit(index.data(QtCore.Qt.DisplayRole))
         self.listChanged.emit(2)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         pass
 
     def control_view(self):

@@ -1083,7 +1083,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         self.setWindowTitle(common.PRODUCT)
 
-        self._createUI()
+        self._create_UI()
         self.setFocusProxy(self.browserwidget.stackedwidget)
 
         self.workspace_timer = QtCore.QTimer(parent=self)
@@ -1095,7 +1095,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         self.browserwidget.initialized.connect(
             lambda: self.browserwidget.layout().setContentsMargins(0, 0, 0, 0))
-        self.browserwidget.initialized.connect(self.connectSignals)
+        self.browserwidget.initialized.connect(self._connect_signals)
         self.browserwidget.initialized.connect(self.add_context_callbacks)
         self.browserwidget.initialized.connect(self.set_workspace)
         self.browserwidget.initialized.connect(self.workspace_timer.start)
@@ -1141,7 +1141,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def _add_shortcuts(self):
         """Global maya shortcut to do a save as"""
 
-    def _createUI(self):
+    def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -1356,7 +1356,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self._callbacks = []
 
     @QtCore.Slot()
-    def connectSignals(self):
+    def _connect_signals(self):
         self.browserwidget.headerwidget.hide()
 
         bookmarkswidget = self.browserwidget.bookmarkswidget

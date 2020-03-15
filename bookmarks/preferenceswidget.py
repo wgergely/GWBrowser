@@ -30,14 +30,14 @@ class BaseSettingsWidget(QtWidgets.QWidget):
         self.layout().setSpacing(o)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        self._createUI()
+        self._create_UI()
         self._init_values()
-        self._connectSignals()
+        self._connect_signals()
 
-    def _createUI(self):
+    def _create_UI(self):
         pass
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         pass
 
     def _init_values(self):
@@ -49,7 +49,7 @@ class MayaSettingsWidget(BaseSettingsWidget):
         super(MayaSettingsWidget, self).__init__(
             u'Maya Settings', parent=parent)
 
-    def _createUI(self):
+    def _create_UI(self):
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Sync instances', parent=grp)
         self.sync_active_button = QtWidgets.QCheckBox(
@@ -119,7 +119,7 @@ warning dialog. Tick to disable (default is "off"):'
         ######################################################
         self.layout().addStretch(10)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.sync_active_button.toggled.connect(
             lambda x: settings_.local_settings.setValue(get_preference(u'disable_active_sync'), x))
         self.sync_maya_project_button.toggled.connect(
@@ -175,7 +175,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         self.check_updates = None
         self.frameless_window = None
 
-    def _createUI(self):
+    def _create_UI(self):
         import bookmarks
         grp = common_ui.get_group(parent=self)
         row = common_ui.add_row(u'Version', parent=grp, height=None)
@@ -265,7 +265,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
         self.layout().addStretch(10)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         import bookmarks.versioncontrol.versioncontrol as vc
         self.check_updates.clicked.connect(vc.check)
         self.show_help.clicked.connect(
@@ -332,10 +332,10 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
 
     def __init__(self, parent=None):
         super(SectionSwitcherWidget, self).__init__(parent=parent)
-        self._connectSignals()
+        self._connect_signals()
         self.setMaximumWidth(130)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.selectionModel().currentChanged.connect(self.save_settings)
 
     def showEvent(self, event):
@@ -375,11 +375,11 @@ class PreferencesWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setWindowFlags(QtCore.Qt.Widget)
 
-        self._createUI()
+        self._create_UI()
         self._add_sections()
-        self._connectSignals()
+        self._connect_signals()
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN
@@ -428,7 +428,7 @@ class PreferencesWidget(QtWidgets.QDialog):
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.sections_list_widget.selectionModel(
         ).currentChanged.connect(self.current_changed)
 

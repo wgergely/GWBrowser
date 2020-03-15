@@ -18,7 +18,7 @@ class AddAssetWidget(QtWidgets.QDialog):
     def __init__(self, path, parent=None):
         super(AddAssetWidget, self).__init__(parent=parent)
         self.templates_widget = None
-        self.createUI()
+        self._create_UI()
         self.templates_widget.set_path(path)
 
         self.hide_button.clicked.connect(self.close)
@@ -38,7 +38,7 @@ class AddAssetWidget(QtWidgets.QDialog):
             parent=self
         ).exec_()
 
-    def createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN

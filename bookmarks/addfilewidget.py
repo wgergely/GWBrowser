@@ -149,9 +149,9 @@ class SelectButton(QtWidgets.QLabel):
             QtWidgets.QSizePolicy.MinimumExpanding,
         )
 
-        self._connectSignals()
+        self._connect_signals()
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.clicked.connect(self.show_view)
         self.widgetMoved.connect(self.move_view)
         if hasattr(self.view().model(), u'sourceModel'):
@@ -687,9 +687,9 @@ class SelectFolderView(QtWidgets.QTreeView):
         for n in xrange(4):
             self.hideColumn(n + 1)
 
-        self._connectSignals()
+        self._connect_signals()
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.model().directoryLoaded.connect(self.restore_previous_selection)
         self.model().directoryLoaded.connect(self.resize_columns)
         self.model().directoryLoaded.connect(self.adjust_height)
@@ -1520,8 +1520,8 @@ class AddFileWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
 
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
     def increment_file(self):
         """Increments the version number of the current file."""
@@ -1645,7 +1645,7 @@ class AddFileWidget(QtWidgets.QDialog):
         )
         return self._file_path
 
-    def _createUI(self):
+    def _create_UI(self):
         self.thumbnail_widget = ThumbnailButton(
             100, description=u'Add thumbnail...', parent=self)
 
@@ -1760,7 +1760,7 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(self.save_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         """Signals are connected together here."""
         self.bookmark_widget.view().clicked.connect(
             self.bookmark_widget.view().activated)

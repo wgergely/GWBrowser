@@ -155,9 +155,9 @@ class HeaderWidget(QtWidgets.QWidget):
         self.setFixedHeight(common.INLINE_ICON_SIZE +
                             (common.INDICATOR_WIDTH * 2))
 
-        self._createUI()
+        self._create_UI()
 
-    def _createUI(self):
+    def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -350,7 +350,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.init_progress = u'Loading...'
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
 
         if self._frameless is True:
@@ -432,8 +432,8 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self.shortcuts = []
 
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
         self._add_shortcuts()
 
         settings_.local_settings.verify_paths()
@@ -670,7 +670,7 @@ class BrowserWidget(QtWidgets.QWidget):
             index.data(QtCore.Qt.StatusTipRole))
         common.push_to_rv(path)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         """This is where the bulk of the model, view and control widget
         signals and slots are connected.
 

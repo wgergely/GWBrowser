@@ -329,7 +329,7 @@ class MessageBox(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Preferred,
             QtWidgets.QSizePolicy.Preferred
         )
-        self._createUI()
+        self._create_UI()
 
         self.setStyleSheet("""
             QWidget {{
@@ -346,7 +346,7 @@ class MessageBox(QtWidgets.QDialog):
         self.ok_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
 
-    def _createUI(self):
+    def _create_UI(self):
         def get_row(vertical=False, parent=None):
             row = QtWidgets.QWidget(parent=parent)
             if vertical:

@@ -328,8 +328,8 @@ class TemplatesWidget(QtWidgets.QGroupBox):
 
         self.setWindowTitle(u'Template Browser')
 
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
     def mode(self):
         return self._mode
@@ -340,7 +340,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
     def set_path(self, val):
         self._path = val
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.INDICATOR_WIDTH * 2
@@ -389,7 +389,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         splitter.setSizes([80, 120])
         row.layout().addWidget(splitter, 1)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.template_list_widget.selectionModel(
         ).selectionChanged.connect(self.itemActivated)
         self.add_button.clicked.connect(self.create_template)
@@ -565,10 +565,10 @@ class ServerEditor(QtWidgets.QWidget):
         self._rows = []
         self.add_server_button = None
 
-        self.createUI()
+        self._create_UI()
         self.add_rows()
 
-    def createUI(self):
+    def _create_UI(self):
         QtWidgets.QVBoxLayout(self)
         self.layout().setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignHCenter)
         o = 0
@@ -783,12 +783,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.init_timer.setSingleShot(True)
         self.init_timer.timeout.connect(self.init_server_combobox)
 
-        self._createUI()
+        self._create_UI()
 
         self.progressUpdate.connect(self.progress_widget.setText)
         self.progressUpdate.connect(self.progress_widget.repaint)
 
-    def _createUI(self):
+    def _create_UI(self):
         @QtCore.Slot()
         def toggle_server_editor():
             is_hidden = self.server_editor.isHidden()

@@ -126,13 +126,13 @@ class ScrollArea(QtWidgets.QScrollArea):
         self.setWidgetResizable(True)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
         self.init_database_values()
         # self.init_last_used_values()
 
-    def _createUI(self):
+    def _create_UI(self):
         o = common.INDICATOR_WIDTH
         self.setMinimumWidth(360)
         height = common.ROW_BUTTONS_HEIGHT * 0.8
@@ -270,7 +270,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
         # ********************************************
         self.widget().layout().addStretch(1)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.framerate_editor.textEdited.connect(
             lambda v: self.feedback(v, self.framerate_editor))
         self.width_editor.textEdited.connect(
@@ -527,9 +527,9 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setWindowFlags(QtCore.Qt.Widget)
 
-        self._createUI()
+        self._create_UI()
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN

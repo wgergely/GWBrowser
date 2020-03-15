@@ -542,7 +542,7 @@ class CheckBoxButton(QtWidgets.QLabel):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.set_pixmap(self._checked)
         self._entered = False
-        self._connectSignals()
+        self._connect_signals()
 
     def enterEvent(self, event):
         self._entered = True
@@ -569,7 +569,7 @@ class CheckBoxButton(QtWidgets.QLabel):
     def checked(self):
         return self._checked
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.clicked.connect(self.set_pixmap)
 
     def set_pixmap(self, checked):
@@ -765,9 +765,9 @@ class TodoItemWidget(QtWidgets.QWidget):
         super(TodoItemWidget, self).__init__(parent=parent)
         self.editor = None
         self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self._createUI()
+        self._create_UI()
 
-    def _createUI(self):
+    def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
         o = common.INDICATOR_WIDTH
         self.layout().setContentsMargins(o, o, o, o)
@@ -810,12 +810,12 @@ class TodoEditorWidget(QtWidgets.QDialog):
         self.setWindowFlags(QtCore.Qt.Widget)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
-        self._createUI()
+        self._create_UI()
         self.installEventFilter(self)
 
         self.init_lock()
 
-    def _createUI(self):
+    def _create_UI(self):
         """Creates the ui layout."""
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN * 1.5

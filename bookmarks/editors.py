@@ -26,9 +26,9 @@ class ThumbnailViewer(QtWidgets.QWidget):
             QtCore.Qt.FramelessWindowHint |
             QtCore.Qt.WindowStaysOnTopHint
         )
-        self._createUI()
+        self._create_UI()
 
-    def _createUI(self):
+    def _create_UI(self):
         QtWidgets.QHBoxLayout(self)
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
@@ -152,7 +152,7 @@ class DescriptionEditorWidget(QtWidgets.QLineEdit):
 
     def __init__(self, parent=None):
         super(DescriptionEditorWidget, self).__init__(parent=parent)
-        self._connectSignals()
+        self._connect_signals()
 
         self.installEventFilter(self)
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
@@ -174,7 +174,7 @@ QLineEdit {{
             )
         )
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         """Connects signals."""
         self.editingFinished.connect(self.action)
         self.parent().verticalScrollBar().valueChanged.connect(self.hide)
@@ -346,12 +346,12 @@ class FilterEditor(QtWidgets.QDialog):
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
         self.setWindowFlags(QtCore.Qt.Widget)
-        self._createUI()
-        self._connectSignals()
+        self._create_UI()
+        self._connect_signals()
 
         self.setFocusProxy(self.editor_widget)
 
-    def _createUI(self):
+    def _create_UI(self):
         common.set_custom_stylesheet(self)
         QtWidgets.QVBoxLayout(self)
         o = common.MARGIN * 2
@@ -374,7 +374,7 @@ class FilterEditor(QtWidgets.QDialog):
         row.layout().addWidget(self.editor_widget, 1)
         self.layout().addStretch(1)
 
-    def _connectSignals(self):
+    def _connect_signals(self):
         self.editor_widget.returnPressed.connect(
             lambda: self.finished.emit(self.editor_widget.text()))
         self.finished.connect(
@@ -492,14 +492,14 @@ class ThumbnailsWidget(QtWidgets.QWidget):
         super(ThumbnailsWidget, self).__init__(parent=parent)
         self.columns = 5
         common.set_custom_stylesheet(self)
-        self._createUI()
+        self._create_UI()
         # self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         # self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
 
         self.setWindowFlags(QtCore.Qt.Widget)
         self.setWindowTitle(u'Select thumbnail')
 
-    def _createUI(self):
+    def _create_UI(self):
         """Using scandir we will get all the installed thumbnail files from the rsc directory."""
         QtWidgets.QVBoxLayout(self)
         o = 16

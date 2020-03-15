@@ -896,7 +896,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         Note:
             The bulk of the signal are connected together in ``BrowserWidget``'s
-            *_connectSignals* method.
+            *_connect_signals* method.
 
         """
         proxy = FilterProxyModel(parent=self)

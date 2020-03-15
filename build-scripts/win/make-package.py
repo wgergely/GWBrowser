@@ -357,7 +357,7 @@ def install_python_modules():
     if not os.path.isfile(pzip):
         raise RuntimeError('numpy.zip is missing')
     with zipfile.ZipFile(pzip, 'r') as zip:
-        zip.extractall(path=root + os.path.sep + 'shared')
+        zip.extractall(path=root + os.path.sep + 'shared' + os.path.sep + 'numpy')
         print pzip, '>', root + os.path.sep + 'shared'
 
     pzip = os.path.dirname(__file__) + os.path.sep + 'psutil.zip'
