@@ -113,9 +113,10 @@ def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
     common.set_custom_stylesheet(label)
     label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
     label.setStyleSheet(
-        u'color: rgba({}); font-family: "{}";'.format(
+        u'color: rgba({}); font-size: {}pt'.format(
             common.rgb(common.SECONDARY_TEXT),
-            common.font_db.secondary_font().family()
+    #         common.font_db.secondary_font().family(),
+            common.psize(common.SMALL_FONT_SIZE)
         )
     )
     label.setWordWrap(True)
