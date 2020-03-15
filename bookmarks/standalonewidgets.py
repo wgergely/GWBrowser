@@ -77,8 +77,8 @@ class StandaloneBrowserWidget(BrowserWidget):
         self.setGraphicsEffect(effect)
 
         self.fade_in = QtCore.QPropertyAnimation(effect, 'opacity')
-        self.fade_in.setStartValue(0)
-        self.fade_in.setEndValue(1)
+        self.fade_in.setStartValue(0.5)
+        self.fade_in.setEndValue(1.0)
         self.fade_in.setDuration(500)
 
         self.initialized.connect(self.connect_extra_signals)

@@ -5,6 +5,7 @@ __pycache__/
 
 
 # Distribution / packaging
+*.exe
 .Python
 .DS_Store
 build/
