@@ -12,12 +12,10 @@ Usage:
 """
 import re
 import string
-import subprocess
 import uuid
 import time
 import sys
 import functools
-import traceback
 import collections
 
 from PySide2 import QtWidgets, QtGui, QtCore
@@ -31,7 +29,6 @@ import maya.cmds as cmds
 
 import bookmarks.settings as settings_
 import bookmarks.common as common
-import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.browserwidget import BrowserWidget
 import bookmarks.common_ui as common_ui
