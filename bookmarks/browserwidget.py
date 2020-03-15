@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Main widget"""
-import functools
-import sys
+import os
 import time
+import functools
 import subprocess
 from PySide2 import QtWidgets, QtGui, QtCore
 
@@ -324,15 +324,8 @@ class BrowserWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super(BrowserWidget, self).__init__(parent=parent)
-        k = u'preferences/frameless_window'
-        self._frameless = settings_.local_settings.value(k)
-        if self._frameless is True:
-            self.setWindowFlags(
-                QtCore.Qt.Window |
-                QtCore.Qt.FramelessWindowHint
-            )
-
         self.setFocusPolicy(QtCore.Qt.NoFocus)
+
         pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 64)
         self.setWindowIcon(QtGui.QIcon(pixmap))
 
@@ -620,10 +613,12 @@ class BrowserWidget(QtWidgets.QWidget):
         self.shortcuts.append(shortcut)
 
     def open_new_instance(self):
-        path = settings_.local_settings.value(u'installpath')
-        if not path:
-            return
-        subprocess.Popen(path)
+        try:
+            if common.get_platform() == u'win':
+                p = os.environ['BOOKMARKS_ROOT'] + os.path.sep + 'bookmarks.exe'
+                subprocess.Popen(p)
+        except KeyError:
+            common.Log.error(u'Could not open new instance')
 
     def _add_shortcuts(self):
         lc = self.listcontrolwidget
@@ -657,6 +652,10 @@ class BrowserWidget(QtWidgets.QWidget):
             u'Alt+Right', (self.next_tab, ), repeat=True)
         self.add_shortcut(
             u'Alt+Left', (self.previous_tab, ), repeat=True)
+        self.add_shortcut(
+            u'Ctrl+Right', (self.next_tab, ), repeat=True)
+        self.add_shortcut(
+            u'Ctrl+Left', (self.previous_tab, ), repeat=True)
         #
         self.add_shortcut(
             u'Ctrl+P', (self.push_to_rv, ), repeat=False)
@@ -710,7 +709,7 @@ class BrowserWidget(QtWidgets.QWidget):
         b.activated.connect(
             lambda x: settings_.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
         a.activated.connect(
-            lambda x: settings_.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[-1]))
+            lambda x: settings_.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[3]))
         #####################################################
         # Linkage between the different tabs are established here
         # Fist, the parent paths are set
@@ -847,6 +846,7 @@ class BrowserWidget(QtWidgets.QWidget):
         painter = QtGui.QPainter()
         painter.begin(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform)
 
         rect = QtCore.QRect(self.rect())
         pen = QtGui.QPen(QtGui.QColor(35, 35, 35, 255))
@@ -863,21 +863,36 @@ class BrowserWidget(QtWidgets.QWidget):
 
         if not self._initialized:
             font = common.font_db.primary_font()
-
             rect = QtCore.QRect(self.rect())
             align = QtCore.Qt.AlignCenter
             color = QtGui.QColor(255, 255, 255, 80)
 
             pixmaprect = QtCore.QRect(rect)
             center = pixmaprect.center()
-            pixmaprect.setWidth(64)
-            pixmaprect.setHeight(64)
+            s = 96
+            o = common.MARGIN
+
+            pixmaprect.setWidth(s)
+            pixmaprect.setHeight(s)
             pixmaprect.moveCenter(center)
 
+            painter.setBrush(QtGui.QColor(0,0,0,20))
+            pen = QtGui.QPen(QtGui.QColor(0,0,0,20))
+            painter.setPen(pen)
+
+            painter.drawRoundedRect(
+                pixmaprect.marginsAdded(QtCore.QMargins(o * 3, o * 3, o * 3, o * 3)),
+                o, o)
+
             pixmap = images.ImageCache.get_rsc_pixmap(
-                'icon_bw', QtGui.QColor(0, 0, 0, 50), 64)
+                'icon_bw', None, s)
+            painter.setOpacity(0.5)
             painter.drawPixmap(pixmaprect, pixmap, pixmap.rect())
-            rect.setTop(pixmaprect.bottom() + common.INDICATOR_WIDTH)
+            painter.setOpacity(1.0)
+
+            metrics = QtGui.QFontMetricsF(font)
+            rect.setTop(pixmaprect.bottom() + (o * 0.5))
+            rect.setHeight(metrics.height())
             common.draw_aliased_text(
                 painter, font, rect, self.init_progress, align, color)
 
