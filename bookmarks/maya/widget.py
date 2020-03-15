@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
-"""This module defines Bookmarks's ``Maya`` module.
+"""This module defines Bookmarks's ``MayaBrowserWidget``, a dockable `mayaMixin`
+widget that wraps BrowserWidget.
 
-``MayaBrowserWidget`` is a dockable mayaMixin widget that wraps BrowserWidget.
-
-Usage: To show the widget in maya you can use the ``widget.show()``
-command:
+Usage:
 
     .. code-block:: python
 
-    import bookmarks.maya.widget as mBookmarks mBookmarks.show()
-
+        import bookmarks.maya.widget as mb
+        mb.show()
 
 """
 import re
