@@ -39,7 +39,7 @@ def get_info():
     )
 
 
-def exec_():
+def exec_(debug=False):
     """Starts the product as a standalone PySide2 application.
 
     .. code-block:: python
@@ -55,7 +55,7 @@ def exec_():
     bookmarks = importlib.import_module(
         u'{}.standalonewidgets'.format(name))
 
-    from PySide2 import QtWidgets, QtCore, QtGui
+    from PySide2 import QtWidgets, QtCore
 
     if QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication.instance()
@@ -63,6 +63,14 @@ def exec_():
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseOpenGLES)
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, False)
         app = bookmarks.StandaloneApp([])
+
+    if debug:
+        import bookmarks.common as common
+        common.DEBUG_ON = True
+        logview = common.LogView()
+        logview.show()
+
     widget = bookmarks.StandaloneBrowserWidget()
     widget.show()
+
     app.exec_()
