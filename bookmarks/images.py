@@ -47,6 +47,7 @@ def verify_index(func):
 
 
 def oiio_get_qimage(path):
+    """Get the pixel data using OpenImageIO and wrap it in a QImage instance."""
     i = OpenImageIO.ImageInput.open(path)
     if not i:
         common.Log.error(OpenImageIO.geterror())
@@ -750,14 +751,20 @@ class ImageCache(QtCore.QObject):
         # applications and the PNG library. The sRGB profile seems to be out of date
         # and pnglib crashes when encounters an invalid profile.
         # Removing the ICC profile seems to fix the issue. Annoying!
-        if spec.getattribute('ICCProfile'):
-            spec['ICCProfile'] = None
+        _spec = OpenImageIO.ImageSpec()
+        _spec.from_xml(spec.to_xml()) # this doesn't copy the extra attributes
+        for i in spec.extra_attribs:
+            if i.name.lower() == 'iccprofile':
+                continue
+            _spec[i.name] = i.value
+        spec = _spec
+
         # On some dpx images I'm getting "GammaCorrectedinf"
         if spec.get_string_attribute(u'oiio:ColorSpace') == u'GammaCorrectedinf':
-            spec['oiio:ColorSpace'] = 'sRGB'
+            spec['oiio:ColorSpace'] = u'sRGB'
             spec['oiio:Gamma'] = u'0.454545'
 
-        # Initiating a new spec with the modified xml
+        # Initiating a new spec with the modified spec
         _buf = OpenImageIO.ImageBuf(spec)
         _buf.copy_pixels(buf)
         _buf.set_write_format(OpenImageIO.UINT8)
@@ -766,7 +773,7 @@ class ImageCache(QtCore.QObject):
             common.Log.error(u'Destination path is not writable')
             return
 
-        success = buf.write(dest, dtype=OpenImageIO.UINT8)
+        success = _buf.write(dest, dtype=OpenImageIO.UINT8)
         if not success:
             common.Log.error(buf.geterror())
             common.Log.error(OpenImageIO.geterror())
@@ -778,12 +785,13 @@ class ImageCache(QtCore.QObject):
 class Viewer(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super(Viewer, self).__init__(parent=parent)
-        self._scene = QtWidgets.QGraphicsScene(parent=self)
+        self.item = QtWidgets.QGraphicsPixmapItem(parent=self)
+        self.setScene(QtWidgets.QGraphicsScene(parent=self))
+        self.scene().addItem(self.item)
+
         self._track = True
         self._pos = None
-        self.item = None
 
-        self.setScene(self._scene)
         self.setAlignment(QtCore.Qt.AlignCenter)
         self.setBackgroundBrush(QtGui.QColor(0, 0, 0, 0))
         self.setInteractive(True)
@@ -868,14 +876,13 @@ class Viewer(QtWidgets.QGraphicsView):
 
         pixmap = QtGui.QPixmap.fromImage(image)
         if pixmap.isNull():
+            common.Log.error('Could not convert QImage to QPixmap')
             return None
 
-        self.item = QtWidgets.QGraphicsPixmapItem(pixmap)
+        self.item.setPixmap(pixmap)
         size = self.item.pixmap().size()
         self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
         self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
-
-        self.scene().addItem(self.item)
 
         if size.height() > self.height() or size.width() > self.width():
             self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
