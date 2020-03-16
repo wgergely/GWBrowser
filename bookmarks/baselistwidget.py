@@ -17,11 +17,10 @@ from PySide2 import QtWidgets, QtGui, QtCore
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
-from bookmarks.common import Log
 import bookmarks.editors as editors
 from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.delegate as delegate
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.images as images
 
 import bookmarks.threads as threads
@@ -71,6 +70,7 @@ def initdata(func):
         try:
             self.beginResetModel()
             self._interrupt_requested = False
+            common.Log.debug('__initdata__()', self)
             func(self, *args, **kwargs)
             # sort_data emits the reset signals already
             self.blockSignals(True)
@@ -78,7 +78,6 @@ def initdata(func):
             self.blockSignals(False)
             self._interrupt_requested = False
             self.endResetModel()
-            common.Log.success('__initdata__ finished')
         except:
             common.Log.error(u'Error loading the model data')
     return func_wrapper
@@ -214,8 +213,6 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
             common.MarkedAsFavourite: None,
         }
 
-        Log.success('FilterProxyModel initiated.')
-
     def sort(self, column, order=QtCore.Qt.AscendingOrder):
         raise NotImplementedError(
             'Sorting on the proxy model is not implemented.')
@@ -228,15 +225,15 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         model = self.sourceModel()
         data_key = model.data_key()
         cls = model.__class__.__name__
-        self._filter_text = settings_.local_settings.value(
+        self._filter_text = settings.local_settings.value(
             u'widget/{}/{}/filtertext'.format(cls, data_key))
 
         self._filterflags = {
-            common.MarkedAsActive: settings_.local_settings.value(
+            common.MarkedAsActive: settings.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsActive)),
-            common.MarkedAsArchived: settings_.local_settings.value(
+            common.MarkedAsArchived: settings.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsArchived)),
-            common.MarkedAsFavourite: settings_.local_settings.value(
+            common.MarkedAsFavourite: settings.local_settings.value(
                 u'widget/{}/filterflag{}'.format(cls, common.MarkedAsFavourite)),
         }
 
@@ -247,7 +244,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         if self._filterflags[common.MarkedAsFavourite] is None:
             self._filterflags[common.MarkedAsFavourite] = False
 
-        Log.debug('initialize_filter_values()', self)
+        common.Log.debug('initialize_filter_values()', self)
 
     def filter_text(self):
         """Filters the list of items containing this path segment."""
@@ -262,12 +259,12 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         k = u'widget/{}/{}/filtertext'.format(cls, data_key)
 
         # We're in sync and there's nothing to do
-        local_val = settings_.local_settings.value(k)
+        local_val = settings.local_settings.value(k)
         if val == self._filter_text == local_val:
             return
 
         self._filter_text = val.strip()
-        settings_.local_settings.setValue(k, val.strip())
+        settings.local_settings.setValue(k, val.strip())
 
     def filter_flag(self, flag):
         """Returns the current flag-filter."""
@@ -281,7 +278,7 @@ class FilterProxyModel(QtCore.QSortFilterProxyModel):
         self._filterflags[flag] = val
 
         cls = self.sourceModel().__class__.__name__
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/{}/filterflag{}'.format(cls, flag), val)
 
     def filterAcceptsColumn(self, source_column, parent=QtCore.QModelIndex()):
@@ -434,9 +431,9 @@ class BaseModel(QtCore.QAbstractListModel):
             self.set_sort_order(order)
             self.sort_data()
 
-        self.sortingChanged.connect(set_sorting)
         self.sortingChanged.connect(
-            lambda: Log.debug('sortingChanged -> set_sorting', self))
+            lambda: common.Log.debug('sortingChanged -> set_sorting', self))
+        self.sortingChanged.connect(set_sorting)
 
         self.initialize_default_sort_values()
         self.init_generate_thumbnails_enabled()
@@ -473,15 +470,17 @@ class BaseModel(QtCore.QAbstractListModel):
         """Loads the saved sorting values from the local preferences.
 
         """
+        common.Log.debug('initialize_default_sort_values()', self)
+
         cls = self.__class__.__name__
         k = u'widget/{}/sortrole'.format(cls)
-        val = settings_.local_settings.value(k)
+        val = settings.local_settings.value(k)
         if val not in (common.SortByName, common.SortBySize, common.SortByLastModified):
             val = common.SortByName
         self._sortrole = val
 
         k = u'widget/{}/sortorder'.format(cls)
-        val = settings_.local_settings.value(k)
+        val = settings.local_settings.value(k)
         if val not in (True, False):
             val = False
         self._sortorder = val
@@ -499,13 +498,14 @@ class BaseModel(QtCore.QAbstractListModel):
     @QtCore.Slot(int)
     def set_sort_role(self, val):
         """Sets and saves the sort-key."""
-        Log.success('Sort role saved <{}>'.format(val))
+        common.Log.debug('set_sort_role({})'.format(val), self)
+
         if val == self.sort_role():
             return
 
         self._sortrole = val
         cls = self.__class__.__name__
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/{}/sortrole'.format(cls), val)
 
     def sort_order(self):
@@ -515,20 +515,24 @@ class BaseModel(QtCore.QAbstractListModel):
     @QtCore.Slot(int)
     def set_sort_order(self, val):
         """Sets and saves the sort-key."""
-        Log.success('Sort order saved <{}>'.format(val))
+        common.Log.debug('set_sort_order({})'.format(val), self)
+
         if val == self.sort_order():
             return
 
         self._sortorder = val
         cls = self.__class__.__name__
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/{}/sortorder'.format(cls), val)
 
     @QtCore.Slot()
     def sort_data(self):
-        """Sorts the internal `INTERNAL_MODEL_DATA`. Emits
-
+        """Sorts the internal `INTERNAL_MODEL_DATA`.
         """
+        common.Log.debug(u'sort_data()', self)
+
+        self.beginResetModel()
+
         k = self.data_key()
         t = self.data_type()
 
@@ -560,10 +564,9 @@ class BaseModel(QtCore.QAbstractListModel):
                 data[idx][common.IdRole] = n
             d[n] = data[idx]
 
-        self.beginResetModel()
         self.INTERNAL_MODEL_DATA[k][t] = d
+
         self.endResetModel()
-        Log.success(u'sort_data()')
 
     @QtCore.Slot(QtCore.QModelIndex)
     def set_active(self, index):
@@ -577,13 +580,14 @@ class BaseModel(QtCore.QAbstractListModel):
         if not index.isValid():
             self.parent_path = None
             return
-
         self.parent_path = index.data(common.ParentPathRole)
+        self.modelDataResetRequested.emit()
 
     def __resetdata__(self):
         """Resets the internal data."""
+        common.Log.debug('__resetdata__()', self)
+
         self.INTERNAL_MODEL_DATA = common.DataDict()
-        Log.success('__resetdata__')
         self.__initdata__()
 
     @QtCore.Slot()
@@ -595,66 +599,107 @@ class BaseModel(QtCore.QAbstractListModel):
         raise NotImplementedError(
             u'__initdata__ is abstract and must be overriden')
 
+    @QtCore.Slot(QtCore.QThread)
+    def thread_started(self, thread):
+        """Slot connected in initialise_threads().
+        Signals the model an item has been updated.
+
+        """
+        common.Log.debug(u'thread_started()', self)
+        thread.worker.dataReady.connect(
+            lambda: common.Log.debug('dataReady -> updateRow', thread.worker))
+        thread.worker.dataReady.connect(
+            self.updateRow, type=QtCore.Qt.QueuedConnection)
+
+    @QtCore.Slot()
+    def model_loaded(self, ref):
+        """Slot connected in initialise_threads().
+        Slot called by the background file info thread when the thread
+        finished loading the model data.
+
+        The model might need re-sorting, and the proxy
+        invalidating, when the sorting mode is anything but descending
+        alphabetical. Calling sort_data() will emit all signals needed
+        to repopulate.
+
+        """
+        common.Log.debug(u'model_loaded()', self)
+        if not ref():
+            return
+
+        if ref() == self.model_data() and (self.sort_order() or self.sort_role() != common.SortByName):
+            common.Log.debug(u'>>> Model needs re-sorting', self)
+            self.sort_data()
+
+    @QtCore.Slot(QtCore.QThread)
+    @QtCore.Slot(weakref.ref)
+    def put_in_thumbnail_queue(self, thread, ref):
+        """Slot connected in initialise_threads()."""
+        common.Log.success('put_in_thumbnail_queue()')
+        if not ref():
+            return
+        if self.generate_thumbnails_enabled():
+            thread.put(ref, force=True)
+
     def initialise_threads(self):
         """Starts and connects the threads."""
-        @QtCore.Slot(QtCore.QThread)
-        def thread_started(thread):
-            """Signals the model an item has been updated."""
-            thread.worker.dataReady.connect(
-                self.updateRow, QtCore.Qt.QueuedConnection)
-
-        @QtCore.Slot()
-        def model_loaded(ref):
-            if not ref():
-                return
-            if ref() == self.model_data():
-                common.Log.debug(u'model_loaded()')
-                self.sort_data()
-
-        @QtCore.Slot(QtCore.QThread)
-        @QtCore.Slot(weakref.ref)
-        def put_in_thumbnail_queue(thread, ref):
-            if self.generate_thumbnails_enabled():
-                thread.put(ref, force=True)
+        common.Log.debug('initialise_threads()', self)
 
         info_worker = threads.InfoWorker()
         info_thread = threads.BaseThread(info_worker, interval=40)
         self.threads[common.InfoThread].append(info_thread)
-        info_thread.started.connect(partial(thread_started, info_thread))
-        info_thread.start()
+
+        info_thread.started.connect(
+            lambda: common.Log.debug('started -> thread_started', info_thread))
+        info_thread.started.connect(partial(self.thread_started, info_thread))
 
         background_info_worker = threads.BackgroundInfoWorker()
+
         background_info_worker.modelLoaded.connect(
-            model_loaded, QtCore.Qt.QueuedConnection)
+            lambda: common.Log.debug('modelLoaded -> model_loaded', background_info_worker))
+        background_info_worker.modelLoaded.connect(
+            self.model_loaded, QtCore.Qt.QueuedConnection)
+
         background_info_thread = threads.BaseThread(
             background_info_worker, interval=260)
         self.threads[common.BackgroundInfoThread].append(
             background_info_thread)
+
         background_info_thread.started.connect(
-            partial(thread_started, background_info_thread))
-        background_info_thread.start()
+            lambda: common.Log.debug('started -> thread_started', background_info_thread))
+        background_info_thread.started.connect(
+            partial(self.thread_started, background_info_thread))
 
         thumbnails_worker = threads.ThumbnailWorker()
-        thumbnails_thread = threads.BaseThread(thumbnails_worker, interval=40)
+        thumbnails_thread = threads.BaseThread(thumbnails_worker, interval=100)
         self.threads[common.ThumbnailThread].append(thumbnails_thread)
+
         thumbnails_thread.started.connect(
-            partial(thread_started, thumbnails_thread))
-        thumbnails_thread.start()
+            lambda: common.Log.debug('started -> thread_started', thumbnails_thread))
+        thumbnails_thread.started.connect(
+            partial(self.thread_started, thumbnails_thread))
 
         # The condition for loading a thumbnail is that the item must already
         # have its file info loaded. However, it is possible that the thumbnail
-        # worker would consume an ininitiated item, leaving the thumbnail
+        # worker would consume an uninitiated item, leaving the thumbnail
         # unloaded. Hooking the dataReady signal up here means initiated
         # items will be sent to the thumbnail thread's queue to read the thumbnail
+        # info_worker.dataReady.connect(
+        #     lambda: common.Log.debug())
         info_worker.dataReady.connect(
-            partial(put_in_thumbnail_queue, thumbnails_thread),
-            type=QtCore.Qt.QueuedConnection
-        )
+            partial(self.put_in_thumbnail_queue, thumbnails_thread),
+            type=QtCore.Qt.QueuedConnection)
+
+        background_info_thread.start()
+        info_thread.start()
+        thumbnails_thread.start()
 
     def init_generate_thumbnails_enabled(self):
+        common.Log.debug('init_generate_thumbnails_enabled()', self)
+
         cls = self.__class__.__name__
         k = u'widget/{}/generate_thumbnails'.format(cls)
-        v = settings_.local_settings.value(k)
+        v = settings.local_settings.value(k)
         v = True if v is None else v
         self._generate_thumbnails_enabled = v
 
@@ -665,7 +710,7 @@ class BaseModel(QtCore.QAbstractListModel):
     def set_generate_thumbnails_enabled(self, val):
         cls = self.__class__.__name__
         k = u'widget/{}/generate_thumbnails'.format(cls)
-        settings_.local_settings.setValue(k, val)
+        settings.local_settings.setValue(k, val)
         self._generate_thumbnails_enabled = val
 
     @QtCore.Slot()
@@ -683,10 +728,11 @@ class BaseModel(QtCore.QAbstractListModel):
         Called by the ``modelAboutToBeReset`` signal.
 
         """
+        common.Log.debug('reset_thread_worker_queues()', self)
+
         for k in self.threads:
             for thread in self.threads[k]:
                 thread.worker.resetQueue.emit()
-        Log.success('reset_thread_worker_queues()')
 
     def model_data(self):
         """A pointer to the model's currently set internal data."""
@@ -760,7 +806,7 @@ class BaseModel(QtCore.QAbstractListModel):
         if data_key not in self._datatype:
             cls = self.__class__.__name__
             key = u'widget/{}/{}/datatype'.format(cls, data_key)
-            val = settings_.local_settings.value(key)
+            val = settings.local_settings.value(key)
             val = val if val else common.SequenceItem
             self._datatype[data_key] = val
         return self._datatype[data_key]
@@ -768,7 +814,10 @@ class BaseModel(QtCore.QAbstractListModel):
     @QtCore.Slot(int)
     def set_data_type(self, val):
         """Sets the data type to `FileItem` or `SequenceItem`."""
+        common.Log.debug('set_data_type({})>'.format(val), self)
+
         self.beginResetModel()
+
         try:
             data_key = self.data_key()
             if data_key not in self._datatype:
@@ -782,13 +831,12 @@ class BaseModel(QtCore.QAbstractListModel):
 
             cls = self.__class__.__name__
             key = u'widget/{}/{}/datatype'.format(cls, self.data_key())
-            settings_.local_settings.save_state(u'location', val)
-            settings_.local_settings.setValue(key, val)
+            settings.local_settings.save_state(u'location', val)
+            settings.local_settings.setValue(key, val)
             self._datatype[data_key] = val
 
-            common.Log.success('Data type set <"{}">'.format(val))
         except:
-            common.Log.error('Error setting data key')
+            common.Log.error(u'Error setting data key')
         finally:
             self.blockSignals(True)
             self.sort_data()
@@ -839,8 +887,8 @@ class BaseListWidget(QtWidgets.QListView):
         self.description_editor_widget.setHidden(True)
 
         k = u'widget/{}/buttons_hidden'.format(self.__class__.__name__)
-        self._buttons_hidden = False if settings_.local_settings.value(
-            k) is None else settings_.local_settings.value(k)
+        self._buttons_hidden = False if settings.local_settings.value(
+            k) is None else settings.local_settings.value(k)
 
         # Keyboard search timer and placeholder string.
         self.timer = QtCore.QTimer(parent=self)
@@ -884,7 +932,7 @@ class BaseListWidget(QtWidgets.QListView):
         """Sets the visibility of the inline icon buttons."""
         cls = self.__class__.__name__
         k = u'widget/{}/buttons_hidden'.format(cls)
-        settings_.local_settings.setValue(k, val)
+        settings.local_settings.setValue(k, val)
         self._buttons_hidden = val
 
     def set_model(self, model):
@@ -900,11 +948,17 @@ class BaseListWidget(QtWidgets.QListView):
 
         """
         proxy = FilterProxyModel(parent=self)
-        proxy.setSourceModel(model)
 
         self.blockSignals(True)
+        proxy.blockSignals(True)
+
+        proxy.setSourceModel(model)
         self.setModel(proxy)
+        proxy.initialize_filter_values()
+
+        proxy.blockSignals(False)
         self.blockSignals(False)
+
 
         self.interruptRequested.connect(model.set_interrupt_requested)
 
@@ -913,62 +967,72 @@ class BaseListWidget(QtWidgets.QListView):
         model.modelReset.connect(
             lambda: common.Log.debug('<<< modelReset >>>', model))
 
-        model.modelDataResetRequested.connect(model.__resetdata__)
         model.modelDataResetRequested.connect(
             lambda: common.Log.debug('modelDataResetRequested -> __resetdata__', model))
+        model.modelDataResetRequested.connect(model.__resetdata__)
 
-        model.activeChanged.connect(self.save_activated)
         model.activeChanged.connect(
             lambda: common.Log.debug('activeChanged -> save_activated', model))
+        model.activeChanged.connect(self.save_activated)
 
         # Data key, eg. 'scenes'
-        model.dataKeyChanged.connect(model.set_data_key)
-        model.dataKeyChanged.connect(proxy.invalidate)
         model.dataKeyChanged.connect(
             lambda: common.Log.debug('dataKeyChanged -> set_data_key', model))
+        model.dataKeyChanged.connect(model.set_data_key)
+
+        model.dataKeyChanged.connect(
+            lambda: common.Log.debug('dataKeyChanged -> proxy.invalidate', model))
+        model.dataKeyChanged.connect(proxy.invalidate)
+
         # FileItem/SequenceItem
-        model.dataTypeChanged.connect(model.set_data_type)
+        model.dataTypeChanged.connect(
+            lambda: common.Log.debug('dataTypeChanged -> proxy.invalidate', model))
         model.dataTypeChanged.connect(proxy.invalidate)
+
         model.dataTypeChanged.connect(
             lambda: common.Log.debug('dataTypeChanged -> set_data_type', model))
+        model.dataTypeChanged.connect(model.set_data_type)
 
-        proxy.filterTextChanged.connect(proxy.set_filter_text)
         proxy.filterTextChanged.connect(
             lambda: common.Log.debug('filterTextChanged -> set_filter_text', proxy))
-        proxy.filterFlagChanged.connect(proxy.set_filter_flag)
+        proxy.filterTextChanged.connect(proxy.set_filter_text)
+
         proxy.filterFlagChanged.connect(
             lambda: common.Log.debug('filterFlagChanged -> set_filter_flag', proxy))
-        proxy.filterTextChanged.connect(proxy.invalidateFilter)
+        proxy.filterFlagChanged.connect(proxy.set_filter_flag)
+
         proxy.filterTextChanged.connect(
             lambda: common.Log.debug('filterTextChanged -> invalidateFilter', proxy))
-        proxy.filterFlagChanged.connect(proxy.invalidateFilter)
+        proxy.filterTextChanged.connect(proxy.invalidateFilter)
+
         proxy.filterFlagChanged.connect(
             lambda: common.Log.debug('filterFlagChanged -> invalidateFilter', proxy))
+        proxy.filterFlagChanged.connect(proxy.invalidateFilter)
 
-        model.modelAboutToBeReset.connect(self.reset_multitoggle)
         model.modelAboutToBeReset.connect(
             lambda: common.Log.debug('modelAboutToBeReset -> reset_multitoggle', model))
+        model.modelAboutToBeReset.connect(self.reset_multitoggle)
 
-        self.filter_editor.finished.connect(proxy.filterTextChanged)
         self.filter_editor.finished.connect(
             lambda: common.Log.debug('finished -> filterTextChanged', self.filter_editor))
+        self.filter_editor.finished.connect(proxy.filterTextChanged)
 
-        model.updateIndex.connect(
-            self.update, type=QtCore.Qt.DirectConnection)
         model.updateIndex.connect(
             lambda: common.Log.debug('updateIndex -> update', model))
+        model.updateIndex.connect(
+            self.update, type=QtCore.Qt.DirectConnection)
 
-        # model.modelReset.connect(proxy.invalidateFilter)
-        model.modelReset.connect(
-            lambda: common.Log.debug('modelReset -> proxy.invalidateFilter', model))
-        model.modelReset.connect(self.reselect_previous)
         model.modelReset.connect(
             lambda: common.Log.debug('modelReset -> reselect_previous', model))
+        model.modelReset.connect(self.reselect_previous)
 
+        model.updateRow.connect(
+            lambda: common.Log.debug('updateRow -> update_row', model))
         model.updateRow.connect(self.update_row)
-        proxy.initialize_filter_values()
 
-        model.modelReset.connect(self.reset)
+        model.modelReset.connect(
+            lambda: common.Log.debug('modelReset -> scheduleDelayedItemsLayout', model))
+        model.modelReset.connect(self.scheduleDelayedItemsLayout)
 
     @QtCore.Slot(QtCore.QModelIndex)
     def update(self, index):
@@ -990,15 +1054,16 @@ class BaseListWidget(QtWidgets.QListView):
     @QtCore.Slot(weakref.ref)
     def update_row(self, ref):
         """Slot used to update the row associated with the data segment."""
+        common.Log.debug('update_row(ref)', self)
         if not ref():
             return
+
         if self.isHidden():
             return
         model = self.model()
         index = model.sourceModel().index(ref()[common.IdRole], 0)
         index = model.mapFromSource(index)
         super(BaseListWidget, self).update(index)
-        common.Log.debug('Row {} repainted'.format(index.row()))
 
     def request_visible_fileinfo_load(self):
         pass
@@ -1012,7 +1077,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         Note:
             The method emits the ``activeChanged`` signal but itself does not
-            save the change to the settings_.local_settings. That is handled by connections
+            save the change to the settings.local_settings. That is handled by connections
             to the signal.
 
         """
@@ -1077,7 +1142,7 @@ class BaseListWidget(QtWidgets.QListView):
             self.model().sourceModel().data_key(),
         )
         v = common.proxy_path(index)
-        settings_.local_settings.setValue(k, v)
+        settings.local_settings.setValue(k, v)
 
     @QtCore.Slot()
     def reselect_previous(self):
@@ -1088,7 +1153,7 @@ class BaseListWidget(QtWidgets.QListView):
             cls,
             self.model().sourceModel().data_key(),
         )
-        val = settings_.local_settings.value(k)
+        val = settings.local_settings.value(k)
 
         if not val:
             return
@@ -1152,7 +1217,7 @@ class BaseListWidget(QtWidgets.QListView):
                 db.setValue(k, u'flags', f)
 
         def save_to_local_settings(k, mode, flag):
-            favourites = settings_.local_settings.favourites()
+            favourites = settings.local_settings.favourites()
             sfavourites = set(favourites)
             if mode:
                 favourites.append(k.strip().lower())
@@ -1161,7 +1226,7 @@ class BaseListWidget(QtWidgets.QListView):
                     favourites.remove(k.strip().lower())
 
             v = sorted(list(set(favourites)))
-            settings_.local_settings.setValue(u'favourites', v)
+            settings.local_settings.setValue(u'favourites', v)
 
         def save_active(k, mode, flag):
             pass
@@ -1472,9 +1537,19 @@ class BaseListWidget(QtWidgets.QListView):
                 self.key_tab()
 
     def wheelEvent(self, event):
+        event.accept()
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
+
         if not control_modifier:
+            shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
+            o = 9 if shift_modifier else 0
+            v = self.verticalScrollBar().value()
+            if event.angleDelta().y() > 0:
+                v = self.verticalScrollBar().setValue(v + 1 + o)
+            else:
+                v = self.verticalScrollBar().setValue(v - 1 + o)
             return
+
         if event.angleDelta().y() > 0:
             self.increase_row_size()
         else:
@@ -1634,9 +1709,13 @@ class BaseListWidget(QtWidgets.QListView):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         o = 4
 
+        _s = self._get_status_string()
+        if not _s:
+            return
+
         rect = rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o))
         painter.setPen(QtCore.Qt.NoPen)
-        painter.setBrush(common.SEPARATOR)
+        painter.setBrush(QtGui.QColor(0,0,0,50))
         painter.setOpacity(0.3)
         painter.drawRoundedRect(rect, o, o)
         painter.setOpacity(1.0)
@@ -1645,7 +1724,7 @@ class BaseListWidget(QtWidgets.QListView):
         painter.drawText(
             rect.marginsRemoved(QtCore.QMargins(o * 3, o, o * 3, o)),
             QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter | QtCore.Qt.TextWordWrap,
-            self._get_status_string(),
+            _s,
             boundingRect=rect,
         )
         painter.end()
@@ -1680,7 +1759,7 @@ class BaseListWidget(QtWidgets.QListView):
             return
         model.ROW_SIZE.setHeight(int(v))
 
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/rowheight', int(v))
 
         # Save selection
@@ -1688,7 +1767,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         model.reset_thumbnails()
         self.scheduleDelayedItemsLayout()
-        self.restart_requestinfo_timers()
+        self.start_requestinfo_timers()
 
         # Reset selection
         index = proxy.index(row, 0)
@@ -1705,7 +1784,7 @@ class BaseListWidget(QtWidgets.QListView):
             v = common.ROW_HEIGHT
         model.ROW_SIZE.setHeight(int(v))
 
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/rowheight', int(v))
 
         # Save selection
@@ -1713,7 +1792,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         model.reset_thumbnails()
         self.scheduleDelayedItemsLayout()
-        self.restart_requestinfo_timers()
+        self.start_requestinfo_timers()
 
         # Reset selection
         index = proxy.index(row, 0)
@@ -1785,6 +1864,8 @@ class BaseListWidget(QtWidgets.QListView):
         model.dropMimeData(
             event.mimeData(), event.proposedAction(), index.row(), 0)
 
+    def showEvent(self, event):
+        self.scheduleDelayedItemsLayout()
 
 class BaseInlineIconWidget(BaseListWidget):
     """Multi-toggle capable widget with clickable in-line icons."""
@@ -2071,7 +2152,7 @@ class BaseInlineIconWidget(BaseListWidget):
             return None
 
     @QtCore.Slot()
-    def restart_requestinfo_timers(self):
+    def start_requestinfo_timers(self):
         pass
 
     @QtCore.Slot()
@@ -2093,17 +2174,17 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
     def __init__(self, parent=None):
         super(ThreadedBaseWidget, self).__init__(parent=parent)
 
+        self.queue_model_timer = QtCore.QTimer(parent=self)
+        self.queue_model_timer.setSingleShot(True)
+        self.queue_model_timer.setInterval(100)
+
         self.request_visible_fileinfo_timer = QtCore.QTimer(parent=self)
         self.request_visible_fileinfo_timer.setSingleShot(True)
-        self.request_visible_fileinfo_timer.setInterval(500)
+        self.request_visible_fileinfo_timer.setInterval(150)
 
         self.request_visible_thumbnail_timer = QtCore.QTimer(parent=self)
         self.request_visible_thumbnail_timer.setSingleShot(True)
-        self.request_visible_thumbnail_timer.setInterval(150)
-
-        self.queue_model_timer = QtCore.QTimer(parent=self)
-        self.queue_model_timer.setSingleShot(True)
-        self.queue_model_timer.setInterval(200)
+        self.request_visible_thumbnail_timer.setInterval(200)
 
         self.connect_thread_signals()
 
@@ -2115,82 +2196,151 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
         # Empty the queue when the data changes
         model.modelAboutToBeReset.connect(
-            model.reset_thread_worker_queues, cnx_type)
-        model.modelAboutToBeReset.connect(
             lambda: common.Log.debug('modelAboutToBeReset -> reset_thread_worker_queues', model))
+        model.modelAboutToBeReset.connect(
+            model.reset_thread_worker_queues, cnx_type)
 
-        model.modelReset.connect(
+        model.modelAboutToBeReset.connect(
+            lambda: common.Log.debug('modelAboutToBeReset -> reset_file_info_loaded', model))
+        model.modelAboutToBeReset.connect(
             model.reset_file_info_loaded, cnx_type)
-        model.modelReset.connect(
-            lambda: common.Log.debug('modelReset -> reset_file_info_loaded', model))
 
-        self.request_visible_fileinfo_timer.timeout.connect(
-            self.request_visible_fileinfo_load, cnx_type)
         self.request_visible_fileinfo_timer.timeout.connect(
             lambda: common.Log.debug('timeout -> request_visible_fileinfo_load', self.request_visible_fileinfo_timer))
+        self.request_visible_fileinfo_timer.timeout.connect(
+            self.request_visible_fileinfo_load, cnx_type)
 
-        self.request_visible_thumbnail_timer.timeout.connect(
-            self.request_visible_thumbnail_load, cnx_type)
         self.request_visible_thumbnail_timer.timeout.connect(
             lambda: common.Log.debug('timeout -> request_visible_thumbnail_load', self.request_visible_thumbnail_timer))
+        self.request_visible_thumbnail_timer.timeout.connect(
+            self.request_visible_thumbnail_load, cnx_type)
+
+        # Start / Stop request info timers
+        model.modelAboutToBeReset.connect(
+            lambda: common.Log.debug('modelAboutToBeReset -> stop_requestinfo_timers', model))
+        model.modelAboutToBeReset.connect(
+            self.stop_requestinfo_timers, cnx_type)
+        model.modelReset.connect(
+            lambda: common.Log.debug('modelReset -> start_requestinfo_timers', model))
+        model.modelReset.connect(
+            self.start_requestinfo_timers, cnx_type)
+
+        # Filter changed
+        proxy.filterTextChanged.connect(
+            lambda: common.Log.debug('filterTextChanged -> start_requestinfo_timers', proxy))
+        proxy.filterTextChanged.connect(
+            self.start_requestinfo_timers, cnx_type)
+        proxy.filterFlagChanged.connect(
+            lambda: common.Log.debug('filterFlagChanged -> start_requestinfo_timers', proxy))
+        proxy.filterFlagChanged.connect(
+            self.start_requestinfo_timers, cnx_type)
+
+        # Slider - Pressed / Released
+        model.modelAboutToBeReset.connect(lambda: self.verticalScrollBar().blockSignals(True))
+        model.modelReset.connect(lambda: self.verticalScrollBar().blockSignals(False))
+
+        self.verticalScrollBar().sliderPressed.connect(
+            lambda: common.Log.debug('sliderPressed -> reset_thread_worker_queues', self.verticalScrollBar()))
+        self.verticalScrollBar().sliderPressed.connect(
+            model.reset_thread_worker_queues)
+        self.verticalScrollBar().sliderPressed.connect(
+            lambda: common.Log.debug('sliderPressed -> stop_requestinfo_timers', self.verticalScrollBar()))
+        self.verticalScrollBar().sliderPressed.connect(
+            self.stop_requestinfo_timers)
+
+        self.verticalScrollBar().sliderReleased.connect(
+            lambda: common.Log.debug('sliderReleased -> reset_thread_worker_queues', self.verticalScrollBar()))
+        self.verticalScrollBar().sliderReleased.connect(
+            model.reset_thread_worker_queues)
+        self.verticalScrollBar().sliderReleased.connect(
+            lambda: common.Log.debug('sliderReleased -> start_requestinfo_timers', self.verticalScrollBar()))
+        self.verticalScrollBar().sliderReleased.connect(
+            self.start_requestinfo_timers)
 
         self.verticalScrollBar().valueChanged.connect(
-            self.restart_requestinfo_timers, cnx_type)
+            lambda: common.Log.debug('valueChanged -> start_requestinfo_timers', self.verticalScrollBar()))
         self.verticalScrollBar().valueChanged.connect(
-            lambda: common.Log.debug('valueChanged -> restart_requestinfo_timers', self.verticalScrollBar()))
-
-        model.modelAboutToBeReset.connect(
-            self.request_visible_fileinfo_timer.stop, cnx_type)
-        model.modelAboutToBeReset.connect(
-            lambda: common.Log.debug('modelAboutToBeReset -> request_visible_fileinfo_timer.stop', model))
-
-        model.modelAboutToBeReset.connect(
-            self.request_visible_thumbnail_timer.stop, cnx_type)
-        model.modelAboutToBeReset.connect(
-            lambda: common.Log.debug('modelAboutToBeReset -> request_visible_thumbnail_timer.stop', model))
-
-        model.modelReset.connect(
-            self.restart_requestinfo_timers, cnx_type)
-        model.modelReset.connect(
-            lambda: common.Log.debug('modelReset -> restart_requestinfo_timers', model))
-
-        proxy.filterTextChanged.connect(
-            self.restart_requestinfo_timers, cnx_type)
-        proxy.filterTextChanged.connect(
-            lambda: common.Log.debug('filterTextChanged -> restart_requestinfo_timers', proxy))
-        proxy.filterFlagChanged.connect(
-            self.restart_requestinfo_timers, cnx_type)
-        proxy.filterFlagChanged.connect(
-            lambda: common.Log.debug('filterFlagChanged -> restart_requestinfo_timers', proxy))
+            self.start_requestinfo_timers, cnx_type)
 
         # Thread update signals
         for k in model.threads:
             for thread in model.threads[k]:
-                model.modelAboutToBeReset.connect(thread.stopTimer)
                 model.modelAboutToBeReset.connect(
-                    lambda: common.Log.debug('modelAboutToBeReset -> thread.stopTimer', model))
+                    lambda: common.Log.debug('modelAboutToBeReset -> stopTimer', model))
+                model.modelAboutToBeReset.connect(partial(thread.stopTimer.emit))
+                model.modelAboutToBeReset.connect(partial(thread.worker.resetQueue.emit))
 
-                model.modelReset.connect(thread.startTimer)
                 model.modelReset.connect(
-                    lambda: common.Log.debug('modelReset -> thread.startTimer', model))
+                    lambda: common.Log.debug('modelReset -> startTimer', model))
+                model.modelReset.connect(partial(thread.startTimer.emit))
 
-        model.modelReset.connect(self.queue_model_timer.start)
+        # Queue model data
         self.queue_model_timer.timeout.connect(self.queue_model_data)
 
+        model.modelAboutToBeReset.connect(
+            lambda: common.Log.debug('modelAboutToBeReset -> queue_model_timer.stop', model))
+        model.modelAboutToBeReset.connect(
+            self.queue_model_timer.stop, cnx_type)
+
+        model.modelReset.connect(
+            lambda: common.Log.debug('modelReset -> queue_model_timer.start', model))
+        model.modelReset.connect(self.queue_model_timer.start)
+
+        model.modelReset.connect(
+            lambda: self.verticalScrollBar().valueChanged.emit(self.verticalScrollBar().value()))
+
     @QtCore.Slot()
-    def restart_requestinfo_timers(self):
+    def start_requestinfo_timers(self):
         """Fires the timer responsible for updating the visible model indexes on
         a threaded viewer.
 
         """
+        if self.verticalScrollBar().isSliderDown():
+            return
+
+        model = self.model().sourceModel()
+
+        for thread in model.threads[common.InfoThread]:
+            thread.startTimer.emit()
+        for thread in model.threads[common.ThumbnailThread]:
+            thread.startTimer.emit()
+
+        common.Log.debug('start()', self.request_visible_fileinfo_timer)
         self.request_visible_fileinfo_timer.start(
             self.request_visible_fileinfo_timer.interval())
+
+        common.Log.debug('start()', self.request_visible_thumbnail_timer)
         self.request_visible_thumbnail_timer.start(
             self.request_visible_thumbnail_timer.interval())
+
+
+    @QtCore.Slot()
+    def stop_requestinfo_timers(self):
+        """Fires the timer responsible for updating the visible model indexes on
+        a threaded viewer.
+
+        """
+        model = self.model().sourceModel()
+
+        for thread in model.threads[common.InfoThread]:
+            thread.stopTimer.emit()
+            thread.worker.resetQueue.emit()
+        for thread in model.threads[common.ThumbnailThread]:
+            thread.stopTimer.emit()
+            thread.worker.resetQueue.emit()
+
+        common.Log.debug('stop()', self.request_visible_fileinfo_timer)
+        self.request_visible_fileinfo_timer.stop()
+
+        common.Log.debug('stop()', self.request_visible_thumbnail_timer)
+        self.request_visible_thumbnail_timer.stop()
+
 
     @QtCore.Slot()
     def queue_model_data(self):
         """Queues the model data for the BackgroundInfoThread to process."""
+        common.Log.debug('queue_model_data()', self)
+
         model = self.model().sourceModel()
         threads = model.threads[common.BackgroundInfoThread]
         if not threads:
@@ -2212,8 +2362,6 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             ref = weakref.ref(model.INTERNAL_MODEL_DATA[k][_t])
             threads[0].put(ref)
 
-        common.Log.success('queue_model_data()')
-
     @QtCore.Slot()
     def request_visible_fileinfo_load(self):
         """The sourceModel() loads its data in multiples steps: There's a
@@ -2222,6 +2370,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         indexes to the threads so they can update the model accordingly.
 
         """
+        common.Log.debug('request_visible_fileinfo_load()', self)
+
         if not self.isVisible():
             return
 
@@ -2229,6 +2379,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
             proxy = self.model()
             model = proxy.sourceModel()
             data = model.model_data()
+
             if not proxy.rowCount():
                 return
 
@@ -2255,13 +2406,10 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         except:
             common.Log.error('request_visible_fileinfo_load() failed')
         finally:
-            common.Log.success('request_visible_fileinfo_load()')
-            # Thread update signals
             for k in model.threads:
                 for thread in model.threads[k]:
-                    if not thread.timer.isActive():
-                        thread.startTimer.emit()
-                        common.Log.info('thread.startTimer.emit()')
+                    common.Log.debug('thread.startTimer.emit()', self)
+                    thread.startTimer.emit()
 
     @QtCore.Slot()
     def request_visible_thumbnail_load(self):
@@ -2271,6 +2419,8 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         indexes to the threads so they can update the model accordingly.
 
         """
+        common.Log.debug('request_visible_thumbnail_load()', self)
+
         if not self.isVisible():
             return
 
@@ -2310,8 +2460,7 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
 
                 if model.generate_thumbnails_enabled():
                     if tcount and info_loaded and not thumb_loaded:
-                        model.threads[common.ThumbnailThread][t %
-                                                              tcount].put(ref)
+                        model.threads[common.ThumbnailThread][t % tcount].put(ref)
                         t += 1
 
                 rect.moveTop(rect.top() + rect.height())
@@ -2321,26 +2470,11 @@ class ThreadedBaseWidget(BaseInlineIconWidget):
         except:
             common.Log.error('request_visible_thumbnail_load() failed')
         finally:
-            common.Log.success('request_visible_thumbnail_load()')
             # Thread update signals
             for k in model.threads:
                 for thread in model.threads[k]:
-                    if not thread.timer.isActive():
-                        thread.startTimer.emit()
-                        common.Log.info('thread.startTimer.emit()')
-
-    def showEvent(self, event):
-        super(ThreadedBaseWidget, self).showEvent(event)
-        # self.model().invalidateFilter()
-        # self.reset()
-        index = self.indexAt(self.rect().topLeft())
-        if not index.isValid():
-            return
-        needs_info = not index.data(common.FileInfoLoaded)
-        needs_thumbnail = not index.data(common.FileThumbnailLoaded)
-        if needs_info or needs_thumbnail:
-            self.model().sourceModel().reset_thread_worker_queues()
-            self.restart_requestinfo_timers()
+                    common.Log.debug('thread.startTimer.emit()', self)
+                    thread.startTimer.emit()
 
 
 class StackedWidget(QtWidgets.QStackedWidget):
@@ -2374,7 +2508,7 @@ class StackedWidget(QtWidgets.QStackedWidget):
 
         if idx <= 3:
             k = u'widget/mode'
-            settings_.local_settings.setValue(k, idx)
+            settings.local_settings.setValue(k, idx)
 
         super(StackedWidget, self).setCurrentIndex(idx)
 
