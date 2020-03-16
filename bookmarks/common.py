@@ -394,7 +394,7 @@ class LogView(QtWidgets.QTextBrowser):
             return
 
         self._cached = v
-        self.setText(v[-10000:])
+        self.setText(v[-30000:])
         self.highlighter.rehighlight()
         v = self.format_regex.sub(u'', self.document().toHtml())
         self.setHtml(v)
@@ -457,7 +457,7 @@ def export_favourites():
     """Saves all favourites including the descriptions and the thumbnails."""
     try:
         import uuid
-        import bookmarks.settings as settings_
+        import bookmarks.settings as settings
         import bookmarks.bookmark_db as bookmark_db
 
         res = QtWidgets.QFileDialog.getSaveFileName(
@@ -470,7 +470,7 @@ def export_favourites():
         if not destination:
             return
 
-        favourites = settings_.local_settings.favourites()
+        favourites = settings.local_settings.favourites()
         server, job, root = get_favourite_parent_paths()
         db = bookmark_db.get_db(
             QtCore.QModelIndex(),
@@ -516,7 +516,7 @@ def export_favourites():
 
 def import_favourites(source=None):
     try:
-        import bookmarks.settings as settings_
+        import bookmarks.settings as settings
         import bookmarks.bookmark_db as bookmark_db
 
         if not isinstance(source, unicode):
@@ -529,7 +529,7 @@ def import_favourites(source=None):
             if not source:
                 return
 
-        current_favourites = settings_.local_settings.favourites()
+        current_favourites = settings.local_settings.favourites()
         create_temp_dir()
 
         with zipfile.ZipFile(source) as zip:
@@ -566,7 +566,7 @@ def import_favourites(source=None):
                     current_favourites.append(favourite)
 
             current_favourites = sorted(list(set(current_favourites)))
-            settings_.local_settings.setValue(u'favourites', current_favourites)
+            settings.local_settings.setValue(u'favourites', current_favourites)
 
     except Exception as e:
         import bookmarks.common_ui as common_ui
@@ -579,7 +579,7 @@ def import_favourites(source=None):
 
 
 def clear_favourites():
-    import bookmarks.settings as settings_
+    import bookmarks.settings as settings
     mbox = QtWidgets.QMessageBox()
     mbox.setWindowTitle(u'Clear favourites')
     mbox.setText(
@@ -593,7 +593,7 @@ def clear_favourites():
     if mbox.result() == QtWidgets.QMessageBox.Cancel:
         return
 
-    settings_.local_settings.setValue(u'favourites', [])
+    settings.local_settings.setValue(u'favourites', [])
 
 
 def get_platform():
@@ -1378,9 +1378,9 @@ def create_asset_template(source, dest, overwrite=False):
 def push_to_rv(path):
     """Pushes the given given path to RV."""
     import subprocess
-    import bookmarks.settings as settings_
+    import bookmarks.settings as settings
     import bookmarks.common_ui as common_ui
-    def get_preference(k): return settings_.local_settings.value(
+    def get_preference(k): return settings.local_settings.value(
         u'preferences/{}'.format(k))
 
     rv_path = get_preference(u'rv_path')

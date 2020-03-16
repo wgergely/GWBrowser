@@ -15,7 +15,7 @@ from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.baselistwidget import BaseInlineIconWidget
 from bookmarks.baselistwidget import BaseModel
 from bookmarks.baselistwidget import initdata
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.delegate as delegate
 from bookmarks.delegate import BookmarksWidgetDelegate
 
@@ -94,9 +94,9 @@ class BookmarksModel(BaseModel):
 
         _height = common.BOOKMARK_ROW_HEIGHT - common.ROW_SEPARATOR
 
-        active_paths = settings_.local_settings.verify_paths()
-        favourites = settings_.local_settings.favourites()
-        bookmarks = settings_.local_settings.value(u'bookmarks')
+        active_paths = settings.local_settings.verify_paths()
+        favourites = settings.local_settings.favourites()
+        bookmarks = settings.local_settings.value(u'bookmarks')
         bookmarks = bookmarks if bookmarks else {}
 
         for k, v in bookmarks.iteritems():
@@ -233,6 +233,8 @@ class BookmarksModel(BaseModel):
 
                 data[idx][common.TodoCountRole] = n
 
+        self.activeChanged.emit(self.active_index())
+
     def __resetdata__(self):
         self.INTERNAL_MODEL_DATA[self.data_key()] = common.DataDict({
             common.FileItem: common.DataDict({}),
@@ -361,19 +363,23 @@ class BookmarksWidget(BaseInlineIconWidget):
     @QtCore.Slot(QtCore.QModelIndex)
     def save_activated(self, index):
         """Saves the activated index to ``LocalSettings``."""
+        if not index.isValid():
+            return
+        if not index.data(common.ParentPathRole):
+            return
         server, job, root = index.data(common.ParentPathRole)
-        settings_.local_settings.setValue(u'activepath/server', server)
-        settings_.local_settings.setValue(u'activepath/job', job)
-        settings_.local_settings.setValue(u'activepath/root', root)
-        settings_.local_settings.verify_paths()  # Resetting invalid paths
+        settings.local_settings.setValue(u'activepath/server', server)
+        settings.local_settings.setValue(u'activepath/job', job)
+        settings.local_settings.setValue(u'activepath/root', root)
+        settings.local_settings.verify_paths()  # Resetting invalid paths
 
     def unset_activated(self):
         """Saves the activated index to ``LocalSettings``."""
         server, job, root = None, None, None
-        settings_.local_settings.setValue(u'activepath/server', server)
-        settings_.local_settings.setValue(u'activepath/job', job)
-        settings_.local_settings.setValue(u'activepath/root', root)
-        settings_.local_settings.verify_paths()  # Resetting invalid paths
+        settings.local_settings.setValue(u'activepath/server', server)
+        settings.local_settings.setValue(u'activepath/job', job)
+        settings.local_settings.setValue(u'activepath/root', root)
+        settings.local_settings.verify_paths()  # Resetting invalid paths
 
     def mouseReleaseEvent(self, event):
         if not isinstance(event, QtGui.QMouseEvent):
@@ -424,20 +430,8 @@ class BookmarksWidget(BaseInlineIconWidget):
             if self.model().sourceModel().active_index() == source_index:
                 self.unset_activated()
 
-            settings_.local_settings.verify_paths()
+            settings.local_settings.verify_paths()
 
             return
 
         super(BookmarksWidget, self).toggle_item_flag(index, flag, state=state)
-
-
-if __name__ == '__main__':
-    common.DEBUG_ON = True
-    app = QtWidgets.QApplication([])
-    l = common.LogView()
-    l.show()
-    widget = BookmarksWidget()
-    # widget.model().sourceModel().parent_path = ('C:/temp', 'dir1', 'added_bookmark')
-    widget.model().sourceModel().modelDataResetRequested.emit()
-    widget.show()
-    app.exec_()

@@ -10,7 +10,7 @@ from PySide2 import QtCore, QtGui, QtWidgets
 import bookmarks.common_ui as common_ui
 import bookmarks.common as common
 import bookmarks.images as images
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.bookmark_db as bookmark_db
 
 
@@ -305,7 +305,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
 
         def connect_save(k):
             getattr(self, k).textEdited.connect(
-                lambda v: settings_.local_settings.setValue(self.preference_key(k), v))
+                lambda v: settings.local_settings.setValue(self.preference_key(k), v))
 
         connect_save(u'framerate_editor')
         connect_save(u'width_editor')
@@ -339,7 +339,7 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
 
     def init_last_used_values(self):
         def set_saved(k):
-            v = settings_.local_settings.value(self.preference_key(k))
+            v = settings.local_settings.value(self.preference_key(k))
             getattr(self, k).setText(unicode(v) if v else u'')
 
         def emit_text(k):
