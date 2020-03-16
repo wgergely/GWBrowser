@@ -6,7 +6,7 @@ from PySide2 import QtWidgets, QtGui, QtCore
 
 from bookmarks import common
 import bookmarks.common_ui as common_ui
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 
 
 IdRole = 4096
@@ -233,13 +233,13 @@ QListView::item:selected {{
         v = index.data(QtCore.Qt.DisplayRole)
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
-        settings_.local_settings.setValue(k, v)
+        settings.local_settings.setValue(k, v)
 
     @QtCore.Slot()
     def restore_selection(self):
         cls = self.__class__.__name__
         k = u'widgets/{}/selection'.format(cls)
-        v = settings_.local_settings.value(k)
+        v = settings.local_settings.value(k)
 
         if not v:
             return
