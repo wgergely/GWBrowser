@@ -27,7 +27,7 @@ import maya.OpenMaya as OpenMaya
 from shiboken2 import wrapInstance
 import maya.cmds as cmds
 
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.common as common
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.browserwidget import BrowserWidget
@@ -100,7 +100,7 @@ def get_framerate():
 
 
 def get_preference(k):
-    return settings_.local_settings.value(u'preferences/{}'.format(k))
+    return settings.local_settings.value(u'preferences/{}'.format(k))
 
 
 def instance():
