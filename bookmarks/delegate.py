@@ -909,7 +909,10 @@ class FilesWidgetDelegate(BaseDelegate):
                             QtCore.QMargins(1, 1, 1, 1)))
 
                 painter.setOpacity(0.6)
+                pen = QtGui.QPen(QtGui.QColor(0,0,0,100))
+                painter.setPen(pen)
                 painter.drawRoundedRect(__r, o, o)
+                # painter.setPen(QtCore.Qt.NoPen)
 
             o = 0.6
             if not hover:
@@ -944,6 +947,8 @@ class FilesWidgetDelegate(BaseDelegate):
                         color = common.ADD
 
                 painter.setBrush(color)
+                pen = QtGui.QPen(QtGui.QColor(0,0,0,100))
+                painter.setPen(pen)
                 painter.drawRoundedRect(QtCore.QRectF(r), 2.0, 2.0)
                 self._clickable_rectangles[index.row()].append((r, text))
 
