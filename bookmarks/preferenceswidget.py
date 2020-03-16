@@ -3,7 +3,7 @@
 from PySide2 import QtCore, QtGui, QtWidgets
 
 import bookmarks.images as images
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 
@@ -121,46 +121,46 @@ warning dialog. Tick to disable (default is "off"):'
 
     def _connect_signals(self):
         self.sync_active_button.toggled.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'disable_active_sync'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'disable_active_sync'), x))
         self.sync_maya_project_button.toggled.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'disable_workspace_sync'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'disable_workspace_sync'), x))
         self.save_warning_button.toggled.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'disable_save_warnings'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'disable_save_warnings'), x))
         self.workspace_warning_button.toggled.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'disable_workspace_warnings'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'disable_workspace_warnings'), x))
 
         self.alembic_export_path.textChanged.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'alembic_export_path'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'alembic_export_path'), x))
         self.capture_path.textChanged.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'capture_path'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'capture_path'), x))
 
     def _init_values(self):
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'disable_active_sync'))
         if val is not None:
             self.sync_active_button.setChecked(val)
 
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'disable_workspace_sync'))
         if val is not None:
             self.sync_maya_project_button.setChecked(val)
 
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'disable_save_warnings'))
         if val is not None:
             self.save_warning_button.setChecked(val)
 
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'disable_workspace_warnings'))
         if val is not None:
             self.workspace_warning_button.setChecked(val)
 
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'alembic_export_path'))
         if val is not None:
             self.alembic_export_path.setText(val)
 
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'capture_path'))
         if val is not None:
             self.capture_path.setText(val)
@@ -272,18 +272,18 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
             lambda: QtGui.QDesktopServices.openUrl(common.ABOUT_URL))
 
         self.frameless_window.toggled.connect(
-            lambda x: settings_.local_settings.setValue(get_preference(u'frameless_window'), x))
+            lambda x: settings.local_settings.setValue(get_preference(u'frameless_window'), x))
 
         self.rv_path.textChanged.connect(self.set_rv_path)
 
     def _init_values(self):
-        val = settings_.local_settings.value(
+        val = settings.local_settings.value(
             get_preference(u'frameless_window'))
         val = val if not None else False
         if val is not None:
             self.frameless_window.setChecked(val)
 
-        rv_path = settings_.local_settings.value(get_preference(u'rv_path'))
+        rv_path = settings.local_settings.value(get_preference(u'rv_path'))
         val = rv_path if rv_path else None
         self.rv_path.setText(val)
         file_info = QtCore.QFileInfo(val)
@@ -317,7 +317,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
 
     @QtCore.Slot(unicode)
     def set_rv_path(self, val):
-        settings_.local_settings.setValue(get_preference(u'rv_path'), val)
+        settings.local_settings.setValue(get_preference(u'rv_path'), val)
         file_info = QtCore.QFileInfo(val)
         if file_info.exists():
             self.rv_path.setStyleSheet(
@@ -342,7 +342,7 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
         self.init_settings()
 
     def init_settings(self):
-        val = settings_.local_settings.value(u'preferences/current_section')
+        val = settings.local_settings.value(u'preferences/current_section')
         if not val:
             self.setCurrentRow(0)
             return
@@ -352,7 +352,7 @@ class SectionSwitcherWidget(QtWidgets.QListWidget):
         """Saves the current row selection to the local settings."""
         if not index.isValid():
             return
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'preferences/current_section', index.row())
 
 
