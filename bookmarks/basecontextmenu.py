@@ -470,11 +470,14 @@ class BaseContextMenu(QtWidgets.QMenu):
             u'icon': preferences_pixmap,
         }
 
-        menu_set[u'separator'] = None
-        menu_set[u'Quit...'] = {
-            u'action': parent.parent().parent().shutdown.emit,
-            u'icon': quit_pixmap,
-        }
+        try:
+            menu_set[u'separator'] = None
+            menu_set[u'Quit...'] = {
+                u'action': parent.parent().parent().shutdown.emit,
+                u'icon': quit_pixmap,
+            }
+        except:
+            common.Log.error('Quit menu not added')
 
         return menu_set
 
@@ -666,8 +669,6 @@ class BaseContextMenu(QtWidgets.QMenu):
                 checked = False
             menu_set[key][entry] = {
                 u'text': entry.title(),
-                u'checkable': False,
-                # u'checked': checked,
                 u'icon': item_on_pixmap if checked else item_off_pixmap,
                 u'action': functools.partial(model.dataKeyChanged.emit, entry)
             }
