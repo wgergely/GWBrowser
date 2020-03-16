@@ -30,10 +30,8 @@ from bookmarks.baselistwidget import initdata
 
 import bookmarks._scandir as _scandir
 import bookmarks.common as common
-from bookmarks.common import Log
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.delegate as delegate
-from bookmarks.delegate import FilesWidgetDelegate
 
 import bookmarks.images as images
 
@@ -85,7 +83,7 @@ class FilesModel(BaseModel):
     signal.
 
     """
-    val = settings_.local_settings.value(u'widget/rowheight')
+    val = settings.local_settings.value(u'widget/rowheight')
     val = val if val else common.ROW_HEIGHT
     ROW_SIZE = QtCore.QSize(120, val)
 
@@ -207,9 +205,9 @@ class FilesModel(BaseModel):
 
         thumbnails = self.get_default_thumbnails()
 
-        favourites = settings_.local_settings.favourites()
+        favourites = settings.local_settings.favourites()
         sfavourites = set(favourites)
-        activefile = settings_.local_settings.value(u'activepath/file')
+        activefile = settings.local_settings.value(u'activepath/file')
 
         server, job, root, asset = self.parent_path
         location_is_filtered = dkey in common.NameFilters
@@ -412,7 +410,7 @@ class FilesModel(BaseModel):
         if not self._datakey:
             val = None
             key = u'activepath/location'
-            savedval = settings_.local_settings.value(key)
+            savedval = settings.local_settings.value(key)
             return savedval.lower() if savedval else val
         return self._datakey
 
@@ -430,9 +428,10 @@ class FilesModel(BaseModel):
         exist.
 
         """
+        common.Log.debug('set_data_key({})'.format(val), self)
         try:
             k = u'activepath/location'
-            stored_value = settings_.local_settings.value(k)
+            stored_value = settings.local_settings.value(k)
             stored_value = stored_value.lower() if stored_value else stored_value
             self._datakey = self._datakey.lower() if self._datakey else self._datakey
             val = val.lower() if val else val
@@ -452,7 +451,7 @@ class FilesModel(BaseModel):
             # We only have to update the local settings, the model is
             # already set
             if self._datakey == val and val != stored_value:
-                settings_.local_settings.setValue(k, val)
+                settings.local_settings.setValue(k, val)
                 return
 
             if val is not None and val == self._datakey:
@@ -471,36 +470,35 @@ class FilesModel(BaseModel):
             # The key is valid
             if val in entries:
                 self._datakey = val
-                settings_.local_settings.setValue(k, val)
+                settings.local_settings.setValue(k, val)
                 return
 
             # The new proposed datakey does not exist but the old one is
             # valid. We'll just stick with the old value instead...
             if val not in entries and self._datakey in entries:
                 val = self._datakey.lower()
-                settings_.local_settings.setValue(k, self._datakey)
+                settings.local_settings.setValue(k, self._datakey)
                 return
 
             # And finally, let's try to revert to a fall-back...
             if val not in entries and u'scenes' in entries:
                 val = u'scenes'
                 self._datakey = val
-                settings_.local_settings.setValue(k, val)
+                settings.local_settings.setValue(k, val)
                 return
 
             # All else... let's select the first folder
             val = entries[0].lower()
             self._datakey = val
-            settings_.local_settings.setValue(k, val)
+            settings.local_settings.setValue(k, val)
 
         except:
-            Log.error('Could not set data key')
+            common.Log.error('Could not set data key')
         finally:
             if not self.model_data():
                 self.__initdata__()
             else:
                 self.sort_data()
-            Log.success('set_data_key()')
 
     def mimeData(self, indexes):
         """The data necessary for supporting drag and drop operations are
@@ -629,7 +627,7 @@ class FilesWidget(ThreadedBaseWidget):
     """The view used to display the contents of a ``FilesModel`` instance.
     """
     SourceModel = FilesModel
-    Delegate = FilesWidgetDelegate
+    Delegate = delegate.FilesWidgetDelegate
     ContextMenu = FilesWidgetContextMenu
 
     def __init__(self, parent=None):
@@ -671,22 +669,27 @@ class FilesWidget(ThreadedBaseWidget):
 
     def set_model(self, *args, **kwargs):
         super(FilesWidget, self).set_model(*args, **kwargs)
-        self.model().sourceModel().modelReset.connect(self.load_saved_filter_text)
+        model = self.model().sourceModel()
+        model.modelReset.connect(
+            lambda: common.Log.debug('modelReset -> load_saved_filter_text', model))
+        model.modelReset.connect(self.load_saved_filter_text)
 
     @QtCore.Slot(unicode)
     def load_saved_filter_text(self):
+        common.Log.debug('load_saved_filter_text()', self)
+
         model = self.model().sourceModel()
         data_key = model.data_key()
         if not data_key:
-            Log.error('load_saved_filter_text(): Data key not yet set')
+            common.Log.error('load_saved_filter_text(): Data key not yet set')
             return
 
         cls = model.__class__.__name__
         k = u'widget/{}/{}/filtertext'.format(cls, data_key)
-        v = settings_.local_settings.value(k)
+        v = settings.local_settings.value(k)
         v = v if v else u''
+
         self.model().set_filter_text(v)
-        Log.success('load_saved_filter_text()')
 
     def inline_icons_count(self):
         if self.buttons_hidden():
@@ -708,7 +711,7 @@ class FilesWidget(ThreadedBaseWidget):
         file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
         filepath = parent_role[5] + u'/' + \
             common.get_sequence_startpath(file_info.fileName())
-        settings_.local_settings.setValue(u'activepath/file', filepath)
+        settings.local_settings.setValue(u'activepath/file', filepath)
 
     def mouseDoubleClickEvent(self, event):
         """We will check if the event is over one of the sub-dir rectangles,
@@ -830,15 +833,21 @@ class FilesWidget(ThreadedBaseWidget):
         pixmap = DragPixmap.pixmap(pixmap, path)
         drag.setPixmap(pixmap)
 
-        if self.parent():
+        try:
             lc = self.parent().parent().listcontrolwidget
             lc.drop_overlay.show()
+        except:
+            common.Log.error('')
 
         drag.exec_(supported_actions)
 
-        if self.parent():
+        try:
             lc.drop_overlay.hide()
+        except:
+            common.Log.error('')
+
         self.drag_source_index = QtCore.QModelIndex()
+
 
     def mouseReleaseEvent(self, event):
         """The files widget has a few addittional clickable inline icons
@@ -914,22 +923,3 @@ class FilesWidget(ThreadedBaseWidget):
                     return super(FilesWidget, self).mouseReleaseEvent(event)
 
         super(FilesWidget, self).mouseReleaseEvent(event)
-
-
-if __name__ == '__main__':
-    common.DEBUG_ON = False
-    app = QtWidgets.QApplication([])
-    l = common.LogView()
-    l.show()
-    widget = FilesWidget()
-    widget.model().sourceModel().parent_path = (u'//sloth/jobs',
-                                                u'vodd_9069', u'films/prologue/shots', u'pr_0010')
-    widget.model().sourceModel().modelDataResetRequested.emit()
-    widget.model().sourceModel().dataKeyChanged.emit('exports')
-    widget.resize(460, 640)
-    widget.show()
-    # widget.model().sourceModel().dataKeyChanged.emit('dir2')
-    # widget.model().sourceModel().dataKeyChanged.emit('dir3')
-    # widget.model().sourceModel().dataKeyChanged.emit('dir4')
-    # widget.model().sourceModel().dataKeyChanged.emit(None)
-    app.exec_()
