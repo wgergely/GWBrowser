@@ -7,7 +7,7 @@ user.
 from PySide2 import QtWidgets, QtCore, QtGui
 
 import bookmarks.common as common
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.delegate import FilesWidgetDelegate
@@ -56,7 +56,7 @@ class FavouritesModel(FilesModel):
         corresponding to the saved favourites.
 
         """
-        favourites = settings_.local_settings.favourites()
+        favourites = settings.local_settings.favourites()
 
         d = []
 
@@ -168,7 +168,7 @@ class FavouritesWidget(FilesWidget):
             return
 
         event.accept()
-        favourites = settings_.local_settings.favourites()
+        favourites = settings.local_settings.favourites()
 
         for url in mime.urls():
             file_info = QtCore.QFileInfo(url.toLocalFile())
@@ -179,7 +179,7 @@ class FavouritesWidget(FilesWidget):
             else:
                 k = common.proxy_path(path).lower()
             favourites.append(k)
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'favourites', sorted(list(set(favourites))))
         self.favouritesChanged.emit()
 
