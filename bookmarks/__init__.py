@@ -53,7 +53,7 @@ def exec_(debug=False):
         sys.stdout.write(u'{}\n'.format(info))
 
     bookmarks = importlib.import_module(
-        u'{}.standalonewidgets'.format(name))
+        u'{}.standalone'.format(name))
 
     from PySide2 import QtWidgets, QtCore
 
