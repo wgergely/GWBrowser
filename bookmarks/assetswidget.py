@@ -56,6 +56,7 @@ class AssetModel(BaseModel):
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
 
+
     @initdata
     def __initdata__(self):
         """Collects the data needed to populate the bookmarks model by querrying
@@ -179,6 +180,9 @@ class AssetModel(BaseModel):
                 common.IdRole: idx
             })
 
+        # Explicitly emit signal to notify the other dependent model
+        self.activeChanged.emit(self.active_index())
+
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
         value for compatibility other functions.
@@ -225,20 +229,22 @@ class AssetsWidget(ThreadedBaseWidget):
         emits the ``activeChanged`` signal.
 
         """
+        if not index.isValid():
+            return
+        if not index.data(common.ParentPathRole):
+            return
+
         settings_.local_settings.setValue(
             u'activepath/asset', index.data(common.ParentPathRole)[-1])
-        # Resetting invalid paths
         settings_.local_settings.verify_paths()
 
     def showEvent(self, event):
         source_index = self.model().sourceModel().active_index()
-        if not source_index.isValid():
-            return super(AssetsWidget, self).showEvent(event)
-
-        index = self.model().mapFromSource(source_index)
-        self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
-        self.selectionModel().setCurrentIndex(
-            index, QtCore.QItemSelectionModel.ClearAndSelect)
+        if source_index.isValid():
+            index = self.model().mapFromSource(source_index)
+            self.scrollTo(index, QtWidgets.QAbstractItemView.PositionAtCenter)
+            self.selectionModel().setCurrentIndex(
+                index, QtCore.QItemSelectionModel.ClearAndSelect)
         return super(AssetsWidget, self).showEvent(event)
 
     def increase_row_size(self):
@@ -246,16 +252,3 @@ class AssetsWidget(ThreadedBaseWidget):
 
     def decrease_row_size(self):
         pass
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    common.DEBUG_ON = True
-    l = common.LogView()
-    l.show()
-    widget = AssetsWidget()
-    widget.model().sourceModel().parent_path = (
-        u'C:/temp', u'EXAMPLE_JOB_A', u'shots',)
-    widget.model().sourceModel().modelDataResetRequested.emit()
-    widget.show()
-    app.exec_()
