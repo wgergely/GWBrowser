@@ -98,6 +98,7 @@ Root: HKCU; Subkey: "Software\Classes\{#MyAppName}\DefaultIcon";         ValueDa
 
 ; Install path
 Root: HKCU; Subkey: "Software\{#MyAppName}\{#MyAppName}";  ValueData: "{app}\{#MyAppExeName}";  ValueType: string;  ValueName: "installpath"
+Root: HKCU; Subkey: "Software\{#MyAppName}\{#MyAppExeDName}";  ValueData: "{app}\{#MyAppExeDName}";  ValueType: string;  ValueName: "installpath"
 
 [Icons]
 Name: {autoprograms}\{#MyAppName}; Filename: {app}\{#MyAppExeName}
