@@ -87,7 +87,6 @@ def process(func):
             result = func(self, self.data_queue.get(False))
             if not result:
                 return
-            common.Log.success('dataReady.emit()')
             self.dataReady.emit(result)
             self.data_queue.task_done()
         except Queue.Empty:
@@ -111,10 +110,15 @@ class BaseWorker(QtCore.QObject):
         self.data_queue = UniqueQueue()
         self.dataRequested.connect(
             self.process_data, QtCore.Qt.DirectConnection)
-        self.resetQueue.connect(self.reset_queue, QtCore.Qt.QueuedConnection)
+
+        self.resetQueue.connect(
+            lambda: common.Log.debug(u'resetQueue --> reset_queue', self))
+        self.resetQueue.connect(self.reset_queue, type=QtCore.Qt.QueuedConnection)
 
     @QtCore.Slot()
     def reset_queue(self):
+        common.Log.debug('reset_queue()', self)
+
         self.interrupt = True
         try:
             while True:
@@ -123,8 +127,6 @@ class BaseWorker(QtCore.QObject):
             return
         except Exception:
             common.Log.error('Error resetting the queue')
-        finally:
-            common.Log.success('Queue reset successfully')
 
     @process
     @QtCore.Slot()
@@ -153,9 +155,9 @@ class BaseThread(QtCore.QThread):
         self.timer = None
         self.setTerminationEnabled(True)
 
-        self.started.connect(self.move_worker_to_thread)
         self.started.connect(
-            lambda: common.Log.info('BaseThread started'))
+            lambda: common.Log.debug(u'started --> move_worker_to_thread', self))
+        self.started.connect(self.move_worker_to_thread)
 
         QtCore.QCoreApplication.instance().aboutToQuit.connect(self.quit)
         QtGui.QGuiApplication.instance().lastWindowClosed.connect(self.quit)
@@ -175,10 +177,19 @@ class BaseThread(QtCore.QThread):
 
     @QtCore.Slot()
     def move_worker_to_thread(self):
+        common.Log.debug(u'move_worker_to_thread', self)
+
         self.worker.moveToThread(self)
+
         self.timer.timeout.connect(
             self.worker.dataRequested, QtCore.Qt.DirectConnection)
+
+        self.startTimer.connect(
+            lambda: common.Log.debug(u'startTimer --> timer.start', self))
         self.startTimer.connect(self.timer.start, QtCore.Qt.QueuedConnection)
+
+        self.stopTimer.connect(
+            lambda: common.Log.debug(u'stopTimer --> timer.stop', self))
         self.stopTimer.connect(self.timer.stop, QtCore.Qt.QueuedConnection)
 
     def put(self, ref, force=False):
@@ -383,12 +394,14 @@ class BackgroundInfoWorker(InfoWorker):
         if not ref() or self.interrupt:
             return None
         if changed:
+            common.Log.debug('modelLoaded.emit()', self)
             self.modelLoaded.emit(ref)
 
-        common.Log.success('BackgroundInfoWorker: Model finished loaded')
         return None
 
     def reset_queue(self):
+        common.Log.debug('reset_queue()', self)
+
         self.interrupt = True
 
 
@@ -506,7 +519,8 @@ class ThumbnailWorker(BaseWorker):
                 common.DefaultThumbnailBackgroundRole]
             common.Log.error('Failed to generate thumbnail')
         finally:
-            ref()[common.FileThumbnailLoaded] = True
+            if ref():
+                ref()[common.FileThumbnailLoaded] = True
             cache.invalidate(source, force=True)
             cache.invalidate(dest, force=True)
 
