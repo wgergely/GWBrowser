@@ -212,7 +212,7 @@ class TestBookmarksWidget(unittest.TestCase):
         settings.local_settings.setValue(u'servers', None)
 
         from PySide2 import QtWidgets
-        import bookmarks.standalonewidgets as standalone
+        import bookmarks.standalone as standalone
 
         if not QtWidgets.QApplication.instance():
             cls.app = standalone.StandaloneApp([])
@@ -311,7 +311,7 @@ class TestModules(unittest.TestCase):
         _dir.mkpath(u'./bookmark_a/taskdir_a')
 
         from PySide2 import QtWidgets
-        import bookmarks.standalonewidgets as standalone
+        import bookmarks.standalone as standalone
         if not QtWidgets.QApplication.instance():
             cls.app = standalone.StandaloneApp([])
         else:
@@ -395,9 +395,9 @@ class TestModules(unittest.TestCase):
         widget = slacker.SlackWidget(None, None)
         widget.show()
 
-    def test_standalonewidgets(self):
-        import bookmarks.standalonewidgets as standalonewidgets
-        widget = standalonewidgets.StandaloneBrowserWidget()
+    def test_standalone(self):
+        import bookmarks.standalone as standalone
+        widget = standalone.StandaloneBrowserWidget()
         widget.show()
 
     def test_fileswidget(self):
@@ -497,7 +497,7 @@ class TestImages(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         from PySide2 import QtWidgets
-        import bookmarks.standalonewidgets as standalone
+        import bookmarks.standalone as standalone
         app = QtWidgets.QApplication.instance()
         if not app:
             app = standalone.StandaloneApp([])
