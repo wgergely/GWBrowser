@@ -14,7 +14,7 @@ from bookmarks.baselistwidget import initdata
 from bookmarks.delegate import AssetsWidgetDelegate
 import bookmarks.bookmark_db as bookmark_db
 
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 
 
 class AssetsWidgetContextMenu(BaseContextMenu):
@@ -92,10 +92,10 @@ class AssetModel(BaseModel):
             common.SequenceItem: common.DataDict()
         })
 
-        favourites = settings_.local_settings.favourites()
+        favourites = settings.local_settings.favourites()
         sfavourites = set(favourites)
 
-        activeasset = settings_.local_settings.value(u'activepath/asset')
+        activeasset = settings.local_settings.value(u'activepath/asset')
         server, job, root = self.parent_path
         bookmark_path = u'{}/{}/{}'.format(server, job, root)
 
@@ -234,9 +234,9 @@ class AssetsWidget(ThreadedBaseWidget):
         if not index.data(common.ParentPathRole):
             return
 
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'activepath/asset', index.data(common.ParentPathRole)[-1])
-        settings_.local_settings.verify_paths()
+        settings.local_settings.verify_paths()
 
     def showEvent(self, event):
         source_index = self.model().sourceModel().active_index()
