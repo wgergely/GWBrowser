@@ -8,7 +8,7 @@ from bookmarks.basecontextmenu import contextmenu
 from bookmarks.common_ui import ClickableIconButton
 from bookmarks.datakeywidget import DataKeyView
 import bookmarks.images as images
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 
@@ -198,9 +198,9 @@ class SimpleModeButton(BaseControlButton):
             return
         cls = self.current_widget().__class__.__name__
         k = u'widget/{}/sort_with_basename'.format(cls)
-        val = settings_.local_settings.value(k)
+        val = settings.local_settings.value(k)
         if val is None:
-            settings_.local_settings.setValue(k, self.state())
+            settings.local_settings.setValue(k, self.state())
         common.SORT_WITH_BASENAME = val
 
     def hideEvent(self, event):
@@ -218,7 +218,7 @@ class SimpleModeButton(BaseControlButton):
 
         cls = self.current_widget().__class__.__name__
         k = 'widget/{}/sort_with_basename'.format(cls)
-        settings_.local_settings.setValue(k, not val)
+        settings.local_settings.setValue(k, not val)
 
         # self.current_widget().update()
 
@@ -577,6 +577,10 @@ class FilesTabButton(PaintedTextButton):
             u'Click to see or change the current task folder',
             parent=parent)
         self.clicked.connect(self.show_view)
+        self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
+
+    def contextMenuEvent(self, event):
+        self.show_view()
 
     def view(self):
         return self.parent().data_key_view
