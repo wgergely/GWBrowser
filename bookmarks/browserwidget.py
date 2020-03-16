@@ -17,7 +17,7 @@ from bookmarks.favouriteswidget import FavouritesWidget
 from bookmarks.fileswidget import FilesWidget
 import bookmarks.images as images
 from bookmarks.listcontrolwidget import ListControlWidget
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.threads as threads
 import bookmarks.common as common
 
@@ -239,9 +239,9 @@ class ToggleModeButton(QtWidgets.QWidget):
         self.clicked.connect(self.toggle_mode)
 
     def statusTip(self):
-        if settings_.local_settings.current_mode() == common.SynchronisedMode:
+        if settings.local_settings.current_mode() == common.SynchronisedMode:
             return u'Instance is syncronised. Click to toggle.'
-        elif settings_.local_settings.current_mode() == common.SoloMode:
+        elif settings.local_settings.current_mode() == common.SoloMode:
             return u'Instance not synronised. Click to toggle.'
 
     @QtCore.Slot()
@@ -256,16 +256,16 @@ class ToggleModeButton(QtWidgets.QWidget):
 
     def toggle_mode(self):
         """Simply toggles the solo mode."""
-        if settings_.local_settings.current_mode() == common.SynchronisedMode:
-            settings_.local_settings.set_mode(common.SoloMode)
+        if settings.local_settings.current_mode() == common.SynchronisedMode:
+            settings.local_settings.set_mode(common.SoloMode)
             self.animation.setCurrentTime(0)
             self.animation.start()
-        elif settings_.local_settings.current_mode() == common.SoloMode:
-            settings_.local_settings.set_mode(common.SynchronisedMode)
+        elif settings.local_settings.current_mode() == common.SoloMode:
+            settings.local_settings.set_mode(common.SynchronisedMode)
             self.animation.setCurrentTime(0)
             self.animation.stop()
         self.update()
-        settings_.local_settings.save_mode_lockfile()
+        settings.local_settings.save_mode_lockfile()
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -274,7 +274,7 @@ class ToggleModeButton(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setBrush(QtCore.Qt.NoBrush)
 
-        color = common.REMOVE if settings_.local_settings.current_mode() else common.ADD
+        color = common.REMOVE if settings.local_settings.current_mode() else common.ADD
         pen = QtGui.QPen(color)
 
         o = 6.0
@@ -304,11 +304,11 @@ class ToggleModeButton(QtWidgets.QWidget):
             self.clicked.emit()
 
     def showEvent(self, event):
-        if settings_.local_settings.current_mode() == common.SoloMode:
+        if settings.local_settings.current_mode() == common.SoloMode:
             self.animation.setCurrentTime(0)
             self.animation.start()
             self.update()
-        elif settings_.local_settings.current_mode() == common.SynchronisedMode:
+        elif settings.local_settings.current_mode() == common.SynchronisedMode:
             self.animation.setCurrentTime(0)
             self.animation.stop()
             self.update()
@@ -381,7 +381,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self.stackedwidget.addWidget(self.favouriteswidget)
 
         # Setting the tab now before we do any more initialisation
-        idx = settings_.local_settings.value(u'widget/mode')
+        idx = settings.local_settings.value(u'widget/mode')
         idx = 0 if idx is None or False else idx
         idx = 0 if idx < 0 else idx
         idx = 3 if idx > 3 else idx
@@ -427,8 +427,8 @@ class BrowserWidget(QtWidgets.QWidget):
                 f.filterFlagChanged.emit(flag, f.filter_flag(flag))
                 ff.filterFlagChanged.emit(flag, ff.filter_flag(flag))
 
-        settings_.local_settings.touch_mode_lockfile()
-        settings_.local_settings.save_mode_lockfile()
+        settings.local_settings.touch_mode_lockfile()
+        settings.local_settings.save_mode_lockfile()
 
         self.shortcuts = []
 
@@ -436,7 +436,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self._connect_signals()
         self._add_shortcuts()
 
-        settings_.local_settings.verify_paths()
+        settings.local_settings.verify_paths()
 
         # Proxy model
         b = self.bookmarkswidget.model()
@@ -451,14 +451,14 @@ class BrowserWidget(QtWidgets.QWidget):
 
         emit_saved_states()
 
+        settings.local_settings.sync_timer.start()
         b.sourceModel().modelDataResetRequested.emit()
-        settings_.local_settings.sync_timer.start()
 
-        if settings_.local_settings.value(u'firstrun') is None:
-            settings_.local_settings.setValue(u'firstrun', False)
-
-        idx = settings_.local_settings.value(u'widget/mode')
-        self.listcontrolwidget.listChanged.emit(idx)
+        if settings.local_settings.value(u'firstrun') is None:
+            settings.local_settings.setValue(u'firstrun', False)
+        #
+        # idx = settings.local_settings.value(u'widget/mode')
+        # self.listcontrolwidget.listChanged.emit(idx)
 
         @QtCore.Slot(QtCore.QModelIndex)
         def update_window_title(index):
@@ -486,8 +486,8 @@ class BrowserWidget(QtWidgets.QWidget):
 
         """
         def ui_teardown():
-            settings_.local_settings.sync_timer.stop()
-            settings_.local_settings.server_mount_timer.stop()
+            settings.local_settings.sync_timer.stop()
+            settings.local_settings.server_mount_timer.stop()
 
             self.listcontrolwidget.bookmarks_button.timer.stop()
             self.listcontrolwidget.assets_button.timer.stop()
@@ -498,7 +498,7 @@ class BrowserWidget(QtWidgets.QWidget):
             self.assetswidget.timer.stop()
             self.fileswidget.timer.stop()
             self.favouriteswidget.timer.stop()
-            settings_.local_settings.sync_timer.stop()
+            settings.local_settings.sync_timer.stop()
 
             self.hide()
             self.setUpdatesEnabled(False)
@@ -701,37 +701,25 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.favourites_button.clicked.connect(
             lambda: lc.listChanged.emit(3))
         #####################################################
-        # Sync settings_.local_settings.active_monitor
+        # Sync settings.local_settings.active_monitor
         b.activated.connect(
-            lambda x: settings_.local_settings.save_state(u'server', x.data(common.ParentPathRole)[0]))
+            lambda x: settings.local_settings.save_state(u'server', x.data(common.ParentPathRole)[0]))
         b.activated.connect(
-            lambda x: settings_.local_settings.save_state(u'job', x.data(common.ParentPathRole)[1]))
+            lambda x: settings.local_settings.save_state(u'job', x.data(common.ParentPathRole)[1]))
         b.activated.connect(
-            lambda x: settings_.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
+            lambda x: settings.local_settings.save_state(u'root', x.data(common.ParentPathRole)[2]))
         a.activated.connect(
-            lambda x: settings_.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[3]))
+            lambda x: settings.local_settings.save_state(u'asset', x.data(common.ParentPathRole)[3]))
         #####################################################
-        # Linkage between the different tabs are established here
-        # Fist, the parent paths are set
-        b.model().sourceModel().modelReset.connect(
-            lambda: a.model().sourceModel().set_active(b.model().sourceModel().active_index()))
+        # Bookmark -> Asset
         b.model().sourceModel().activeChanged.connect(
             a.model().sourceModel().set_active)
-        a.model().sourceModel().modelReset.connect(
-            lambda: f.model().sourceModel().set_active(a.model().sourceModel().active_index()))
         a.model().sourceModel().activeChanged.connect(
             f.model().sourceModel().set_active)
 
-        b.model().sourceModel().modelReset.connect(
-            a.model().sourceModel().modelDataResetRequested)
-        b.model().sourceModel().activeChanged.connect(
-            a.model().sourceModel().modelDataResetRequested)
+        # * -> Listcontrol
         b.model().sourceModel().activeChanged.connect(
             l.model().modelDataResetRequested)
-        a.model().sourceModel().modelReset.connect(
-            f.model().sourceModel().modelDataResetRequested)
-        a.model().sourceModel().activeChanged.connect(
-            f.model().sourceModel().modelDataResetRequested)
         a.model().sourceModel().activeChanged.connect(
             l.model().modelDataResetRequested)
         f.model().sourceModel().modelDataResetRequested.connect(
@@ -744,18 +732,16 @@ class BrowserWidget(QtWidgets.QWidget):
         lc.listChanged.connect(s.setCurrentIndex)
         b.activated.connect(lambda: lc.listChanged.emit(1))
         a.activated.connect(lambda: lc.listChanged.emit(2))
-        b.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(1))
-        a.model().sourceModel().activeChanged.connect(lambda x: lc.listChanged.emit(2))
 
         # Control bar connections
         lc.dataKeyChanged.connect(f.model().sourceModel().dataKeyChanged)
         lc.dataKeyChanged.connect(lc.textChanged)
         f.model().sourceModel().dataKeyChanged.connect(lc.textChanged)
         #####################################################
-        # settings_.local_settings.active_monitor
-        settings_.local_settings.activeBookmarkChanged.connect(
+        # settings.local_settings.active_monitor
+        settings.local_settings.activeBookmarkChanged.connect(
             b.model().sourceModel().modelDataResetRequested)
-        settings_.local_settings.activeAssetChanged.connect(
+        settings.local_settings.activeAssetChanged.connect(
             a.model().sourceModel().modelDataResetRequested)
         #####################################################
         b.activated.connect(
@@ -922,12 +908,12 @@ class BrowserWidget(QtWidgets.QWidget):
         """Saves the position and size of thew widget to the local settings."""
         cls = self.__class__.__name__
         geo = self.geometry()
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/{}/width'.format(cls), geo.width())
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'widget/{}/height'.format(cls), geo.height())
-        settings_.local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
-        settings_.local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
+        settings.local_settings.setValue(u'widget/{}/x'.format(cls), geo.x())
+        settings.local_settings.setValue(u'widget/{}/y'.format(cls), geo.y())
 
     def sizeHint(self):
         """The widget's default size."""
