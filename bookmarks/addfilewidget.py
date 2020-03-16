@@ -29,7 +29,7 @@ import uuid
 from PySide2 import QtCore, QtWidgets, QtGui
 
 import bookmarks.bookmark_db as bookmark_db
-import bookmarks.settings as settings_
+import bookmarks.settings as settings
 import bookmarks.common as common
 import bookmarks._scandir as _scandir
 import bookmarks.editors as editors
@@ -228,9 +228,13 @@ class SelectButton(QtWidgets.QLabel):
     @QtCore.Slot()
     def move_view(self):
         """Moves the view associated with the button in place."""
-        self.view().move(
-            self.window().geometry().bottomLeft().x(),
-            self.window().geometry().bottomLeft().y())
+        x = self.window().geometry().bottomLeft().x() + common.MARGIN
+        pos = QtCore.QPoint(
+            0,
+            self.geometry().bottomLeft().y())
+        pos = self.mapToGlobal(pos)
+        pos.setX(x)
+        self.view().move(pos)
 
     @QtCore.Slot()
     def show_view(self):
@@ -249,7 +253,7 @@ class SelectButton(QtWidgets.QLabel):
             QtCore.Qt.Window)
 
         self.move_view()
-        self.view().setFixedWidth(self.window().geometry().width())
+        self.view().setFixedWidth(self.window().geometry().width() - (common.MARGIN * 2))
 
         if self.view().selectionModel().hasSelection():
             self.view().scrollTo(self.view().selectionModel().currentIndex(),
@@ -365,6 +369,8 @@ class BaseListView(BaseInlineIconWidget):
         self.removeEventFilter(self)
 
         self.activated.connect(self.hide)
+
+        self.setStyleSheet('margin: 1px;')
 
     def showEvent(self, event):
         self.adjust_height()
@@ -720,11 +726,11 @@ class SelectFolderView(QtWidgets.QTreeView):
         folder_basepath = folder_filepath.replace(
             folder_root_path, u'').strip(u'/')
 
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'saver/folder_filepath', folder_filepath)
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'saver/folder_basepath', folder_basepath)
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'saver/folder_rootpath', folder_root_path)
 
     @QtCore.Slot()
@@ -736,7 +742,7 @@ class SelectFolderView(QtWidgets.QTreeView):
         if self._initialized:
             return
 
-        folder_basepath = settings_.local_settings.value(
+        folder_basepath = settings.local_settings.value(
             u'saver/folder_basepath')
 
         if not folder_basepath:
@@ -1182,13 +1188,13 @@ class NameModeWidget(QtWidgets.QComboBox):
     def save_selection(self, idx):
         """Slot responsible for saving the current selection."""
         item = self.view().model().item(idx)
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'saver/mode', item.data(QtCore.Qt.StatusTipRole))
 
     @QtCore.Slot()
     def restore_selection(self):
         """Slot responsible for restoring the saved selection."""
-        val = settings_.local_settings.value(u'saver/mode')
+        val = settings.local_settings.value(u'saver/mode')
         if not val:
             return
         idx = self.findData(val, role=QtCore.Qt.StatusTipRole)
@@ -1304,10 +1310,10 @@ class NameUserWidget(NameBase):
 
     @QtCore.Slot()
     def save(self):
-        settings_.local_settings.setValue(u'saver/username', self.text())
+        settings.local_settings.setValue(u'saver/username', self.text())
 
     def showEvent(self, event):
-        val = settings_.local_settings.value(u'saver/username')
+        val = settings.local_settings.value(u'saver/username')
         if not val:
             return
         self.setText(val)
@@ -1337,10 +1343,10 @@ class NameCustomWidget(NameBase):
 
     @QtCore.Slot()
     def save(self):
-        settings_.local_settings.setValue(u'saver/customname', self.text())
+        settings.local_settings.setValue(u'saver/customname', self.text())
 
     def showEvent(self, event):
-        val = settings_.local_settings.value(u'saver/customname')
+        val = settings.local_settings.value(u'saver/customname')
         if not val:
             return
         self.setText(val)
@@ -1360,11 +1366,11 @@ class ToggleCustomNameWidget(QtWidgets.QCheckBox):
 
     @QtCore.Slot()
     def save(self):
-        settings_.local_settings.setValue(
+        settings.local_settings.setValue(
             u'saver/togglecustom', self.isChecked())
 
     def showEvent(self, event):
-        val = settings_.local_settings.value(u'saver/togglecustom')
+        val = settings.local_settings.value(u'saver/togglecustom')
         if not val:
             self.toggled.emit(self.isChecked())
             return
@@ -1753,10 +1759,11 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(common_ui.PaintedLabel(
             u'Destination:', size=common.MEDIUM_FONT_SIZE, color=common.FAVOURITE))
         row.layout().addWidget(self.file_path_widget)
-        row = get_row(
-            parent=mainrow,
-        )
-        row.layout().addStretch(1)
+
+        # row = get_row(
+        #     parent=mainrow,
+        # )
+        # row.layout().addStretch(1)
         row.layout().addWidget(self.save_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
 
@@ -2035,22 +2042,3 @@ class AddFileWidget(QtWidgets.QDialog):
         self.save_thumbnail_and_description()
 
         super(AddFileWidget, self).accept()
-
-
-if __name__ == '__main__':
-    import os
-
-    app = QtWidgets.QApplication([])
-    # widget = AddFileWidget(
-    #     u'ma', file=r'J:\00_Jobs\test2\project_data\assets\apple\data\desk\000_apple_layout_gw_v0001.ma')
-    widget = AddFileWidget(
-        u'ma')
-    res = widget.exec_()
-
-    if res == QtWidgets.QDialog.Accepted:
-        print 'Accepted :)'
-        with open(os.path.normpath(widget.filePath()), 'w') as f:
-            f.write('Written ok!')
-    if res == QtWidgets.QDialog.Rejected:
-        print 'Rejected :('
-    # app.exec_()
