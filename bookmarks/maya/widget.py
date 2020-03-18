@@ -10,6 +10,7 @@ Usage:
         mb.show()
 
 """
+import os
 import re
 import string
 import uuid
@@ -29,14 +30,15 @@ import maya.cmds as cmds
 
 import bookmarks.settings as settings
 import bookmarks.common as common
+import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
 from bookmarks.browserwidget import BrowserWidget
 import bookmarks.common_ui as common_ui
-from bookmarks.addfilewidget import AddFileWidget
+import bookmarks.addfilewidget as addfilewidget
 
 
 ALEMBIC_EXPORT_PATH = u'{workspace}/{exports}/abc/{set}/{set}_v001.abc'
-CAPTURE_PATH = u'viewport_captures/animation'
+CAPTURE_PATH = u'viewport_captures'
 
 
 maya_button = None
@@ -94,6 +96,12 @@ MAYA_FPS = {
     u'48000fps': 48000.0,
 }
 
+def set_framerate(fps):
+    for k, v in MAYA_FPS.iteritems():
+        if fps == v:
+            cmds.currentUnit(time=k)
+            return k
+    raise ValueError(u'Invalid fps provided')
 
 def get_framerate():
     return MAYA_FPS[cmds.currentUnit(query=True, time=True)]
@@ -206,59 +214,9 @@ def show():
         common_ui.ErrorBox(
             u'Could not show {}'.format(common.PRODUCT),
             u'{}'.format(err)
-        ).exec_()
+        ).open()
         common.Log.error(u'Could not open the plugin window.')
-
-
-def _is_set_created_by_user(name):
-    """From the good folks at cgsociety - filters the in-scene sets to return
-    the user-created items only.
-    https://forums.cgsociety.org/t/maya-mel-python-list-object-sets-visible-in-the-dag/1586067/2
-
-    """
-    # We first test for plug-in object sets.
-    try:
-        apiNodeType = cmds.nodeType(name, api=True)
-    except RuntimeError:
-        return False
-
-    if apiNodeType == "kPluginObjectSet":
-        return True
-
-    # We do not need to test is the object is a set, since that test
-    # has already been done by the outliner
-    try:
-        nodeType = cmds.nodeType(name)
-    except RuntimeError:
-        return False
-
-    # We do not want any rendering sets
-    if nodeType == "shadingEngine":
-        return False
-
-    # if the object is not a set, return false
-    if not (nodeType == "objectSet" or
-            nodeType == "textureBakeSet" or
-            nodeType == "vertexBakeSet" or
-            nodeType == "character"):
-        return False
-
-    # We also do not want any sets with restrictions
-    restrictionAttrs = ["verticesOnlySet", "edgesOnlySet",
-                        "facetsOnlySet", "editPointsOnlySet", "renderableOnlySet"]
-    if any(cmds.getAttr("{0}.{1}".format(name, attr)) for attr in restrictionAttrs):
-        return False
-
-    # Do not show layers
-    if cmds.getAttr("{0}.isLayer".format(name)):
-        return False
-
-    # Do not show bookmarks
-    annotation = cmds.getAttr("{0}.annotation".format(name))
-    if annotation == "bookmarkAnimCurves":
-        return False
-
-    return True
+        raise
 
 
 def report_export_progress(start, current, end, start_time):
@@ -293,12 +251,70 @@ def report_export_progress(start, current, end, start_time):
     sys.stdout.write(msg)
 
 
-def get_outliner_sets_members():
+def outliner_sets():
     """The main function responsible for returning the user created object sets
     from the current Maya scene. There's an extra caveat: the set has to contain
     the word 'geo' to be considered valid.
 
+    Returns:
+        dict: key is the set's name, the value is the contained meshes.
+
     """
+    def _is_set_created_by_user(name):
+        """From the good folks at cgsociety - filters the in-scene sets to return
+        the user-created items only.
+
+        https://forums.cgsociety.org/t/maya-mel-python-list-object-sets-visible-in-the-dag/1586067/2
+
+        Returns:
+            bool: True if the user created the set, otherwise False.
+
+        """
+        try:
+            # We first test for plug-in object sets.
+            apiNodeType = cmds.nodeType(name, api=True)
+        except RuntimeError:
+            return False
+
+        if apiNodeType == "kPluginObjectSet":
+            return True
+
+        # We do not need to test is the object is a set, since that test
+        # has already been done by the outliner
+        try:
+            nodeType = cmds.nodeType(name)
+        except RuntimeError:
+            return False
+
+        # We do not want any rendering sets
+        if nodeType == "shadingEngine":
+            return False
+
+        # if the object is not a set, return false
+        if not (nodeType == "objectSet" or
+                nodeType == "textureBakeSet" or
+                nodeType == "vertexBakeSet" or
+                nodeType == "character"):
+            return False
+
+        # We also do not want any sets with restrictions
+        restrictionAttrs = ["verticesOnlySet", "edgesOnlySet",
+                            "facetsOnlySet", "editPointsOnlySet", "renderableOnlySet"]
+        if any(cmds.getAttr("{0}.{1}".format(name, attr)) for attr in restrictionAttrs):
+            return False
+
+        # Do not show layers
+        if cmds.getAttr("{0}.isLayer".format(name)):
+            return False
+
+        # Do not show bookmarks
+        annotation = cmds.getAttr("{0}.annotation".format(name))
+        if annotation == "bookmarkAnimCurves":
+            return False
+
+        return True
+
+
     sets_data = {}
     for s in sorted([k for k in cmds.ls(sets=True) if _is_set_created_by_user(k)]):
         # I added this because of the plethora of sets in complex animation scenes
@@ -325,13 +341,59 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
 
     Exporting is based on outliner sets and their contents. For each member of
     the this set, Bookmarks will try to find the valid shape nodes to duplicate
-    their geometry in the world-space.
+    their geometry in the  world-space.
 
     Only the normals, geometry and uvs will be exported. No addittional user or
     scene data will is picked up by default.
 
     """
+    # ======================================================
+    # ERROR CHECKING
+    # Check destination before proceeding
+    if not isinstance(outliner_set, (tuple, list)):
+        raise TypeError('Expected <type \'list\'>, got {}'.format(type(outliner_set)))
+
+    destination_info = QtCore.QFileInfo(destination_path)
+    destination_dir = destination_info.dir()
+    _destination_dir_info = QtCore.QFileInfo(destination_dir.path())
+
+    if not _destination_dir_info.exists():
+        s = u'Unable to save the alembic file, {} does not exists.'.format(
+            _destination_dir_info.filePath())
+        common_ui.ErrorBox(
+            u'Alembic export failed.',
+            s
+        ).open()
+        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        raise OSError(s)
+
+    if not _destination_dir_info.isReadable():
+        s = u'Unable to save the alembic file, {} is not readable.'.format(
+            _destination_dir_info.filePath())
+        common_ui.ErrorBox(
+            u'Alembic export failed.',
+            s
+        ).open()
+        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        raise OSError(s)
+
+    if not _destination_dir_info.isWritable():
+        s = u'Unable to save the alembic file, {} is not writable.'.format(
+            _destination_dir_info.filePath())
+        common_ui.ErrorBox(
+            u'Alembic export failed.',
+            s
+        ).open()
+        common.Log.error('Unable to save the alembic file, {} does not exists.')
+        raise OSError(s)
+
+    # ======================================================
+
     destination_path = QtCore.QFileInfo(destination_path).filePath()
+
+    # If the extension is missing, we'll add it here
+    if not destination_path.lower().endswith('.abc'):
+        destination_path = destination_path + u'.abc'
 
     def is_intermediate(s): return cmds.getAttr(
         u'{}.intermediateObject'.format(s))
@@ -421,8 +483,7 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
                     world_shape, fullPath=True, type='transform', parent=True)[0])
             world_shapes.append(world_shape)
 
-        perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(
-            startframe, endframe, time.time())
+        perframecallback = u'"import bookmarks.maya.widget as w;w.report_export_progress({}, #FRAME#, {}, {})"'.format(startframe, endframe, time.time())
 
         jobArg = u'{f} {fr} {s} {uv} {ws} {wv} {wuvs} {sn} {rt} {df} {pfc} {ro}'.format(
             f=u'-file "{}"'.format(destination_path),
@@ -441,21 +502,38 @@ def export_alembic(destination_path, outliner_set, startframe, endframe, step=1.
         )
         print '# jobArg: `{}`'.format(jobArg)
         cmds.AbcExport(jobArg=jobArg)
+
     except Exception as err:
         common_ui.ErrorBox(
             u'An error occured exporting Alembic cache',
             u'{}'.format(err)
-        ).exec_()
+        ).open()
         common.Log.error(u'Could not open the plugin window.')
+        raise
+
     finally:
         # Finally, we will delete the previously created namespace and the object
         # contained inside. I wrapped the call into an evalDeferred to let maya
-        # recover after the export and delete the objects safely
+        # recover after the export and delete the objects more safely.
+
         def teardown():
-            cmds.namespace(removeNamespace=u'mayaExport',
-                           deleteNamespaceContent=True)
+            cmds.namespace(
+                removeNamespace=u'mayaExport', deleteNamespaceContent=True)
         cmds.evalDeferred(teardown)
 
+
+def _capture_viewport_destination():
+    capture_folder = get_preference(u'capture_path')
+    capture_folder = capture_folder if capture_folder else CAPTURE_PATH
+
+    workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
+    scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
+    dest = u'{workspace}/{capture_folder}/{scene}/{scene}'.format(
+        workspace=workspace,
+        capture_folder=capture_folder,
+        scene=scene_info.baseName()
+    )
+    return capture_folder, workspace, dest
 
 @QtCore.Slot()
 def capture_viewport(size=1.0):
@@ -494,16 +572,8 @@ def capture_viewport(size=1.0):
         "depthOfField": False,
     }
 
-    capture_folder = get_preference(u'capture_path')
-    capture_folder = capture_folder if capture_folder else CAPTURE_PATH
-
-    workspace = cmds.workspace(q=True, rootDirectory=True).rstrip(u'/')
     scene_info = QtCore.QFileInfo(cmds.file(q=True, expandName=True))
-    complete_filename = u'{workspace}/{capture_folder}/{scene}/{scene}'.format(
-        workspace=workspace,
-        capture_folder=capture_folder,
-        scene=scene_info.baseName()
-    )
+    capture_folder, workspace, complete_filename = _capture_viewport_destination()
 
     _dir = QtCore.QFileInfo(complete_filename).dir()
     if not _dir.exists():
@@ -512,18 +582,16 @@ def capture_viewport(size=1.0):
     panel = cmds.getPanel(withFocus=True)
     # Not all panels are modelEditors
     if panel is None or cmds.objectTypeUI(panel) != u'modelEditor':
-        mbox = QtWidgets.QMessageBox()
-        mbox.setWindowTitle(u'Viewport Capture')
-        mbox.setIcon(QtWidgets.QMessageBox.Warning)
-        mbox.setStandardButtons(
-            QtWidgets.QMessageBox.Ok)
-        mbox.setText(
-            u'Could not start the capture because the active panel is not a viewport.\nActivate a viewport before starting the capture and try again!')
-        mbox.setInformativeText(u'')
-        mbox.exec_()
-        return
+        s = u'Activate a viewport before starting a capture.'
+        common_ui.MessageBox(
+            'The active window is not a viewport.',
+            s
+        ).open()
+        common.Log.error(s)
+        raise RuntimeError(s)
 
     camera = cmds.modelPanel(panel, query=True, camera=True)
+
     options = mCapture.parse_view(panel)
     options['viewport_options'].update({
         "wireframeOnShaded": False,
@@ -647,59 +715,78 @@ def capture_viewport(size=1.0):
 
 
 def publish_capture(workspace, capture_folder, scene_info, ext):
+    """Copies the latest capture sequence as a version agnostic copy."""
     asset = workspace.split(u'/').pop()
     start = int(cmds.playbackOptions(q=True, minTime=True))
     end = int(cmds.playbackOptions(q=True, maxTime=True))
     duration = (end - start) + 1
 
-    master_dir_path = u'{workspace}/{capture_folder}/latest'.format(
+    latest_dir = u'{workspace}/{capture_folder}/latest'.format(
         workspace=workspace,
         capture_folder=capture_folder,
         asset=asset,
     )
-    _dir = QtCore.QDir(master_dir_path)
+    _dir = QtCore.QDir(latest_dir)
     if not _dir.exists():
-        _dir.mkpath('.')
-    if not QtCore.QFileInfo(master_dir_path).isWritable():
-        print '# Could not publish the current capture to the "latest" folder: the output folder is not writable.'
+        if not _dir.mkpath('.'):
+            s = 'Could not create folder published capture.'
+            common_ui.ErrorBox(
+                u'Could not publish the capture',
+                s
+            ).open()
+            common.Log.error(s)
+            raise OSError(s)
+
+    if not QtCore.QFileInfo(latest_dir).isWritable():
+        s = 'Publish folder is not writable.'
+        common_ui.ErrorBox(
+            u'Could not publish the capture',
+            s
+        ).open()
+        common.Log.error(s)
+        raise OSError(s)
+
+    import bookmarks._scandir as _scandir
+    for entry in _scandir.scandir(latest_dir):
+        os.remove(entry.path)
+
 
     idx = 0
     for n in xrange(int(duration)):
-        versioned_path = u'{workspace}/{capture_folder}/{scene}/{scene}.{n}.{ext}'.format(
+        source = u'{workspace}/{capture_folder}/{scene}/{scene}.{n}.{ext}'.format(
             workspace=workspace,
             capture_folder=capture_folder,
             scene=scene_info.baseName(),
             n=str(n + int(start)).zfill(4),
             ext=ext
         )
-        master_path = u'{workspace}/{capture_folder}/latest/{asset}_capture_{n}.{ext}'.format(
+        dest = u'{workspace}/{capture_folder}/latest/{asset}_capture_{n}.{ext}'.format(
             workspace=workspace,
             capture_folder=capture_folder,
             asset=asset,
             n=str(n + int(start)).zfill(4),
             ext=ext
         )
-        master_file = QtCore.QFile(master_path)
-        if idx == 0 and not QtCore.QFileInfo(versioned_path).exists():
-            print '# Could not find {}'.format(versioned_path)
+        master_file = QtCore.QFile(dest)
+        if idx == 0 and not QtCore.QFileInfo(source).exists():
+            raise RuntimeError('Could not find {}'.format(source))
             return
 
-        master_file.remove()
-        QtCore.QFile.copy(versioned_path, master_path)
+        # Remove the
+        QtCore.QFile.copy(source, dest)
         idx += 1
 
 
-def contextmenu2(func):
+def contextmenu_browserwidget(func):
     """Decorator to create a menu set."""
     @functools.wraps(func)
-    def func_wrapper(self, *args, **kwargs):
-        menu_set = collections.OrderedDict()
-        parent = self.parent().parent().parent().parent()
-        menu_set = func(self, menu_set, *args, browserwidget=parent, **kwargs)
-        if not isinstance(menu_set, collections.OrderedDict):
-            raise ValueError(
-                'Invalid return type from context menu function, expected an OrderedDict, got {}'.format(type(menu_set)))
-        self.create_menu(menu_set)
+    def func_wrapper(self, menu_set):
+        widget = self.parent().parent().parent().parent()
+        menu_set = func(
+            self,
+            menu_set,
+            browserwidget=widget
+        )
         return menu_set
     return func_wrapper
 
@@ -711,6 +798,8 @@ class BrowserButtonContextMenu(BaseContextMenu):
         super(BrowserButtonContextMenu, self).__init__(
             QtCore.QModelIndex(), parent=parent)
 
+        self.add_separator()
+        #
         self.add_maya_actions_menu()
         #
         self.add_separator()
@@ -730,12 +819,12 @@ class BrowserButtonContextMenu(BaseContextMenu):
     @contextmenu
     def add_maya_actions_menu(self, menu_set):
         menu_set[u'save'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE),
             u'text': u'Save version...',
             u'action': self.parent().saveRequested.emit
         }
         menu_set[u'save_increment'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'add_file', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE),
             u'text': u'Save quick increment...',
             u'action': self.parent().incrementRequested.emit
         }
@@ -743,10 +832,10 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_export_alembic_menu(self, menu_set):
-        objectset_pixmap = ImageCache.get_rsc_pixmap(
+        objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.INLINE_ICON_SIZE)
 
-        outliner_set_members = get_outliner_sets_members()
+        outliner_set_members = outliner_sets()
 
         key = u'alembic_animation'
         menu_set[key] = collections.OrderedDict()
@@ -781,7 +870,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'icon_bw', None, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.INLINE_ICON_SIZE),
             u'text': u'Toggle {}'.format(common.PRODUCT),
             u'action': self.parent().clicked.emit
         }
@@ -789,23 +878,21 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
     @contextmenu
     def add_capture_menu(self, menu_set):
+        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE)
+        k = 'Capture viewport'
+        menu_set[k] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(k)] = pixmap
+
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
-        menu_set[u'capture_full'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport (Full: {} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
-            u'action': lambda: capture_viewport(size=1.0)
-        }
-        menu_set[u'capture_half'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport (Half: {} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
-            u'action': lambda: capture_viewport(size=0.5)
-        }
-        menu_set[u'capture_quarter'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport (Quarter: {} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
-            u'action': lambda: capture_viewport(size=0.25)
-        }
+
+        size = lambda n: (int(int(width) * n), int(int(height) * n))
+
+        for n in (1.0, 0.5, 0.25, 1.5, 2.0):
+            menu_set[k][u'capture{}'.format(n)] = {
+                u'text': u'Capture  |  @{}  |  {}x{}px'.format(n, *size(n)),
+                u'action': functools.partial(capture_viewport, size=n)
+            }
         return menu_set
 
 
@@ -861,8 +948,9 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
             self.adjustSize()
             self.update()
         else:
-            common.log_warning(
-                '# Bookmarks: Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.\n')
+            s ='Could not find "ToolBox" - ``MayaBrowserButton`` not embedded.'
+            common.Log.error(s)
+            print s
 
         # Unlocking showing widget
         currentval = cmds.optionVar(q='workspacesLockDocking')
@@ -890,7 +978,6 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
 
     def contextMenuEvent(self, event):
         """Context menu event."""
-        # Custom context menu
         shift_modifier = event.modifiers() & QtCore.Qt.ShiftModifier
         alt_modifier = event.modifiers() & QtCore.Qt.AltModifier
         control_modifier = event.modifiers() & QtCore.Qt.ControlModifier
@@ -913,13 +1000,14 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         super(MayaBrowserWidgetContextMenu, self).__init__(
             index, parent=parent)
 
-        self.add_scene_actions_menu()
+        self.add_apply_bookmark_settings_menu()
+        self.add_separator()
 
+        self.add_save_actions_menu()
         self.add_separator()
 
         if index.isValid():
             self.add_scenes_menu()
-
         self.add_separator()
 
         # Caches
@@ -934,12 +1022,31 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         self.add_capture_menu()
 
-    @contextmenu2
-    def add_scene_actions_menu(self, menu_set, browserwidget=None):
+    @contextmenu
+    @contextmenu_browserwidget
+    def add_apply_bookmark_settings_menu(self, menu_set, browserwidget=None):
+        pixmap = images.ImageCache.get_rsc_pixmap(
+            u'check', common.ADD, common.INLINE_ICON_SIZE)
+
+        menu_set[u'apply_settings'] = {
+            u'text': u'Apply scene settings...',
+            u'icon': pixmap,
+            u'action': browserwidget.apply_settings
+        }
+
+        return menu_set
+
+    @contextmenu
+    @contextmenu_browserwidget
+    def add_save_actions_menu(self, menu_set, browserwidget=None):
+        """Save actions.
+
+        """
         scene = QtCore.QFileInfo(cmds.file(query=True, expandName=True))
-        pixmap = ImageCache.get_rsc_pixmap(
+
+        pixmap = images.ImageCache.get_rsc_pixmap(
             u'add_file', common.TEXT_SELECTED, common.INLINE_ICON_SIZE)
-        pixmap2 = ImageCache.get_rsc_pixmap(
+        pixmap2 = images.ImageCache.get_rsc_pixmap(
             u'add_file', common.TEXT_DISABLED, common.INLINE_ICON_SIZE)
         menu_set[u'new'] = {
             u'text': u'Save version...',
@@ -955,15 +1062,20 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         return menu_set
 
-    @contextmenu2
+    @contextmenu
+    @contextmenu_browserwidget
     def add_scenes_menu(self, menu_set, browserwidget=None):
+        """Maya scene actions."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        maya_pixmap = ImageCache.get_rsc_pixmap(
+        if file_info.suffix().lower() not in (u'ma', u'mb'):
+            return menu_set
+
+        maya_pixmap = images.ImageCache.get_rsc_pixmap(
             u'maya', None, common.INLINE_ICON_SIZE)
-        maya_reference_pixmap = ImageCache.get_rsc_pixmap(
+        maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
             u'maya_reference', None, common.INLINE_ICON_SIZE)
 
         menu_set[u'open_scene'] = {
@@ -983,16 +1095,17 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         }
         return menu_set
 
-    @contextmenu2
+    @contextmenu
+    @contextmenu_browserwidget
     def add_alembic_actions_menu(self, menu_set, browserwidget=None):
         """Actions associated with ``alembic`` cache operations."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
         file_info = QtCore.QFileInfo(path)
 
-        alembic_pixmap = ImageCache.get_rsc_pixmap(
+        alembic_pixmap = images.ImageCache.get_rsc_pixmap(
             u'abc', None, common.INLINE_ICON_SIZE)
-        maya_reference_pixmap = ImageCache.get_rsc_pixmap(
+        maya_reference_pixmap = images.ImageCache.get_rsc_pixmap(
             u'maya_reference', None, common.INLINE_ICON_SIZE)
 
         menu_set[u'open_alembic'] = {
@@ -1012,12 +1125,13 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         }
         return menu_set
 
-    @contextmenu2
+    @contextmenu
+    @contextmenu_browserwidget
     def add_export_alembic_menu(self, menu_set, browserwidget=None):
-        objectset_pixmap = ImageCache.get_rsc_pixmap(
+        objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.INLINE_ICON_SIZE)
 
-        outliner_set_members = get_outliner_sets_members()
+        outliner_set_members = outliner_sets()
 
         key = u'alembic_animation'
         menu_set[key] = collections.OrderedDict()
@@ -1047,25 +1161,24 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
 
         return menu_set
 
-    @contextmenu2
+    @contextmenu
+    @contextmenu_browserwidget
     def add_capture_menu(self, menu_set, browserwidget=None):
+        pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE)
+        k = 'Capture viewport'
+        menu_set[k] = collections.OrderedDict()
+        menu_set[u'{}:icon'.format(k)] = pixmap
+
         width = cmds.getAttr("defaultResolution.width")
         height = cmds.getAttr("defaultResolution.height")
-        menu_set[u'capture_full'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 1.0), int(int(height) * 1.0)),
-            u'action': lambda: capture_viewport(size=1.0)
-        }
-        menu_set[u'capture_half'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.5), int(int(height) * 0.5)),
-            u'action': lambda: capture_viewport(size=0.5)
-        }
-        menu_set[u'capture_quarter'] = {
-            u'icon': ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE),
-            u'text': u'Capture viewport ({} x {} px)'.format(int(int(width) * 0.25), int(int(height) * 0.25)),
-            u'action': lambda: capture_viewport(size=0.25)
-        }
+
+        size = lambda n: (int(int(width) * n), int(int(height) * n))
+
+        for n in (1.0, 0.5, 0.25, 1.5, 2.0):
+            menu_set[k][u'capture{}'.format(n)] = {
+                u'text': u'Capture  |  @{}  |  {}x{}px'.format(n, *size(n)),
+                u'action': functools.partial(capture_viewport, size=n)
+            }
         return menu_set
 
 
@@ -1110,12 +1223,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot()
     def active_changed(self):
         """Slot called when an active asset changes."""
-        val = get_preference(u'disable_workspace_warnings')
-        if val is True:
+        if get_preference(u'disable_workspace_warnings') is True:
             return
 
         # We will get a warning when we change to a new bookmark and Bookmarks
-        # unsets the current workspace. Whilst technically correct it is
+        # unsets the current workspace. Whilst technically correct, it is
         # counterintuitive to be warned of a direct action just performed
         assets_model = self.browserwidget.assetswidget.model().sourceModel()
         if not assets_model.active_index().isValid():
@@ -1124,19 +1236,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         workspace_info = QtCore.QFileInfo(
             cmds.workspace(q=True, expandName=True))
 
-        mbox = QtWidgets.QMessageBox()
-        mbox.setIcon(QtWidgets.QMessageBox.Information)
-        mbox.setWindowTitle(u'Bookmarks - Workspace changed')
-        mbox.setText(
-            u'The current workspace changed. The new workspace is:\n{}'.format(
-                workspace_info.path())
-        )
-        mbox.setInformativeText(
-            u'If you didn\'t expect this message, it is possible your current project was changed by Bookmarks, perhaps in another instance of Maya.')
-        mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-        mbox.setWindowFlags(QtCore.Qt.Window)
-        res = mbox.exec_()
+        common_ui.MessageBox(
+            u'Workspace changed\n The new workspace is {}'.format(
+                workspace_info.path()),
+            u'If you didn\'t expect this message, it is possible your current project was changed by Bookmarks, perhaps in another instance of Maya.'
+        ).open()
 
     def _add_shortcuts(self):
         """Global maya shortcut to do a save as"""
@@ -1147,9 +1251,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.layout().setSpacing(0)
         common.set_custom_stylesheet(self)
 
-        self.browserwidget = BrowserWidget()
+        self.browserwidget = BrowserWidget(parent=self)
         self.layout().addWidget(self.browserwidget)
-
         self.browserwidget.terminated.connect(self.terminate)
 
     @QtCore.Slot()
@@ -1273,20 +1376,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             return
 
         if workspace_info.path().lower() not in scene_file.filePath().lower():
-
-            mbox = QtWidgets.QMessageBox()
-            mbox.setIcon(QtWidgets.QMessageBox.Information)
-            mbox.setWindowTitle(u'Bookmarks - Workspace mismatch')
-            mbox.setText(
+            common_ui.MessageBox(
                 u'Looks like you are saving "{}" outside the current project\nThe current project is "{}"'.format(
                     scene_file.fileName(),
-                    workspace_info.path())
-            )
-            mbox.setInformativeText(
-                u'If you didn\'t expect this message, is it possible the project was changed by Bookmarks from another instance of Maya?')
-            mbox.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            mbox.setDefaultButton(QtWidgets.QMessageBox.Ok)
-            res = mbox.exec_()
+                    workspace_info.path()),
+                u'If you didn\'t expect this message, is it possible the project was changed by Bookmarks from another instance of Maya?'
+            ).open()
 
     @QtCore.Slot()
     def unmark_active(self, *args):
@@ -1418,99 +1513,279 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot()
     def set_workspace(self):
         """Slot responsible for updating the Maya workspace."""
-        # When active sync is disabled we won't
-        val = get_preference(u'disable_workspace_sync')
-        if val is True:
-            return
+        try:
+            # When active sync is disabled we won't set workspaces
+            if get_preference(u'disable_workspace_sync') is True:
+                return
+            index = self.browserwidget.assetswidget.model().sourceModel().active_index()
+            if not index.isValid():
+                return
+            parent = index.data(common.ParentPathRole)
+            if not parent:
+                return
+            if not all(parent):
+                return
+            file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
+            if file_info.filePath().lower() == cmds.workspace(q=True, sn=True).lower():
+                return
+            cmds.workspace(file_info.filePath(), openWorkspace=True)
+        except Exception as e:
+            s = u'Could not set the workspace'
+            common_ui.ErrorBox(
+                s,
+                u'This might have happened because {} is not a valid Maya Workspace?'.format(
+                    file_info.fileName())
+            ).open()
+            common.Log.error(s)
+            raise
 
-        index = self.browserwidget.assetswidget.model().sourceModel().active_index()
-        if not index.isValid():
-            return
-        parent = index.data(common.ParentPathRole)
-        if not parent:
-            return
-        if not all(parent):
-            return
+    @QtCore.Slot()
+    def apply_settings(self):
+        """Apply the Bookmark Properties to the current scene.
 
-        file_info = QtCore.QFileInfo(index.data(QtCore.Qt.StatusTipRole))
-        if file_info.filePath().lower() == cmds.workspace(q=True, sn=True).lower():
-            return
+        """
+        import bookmarks.bookmark_db as bookmark_db
+
+        def set_start_frame(self, frame):
+            frame = round(frame, 0)
+            currentFrame = round(cmds.currentTime(query=True))
+
+            cmds.playbackOptions(animationStartTime=int(frame))
+            cmds.playbackOptions(minTime=int(frame))
+            cmds.setAttr('defaultRenderGlobals.endFrame', int(frame))
+            if currentFrame < frame:
+                cmds.currentTime(frame, edit=True)
+            else:
+                cmds.currentTime(currentFrame, edit=True)
+
+
+        def set_end_frame(self, frame):
+            frame = round(frame, 0)
+            currentFrame = round(cmds.currentTime(query=True))
+
+            cmds.playbackOptions(animationStartTime=int(frame))
+            cmds.playbackOptions(minTime=int(frame))
+            cmds.setAttr('defaultRenderGlobals.startFrame', int(frame))
+
+            if currentFrame < frame:
+                cmds.currentTime(frame, edit=True)
+            else:
+                cmds.currentTime(currentFrame, edit=True)
 
         try:
-            cmds.workspace(file_info.filePath(), openWorkspace=True)
-        except Exception as err:
-            common_ui.ErrorBox(
-                u'Could not set the workspace',
-                u'This might have happened because {} is not a valid Maya Workspace?\n{}'.format(
-                    file_info.fileName(), err)
-            ).exec_()
-            common.Log.error(u'Could not set the workspace.')
+            widget = self.browserwidget.stackedwidget.widget(0)
+            model = widget.model().sourceModel()
+            if not model.active_index().isValid():
+                return
 
-    def save_scene(self, increment=False):
-        """Our custom scene saver command.
-        This method will try to save a version aware file based on the
-        current context.
+            t = u'properties'
+            v = {}
+            db = None
+            n = 0
+
+            while db is None:
+                db = bookmark_db.get_db(model.active_index())
+                if db is None:
+                    n += 1
+                    time.sleep(0.1)
+                if n > 10:
+                    break
+
+            if not db:
+                s = u'Could not get the Bookmark Database'
+                common.Log.error(s)
+                raise RuntimeError(s)
+
+            with db.transactions():
+                for _k in bookmark_db.KEYS[t]:
+                    v[_k] = db.value(0, _k, table=t)
+
+
+            if (v['width'] and v['height']):
+                cmds.setAttr('defaultResolution.width', v['width'])
+                cmds.setAttr('defaultResolution.height', v['height'])
+            if v['framerate']:
+                set_framerate(v['framerate'])
+            if v['startframe']:
+                set_start_frame(v['startframe'])
+            if v['duration']:
+                set_end_frame(v['startframe'] + v['duration'])
+
+            cmds.setAttr('defaultRenderGlobals.extensionPadding', 4)
+            cmds.setAttr('defaultRenderGlobals.animation', 1)
+            cmds.setAttr('defaultRenderGlobals.putFrameBeforeExt', 1)
+            cmds.setAttr('defaultRenderGlobals.periodInExt', 2)
+            cmds.setAttr('defaultRenderGlobals.useFrameExt', 0)
+            cmds.setAttr('defaultRenderGlobals.outFormatControl', 0)
+            cmds.setAttr('defaultRenderGlobals.imageFormat', 8)
+
+
+            info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
+                w=u'{}'.format(int(v['width'])) if (v['width'] and v['height']) else u'',
+                h=u'x{}px'.format(int(v['height'])) if (v['width'] and v['height']) else u'',
+                fps=u'  |  {}fps'.format(v['framerate']) if v['framerate'] else u'',
+                pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
+                start=u'  |  {}'.format(int(v['startframe'])) if v['startframe'] else u'',
+                duration=u'-{} ({} frames)'.format(
+                    int(v['startframe']) + int(v['duration']),
+                    int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
+            )
+
+            common_ui.OkBox(
+                u'Successfully applied the default scene settings:',
+                info,
+                parent=self
+            ).open()
+
+        except Exception as e:
+            s = u'Could apply properties'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
+
+
+
+    @QtCore.Slot()
+    def save_scene(self, increment=False, modal=True):
+        """Initializes Bookmarks' custom file saver dialog.
+
+        Then increment=True, Bookmarks will try to increment any version number
+        +1 before saving the file.
+
+        The saving is done using `AddFileWidget`, a modal QDialog.
+
+        Returns:
+            unicode: Path to the saved scene file.
 
         """
         ext = u'ma'
-        file = None
-        if increment:
-            file = cmds.file(query=True, expandName=True)
-        fileswidget = self.browserwidget.stackedwidget.widget(2)
+        file = cmds.file(query=True, expandName=True) if increment else None
+        if file:
+            if not file.lower().endswith(u'.ma'):
+                file = file + '.ma'
 
-        widget = AddFileWidget(ext, file=file)
-        if widget.exec_() == QtWidgets.QDialog.Rejected:
-            return
+        widget = addfilewidget.AddFileWidget(ext, file=file)
+        if modal:
+            if widget.exec_() == QtWidgets.QDialog.Rejected:
+                return
+        if not modal and not increment:
+            raise RuntimeError('Flags `increment` and `modal` together is undefined behaviour')
+        if increment and modal:
+            widget.open()
 
         file_path = widget.filePath()
-        file_info = QtCore.QFileInfo(file_path)
-        # Last-minute double-check to make sure we're not overwriting anything...
-        if file_info.exists():
-            raise RuntimeError('# Unable to save file: File already exists.')
+        if not file_path:
+            raise RuntimeError('Could not retrieve the destination path.')
 
-        cmds.file(rename=file_path)
-        cmds.file(force=True, save=True, type=u'mayaAscii')
-        fileswidget.new_file_added(widget.data_key(), file_path)
-        sys.stdout.write(u'# Bookmarks: Scene saved as {}\n'.format(file_path))
+        file_info = QtCore.QFileInfo(file_path)
+
+        # Last-ditch check to make sure we're not overwriting anything
+        if file_info.exists():
+            s = u'Unable to save file: {} already exists.'.format(file_path)
+            common.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
+        try:
+            cmds.file(rename=file_path)
+            cmds.file(force=True, save=True, type=u'mayaAscii')
+            fileswidget = self.browserwidget.stackedwidget.widget(2)
+            fileswidget.new_file_added(widget.data_key(), file_path)
+            return file_path
+
+        except Exception as e:
+            s = u'Could not save the scene.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
     def open_scene(self, path):
         """Maya Command: Opens the given path in Maya using ``cmds.file``.
 
+        Returns:
+            unicode: The name of the input scene if the load was successfull.
+
+        Raises:
+            RuntimeError: When and invalid scene file is passed.
+
+
         """
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
         if file_info.suffix().lower() not in (u'ma', u'mb', u'abc'):
-            common.Log.error('# File is not a maya file')
+            s = u'{} is not a valid scene.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        result = self.is_scene_modified()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
-        cmds.file(file_info.filePath(), open=True, force=True)
-        common.Log.success(
-            u'# Bookmarks: Scene opened {}\n'.format(file_info.filePath()))
+        if not file_info.exists():
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not import scene', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
+        try:
+            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
+                return
+            cmds.file(file_info.filePath(), open=True, force=True)
+
+            common.Log.success(
+                u'# Bookmarks: Scene opened {}\n'.format(file_info.filePath()))
+            common_ui.OkBox(
+                u'Success.',
+                u'{} opened successfully.'.format(file_info.filePath())
+            ).open()
+            return file_info.filePath()
+        except Exception as e:
+            s = u'Could not open the scene.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
     def import_scene(self, path):
         """Imports the given scene locally."""
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
+
+        if file_info.suffix().lower() not in (u'ma', u'mb'):
+            s = u'{} is not a valid scene.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
         if not file_info.exists():
-            return
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not import scene', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        result = self.is_scene_modified()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
+        try:
+            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
+                return
+            match = common.get_sequence(file_info.fileName())
+            ns = match.group(1) if match else file_info.baseName()
+            ns = u'{}#'.format(ns)
+            cmds.file(
+                file_info.filePath(),
+                i=True,
+                ns=ns
+            )
+            common_ui.OkBox(
+                u'Done.',
+                u'{} imported successfully.'.format(file_info.filePath())
+            ).open()
+            return file_info.filePath()
 
-        match = common.get_sequence(file_info.fileName())
-        cmds.file(
-            file_info.filePath(),
-            i=True,
-            ns=u'{}#'.format(match.group(1) if match else file_info.baseName())
-        )
-
-        sys.stdout.write(
-            u'# Bookmarks: Scene imported locally: {}\n'.format(file_info.filePath()))
+        except Exception as e:
+            s = u'Could not open the scene.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
     def import_referenced_scene(self, path):
         """Imports the given scene as a reference."""
+
         def get_alphabet(basename):
             """Checks the scene against the already used suffixes and returs a modified alphabet"""
             alphabet = unicode(string.ascii_uppercase)
@@ -1540,49 +1815,69 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                                  en=u':'.join(string.ascii_uppercase))
                     cmds.setAttr('{}.instance_suffix'.format(_node), id)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
+        if file_info.suffix().lower() not in (u'ma', u'mb'):
+            s = u'{} is not a valid scene.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
         if not file_info.exists():
-            return
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not reference scene', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        match = common.get_sequence(file_info.fileName())
-        basename = match.group(1) if match else file_info.baseName()
-        basename = re.sub(ur'_v$', u'', basename, flags=re.IGNORECASE)
+        try:
+            match = common.get_sequence(file_info.fileName())
+            basename = match.group(1) if match else file_info.baseName()
+            basename = re.sub(ur'_v$', u'', basename, flags=re.IGNORECASE)
 
-        alphabet = get_alphabet(basename)
-        if not alphabet:
-            return
+            alphabet = get_alphabet(basename)
+            if not alphabet:
+                return
 
-        w = QtWidgets.QInputDialog()
-        w.setWindowTitle(u'Assign suffix')
-        w.setLabelText(
-            u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
-        w.setComboBoxItems(alphabet)
-        w.setCancelButtonText(u'Cancel')
-        w.setOkButtonText(u'Import reference')
-        res = w.exec_()
-        if not res:
-            return
-        suffix = w.textValue()
+            w = QtWidgets.QInputDialog(parent=self)
+            w.setWindowTitle(u'Assign suffix')
+            w.setLabelText(
+                u'Select the suffix of this referece.\n\nSuffixes are unique and help differentiate animation and cache data\nwhen the same asset is referenced mutiple times.')
+            w.setComboBoxItems(alphabet)
+            w.setCancelButtonText(u'Cancel')
+            w.setOkButtonText(u'Import reference')
+            res = w.exec_()
+            if not res:
+                return
+            suffix = w.textValue()
 
-        id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
-        # This should always be a unique name in the maya scene
-        ns = u'{}_{}'.format(basename, suffix)
-        rfn = u'{}_RN_{}'.format(ns, id)
+            id = u'{}'.format(uuid.uuid1()).replace(u'-', u'_')
+            # This should always be a unique name in the maya scene
+            ns = u'{}_{}'.format(basename, suffix)
+            rfn = u'{}_RN_{}'.format(ns, id)
 
-        cmds.file(
-            file_info.filePath(),
-            reference=True,
-            ns=ns,
-            rfn=rfn,
-        )
-        add_attribute(rfn, suffix)
+            cmds.file(
+                file_info.filePath(),
+                reference=True,
+                ns=ns,
+                rfn=rfn,
+            )
+            add_attribute(rfn, suffix)
 
-        cmds.lockNode(rfn, lock=False)
-        rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
-        cmds.lockNode(rfn, lock=True)
+            cmds.lockNode(rfn, lock=False)
+            rfn = cmds.rename(rfn, u'{}_RN'.format(ns))
+            cmds.lockNode(rfn, lock=True)
 
-        sys.stdout.write(
-            u'# Bookmarks: Scene imported as reference: {}\n'.format(file_info.filePath()))
+            common_ui.OkBox(
+                u'Success.',
+                u'{} referenced successfully.'.format(file_info.filePath())
+            ).open()
+
+            return file_info.filePath()
+        except Exception as e:
+            s = u'Could not reference the scene.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
     def open_alembic(self, path):
         """Opens the given scene."""
@@ -1590,107 +1885,162 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             cmds.loadPlugin("AbcExport.mll", quiet=True)
             cmds.loadPlugin("AbcImport.mll", quiet=True)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(path))
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
+        if file_info.suffix().lower() not in (u'abc',):
+            s = u'{} is not a valid alembic.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
         if not file_info.exists():
-            return
-        result = self.is_scene_modified()
-        if result == QtWidgets.QMessageBox.Cancel:
-            return
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not open alembic.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        cmds.AbcImport(file_info.filePath(), mode=u'open')
+        try:
+            if self.is_scene_modified() == QtWidgets.QMessageBox.Cancel:
+                return
+            cmds.AbcImport(file_info.filePath(), mode=u'open')
+            common_ui.OkBox(
+                u'Success.',
+                u'{} opened successfully.'.format(file_info.filePath())
+            ).open()
+            return file_info.filePath()
+        except Exception as e:
+            s = u'Could not reference the scene.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
-        sys.stdout.write(
-            u'# Bookmarks: Alembic opened: {}\n'.format(file_info.filePath()))
-
-    def import_alembic(self, file_path):
+    def import_alembic(self, path):
         """Imports the given scene locally."""
         if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
             cmds.loadPlugin('AbcExport.mll', quiet=True)
             cmds.loadPlugin('AbcImport.mll', quiet=True)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
+        if file_info.suffix().lower() not in (u'abc',):
+            s = u'{} is not a valid alembic.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
         if not file_info.exists():
-            return
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not import alembic.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        seq = common.get_sequence(file_info.fileName())
-        if seq:
-            prefix, _, _, ext = seq.groups()
-            prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
-        else:
-            prefix = file_info.baseName().rstrip(u'_')
+        try:
+            seq = common.get_sequence(file_info.fileName())
+            if seq:
+                prefix, _, _, _ = seq.groups()
+                prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
+            else:
+                prefix = file_info.baseName().rstrip(u'_')
 
-        # Create namespace
-        n = 1
-        ns = u'abc_{}{}'.format(prefix, n)
-        while True:
-            if cmds.namespace(exists=ns):
-                n += 1
-                ns = u'abc_{}{}'.format(prefix, n)
-                continue
-            break
-        cmds.namespace(add=ns)
-        root_node = u'{}:{}'.format(ns, prefix)
-        cmds.createNode(u'transform', name=root_node)
+            # Create namespace
+            n = 1
+            ns = u'abc_{}{}'.format(prefix, n)
+            while True:
+                if cmds.namespace(exists=ns):
+                    n += 1
+                    ns = u'abc_{}{}'.format(prefix, n)
+                    continue
+                break
+            cmds.namespace(add=ns)
+            root_node = u'{}:{}'.format(ns, prefix)
+            cmds.createNode(u'transform', name=root_node)
 
-        cmds.AbcImport(
-            file_path,
-            mode='import',
-            reparent=root_node,
-            filterObjects=u'.*Shape.*'
-        )
+            cmds.AbcImport(
+                p,
+                mode='import',
+                reparent=root_node,
+                filterObjects=u'.*Shape.*'
+            )
 
-        for s in cmds.listRelatives(root_node, children=True):
-            cmds.rename(s, u'{}:{}'.format(ns, s))
+            for s in cmds.listRelatives(root_node, children=True):
+                cmds.rename(s, u'{}:{}'.format(ns, s))
 
-        sys.stdout.write(
-            u'# Bookmarks: Alembic imported: {}\n'.format(file_info.filePath()))
+            common_ui.OkBox(
+                u'Success.',
+                u'{} imported successfully.'.format(file_info.filePath())
+            ).open()
+            return file_info.filePath()
+        except Exception as e:
+            s = u'Could not import alembic.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
-    def import_referenced_alembic(self, file_path):
+    def import_referenced_alembic(self, path):
         """Imports the given scene as a reference."""
         if not cmds.pluginInfo(u'AbcImport.mll', loaded=True, q=True):
             cmds.loadPlugin('AbcExport.mll', quiet=True)
             cmds.loadPlugin('AbcImport.mll', quiet=True)
 
-        file_info = QtCore.QFileInfo(common.get_sequence_endpath(file_path))
+        p = common.get_sequence_endpath(path)
+        file_info = QtCore.QFileInfo(p)
+        if file_info.suffix().lower() not in (u'abc',):
+            s = u'{} is not a valid alembic.'.format(p)
+            common_ui.ErrorBox(u'Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
         if not file_info.exists():
-            return
+            s = u'{} does not exist.'.format(p)
+            common_ui.ErrorBox(u'Could not reference alembic.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
-        seq = common.get_sequence(file_info.fileName())
-        if seq:
-            prefix, _, _, ext = seq.groups()
-            prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
-        else:
-            prefix = file_info.baseName().rstrip(u'_')
+        try:
+            seq = common.get_sequence(file_info.fileName())
+            if seq:
+                prefix, _, _, _ = seq.groups()
+                prefix = re.sub(ur'_v$', '', prefix).rstrip(u'_')
+            else:
+                prefix = file_info.baseName().rstrip(u'_')
 
-        # Create namespace
-        n = 1
-        ns = u'abc_{}{}'.format(prefix, n)
-        while True:
-            if cmds.namespace(exists=ns):
-                n += 1
-                ns = u'abc_{}{}'.format(prefix, n)
-                continue
-            break
+            # Create namespace
+            n = 1
+            ns = u'abc_{}{}'.format(prefix, n)
+            while True:
+                if cmds.namespace(exists=ns):
+                    n += 1
+                    ns = u'abc_{}{}'.format(prefix, n)
+                    continue
+                break
 
-        # The namespace will be created by the cmds.file() command
-        rfn = u'{}_RN'.format(ns)
+            # The namespace will be created by the cmds.file() command
+            rfn = u'{}_RN'.format(ns)
 
-        cmds.file(
-            file_info.filePath(),
-            reference=True,
-            ns=ns,
-            rfn=rfn,
-        )
-        members = cmds.namespaceInfo(ns, listNamespace=True, fullName=True)
-        root_node = u'{}:{}'.format(ns, prefix)
-        cmds.createNode(u'transform', name=root_node)
-        for member in members:
-            if cmds.objectType(member) != u'transform':
-                continue
-            cmds.parent(member, root_node)
+            cmds.file(
+                file_info.filePath(),
+                reference=True,
+                ns=ns,
+                rfn=rfn,
+            )
+            members = cmds.namespaceInfo(ns, listNamespace=True, fullName=True)
+            root_node = u'{}:{}'.format(ns, prefix)
+            cmds.createNode(u'transform', name=root_node)
+            for member in members:
+                if cmds.objectType(member) != u'transform':
+                    continue
+                cmds.parent(member, root_node)
 
-        sys.stdout.write(
-            u'# Bookmarks: Alembic imported: {}\n'.format(file_info.filePath()))
+            common_ui.OkBox(
+                u'Success.',
+                u'{} referenced successfully.'.format(file_info.filePath())
+            ).open()
+            return file_info.filePath()
+        except Exception as e:
+            s = u'Could not reference alembic.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
+            raise
 
     @QtCore.Slot(unicode)
     @QtCore.Slot(dict)
@@ -1729,7 +2079,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if not _dir.exists():
             _dir.mkpath(u'.')
 
-        widget = AddFileWidget(ext, file=file_path)
+        widget = addfilewidget.AddFileWidget(ext, file=file_path)
         fileswidget = self.browserwidget.stackedwidget.widget(2)
 
         if widget.exec_() == QtWidgets.QDialog.Rejected:
@@ -1738,10 +2088,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         file_path = widget.filePath()
         file_info = QtCore.QFileInfo(file_path)
 
-        # Last-minute double-check to make sure we're not overwriting anything...
+        # Last-ditch check to make sure we're not overwriting anything...
         if file_info.exists():
-            raise RuntimeError(
-                u'# Unable to save alembic: File already exists!')
+            s = u'Unable to save alembic: {} already exists.'.format(file_path)
+            common_ui.ErrorBox('Error.', s).open()
+            common.Log.error(s)
+            raise RuntimeError(s)
 
         if frame:
             start = cmds.currentTime(query=True)
@@ -1753,6 +2105,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         state = cmds.ogs(pause=True, query=True)
         if not state:
             cmds.ogs(pause=True)
+
         try:
             export_alembic(
                 file_info.filePath(),
@@ -1761,7 +2114,11 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 end
             )
             fileswidget.new_file_added(widget.data_key(), file_path)
-        except:
+            return file_path
+        except Exception as e:
+            s = u'Could not export alembic.'
+            common_ui.ErrorBox(s, u'{}'.format(e)).open()
+            common.Log.error(s)
             raise
         finally:
             if not state:
