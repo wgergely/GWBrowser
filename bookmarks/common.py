@@ -68,7 +68,7 @@ ASSET_FOLDERS = {
 
 ROW_HEIGHT = 34.0
 BOOKMARK_ROW_HEIGHT = 42.0
-ASSET_ROW_HEIGHT = 78.0
+ASSET_ROW_HEIGHT = 64.0
 CONTROL_HEIGHT = 34.0
 ROW_SEPARATOR = 1.0
 
@@ -767,6 +767,7 @@ DefaultThumbnailBackgroundRole = 1040
 TypeRole = 1041
 EntryRole = 1042
 IdRole = 1043
+AssetCountRole = 1043
 
 SortByName = 2048
 SortByLastModified = 2049

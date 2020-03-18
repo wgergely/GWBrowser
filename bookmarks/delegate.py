@@ -518,35 +518,39 @@ class BookmarksWidgetDelegate(BaseDelegate):
         self.paint_thumbnail_drop_indicator(*args)
 
     def get_description_rect(self, *args):
-        """We don't have descriptions for bookmark items."""
+        """We don't have editable descriptions for bookmark items."""
         return QtCore.QRect()
 
     def get_text_segments(self, index):
-        """I'm using QPainterPaths to paint the text of each item. The functions
-        returns a tuple of text and colour information to be used to mimick
+        """Returns the `BookmarksWidget` text segments associated with
+        custom colors.
+
+        Returns a tuple of text and colour information to be used to mimick
         rich-text like colouring of individual text elements.
 
         """
         text = index.data(QtCore.Qt.DisplayRole)
+        text = text.strip().strip(u'/').strip(u'\\')
         if not text:
             return {}
 
         d = {}
-        d[len(d)] = (u'{}/{}'.format(
-            index.data(common.ParentPathRole)[0],
-            index.data(common.ParentPathRole)[1],
-        ).upper().strip(), common.TEXT)
-        d[len(d)] = (u'  |  ', common.FAVOURITE.darker(150))
+        v = text.split(u'|')
+        for i, s in enumerate(v):
 
-        root_dirs = text.split(u'|')[-1].split(u'/')
-        for idx, root_dir in enumerate(root_dirs):
-            root_dir = root_dir.upper().strip()
-            if idx == (len(root_dirs) - 1):
-                d[len(d)] = (root_dir, common.TEXT)
-                break
+            if i == 0:
+                c = common.FAVOURITE.darker(150)
             else:
-                d[len(d)] = (root_dir, common.TEXT)
-            d[len(d)] = (u' / ', common.FAVOURITE.darker(150))
+                c = common.TEXT
+
+            _v = s.split(u'/')
+            for _i, _s in enumerate(_v):
+                _s = _s.upper().strip()
+                d[len(d)] = (_s, c)
+                if _i < (len(_v) - 1):
+                    d[len(d)] = (u' / ', common.FAVOURITE.darker(150))
+            if i < (len(v) - 1):
+                d[len(d)] = (u'  |  ', common.FAVOURITE.darker(200))
         return d
 
     @paintmethod
@@ -590,32 +594,70 @@ class BookmarksWidgetDelegate(BaseDelegate):
         for segment in text_segments.itervalues():
             text, color = segment
             width = metrics.width(text)
-            r = QtCore.QRect(rect)
-            r.setWidth(width)
-            center = r.center()
-            r.setHeight(metrics.ascent())
-            r.moveCenter(center)
-            r.moveLeft(r.left() + offset)
+            _r = QtCore.QRect(rect)
+            _r.setWidth(width)
+            center = _r.center()
+            _r.setHeight(metrics.ascent())
+            _r.moveCenter(center)
+            _r.moveLeft(_r.left() + offset)
 
-            if r.left() >= rect.right():
+            if _r.left() >= rect.right():
                 break
 
-            if (r.right() + o) > rect.right():
-                r.setRight(rect.right() - o)
+            if (_r.right() + o) > rect.right():
+                _r.setRight(rect.right() - o)
                 text = metrics.elidedText(
                     text,
                     QtCore.Qt.ElideRight,
-                    r.width()
+                    _r.width()
                 )
 
             painter.setBrush(color)
             path = QtGui.QPainterPath()
-            x = r.x()
-            y = r.bottom()
+            x = _r.x()
+            y = _r.bottom()
             path.addText(x, y, font, text)
             painter.drawPath(path)
 
             offset += width
+
+        rect.setLeft(_r.right())
+        font = common.font_db.primary_font(
+            point_size=common.SMALL_FONT_SIZE)
+
+        painter.setFont(font)
+        o = common.MARGIN
+        if not hover:
+            painter.setOpacity(0.666)
+
+        rect = rect.marginsRemoved(
+            QtCore.QMargins(o, common.INDICATOR_WIDTH, o * 0.5, common.INDICATOR_WIDTH))
+        metrics = QtGui.QFontMetricsF(font)
+
+        lines = index.data(common.DescriptionRole).split(u'\n')
+        for n, text in enumerate(lines):
+            text = metrics.elidedText(
+                text,
+                QtCore.Qt.ElideLeft,
+                rect.width()
+            )
+            if n == 0:
+                painter.setPen(common.TEXT)
+                if len(lines) > 1:
+                    text = text + u'\n' if lines[1] else text
+            else:
+                painter.setPen(common.SECONDARY_TEXT)
+                text = u'\n' + text
+
+            if selected:
+                painter.setPen(common.TEXT)
+
+            painter.drawText(
+                rect,
+                QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+                text,
+                boundingRect=rect
+            )
 
     def sizeHint(self, option, index):
         """Custom size-hint. Sets the size of the files and asset widget items."""
@@ -1192,9 +1234,9 @@ class FilesWidgetDelegate(BaseDelegate):
         return description_rect
 
     def get_text_segments(self, index):
-        """FilesWidget item `DisplayRole`.
-        segments associated with custom colors. It is used to paint the
-        FilesWidget items' extension, name, and sequence.
+        """Returns the `FilesWidget` item `DisplayRole` segments associated with
+        custom colors. It is used to paint the FilesWidget items' extension,
+        name, and sequence.
 
         Args:
             index (QModelIndex): The index currently being painted..

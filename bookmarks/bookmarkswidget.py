@@ -6,11 +6,13 @@ import json
 import base64
 import weakref
 import time
+import functools
 from PySide2 import QtWidgets, QtGui, QtCore
 
 import bookmarks.bookmark_db as bookmark_db
 import bookmarks.images as images
 import bookmarks.common as common
+import bookmarks._scandir as _scandir
 from bookmarks.basecontextmenu import BaseContextMenu
 from bookmarks.baselistwidget import BaseInlineIconWidget
 from bookmarks.baselistwidget import BaseModel
@@ -18,6 +20,25 @@ from bookmarks.baselistwidget import initdata
 import bookmarks.settings as settings
 import bookmarks.delegate as delegate
 from bookmarks.delegate import BookmarksWidgetDelegate
+
+
+def count_assets(bookmark_path, ASSET_IDENTIFIER):
+    n = 0
+    for entry in _scandir.scandir(bookmark_path):
+        if entry.name.startswith(u'.'):
+            continue
+        if not entry.is_dir():
+            continue
+
+        filepath = entry.path.replace(u'\\', u'/')
+
+        if ASSET_IDENTIFIER:
+            identifier = u'{}/{}'.format(
+                filepath, ASSET_IDENTIFIER)
+            if not QtCore.QFileInfo(identifier).exists():
+                continue
+        n += 1
+    return n
 
 
 class BookmarksWidgetContextMenu(BaseContextMenu):
@@ -136,8 +157,10 @@ class BookmarksModel(BaseModel):
                 flags = flags | common.MarkedAsFavourite
 
             text = u'{}  |  {}'.format(
-                v[u'job'], v[u'root'])
-
+                v[u'job'],
+                v[u'root'],
+            )
+            common.Log.info(text)
             data = self.INTERNAL_MODEL_DATA[dkey][common.FileItem]
             idx = len(data)
 
@@ -151,7 +174,7 @@ class BookmarksModel(BaseModel):
                 common.EntryRole: [],
                 common.FlagsRole: flags,
                 common.ParentPathRole: (v[u'server'], v[u'job'], v[u'root']),
-                common.DescriptionRole: None,
+                common.DescriptionRole: u'',
                 common.TodoCountRole: 0,
                 common.FileDetailsRole: None,
                 common.SequenceRole: None,
@@ -172,6 +195,8 @@ class BookmarksModel(BaseModel):
                 common.SortByName: common.namekey(filepath),
                 common.SortByLastModified: file_info.lastModified().toMSecsSinceEpoch(),
                 common.SortBySize: file_info.size(),
+                #
+                common.AssetCountRole: 0,
                 #
                 common.IdRole: idx
             })
@@ -232,6 +257,7 @@ class BookmarksModel(BaseModel):
                             common.Log.error(u'Error decoding JSON notes')
 
                 data[idx][common.TodoCountRole] = n
+                self.update_description(db, data[idx])
 
         self.activeChanged.emit(self.active_index())
 
@@ -242,6 +268,34 @@ class BookmarksModel(BaseModel):
         })
         self.__initdata__()
         self.endResetModel()
+
+    def update_description(self, db, data):
+        t = u'properties'
+        v = {}
+
+        ASSET_IDENTIFIER = db.value(0, u'identifier', table=t)
+        data[common.AssetCountRole] = count_assets(data[QtCore.Qt.StatusTipRole], ASSET_IDENTIFIER)
+
+        for _k in bookmark_db.KEYS[t]:
+            v[_k] = db.value(0, _k, table=t)
+
+        info = u'{w}{h}{fps}{pre}{start}{duration}'.format(
+            w=u'{}'.format(int(v['width'])) if (v['width'] and v['height']) else u'',
+            h=u'x{}px'.format(int(v['height'])) if (v['width'] and v['height']) else u'',
+            fps=u'  |  {}fps'.format(v['framerate']) if v['framerate'] else u'',
+            pre=u'  |  {}'.format(v['prefix']) if v['prefix'] else u'',
+            start=u'  |  {}'.format(int(v['startframe'])) if v['startframe'] else u'',
+            duration=u'-{} ({} frames)'.format(
+                int(v['startframe']) + int(v['duration']),
+                int(v['duration']) if v['duration'] else u'') if v['duration'] else u''
+        )
+
+        desc = u'{server}  |  {count} assets{info}'.format(
+            server=data[common.ParentPathRole][0].strip().strip(u'/').strip('\\'),
+            count=data[common.AssetCountRole],
+            info=u'\n{}'.format(info),
+        )
+        data[common.DescriptionRole] = desc
 
     def data_key(self):
         """Data keys are only implemented on the FilesModel but need to return a
@@ -326,6 +380,23 @@ class BookmarksWidget(BaseInlineIconWidget):
         self.resized.connect(widget.setGeometry)
         widget.setGeometry(self.viewport().geometry())
         widget.open()
+
+        def update_description(index, res):
+            try:
+                db = bookmark_db.get_db(
+                    QtCore.QModelIndex(),
+                    server=index.data(common.ParentPathRole)[0],
+                    job=index.data(common.ParentPathRole)[1],
+                    root=index.data(common.ParentPathRole)[2],
+                )
+                source_index = self.model().mapToSource(index)
+                data = source_index.model().model_data()[source_index.row()]
+
+                self.model().sourceModel().update_description(db, data)
+            except:
+                common.Log.error('Could not update the description')
+
+        widget.finished.connect(functools.partial(update_description, index))
 
     def show_add_asset_widget(self):
         import bookmarks.addassetwidget as addassetwidget

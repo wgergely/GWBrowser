@@ -5,7 +5,7 @@
 
   <p align="center">
     <a href="http://gergely-wootsch.com">
-        <img src="https://img.shields.io/badge/Python-2.7-lightgrey.svg" alt="Python version">
+        <img src="https://img.shields.io/badge/Python-lightgrey.svg" alt="Python version">
     </a>
     <a href="http://gergely-wootsch.com">
         <img src="https://img.shields.io/badge/Qt-5.6%2B-lightgrey.svg" alt="PySide2 / Qt5">
@@ -22,26 +22,24 @@
 
 <h6>
 
-<img src="./bookmarks/rsc/icon_bw.png" height=20> Mac OS X and Windows desktop versions<br>
 <img src="./bookmarks/rsc/todo.png" height=20> Annotate files with thumbnails, To-dos, tags and descriptions<br>
 <img src="./bookmarks/rsc/archived.png" height=20> Archive superflous items non-destructively<br>
 <img src="./bookmarks/rsc/active.png" height=20> Preview images of common media formats using `OpenImageIO`<br>
-<img src="./bookmarks/rsc/folder.png" height=20> Reveal files in Finder & Explorer<br>
+<img src="./bookmarks/rsc/folder.png" height=20> Reveal files in Finder / Explorer easily<br>
 <img src="./bookmarks/rsc/rv.png" height=20> Push footage to `Shotgun RV` directly from Bookmarks<br>
-<img src="./bookmarks/rsc/slack_color.png" height=20> Send paths and messages using `Slack`<br>
+<img src="./bookmarks/rsc/slack_color.png" height=20> Send messages with `Slack`<br>
 <img src="./bookmarks/rsc/maya.png" height=20> Maya integration<br>
-<img src="./bookmarks/rsc/icon_bw.png" height=20> Can be potentially integrated with most _Qt for Python_ capable DCCs
-
+<img src="./bookmarks/rsc/icon_bw.png" height=14> Windows and Mac OS X compatible<br>
+<img src="./bookmarks/rsc/icon_bw.png" height=14> Written in `Qt for Python`
 </h6>
 
 * * *
 
 <h3>Files</h3>
 
-Most file managers need you to click-through subfolders to find a file. Bookmarks instead traverses all subfolders.
+Most file managers need you to click-through subfolders to find a file. Bookmarks traverses subfolders to give you an overview of the contents.
 
-This is sometimes useful, for instance, when the _exact_ location of a footage is unknown, or when we want to compare footage versions and files residing at different places. This does however come
-with a performance tradeoff as files have to be loaded before seeing them.
+This is sometimes useful, for instance, when the _exact_ location of a footage is unknown, or when we want to compare footage versions and files residing at different places. This does however come with a performance tradeoff as files have to be loaded beforehand.
 
 To make things manageble, Bookmarks separates jobs into **Bookmarks**. These are arbitary folders inside a job, eg. the _shots_, _assets_ or _edit_ folder where CG content is normally kept. Each bookmark has its own framerate, resolution and Slack integration.
 

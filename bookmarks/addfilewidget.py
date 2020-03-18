@@ -1417,7 +1417,7 @@ class FilePathWidget(QtWidgets.QWidget):
 
         painter = QtGui.QPainter()
         painter.begin(self)
-        font = common.font_db.secondary_font()
+        font = common.font_db.primary_font()
 
         rect = self.rect()
         center = self.rect().center()
@@ -1439,7 +1439,18 @@ class FilePathWidget(QtWidgets.QWidget):
         painter.drawRoundedRect(bg_rect, 4, 4)
         painter.setOpacity(1)
 
+        metrics = QtGui.QFontMetricsF(font)
         file_path = self.window().get_file_path()
+
+        if not file_path:
+            painter.end()
+            return
+
+        file_path = metrics.elidedText(
+            file_path.upper(),
+            QtCore.Qt.ElideLeft,
+            rect.width()
+        )
         align = QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft
         color = common.TEXT if hover else common.FAVOURITE
         common.draw_aliased_text(painter, font, rect, file_path, align, color)

@@ -80,8 +80,8 @@ incremented when exporting). Eg. v01, v001 or v0001, etc.'
 
         row = common_ui.add_row(u'Playblast Path', parent=grp)
         self.capture_path = common_ui.add_line_edit(
-            u'eg. viewport_captures/animation', parent=row)
-        label = u'Edit the playblast path below. The path is relative to the current workspace.'
+            u'eg. viewport_captures', parent=row)
+        label = u'Edit the relative path of the playblasts (relative to the current project root)'
         common_ui.add_description(label, parent=grp)
         row.layout().addWidget(self.capture_path, 1)
 

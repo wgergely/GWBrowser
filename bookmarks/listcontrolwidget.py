@@ -33,7 +33,7 @@ class BaseControlButton(ClickableIconButton):
         try:
             return self.parent().parent().stackedwidget
         except:
-            common.log.Error('Error.')
+            common.Log.Error('Error getting stackedwidget')
             return None
 
     def current_widget(self):

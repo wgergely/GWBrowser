@@ -331,6 +331,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         self._contextMenu = None
         self._initialized = False
+        self._frameless = False
         self.shortcuts = []
 
         self.headerwidget = None
@@ -486,6 +487,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
         """
         def ui_teardown():
+            import bookmarks.settings as settings
             settings.local_settings.sync_timer.stop()
             settings.local_settings.server_mount_timer.stop()
 
