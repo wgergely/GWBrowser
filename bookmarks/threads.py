@@ -539,7 +539,9 @@ class DataKeyWorker(BaseWorker):
                 return None
 
             count = 0
-            for _ in common.walk(_ref()[QtCore.Qt.StatusTipRole]):
+            for entry in common.walk(_ref()[QtCore.Qt.StatusTipRole]):
+                if entry.name.startswith(u'.'):
+                    continue
                 count += 1
                 if count > 999:
                     break
