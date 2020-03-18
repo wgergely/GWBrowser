@@ -1546,7 +1546,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         """
         import bookmarks.bookmark_db as bookmark_db
 
-        def set_start_frame(self, frame):
+        def set_start_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))
 
@@ -1559,18 +1559,31 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 cmds.currentTime(currentFrame, edit=True)
 
 
-        def set_end_frame(self, frame):
+        def set_end_frame(frame):
             frame = round(frame, 0)
             currentFrame = round(cmds.currentTime(query=True))
 
-            cmds.playbackOptions(animationStartTime=int(frame))
-            cmds.playbackOptions(minTime=int(frame))
-            cmds.setAttr('defaultRenderGlobals.startFrame', int(frame))
+            cmds.playbackOptions(animationEndTime=int(frame))
+            cmds.playbackOptions(maxTime=int(frame))
+            cmds.setAttr('defaultRenderGlobals.endFrame', int(frame))
 
-            if currentFrame < frame:
+            if currentFrame > frame:
                 cmds.currentTime(frame, edit=True)
             else:
                 cmds.currentTime(currentFrame, edit=True)
+
+
+        def _set_framerate(fps):
+            animationStartTime = cmds.playbackOptions(query=True, animationStartTime=True)
+            minTime = cmds.playbackOptions(query=True, minTime=True)
+            animationEndTime = cmds.playbackOptions(query=True, animationEndTime=True)
+            maxTime = cmds.playbackOptions(query=True, maxTime=True)
+            set_framerate(fps)
+            cmds.playbackOptions(animationStartTime=animationStartTime)
+            cmds.playbackOptions(minTime=minTime)
+            cmds.playbackOptions(animationEndTime=animationEndTime)
+            cmds.playbackOptions(maxTime=maxTime)
+
 
         try:
             widget = self.browserwidget.stackedwidget.widget(0)
@@ -1605,7 +1618,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 cmds.setAttr('defaultResolution.width', v['width'])
                 cmds.setAttr('defaultResolution.height', v['height'])
             if v['framerate']:
-                set_framerate(v['framerate'])
+                _set_framerate(v['framerate'])
             if v['startframe']:
                 set_start_frame(v['startframe'])
             if v['duration']:
