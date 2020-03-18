@@ -1552,7 +1552,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
             cmds.playbackOptions(animationStartTime=int(frame))
             cmds.playbackOptions(minTime=int(frame))
-            cmds.setAttr('defaultRenderGlobals.endFrame', int(frame))
+            cmds.setAttr('defaultRenderGlobals.startFrame', int(frame))
             if currentFrame < frame:
                 cmds.currentTime(frame, edit=True)
             else:
