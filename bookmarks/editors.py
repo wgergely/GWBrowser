@@ -3,148 +3,14 @@
 
 import os
 from PySide2 import QtWidgets, QtGui, QtCore
+
 import bookmarks._scandir as _scandir
 import bookmarks.common as common
 import bookmarks.bookmark_db as bookmark_db
 from bookmarks.common_ui import add_row, PaintedLabel, ClickableIconButton
 import bookmarks.images as images
-import bookmarks.images as images
-from bookmarks.alembicpreview import get_alembic_thumbnail
 import bookmarks.delegate as delegate
 import bookmarks.common_ui as common_ui
-
-
-class ThumbnailViewer(QtWidgets.QWidget):
-    """Widget used to view a thumbnail."""
-
-    def __init__(self, parent=None):
-        super(ThumbnailViewer, self).__init__(parent=parent)
-        self.alembic_preview_widget = None
-        self.viewer = None
-        self.setWindowFlags(
-            QtCore.Qt.Dialog |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-        self._create_UI()
-
-    def _create_UI(self):
-        QtWidgets.QHBoxLayout(self)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self.layout().setSpacing(0)
-
-        self.viewer = images.ImageViewer(parent=self)
-        self.viewer.setWindowFlags(QtCore.Qt.Widget)
-        self.layout().addWidget(self.viewer)
-
-        self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        self.layout().setAlignment(QtCore.Qt.AlignCenter)
-
-        self.show()
-        self.reset_pixmap()
-
-    def index(self):
-        return self.parent().selectionModel().currentIndex()
-
-    def clear(self):
-        self.viewer.viewer.scene().clear()
-
-    def reset_pixmap(self):
-        self.setStyleSheet(
-            u'QLabel {background-color: rgba(50,50,50,50); color:rgba(200,200,200,255);}')
-        index = self.parent().selectionModel().currentIndex()
-        path = index.data(QtCore.Qt.StatusTipRole)
-        path = common.get_sequence_endpath(path)
-
-        if self.alembic_preview_widget:
-            self.alembic_preview_widget.deleteLater()
-            self.alembic_preview_widget = None
-
-        # Contents of an alembic file
-        if path.lower().endswith(u'.abc'):
-            self.clear()
-
-            file_info = QtCore.QFileInfo(path)
-            if not file_info.exists():
-                self.clear()
-                self.setText(u'Alembic not found.')
-                return
-
-            alembicwidget = get_alembic_thumbnail(path)
-            alembicwidget.setParent(self)
-            alembicwidget.show()
-            alembicwidget.setFocusPolicy(QtCore.Qt.NoFocus)
-            alembicwidget.move(
-                self.rect().center().x() - (alembicwidget.width() / 2),
-                self.rect().center().y() - (alembicwidget.height() / 2)
-            )
-
-            self.alembic_preview_widget = alembicwidget
-            alembicwidget.show()
-            return
-
-        if not index.data(common.FileInfoLoaded):
-            self.clear()
-            return
-        if not index.isValid():
-            self.clear()
-            return
-
-        # Let's check the file is oiio compliant
-        ext = index.data(QtCore.Qt.StatusTipRole).split(u'.').pop()
-        if ext.lower() in common.get_oiio_extensions():
-            thumbnail_path = common.get_sequence_startpath(
-                index.data(QtCore.Qt.StatusTipRole))
-        else:
-            file_info = QtCore.QFileInfo(index.data(common.ThumbnailPathRole))
-            if file_info.exists():
-                thumbnail_path = file_info.filePath()
-            else:
-                thumbnail_path = None
-
-        self.clear()
-        if not thumbnail_path:
-            return
-
-        if not self.viewer.viewer.set_image(thumbnail_path):
-            return
-
-    def keyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_Down:
-            self.parent().key_down()
-            self.reset_pixmap()
-        elif event.key() == QtCore.Qt.Key_Up:
-            self.parent().key_up()
-            self.reset_pixmap()
-        else:
-            self.close()
-
-    def _fit_screen_geometry(self):
-        app = QtWidgets.QApplication.instance()
-        rect = app.desktop().availableGeometry(self.parent())
-        self.setGeometry(rect)
-
-    def showEvent(self, event):
-        self.setFocus()
-        self.parent().thumbnail_viewer_widget = self
-        self.parent().setUpdatesEnabled(False)
-        self._fit_screen_geometry()
-
-    def hideEvent(self, event):
-        self.parent().setUpdatesEnabled(True)
-        self.parent().thumbnail_viewer_widget = None
-
-    # def mousePressEvent(self, event):
-    #     if not isinstance(event, QtGui.QMouseEvent):
-    #         return
-    #     self.close()
-
-    # def focusOutEvent(self, event):
-    #     """Closes the editor on focus loss."""
-    #     if event.lostFocus():
-    #         self.close()
 
 
 class DescriptionEditorWidget(QtWidgets.QLineEdit):

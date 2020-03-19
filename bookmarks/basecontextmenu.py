@@ -538,10 +538,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         if exists:
             menu_set[u'Show'] = {
                 u'icon': show_thumbnail,
-                u'action': functools.partial(
-                    editors.ThumbnailViewer,
-                    parent=self.parent()
-                )
+                u'action': self.parent().key_space
             }
             menu_set[u'separator'] = {}
 

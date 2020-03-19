@@ -4,23 +4,11 @@ file.
 
 """
 from PySide2 import QtCore, QtWidgets, QtGui
+import alembic
+
 import bookmarks.common as common
+import bookmarks.common_ui as common_ui
 import bookmarks.images as images
-
-WIDTH = 640.0
-HEIGHT = 1024.0
-
-
-def get_alembic_thumbnail(path):
-    """Renders the alembic structure as a QPixmap."""
-    widget = AlembicView(path)
-    pixmap = QtGui.QPixmap(WIDTH, HEIGHT)
-    painter = QtGui.QPainter()
-    painter.begin(pixmap)
-    widget.render(painter, widget.rect().topLeft(), widget.rect())
-    painter.end()
-
-    return widget
 
 
 class BaseNode(QtCore.QObject):
@@ -100,8 +88,10 @@ class AlembicNode(BaseNode):
         """The name of this node."""
         props = self.iobject.getProperties()
         props.getNumProperties()
+        if not self.iobject:
+            return u'rootNode'
         name = self.iobject.getName()
-        name = u'{} ({})'.format(
+        name = u'{}{}'.format(
             self.iobject.getName(), props.getPropertyHeader(0))
         return name
 
@@ -116,8 +106,9 @@ class AlembicNode(BaseNode):
 class AlembicModel(QtCore.QAbstractItemModel):
     """Simple tree model to browse the data-structure of the alembic."""
 
-    def __init__(self, node, parent=None):
+    def __init__(self, name, node, parent=None):
         super(AlembicModel, self).__init__(parent=parent)
+        self._name = name
         self._rootNode = node
         self._originalRootNode = node
 
@@ -181,13 +172,19 @@ class AlembicModel(QtCore.QAbstractItemModel):
         """Name data."""
         if not index.isValid():
             return None
+
         node = index.internalPointer()
         if role == QtCore.Qt.DisplayRole:
+            if u'ABC.childBnds' in node.name:
+                return self._name + u'.childBnds'
             return node.name
+
         if role == QtCore.Qt.DecorationRole:
-            if '.geom' in node.name:
+            if u'.childBnds' in node.name:
+                return images.ImageCache.get_rsc_pixmap(u'abc', None, common.INLINE_ICON_SIZE)
+            if u'.geom' in node.name:
                 return images.ImageCache.get_rsc_pixmap(u'mesh', None, common.INLINE_ICON_SIZE)
-            if '.xform' in node.name:
+            if u'.xform' in node.name:
                 return images.ImageCache.get_rsc_pixmap(u'loc', None, common.INLINE_ICON_SIZE)
 
         if role == QtCore.Qt.SizeHintRole:
@@ -210,62 +207,38 @@ class AlembicModel(QtCore.QAbstractItemModel):
         return self.createIndex(idx, 0, node)
 
 
-class AlembicView(QtWidgets.QTreeView):
-    """Custom QTreeView responsible for displaying the contents of an
-    AlembicModel."""
+class AlembicTree(QtWidgets.QTreeView):
+    """Custom QTreeView responsible for rendering the contents of an
+    Alembic archive."""
 
     def __init__(self, path, parent=None):
-        super(AlembicView, self).__init__(parent=parent)
-        common.set_custom_stylesheet(self)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowFlags(
-            QtCore.Qt.Window |
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint
-        )
-        self.setHeaderHidden(False)
-        self.setSortingEnabled(False)
-        self.setItemsExpandable(False)
-        self.setRootIsDecorated(False)
-        self.setFixedWidth(WIDTH)
-        self.setFixedHeight(HEIGHT)
+        super(AlembicTree, self).__init__(parent=parent)
+        path = path.encode('utf-8')
+        file_info = QtCore.QFileInfo(path)
 
         self._abc = None
-
         try:
-            import alembic
-        except ImportError:
-            common.Log.error('Could not import alembic')
-            return
-
-        if not QtCore.QFileInfo(path).exists():
+            self._abc = alembic.Abc.IArchive(path)
+            node = self.alembic_to_nodes()
+            model = AlembicModel(file_info.fileName(), node)
+        except Exception as e:
             root_node = BaseNode(u'rootNode')
-            node = BaseNode(
-                u'Error reading Alembic: The file could not be found.', parentNode=root_node)
-            model = AlembicModel(root_node)
-        else:
-            # Alembic does not take unicode path names. Go figure!
-            if isinstance(path, unicode):
-                import unicodedata
-                path = unicodedata.normalize(
-                    'NFKD', path).encode('ascii', 'ignore')
+            node = BaseNode(u'Error reading alembic: {}'.format(
+                e), parentNode=root_node)
+            model = AlembicModel(file_info.fileName(), root_node)
 
-            try:
-                self._abc = alembic.Abc.IArchive(path)
-                node = self.alembic_to_nodes()
-                model = AlembicModel(node)
-            except Exception as err:
-                root_node = BaseNode(u'rootNode')
-                node = BaseNode(u'Error reading alembic: {}'.format(
-                    err), parentNode=root_node)
-                model = AlembicModel(root_node)
-
+        self.setHeaderHidden(False)
+        self.setSortingEnabled(False)
+        self.setItemsExpandable(True)
+        self.setRootIsDecorated(True)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setModel(model)
-        self.setRootNode(model.rootNode)
+        self.set_root_node(model.rootNode)
+
         self.expandAll()
 
     def alembic_to_nodes(self):
-        """Builds the internal node-structure needed to make the alembic model."""
+        """Builds the internalPointer structure needed to represent the alembic archive."""
         def _get_children(node):
             for idx in xrange(node.iobject.getNumChildren()):
                 child = node.iobject.getChild(idx)
@@ -283,20 +256,7 @@ class AlembicView(QtWidgets.QTreeView):
         _get_children(node)
         return rootNode
 
-    @property
-    def expandedNodes(self):
-        """Currently expanded nodes."""
-        return self._expandedNodes
-
-    @property
-    def selectedNode(self):
-        """The node associated with the tree-view selection."""
-        index = next((f for f in self.selectedIndexes()), None)
-        if not index:
-            return None
-        return index.internalPointer()
-
-    def setRootNode(self, node):
+    def set_root_node(self, node):
         """ Sets the given Node as the root """
         if not node.children:
             return
@@ -311,7 +271,7 @@ class AlembicView(QtWidgets.QTreeView):
         index = self.model().createIndexFromNode(self.model().rootNode)
         self.setCurrentIndex(index)
 
-    def resetRootNode(self):
+    def reset_root_node(self):
         """Resets the root node to the initial node."""
         node = self.model().originalRootNode
         index = self.model().createIndex(0, 0, node)
@@ -349,10 +309,104 @@ class AlembicView(QtWidgets.QTreeView):
                              abc.getTop().getNumChildren())
         return text.encode('utf-8')
 
+    def keyPressEvent(self, event):
+        event.ignore()
+
+
+class AlembicView(QtWidgets.QWidget):
+    def __init__(self, path, parent=None):
+        super(AlembicView, self).__init__(parent=parent)
+        if not isinstance(path, unicode):
+            raise ValueError(
+                u'Expected <type \'unicode\'>, got {}'.format(type(path)))
+
+        file_info = QtCore.QFileInfo(path)
+        if not file_info.exists():
+            s = '{} does not exists.'.format(path)
+            common_ui.ErrorBox(
+                u'Error viewing the alembic contents.', s).exec_()
+            common.Log.error(s)
+            raise RuntimeError(s)
+
+        self.path = path
+        self.view = AlembicTree(path, parent=self)
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
+
+        self._create_UI()
+        self.view.setStyleSheet(u'QTreeView {padding:8px; border-radius: 8px; border: 1px solid gray;}')
+
+    def _create_UI(self):
+        common.set_custom_stylesheet(self)
+        QtWidgets.QVBoxLayout(self)
+        o = common.MARGIN
+        self.layout().setSpacing(o)
+        self.layout().setContentsMargins(o, o, o, o)
+        self.layout().setAlignment(QtCore.Qt.AlignCenter)
+
+        row = common_ui.add_row(None, parent=self)
+        label = common_ui.PaintedLabel(self.path, parent=row)
+        row.layout().addWidget(label)
+
+        row = common_ui.add_row(None, height=None, parent=self)
+        row.layout().addStretch(1)
+        row.layout().addWidget(self.view, 1)
+        row.layout().addStretch(1)
+
+    def _fit_screen_geometry(self):
+        app = QtWidgets.QApplication.instance()
+        rect = app.primaryScreen().availableGeometry()
+        self.setGeometry(rect)
+
+    def paintEvent(self, event):
+        painter = QtGui.QPainter()
+        painter.begin(self)
+        painter.setPen(QtCore.Qt.NoPen)
+        painter.setBrush(QtGui.QColor(0, 0, 0, 230))
+        painter.drawRect(self.rect())
+        painter.end()
+
+    def mousePressEvent(self, event):
+        event.accept()
+        self.close()
+        self.deleteLater()
+
+    def keyPressEvent(self, event):
+        """We're mapping the key press events to the parent list."""
+        if self.parent():
+            if event.key() == QtCore.Qt.Key_Down:
+                self.parent().key_down()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Up:
+                self.parent().key_up()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Tab:
+                self.parent().key_up()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Backtab:
+                self.parent().key_down()
+                self.parent().key_space()
+
+        self.deleteLater()
+        self.close()
+
+    def showEvent(self, event):
+        self._fit_screen_geometry()
+
 
 if __name__ == '__main__':
-    path = ur'J:/00_Jobs/TEST_PROJECT/project_data/shots/sh010/exports/abc/set_geo/set_geo_v002.abc'
-    app = QtWidgets.QApplication([])
+    import bookmarks.standalone as standalone
+    import alembic
+
+    path = ur'\\gw-workstation\jobs\example_job\project_data\shots\sh0010\exports\abc\testmesh_geo_set\testmesh_geo_set_v001.abc'
+    app = standalone.StandaloneApp([])
     widget = AlembicView(path)
     widget.show()
     app.exec_()

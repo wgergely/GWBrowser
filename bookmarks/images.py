@@ -101,7 +101,7 @@ def oiio_get_qimage(path):
 
     # As soon as the numpy array is garbage collected, the QImage becomes
     # unuseable. By making a copy, the numpy array can safely be GC'd
-    OpenImageIO.ImageCache().invalidate(path)
+    # OpenImageIO.ImageCache().invalidate(path)
     return image.copy()
 
 
@@ -161,10 +161,14 @@ class CaptureScreen(QtWidgets.QDialog):
     def _fit_screen_geometry(self):
         # Compute the union of all screen geometries, and resize to fit.
         app = QtWidgets.QApplication.instance()
-        workspace_rect = QtCore.QRect()
-        for screen in app.screens():
-            workspace_rect = workspace_rect.united(screen.availableGeometry())
-        self.setGeometry(workspace_rect)
+        try:
+            workspace_rect = QtCore.QRect()
+            for screen in app.screens():
+                workspace_rect = workspace_rect.united(screen.availableGeometry())
+            self.setGeometry(workspace_rect)
+        except:
+            rect = app.primaryScreen().availableGeometry()
+            self.setGeometry(rect)
 
     @classmethod
     def _get_desktop_pixmap(cls, rect):
@@ -190,7 +194,6 @@ class CaptureScreen(QtWidgets.QDialog):
         """
         self._pixmap = self._get_desktop_pixmap(self._capture_rect)
         self.pixmapCaptured.emit(self._pixmap)
-
 
     def paintEvent(self, event):
         """Paint the capture window."""
@@ -785,7 +788,8 @@ class ImageCache(QtCore.QObject):
 class Viewer(QtWidgets.QGraphicsView):
     def __init__(self, parent=None):
         super(Viewer, self).__init__(parent=parent)
-        self.item = QtWidgets.QGraphicsPixmapItem(parent=self)
+        self.item = QtWidgets.QGraphicsPixmapItem()
+        self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
         self.setScene(QtWidgets.QGraphicsScene(parent=self))
         self.scene().addItem(self.item)
 
@@ -880,12 +884,13 @@ class Viewer(QtWidgets.QGraphicsView):
             return None
 
         self.item.setPixmap(pixmap)
-        size = self.item.pixmap().size()
-        self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.BoundingRectShape)
+        self.item.setShapeMode(QtWidgets.QGraphicsPixmapItem.MaskShape)
         self.item.setTransformationMode(QtCore.Qt.SmoothTransformation)
 
+        size = self.item.pixmap().size()
         if size.height() > self.height() or size.width() > self.width():
             self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
+        self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
 
         return self.item
 
@@ -915,22 +920,51 @@ class Viewer(QtWidgets.QGraphicsView):
         delta = new_position - original_pos
         self.translate(delta.x(), delta.y())
 
-    def showEvent(self, event):
-        if self.item:
-            self.fitInView(self.item, QtCore.Qt.KeepAspectRatio)
-
     def keyPressEvent(self, event):
         event.ignore()
 
 
-class ImageViewer(QtWidgets.QDialog):
-    def __init__(self, parent=None):
+class ImageViewer(QtWidgets.QWidget):
+    def __init__(self, path, parent=None):
         super(ImageViewer, self).__init__(parent=parent)
+
+        if not isinstance(path, unicode):
+            raise ValueError(
+                u'Expected <type \'unicode\'>, got {}'.format(type(path)))
+
+        import bookmarks.common_ui as common_ui
+
+        file_info = QtCore.QFileInfo(path)
+        if not file_info.exists():
+            s = '{} does not exists.'.format(path)
+            common_ui.ErrorBox(
+                u'Error previewing image.', s).exec_()
+            common.Log.error(s)
+            self.deleteLater()
+            raise RuntimeError(s)
+
         common.set_custom_stylesheet(self)
+
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
+        self.setWindowFlags(
+            QtCore.Qt.Window |
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint
+        )
+
+        self.delete_timer = QtCore.QTimer(parent=self)
+        self.delete_timer.setSingleShot(True)
+        self.delete_timer.setInterval(500)
+        self.delete_timer.timeout.connect(self.close)
+        self.delete_timer.timeout.connect(self.delete_timer.deleteLater)
+        self.delete_timer.timeout.connect(self.deleteLater)
+
+        self.load_timer = QtCore.QTimer(parent=self)
+        self.load_timer.setSingleShot(True)
+        self.load_timer.setInterval(150)
+        self.load_timer.timeout.connect(self.load_timer.deleteLater)
 
         QtWidgets.QVBoxLayout(self)
         height = common.ROW_BUTTONS_HEIGHT * 0.6
@@ -938,7 +972,6 @@ class ImageViewer(QtWidgets.QDialog):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
-        import bookmarks.common_ui as common_ui
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
@@ -948,7 +981,6 @@ class ImageViewer(QtWidgets.QDialog):
         self.hide_button.clicked.connect(
             lambda: self.done(QtWidgets.QDialog.Accepted))
 
-        # row = common_ui.add_row(None, height=height, padding=None, parent=self)
         def get_row(parent=None):
             row = QtWidgets.QWidget(parent=parent)
             row.setFixedHeight(height)
@@ -956,7 +988,7 @@ class ImageViewer(QtWidgets.QDialog):
             row.layout().setContentsMargins(0, 0, 0, 0)
             row.layout().setSpacing(0)
             parent.layout().addWidget(row)
-            row.setStyleSheet('background-color: rgba(20,20,20,255);')
+            row.setStyleSheet('background-color: rgba(0, 0, 0, 255);')
             return row
 
         row = get_row(parent=self)
@@ -964,15 +996,22 @@ class ImageViewer(QtWidgets.QDialog):
         row.layout().addWidget(self.hide_button, 0)
 
         self.viewer = Viewer(parent=self)
+        self.load_timer.timeout.connect(self.load_timer.deleteLater)
+        self.load_timer.timeout.connect(lambda: self.viewer.set_image(path))
+
         self.layout().addWidget(self.viewer, 1)
 
         row = get_row(parent=self)
 
     def index(self):
         if self.parent():
-            return self.parent().index()
-        else:
-            return QtCore.QModelIndex()
+            return self.parent().selectionModel().currentIndex()
+        return QtCore.QModelIndex()
+
+    def _fit_screen_geometry(self):
+        app = QtWidgets.QApplication.instance()
+        rect = app.primaryScreen().geometry()
+        self.setGeometry(rect)
 
     def paintEvent(self, event):
         painter = QtGui.QPainter()
@@ -982,18 +1021,42 @@ class ImageViewer(QtWidgets.QDialog):
         painter.setPen(pen)
 
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        painter.setBrush(QtGui.QColor(10, 10, 10, 250))
+        painter.setBrush(QtGui.QColor(20, 20, 20, 240))
         painter.drawRect(self.rect())
 
         painter.end()
 
+    def mousePressEvent(self, event):
+        event.accept()
+        self.close()
+        self.deleteLater()
+
     def keyPressEvent(self, event):
-        event.ignore()
+        """We're mapping the key press events to the parent list."""
+        if self.parent():
+            if event.key() == QtCore.Qt.Key_Down:
+                self.parent().key_down()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Up:
+                self.parent().key_up()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Tab:
+                self.parent().key_up()
+                self.parent().key_space()
+            elif event.key() == QtCore.Qt.Key_Backtab:
+                self.parent().key_down()
+                self.parent().key_space()
+
+        self.delete_timer.start()
+
+    def showEvent(self, event):
+        self._fit_screen_geometry()
+        self.load_timer.start()
+
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
-    w = ImageViewer()
-    w.viewer.set_image(
-        ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
+    import bookmarks.standalone as standlone
+    app = standlone.StandaloneApp([])
+    w = ImageViewer(ur'c:\temp\example_job_a\shots\sh0010\renders\subfolder\logo_full_bleed.png')
     w.exec_()

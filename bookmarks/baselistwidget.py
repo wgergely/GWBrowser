@@ -22,6 +22,7 @@ from bookmarks.basecontextmenu import BaseContextMenu
 import bookmarks.delegate as delegate
 import bookmarks.settings as settings
 import bookmarks.images as images
+import bookmarks.alembicpreview as alembicpreview
 
 import bookmarks.threads as threads
 
@@ -881,7 +882,6 @@ class BaseListWidget(QtWidgets.QListView):
         self.filter_editor = editors.FilterEditor(parent=self)
         self.filter_editor.setHidden(True)
 
-        self.thumbnail_viewer_widget = None
         self.description_editor_widget = editors.DescriptionEditorWidget(
             parent=self)
         self.description_editor_widget.setHidden(True)
@@ -1301,6 +1301,44 @@ class BaseListWidget(QtWidgets.QListView):
         self.repaint()
         return k
 
+    def key_space(self):
+        if not self.selectionModel().hasSelection():
+            return
+        index = self.selectionModel().currentIndex()
+        if not index.isValid():
+            return
+        if not index.data(common.FileInfoLoaded):
+            return
+
+        path = index.data(QtCore.Qt.StatusTipRole)
+        path = common.get_sequence_startpath(path)
+        file_info = QtCore.QFileInfo(path)
+
+        if file_info.suffix().lower() in (u'abc',):
+            w = alembicpreview.AlembicView(file_info.filePath(), parent=self)
+            self.selectionModel().currentChanged.connect(w.close)
+            self.selectionModel().currentChanged.connect(w.deleteLater)
+            w.show()
+            return
+
+        if not index.data(common.FileThumbnailLoaded):
+            return
+
+        path = index.data(common.ThumbnailPathRole)
+        if QtCore.QFileInfo(path).exists():
+            w = images.ImageViewer(path, parent=self)
+            self.selectionModel().currentChanged.connect(w.delete_timer.start)
+            w.show()
+            return
+
+        if file_info.suffix().lower() in common.oiio_formats:
+            w = images.ImageViewer(file_info.filePath(), parent=self)
+            self.selectionModel().currentChanged.connect(w.delete_timer.start)
+            w.show()
+            return
+
+
+
     def key_down(self):
         """Custom action on  `down` arrow key-press.
 
@@ -1391,11 +1429,7 @@ class BaseListWidget(QtWidgets.QListView):
 
         if no_modifier or numpad_modifier:
             if event.key() == QtCore.Qt.Key_Space:
-                if index.isValid():
-                    if not self.thumbnail_viewer_widget:
-                        editors.ThumbnailViewer(parent=self)
-                    else:
-                        self.thumbnail_viewer_widget.close()
+                self.key_space()
             if event.key() == QtCore.Qt.Key_Escape:
                 self.selectionModel().setCurrentIndex(
                     QtCore.QModelIndex(), QtCore.QItemSelectionModel.ClearAndSelect)
