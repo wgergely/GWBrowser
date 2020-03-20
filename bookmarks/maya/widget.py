@@ -2081,7 +2081,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         template = get_preference(u'alembic_export_path')
         template = template if template else ALEMBIC_EXPORT_PATH
         file_path = unicode(template).format(
-            workspace=cmds.workspace(q=True, sn=True),
+            workspace=cmds.workspace(q=True, fn=True),
             exports=common.ExportsFolder,
             set=set_name
         )
@@ -2090,7 +2090,8 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         file_info = QtCore.QFileInfo(file_path)
         _dir = file_info.dir()
         if not _dir.exists():
-            _dir.mkpath(u'.')
+            if not _dir.mkpath(u'.'):
+                raise OSError('Could not create {}'.format(_dir.path()))
 
         widget = addfilewidget.AddFileWidget(ext, file=file_path)
         fileswidget = self.browserwidget.stackedwidget.widget(2)
