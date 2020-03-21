@@ -83,4 +83,4 @@ def uninitializePlugin(plugin):
         print 'Plugin uninitialised.'
 
     widget.terminated.connect(p)
-    widget.browserwidget.shutdown.emit()
+    widget.mainwidget.shutdown.emit()

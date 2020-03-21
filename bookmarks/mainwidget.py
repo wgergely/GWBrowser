@@ -314,7 +314,7 @@ class ToggleModeButton(QtWidgets.QWidget):
             self.update()
 
 
-class BrowserWidget(QtWidgets.QWidget):
+class MainWidget(QtWidgets.QWidget):
     """The main widget."""
 
     initialized = QtCore.Signal()
@@ -323,7 +323,7 @@ class BrowserWidget(QtWidgets.QWidget):
     resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, parent=None):
-        super(BrowserWidget, self).__init__(parent=parent)
+        super(MainWidget, self).__init__(parent=parent)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
         pixmap = images.ImageCache.get_rsc_pixmap(u'icon', None, 64)
@@ -482,7 +482,7 @@ class BrowserWidget(QtWidgets.QWidget):
 
     @QtCore.Slot()
     def terminate(self):
-        """Terminates the browserwidget gracefully by stopping the associated
+        """Terminates the mainwidget gracefully by stopping the associated
         threads.
 
         """

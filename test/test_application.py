@@ -375,9 +375,9 @@ class TestModules(unittest.TestCase):
         widget.model().modelDataResetRequested.emit()
         widget.show()
 
-    def test_browserwidget(self):
-        import bookmarks.browserwidget as browserwidget
-        widget = browserwidget.BrowserWidget()
+    def test_mainwidget(self):
+        import bookmarks.mainwidget as mainwidget
+        widget = mainwidget.MainWidget()
         widget.show()
 
     def test_favouriteswidget(self):
@@ -397,7 +397,7 @@ class TestModules(unittest.TestCase):
 
     def test_standalone(self):
         import bookmarks.standalone as standalone
-        widget = standalone.StandaloneBrowserWidget()
+        widget = standalone.StandaloneMainWidget()
         widget.show()
 
     def test_fileswidget(self):

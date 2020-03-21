@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""This module defines Bookmarks's ``MayaBrowserWidget``, a dockable `mayaMixin`
-widget that wraps BrowserWidget.
+"""This module defines Bookmarks's ``MayaMainWidget``, a dockable `mayaMixin`
+widget that wraps MainWidget.
 
 Usage:
 
@@ -32,7 +32,7 @@ import bookmarks.settings as settings
 import bookmarks.common as common
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
-from bookmarks.browserwidget import BrowserWidget
+from bookmarks.mainwidget import MainWidget
 import bookmarks.common_ui as common_ui
 import bookmarks.addfilewidget as addfilewidget
 
@@ -117,10 +117,10 @@ def instance():
 
 @QtCore.Slot()
 def show():
-    """Main function to show ``MayaBrowserWidget`` inside Maya as a dockable
+    """Main function to show ``MayaMainWidget`` inside Maya as a dockable
     widget.
 
-    The function will create ``MayaBrowserWidget`` if it doesn't yet exist and
+    The function will create ``MayaMainWidget`` if it doesn't yet exist and
     dock it to the _AttributeEditor_. If it exists it will get the existing
     instance and show it if not currently visible, hide it if visible.
 
@@ -136,14 +136,14 @@ def show():
     """
     app = QtWidgets.QApplication.instance()
 
-    # We will check if there's already a _MayaBrowserWidget_ instance
+    # We will check if there's already a _MayaMainWidget_ instance
     for widget in app.allWidgets():
         # Skipping workspaceControls objects, just in case there's a name conflict
         # between what the parent().objectName() and this method yields
-        if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+        if re.match(ur'MayaMainWidget.*WorkspaceControl', widget.objectName()):
             continue
 
-        match = re.match(ur'MayaBrowserWidget.*', widget.objectName())
+        match = re.match(ur'MayaMainWidget.*', widget.objectName())
         if not match:
             continue
 
@@ -188,9 +188,9 @@ def show():
             widget.setVisible(not state)
         return
 
-    # Initializing MayaBrowserWidget...
+    # Initializing MayaMainWidget...
     try:
-        widget = MayaBrowserWidget()
+        widget = MayaMainWidget()
         widget.show()
 
         sys.stdout.write(
@@ -199,7 +199,7 @@ def show():
         # We will defer the execution, otherwise the widget does not dock properly
         for widget in app.allWidgets():
             match = re.match(
-                ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName())
+                ur'MayaMainWidget.*WorkspaceControl', widget.objectName())
             if match:
                 func = functools.partial(
                     cmds.workspaceControl,
@@ -546,7 +546,7 @@ def capture_viewport(size=1.0):
 
         .. code-block:: python
 
-        MayaBrowserWidget.capture_viewport()
+        MayaMainWidget.capture_viewport()
 
 
     """
@@ -777,7 +777,7 @@ def publish_capture(workspace, capture_folder, scene_info, ext):
         idx += 1
 
 
-def contextmenu_browserwidget(func):
+def contextmenu_mainwidget(func):
     """Decorator to create a menu set."""
     @functools.wraps(func)
     def func_wrapper(self, menu_set):
@@ -785,7 +785,7 @@ def contextmenu_browserwidget(func):
         menu_set = func(
             self,
             menu_set,
-            browserwidget=widget
+            mainwidget=widget
         )
         return menu_set
     return func_wrapper
@@ -897,7 +897,7 @@ class BrowserButtonContextMenu(BaseContextMenu):
 
 
 class MayaBrowserButton(common_ui.ClickableIconButton):
-    """Small widget to embed into the context to toggle the BrowserWidget's visibility.
+    """Small widget to embed into the context to toggle the MainWidget's visibility.
 
     """
     saveRequested = QtCore.Signal()
@@ -993,11 +993,11 @@ class MayaBrowserButton(common_ui.ClickableIconButton):
         widget.exec_()
 
 
-class MayaBrowserWidgetContextMenu(BaseContextMenu):
+class MayaMainWidgetContextMenu(BaseContextMenu):
     """The context menu for all Maya specific actions."""
 
     def __init__(self, index, parent=None):
-        super(MayaBrowserWidgetContextMenu, self).__init__(
+        super(MayaMainWidgetContextMenu, self).__init__(
             index, parent=parent)
 
         self.add_apply_bookmark_settings_menu()
@@ -1023,22 +1023,22 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         self.add_capture_menu()
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_apply_bookmark_settings_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_apply_bookmark_settings_menu(self, menu_set, mainwidget=None):
         pixmap = images.ImageCache.get_rsc_pixmap(
             u'check', common.ADD, common.INLINE_ICON_SIZE)
 
         menu_set[u'apply_settings'] = {
             u'text': u'Apply scene settings...',
             u'icon': pixmap,
-            u'action': browserwidget.apply_settings
+            u'action': mainwidget.apply_settings
         }
 
         return menu_set
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_save_actions_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_save_actions_menu(self, menu_set, mainwidget=None):
         """Save actions.
 
         """
@@ -1051,20 +1051,20 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         menu_set[u'new'] = {
             u'text': u'Save version...',
             u'icon': pixmap,
-            u'action': lambda: browserwidget.save_scene(increment=False)
+            u'action': lambda: mainwidget.save_scene(increment=False)
         }
         if common.get_sequence(scene.fileName()):
             menu_set[u'increment'] = {
                 u'text': u'Save quick increment...',
                 u'icon': pixmap2,
-                u'action': lambda: browserwidget.save_scene(increment=True)
+                u'action': lambda: mainwidget.save_scene(increment=True)
             }
 
         return menu_set
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_scenes_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_scenes_menu(self, menu_set, mainwidget=None):
         """Maya scene actions."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
@@ -1081,23 +1081,23 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         menu_set[u'open_scene'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
             u'icon': maya_pixmap,
-            u'action': lambda: browserwidget.open_scene(file_info.filePath())
+            u'action': lambda: mainwidget.open_scene(file_info.filePath())
         }
         menu_set[u'import_local_scene'] = {
             u'text': u'Import  "{}"'.format(file_info.fileName()),
             u'icon': maya_pixmap,
-            u'action': lambda: browserwidget.import_scene(file_info.filePath())
+            u'action': lambda: mainwidget.import_scene(file_info.filePath())
         }
         menu_set[u'import_scene'] = {
             u'text': u'Reference  "{}"'.format(file_info.fileName()),
             u'icon': maya_reference_pixmap,
-            u'action': lambda: browserwidget.import_referenced_scene(file_info.filePath())
+            u'action': lambda: mainwidget.import_referenced_scene(file_info.filePath())
         }
         return menu_set
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_alembic_actions_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_alembic_actions_menu(self, menu_set, mainwidget=None):
         """Actions associated with ``alembic`` cache operations."""
         path = self.index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_endpath(path)
@@ -1111,23 +1111,23 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         menu_set[u'open_alembic'] = {
             u'text': u'Open  "{}"'.format(file_info.fileName()),
             u'icon': alembic_pixmap,
-            u'action': lambda: browserwidget.open_alembic(file_info.filePath())
+            u'action': lambda: mainwidget.open_alembic(file_info.filePath())
         }
         menu_set[u'import_local_alembic'] = {
             u'text': u'Import alembic "{}"'.format(file_info.fileName()),
             u'icon': alembic_pixmap,
-            u'action': lambda: browserwidget.import_alembic(file_info.filePath())
+            u'action': lambda: mainwidget.import_alembic(file_info.filePath())
         }
         menu_set[u'import_ref_alembic'] = {
             u'text': u'Import alembic as reference...',
             u'icon': maya_reference_pixmap,
-            u'action': lambda: browserwidget.import_referenced_alembic(file_info.filePath())
+            u'action': lambda: mainwidget.import_referenced_alembic(file_info.filePath())
         }
         return menu_set
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_export_alembic_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_export_alembic_menu(self, menu_set, mainwidget=None):
         objectset_pixmap = images.ImageCache.get_rsc_pixmap(
             u'set', None, common.INLINE_ICON_SIZE)
 
@@ -1143,7 +1143,7 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
             menu_set[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(browserwidget.export_set_to_alembic, k, v, frame=False)
+                u'action': functools.partial(mainwidget.export_set_to_alembic, k, v, frame=False)
             }
 
         key = u'alembic_frame'
@@ -1156,14 +1156,14 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
             menu_set[key][_k] = {
                 u'text': u'{} ({})'.format(_k.upper(), len(v)),
                 u'icon': objectset_pixmap,
-                u'action': functools.partial(browserwidget.export_set_to_alembic, k, v, frame=True)
+                u'action': functools.partial(mainwidget.export_set_to_alembic, k, v, frame=True)
             }
 
         return menu_set
 
     @contextmenu
-    @contextmenu_browserwidget
-    def add_capture_menu(self, menu_set, browserwidget=None):
+    @contextmenu_mainwidget
+    def add_capture_menu(self, menu_set, mainwidget=None):
         pixmap = images.ImageCache.get_rsc_pixmap(u'capture', None, common.INLINE_ICON_SIZE)
         k = 'Capture viewport'
         menu_set[k] = collections.OrderedDict()
@@ -1182,37 +1182,37 @@ class MayaBrowserWidgetContextMenu(BaseContextMenu):
         return menu_set
 
 
-class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
+class MayaMainWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     """The main wrapper-widget to be used inside maya."""
     terminated = QtCore.Signal()
 
     def __init__(self, parent=None):
         global __instance__
         __instance__ = self
-        super(MayaBrowserWidget, self).__init__(parent=parent)
+        super(MayaMainWidget, self).__init__(parent=parent)
         self._workspacecontrol = None
         self._callbacks = []  # Maya api callbacks
-        self.browserwidget = None
+        self.mainwidget = None
 
         self.setWindowTitle(common.PRODUCT)
 
         self._create_UI()
-        self.setFocusProxy(self.browserwidget.stackedwidget)
+        self.setFocusProxy(self.mainwidget.stackedwidget)
 
         self.workspace_timer = QtCore.QTimer(parent=self)
         self.workspace_timer.setSingleShot(False)
         self.workspace_timer.setInterval(5000)
         self.workspace_timer.timeout.connect(self.set_workspace)
 
-        self.browserwidget.sizeHint = self.sizeHint
+        self.mainwidget.sizeHint = self.sizeHint
 
-        self.browserwidget.initialized.connect(
-            lambda: self.browserwidget.layout().setContentsMargins(0, 0, 0, 0))
-        self.browserwidget.initialized.connect(self._connect_signals)
-        self.browserwidget.initialized.connect(self.add_context_callbacks)
-        self.browserwidget.initialized.connect(self.set_workspace)
-        self.browserwidget.initialized.connect(self.workspace_timer.start)
-        # self.browserwidget.active_monitor.activeAssetChanged.connect(
+        self.mainwidget.initialized.connect(
+            lambda: self.mainwidget.layout().setContentsMargins(0, 0, 0, 0))
+        self.mainwidget.initialized.connect(self._connect_signals)
+        self.mainwidget.initialized.connect(self.add_context_callbacks)
+        self.mainwidget.initialized.connect(self.set_workspace)
+        self.mainwidget.initialized.connect(self.workspace_timer.start)
+        # self.mainwidget.active_monitor.activeAssetChanged.connect(
         #     self.active_changed)
 
         if maya_button is not None:
@@ -1229,7 +1229,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         # We will get a warning when we change to a new bookmark and Bookmarks
         # unsets the current workspace. Whilst technically correct, it is
         # counterintuitive to be warned of a direct action just performed
-        assets_model = self.browserwidget.assetswidget.model().sourceModel()
+        assets_model = self.mainwidget.assetswidget.model().sourceModel()
         if not assets_model.active_index().isValid():
             return
 
@@ -1251,9 +1251,9 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.layout().setSpacing(0)
         common.set_custom_stylesheet(self)
 
-        self.browserwidget = BrowserWidget(parent=self)
-        self.layout().addWidget(self.browserwidget)
-        self.browserwidget.terminated.connect(self.terminate)
+        self.mainwidget = MainWidget(parent=self)
+        self.layout().addWidget(self.mainwidget)
+        self.mainwidget.terminated.connect(self.terminate)
 
     @QtCore.Slot()
     def terminate(self):
@@ -1325,7 +1325,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                     cmds.workspaceControlState(workspace_control, remove=True)
             try:
                 for k in mixinWorkspaceControls.items():
-                    if u'MayaBrowserWidget' in k:
+                    if u'MayaMainWidget' in k:
                         del mixinWorkspaceControls[k]
             except:
                 pass
@@ -1334,7 +1334,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 u'# Bookmarks: UI deleted.\n')
 
         for widget in QtWidgets.QApplication.instance().allWidgets():
-            if re.match(ur'MayaBrowserWidget.*WorkspaceControl', widget.objectName()):
+            if re.match(ur'MayaMainWidget.*WorkspaceControl', widget.objectName()):
                 try:
                     remove_workspace_control(widget.objectName())
                 except:
@@ -1386,7 +1386,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     @QtCore.Slot()
     def unmark_active(self, *args):
         """Callback responsible for keeping the active-file in the list updated."""
-        f = self.browserwidget.fileswidget
+        f = self.mainwidget.fileswidget
         if not f:
             return
         if not f.model().sourceModel().active_index().isValid():
@@ -1398,7 +1398,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         """Callback responsible for keeping the active-file in the list updated."""
         scene = common.get_sequence_endpath(
             cmds.file(query=True, expandName=True))
-        f = self.browserwidget.fileswidget
+        f = self.mainwidget.fileswidget
         if not f:
             return
 
@@ -1452,12 +1452,12 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     @QtCore.Slot()
     def _connect_signals(self):
-        self.browserwidget.headerwidget.hide()
+        self.mainwidget.headerwidget.hide()
 
-        bookmarkswidget = self.browserwidget.bookmarkswidget
-        assetswidget = self.browserwidget.assetswidget
-        fileswidget = self.browserwidget.fileswidget
-        favouriteswidget = self.browserwidget.favouriteswidget
+        bookmarkswidget = self.mainwidget.bookmarkswidget
+        assetswidget = self.mainwidget.assetswidget
+        fileswidget = self.mainwidget.fileswidget
+        favouriteswidget = self.mainwidget.favouriteswidget
 
         # Asset/project
         assetswidget.model().sourceModel().activeChanged.connect(self.set_workspace)
@@ -1495,7 +1495,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         width = (width * 0.5) if width > 400 else width
         width = width - common.INDICATOR_WIDTH
 
-        widget = MayaBrowserWidgetContextMenu(index, parent=parent)
+        widget = MayaMainWidgetContextMenu(index, parent=parent)
         if index.isValid():
             rect = parent.visualRect(index)
             widget.move(
@@ -1517,7 +1517,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             # When active sync is disabled we won't set workspaces
             if get_preference(u'disable_workspace_sync') is True:
                 return
-            index = self.browserwidget.assetswidget.model().sourceModel().active_index()
+            index = self.mainwidget.assetswidget.model().sourceModel().active_index()
             if not index.isValid():
                 return
             parent = index.data(common.ParentPathRole)
@@ -1586,7 +1586,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
 
         try:
-            widget = self.browserwidget.stackedwidget.widget(0)
+            widget = self.mainwidget.stackedwidget.widget(0)
             model = widget.model().sourceModel()
             if not model.active_index().isValid():
                 return
@@ -1702,7 +1702,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         try:
             cmds.file(rename=file_path)
             cmds.file(force=True, save=True, type=u'mayaAscii')
-            fileswidget = self.browserwidget.stackedwidget.widget(2)
+            fileswidget = self.mainwidget.stackedwidget.widget(2)
             fileswidget.new_file_added(widget.data_key(), file_path)
             return file_path
 
@@ -2094,7 +2094,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 raise OSError('Could not create {}'.format(_dir.path()))
 
         widget = addfilewidget.AddFileWidget(ext, file=file_path)
-        fileswidget = self.browserwidget.stackedwidget.widget(2)
+        fileswidget = self.mainwidget.stackedwidget.widget(2)
 
         if widget.exec_() == QtWidgets.QDialog.Rejected:
             return
@@ -2176,7 +2176,7 @@ class MayaBrowserWidget(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             u'width': 240,
             u'height': 360
         }
-        super(MayaBrowserWidget, self).show(**kwargs)
+        super(MayaMainWidget, self).show(**kwargs)
 
     def sizeHint(self):
         return QtCore.QSize(240, 360)

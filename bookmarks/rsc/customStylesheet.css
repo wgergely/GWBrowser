@@ -19,10 +19,10 @@ QWidget:window {{
 	border-color: rgba({FAVOURITE});
 }}
 
-BrowserWidget  {{
+MainWidget  {{
 	background-color: rgba({SEPARATOR});
 }}
-MayaBrowserWidget {{
+MayaMainWidget {{
 	background-color: rgba({SEPARATOR});
 }}
 QStackedWidget {{

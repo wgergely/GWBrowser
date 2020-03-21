@@ -70,7 +70,7 @@ def exec_(debug=False):
         logview = common.LogView()
         logview.show()
 
-    widget = bookmarks.StandaloneBrowserWidget()
+    widget = bookmarks.StandaloneMainWidget()
     widget.show()
 
     app.exec_()

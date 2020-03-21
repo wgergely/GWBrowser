@@ -3,18 +3,18 @@
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from bookmarks.browserwidget import BrowserWidget
+from bookmarks.mainwidget import MainWidget
 import bookmarks.common as common
 import bookmarks.settings as settings
 import bookmarks.images as images
-from bookmarks.browserwidget import TrayMenu
+from bookmarks.mainwidget import TrayMenu
 
 
-class StandaloneBrowserWidget(BrowserWidget):
-    """An subclass of ``BrowserWidget`` adapted to run it as a standalone
+class StandaloneMainWidget(MainWidget):
+    """An subclass of ``MainWidget`` adapted to run it as a standalone
     application.
 
-    ``StandaloneBrowserWidget`` is a frameless window but resizing similar to
+    ``StandaloneMainWidget`` is a frameless window but resizing similar to
     that of normal windows is implemented.
 
     ``HeaderWidget`` is used to move the window around. We're also adding a
@@ -32,7 +32,7 @@ class StandaloneBrowserWidget(BrowserWidget):
         defines here. These properties work in conjunction with the mouse events
 
         """
-        super(StandaloneBrowserWidget, self).__init__(parent=parent)
+        super(StandaloneMainWidget, self).__init__(parent=parent)
         k = u'preferences/frameless_window'
         self._frameless = settings.local_settings.value(k)
 
@@ -202,14 +202,14 @@ class StandaloneBrowserWidget(BrowserWidget):
     def hideEvent(self, event):
         """Custom hide event."""
         self.save_widget_settings()
-        super(StandaloneBrowserWidget, self).hideEvent(event)
+        super(StandaloneMainWidget, self).hideEvent(event)
 
     def showEvent(self, event):
         """Custom show event. When showing the widget we will use the saved
         settings to set the widget's size and position.
 
         """
-        super(StandaloneBrowserWidget, self).showEvent(event)
+        super(StandaloneMainWidget, self).showEvent(event)
 
         cls = self.__class__.__name__
         width = settings.local_settings.value(u'widget/{}/width'.format(cls))

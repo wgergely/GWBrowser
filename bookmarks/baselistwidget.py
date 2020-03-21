@@ -943,7 +943,7 @@ class BaseListWidget(QtWidgets.QListView):
         and the view comminicate properly are made here.
 
         Note:
-            The bulk of the signal are connected together in ``BrowserWidget``'s
+            The bulk of the signal are connected together in ``MainWidget``'s
             *_connect_signals* method.
 
         """
