@@ -4,7 +4,6 @@
 
 # Distribution / packaging
 build-scripts/win/bin/*.exe
-exe/
 .Python
 .DS_Store
 build/
