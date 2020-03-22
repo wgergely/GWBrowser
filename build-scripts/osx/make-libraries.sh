@@ -34,7 +34,7 @@ cd ../PyIlmBase
 ./configure
 make; make install
 
-cd ~./code
+cd ~/code
 git clone https://github.com/alembic/alembic
 cd ./alembic; mkdir ./build; cd ./build
 
@@ -68,7 +68,7 @@ brew install libheif
 brew install pybind11
 brew install libsquish
 
-cd ~./code
+cd ~/code
 git clone https://github.com/openimageio/oiio
 cd ./oiio
 mkdir ./build
