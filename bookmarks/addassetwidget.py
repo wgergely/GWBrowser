@@ -10,7 +10,7 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 
-BUTTON_SIZE = common.INLINE_ICON_SIZE
+BUTTON_SIZE = common.MARGIN
 ROW_HEIGHT = common.ROW_HEIGHT
 
 

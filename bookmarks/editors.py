@@ -13,7 +13,7 @@ import bookmarks.delegate as delegate
 import bookmarks.common_ui as common_ui
 
 
-class DescriptionEditorWidget(QtWidgets.QLineEdit):
+class DescriptionEditorWidget(common_ui.NameBase):
     """The editor used to edit the desciption of items."""
 
     def __init__(self, parent=None):
@@ -24,21 +24,6 @@ class DescriptionEditorWidget(QtWidgets.QLineEdit):
         self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         self.setPlaceholderText(u'Edit description...')
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.setTextMargins(2, 2, 2, 2)
-        self.setStyleSheet(
-            """
-QLineEdit {{
-	font-family: "{FONT}";
-	font-size: {SIZE}pt;
-    margin: 0px;
-    padding: 0px;
-}}
-"""
-            .format(
-                FONT=common.font_db.primary_font().family(),
-                SIZE=common.psize(common.MEDIUM_FONT_SIZE)
-            )
-        )
 
     def _connect_signals(self):
         """Connects signals."""
@@ -91,7 +76,8 @@ QLineEdit {{
 
         # Let's set the size based on the size provided by the delegate but
         # center it instead of a direct overlay
-        rect = description_rect.marginsAdded(QtCore.QMargins(0, 4, 0, 4))
+        o = common.INDICATOR_WIDTH
+        rect = description_rect.marginsAdded(QtCore.QMargins(0, o, 0, o))
         rect.moveCenter(rectangles[delegate.DataRect].center())
         rect.setLeft(
             rectangles[delegate.DataRect].left() + common.INDICATOR_WIDTH)
@@ -161,42 +147,6 @@ QLineEdit {{
         """Closes the editor on focus loss."""
         if event.lostFocus():
             self.hide()
-
-
-class Editor(QtWidgets.QLineEdit):
-    """Customized QLineEditor to input out filter text."""
-    finished = QtCore.Signal(unicode)
-
-    def __init__(self, parent=None):
-        super(Editor, self).__init__(parent=parent)
-        self.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
-        self.setStyleSheet("""
-QLineEdit {{
-    margin: 6px;
-    padding: 6px;
-    background-color: rgba(38,38,38, 255);
-    color: rgba({});
-    font-family: "{}";
-    font-size: {}pt;
-    border-width: 0px;
-    border: none;
-    outline: 0;
-    border-radius: 4px;
-}}
-QLineEdit:active {{
-    border: none;
-    outline: 0;
-}}
-QLineEdit:focus {{
-    border: none;
-    outline: 0;
-}}
-        """.format(
-            common.rgb(common.TEXT_SELECTED),
-            common.font_db.primary_font().family(),
-            common.psize(common.LARGE_FONT_SIZE)
-        ))
-        self.setContextMenuPolicy(QtCore.Qt.NoContextMenu)
 
 
 class FilterEditor(QtWidgets.QDialog):

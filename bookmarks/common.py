@@ -66,33 +66,49 @@ ASSET_FOLDERS = {
 }
 """Folder descriptions."""
 
-UI_SCALE = 1.0
-"""The global UI scale value. Depending on context, this should correspond to
-any UI scaling set in the host DCC. In standalone mode the app factors in the
-current DPI scaling and scales the UI accordingly."""
+
+_UI_SCALE = 1.0
+
+def UI_SCALE():
+    """The global UI scale value. Depending on context, this should correspond to
+    any UI scaling set in the host DCC. In standalone mode the app factors in the
+    current DPI scaling and scales the UI accordingly."""
+    # screen = widget.window().windowHandle().screen()
+    # screen.logicalDotsPerInch()
+    return _UI_SCALE
 
 
-SMALL_FONT_SIZE = 8.5
-MEDIUM_FONT_SIZE = 9.0
-LARGE_FONT_SIZE = 12.0
+DPI = 72.0
+
+SMALL_FONT_SIZE = lambda: psize(11.0) #8.5pt@72dbpi
+MEDIUM_FONT_SIZE = lambda: psize(12.0) #9pt@72dpi
+LARGE_FONT_SIZE = lambda: psize(16.0) # 12pt@72dpi
 
 ROW_HEIGHT = 34.0
 BOOKMARK_ROW_HEIGHT = 42.0
 ASSET_ROW_HEIGHT = 64.0
-CONTROL_HEIGHT = 34.0
 ROW_SEPARATOR = 1.0
 
 MARGIN = 18.0
 
 INDICATOR_WIDTH = 4.0
-ROW_BUTTONS_HEIGHT = 36.0
 
 WIDTH = 640.0
 HEIGHT = 480.0
 
-INLINE_ICON_SIZE = 18.0
 THUMBNAIL_IMAGE_SIZE = 512.0
 THUMBNAIL_FORMAT = u'png'
+
+
+def psize(n):
+    """There is a platform difference between font sizes on OSX and Win platforms.
+    As defined sizes refer to appearance on Windows platforms, as this is
+    where development happened so we'll scale values on MacOSX.
+
+    """
+    _n = (n * (DPI / 72.0)) * UI_SCALE()
+    return _n
+
 
 
 def proxy_path(v):
@@ -246,11 +262,11 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
     def highlightBlock(self, text):
         font = QtGui.QFont('Monospace')
         font.setStyleHint(QtGui.QFont.Monospace)
+        font.setPixelSize(1)
 
         char_format = QtGui.QTextCharFormat()
         char_format.setFont(font)
         char_format.setForeground(QtGui.QColor(0, 0, 0, 0))
-        char_format.setFontPointSize(1)
 
         block_format = QtGui.QTextBlockFormat()
         block_format.setLineHeight(
@@ -260,7 +276,7 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
         _font = char_format.font()
         _foreground = char_format.foreground()
         _weight = char_format.fontWeight()
-        _psize = char_format.font().pointSizeF()
+        _psize = char_format.font().pixelSize()
 
         flag = 0
 
@@ -274,7 +290,8 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
                 it = case[u're'].finditer(text)
                 for match in it:
                     flag = flag | case['flag']
-                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    font.setPixelSize(MEDIUM_FONT_SIZE)
+                    char_format.setFont(font)
 
                     char_format.setForeground(QtGui.QColor(80, 230, 80, 255))
 
@@ -294,7 +311,8 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
                 it = case[u're'].finditer(text)
                 for match in it:
                     flag = flag | case['flag']
-                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    font.setPixelSize(MEDIUM_FONT_SIZE)
+                    char_format.setFont(font)
                     char_format.setForeground(QtGui.QColor(80, 80, 200, 255))
 
                     self.setFormat(match.start(1), len(
@@ -313,7 +331,8 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
                 match = case[u're'].match(text)
                 if match:
                     flag = flag | case['flag']
-                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    font.setPixelSize(MEDIUM_FONT_SIZE)
+                    char_format.setFont(font)
                     char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
                     char_format.setFontUnderline(True)
 
@@ -336,7 +355,8 @@ class LogViewHighlighter(QtGui.QSyntaxHighlighter):
                     if flag & self.FAIL:
                         continue
                     char_format.setFontUnderline(False)
-                    char_format.setFontPointSize(MEDIUM_FONT_SIZE)
+                    font.setPixelSize(MEDIUM_FONT_SIZE)
+                    char_format.setFont(font)
                     char_format.setForeground(QtGui.QColor(230, 80, 80, 255))
 
                     self.setFormat(match.start(1), len(
@@ -379,15 +399,15 @@ class LogView(QtWidgets.QTextBrowser):
         self.setStyleSheet(
             """
 * {{
-    padding: 20px;
-    padding: 20px;
-    border-radius: 8px;
-    font-size: {}pt;
-    background-color: rgba({});
+    padding: {m}px;
+    border-radius: {p}px;
+    font-size: {p}px;
+    background-color: rgba({c});
 }}
 """.format(
-        psize(MEDIUM_FONT_SIZE),
-        rgb(SEPARATOR)
+        m=MARGIN,
+        p=SMALL_FONT_SIZE,
+        c=rgb(SEPARATOR)
     ))
 
     def showEvent(self, event):
@@ -417,21 +437,7 @@ class LogView(QtWidgets.QTextBrowser):
         self.verticalScrollBar().setValue(m)
 
     def sizeHint(self):
-        return QtCore.QSize(460, 460)
-
-
-def pxsize(n):
-    return n * UI_SCALE
-
-
-def psize(n):
-    """There is a platform difference between font sizes on OSX and Win platforms."""
-    n = n * (96.0 / 72.0) if get_platform() == u'mac' else n
-    return n * UI_SCALE
-
-
-def usize(n):
-    return n * UI_SCALE
+        return QtCore.QSize(WIDTH, HEIGHT)
 
 
 def rgb(color):
@@ -840,31 +846,35 @@ class FontDatabase(QtGui.QFontDatabase):
             if not family:
                 raise RuntimeError(u'Failed to add required font to the application')
 
-    def primary_font(self, point_size=MEDIUM_FONT_SIZE):
-        k = u'bmRobotoBold' + unicode(float(point_size))
+    def primary_font(self, font_size=MEDIUM_FONT_SIZE):
+        k = u'bmRobotoBold' + unicode(float(font_size))
         if k in self._fonts:
             return self._fonts[k]
-        self._fonts[k] = self.font(u'bmRobotoBold', u'Regular', psize(point_size))
+        self._fonts[k] = self.font(u'bmRobotoBold', u'Regular', font_size)
+        self._fonts[k].setPixelSize(font_size)
+
         if self._fonts[k].family() != u'bmRobotoBold':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
 
-    def secondary_font(self, point_size=SMALL_FONT_SIZE):
-        k = u'bmRobotoMedium' + unicode(float(point_size))
+    def secondary_font(self, font_size=SMALL_FONT_SIZE):
+        k = u'bmRobotoMedium' + unicode(float(font_size))
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoRegular', u'Regular', psize(point_size))
+        self._fonts[k] = self.font(u'bmRobotoRegular', u'Regular', font_size)
+        self._fonts[k].setPixelSize(font_size)
+
         if self._fonts[k].family() != u'bmRobotoRegular':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
 
-    def header_font(self, point_size=MEDIUM_FONT_SIZE + 2.0):
-        k = u'bmRobotoBlack' + unicode(float(point_size))
+    def header_font(self, font_size=MEDIUM_FONT_SIZE + 2.0):
+        k = u'bmRobotoBlack' + unicode(float(font_size))
         if k in self._fonts:
             return self._fonts[k]
 
-        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', point_size)
+        self._fonts[k] = self.font(u'bmRobotoBlack', u'Black', font_size)
         if self._fonts[k].family() != u'bmRobotoBlack':
             raise RuntimeError(u'Failed to add required font to the application')
         return self._fonts[k]
@@ -941,9 +951,14 @@ def set_custom_stylesheet(widget):
             qss = qss.format(
                 PRIMARY_FONT=font_db.primary_font().family(),
                 SECONDARY_FONT=font_db.secondary_font().family(),
-                SMALL_FONT_SIZE=psize(SMALL_FONT_SIZE),
-                MEDIUM_FONT_SIZE=psize(MEDIUM_FONT_SIZE),
-                LARGE_FONT_SIZE=psize(LARGE_FONT_SIZE),
+                SMALL_FONT_SIZE=SMALL_FONT_SIZE,
+                MEDIUM_FONT_SIZE=MEDIUM_FONT_SIZE,
+                LARGE_FONT_SIZE=LARGE_FONT_SIZE,
+                RADIUS=INDICATOR_WIDTH * 1.5,
+                RADIUS_SM=INDICATOR_WIDTH,
+                ROW_SEPARATOR=ROW_SEPARATOR,
+                MARGIN=MARGIN,
+                ROW_HEIGHT=ROW_HEIGHT,
                 BACKGROUND=rgb(BACKGROUND),
                 BACKGROUND_SELECTED=rgb(BACKGROUND_SELECTED),
                 SECONDARY_BACKGROUND=rgb(SECONDARY_BACKGROUND),

@@ -1,13 +1,13 @@
 QWidget {{
 	background-color: rgba({BACKGROUND});
 	color: rgba({TEXT});
-	border-width: 0px;
+	border-width: 0;
 	border: none;
-	margin: 0px;
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	outline: 0;
 	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
+	font-size: {MEDIUM_FONT_SIZE}px;
 }}
 
 QWidget:disabled {{
@@ -15,7 +15,7 @@ QWidget:disabled {{
 }}
 QWidget:window {{
 	border: none;
-	border-width: 0px;
+	border-width: 0;
 	border-color: rgba({FAVOURITE});
 }}
 
@@ -29,22 +29,20 @@ QStackedWidget {{
 	background-color: rgba({SEPARATOR});
 }}
 QStackedWidget:focus {{
-	border: none;
-	border-width: 0px;
 	border-color: rgba({FAVOURITE});
 }}
 
 QGroupBox {{
-		border: 1px solid rgba(0,0,0,50);
-		border-radius: 6px;
-		background-color: rgba(0,0,0,10);
+		border: {ROW_SEPARATOR}px solid rgba(0, 0, 0, 50);
+		border-radius: {RADIUS}px;
+		background-color: rgba(0, 0, 0, 10);
 }}
 QGroupBox::title {{
-		font-size: {SMALL_FONT_SIZE}pt;
+		font-size: {SMALL_FONT_SIZE}px;
 		color: rgba({SECONDARY_TEXT});
     subcontrol-origin: margin;
     subcontrol-position: top center; /* position at the top center */
-    margin: 0px 6px;
+    margin: 0px {RADIUS}px;
     /* background-color: rgba({BACKGROUND}); */
 }}
 
@@ -52,12 +50,12 @@ QGroupBox::title {{
 /* Preferences widget */
 SectionsStackWidget {{
 	background-color: rgba({BACKGROUND});
-	border-top: 1px solid rgba(30,30,30,200);
-	border-bottom: 1px solid rgba(30,30,30,200);
+	border-top: {ROW_SEPARATOR}px solid rgba(30,30,30,200);
+	border-bottom: {ROW_SEPARATOR}px solid rgba(30,30,30,200);
 }}
 
 QSplitter:handle {{
-	border-top: 1px dotted rgba(0,0,0,230);
+	border-top: {ROW_SEPARATOR}px dotted rgba(0,0,0,230);
 	/* background-color: rgba(0, 0, 0, 150); */
 }}
 
@@ -66,30 +64,30 @@ QStatusBar {{
 	color: rgba({TEXT});
 	background-color: rgba({SEPARATOR});
 	font-family: "{PRIMARY_FONT}";
-	font-size: {SMALL_FONT_SIZE}pt;
-	padding: 8px;
-	margin: 8px;
+	font-size: {SMALL_FONT_SIZE}px;
+	padding: {RADIUS}px;
+	margin: {RADIUS}px;
 }}
 QStatusBar::item {{
 	text-align: center;
-	padding: 8px;
-	margin: 8px;
+	padding: {RADIUS}px;
+	margin: {RADIUS}px;
 	border: none;
 }}
 
 
 QCheckBox {{
-	height: 12px;
-	border-radius: 6px;
+	height: {MEDIUM_FONT_SIZE}px;
+	border-radius: {RADIUS}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
 	margin: 0px;
-	padding: 6px;
+	padding: {RADIUS}px;
 }}
 QCheckBox::indicator {{
-	height: 12px;
-	width: 12px;
+	height: {MEDIUM_FONT_SIZE}px;
+	width: {MEDIUM_FONT_SIZE}px;
 	border: none;
-	border-radius: 6px;
+	border-radius: {RADIUS}px;
 }}
 QCheckBox::indicator:unchecked {{
 	background-color: rgba({SEPARATOR});
@@ -103,17 +101,17 @@ QRadioButton {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: transparent;
 	margin: 0px;
-	padding: 4px;
+	padding: {RADIUS}px;
 }}
 QRadioButton:disabled {{
 	color: rgba({TEXT_DISABLED});
 	background-color: rgba({SECONDARY_BACKGROUND});
 }}
 QRadioButton::indicator {{
-	height: 12px;
-	width: 12px;
+	height: {MEDIUM_FONT_SIZE}px;
+	width: {MEDIUM_FONT_SIZE}px;
 	border: none;
-	border-radius: 2px;
+	border-radius: {ROW_SEPARATOR}px;
 }}
 QRadioButton::indicator:unchecked {{
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -125,32 +123,32 @@ QRadioButton::indicator:checked  {{
 
 QPushButton {{
 		text-align: center;
-		padding-left: 10px;
-		padding-right: 10px;
+		padding-left: {MEDIUM_FONT_SIZE}px;
+		padding-right: {MEDIUM_FONT_SIZE}px;
 		color: rgba({TEXT});
 		background-color: rgba({SECONDARY_TEXT});
 		border-radius: 0px;
 		font-family: "{PRIMARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}pt;
-		border: 1px solid rgba({SECONDARY_TEXT});
+		font-size: {MEDIUM_FONT_SIZE}px;
+		border: {ROW_SEPARATOR}px solid rgba({SECONDARY_TEXT});
 }}
 QPushButton:disabled {{
 	color: rgba({SECONDARY_TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
-	border: 1px solid rgba({SECONDARY_BACKGROUND});
+	border: {ROW_SEPARATOR}px solid rgba({SECONDARY_BACKGROUND});
 }}
 QPushButton:hover {{
 	color: rgba({TEXT_SELECTED});
 	background-color: rgba({BACKGROUND_SELECTED});
-	border: 1px solid rgba({BACKGROUND_SELECTED});
+	border: {ROW_SEPARATOR}px solid rgba({BACKGROUND_SELECTED});
 }}
 QPushButton:pressed {{
 	color: rgba({TEXT_SELECTED});
 	background-color: rgba({SECONDARY_BACKGROUND});
-	border: 1px solid rgba({SECONDARY_BACKGROUND});
+	border: {ROW_SEPARATOR}px solid rgba({SECONDARY_BACKGROUND});
 }}
 QPushButton:focus {{
-	border: 1px solid rgba({FAVOURITE});
+	border: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
 }}
 
 
@@ -158,28 +156,28 @@ QPushButton:focus {{
 QComboBox {{
 	color: rgba({TEXT});
 	text-align: left;
-	padding-left: 10px;
-	padding-right: 10px;
+	padding-left: {MEDIUM_FONT_SIZE}px;
+	padding-right: {MEDIUM_FONT_SIZE}px;
 	border-style: none;
 	background-color: rgba({BACKGROUND_SELECTED});
 	font-family: "{PRIMARY_FONT}";
-	font-size: {MEDIUM_FONT_SIZE}pt;
-	border-radius: 3px;
+	font-size: {MEDIUM_FONT_SIZE}px;
+	border-radius: {RADIUS_SM}px;
 }}
 
 QComboBox::drop-down {{
 		width: 0px;
 		height: 0px;
 		padding: 0px;
-		margin: 1px;
+		margin: {ROW_SEPARATOR}px;
 		border-width: 0px;
 		border-style: none;
-		border-radius: 3px;
+		border-radius: {RADIUS_SM}px;
 }}
 QComboBox QListView::item {{
 	color: rgba({TEXT});
 	background-color: rgba({SECONDARY_BACKGROUND});
-	padding-left: 4
+	padding-left: {RADIUS_SM}px;
 }}
 QComboBox QListView::item:hover {{
 	color: rgba({TEXT_SELECTED});
@@ -203,8 +201,8 @@ QComboBox:on {{
 QLineEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
-	border-radius: 2px;
-	padding: 6px;
+	border-radius: {ROW_SEPARATOR}px;
+	padding: {RADIUS}px;
 }}
 QLineEdit:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -214,8 +212,8 @@ QLineEdit:disabled {{
 .QTextEdit {{
 	background-color: rgba({SECONDARY_BACKGROUND});
 	border: none;
-	border-radius: 2px;
-	padding: 6px;
+	border-radius: {ROW_SEPARATOR}px;
+	padding: {RADIUS}px;
 }}
 .QTextEdit:disabled {{
 	background-color: rgba({SECONDARY_BACKGROUND});
@@ -227,8 +225,8 @@ QScrollBar {{
 	background: rgba({SEPARATOR});
 	border: none;
 	border-radius: 0px;
-	width:9px;
-	height: 8px;
+	width: {SMALL_FONT_SIZE}px;
+	height: {RADIUS}px;
 }}
 QScrollBar:vertical,
 QScrollBar:horizontal {{
@@ -238,10 +236,10 @@ QScrollBar:horizontal {{
 QScrollBar::handle {{
 	background: rgba({SECONDARY_BACKGROUND});
 	border: none;
-	border-radius: 3px;
-	border-left: 1px solid rgba(0,0,0,20);
+	border-radius: {RADIUS_SM}px;
+	border-left: {ROW_SEPARATOR}px solid rgba(0,0,0,20);
 	max-height: 180px;
-	min-height: 36px;
+	min-height: {ROW_HEIGHT}px;
 }}
 
 QScrollBar::add-page,
@@ -265,7 +263,7 @@ QListView::item {{
 	outline: 0;
 	color: rgba({TEXT});
   background: rgba(255,255,255,20);
-	border-bottom: 1px solid rgba(0,0,0,50);
+	border-bottom: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
 }}
 QListWidget::item:hover,
 QListView::item:hover {{
@@ -281,12 +279,12 @@ QListView::item:selected:hover {{
 }}
 QListWidget::indicator,
 QListView::indicator {{
-	width: 12px;
-	height: 12px;
-	border-radius: 6px;
+	width: {MEDIUM_FONT_SIZE}px;
+	height: {MEDIUM_FONT_SIZE}px;
+	border-radius: {RADIUS}px;
 	background-color: rgba({SECONDARY_BACKGROUND});
-	margin-left: 8px;
-	margin-right: 4px;
+	margin-left: {RADIUS}px;
+	margin-right: {RADIUS}px;
 	subcontrol-position: center;
 }}
 QListWidget::indicator:checked,
@@ -299,14 +297,14 @@ QHeaderView {{
 	color: rgba({TEXT_SELECTED});
 	background-color: rgba({TEXT});
 	text-align: left;
-	border-bottom: 1px solid rgba({SEPARATOR});
-	border-top: 1px solid rgba({SEPARATOR});
+	border-bottom: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
+	border-top: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
 }}
 QHeaderView::section {{
 	background-color: rgba({BACKGROUND});
 	color: rgba({TEXT_SELECTED});
 	border: none;
-	border-left: 1px solid rgba({SEPARATOR});
+	border-left: {ROW_SEPARATOR}px solid rgba({SEPARATOR});
 	border-radius: 0px;
 }}
 
@@ -362,14 +360,14 @@ QLabel:disabled {{
 QMenu {{
     background-color: rgba({SECONDARY_BACKGROUND});
 		font-family: "{PRIMARY_FONT}";
-		font-size: {MEDIUM_FONT_SIZE}pt;
+		font-size: {MEDIUM_FONT_SIZE}px;
 		margin: 0px;
 		padding: 0px;
 		border: none;
 		menu-scrollable: 1;
 }}
 QMenu::separator {{
-  height: 1px;
+  height: {ROW_SEPARATOR}px;
 	margin: 0px 0px 0px 0px;
 	padding: 0px 0px 0px 0px;
   background-color: rgba(0,0,0,100);
@@ -378,9 +376,6 @@ QMenu::separator {{
 QMenu::indicator,
 QMenu::icon {{
 	padding: 7px;
-	/* padding: 0px 0px 0px 22px;
-	margin: 0px 0px 0px 0px;
-	height: 30px; */
 	alignment: center;
 	text-align: center;
 	background-color: rgba(0,0,0,30);
@@ -391,9 +386,9 @@ QMenu::indicator:selected {{
 }}
 QMenu::item {{
 	color: rgba({TEXT});
-	padding: 0px 32px 0px 18px;
+	padding: 0px {ROW_HEIGHT}px 0px {MARGIN}px;
 	margin: 0px 0px 0px 0px;
-	height: 28px;
+	height: {ROW_HEIGHT}px;
   background-color: transparent;
 }}
 QMenu::item:selected {{
@@ -407,8 +402,8 @@ QMenu::item:disabled {{
 QMenu::right-arrow {{
   margin: 0px;
   image: url({BRANCH_CLOSED});
-  height: 28px;
-  width: 28px;
+  height: {MARGIN}px;
+  width: {MARGIN}px;
 }}
 
 
@@ -416,9 +411,9 @@ QToolTip {{
   background-color: rgba({SECONDARY_BACKGROUND}); /* sets background of the menu */
 	color: rgba({TEXT});
 	font-family: "{PRIMARY_FONT}";
-	font-size: {SMALL_FONT_SIZE}pt;
+	font-size: {SMALL_FONT_SIZE}px;
 	outline: none;
-	margin: 3px;
+	margin: {RADIUS_SM}px;
 	border: none;
 	border-radius: 0px;
 	opacity: 255;
@@ -444,7 +439,7 @@ TodoItemWidget,
 TodoItemEditor {{
 	alignment: center;
 	text-align: center;
-	font-size: {MEDIUM_FONT_SIZE}pt;
+	font-size: {MEDIUM_FONT_SIZE}px;
 	color: rgba({SECONDARY_BACKGROUND});
 	background-color: transparent;
 }}
@@ -454,48 +449,16 @@ TodoItemEditor:disabled {{
 	color: rgba({TEXT_DISABLED});
 }}
 TodoItemEditor:focus {{
-	border-top: 1px solid rgba(255,255,255,20) ;
-	border-bottom: 1px solid rgba(0,0,0,20) ;
+	border-top: {ROW_SEPARATOR}px solid rgba(255,255,255,20) ;
+	border-bottom: {ROW_SEPARATOR}px solid rgba(0,0,0,20) ;
 }}
-
-/* TodoItemWidget QScrollBar {{
-	background: rgba({TEXT});
-	border: none;
-	border-radius: 0px;
-	width:8px;
-	height: 8px;
-}}
-TodoItemWidget QScrollBar:vertical,
-TodoItemWidget QScrollBar:horizontal {{
-	background: rgba({TEXT});
-	border: none;
-}}
-TodoItemWidget QScrollBar::handle {{
-	background: rgba({SECONDARY_TEXT});
-	border: none;
-	border-radius: 4px;
-	border: 1px solid rgba(0,0,0,20);
-	max-height: 250px;
-	min-height: 50px;
-}}
-
-TodoItemWidget QScrollBar::add-page,
-TodoItemWidget QScrollBar::sub-page,
-TodoItemWidget QScrollBar::add-line,
-TodoItemWidget QScrollBar::up-arrow,
-TodoItemWidget QScrollBar::down-arrow,
-TodoItemWidget QScrollBar::sub-line {{
-	background: rgba({TEXT});
-	border: none;
-	border-radius: 0px;
-}} */
 
 TodoEditorWidget QScrollBar {{
 	background: rgba({TEXT});
 	border: none;
 	border-radius: 0px;
-	width:8px;
-	height: 8px;
+	width:{RADIUS}px;
+	height: {RADIUS}px;
 }}
 TodoEditorWidget QScrollBar:vertical,
 TodoEditorWidget QScrollBar:horizontal {{
@@ -505,8 +468,8 @@ TodoEditorWidget QScrollBar:horizontal {{
 TodoEditorWidget QScrollBar::handle {{
 	background: rgba({SECONDARY_TEXT});
 	border: none;
-	border-radius: 4px;
-	border: 1px solid rgba(0,0,0,20);
+	border-radius: {RADIUS}px;
+	border: {ROW_SEPARATOR}px solid rgba(0,0,0,20);
 	max-height: 250px;
 	min-height: 50px;
 }}
@@ -523,13 +486,29 @@ TodoEditorWidget QScrollBar::sub-line {{
 }}
 
 PreferencesWidget {{
-		margin: 8px;
+		margin: {RADIUS}px;
 }}
 PreferencesWidget::handle:horizontal  {{
-		border-right: 1px solid rgba(0,0,0,150);
-
+		border-right: {ROW_SEPARATOR}px solid rgba(0,0,0,150);
 }}
 
 SectionSwitcherWidget  {{
-	border: 1px solid rgba(0,0,0,100);
+	border: {ROW_SEPARATOR}px solid rgba(0,0,0,100);
+}}
+
+BaseListView {{
+  margin: {ROW_SEPARATOR};
+}}
+
+NameBase,
+NameModeWidget {{
+    background-color: rgba(0,0,0,0);
+    font-family: "{PRIMARY_FONT}";
+    font-size: {MEDIUM_FONT_SIZE}px;
+    border-bottom: {ROW_SEPARATOR}px solid rgba(0,0,0,50);
+    border-radius: 0px;
+    color: rgba({TEXT});
+}}
+NameBase:!read-only:focus{{
+    border-bottom: {ROW_SEPARATOR}px solid rgba({FAVOURITE});
 }}

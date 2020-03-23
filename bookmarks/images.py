@@ -15,7 +15,6 @@ All generated thumbnails and ui resources are cached in ``ImageCache``.
 """
 import os
 import functools
-import tempfile
 import numpy as np
 import OpenImageIO
 
@@ -585,7 +584,7 @@ class ImageCache(QtCore.QObject):
 
         k = u'rsc:{name}:{size}:{color}'.format(
             name=name.lower(),
-            size=int(size) * common.UI_SCALE,
+            size=int(size),
             color=u'null' if not color else color.name().lower()
         )
 
@@ -967,7 +966,7 @@ class ImageViewer(QtWidgets.QWidget):
         self.load_timer.timeout.connect(self.load_timer.deleteLater)
 
         QtWidgets.QVBoxLayout(self)
-        height = common.ROW_BUTTONS_HEIGHT * 0.6
+        height = common.ROW_HEIGHT * 0.6
         o = 0
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)

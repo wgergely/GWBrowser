@@ -117,6 +117,8 @@ class Highlighter(QtGui.QSyntaxHighlighter):
 
         """
         font = self.document().defaultFont()
+        font.setPixelSize(common.MEDIUM_FONT_SIZE)
+
         char_format = QtGui.QTextCharFormat()
         char_format.setFont(font)
         char_format.setFontWeight(QtGui.QFont.Normal)
@@ -125,7 +127,6 @@ class Highlighter(QtGui.QSyntaxHighlighter):
         _font = char_format.font()
         _foreground = char_format.foreground()
         _weight = char_format.fontWeight()
-        _psize = common.psize(char_format.font().pointSizeF())
 
         flag = NoHighlightFlag
         for case in HIGHLIGHT_RULES.itervalues():
@@ -134,8 +135,9 @@ class Highlighter(QtGui.QSyntaxHighlighter):
             if case[u'flag'] == HeadingHighlight:
                 match = case[u're'].match(text)
                 if match:
-                    char_format.setFontPointSize(
-                        font.pointSizeF() + ((3.0 - len(match.group(0))) * 4))
+                    n = 3 - len(match.group(0))
+                    font.setPixelSize(font.pixelSize() + (n * 4))
+                    char_format.setFont(font)
                     self.setFormat(0, len(text), char_format)
 
                     char_format.setForeground(QtGui.QColor(0, 0, 0, 80))
@@ -273,14 +275,14 @@ class TodoItemEditor(QtWidgets.QTextBrowser):
 
     def get_minHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(point_size=11.0)
+        font = common.font_db.primary_font(font_size=11.0)
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 1  # Lines tall
         return line_height
 
     def get_maxHeight(self):
         """Returns the desired minimum height of the editor."""
-        font = common.font_db.primary_font(point_size=11.0)
+        font = common.font_db.primary_font(font_size=11.0)
         metrics = QtGui.QFontMetricsF(font)
         line_height = (metrics.lineSpacing()) * 35  # Lines tall
         return line_height
@@ -399,7 +401,7 @@ class RemoveNoteButton(ClickableIconButton):
         super(RemoveNoteButton, self).__init__(
             u'remove',
             (common.REMOVE, common.REMOVE),
-            common.INLINE_ICON_SIZE * 0.66,
+            common.MARGIN * 0.66,
             description=u'Click to remove this note',
             parent=parent
         )
@@ -452,10 +454,10 @@ class DragIndicatorButton(QtWidgets.QLabel):
         """Custom disabled function."""
         if b:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT_SELECTED, common.INLINE_ICON_SIZE * 0.66)
+                u'drag_indicator', common.TEXT_SELECTED, common.MARGIN * 0.66)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'drag_indicator', common.TEXT, common.INLINE_ICON_SIZE * 0.66)
+                u'drag_indicator', common.TEXT, common.MARGIN * 0.66)
 
         self.setPixmap(pixmap)
 
@@ -575,11 +577,11 @@ class CheckBoxButton(QtWidgets.QLabel):
     def set_pixmap(self, checked):
         if checked:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.BACKGROUND, common.INLINE_ICON_SIZE)
+                u'check', common.BACKGROUND, common.MARGIN)
             self.setPixmap(pixmap)
         else:
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'check', common.ADD, common.INLINE_ICON_SIZE)
+                u'check', common.ADD, common.MARGIN)
             self.setPixmap(pixmap)
 
     def mouseReleaseEvent(self, event):
@@ -960,7 +962,7 @@ class TodoEditorWidget(QtWidgets.QDialog):
         if event.type() == QtCore.QEvent.Paint:
             painter = QtGui.QPainter()
             painter.begin(self)
-            font = common.font_db.secondary_font(point_size=common.MEDIUM_FONT_SIZE)
+            font = common.font_db.secondary_font(font_size=common.MEDIUM_FONT_SIZE)
             painter.setFont(font)
             painter.setRenderHints(QtGui.QPainter.Antialiasing)
 

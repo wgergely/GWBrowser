@@ -20,33 +20,14 @@ def get_group(parent=None):
 class NameBase(QtWidgets.QLineEdit):
     def __init__(self, parent=None, transparent=False):
         super(NameBase, self).__init__(parent=parent)
-        if transparent:
-            self.set_transparent()
-
-    def set_transparent(self, color=None):
-        self.setStyleSheet(
-            """
-QLineEdit{{
-    background-color: rgba(0,0,0,0);
-    font-family: "{fontFamily}";
-    font-size: {fontSize}pt;
-    border-bottom: 2px solid rgba(0,0,0,50);
-    border-radius: 0px;
-    color: rgba({color});
-}}
-QLineEdit:!read-only:focus{{
-    border-bottom: 2px solid rgba({favourite});
-}}
-            """.format(
-                fontFamily=common.font_db.primary_font().family(),
-                fontSize=common.psize(common.MEDIUM_FONT_SIZE),
-                favourite=common.rgb(common.FAVOURITE),
-                color='255,255,255,255' if not color else color
-            )
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.MinimumExpanding,
+            QtWidgets.QSizePolicy.MinimumExpanding,
         )
+        self.setAlignment(QtCore.Qt.AlignLeft)
 
 
-def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS_HEIGHT, cls=None, vertical=False):
+def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_HEIGHT, cls=None, vertical=False):
     """macro for adding a new row"""
     if cls:
         w = cls(parent=parent)
@@ -89,7 +70,7 @@ def add_row(label, parent=None, padding=common.MARGIN, height=common.ROW_BUTTONS
 def add_label(text, parent=None):
     label = QtWidgets.QLabel(text, parent=parent)
     common.set_custom_stylesheet(label)
-    label.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+    label.setFixedHeight(common.ROW_HEIGHT)
     label.setSizePolicy(
         QtWidgets.QSizePolicy.Expanding,
         QtWidgets.QSizePolicy.Expanding
@@ -113,9 +94,9 @@ def add_description(text, label=u' ', padding=common.MARGIN, parent=None):
     common.set_custom_stylesheet(label)
     label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
     label.setStyleSheet(
-        u'color: rgba({}); font-size: {}pt'.format(
+        u'color: rgba({}); font-size: {}px'.format(
             common.rgb(common.SECONDARY_TEXT),
-            common.psize(common.SMALL_FONT_SIZE)
+            common.SMALL_FONT_SIZE
         )
     )
     label.setWordWrap(True)
@@ -184,7 +165,7 @@ class PaintedLabel(QtWidgets.QLabel):
 
     def __init__(self, text, color=common.TEXT, size=common.MEDIUM_FONT_SIZE, parent=None):
         super(PaintedLabel, self).__init__(text, parent=parent)
-        self._font = common.font_db.primary_font(point_size=size)
+        self._font = common.font_db.primary_font(font_size=size)
         self._color = color
         metrics = QtGui.QFontMetricsF(self._font)
         self.setFixedHeight(metrics.height())
@@ -331,11 +312,12 @@ class MessageBox(QtWidgets.QDialog):
         self._create_UI()
 
         self.setStyleSheet("""
-            QWidget {{
-                color: rgba({TEXT});
-                background-color: rgba({BG});
-                font-family: "{FAMILY}";
-            }}
+QWidget {{
+    color: rgba({TEXT});
+    background-color: rgba({BG});
+    font-family: "{FAMILY}";
+    font-size: {SIZE}px;
+}}
             """.format(
             SIZE=common.LARGE_FONT_SIZE,
             FAMILY=common.font_db.primary_font().family(),
@@ -388,23 +370,29 @@ class MessageBox(QtWidgets.QDialog):
             QtWidgets.QSizePolicy.Expanding,
         )
         label.setStyleSheet(
-            u'padding:10px;background-color: rgba({});'.format(common.rgb(self.primary_color)))
+            u'padding: {}px; background-color: rgba({});'.format(
+                common.MEDIUM_FONT_SIZE,
+                common.rgb(self.primary_color)
+            )
+        )
 
         main_row.layout().insertWidget(0, label)
 
         short_text_row.layout().addWidget(self.short_text_label)
         self.short_text_label.setStyleSheet(
-            u'padding:20px 10px 20px 10px; background-color: rgba({}); font-size: {}pt'.format(
-                common.rgb(self.secondary_color.lighter(125)),
-                common.psize(common.MEDIUM_FONT_SIZE)
+            u'padding:{m}px {s}px {m}px {s}px; background-color: rgba({c}); font-size: {s}px;'.format(
+                m=common.MARGIN,
+                c=common.rgb(self.secondary_color.lighter(125)),
+                s=common.MEDIUM_FONT_SIZE
             ))
         self.short_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
         long_text_row.layout().addWidget(self.long_text_label)
         self.long_text_label.setStyleSheet(
-            u'padding:10px;background-color: rgba({}); font-size:{}pt'.format(
-            common.rgb(self.secondary_color),
-            common.psize(common.SMALL_FONT_SIZE)
+            u'padding:{m}px;background-color: rgba({c}); font-size:{s}px;'.format(
+            m=common.MARGIN,
+            c=common.rgb(self.secondary_color),
+            s=common.SMALL_FONT_SIZE
         ))
         self.long_text_label.setAlignment(QtCore.Qt.AlignLeft)
 
@@ -418,30 +406,32 @@ class MessageBox(QtWidgets.QDialog):
             """
         QPushButton {{
             color: rgba(255,255,255,150);
-            border-radius: 3px;
-            border: 1px solid {};
-            margin:5px;
-            padding:5px;
-            background-color: rgba({});
+            border-radius: {i}px;
+            border: {s}px solid {c};
+            margin: {i}px;
+            padding: {i}px;
+            background-color: rgba({p});
         }}
         QPushButton:hover {{
             color: white;
-            background-color: rgba({});
+            background-color: rgba({pl});
         }}
         QPushButton:pressed {{
             color: rgba(255,255,255,150);
-            background-color: rgba({});
+            background-color: rgba({pd});
         }}
         """.format(
-                common.rgb(self.secondary_color.lighter(150)),
-                common.rgb(self.primary_color),
-                common.rgb(self.primary_color.lighter(120)),
-                common.rgb(self.primary_color.darker(120))
+                i=common.INDICATOR_WIDTH,
+                s=common.ROW_SEPARATOR,
+                c=common.rgb(self.secondary_color.lighter(150)),
+                p=common.rgb(self.primary_color),
+                pl=common.rgb(self.primary_color.lighter(120)),
+                pd=common.rgb(self.primary_color.darker(120))
             )
         )
 
     def sizeHint(self):
-        return QtCore.QSize(420, 200)
+        return QtCore.QSize(common.HEIGHT, common.HEIGHT * 0.5)
 
     def eventFilter(self, widget, event):
         if widget != self:

@@ -22,6 +22,9 @@ import bookmarks.threads as threads
 import bookmarks.common as common
 
 
+__instance__ = None
+
+
 class StatusBar(QtWidgets.QStatusBar):
     def __init__(self, height, parent=None):
         super(StatusBar, self).__init__(parent=parent)
@@ -85,7 +88,7 @@ class TrayMenu(BaseContextMenu):
 
         active = self.parent().windowFlags() & QtCore.Qt.WindowStaysOnTopHint
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.INLINE_ICON_SIZE)
+            u'check', common.ADD, common.MARGIN)
 
         menu_set[u'Keep on top of other windows'] = {
             u'pixmap': on_pixmap if active else None,
@@ -105,7 +108,7 @@ class TrayMenu(BaseContextMenu):
         if not hasattr(self.parent(), 'clicked'):
             return menu_set
         menu_set[u'show'] = {
-            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.INLINE_ICON_SIZE),
+            u'icon': images.ImageCache.get_rsc_pixmap(u'icon_bw', None, common.MARGIN),
             u'text': u'Open...',
             u'action': self.parent().clicked.emit
         }
@@ -119,7 +122,7 @@ class MinimizeButton(ClickableIconButton):
         super(MinimizeButton, self).__init__(
             u'minimize',
             (common.REMOVE, common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            common.MARGIN - common.INDICATOR_WIDTH,
             description=u'Click to minimize the window...',
             parent=parent
         )
@@ -132,7 +135,7 @@ class CloseButton(ClickableIconButton):
         super(CloseButton, self).__init__(
             u'close',
             (common.REMOVE, common.SECONDARY_TEXT),
-            common.INLINE_ICON_SIZE - common.INDICATOR_WIDTH,
+            common.MARGIN - common.INDICATOR_WIDTH,
             description=u'Click to close the window...',
             parent=parent
         )
@@ -152,7 +155,7 @@ class HeaderWidget(QtWidgets.QWidget):
 
         self.setFocusPolicy(QtCore.Qt.NoFocus)
         self.setContextMenuPolicy(QtCore.Qt.DefaultContextMenu)
-        self.setFixedHeight(common.INLINE_ICON_SIZE +
+        self.setFixedHeight(common.MARGIN +
                             (common.INDICATOR_WIDTH * 2))
 
         self._create_UI()
@@ -315,14 +318,22 @@ class ToggleModeButton(QtWidgets.QWidget):
 
 
 class MainWidget(QtWidgets.QWidget):
-    """The main widget."""
+    """The main widget.
+    Contains the list control bar with the tab buttons, the stacked widget
+    containing the Bookmark-, Asset- and FileWidgets and the statusbar.
 
+    """
     initialized = QtCore.Signal()
     terminated = QtCore.Signal()
     shutdown = QtCore.Signal()
     resized = QtCore.Signal(QtCore.QRect)
 
     def __init__(self, parent=None):
+        global __instance__
+        if __instance__ is not None:
+            raise RuntimeError(u'MainWidget cannot be initiated twice.')
+        __instance__ = self
+
         super(MainWidget, self).__init__(parent=parent)
         self.setFocusPolicy(QtCore.Qt.NoFocus)
 
@@ -395,7 +406,7 @@ class MainWidget(QtWidgets.QWidget):
         self.layout().addWidget(self.listcontrolwidget)
         self.layout().addWidget(self.stackedwidget)
 
-        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 2)
+        height = common.MARGIN + (common.INDICATOR_WIDTH * 2)
         row = add_row(None, padding=0, height=height, parent=self)
         row.layout().setSpacing(0)
         row.layout().setContentsMargins(0, 0, 0, 0)
@@ -477,8 +488,19 @@ class MainWidget(QtWidgets.QWidget):
             model.modelReset.connect(
                 functools.partial(update_window_title, model.active_index()))
 
+        w_handle = self.window().windowHandle()
+        w_handle.screenChanged.connect(self.screenChanged)
+
         self._initialized = True
         self.initialized.emit()
+
+
+    @QtCore.Slot()
+    def screenChanged(self):
+        screen = self.window().windowHandle().screen()
+        dpi = screen.logicalDotsPerInch()
+        common.DPI = dpi
+        common.Log.success(u'{}'.format(dpi))
 
     @QtCore.Slot()
     def terminate(self):

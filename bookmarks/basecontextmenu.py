@@ -168,14 +168,14 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_sort_menu(self, menu_set):
         """Creates the menu needed to set the sort-order of the list."""
         sort_menu_icon = images.ImageCache.get_rsc_pixmap(
-            u'sort', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'sort', common.SECONDARY_TEXT, common.MARGIN)
         arrow_up_icon = images.ImageCache.get_rsc_pixmap(
-            u'arrow_up', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'arrow_up', common.SECONDARY_TEXT, common.MARGIN)
         arrow_down_icon = images.ImageCache.get_rsc_pixmap(
-            u'arrow_down', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'arrow_down', common.SECONDARY_TEXT, common.MARGIN)
 
         item_on_icon = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.INLINE_ICON_SIZE)
+            u'check', common.ADD, common.MARGIN)
 
         m = self.parent().model().sourceModel()
         sortorder = m.sort_order()
@@ -225,7 +225,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             return menu_set
 
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN)
 
         path = common.get_sequence_startpath(
             self.index.data(QtCore.Qt.StatusTipRole))
@@ -241,7 +241,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         if not self.index.isValid():
             return menu_set
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'shotgun', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'shotgun', common.SECONDARY_TEXT, common.MARGIN)
 
         path = common.get_sequence_startpath(
             self.index.data(QtCore.Qt.StatusTipRole))
@@ -259,9 +259,9 @@ class BaseContextMenu(QtWidgets.QMenu):
             return menu_set
 
         copy_icon = images.ImageCache.get_rsc_pixmap(
-            u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'copy', common.SECONDARY_TEXT, common.MARGIN)
         copy_icon2 = images.ImageCache.get_rsc_pixmap(
-            u'copy', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'copy', common.SECONDARY_TEXT, common.MARGIN)
 
         key = u'Copy path'
         menu_set[key] = collections.OrderedDict()
@@ -356,13 +356,13 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_mode_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         favourite_on_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'favourite', common.SECONDARY_TEXT, common.MARGIN)
         favourite_off_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'favourite', common.SECONDARY_TEXT, common.MARGIN)
         archived_on_icon = images.ImageCache.get_rsc_pixmap(
-            u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'archived', common.SECONDARY_TEXT, common.MARGIN)
         archived_off_icon = images.ImageCache.get_rsc_pixmap(
-            u'archived', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'archived', common.SECONDARY_TEXT, common.MARGIN)
 
         favourite = self.index.flags() & common.MarkedAsFavourite
         archived = self.index.flags() & common.MarkedAsArchived
@@ -370,7 +370,7 @@ class BaseContextMenu(QtWidgets.QMenu):
         pixmap = archived_off_icon if archived else archived_on_icon
         if self.__class__.__name__ == u'BookmarksWidgetContextMenu':
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+                u'remove', common.REMOVE, common.MARGIN)
             text = u'Remove'
         else:
             text = u'Restore' if archived else u'Archive'
@@ -402,9 +402,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_display_toggles_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         item_on = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.INLINE_ICON_SIZE)
+            u'check', common.ADD, common.MARGIN)
         item_off = images.ImageCache.get_rsc_pixmap(
-            u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'active', common.SECONDARY_TEXT, common.MARGIN)
 
         proxy = self.parent().model()
         favourite = proxy.filter_flag(common.MarkedAsFavourite)
@@ -453,11 +453,11 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_refresh_menu(self, menu_set):
         parent = self.parent()
         refresh_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'refresh', common.SECONDARY_TEXT, common.MARGIN)
         preferences_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'settings', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'settings', common.SECONDARY_TEXT, common.MARGIN)
         quit_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'close', common.SEPARATOR, common.INLINE_ICON_SIZE)
+            u'close', common.SEPARATOR, common.MARGIN)
 
         menu_set[u'Refresh'] = {
             u'action': parent.model().sourceModel().modelDataResetRequested.emit,
@@ -484,9 +484,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_set_generate_thumbnails_menu(self, menu_set):
         item_on_icon = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.INLINE_ICON_SIZE)
+            u'check', common.ADD, common.MARGIN)
         item_off_icon = images.ImageCache.get_rsc_pixmap(
-            u'spinner_btn', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'spinner_btn', common.SECONDARY_TEXT, common.MARGIN)
 
         model = self.parent().model().sourceModel()
 
@@ -510,17 +510,17 @@ class BaseContextMenu(QtWidgets.QMenu):
             return menu_set
 
         capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
         pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
         pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
         remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+            u'remove', common.REMOVE, common.MARGIN)
         refresh_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.ADD, common.INLINE_ICON_SIZE)
+            u'refresh', common.ADD, common.MARGIN)
         show_thumbnail = images.ImageCache.get_rsc_pixmap(
-            u'active', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'active', common.SECONDARY_TEXT, common.MARGIN)
 
         import bookmarks.editors as editors
 
@@ -607,7 +607,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     @contextmenu
     def add_manage_bookmarks_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'bookmark2', common.ADD, common.INLINE_ICON_SIZE)
+            u'bookmark2', common.ADD, common.MARGIN)
         menu_set[u'Manage bookmarks'] = {
             u'text': u'Manage bookmarks',
             u'icon': pixmap,
@@ -619,9 +619,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_collapse_sequence_menu(self, menu_set):
         """Adds the menu needed to change context"""
         expand_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'expand', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'expand', common.SECONDARY_TEXT, common.MARGIN)
         collapse_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'collapse', common.ADD, common.INLINE_ICON_SIZE)
+            u'collapse', common.ADD, common.MARGIN)
 
         currenttype = self.parent().model().sourceModel().data_type()
         newtype = common.SequenceItem if currenttype == common.FileItem else common.FileItem
@@ -641,9 +641,9 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_location_toggles_menu(self, menu_set):
         """Adds the menu needed to change context"""
         taskfolder_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN)
         item_on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'check', common.SECONDARY_TEXT, common.MARGIN)
         item_off_pixmap = QtGui.QPixmap()
 
         key = u'Change task folder'
@@ -675,7 +675,7 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_remove_favourite_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         remove_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.REMOVE, common.INLINE_ICON_SIZE)
+            u'favourite', common.REMOVE, common.MARGIN)
 
         favourite = self.index.flags() & common.MarkedAsFavourite
 
@@ -697,11 +697,11 @@ class BaseContextMenu(QtWidgets.QMenu):
     def add_control_favourites_menu(self, menu_set):
         """Ads the menu-items needed to add set favourite or archived status."""
         add_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.TEXT, common.INLINE_ICON_SIZE)
+            u'favourite', common.TEXT, common.MARGIN)
         save_icon = images.ImageCache.get_rsc_pixmap(
-            u'favourite', common.ADD, common.INLINE_ICON_SIZE)
+            u'favourite', common.ADD, common.MARGIN)
         remove_icon = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.REMOVE, common.INLINE_ICON_SIZE)
+            u'remove', common.REMOVE, common.MARGIN)
 
         menu_set[u'export_favourites'] = {
             u'text': u'Save favourites...',

@@ -139,7 +139,7 @@ class SelectButton(QtWidgets.QLabel):
 
         common.set_custom_stylesheet(self)
 
-        self.setFixedHeight(common.ROW_BUTTONS_HEIGHT)
+        self.setFixedHeight(common.ROW_HEIGHT)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setText(self._label)
         self.setFocusProxy(self.view())
@@ -366,10 +366,7 @@ class BaseListView(BaseInlineIconWidget):
         self.viewport().setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.FramelessWindowHint)
         self.removeEventFilter(self)
-
         self.activated.connect(self.hide)
-
-        self.setStyleSheet('margin: {}px;'.format(common.ROW_SEPARATOR))
 
     def showEvent(self, event):
         self.adjust_height()
@@ -887,11 +884,11 @@ class ThumbnailContextMenu(BaseContextMenu):
     def add_thumbnail_menu(self, menu_set):
         """Menu for thumbnail operations."""
         capture_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'capture_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'capture_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
         pick_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'pick_thumbnail', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'pick_thumbnail', common.SECONDARY_TEXT, common.MARGIN)
         remove_thumbnail_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'remove', common.FAVOURITE, common.INLINE_ICON_SIZE)
+            u'remove', common.FAVOURITE, common.MARGIN)
 
         menu_set[u'Capture thumbnail'] = {
             u'icon': capture_thumbnail_pixmap,
@@ -1064,57 +1061,21 @@ class ThumbnailButton(common_ui.ClickableIconButton):
             self.window().move(opos)
 
 
-class NameBase(QtWidgets.QLineEdit):
-    def __init__(self, parent=None, transparent=False):
-        super(NameBase, self).__init__(parent=parent)
-        self.setSizePolicy(
-            QtWidgets.QSizePolicy.MinimumExpanding,
-            QtWidgets.QSizePolicy.MinimumExpanding,
-        )
-        self.setAlignment(QtCore.Qt.AlignLeft)
-        if transparent:
-            self.set_transparent()
-
-    def set_transparent(self, color=None):
-        self.setStyleSheet(
-            """
-QLineEdit{{
-    background-color: rgba(0,0,0,0);
-    font-family: "{font}";
-    font-size: {fontSize}pt;
-    border-bottom: 2px solid rgba(0,0,0,50);
-    border-radius: 0px;
-    color: rgba({color});
-}}
-QLineEdit:!read-only:focus{{
-    border-bottom: 2px solid rgba({favourite});
-}}
-            """.format(
-                font=common.font_db.primary_font().family(),
-                fontSize=common.psize(common.MEDIUM_FONT_SIZE),
-                favourite=common.rgb(common.FAVOURITE),
-                color='255,255,255,255' if not color else color
-            )
-        )
-
-
-class DescriptionEditor(NameBase):
+class DescriptionEditor(common_ui.NameBase):
     """Editor widget to input the description of the file."""
 
     def __init__(self, parent=None):
         super(DescriptionEditor, self).__init__(parent=parent)
         self.setPlaceholderText(u'Description...')
-        self.set_transparent()
 
         tip = u'Describe your file here, eg. the changes and revisions of this version'
         self.setToolTip(tip)
         self.setStatusTip(tip)
 
 
-class NamePrefixWidget(NameBase):
+class NamePrefixWidget(common_ui.NameBase):
     def __init__(self, parent=None):
         super(NamePrefixWidget, self).__init__(parent=parent)
-        self.set_transparent()
         self.setReadOnly(True)
 
 
@@ -1139,7 +1100,6 @@ class NameModeWidget(QtWidgets.QComboBox):
             v = EXPORT_FILE_MODES[k]
             self._append_row(k, v)
 
-        self.set_transparent()
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Maximum,
             QtWidgets.QSizePolicy.MinimumExpanding,
@@ -1157,7 +1117,7 @@ class NameModeWidget(QtWidgets.QComboBox):
         item.setData(v[u'description'], QtCore.Qt.ToolTipRole)
         item.setData(v[u'path'], QtCore.Qt.StatusTipRole)
         item.setData(QtCore.QSize(
-            common.WIDTH, common.ROW_BUTTONS_HEIGHT * 0.8), QtCore.Qt.SizeHintRole)
+            common.WIDTH, common.ROW_HEIGHT * 0.8), QtCore.Qt.SizeHintRole)
         self.view().model().appendRow(item)
 
     @QtCore.Slot(QtCore.QModelIndex)
@@ -1201,39 +1161,17 @@ class NameModeWidget(QtWidgets.QComboBox):
             return
         self.setCurrentIndex(idx)
 
-    def set_transparent(self):
-        self.setStyleSheet(
-            """
-QComboBox{{
-    background-color: rgba(0,0,0,0);
-    font-family: "{font}";
-    font-size: {fontSize}pt;
-    border-bottom: 2px solid rgba(0,0,0,50);
-    border-radius: 0px;
-    color: white;
-}}
-QComboBox:focus{{
-    border-bottom: 2px solid rgba({favourite});
-}}
-            """.format(
-                font=common.font_db.primary_font().family(),
-                fontSize=common.psize(common.MEDIUM_FONT_SIZE),
-                favourite=common.rgb(common.FAVOURITE)
-            )
-        )
-
     def showEvent(self, event):
         self.restore_selection()
 
 
-class NameVersionWidget(NameBase):
+class NameVersionWidget(common_ui.NameBase):
     """QLineEdit user to edit the file's version number."""
 
     def __init__(self, parent=None):
         super(NameVersionWidget, self).__init__(parent=parent)
         self.setPlaceholderText(u'Version...')
         self.setText(u'0001')
-        self.set_transparent()
 
         regex = QtCore.QRegExp(ur'[0-9]{1,4}')
         validator = QtGui.QRegExpValidator(regex, parent=self)
@@ -1290,13 +1228,12 @@ class NameVersionWidget(NameBase):
             self.setText(u'{}'.format(max_version + 1).zfill(4))
 
 
-class NameUserWidget(NameBase):
+class NameUserWidget(common_ui.NameBase):
     """Widget used to input the name of the user."""
 
     def __init__(self, parent=None):
         super(NameUserWidget, self).__init__(parent=parent)
         self.setPlaceholderText(u'User name...')
-        self.set_transparent()
         tip = u'Enter your name, eg. "Fernando", or "FH"'
         self.setToolTip(tip)
         self.setStatusTip(tip)
@@ -1318,13 +1255,12 @@ class NameUserWidget(NameBase):
         self.setText(val)
 
 
-class NameCustomWidget(NameBase):
+class NameCustomWidget(common_ui.NameBase):
     """Widget used to input the name of the user."""
 
     def __init__(self, parent=None):
         super(NameCustomWidget, self).__init__(parent=parent)
         self.setPlaceholderText(u'Custom filename...')
-        self.set_transparent()
         tip = u'Enter a custom file-name without the extension, eg. "myCharacter_rig".'
         self.setToolTip(tip)
         self.setStatusTip(tip)

@@ -418,7 +418,7 @@ class SlackWidget(QtWidgets.QDialog):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(common.INDICATOR_WIDTH)
 
-        height = common.ROW_BUTTONS_HEIGHT * 0.7
+        height = common.ROW_HEIGHT * 0.7
         row = common_ui.add_row(None, height=height, padding=None, parent=self)
 
         self.channel_button = common_ui.ClickableIconButton(

@@ -135,7 +135,7 @@ class ScrollArea(QtWidgets.QScrollArea):
     def _create_UI(self):
         o = common.INDICATOR_WIDTH
         self.setMinimumWidth(360)
-        height = common.ROW_BUTTONS_HEIGHT * 0.8
+        height = common.ROW_HEIGHT * 0.8
 
         widget = QtWidgets.QWidget(parent=self)
         QtWidgets.QVBoxLayout(widget)
@@ -506,11 +506,8 @@ Make sure the bot has permissions to "users.list" and to send messages.'.format(
 
     @QtCore.Slot(unicode)
     def feedback(self, v, w, type=float):
-        valid = type(v) if v else False
-        if valid:
-            w.set_transparent(color=common.rgb(common.ADD))
-        else:
-            w.set_transparent(color=common.rgb(common.TEXT_DISABLED))
+        pass
+        # valid = type(v) if v else False
 
 
 class BookmarkPropertiesWidget(QtWidgets.QDialog):
@@ -536,7 +533,7 @@ class BookmarkPropertiesWidget(QtWidgets.QDialog):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(0)
 
-        height = common.ROW_BUTTONS_HEIGHT * 0.8
+        height = common.ROW_HEIGHT * 0.8
         # ********************************************
         row = common_ui.add_row(None, padding=None, parent=self)
         label = common_ui.PaintedLabel(

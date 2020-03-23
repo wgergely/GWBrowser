@@ -786,7 +786,7 @@ class FilesWidget(ThreadedBaseWidget):
         height = self.itemDelegate().sizeHint(option, index).height()
 
         def px(s):
-            return images.ImageCache.get_rsc_pixmap(s, None, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(s, None, common.MARGIN)
 
         # Set drag icon
         drag.setDragCursor(px('CopyAction'), QtCore.Qt.CopyAction)

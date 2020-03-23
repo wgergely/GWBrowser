@@ -181,7 +181,7 @@ class ApplicationSettingsWidget(BaseSettingsWidget):
         row = common_ui.add_row(u'Version', parent=grp, height=None)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon_bw', None, common.INLINE_ICON_SIZE)
+            u'icon_bw', None, common.MARGIN)
         label.setPixmap(pixmap)
 
         self.check_updates = common_ui.PaintedButton(u'Update', parent=row)
@@ -390,7 +390,7 @@ class PreferencesWidget(QtWidgets.QDialog):
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            common.ROW_BUTTONS_HEIGHT * 0.6
+            common.ROW_HEIGHT * 0.6
         )
         label = common_ui.PaintedLabel(
             'Preferences', size=common.LARGE_FONT_SIZE)
@@ -424,7 +424,7 @@ class PreferencesWidget(QtWidgets.QDialog):
             item.setData(QtCore.Qt.StatusTipRole, s[u'description'])
             item.setData(QtCore.Qt.ToolTipRole, s[u'description'])
             item.setData(QtCore.Qt.SizeHintRole, QtCore.QSize(
-                0, common.CONTROL_HEIGHT * 0.66))
+                0, common.ROW_HEIGHT * 0.66))
             self.sections_list_widget.addItem(item)
             self.sections_stack_widget.addWidget(s[u'cls'](parent=self))
 

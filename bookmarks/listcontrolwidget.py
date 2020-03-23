@@ -20,7 +20,7 @@ class BaseControlButton(ClickableIconButton):
         super(BaseControlButton, self).__init__(
             pixmap,
             (common.TEXT_SELECTED, common.SECONDARY_BACKGROUND),
-            common.INLINE_ICON_SIZE,
+            common.MARGIN,
             description=description,
             parent=parent
         )
@@ -107,8 +107,8 @@ class CollapseSequenceButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return images.ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.INLINE_ICON_SIZE)
-        return images.ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(u'collapse', self._on_color, common.MARGIN)
+        return images.ImageCache.get_rsc_pixmap(u'expand', self._off_color, common.MARGIN)
 
     def state(self):
         if not self.current_widget():
@@ -152,8 +152,8 @@ class ToggleArchivedButton(BaseControlButton):
 
     def pixmap(self):
         if self.state():
-            return images.ImageCache.get_rsc_pixmap(u'active', self._on_color, common.INLINE_ICON_SIZE)
-        return images.ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.INLINE_ICON_SIZE)
+            return images.ImageCache.get_rsc_pixmap(u'active', self._on_color, common.MARGIN)
+        return images.ImageCache.get_rsc_pixmap(u'archived', self._off_color, common.MARGIN)
 
     def state(self):
         if not self.current_widget():
@@ -520,9 +520,9 @@ class QuickAssetsContextMenu(BaseContextMenu):
             items, key=lambda x: x[1][QtCore.Qt.DisplayRole].lower())
 
         off_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN)
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'check', common.ADD, common.INLINE_ICON_SIZE)
+            u'check', common.ADD, common.MARGIN)
 
         for idx, item in items:
             active = current.lower() == item[QtCore.Qt.DisplayRole].lower()
@@ -796,7 +796,7 @@ class ListControlWidget(QtWidgets.QWidget):
         self.layout().setSpacing(0)
         self.layout().setAlignment(QtCore.Qt.AlignCenter)
 
-        height = common.INLINE_ICON_SIZE + (common.INDICATOR_WIDTH * 3)
+        height = common.MARGIN + (common.INDICATOR_WIDTH * 3)
         self.setFixedHeight(height)
 
         # Control view/model/button

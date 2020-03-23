@@ -18,11 +18,8 @@ import bookmarks.common_ui as common_ui
 from bookmarks._scandir import scandir as scandir_it
 import bookmarks.images as images
 from bookmarks.basecontextmenu import BaseContextMenu, contextmenu
-from bookmarks.addfilewidget import NameBase
 import bookmarks.settings as settings
 
-BUTTON_SIZE = 20
-ROW_HEIGHT = 28
 
 AddMode = 0
 RemoveMode = 1
@@ -73,7 +70,7 @@ class TemplateContextMenu(BaseContextMenu):
     @contextmenu
     def add_remove_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'close', common.REMOVE, common.INLINE_ICON_SIZE)
+            u'close', common.REMOVE, common.MARGIN)
 
         @QtCore.Slot()
         def delete():
@@ -101,9 +98,9 @@ class TemplateContextMenu(BaseContextMenu):
     @contextmenu
     def add_refresh_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'refresh', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'refresh', common.SECONDARY_TEXT, common.MARGIN)
         add_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'add', common.ADD, common.INLINE_ICON_SIZE)
+            u'add', common.ADD, common.MARGIN)
 
         parent = self.parent().parent().parent().parent()
         k = u'Import a new {} folder template...'.format(parent.mode())
@@ -121,7 +118,7 @@ class TemplateContextMenu(BaseContextMenu):
     @contextmenu
     def add_new_template_menu(self, menu_set):
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN)
 
         def reveal():
             common.reveal(self.index.data(QtCore.Qt.UserRole + 1))
@@ -188,7 +185,8 @@ class TemplateListWidget(QtWidgets.QListWidget):
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font())
             painter.drawRect(self.rect())
-            rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
+            o = common.MEDIUM_FONT_SIZE
+            rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
             painter.setPen(QtGui.QColor(255, 255, 255, 50))
             painter.drawText(
                 rect,
@@ -227,11 +225,11 @@ class TemplateListWidget(QtWidgets.QListWidget):
         dir_ = QtCore.QDir(self.templates_dir_path())
         dir_.setNameFilters([u'*.zip', ])
 
-        size = QtCore.QSize(1, ROW_HEIGHT)
+        size = QtCore.QSize(1, common.ROW_HEIGHT * 0.8)
         off_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon', common.SECONDARY_BACKGROUND, ROW_HEIGHT)
+            u'icon', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT * 0.8)
         on_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'icon', common.ADD, ROW_HEIGHT)
+            u'icon', common.ADD, common.ROW_HEIGHT * 0.8)
         icon = QtGui.QIcon()
         icon.addPixmap(off_pixmap, QtGui.QIcon.Normal)
         icon.addPixmap(on_pixmap, QtGui.QIcon.Selected)
@@ -270,7 +268,7 @@ class TemplateListWidget(QtWidgets.QListWidget):
         menu.exec_()
 
     def sizeHint(self):
-        return QtCore.QSize(100, 120)
+        return QtCore.QSize(common.WIDTH * 0.15, common.WIDTH * 0.2)
 
 
 class TemplatesPreviewWidget(QtWidgets.QListWidget):
@@ -294,7 +292,8 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
             painter.setPen(QtCore.Qt.NoPen)
             painter.setFont(common.font_db.secondary_font())
             painter.drawRect(self.rect())
-            rect = self.rect().marginsRemoved(QtCore.QMargins(10, 10, 10, 10))
+            o = common.MEDIUM_FONT_SIZE
+            rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
             painter.setPen(QtGui.QColor(255, 255, 255, 50))
             painter.drawText(
                 rect,
@@ -307,7 +306,7 @@ class TemplatesPreviewWidget(QtWidgets.QListWidget):
         return False
 
     def sizeHint(self):
-        return QtCore.QSize(100, 120)
+        return QtCore.QSize(common.WIDTH * 0.15, common.WIDTH * 0.2)
 
 
 class TemplatesWidget(QtWidgets.QGroupBox):
@@ -347,13 +346,12 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().setSpacing(o)
 
-        row = common_ui.add_row(None, height=ROW_HEIGHT,
+        row = common_ui.add_row(None, height=common.ROW_HEIGHT * 0.8,
                                 padding=None, parent=self)
         row.layout().setContentsMargins(0, 0, 0, 0)
         row.layout().setSpacing(0)
 
-        self.name_widget = NameBase(parent=self)
-        self.name_widget.set_transparent()
+        self.name_widget = common_ui.NameBase(parent=self)
         self.name_widget.setFont(common.font_db.primary_font())
         self.name_widget.setPlaceholderText(
             u'Enter name, eg. NEW_{}_000'.format(self.mode().upper()))
@@ -363,7 +361,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         self.add_button = common_ui.ClickableIconButton(
             u'CopyAction',
             (common.ADD, common.ADD),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Add new {}'.format(self.mode().title()),
             parent=row
         )
@@ -380,13 +378,13 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             QtWidgets.QSizePolicy.Minimum,
             QtWidgets.QSizePolicy.Minimum,
         )
-        splitter.setMaximumHeight(200)
+        splitter.setMaximumHeight(common.WIDTH * 0.3)
         self.template_list_widget = TemplateListWidget(
             self.mode(), parent=self)
         self.template_contents_widget = TemplatesPreviewWidget(parent=self)
         splitter.addWidget(self.template_list_widget)
         splitter.addWidget(self.template_contents_widget)
-        splitter.setSizes([80, 120])
+        splitter.setSizes([common.WIDTH * 0.12, common.WIDTH * 0.2])
         row.layout().addWidget(splitter, 1)
 
     def _connect_signals(self):
@@ -524,16 +522,16 @@ class TemplatesWidget(QtWidgets.QGroupBox):
         if not index.isValid():
             return
 
-        size = QtCore.QSize(0, ROW_HEIGHT)
+        size = QtCore.QSize(0, common.ROW_HEIGHT * 0.8)
         folder_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'folder', common.SECONDARY_TEXT, common.INLINE_ICON_SIZE)
+            u'folder', common.SECONDARY_TEXT, common.MARGIN)
         folder_icon = QtGui.QIcon()
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Normal)
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Selected)
         folder_icon.addPixmap(folder_pixmap, QtGui.QIcon.Disabled)
 
         file_pixmap = images.ImageCache.get_rsc_pixmap(
-            u'files', common.ADD, common.INLINE_ICON_SIZE, opacity=0.5)
+            u'files', common.ADD, common.MARGIN, opacity=0.5)
         file_icon = QtGui.QIcon()
         file_icon.addPixmap(file_pixmap, QtGui.QIcon.Normal)
         file_icon.addPixmap(file_pixmap, QtGui.QIcon.Selected)
@@ -553,7 +551,7 @@ class TemplatesWidget(QtWidgets.QGroupBox):
             self.template_contents_widget.addItem(item)
 
     def sizeHint(self):
-        return QtCore.QSize(200, 120)
+        return QtCore.QSize(common.WIDTH * 0.3, common.WIDTH * 0.2)
 
 
 class ServerEditor(QtWidgets.QWidget):
@@ -575,12 +573,12 @@ class ServerEditor(QtWidgets.QWidget):
         self.layout().setContentsMargins(o, o, o, o)
         self.layout().addSpacing(common.INDICATOR_WIDTH)
 
-        row = common_ui.add_row(None, height=ROW_HEIGHT,
+        row = common_ui.add_row(None, height=common.ROW_HEIGHT * 0.8,
                                 padding=0, parent=self)
         self.add_server_button = common_ui.ClickableIconButton(
             u'add',
             (common.ADD, common.ADD),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Add a new server',
             parent=row
         )
@@ -632,11 +630,11 @@ class ServerEditor(QtWidgets.QWidget):
         if insert:
             # id 1 might be the QGraphicsOpacityEffect?
             row = common_ui.add_row(
-                None, height=ROW_HEIGHT, padding=0, parent=None)
+                None, height=common.ROW_HEIGHT * 0.8, padding=0, parent=None)
             self.layout().insertWidget(2, row)
         else:
             row = common_ui.add_row(
-                None, height=ROW_HEIGHT, padding=0, parent=self)
+                None, height=common.ROW_HEIGHT * 0.8, padding=0, parent=self)
 
         if row not in self._rows:
             if insert:
@@ -652,7 +650,7 @@ class ServerEditor(QtWidgets.QWidget):
         button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Remove this server',
             parent=self
         )
@@ -725,9 +723,9 @@ class BookmarksWidget(QtWidgets.QListWidget):
         if not bookmarks:
             return
 
-        size = QtCore.QSize(1, ROW_HEIGHT)
+        size = QtCore.QSize(1, common.ROW_HEIGHT * 0.8)
         font = common.font_db.primary_font(
-            point_size=common.MEDIUM_FONT_SIZE + 1.0)
+            font_size=common.MEDIUM_FONT_SIZE + 1.0)
 
         for bookmark in bookmarks:
             file_info = QtCore.QFileInfo(bookmark)
@@ -751,7 +749,7 @@ class BookmarksWidget(QtWidgets.QListWidget):
         self.setFixedHeight(height)
 
     def sizeHint(self):
-        return QtCore.QSize(80, 40)
+        return QtCore.QSize(common.WIDTH * 0.125, common.WIDTH * 0.0625)
 
     def showEvent(self, event):
         bookmarks = settings.local_settings.value(u'bookmarks')
@@ -882,7 +880,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel(parent=self)
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'bookmark', common.SECONDARY_BACKGROUND, 32.0)
+            u'bookmark', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
@@ -894,7 +892,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.hide_button = common_ui.ClickableIconButton(
             u'close',
             (common.REMOVE, common.REMOVE),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Hide',
             parent=row
         )
@@ -904,10 +902,10 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         QtWidgets.QVBoxLayout(grp)
         self.layout().addWidget(grp, 0)
 
-        # row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel(parent=self)
 
-        label.setContentsMargins(8, 8, 8, 8)
+        o = common.MEDIUM_FONT_SIZE
+        label.setContentsMargins(o, o, o, o)
 
         s = u'Click the plus icons to add a server, job or a bookmark \
 (to toggle a bookmark simply click it).'.format(
@@ -920,15 +918,15 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         grp.layout().addWidget(label, 1)
 
         self.progress_widget = QtWidgets.QLabel(parent=self)
-        self.progress_widget.setMaximumWidth(360)
+        self.progress_widget.setMaximumWidth(common.WIDTH * 0.5)
         # self.progress_widget.setTextFormat(QtCore.Qt.RichText)
         self.progress_widget.setAlignment(QtCore.Qt.AlignLeft)
         self.progress_widget.setTextInteractionFlags(
             QtCore.Qt.NoTextInteraction)
         self.progress_widget.setStyleSheet(
-            u'color: rgba({});font-size: {}pt;'.format(
+            u'color: rgba({}); font-size: {}px;'.format(
                 common.rgb(common.FAVOURITE),
-                common.psize(common.SMALL_FONT_SIZE)
+                common.SMALL_FONT_SIZE
             ))
         grp.layout().addWidget(self.progress_widget, 0)
         grp.layout().addSpacing(common.INDICATOR_WIDTH * 2)
@@ -941,14 +939,14 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.edit_servers_button = common_ui.ClickableIconButton(
             u'CopyAction',
             (common.SEPARATOR, common.SEPARATOR),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Show the job in the explorer',
             parent=row
         )
         self.reveal_server_button = common_ui.ClickableIconButton(
             u'active',
             (common.SEPARATOR, common.SEPARATOR),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Show the job in the explorer',
             parent=row
         )
@@ -957,12 +955,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             parent=self)
 
         _row = common_ui.add_row(
-            None, padding=0, height=ROW_HEIGHT, parent=row)
+            None, padding=0, height=common.ROW_HEIGHT * 0.8, parent=row)
         label = common_ui.PaintedLabel(
             u'Servers:', size=common.MEDIUM_FONT_SIZE, color=common.SECONDARY_TEXT)
-        label.setFixedWidth(80)
+        label.setFixedWidth(common.MARGIN * 4.5)
         _row.layout().addWidget(self.edit_servers_button, 0)
-        _row.layout().addSpacing(3.0)
+        _row.layout().addSpacing(common.INDICATOR_WIDTH)
         _row.layout().addWidget(label)
         _row.layout().addWidget(self.server_combobox, 1)
         _row.layout().addWidget(self.reveal_server_button, 0)
@@ -982,25 +980,25 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.add_template_button = common_ui.ClickableIconButton(
             u'CopyAction',
             (common.SEPARATOR, common.SEPARATOR),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Add a new job to the current server',
             parent=row
         )
         self.reveal_job_button = common_ui.ClickableIconButton(
             u'active',
             (common.SEPARATOR, common.SEPARATOR),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Show the job in the explorer',
             parent=row
         )
 
         _row = common_ui.add_row(
-            None, padding=0, height=ROW_HEIGHT, parent=row)
+            None, padding=0, height=common.ROW_HEIGHT * 0.8, parent=row)
         label = common_ui.PaintedLabel(
             u'Jobs:', size=common.MEDIUM_FONT_SIZE, color=common.SECONDARY_TEXT)
-        label.setFixedWidth(80)
+        label.setFixedWidth(common.MARGIN * 4.5)
         _row.layout().addWidget(self.add_template_button, 0)
-        _row.layout().addSpacing(3.0)
+        _row.layout().addSpacing(common.INDICATOR_WIDTH)
         _row.layout().addWidget(label)
         _row.layout().addWidget(self.job_combobox, 1)
         _row.layout().addWidget(self.reveal_job_button, 0)
@@ -1014,7 +1012,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.add_bookmark_button = common_ui.ClickableIconButton(
             u'CopyAction',
             (common.SEPARATOR, common.SEPARATOR),
-            BUTTON_SIZE,
+            common.MARGIN * 1.2,
             description=u'Mark an existing folder `bookmarkable`',
             parent=row
         )
@@ -1032,12 +1030,12 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             None, padding=0, height=None, parent=row)
         label = common_ui.PaintedLabel(
             u'Bookmarks:', size=common.MEDIUM_FONT_SIZE, color=common.SECONDARY_TEXT)
-        label.setFixedWidth(80)
+        label.setFixedWidth(common.MARGIN * 4.5)
 
         self.bookmark_list = BookmarksWidget(parent=self)
 
         _row.layout().addWidget(self.add_bookmark_button)
-        _row.layout().addSpacing(3.0)
+        _row.layout().addSpacing(common.INDICATOR_WIDTH)
         _row.layout().addWidget(label)
         _row.layout().addWidget(self.bookmark_list)
 
@@ -1202,9 +1200,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
 
         for k in self.get_saved_servers():
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'server', common.TEXT, ROW_HEIGHT)
+                u'server', common.TEXT, common.ROW_HEIGHT * 0.8)
             pixmap_selected = images.ImageCache.get_rsc_pixmap(
-                u'server', common.ADD, ROW_HEIGHT)
+                u'server', common.ADD, common.ROW_HEIGHT * 0.8)
             icon = QtGui.QIcon()
             icon.addPixmap(pixmap, QtGui.QIcon.Normal)
             icon.addPixmap(pixmap_selected, QtGui.QIcon.Selected)
@@ -1212,7 +1210,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
             self.server_combobox.addItem(icon, k.upper(), userData=k)
             item = self.server_combobox.model().item(n)
             self.server_combobox.setItemData(
-                n, QtCore.QSize(0, ROW_HEIGHT), QtCore.Qt.SizeHintRole)
+                n, QtCore.QSize(0, common.ROW_HEIGHT * 0.8), QtCore.Qt.SizeHintRole)
             item.setData(common.TEXT, role=QtCore.Qt.TextColorRole)
             item.setData(common.BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
 
@@ -1224,7 +1222,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                              role=QtCore.Qt.BackgroundColorRole)
                 # item.setData(common.SECONDARY_BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
                 _pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'close', common.REMOVE, ROW_HEIGHT)
+                    u'close', common.REMOVE, common.ROW_HEIGHT * 0.8)
                 self.server_combobox.setItemIcon(
                     n, QtGui.QIcon(_pixmap))
             n += 1
@@ -1296,9 +1294,9 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 continue
 
             pixmap_off = images.ImageCache.get_rsc_pixmap(
-                u'folder', common.SECONDARY_TEXT, ROW_HEIGHT)
+                u'folder', common.SECONDARY_TEXT, common.ROW_HEIGHT * 0.8)
             pixmap_on = images.ImageCache.get_rsc_pixmap(
-                u'folder', common.ADD, ROW_HEIGHT)
+                u'folder', common.ADD, common.ROW_HEIGHT * 0.8)
             icon = QtGui.QIcon()
             icon.addPixmap(pixmap_off, QtGui.QIcon.Normal)
             icon.addPixmap(pixmap_on, QtGui.QIcon.Selected)
@@ -1308,7 +1306,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 icon, entry.name.upper(), userData=entry.path.replace(u'\\', u'/'))
             item = self.job_combobox.model().item(n)
             self.job_combobox.setItemData(n, QtCore.QSize(
-                0, ROW_HEIGHT), QtCore.Qt.SizeHintRole)
+                0, common.ROW_HEIGHT * 0.8), QtCore.Qt.SizeHintRole)
             item.setData(common.TEXT, role=QtCore.Qt.TextColorRole)
             item.setData(common.BACKGROUND, role=QtCore.Qt.BackgroundColorRole)
 
@@ -1319,7 +1317,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
                 item.setData(common.SECONDARY_BACKGROUND,
                              role=QtCore.Qt.BackgroundColorRole)
                 _pixmap = images.ImageCache.get_rsc_pixmap(
-                    u'close', common.REMOVE, ROW_HEIGHT)
+                    u'close', common.REMOVE, common.ROW_HEIGHT * 0.8)
                 self.job_combobox.setItemIcon(n, QtGui.QIcon(_pixmap))
             n += 1
 
@@ -1389,7 +1387,7 @@ class ManageBookmarksWidget(QtWidgets.QWidget):
         self.bookmark_list.blockSignals(False)
 
     def sizeHint(self):
-        return QtCore.QSize(360, 250)
+        return QtCore.QSize(common.WIDTH * 0.5, common.HEIGHT * 0.5)
 
     def showEvent(self, event):
         self.init_timer.start()
