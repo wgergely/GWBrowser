@@ -585,7 +585,7 @@ class ImageCache(QtCore.QObject):
 
         k = u'rsc:{name}:{size}:{color}'.format(
             name=name.lower(),
-            size=int(size),
+            size=int(size) * common.UI_SCALE,
             color=u'null' if not color else color.name().lower()
         )
 
@@ -956,14 +956,14 @@ class ImageViewer(QtWidgets.QWidget):
 
         self.delete_timer = QtCore.QTimer(parent=self)
         self.delete_timer.setSingleShot(True)
-        self.delete_timer.setInterval(500)
+        self.delete_timer.setInterval(50)
         self.delete_timer.timeout.connect(self.close)
         self.delete_timer.timeout.connect(self.delete_timer.deleteLater)
         self.delete_timer.timeout.connect(self.deleteLater)
 
         self.load_timer = QtCore.QTimer(parent=self)
         self.load_timer.setSingleShot(True)
-        self.load_timer.setInterval(150)
+        self.load_timer.setInterval(10)
         self.load_timer.timeout.connect(self.load_timer.deleteLater)
 
         QtWidgets.QVBoxLayout(self)

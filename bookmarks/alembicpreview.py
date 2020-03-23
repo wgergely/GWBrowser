@@ -188,7 +188,7 @@ class AlembicModel(QtCore.QAbstractItemModel):
                 return images.ImageCache.get_rsc_pixmap(u'loc', None, common.INLINE_ICON_SIZE)
 
         if role == QtCore.Qt.SizeHintRole:
-            return QtCore.QSize(0, 28)
+            return QtCore.QSize(0, common.ROW_HEIGHT)
         return None
 
     def headerData(self, section, orientation, role):  # pylint: disable=W0613
@@ -341,7 +341,8 @@ class AlembicView(QtWidgets.QWidget):
         )
 
         self._create_UI()
-        self.view.setStyleSheet(u'QTreeView {padding:8px; border-radius: 8px; border: 1px solid gray;}')
+        self.view.setStyleSheet(u'QTreeView {{padding:{p}px; border-radius: {p}px; border: {s}px solid gray;}}'.format(
+            p=common.INDICATOR_WIDTH * 2, s=common.ROW_SEPARATOR))
 
     def _create_UI(self):
         common.set_custom_stylesheet(self)

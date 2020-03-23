@@ -10,8 +10,8 @@ import bookmarks.common as common
 import bookmarks.common_ui as common_ui
 import bookmarks.images as images
 
-BUTTON_SIZE = 20
-ROW_HEIGHT = 28
+BUTTON_SIZE = common.INLINE_ICON_SIZE
+ROW_HEIGHT = common.ROW_HEIGHT
 
 
 class AddAssetWidget(QtWidgets.QDialog):
@@ -48,7 +48,7 @@ class AddAssetWidget(QtWidgets.QDialog):
         row = common_ui.add_row(u'', parent=self)
         label = QtWidgets.QLabel()
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'assets', common.SECONDARY_BACKGROUND, 32.0)
+            u'assets', common.SECONDARY_BACKGROUND, common.ROW_HEIGHT)
         label.setPixmap(pixmap)
         row.layout().addWidget(label, 0)
         label = common_ui.PaintedLabel(
@@ -73,22 +73,23 @@ class AddAssetWidget(QtWidgets.QDialog):
     def paintEvent(self, event):
         painter = QtGui.QPainter()
         painter.begin(self)
-        o = 6
+        o = common.INDICATOR_WIDTH
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR)
         painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.setOpacity(0.9)
-        painter.drawRoundedRect(rect, 4, 4)
+        painter.drawRoundedRect(rect, common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
         painter.end()
 
     def sizeHint(self):
-        return QtCore.QSize(460, 360)
+        return QtCore.QSize(common.WIDTH, common.HEIGHT)
 
 
 if __name__ == '__main__':
-    app = QtWidgets.QApplication([])
+    import bookmarks.standalone as standalone
+    app = standalone.StandaloneApp([])
     w = AddAssetWidget(None)
     w.exec_()

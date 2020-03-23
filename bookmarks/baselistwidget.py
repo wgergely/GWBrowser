@@ -1309,7 +1309,6 @@ class BaseListWidget(QtWidgets.QListView):
             return
         if not index.data(common.FileInfoLoaded):
             return
-
         path = index.data(QtCore.Qt.StatusTipRole)
         path = common.get_sequence_startpath(path)
         file_info = QtCore.QFileInfo(path)

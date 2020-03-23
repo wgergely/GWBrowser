@@ -51,7 +51,7 @@ class AssetModel(BaseModel):
     thread workers.
 
     """
-    ROW_SIZE = QtCore.QSize(120, common.ASSET_ROW_HEIGHT)
+    ROW_SIZE = QtCore.QSize(1, common.ASSET_ROW_HEIGHT)
 
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)

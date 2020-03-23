@@ -46,7 +46,6 @@ from bookmarks.baselistwidget import BaseInlineIconWidget
 import bookmarks.images as images
 
 
-POPDOWN_HEIGHT = 480.0
 SCENE_FILE_MODES = {
     u'anim': {
         'path': u'scenes/animation',
@@ -296,10 +295,10 @@ class SelectButton(QtWidgets.QLabel):
             self.text().upper(), QtCore.Qt.AlignCenter, color)
 
         rect = QtCore.QRect(self.rect())
-        rect.setTop(rect.bottom() - 1)
+        rect.setTop(rect.bottom() - common.ROW_SEPARATOR)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(color)
-        painter.drawRoundedRect(rect, 1, 1)
+        painter.drawRoundedRect(rect, common.ROW_SEPARATOR, common.ROW_SEPARATOR)
         painter.end()
 
     def contextMenuEvent(self, event):
@@ -370,7 +369,7 @@ class BaseListView(BaseInlineIconWidget):
 
         self.activated.connect(self.hide)
 
-        self.setStyleSheet('margin: 1px;')
+        self.setStyleSheet('margin: {}px;'.format(common.ROW_SEPARATOR))
 
     def showEvent(self, event):
         self.adjust_height()
@@ -391,7 +390,7 @@ class BaseListView(BaseInlineIconWidget):
             if not index.isValid():
                 break
             height += self.itemDelegate().sizeHint(option, index).height()
-            if height > POPDOWN_HEIGHT:
+            if height > common.HEIGHT:
                 break
         if height == 0:
             self.hide()
@@ -619,9 +618,9 @@ class SelectFolderModelIconProvider(QtWidgets.QFileIconProvider):
         file_info.isDir()
         if file_info.isDir():
             pixmap = images.ImageCache.get_rsc_pixmap(
-                u'folder', common.SEPARATOR, 256)
+                u'folder', common.SEPARATOR, common.THUMBNAIL_IMAGE_SIZE * 0.5)
         else:
-            pixmap = images.ImageCache.get_rsc_pixmap(u'files', common.SEPARATOR, 256)
+            pixmap = images.ImageCache.get_rsc_pixmap(u'files', common.SEPARATOR, common.THUMBNAIL_IMAGE_SIZE * 0.5)
 
         return QtGui.QIcon(pixmap)
 
@@ -792,8 +791,8 @@ class SelectFolderView(QtWidgets.QTreeView):
             if not index.isValid():
                 break
         height = row_height + margins
-        if height > POPDOWN_HEIGHT:
-            height = POPDOWN_HEIGHT
+        if height > common.HEIGHT:
+            height = common.HEIGHT
         self.setFixedHeight(height)
 
     @QtCore.Slot()
@@ -1683,20 +1682,20 @@ class AddFileWidget(QtWidgets.QDialog):
         self.description_editor_widget = DescriptionEditor(parent=self)
         self.name_mode_widget = NameModeWidget(parent=self)
         self.name_prefix_widget = NamePrefixWidget(parent=self)
-        self.name_prefix_widget.setFixedWidth(86)
+        self.name_prefix_widget.setFixedWidth(common.MARGIN * 4.5)
         self.name_user_widget = NameUserWidget(parent=self)
-        self.name_user_widget.setFixedWidth(86)
+        self.name_user_widget.setFixedWidth(common.MARGIN * 4.5)
         self.name_version_widget = NameVersionWidget(parent=self)
-        self.name_version_widget.setFixedWidth(48)
+        self.name_version_widget.setFixedWidth(common.MARGIN * 2.5)
         self.name_custom_widget = NameCustomWidget(parent=self)
         self.toggle_custom_name_widget = ToggleCustomNameWidget(parent=self)
 
         self.file_path_widget = FilePathWidget(parent=self)
 
         self.save_button = common_ui.PaintedButton(u'Save', parent=self)
-        self.save_button.setFixedWidth(86)
+        self.save_button.setFixedWidth(common.MARGIN * 4.5)
         self.cancel_button = common_ui.PaintedButton(u'Cancel', parent=self)
-        self.cancel_button.setFixedWidth(86)
+        self.cancel_button.setFixedWidth(common.MARGIN * 4.5)
 
         o = common.MARGIN
         common.set_custom_stylesheet(self)
@@ -1770,11 +1769,6 @@ class AddFileWidget(QtWidgets.QDialog):
         row.layout().addWidget(common_ui.PaintedLabel(
             u'Destination:', size=common.MEDIUM_FONT_SIZE, color=common.FAVOURITE))
         row.layout().addWidget(self.file_path_widget)
-
-        # row = get_row(
-        #     parent=mainrow,
-        # )
-        # row.layout().addStretch(1)
         row.layout().addWidget(self.save_button, 1)
         row.layout().addWidget(self.cancel_button, 1)
 
@@ -1863,13 +1857,13 @@ class AddFileWidget(QtWidgets.QDialog):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
 
         pen = QtGui.QPen(common.SEPARATOR)
-        pen.setWidthF(1.0)
+        pen.setWidthF(common.ROW_SEPARATOR)
         painter.setPen(pen)
         painter.setBrush(common.BACKGROUND)
         rect = self.rect()
         o = common.MARGIN * 0.5
         painter.drawRoundedRect(rect.marginsRemoved(
-            QtCore.QMargins(o, o, o, o)), 8, 8)
+            QtCore.QMargins(o, o, o, o)), common.INDICATOR_WIDTH * 2.0, common.INDICATOR_WIDTH * 2.0)
         painter.end()
 
     def save_thumbnail_and_description(self):

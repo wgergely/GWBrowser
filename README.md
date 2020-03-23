@@ -1,7 +1,7 @@
 <center>
   <img src="./bookmarks/rsc/icon.png" alt="Bookmarks" height=128/>
   <h1>Bookmarks</h1>
-  <h4>A simple file and asset manager for CG productions</h4><br>
+  <h4>A simple file and asset manager for animation and CG productions.</h4><br>
 
   <p align="center">
     <a href="http://gergely-wootsch.com">
@@ -19,57 +19,51 @@
 * * *
 
 <!-- straighforward uncomplicated clear smooth manageble -->
+<center>
 
-<h6>
-
+<h2>Features</h2>
 <img src="./bookmarks/rsc/todo.png" height=20> Annotate files with thumbnails, To-dos, tags and descriptions<br>
 <img src="./bookmarks/rsc/archived.png" height=20> Archive superflous items non-destructively<br>
-<img src="./bookmarks/rsc/active.png" height=20> Preview images of common media formats using `OpenImageIO`<br>
+<img src="./bookmarks/rsc/active.png" height=20> Preview images (using `OpenImageIO`)<br>
 <img src="./bookmarks/rsc/folder.png" height=20> Reveal files in Finder / Explorer easily<br>
-<img src="./bookmarks/rsc/rv.png" height=20> Push footage to `Shotgun RV` directly from Bookmarks<br>
+<img src="./bookmarks/rsc/rv.png" height=20> Push footage to Shotgun RV<br>
 <img src="./bookmarks/rsc/slack_color.png" height=20> Send messages with `Slack`<br>
 <img src="./bookmarks/rsc/maya.png" height=20> Maya integration<br>
-<img src="./bookmarks/rsc/icon_bw.png" height=14> Windows and Mac OS X compatible<br>
-<img src="./bookmarks/rsc/icon_bw.png" height=14> Written in `Qt for Python`
-</h6>
+<img src="./bookmarks/rsc/icon_bw.png" height=14> Run on Windows or Mac OS X<br>
+
+</center>
 
 * * *
 
-<h3>Files</h3>
+# Introduction
 
-Most file managers need you to click-through subfolders to find a file. Bookmarks traverses subfolders to give you an overview of the contents.
+Bookmarks provides a simple visual overview of your job's shots and assets, and the files contained within them.
 
-This is sometimes useful, for instance, when the _exact_ location of a footage is unknown, or when we want to compare footage versions and files residing at different places. This does however come with a performance tradeoff as files have to be loaded beforehand.
+Most file managers show files hierarchically paired often with cascading clicking to find files tucked away. Bookmarks instead looks inside subfolders and provides filters to locate and save items. This is sometimes useful, for instance, when the _exact_ location of a file is unknown, or when you want to compare footage versions residing at different places.
 
-To make things manageble, Bookmarks separates jobs into **Bookmarks**. These are arbitary folders inside a job, eg. the _shots_, _assets_ or _edit_ folder where CG content is normally kept. Each bookmark has its own framerate, resolution and Slack integration.
+This does however come with a performance tradeoff as files have to be loaded beforehand. Up to a few hundred thousand files this should not take _too_ long, but a lot depends on network access, hard-drive speeds, etc.
 
-The Bookmark folders contain a series of **Assets**. An Asset is simply a pre-defined folder structure with a series of **Task Folders** inside, eg. _scenes_, _renders_,or _comps_. To put simply, Bookmarks expects to find a folder hierarchy not dissimilar to a standard Maya project.
+
+### Bookmarks
+
+To make a project a bit more modular, Bookmarks separates jobs into, well, **Bookmarks**. These are arbitary folders inside a job, eg. the _shots_, _assets_ or _edit_, where CG content is normally kept. Bookmarks have their own _**framerate**_, _**resolution**_, _**default frame range**_, and _**Slack Tokens**_ that DCCs can use to set up new projects.
+
+The Bookmark folders contain a series of **Assets**. An Asset is simply a pre-defined folder structure of a series of **Task Folders**, eg. _scenes_, _renders_, _exports_, _comps_. To put simply, Bookmarks expects to find a folder hierarchy not dissimilar to a standard Maya or Houdini project.
 
 * * *
 
-### <img src="./bookmarks/rsc/maya.png" height=32> mBookmarks
 
 The Maya plugin replaces Maya's **_Set Project_** and uses Bookmarks' own assets
-to set the current project.
+to set the current Workspace.
 
-<p align="center">
- <img src="./bookmarks/rsc/maya_preview.png" alt="Maya"/>
-</p>
 
-* * *
-
-### [Download the latest binary release](https://github.com/wgergely/Bookmarks/releases)
-
-### [Documentation](https://wgergely.github.io/Bookmarks) (Docs are work in progress!)
-
-* * *
 
 <!-- <p align="center">
  <img src="./bookmarks/rsc/draganddrop.gif" alt="Maya"/>
 </p> -->
 
-### Credits and acknowledgments
+### Credits and Acknowledgments
 
-(c) Gergely Wootsch, 2020.
-[Email](hello@gergely-wootsch.com)
+(c) Gergely Wootsch, 2020.<br>
+[Email Me](mailto:hello@gergely-wootsch.com)<br>
 [gergely-wootsch.com](http://gergely-wootsch.com)

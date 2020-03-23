@@ -568,7 +568,7 @@ class DragPixmap(QtWidgets.QWidget):
         self._text_width = metrics.width(text)
 
         width = self._text_width + common.MARGIN
-        width = 640 + common.MARGIN if width > 640 else width
+        width = common.WIDTH + common.MARGIN if width > common.WIDTH else width
 
         self.setFixedHeight(pixmap.height())
         self.setFixedWidth(

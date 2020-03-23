@@ -66,20 +66,33 @@ ASSET_FOLDERS = {
 }
 """Folder descriptions."""
 
+UI_SCALE = 1.0
+"""The global UI scale value. Depending on context, this should correspond to
+any UI scaling set in the host DCC. In standalone mode the app factors in the
+current DPI scaling and scales the UI accordingly."""
+
+
+SMALL_FONT_SIZE = 8.5
+MEDIUM_FONT_SIZE = 9.0
+LARGE_FONT_SIZE = 12.0
+
 ROW_HEIGHT = 34.0
 BOOKMARK_ROW_HEIGHT = 42.0
 ASSET_ROW_HEIGHT = 64.0
 CONTROL_HEIGHT = 34.0
 ROW_SEPARATOR = 1.0
 
-INLINE_ICONS_MIN_WIDTH = 320.0
+MARGIN = 18.0
 
-UI_SCALE = 1.0
-"""The global UI scale value."""
+INDICATOR_WIDTH = 4.0
+ROW_BUTTONS_HEIGHT = 36.0
 
-SMALL_FONT_SIZE = 8.5
-MEDIUM_FONT_SIZE = 9.0
-LARGE_FONT_SIZE = 12.0
+WIDTH = 640.0
+HEIGHT = 480.0
+
+INLINE_ICON_SIZE = 18.0
+THUMBNAIL_IMAGE_SIZE = 512.0
+THUMBNAIL_FORMAT = u'png'
 
 
 def proxy_path(v):
@@ -354,7 +367,7 @@ class LogView(QtWidgets.QTextBrowser):
     def __init__(self, parent=None):
         super(LogView, self).__init__(parent=parent)
         set_custom_stylesheet(self)
-        self.setMinimumWidth(640)
+        self.setMinimumWidth(WIDTH)
         self.setUndoRedoEnabled(False)
         self._cached = u''
         self.highlighter = LogViewHighlighter(self.document())
@@ -407,8 +420,12 @@ class LogView(QtWidgets.QTextBrowser):
         return QtCore.QSize(460, 460)
 
 
+def pxsize(n):
+    return n * UI_SCALE
+
+
 def psize(n):
-    """There seems to be a difference between font sizes on different platforms."""
+    """There is a platform difference between font sizes on OSX and Win platforms."""
     n = n * (96.0 / 72.0) if get_platform() == u'mac' else n
     return n * UI_SCALE
 
@@ -614,18 +631,6 @@ def get_platform():
     raise NotImplementedError(
         u'The platform "{}" is not supported'.format(ptype))
 
-
-MARGIN = 18.0
-
-INDICATOR_WIDTH = 4.0
-ROW_BUTTONS_HEIGHT = 36.0
-
-WIDTH = 640.0
-HEIGHT = 480.0
-
-INLINE_ICON_SIZE = 18.0
-THUMBNAIL_IMAGE_SIZE = 512.0
-THUMBNAIL_FORMAT = u'png'
 
 BACKGROUND_SELECTED = QtGui.QColor(140, 140, 140)
 SECONDARY_BACKGROUND = QtGui.QColor(60, 60, 60)

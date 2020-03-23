@@ -160,7 +160,7 @@ class BaseContextMenu(QtWidgets.QMenu):
             text = metrics.elidedText(
                 action.text(),
                 QtCore.Qt.ElideMiddle,
-                self.width() - 32 - 10  # padding set in the stylesheet
+                self.width()  # padding set in the stylesheet
             )
             action.setText(text)
 

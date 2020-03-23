@@ -410,7 +410,7 @@ class PaintedTextButton(QtWidgets.QLabel):
         index = self.active_index(self.index)
         if index.isValid():
             text = index.data(QtCore.Qt.DisplayRole).split(u'/').pop().upper()
-            if self.parent().parent().width() < 640:
+            if self.parent().parent().width() < common.WIDTH:
                 if len(text) > 20:
                     text = u'{}...{}'.format(text[0:8], text[-9:])
         else:
@@ -709,10 +709,10 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
         painter.setPen(QtCore.Qt.NoPen)
         painter.setBrush(common.SEPARATOR)
-        painter.drawRoundedRect(self.rect(), 4, 4)
+        painter.drawRoundedRect(self.rect(), common.INDICATOR_WIDTH, common.INDICATOR_WIDTH)
 
         pixmap = images.ImageCache.get_rsc_pixmap(
-            u'slack', common.ADD, self.rect().height() - 6)
+            u'slack', common.ADD, self.rect().height() - (common.INDICATOR_WIDTH * 1.5))
         rect = pixmap.rect()
         rect.moveCenter(self.rect().center())
         painter.drawPixmap(rect, pixmap, pixmap.rect())
@@ -721,7 +721,7 @@ class SlackDropOverlayWidget(QtWidgets.QWidget):
         rect = self.rect().marginsRemoved(QtCore.QMargins(o, o, o, o))
         painter.setBrush(QtCore.Qt.NoBrush)
         pen = QtGui.QPen(common.ADD)
-        pen.setWidthF(2.0)
+        pen.setWidthF(common.ROW_SEPARATOR * 2.0)
         painter.setPen(pen)
         painter.drawRoundedRect(rect, o, o)
         painter.end()
